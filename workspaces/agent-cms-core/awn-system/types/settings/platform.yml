@@ -308,6 +308,145 @@ fields:
     group: indexing
     sort: 23
 
+  index-ocr-enabled:
+    type: awn.field.boolean
+    title: OCR в pipeline
+    description: Включать OCR (вложения) в полную цепочку индексирования
+    default: false
+    group: indexing
+    sort: 24
+
+  index-workspace-id-enabled:
+    type: awn.field.boolean
+    title: Sync awn-id в pipeline
+    description: Синхронизировать счётчик awn-id в конце цепочки
+    default: true
+    group: indexing
+    sort: 25
+
+  index-storage-mode:
+    type: awn.field.choice.one
+    title: Режим индекса полей
+    description: Быстрый — только frontmatter; полный — schema + типы полей
+    default: quick
+    enum:
+      - key: quick
+        name: Быстрый — только frontmatter
+      - key: full
+        name: Полный — schema + типы
+    group: indexing
+    sort: 26
+
+  index-file-extensions:
+    type: awn.field.choice.many
+    title: Типы файлов для индекса
+    description: Какие расширения попадают в pipeline и поиск
+    default: [".md", ".sidecar.md"]
+    enum:
+      - key: ".md"
+        name: Markdown (.md)
+      - key: ".sidecar.md"
+        name: Sidecar (.sidecar.md)
+      - key: ".yml"
+        name: YAML (.yml)
+      - key: ".yaml"
+        name: YAML (.yaml)
+      - key: ".txt"
+        name: Text (.txt)
+      - key: ".json"
+        name: JSON (.json)
+    group: indexing
+    sort: 27
+
+  index-path-prefixes:
+    type: awn.field.choice.many
+    title: Разделы workspace для индекса
+    description: Пустой список = весь workspace
+    default: []
+    enum:
+      - key: awn-storage/
+        name: awn-storage/
+      - key: awn-container/
+        name: awn-container/
+      - key: awn-shared/
+        name: awn-shared/
+      - key: codex-test/
+        name: codex-test/
+    group: indexing
+    sort: 28
+
+  index-exclude-patterns:
+    type: awn.field.choice.many
+    title: Исключения из индекса
+    description: Каталоги и префиксы, которые не индексируются
+    default:
+      - .agent-cms/semantic-index/
+      - .agent-cms/fulltext-index/
+      - .agent-cms/storage-index/
+      - .agent-cms/link-index/
+      - node_modules/
+      - .git/
+    enum:
+      - key: .agent-cms/semantic-index/
+        name: Кэш semantic-index
+      - key: .agent-cms/fulltext-index/
+        name: Кэш fulltext-index
+      - key: .agent-cms/storage-index/
+        name: Кэш storage-index
+      - key: .agent-cms/link-index/
+        name: Кэш link-index
+      - key: node_modules/
+        name: node_modules/
+      - key: .git/
+        name: .git/
+    group: indexing
+    sort: 29
+
+  search-default-scopes:
+    type: awn.field.choice.many
+    title: Слои hybrid-поиска
+    description: Слои по умолчанию для hybrid/batch (только включённые в политике)
+    default: [semantic, fulltext]
+    enum:
+      - key: semantic
+        name: Смысл (semantic)
+      - key: fulltext
+        name: Слова (fulltext)
+    group: indexing
+    sort: 30
+
+  search-semantic-chunk-size:
+    type: awn.field.number.integer
+    title: Размер чанка RAG
+    description: Максимальная длина фрагмента при семантической индексации (символы)
+    default: 900
+    group: indexing
+    sort: 31
+
+  search-semantic-chunk-overlap:
+    type: awn.field.number.integer
+    title: Перекрытие чанков RAG
+    description: Overlap между соседними фрагментами (символы)
+    default: 100
+    group: indexing
+    sort: 32
+
+  search-hybrid-semantic-weight:
+    type: awn.field.number.integer
+    title: Вес semantic в hybrid
+    description: Доля семантического скора при объединении результатов (0–100)
+    default: 60
+    group: indexing
+    sort: 33
+
+  search-hybrid-fulltext-weight:
+    type: awn.field.number.integer
+    title: Вес fulltext в hybrid
+    description: Доля полнотекстового скора при объединении результатов (0–100)
+    default: 40
+    group: indexing
+    sort: 34
+
   auto-retain-facts:
     type: awn.field.boolean
     title: "{NOT WORK} Авто-факты"

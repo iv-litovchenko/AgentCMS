@@ -521,7 +521,18 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
       "index-semantic-enabled",
       "index-fulltext-enabled",
       "index-storage-enabled",
-      "index-links-enabled"
+      "index-links-enabled",
+      "index-ocr-enabled",
+      "index-workspace-id-enabled",
+      "index-storage-mode",
+      "index-file-extensions",
+      "index-path-prefixes",
+      "index-exclude-patterns",
+      "search-default-scopes",
+      "search-semantic-chunk-size",
+      "search-semantic-chunk-overlap",
+      "search-hybrid-semantic-weight",
+      "search-hybrid-fulltext-weight"
     ],
     registryNote:
       "Типы в awn-system/types/ — справочник схем. Редактируются в коде платформы, не через форму настроек."

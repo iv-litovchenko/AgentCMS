@@ -35,12 +35,35 @@ function matchesSearchPathPrefix(relPath, pathPrefix) {
 }
 
 function createSemanticSearchService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
+  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy } = deps;
   const rebuildLocks = new Map();
+
+  async function isPathIndexable(relPath) {
+    if (typeof getIndexPolicy === "function") {
+      const policy = await getIndexPolicy();
+      return policy.isIndexable(relPath);
+    }
+    return isTextFile(path.basename(relPath));
+  }
+
+  async function getChunkOptions() {
+    if (typeof getIndexPolicy === "function") {
+      const policy = await getIndexPolicy();
+      const tuning = policy?.searchTuning || {};
+      return {
+        maxLen: Number(tuning.semanticChunkMaxLen) || 900,
+        overlap: Number(tuning.semanticChunkOverlap) || 100
+      };
+    }
+    return { maxLen: 900, overlap: 100 };
+  }
 
   async function collectSources(agentRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
-    const eligible = relFiles.filter((relPath) => isTextFile(path.basename(relPath)));
+    const eligible = [];
+    for (const relPath of relFiles) {
+      if (await isPathIndexable(relPath)) eligible.push(relPath);
+    }
 
     if (reportProgress) {
       startWorkspaceIndexProgress(agentRoot, "semantic", eligible.length);
@@ -62,7 +85,7 @@ function createSemanticSearchService(deps) {
         continue;
       }
       if (!String(content).trim()) continue;
-      const chunks = chunkMarkdown(content);
+      const chunks = chunkMarkdown(content, await getChunkOptions());
       if (!chunks.length) continue;
       sources.push({ path: relPath.replace(/\\/g, "/"), chunks });
     }
@@ -92,7 +115,7 @@ function createSemanticSearchService(deps) {
 
     index.chunks = index.chunks.filter((chunk) => chunk.path !== normalized);
 
-    if (isTextFile(path.basename(normalized))) {
+    if (await isPathIndexable(normalized)) {
       const absolute = resolvePathAbsolute(normalized);
       if (absolute) {
         let content = "";
@@ -102,7 +125,7 @@ function createSemanticSearchService(deps) {
           content = "";
         }
         if (String(content).trim()) {
-          const texts = chunkMarkdown(content);
+          const texts = chunkMarkdown(content, await getChunkOptions());
           if (texts.length) {
             index.chunks.push(...buildChunksForPath(normalized, texts, index.idf || {}));
           }

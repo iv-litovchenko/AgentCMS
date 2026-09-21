@@ -76,6 +76,11 @@ function scoreAlwaysContextMatch(content, tokens) {
   return score;
 }
 
+function normalizeFulltextMatchScore(matchCount) {
+  const n = Number(matchCount) || 1;
+  return Math.min(1, Math.log1p(n) / Math.log1p(8));
+}
+
 function mergeAskHits(existing, next) {
   const key = normalizeRelPath(next.path);
   if (!key) return;
@@ -455,6 +460,18 @@ function createWorkspaceBrainService(deps) {
     };
   }
 
+  async function resolveHybridScopes(options = {}) {
+    const requested = Array.isArray(options.scopes) && options.scopes.length
+      ? options.scopes.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
+      : null;
+    if (typeof deps.getSearchDefaultScopes === "function") {
+      const scopes = await deps.getSearchDefaultScopes(requested);
+      if (scopes.length) return scopes;
+      throw new Error("all requested search scopes are disabled in platform settings");
+    }
+    return requested && requested.length ? requested : ["semantic", "fulltext"];
+  }
+
   async function searchWorkspaceHybrid(options = {}) {
     const query = String(options.query || options.q || "").trim();
     if (query.length < 2) {
@@ -462,9 +479,11 @@ function createWorkspaceBrainService(deps) {
     }
 
     const limit = Math.max(1, Math.min(50, Number(options.limit) || 20));
-    const scopes = Array.isArray(options.scopes) && options.scopes.length
-      ? options.scopes.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
-      : ["semantic", "fulltext"];
+    const scopes = await resolveHybridScopes(options);
+    const tuning =
+      typeof deps.getPlatformSearchTuning === "function"
+        ? await deps.getPlatformSearchTuning()
+        : { hybridSemanticWeight: 0.6, hybridFulltextWeight: 0.4 };
     const includeSnippets = options.includeSnippets !== false;
     const pathPrefix = normalizeRelPath(options.pathPrefix || "");
     const where = Array.isArray(options.where) ? options.where : [];
@@ -519,7 +538,7 @@ function createWorkspaceBrainService(deps) {
             if (!pathAllowed(hitPath)) continue;
             mergeAskHits(merged, {
               path: hitPath,
-              score: Number(row.score) || 0,
+              score: (Number(row.score) || 0) * (tuning.hybridSemanticWeight || 0.6),
               snippet: row.preview || row.snippet || "",
               title: row.displayName || path.basename(hitPath || ""),
               locationHint: row.locationHint || null,
@@ -540,7 +559,8 @@ function createWorkspaceBrainService(deps) {
               if (!pathAllowed(hitPath)) continue;
               mergeAskHits(merged, {
                 path: hitPath,
-                score: Number(row.matchCount) || 1,
+                score:
+                  normalizeFulltextMatchScore(row.matchCount) * (tuning.hybridFulltextWeight || 0.4),
                 snippet: row.snippet || "",
                 title: row.displayName || row.topicName || path.basename(hitPath || ""),
                 locationHint: row.locationHint || null,
@@ -635,7 +655,7 @@ function createWorkspaceBrainService(deps) {
         "Batch hybrid search: multiple questions in one MCP call. Each query runs semantic + fulltext (same as search_workspace_hybrid). Agent maps answers from per-query hits.",
       pathPrefix: normalizeRelPath(shared.pathPrefix) || null,
       where: Array.isArray(shared.where) ? shared.where : [],
-      scopes: Array.isArray(shared.scopes) && shared.scopes.length ? shared.scopes : ["semantic", "fulltext"],
+      scopes: await resolveHybridScopes(shared),
       limitPerQuery,
       queryCount: queries.length,
       totalHits,

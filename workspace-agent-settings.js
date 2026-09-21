@@ -17,6 +17,24 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "index-fulltext-enabled": true,
   "index-storage-enabled": true,
   "index-links-enabled": true,
+  "index-ocr-enabled": false,
+  "index-workspace-id-enabled": true,
+  "index-storage-mode": "quick",
+  "index-path-prefixes": [],
+  "index-exclude-patterns": [
+    ".agent-cms/semantic-index/",
+    ".agent-cms/fulltext-index/",
+    ".agent-cms/storage-index/",
+    ".agent-cms/link-index/",
+    "node_modules/",
+    ".git/"
+  ],
+  "index-file-extensions": [".md", ".sidecar.md"],
+  "search-default-scopes": ["semantic", "fulltext"],
+  "search-semantic-chunk-size": "900",
+  "search-semantic-chunk-overlap": "100",
+  "search-hybrid-semantic-weight": "60",
+  "search-hybrid-fulltext-weight": "40",
   "auto-retain-facts": false,
   "always-context-global-mcp-doc": true,
   "always-context-global-response-style": true,
@@ -106,7 +124,15 @@ function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
     const defaultValue = defaults[key];
     if (typeof defaultValue === "boolean") normalized[key] = Boolean(value);
     else if (typeof defaultValue === "number") normalized[key] = Number(value) || 0;
-    else normalized[key] = String(value ?? defaultValue);
+    else if (Array.isArray(defaultValue)) {
+      if (Array.isArray(value)) normalized[key] = value.map((item) => String(item ?? "").trim()).filter(Boolean);
+      else {
+        const raw = String(value ?? "").trim();
+        normalized[key] = raw
+          ? raw.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean)
+          : [...defaultValue];
+      }
+    } else normalized[key] = String(value ?? defaultValue);
   }
   return normalized;
 }
@@ -145,7 +171,9 @@ function isPlatformIndexEnabled(settings = {}, layer = "") {
     semantic: "index-semantic-enabled",
     fulltext: "index-fulltext-enabled",
     storage: "index-storage-enabled",
-    link: "index-links-enabled"
+    link: "index-links-enabled",
+    ocr: "index-ocr-enabled",
+    "workspace-id": "index-workspace-id-enabled"
   };
   const key = map[String(layer || "").trim()];
   return key ? Boolean(normalized[key]) : true;

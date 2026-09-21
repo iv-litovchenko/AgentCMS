@@ -67,8 +67,19 @@ function addPathToIndex(index, relPath, termCounts) {
 }
 
 function createFulltextSearchService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, isTextSearchableFileName } = deps;
+  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, isTextSearchableFileName, getIndexPolicy } =
+    deps;
   const rebuildLocks = new Map();
+
+  async function isPathIndexable(relPath) {
+    if (typeof getIndexPolicy === "function") {
+      const policy = await getIndexPolicy();
+      return policy.isIndexable(relPath);
+    }
+    const base = path.basename(relPath);
+    if (isTextSearchableFileName && !isTextSearchableFileName(base)) return false;
+    return isTextFile(base);
+  }
 
   async function readFileContent(relPath) {
     const absolute = resolvePathAbsolute(relPath);
@@ -84,10 +95,7 @@ function createFulltextSearchService(deps) {
     const relFiles = await collectSearchableFiles(agentRoot);
     const eligible = [];
     for (const relPath of relFiles) {
-      const base = path.basename(relPath);
-      if (isTextSearchableFileName && !isTextSearchableFileName(base)) continue;
-      if (!isTextFile(base)) continue;
-      eligible.push(relPath);
+      if (await isPathIndexable(relPath)) eligible.push(relPath);
     }
 
     if (reportProgress) {
@@ -193,7 +201,7 @@ function createFulltextSearchService(deps) {
       return { ok: true, mode: "incremental", path: normalized, removed: true };
     }
 
-    if (isTextFile(base)) {
+    if (await isPathIndexable(normalized)) {
       const content = await readFileContent(normalized);
       if (String(content).trim()) {
         addPathToIndex(index, normalized, buildFileTermCounts(content));

@@ -392,6 +392,7 @@ const contentSearchAdvancedCancelBtnNode = document.getElementById("content-sear
 const contentSearchAdvancedResetBtnNode = document.getElementById("content-search-advanced-reset-btn");
 const contentSearchAdvancedCloseBtnNode = document.getElementById("content-search-advanced-close-btn");
 const contentSearchActiveFiltersNode = document.getElementById("content-search-active-filters");
+const contentSearchLayerStatusNode = document.getElementById("content-search-layer-status");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
 const contentSearchPathScopeLabelNode = document.getElementById("content-search-path-scope-label");
@@ -9149,6 +9150,44 @@ let headerGlobalSettingsOpen = false;
 let headerGlobalSettingsActiveGroupId = null;
 let headerGlobalSettingsCache = null;
 let headerGlobalSettingsDirty = false;
+let headerGlobalSettingsIndexingBaseline = null;
+
+const PLATFORM_INDEXING_SETTING_KEYS = [
+  "index-semantic-enabled",
+  "index-fulltext-enabled",
+  "index-storage-enabled",
+  "index-links-enabled",
+  "index-ocr-enabled",
+  "index-workspace-id-enabled",
+  "index-storage-mode",
+  "index-file-extensions",
+  "index-path-prefixes",
+  "index-exclude-patterns",
+  "search-default-scopes",
+  "search-semantic-chunk-size",
+  "search-semantic-chunk-overlap",
+  "search-hybrid-semantic-weight",
+  "search-hybrid-fulltext-weight"
+];
+
+function serializeIndexingSettingValue(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? "").trim()).filter(Boolean).join("|");
+  if (typeof value === "boolean") return value ? "1" : "0";
+  return String(value ?? "");
+}
+
+function snapshotIndexingSettings(entries = []) {
+  const snap = {};
+  for (const key of PLATFORM_INDEXING_SETTING_KEYS) {
+    const entry = (entries || []).find((item) => item.key === key);
+    snap[key] = serializeIndexingSettingValue(entry?.value);
+  }
+  return snap;
+}
+
+function hasIndexingSettingsChanged(before = {}, after = {}) {
+  return PLATFORM_INDEXING_SETTING_KEYS.some((key) => before[key] !== after[key]);
+}
 
 function syncHeaderGlobalSettingsBtnState() {
   headerGlobalSettingsBtn?.classList.toggle("is-open", headerGlobalSettingsOpen);
@@ -9322,6 +9361,7 @@ async function loadHeaderGlobalSettingsCache(options = {}) {
     ...state
   };
   headerGlobalSettingsDirty = false;
+  headerGlobalSettingsIndexingBaseline = snapshotIndexingSettings(headerGlobalSettingsCache.entries);
   return headerGlobalSettingsCache;
 }
 
@@ -9352,8 +9392,17 @@ async function saveHeaderGlobalSettings() {
   cache.defaultLandingMode = nextState.defaultLandingMode;
   cache.awnSchemaYaml = nextState.awnSchemaYaml;
   headerGlobalSettingsDirty = false;
+  const afterIndexingSnapshot = snapshotIndexingSettings(cache.entries);
+  const indexingChanged =
+    headerGlobalSettingsIndexingBaseline &&
+    hasIndexingSettingsChanged(headerGlobalSettingsIndexingBaseline, afterIndexingSnapshot);
+  headerGlobalSettingsIndexingBaseline = afterIndexingSnapshot;
   renderHeaderGlobalSettingsModal(cache);
   void loadPlatformUiSettings();
+  if (indexingChanged) {
+    window.dispatchEvent(new CustomEvent("workspace-index-policy-changed"));
+  }
+  return { indexingChanged: Boolean(indexingChanged) };
 }
 
 async function openHeaderGlobalSettingsModal() {
@@ -24627,6 +24676,8 @@ let contentSearchAdvancedFilterDraft = [];
 let contentSearchAdvancedFilterRowSeq = 0;
 let contentSearchFieldValuesCache = new Map();
 let contentSearchFieldValuesLoading = new Map();
+let contentSearchPolicyCache = null;
+let contentSearchPolicyLoadPromise = null;
 
 function isContentSearchFiltersPopoverOpen() {
   return Boolean(
@@ -24644,11 +24695,134 @@ function syncContentSearchModeToggleUi() {
   contentSearchModeIdBtn?.setAttribute("aria-pressed", mode === "id" ? "true" : "false");
 }
 
+function isContentSearchSemanticLayerEnabled() {
+  if (!contentSearchPolicyCache?.search?.layers) return true;
+  return Boolean(contentSearchPolicyCache.search.layers.semantic?.enabled);
+}
+
+function isContentSearchFulltextLayerEnabled() {
+  if (!contentSearchPolicyCache?.search?.layers) return true;
+  return Boolean(contentSearchPolicyCache.search.layers.fulltext?.enabled);
+}
+
+function isContentSearchStorageLayerEnabled() {
+  if (!contentSearchPolicyCache?.search?.layers) return true;
+  return Boolean(contentSearchPolicyCache.search.layers.storage?.enabled);
+}
+
+function getContentSearchHybridScopes() {
+  const enabled = Array.isArray(contentSearchPolicyCache?.search?.enabledScopes)
+    ? contentSearchPolicyCache.search.enabledScopes
+    : ["semantic", "fulltext"];
+  if (isContentSearchSemantic()) {
+    return enabled.includes("semantic") ? ["semantic"] : [];
+  }
+  if (enabled.includes("fulltext")) return ["fulltext"];
+  return enabled.length ? enabled : [];
+}
+
+function formatContentSearchPolicyError(error) {
+  const message = String(error?.message || error || "");
+  if (message.includes("index_disabled") || message.includes("отключён")) {
+    return "Слой поиска отключён в settings.global.yml";
+  }
+  return message || "Ошибка поиска";
+}
+
+async function loadContentSearchPolicy() {
+  if (!contentSearchLayerStatusNode) return contentSearchPolicyCache;
+  if (contentSearchPolicyLoadPromise) return contentSearchPolicyLoadPromise;
+  contentSearchPolicyLoadPromise = fetch("/api/workspace-index/policy")
+    .then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      contentSearchPolicyCache = data;
+      syncContentSearchLayerStatusUi();
+      return data;
+    })
+    .catch((error) => {
+      if (contentSearchLayerStatusNode) {
+        contentSearchLayerStatusNode.textContent = formatContentSearchPolicyError(error);
+        contentSearchLayerStatusNode.className = "content-search-layer-status is-error";
+        contentSearchLayerStatusNode.classList.remove("hidden");
+      }
+      return null;
+    })
+    .finally(() => {
+      contentSearchPolicyLoadPromise = null;
+    });
+  return contentSearchPolicyLoadPromise;
+}
+
+function syncContentSearchLayerStatusUi() {
+  if (!contentSearchLayerStatusNode) return;
+  const search = contentSearchPolicyCache?.search;
+  if (!search?.layers) {
+    contentSearchLayerStatusNode.classList.add("hidden");
+    contentSearchLayerStatusNode.textContent = "";
+    return;
+  }
+
+  const chips = [];
+  const layers = search.layers;
+  if (layers.fulltext) {
+    chips.push(
+      `<span class="content-search-layer-chip${layers.fulltext.enabled ? " is-on" : " is-off"}">Слова</span>`
+    );
+  }
+  if (layers.semantic) {
+    chips.push(
+      `<span class="content-search-layer-chip${layers.semantic.enabled ? " is-on" : " is-off"}">Смысл</span>`
+    );
+  }
+  if (layers.storage) {
+    chips.push(
+      `<span class="content-search-layer-chip${layers.storage.enabled ? " is-on" : " is-off"}">Поля</span>`
+    );
+  }
+
+  const warnings = [];
+  if (isContentSearchSemantic() && !layers.semantic?.enabled) {
+    warnings.push("Семантический поиск отключён в настройках");
+  }
+  if (!isContentSearchAlternateMode() && !layers.fulltext?.enabled) {
+    warnings.push("Полнотекстовый индекс отключён — будет медленный обход файлов");
+  }
+  if (getContentSearchFieldFilter() && !layers.storage?.enabled) {
+    warnings.push("Индекс полей отключён — фильтр по frontmatter недоступен");
+  }
+
+  const scopeLabel = (search.enabledScopes || search.defaultScopes || []).join(" + ") || "—";
+  contentSearchLayerStatusNode.innerHTML = `${chips.join("")}<span class="content-search-layer-meta">hybrid: ${escapeHtml(scopeLabel)}</span>${warnings.length ? `<span class="content-search-layer-warning">${escapeHtml(warnings.join(" · "))}</span>` : ""}`;
+  contentSearchLayerStatusNode.className = `content-search-layer-status${warnings.length ? " has-warning" : ""}`;
+  contentSearchLayerStatusNode.classList.remove("hidden");
+
+  if (contentSearchModeSemanticBtn) {
+    const semanticDisabled = !layers.semantic?.enabled;
+    contentSearchModeSemanticBtn.disabled = semanticDisabled;
+    contentSearchModeSemanticBtn.classList.toggle("is-disabled", semanticDisabled);
+    contentSearchModeSemanticBtn.title = semanticDisabled
+      ? "Семантический индекс отключён в settings.global.yml"
+      : "Поиск по смыслу";
+  }
+  if (contentSearchAdvancedOpenBtnNode) {
+    const storageDisabled = !layers.storage?.enabled;
+    if (storageDisabled) {
+      contentSearchAdvancedOpenBtnNode.setAttribute("disabled", "disabled");
+      contentSearchAdvancedOpenBtnNode.title = "Индекс полей отключён в settings.global.yml";
+    }
+  }
+}
+
 function setContentSearchMode(mode) {
   if (!contentSearchModeNode) return;
-  const next = mode === "semantic" || mode === "id" ? mode : "text";
+  let next = mode === "semantic" || mode === "id" ? mode : "text";
+  if (next === "semantic" && contentSearchPolicyCache && !isContentSearchSemanticLayerEnabled()) {
+    next = "text";
+  }
   if (contentSearchModeNode.value === next) {
     syncContentSearchModeToggleUi();
+    syncContentSearchLayerStatusUi();
     return;
   }
   contentSearchModeNode.value = next;
@@ -25372,9 +25546,13 @@ function updateContentSearchFiltersState() {
     if (node) node.disabled = semanticMode || idMode;
   }
   contentSearchFiltersBtnNode?.toggleAttribute("disabled", idMode);
-  contentSearchAdvancedOpenBtnNode?.toggleAttribute("disabled", idMode);
+  contentSearchAdvancedOpenBtnNode?.toggleAttribute(
+    "disabled",
+    idMode || (contentSearchPolicyCache && !isContentSearchStorageLayerEnabled())
+  );
   syncContentSearchModeToggleUi();
   syncContentSearchFiltersUi();
+  syncContentSearchLayerStatusUi();
 }
 
 function loadContentSearchPathScope() {
@@ -25821,6 +25999,13 @@ function renderContentSearchResults(data) {
     return;
   }
 
+  if (data?.policyError) {
+    contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">${escapeHtml(data.policyError)}</div>`;
+    contentSearchResultsNode.classList.remove("hidden");
+    contentSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
   if (query.length < minLength) {
     const hint = isContentSearchIdMode()
       ? "Введите awn-id (число)"
@@ -25897,11 +26082,16 @@ function mapSemanticSearchResults(data) {
 }
 
 async function fetchContentSearchSemantic(query, limit = 30, pathPrefix = getContentSearchPathPrefix()) {
+  if (contentSearchPolicyCache && !isContentSearchSemanticLayerEnabled()) {
+    throw new Error("Семантический индекс отключён в settings.global.yml");
+  }
   const params = { q: query, limit };
   if (pathPrefix) params.pathPrefix = pathPrefix;
   const response = await fetch(buildApiUrl("/api/search/semantic", params));
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || data.error || `Request failed with ${response.status}`);
+  }
   return mapSemanticSearchResults(data);
 }
 
@@ -26090,9 +26280,31 @@ function scheduleContentSearch() {
       if (isContentSearchIdMode()) {
         data = await fetchContentSearchById(query);
       } else if (hasFieldFilter && query.length >= 2) {
-        const scopes = isContentSearchSemantic() ? ["semantic"] : ["fulltext"];
+        const scopes = getContentSearchHybridScopes();
+        if (!scopes.length) {
+          renderContentSearchResults({
+            query,
+            scope,
+            fileType,
+            match,
+            results: [],
+            policyError: "Все слои hybrid-поиска отключены в settings.global.yml"
+          });
+          return;
+        }
         data = await fetchContentSearchHybrid(query, { where: fieldWhere, scopes });
       } else if (hasFieldFilter) {
+        if (contentSearchPolicyCache && !isContentSearchStorageLayerEnabled()) {
+          renderContentSearchResults({
+            query,
+            scope,
+            fileType,
+            match,
+            results: [],
+            policyError: "Индекс полей отключён в settings.global.yml"
+          });
+          return;
+        }
         data = await fetchContentSearchByFields(fieldWhere);
       } else if (isContentSearchSemantic()) {
         data = await fetchContentSearchSemantic(query);
@@ -26101,10 +26313,10 @@ function scheduleContentSearch() {
       }
       if (requestId !== contentSearchRequestId) return;
       renderContentSearchResults(data);
-    } catch {
+    } catch (error) {
       if (requestId !== contentSearchRequestId) return;
       setContentSearchLoading(false);
-      contentSearchResultsNode.innerHTML = `<div class="content-search-empty">Ошибка поиска</div>`;
+      contentSearchResultsNode.innerHTML = `<div class="content-search-empty">${escapeHtml(formatContentSearchPolicyError(error))}</div>`;
       contentSearchResultsNode.classList.remove("hidden");
     }
   }, 280);
@@ -105951,7 +106163,16 @@ headerGlobalSettingsFieldsNode?.addEventListener("change", () => {
 headerGlobalSettingsSaveBtnNode?.addEventListener("click", () => {
   headerGlobalSettingsSaveBtnNode.disabled = true;
   saveHeaderGlobalSettings()
-    .then(() => showToast("Глобальные настройки сохранены", "success"))
+    .then((result) => {
+      if (result?.indexingChanged) {
+        showToast(
+          "Настройки сохранены. Политика индекса изменилась — пересоберите индексы в меню «Индексирование».",
+          "success"
+        );
+        return;
+      }
+      showToast("Глобальные настройки сохранены", "success");
+    })
     .catch((error) => showToast(`Ошибка сохранения: ${error.message}`, "error"))
     .finally(() => {
       if (headerGlobalSettingsSaveBtnNode) headerGlobalSettingsSaveBtnNode.disabled = false;
@@ -107912,6 +108133,7 @@ window.addEventListener("resize", () => {
 });
 contentSearchInputNode?.addEventListener("input", scheduleContentSearch);
 contentSearchInputNode?.addEventListener("focus", () => {
+  void loadContentSearchPolicy();
   if (contentSearchInputNode.value.trim()) scheduleContentSearch();
 });
 contentSearchInputNode?.addEventListener("keydown", (event) => {
@@ -108064,6 +108286,11 @@ initAgentMcpMethodsToolbar();
 bindLandingFocusToolbar();
 bindLandingMainTopicsDock();
 initWorkspaceNotifications();
+void loadContentSearchPolicy();
+window.addEventListener("workspace-index-policy-changed", () => {
+  contentSearchPolicyCache = null;
+  void loadContentSearchPolicy();
+});
 
 window.AgentCmsLinkDrag = {
   MIME: MENU_LINK_DRAG_MIME,

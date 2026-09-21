@@ -43,6 +43,14 @@ const { createNavFlagsRegistryService } = require("./nav-flags-registry/service"
 const { allocateNextId, readCounter } = require("./workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
+const {
+  buildIndexPolicy,
+  resolvePipelineSteps,
+  getIndexPolicyPayload,
+  getPlatformIndexStorageMode,
+  getPlatformSearchTuning,
+  resolveSearchScopes
+} = require("./index-policy");
 const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
 const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
 const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
@@ -1623,7 +1631,8 @@ function getSemanticSearchService() {
     semanticSearchService = createSemanticSearchService({
       getAgentRoot,
       collectSearchableFiles,
-      resolvePathAbsolute: normalizeWorkspacePath
+      resolvePathAbsolute: normalizeWorkspacePath,
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return semanticSearchService;
@@ -1636,7 +1645,8 @@ function getFulltextSearchService() {
       getAgentRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      isTextSearchableFileName
+      isTextSearchableFileName,
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return fulltextSearchService;
@@ -1649,7 +1659,8 @@ function getStorageIndexService() {
       getAgentRoot,
       getProjectRoot,
       collectSearchableFiles,
-      resolvePathAbsolute: normalizeWorkspacePath
+      resolvePathAbsolute: normalizeWorkspacePath,
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return storageIndexService;
@@ -1661,7 +1672,8 @@ function getLinkIndexService() {
     linkIndexService = createLinkIndexService({
       getAgentRoot,
       collectSearchableFiles,
-      resolvePathAbsolute: normalizeWorkspacePath
+      resolvePathAbsolute: normalizeWorkspacePath,
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return linkIndexService;
@@ -1818,11 +1830,20 @@ function queueWorkspaceIndexFileSync(relPath) {
   ).catch(() => {});
 }
 
+async function getActiveIndexPolicy() {
+  return buildIndexPolicy(await getPlatformSettings(getProjectRoot()));
+}
+
+async function getSearchDefaultScopes(requestedScopes = null) {
+  return resolveSearchScopes(await getPlatformSettings(getProjectRoot()), requestedScopes);
+}
+
 async function getWorkspaceIndexMonitorPayload() {
   return getWorkspaceIndexMonitor({
     getAgentRoot,
     collectSearchableFiles,
     resolvePathAbsolute: normalizeWorkspacePath,
+    getIndexPolicy: getActiveIndexPolicy,
     loadSemanticIndex: loadSemanticIndexFile,
     loadFulltextIndex: loadFulltextIndexFile,
     loadStorageIndex: loadStorageIndexFile,
@@ -1982,7 +2003,10 @@ function getWorkspaceBrainService() {
         getSemanticSearchService().search(query, limit, pathPrefix),
       searchWorkspaceContent,
       enrichSearchResults,
-      queryStorageIndex: (payload) => getStorageIndexService().query(payload)
+      queryStorageIndex: (payload) => getStorageIndexService().query(payload),
+      getSearchDefaultScopes,
+      getPlatformSearchTuning: async () =>
+        getPlatformSearchTuning(await getPlatformSettings(getProjectRoot()))
     });
   }
   return workspaceBrainService;
@@ -18884,7 +18908,8 @@ async function handleApiForAgent(req, res, url) {
       const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
       if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await readJsonBody(req).catch(() => ({}));
-      const mode = String(payload?.mode || "full").trim().toLowerCase() === "quick" ? "quick" : "full";
+      const modeRaw = payload?.mode || getPlatformIndexStorageMode(platformSettings);
+      const mode = String(modeRaw || "quick").trim().toLowerCase() === "full" ? "full" : "quick";
       const data = await getStorageIndexService().rebuildIndex({ agentId: getActiveAgentId(), mode });
       return sendJson(res, 200, data);
     } catch (error) {
@@ -19135,6 +19160,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to sync workspace index for file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace-index/policy") {
+    try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      return sendJson(res, 200, getIndexPolicyPayload(platformSettings));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace index policy",
         details: String(error.message || error)
       });
     }
@@ -20495,29 +20532,35 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/workspace-index/pipeline") {
     try {
-      const payload = await readJsonBody(req);
+      const payload = await readJsonBody(req).catch(() => ({}));
       const platformSettings = await getPlatformSettings(getProjectRoot());
-      const ocr = await getOcrIndexService().run({
-        force: Boolean(payload?.forceOcr),
-        limit: payload?.ocrLimit ?? 200
-      });
-      const fulltext = isPlatformIndexEnabled(platformSettings, "fulltext")
+      const steps = resolvePipelineSteps(platformSettings, payload);
+      const ocr = steps.ocr
+        ? await getOcrIndexService().run({
+            force: Boolean(payload?.forceOcr),
+            limit: payload?.ocrLimit ?? 200
+          })
+        : { ok: false, skipped: true, reason: "step_disabled" };
+      const fulltext = steps.fulltext
         ? await getFulltextSearchService().rebuildIndex()
-        : { ok: false, skipped: true, reason: "index_disabled" };
-      const semantic = isPlatformIndexEnabled(platformSettings, "semantic")
+        : { ok: false, skipped: true, reason: "step_disabled" };
+      const semantic = steps.semantic
         ? await getSemanticSearchService().rebuildIndex()
-        : { ok: false, skipped: true, reason: "index_disabled" };
-      const storage = isPlatformIndexEnabled(platformSettings, "storage")
-        ? await getStorageIndexService().rebuildIndex({ mode: "full" })
-        : { ok: false, skipped: true, reason: "index_disabled" };
-      const link = isPlatformIndexEnabled(platformSettings, "link")
+        : { ok: false, skipped: true, reason: "step_disabled" };
+      const storage = steps.storage
+        ? await getStorageIndexService().rebuildIndex({ mode: steps.storageMode })
+        : { ok: false, skipped: true, reason: "step_disabled" };
+      const link = steps.link
         ? await getLinkIndexService().rebuildIndex()
-        : { ok: false, skipped: true, reason: "index_disabled" };
-      const workspaceId = await getWorkspaceIdService().syncCounterWithAssigned();
+        : { ok: false, skipped: true, reason: "step_disabled" };
+      const workspaceId = steps["workspace-id"]
+        ? await getWorkspaceIdService().syncCounterWithAssigned()
+        : { ok: false, skipped: true, reason: "step_disabled" };
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR (new attachments) → fulltext → semantic → storage fields → link graph → awn-id counter",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter",
+        steps,
         ocr,
         fulltext,
         semantic,

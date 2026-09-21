@@ -20,8 +20,16 @@ const {
 } = require("./extract");
 
 function createLinkIndexService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
+  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy } = deps;
   const rebuildLocks = new Map();
+
+  async function isPathIndexable(relPath) {
+    if (typeof getIndexPolicy === "function") {
+      const policy = await getIndexPolicy();
+      return policy.isIndexable(relPath) && isIndexableFile(path.basename(relPath));
+    }
+    return isIndexableFile(path.basename(relPath));
+  }
 
   async function rebuildIndex({ agentId } = {}) {
     void agentId;
@@ -36,7 +44,10 @@ function createLinkIndexService(deps) {
 
     try {
       const relFiles = await collectSearchableFiles(agentRoot);
-      const mdFiles = relFiles.filter((relPath) => isIndexableFile(path.basename(relPath)));
+      const mdFiles = [];
+      for (const relPath of relFiles) {
+        if (await isPathIndexable(relPath)) mdFiles.push(relPath);
+      }
       const wikiIndex = buildWikilinkIndex(mdFiles);
 
       startWorkspaceIndexProgress(agentRoot, "link", mdFiles.length);
@@ -91,13 +102,16 @@ function createLinkIndexService(deps) {
       return { ok: false, skipped: true, reason: "no_index", path: normalized };
     }
 
-    if (!isIndexableFile(path.basename(normalized))) {
+    if (!(await isPathIndexable(normalized))) {
       replaceEdgesForPath(agentRoot, normalized, []);
       return { ok: true, path: normalized, edgeCount: 0, cleared: true };
     }
 
     const relFiles = await collectSearchableFiles(agentRoot);
-    const mdFiles = relFiles.filter((relPath) => isIndexableFile(path.basename(relPath)));
+    const mdFiles = [];
+    for (const relPath of relFiles) {
+      if (await isPathIndexable(relPath)) mdFiles.push(relPath);
+    }
     const wikiIndex = buildWikilinkIndex(mdFiles);
 
     const absolute = resolvePathAbsolute(normalized);

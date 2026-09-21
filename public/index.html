@@ -309,6 +309,7 @@
                 <option value="id">ID</option>
               </select>
               <div class="content-search-input-zone">
+                <div id="content-search-layer-status" class="content-search-layer-status hidden" aria-live="polite"></div>
                 <div id="content-search-active-filters" class="content-search-active-filters hidden" aria-live="polite"></div>
                 <input
                   id="content-search-input"
@@ -915,6 +916,7 @@
                       Полная цепочка (OCR → слова → смысл → поля → связи → id)
                     </button>
                     <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
+                    <p id="menu-workspace-index-policy-hint" class="menu-static-description menu-index-policy-hint" aria-live="polite"></p>
                   </div>
 
                   <div class="menu-index-block menu-index-block--nav-flags">
@@ -936,7 +938,7 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block is-feature-disabled">
+                  <div class="menu-index-block" data-index-layer="ocr">
                     <div class="menu-index-block-title">1. OCR (вложения)</div>
                     <p class="menu-static-description">
                       Текст из jpg/png/pdf → <code>{имя}.sidecar.md</code> · только новые/изменённые
@@ -964,7 +966,7 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block">
+                  <div class="menu-index-block" data-index-layer="fulltext">
                     <div class="menu-index-block-title">2. Слова (fulltext)</div>
                     <p class="menu-static-description">
                       Точный поиск по словам · <code>.agent-cms/fulltext-index/</code>
@@ -975,7 +977,7 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block">
+                  <div class="menu-index-block" data-index-layer="semantic">
                     <div class="menu-index-block-title">3. Смысл (RAG)</div>
                     <p class="menu-static-description">
                       Поиск по смыслу · <code>.agent-cms/semantic-index/</code>
@@ -989,7 +991,7 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block">
+                  <div class="menu-index-block" data-index-layer="storage">
                     <div class="menu-index-block-title">4. Поля (SQL-like)</div>
                     <p class="menu-static-description">
                       Каталог frontmatter всех .md/.yml · <strong>быстрый</strong> — только значения;
@@ -997,10 +999,17 @@
                       <code>.agent-cms/storage-index/</code>
                     </p>
                     <p id="menu-storage-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <label class="menu-index-storage-mode-wrap" for="menu-storage-index-mode-select">
+                      <span class="menu-index-storage-mode-label">Режим пересборки</span>
+                      <select id="menu-storage-index-mode-select" class="menu-index-storage-mode-select">
+                        <option value="quick">Быстрый — только frontmatter</option>
+                        <option value="full">Полный — schema + типы полей</option>
+                      </select>
+                    </label>
                     <button type="button" id="menu-storage-index-rebuild-quick-btn" class="menu-static-action-btn">
-                      Быстрый — только frontmatter
+                      Переиндексировать поля
                     </button>
-                    <button type="button" id="menu-storage-index-rebuild-full-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                    <button type="button" id="menu-storage-index-rebuild-full-btn" class="menu-static-action-btn menu-static-action-btn--secondary hidden">
                       Полный — schema + типы полей
                     </button>
                     <button type="button" id="menu-storage-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
@@ -1008,7 +1017,7 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block">
+                  <div class="menu-index-block" data-index-layer="link">
                     <div class="menu-index-block-title">5. Связи (граф)</div>
                     <p class="menu-static-description">
                       Wikilinks, markdown-ссылки, relation-поля · backlinks / соседи ·
@@ -1036,7 +1045,7 @@
                     <p id="menu-link-index-probe-result" class="menu-static-description menu-link-index-probe-result" aria-live="polite"></p>
                   </div>
 
-                  <div class="menu-index-block">
+                  <div class="menu-index-block" data-index-layer="workspaceId">
                     <div class="menu-index-block-title">6. ID (awn-id)</div>
                     <p class="menu-static-description">
                       Глобальный автоинкремент для всех записей ·

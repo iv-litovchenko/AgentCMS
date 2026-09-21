@@ -30,6 +30,14 @@
   const workspaceIdProbeResultNode = document.getElementById("menu-workspace-id-probe-result");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
+  const indexPolicyHintNode = document.getElementById("menu-workspace-index-policy-hint");
+  const storageModeSelect = document.getElementById("menu-storage-index-mode-select");
+  const PIPELINE_BTN_LABEL_FULL =
+    "Полная цепочка (OCR → слова → смысл → поля → связи → id)";
+  const PIPELINE_BTN_TITLE_WITH_OCR =
+    "OCR → слова → смысл → поля → связи → id";
+  const PIPELINE_BTN_TITLE_NO_OCR =
+    "Слова → смысл → поля → связи → id (OCR пропускается)";
   const navFlagsStatusNode = document.getElementById("menu-nav-flags-registry-status");
   const navFlagsRebuildBtn = document.getElementById("menu-nav-flags-registry-rebuild-btn");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
@@ -43,11 +51,12 @@
     !semanticStatusNode ||
     !semanticRebuildBtn ||
     !storageStatusNode ||
-    !storageRebuildQuickBtn ||
-    !storageRebuildFullBtn
+    !storageRebuildQuickBtn
   ) {
     return;
   }
+
+  let indexPolicyCache = null;
 
   const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
   const catalogModal = document.getElementById("workspace-index-catalog-modal");
@@ -161,6 +170,7 @@
     if (health === "ok") return "ok";
     if (health === "stale") return "stale";
     if (health === "partial") return "partial";
+    if (health === "error") return "error";
     return "empty";
   }
 
@@ -397,6 +407,7 @@
     const hasAlert =
       monitor?.summary?.health === "stale" ||
       monitor?.summary?.health === "partial" ||
+      monitor?.summary?.health === "error" ||
       (ocr?.pendingCount || 0) > 0;
     if (hasAlert) {
       summaryStatsNode.classList.add("is-error");
@@ -439,12 +450,124 @@
     }
   }
 
+  function getSelectedStorageMode() {
+    return storageModeSelect?.value === "full" ? "full" : "quick";
+  }
+
+  function getPipelineStepsFromPolicy() {
+    if (indexPolicyCache?.steps) return { ...indexPolicyCache.steps };
+    return {
+      ocr: false,
+      fulltext: true,
+      semantic: true,
+      storage: true,
+      link: true,
+      "workspace-id": true
+    };
+  }
+
+  function syncPipelineButtonChrome() {
+    if (!pipelineBtn) return;
+    pipelineBtn.textContent = PIPELINE_BTN_LABEL_FULL;
+    const steps = getPipelineStepsFromPolicy();
+    const parts = [];
+    if (steps.ocr && OCR_INDEXING_ENABLED) parts.push("OCR");
+    if (steps.fulltext) parts.push("слова");
+    if (steps.semantic) parts.push("смысл");
+    if (steps.storage) parts.push("поля");
+    if (steps.link) parts.push("связи");
+    if (steps["workspace-id"]) parts.push("id");
+    const chain = parts.join(" → ");
+    if (OCR_INDEXING_ENABLED && steps.ocr) {
+      pipelineBtn.title = chain || PIPELINE_BTN_TITLE_WITH_OCR;
+    } else {
+      pipelineBtn.title = chain ? `${chain} (OCR пропускается)` : PIPELINE_BTN_TITLE_NO_OCR;
+    }
+  }
+
+  function applyLayerButtonState(button, enabled, disabledHint = "Слой отключён в settings.global.yml") {
+    if (!button) return;
+    const disabled = !enabled;
+    button.disabled = disabled;
+    button.classList.toggle("is-feature-disabled", disabled);
+    button.title = disabled ? disabledHint : rememberButtonLabel(button);
+  }
+
+  function syncLayerBlockBadges(policy) {
+    const layers = policy?.layers || {};
+    document.querySelectorAll("[data-index-layer]").forEach((block) => {
+      const layerKey = block.dataset.indexLayer;
+      const enabled = Boolean(layers[layerKey]);
+      block.classList.toggle("is-feature-disabled", !enabled);
+      const title = block.querySelector(".menu-index-block-title");
+      if (!title) return;
+      let badge = title.querySelector(".menu-index-layer-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "menu-index-layer-badge";
+        title.append(badge);
+      }
+      badge.textContent = enabled ? "вкл" : "выкл";
+      badge.classList.toggle("is-on", enabled);
+      badge.classList.toggle("is-off", !enabled);
+    });
+  }
+
+  function syncIndexPolicyUi(policy) {
+    indexPolicyCache = policy || null;
+    if (!policy) return;
+
+    if (storageModeSelect) {
+      storageModeSelect.value = policy.storageMode === "full" ? "full" : "quick";
+    }
+
+    applyLayerButtonState(fulltextRebuildBtn, policy.layers?.fulltext);
+    applyLayerButtonState(semanticRebuildBtn, policy.layers?.semantic);
+    applyLayerButtonState(storageRebuildQuickBtn, policy.layers?.storage);
+    applyLayerButtonState(linkRebuildBtn, policy.layers?.link);
+    applyLayerButtonState(workspaceIdSyncBtn, policy.layers?.workspaceId);
+
+    syncLayerBlockBadges(policy);
+
+    if (indexPolicyHintNode) {
+      const ext = (policy.extensions || []).join(", ") || ".md";
+      const prefixes = (policy.prefixes || []).length ? policy.prefixes.join(", ") : "весь workspace";
+      const excludes = (policy.excludePatterns || []).length ? policy.excludePatterns.join(", ") : "—";
+      const enabledSteps = Object.entries(policy.steps || {})
+        .filter(([, enabled]) => Boolean(enabled))
+        .map(([step]) => step)
+        .join(", ");
+      const tuning = policy.searchTuning || {};
+      indexPolicyHintNode.textContent =
+        `Политика: ${ext} · разделы: ${prefixes} · исключения: ${excludes}` +
+        `${enabledSteps ? ` · pipeline: ${enabledSteps}` : ""}` +
+        `${tuning.semanticChunkMaxLen ? ` · RAG: ${tuning.semanticChunkMaxLen}/${tuning.semanticChunkOverlap}` : ""}`;
+    }
+    syncPipelineButtonChrome();
+  }
+
+  async function loadIndexPolicy() {
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-index/policy"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      syncIndexPolicyUi(data);
+      return data;
+    } catch (error) {
+      if (indexPolicyHintNode) {
+        indexPolicyHintNode.textContent = String(error.message || error);
+      }
+      return null;
+    }
+  }
+
   async function refreshStatus() {
     try {
       const [monitorRes, idStatus] = await Promise.all([
         fetch(buildApiUrl("/api/workspace-index/monitor")),
         refreshWorkspaceIdStatus(),
-        refreshNavFlagsRegistryStatus()
+        refreshNavFlagsRegistryStatus(),
+        loadIndexPolicy()
       ]);
       const monitor = await monitorRes.json();
       if (!monitorRes.ok) throw new Error(monitor.error || monitorRes.statusText);
@@ -820,12 +943,7 @@
     }
     ocrStatusNode.textContent = OCR_DISABLED_HINT;
     ocrRunBtn?.closest(".menu-index-block")?.classList.add("is-feature-disabled");
-    if (pipelineBtn) {
-      pipelineBtn.title = "Слова → смысл → поля → связи → id (OCR пропускается)";
-    }
-    for (const flushBtn of document.querySelectorAll('[data-index-flush="pipeline"]')) {
-      flushBtn.title = "Слова → смысл → поля → связи → id (OCR пропускается)";
-    }
+    syncPipelineButtonChrome();
   }
 
   async function bindActionButton(button, handler, { keepDisabled = false } = {}) {
@@ -894,22 +1012,15 @@
   });
 
   bindActionButton(storageRebuildQuickBtn, async () => {
+    const mode = getSelectedStorageMode();
     await runRebuild(
       "/api/storage-index/reindex",
       storageStatusNode,
       (data) =>
-        `Поля (быстро): ${data.recordCount} записей, ${data.fieldCount} полей · без schema-enrich.`,
-      { body: { mode: "quick" }, progressButton: storageRebuildQuickBtn, progressLayer: "storage" }
-    );
-  });
-
-  bindActionButton(storageRebuildFullBtn, async () => {
-    await runRebuild(
-      "/api/storage-index/reindex",
-      storageStatusNode,
-      (data) =>
-        `Поля (полный): ${data.recordCount} записей, ${data.fieldCount} полей · schema + типы.`,
-      { body: { mode: "full" }, progressButton: storageRebuildFullBtn, progressLayer: "storage" }
+        mode === "full"
+          ? `Поля (полный): ${data.recordCount} записей, ${data.fieldCount} полей · schema + типы.`
+          : `Поля (быстрый): ${data.recordCount} записей, ${data.fieldCount} полей.`,
+      { body: { mode }, progressButton: storageRebuildQuickBtn, progressLayer: "storage" }
     );
   });
 
@@ -1003,54 +1114,49 @@
 
   bindActionButton(pipelineBtn, async () => {
     if (!pipelineStatusNode) return;
-    if (OCR_INDEXING_ENABLED) {
-      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля → связи → id…";
-      const data = await runRebuild(
-        "/api/workspace-index/pipeline",
-        pipelineStatusNode,
-        () => "Готово: OCR → fulltext → semantic → поля → связи → id.",
-        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля → связи → id…" }
-      );
-      if (data?.ocr) {
-        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"} · связи ${data.link?.edgeCount || 0} · id ${data.workspaceId?.assignedCount || 0}`;
-      } else if (data?.workspaceId) {
-        pipelineStatusNode.textContent = `Готово · слова ${data.fulltext?.fileCount || 0} · смысл ${data.semantic?.chunkCount || 0} · поля ${data.storage?.recordCount || 0} · связи ${data.link?.edgeCount || 0} · id ${data.workspaceId.assignedCount || 0}`;
-      }
+    const steps = getPipelineStepsFromPolicy();
+    const enabledLabels = [];
+    if (steps.ocr && OCR_INDEXING_ENABLED) enabledLabels.push("OCR");
+    if (steps.fulltext) enabledLabels.push("слова");
+    if (steps.semantic) enabledLabels.push("смысл");
+    if (steps.storage) enabledLabels.push("поля");
+    if (steps.link) enabledLabels.push("связи");
+    if (steps["workspace-id"]) enabledLabels.push("id");
+    if (!enabledLabels.length) {
+      pipelineStatusNode.textContent = "Все шаги pipeline отключены в settings.global.yml";
       return;
     }
-
-    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля → связи → id…";
-    const fulltext = await runRebuild(
-      "/api/search/fulltext/reindex",
-      pipelineStatusNode,
-      () => "Цепочка: смысл → поля → связи → id…",
-      { loadingLabel: "Цепочка: слова…" }
-    );
-    const semantic = await runRebuild(
-      "/api/search/semantic/reindex",
-      pipelineStatusNode,
-      () => "Цепочка: поля → связи → id…",
-      { loadingLabel: "Цепочка: смысл…" }
-    );
-    const storage = await runRebuild(
-      "/api/storage-index/reindex",
-      pipelineStatusNode,
-      () => "Цепочка: связи → id…",
-      { body: { mode: "full" }, loadingLabel: "Цепочка: поля (полный)…" }
-    );
-    const link = await runRebuild(
-      "/api/link-index/reindex",
-      pipelineStatusNode,
-      () => "Цепочка: id…",
-      { loadingLabel: "Цепочка: связи…", progressButton: linkRebuildBtn, progressLayer: "link" }
-    );
-    await runRebuild(
-      "/api/workspace-id/sync-counter",
-      pipelineStatusNode,
-      (data) =>
-        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${storage.recordCount || 0} · связи ${link.edgeCount || 0} · id ${data.assignedCount || 0}`,
-      { loadingLabel: "Цепочка: id…", progressButton: workspaceIdSyncBtn }
-    );
+    const loadingLabel = `Цепочка: ${enabledLabels.join(" → ")}…`;
+    pipelineStatusNode.textContent = loadingLabel;
+    const data = await runRebuild("/api/workspace-index/pipeline", pipelineStatusNode, () => "Готово.", {
+      body: {
+        storageMode: getSelectedStorageMode(),
+        ocrLimit: 200
+      },
+      loadingLabel
+    });
+    if (!data) return;
+    const resolvedSteps = data.steps || steps;
+    const parts = [];
+    if (resolvedSteps.ocr && data.ocr && !data.ocr.skipped) {
+      parts.push(`OCR ${data.ocr.processed || 0}/${data.ocr.candidateCount || "?"}`);
+    }
+    if (resolvedSteps.fulltext && data.fulltext && !data.fulltext.skipped) {
+      parts.push(`слова ${data.fulltext.fileCount || 0}`);
+    }
+    if (resolvedSteps.semantic && data.semantic && !data.semantic.skipped) {
+      parts.push(`смысл ${data.semantic.chunkCount || 0}`);
+    }
+    if (resolvedSteps.storage && data.storage && !data.storage.skipped) {
+      parts.push(`поля ${data.storage.recordCount || 0}`);
+    }
+    if (resolvedSteps.link && data.link && !data.link.skipped) {
+      parts.push(`связи ${data.link.edgeCount || 0}`);
+    }
+    if (resolvedSteps["workspace-id"] && data.workspaceId && !data.workspaceId.skipped) {
+      parts.push(`id ${data.workspaceId.assignedCount || 0}`);
+    }
+    pipelineStatusNode.textContent = parts.length ? `Готово · ${parts.join(" · ")}` : "Готово";
   });
 
   applyOcrIndexingFeatureGate();
@@ -1076,6 +1182,10 @@
 
   window.addEventListener("header-index-popover-open", () => {
     void refreshStatus();
+  });
+
+  window.addEventListener("workspace-index-policy-changed", () => {
+    void loadIndexPolicy();
   });
 
   semanticShowBtn?.addEventListener("click", () => openCatalog("vector"));

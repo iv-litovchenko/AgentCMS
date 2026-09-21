@@ -49,8 +49,16 @@ function recordMatchesFilters(record, filters = []) {
 }
 
 function createStorageIndexService(deps) {
-  const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
+  const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy } = deps;
   const rebuildLocks = new Map();
+
+  async function isPathIndexable(relPath) {
+    if (typeof getIndexPolicy === "function") {
+      const policy = await getIndexPolicy();
+      return policy.isIndexable(relPath);
+    }
+    return isIndexableTextFile(path.basename(relPath));
+  }
 
   function flatFieldsToQuickRecordFields(flatFields) {
     const fields = {};
@@ -62,7 +70,10 @@ function createStorageIndexService(deps) {
 
   async function collectRecordsQuick(agentRoot, { reportProgress = false, preserveFieldCatalogMeta = [] } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
-    const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
+    const eligible = [];
+    for (const relPath of relFiles) {
+      if (await isPathIndexable(relPath)) eligible.push(relPath);
+    }
 
     if (reportProgress) {
       startWorkspaceIndexProgress(agentRoot, "storage", eligible.length);
@@ -107,7 +118,10 @@ function createStorageIndexService(deps) {
 
   async function collectRecords(agentRoot, projectRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
-    const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
+    const eligible = [];
+    for (const relPath of relFiles) {
+      if (await isPathIndexable(relPath)) eligible.push(relPath);
+    }
 
     if (reportProgress) {
       startWorkspaceIndexProgress(agentRoot, "storage", eligible.length);
@@ -195,7 +209,7 @@ function createStorageIndexService(deps) {
 
     index.records = index.records.filter((record) => record.path !== normalized);
 
-    if (isIndexableTextFile(path.basename(normalized))) {
+    if (await isPathIndexable(normalized)) {
       const absolute = resolvePathAbsolute(normalized);
       if (absolute) {
         let content = "";

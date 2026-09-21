@@ -121,6 +121,25 @@ function isStorageEligible(relPath) {
   );
 }
 
+function buildLayerLoadErrorMonitor({ layer, indexFilePath, fileStat, errorMessage }) {
+  const hints = {
+    semantic: "Индекс смысла повреждён",
+    fulltext: "Индекс слов повреждён",
+    storage: "Каталог полей повреждён",
+    link: "Граф связей повреждён"
+  };
+  return {
+    layer,
+    ready: false,
+    health: "error",
+    indexPath: path.basename(path.dirname(indexFilePath)) + "/" + path.basename(indexFilePath),
+    indexSizeBytes: fileStat.sizeBytes,
+    indexSizeLabel: formatBytes(fileStat.sizeBytes),
+    hint: hints[layer] || "Индекс повреждён",
+    loadError: errorMessage
+  };
+}
+
 async function buildLayerMonitor({
   layer,
   index,
@@ -130,9 +149,13 @@ async function buildLayerMonitor({
   isEligible,
   resolvePathAbsolute,
   readyCheck,
-  extraFields
+  extraFields,
+  loadError = ""
 }) {
   const fileStat = await statIndexFile(indexFilePath);
+  if (loadError) {
+    return buildLayerLoadErrorMonitor({ layer, indexFilePath, fileStat, errorMessage: loadError });
+  }
   const ready = Boolean(index && readyCheck(index));
 
   if (!ready) {
@@ -288,11 +311,20 @@ async function buildLinkMonitor(linkStatus, indexFilePath) {
   };
 }
 
+async function safeLoadIndex(loader, agentRoot) {
+  try {
+    return { data: await loader(agentRoot), error: "" };
+  } catch (error) {
+    return { data: null, error: String(error.message || error) };
+  }
+}
+
 async function getWorkspaceIndexMonitor(deps) {
   const {
     getAgentRoot,
     collectSearchableFiles,
     resolvePathAbsolute,
+    getIndexPolicy,
     loadSemanticIndex,
     loadFulltextIndex,
     loadStorageIndex,
@@ -306,16 +338,30 @@ async function getWorkspaceIndexMonitor(deps) {
     return { ready: false, reason: "Agent not selected" };
   }
 
-  const [allPaths, semanticIndex, fulltextIndex, storageIndex, linkStatus, ocrStatus, idStatus] =
-    await Promise.all([
-      collectSearchableFiles(agentRoot),
-      loadSemanticIndex(agentRoot),
-      loadFulltextIndex(agentRoot),
-      loadStorageIndex(agentRoot),
-      getLinkIndexStatus ? getLinkIndexStatus().catch(() => null) : Promise.resolve(null),
-      getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null),
-      getWorkspaceIdStatus ? getWorkspaceIdStatus().catch(() => null) : Promise.resolve(null)
-    ]);
+  const policy = typeof getIndexPolicy === "function" ? await getIndexPolicy() : null;
+  const isPolicyEligible = (relPath) =>
+    policy ? policy.isIndexable(relPath) : isSemanticEligible(relPath);
+
+  const [
+    allPaths,
+    semanticLoad,
+    fulltextLoad,
+    storageLoad,
+    linkStatus,
+    ocrStatus,
+    idStatus
+  ] = await Promise.all([
+    collectSearchableFiles(agentRoot),
+    safeLoadIndex(loadSemanticIndex, agentRoot),
+    safeLoadIndex(loadFulltextIndex, agentRoot),
+    safeLoadIndex(loadStorageIndex, agentRoot),
+    getLinkIndexStatus ? getLinkIndexStatus().catch(() => null) : Promise.resolve(null),
+    getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null),
+    getWorkspaceIdStatus ? getWorkspaceIdStatus().catch(() => null) : Promise.resolve(null)
+  ]);
+  const semanticIndex = semanticLoad.data;
+  const fulltextIndex = fulltextLoad.data;
+  const storageIndex = storageLoad.data;
 
   const semanticPaths = semanticIndex?.chunks
     ? [...new Set(semanticIndex.chunks.map((row) => row.path))]
@@ -331,10 +377,11 @@ async function getWorkspaceIndexMonitor(deps) {
     indexFilePath: getSemanticIndexPaths(agentRoot).file,
     indexedPaths: semanticPaths,
     allPaths,
-    isEligible: isSemanticEligible,
+    isEligible: isPolicyEligible,
     resolvePathAbsolute,
     readyCheck: (index) => (index.chunkCount || 0) > 0,
-    extraFields: (index) => ({ fileCount: index.fileCount || 0, chunkCount: index.chunkCount || 0 })
+    extraFields: (index) => ({ fileCount: index.fileCount || 0, chunkCount: index.chunkCount || 0 }),
+    loadError: semanticLoad.error
   });
 
   const fulltext = await buildLayerMonitor({
@@ -343,10 +390,11 @@ async function getWorkspaceIndexMonitor(deps) {
     indexFilePath: getFulltextIndexPaths(agentRoot).file,
     indexedPaths: fulltextPaths,
     allPaths,
-    isEligible: isFulltextEligible,
+    isEligible: isPolicyEligible,
     resolvePathAbsolute,
     readyCheck: (index) => (index.fileCount || 0) > 0,
-    extraFields: (index) => ({ fileCount: index.fileCount || 0, termCount: index.termCount || 0 })
+    extraFields: (index) => ({ fileCount: index.fileCount || 0, termCount: index.termCount || 0 }),
+    loadError: fulltextLoad.error
   });
 
   const storage = await buildLayerMonitor({
@@ -355,7 +403,7 @@ async function getWorkspaceIndexMonitor(deps) {
     indexFilePath: getStorageIndexPaths(agentRoot).file,
     indexedPaths: storagePaths,
     allPaths,
-    isEligible: isStorageEligible,
+    isEligible: isPolicyEligible,
     resolvePathAbsolute,
     readyCheck: (index) => (index.recordCount || 0) > 0,
     extraFields: (index) => ({
@@ -363,7 +411,8 @@ async function getWorkspaceIndexMonitor(deps) {
       fieldCount: index.fieldCount || 0,
       enrichmentMode:
         index.enrichmentMode || (String(index.model || "").includes("quick") ? "quick" : "full")
-    })
+    }),
+    loadError: storageLoad.error
   });
 
   const link = await buildLinkMonitor(linkStatus, getLinkIndexPaths(agentRoot).file);
@@ -371,6 +420,7 @@ async function getWorkspaceIndexMonitor(deps) {
 
   const layers = [ocr, fulltext, semantic, storage, link];
   const summaryHealth = (() => {
+    if (layers.some((layer) => layer.health === "error")) return "error";
     const readyLayers = layers.filter((layer) => layer.ready).length;
     if (!readyLayers) return "empty";
     if (readyLayers < layers.length) return "partial";
@@ -387,7 +437,13 @@ async function getWorkspaceIndexMonitor(deps) {
   const missingTotal = (semantic.missingCount || 0) + (fulltext.missingCount || 0) + (storage.missingCount || 0);
 
   let message = "Индексы актуальны";
-  if (summaryHealth === "empty") message = "Индексы не построены";
+  if (summaryHealth === "error") {
+    const broken = layers.filter((layer) => layer.health === "error");
+    message =
+      broken.length === 1
+        ? `${broken[0].hint}: пересоберите слой`
+        : `${broken.length} слоёв повреждены — пересоберите индексы`;
+  } else if (summaryHealth === "empty") message = "Индексы не построены";
   else if (summaryHealth === "partial") message = "Построены не все слои";
   else if ((ocr.pendingCount || 0) > 0) message = `${ocr.pendingCount} вложений без OCR`;
   else if (staleTotal > 0) message = `${staleTotal} элементов требуют обновления`;
