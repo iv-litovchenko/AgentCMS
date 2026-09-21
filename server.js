@@ -339,8 +339,8 @@ const {
   getPlatformAlwaysContextWsFolder
 } = require("./workspace-agent-settings");
 const {
-  hydrateWorkspaceVoiceProactiveFromShell,
-  buildShellProactivePatchFromWorkspace
+  hydrateWorkspaceVoiceFromShell,
+  buildShellVoicePatchFromWorkspace
 } = require("./workspace-voice-settings-bridge");
 const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
@@ -20176,7 +20176,7 @@ async function handleApiForAgent(req, res, url) {
       let awnSettings = { ...(parsed.awn_settings || {}) };
       try {
         const shellFlat = await shellService.readSettings(agentRoot);
-        awnSettings = hydrateWorkspaceVoiceProactiveFromShell(awnSettings, shellFlat);
+        awnSettings = hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
       } catch {
         // shell.json optional
       }
@@ -20219,12 +20219,12 @@ async function handleApiForAgent(req, res, url) {
         nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
       );
       try {
-        const proactivePatch = buildShellProactivePatchFromWorkspace(parsed.awn_settings || {});
-        if (Object.keys(proactivePatch).length) {
-          await shellService.writeSettings(agentRoot, proactivePatch);
+        const voicePatch = buildShellVoicePatchFromWorkspace(parsed.awn_settings || {});
+        if (Object.keys(voicePatch).length) {
+          await shellService.writeSettings(agentRoot, voicePatch);
         }
       } catch (syncError) {
-        console.warn("[workspace-settings] voice proactive sync to shell.json failed:", syncError);
+        console.warn("[workspace-settings] voice settings sync to shell.json failed:", syncError);
       }
       return sendJson(res, 200, {
         path: saved.path,

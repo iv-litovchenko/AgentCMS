@@ -842,6 +842,65 @@
           <span class="shell-label">Голосовой ответ (TTS)</span>
         </div>
 
+        <div class="shell-tts-common-settings" id="shell-tts-common-settings">
+        <div class="shell-field shell-field--compact shell-tts-panel-enable-field">
+          <span class="shell-tts-panel-playback" role="presentation">
+            <label
+              class="shell-tts-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+              title="Текст ответа агента → голос"
+            >
+              <input id="shell-tts-panel-enabled" type="checkbox" checked aria-label="Включить озвучку ответа" />
+              <span class="shell-tts-playback-emoji" aria-hidden="true">🔊</span>
+              <span class="shell-tts-playback-option-copy">
+                <span class="shell-tts-playback-option-title">Включить озвучку ответа</span>
+                <span class="shell-tts-playback-option-desc">(текст ответа агента → голос)</span>
+              </span>
+            </label>
+          </span>
+        </div>
+
+        <div class="shell-field shell-field--compact shell-tts-panel-playback-field">
+          <span class="shell-label">Способ озвучки</span>
+          <span class="shell-tts-panel-playback" role="presentation">
+            <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Способ озвучки">
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="dialog">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="dialog" checked aria-label="Диалог" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Диалог</span>
+                  <span class="shell-tts-playback-option-desc">(озвучка по мере печати ответа)</span>
+                </span>
+              </label>
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="reading">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="reading" aria-label="Чтение" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Чтение</span>
+                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера [tts-break])</span>
+                </span>
+              </label>
+            </span>
+          </span>
+        </div>
+
+        <label class="shell-field shell-field--compact">
+          <span class="shell-label shell-label-row shell-label-row--spread">
+            Промпт на ответ с озвучкой
+            <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
+              Вставить заготовку
+            </button>
+          </span>
+          <textarea
+            id="shell-tts-prompt"
+            class="shell-textarea shell-textarea--compact"
+            rows="3"
+            spellcheck="false"
+            placeholder="Голос → [tts-break] → подробный текст на экран («смотри ниже»). «Вставить заготовку» — шаблон."
+          ></textarea>
+        </label>
+
+        </div>
+
         <div class="shell-tts-engines" id="shell-tts-engines">
           <div class="shell-field shell-tts-engine-field">
             <span class="shell-label shell-label-row shell-label-row--spread">
@@ -879,6 +938,16 @@
                   <option value="">Системный по умолчанию</option>
                 </select>
               </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint" id="shell-tts-rate-hint">Web Speech</span>
+                <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
+                <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint" id="shell-tts-pitch-hint">Web Speech</span>
+                <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
+              </label>
             </div>
           </div>
 
@@ -887,6 +956,11 @@
               <label class="shell-field shell-field--compact">
                 <span class="shell-label">Голос Edge</span>
                 <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-edge-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-edge-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint">Edge TTS</span>
+                <input id="shell-tts-edge-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
               </label>
             </div>
           </div>
@@ -997,82 +1071,13 @@
                   </button>
                 </div>
               </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-elevenlabs-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-elevenlabs-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint">ElevenLabs · speed (voice_settings)</span>
+                <input id="shell-tts-elevenlabs-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+              </label>
             </div>
           </div>
-        </div>
-
-        <div class="shell-tts-common-settings" id="shell-tts-common-settings">
-          <div class="shell-tts-section-head">Общие настройки</div>
-        <div class="shell-tts-prosody-row" id="shell-tts-prosody-row">
-          <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
-            <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
-            <span class="shell-tts-prosody-hint" id="shell-tts-rate-hint">Web Speech и Edge TTS</span>
-            <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
-          </label>
-
-          <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
-            <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
-            <span class="shell-tts-prosody-hint" id="shell-tts-pitch-hint">Только Web Speech</span>
-            <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
-          </label>
-        </div>
-
-        <label class="shell-field shell-field--compact">
-          <span class="shell-label shell-label-row shell-label-row--spread">
-            Промпт на ответ с озвучкой
-            <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
-              Вставить заготовку
-            </button>
-          </span>
-          <textarea
-            id="shell-tts-prompt"
-            class="shell-textarea shell-textarea--compact"
-            rows="3"
-            spellcheck="false"
-            placeholder="Голос → [tts-break] → подробный текст на экран («смотри ниже»). «Вставить заготовку» — шаблон."
-          ></textarea>
-        </label>
-
-        <div class="shell-field shell-field--compact shell-tts-panel-enable-field">
-          <span class="shell-tts-panel-playback" role="presentation">
-            <label
-              class="shell-tts-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
-              title="Текст ответа агента → голос"
-            >
-              <input id="shell-tts-panel-enabled" type="checkbox" checked aria-label="Включить озвучку ответа" />
-              <span class="shell-tts-playback-emoji" aria-hidden="true">🔊</span>
-              <span class="shell-tts-playback-option-copy">
-                <span class="shell-tts-playback-option-title">Включить озвучку ответа</span>
-                <span class="shell-tts-playback-option-desc">(текст ответа агента → голос)</span>
-              </span>
-            </label>
-          </span>
-        </div>
-
-        <div class="shell-field shell-field--compact shell-tts-panel-playback-field">
-          <span class="shell-label">Способ озвучки</span>
-          <span class="shell-tts-panel-playback" role="presentation">
-            <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Способ озвучки">
-              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="dialog">
-                <input type="radio" name="shell-tts-playback-mode-panel" value="dialog" checked aria-label="Диалог" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
-                <span class="shell-tts-playback-option-copy">
-                  <span class="shell-tts-playback-option-title">Диалог</span>
-                  <span class="shell-tts-playback-option-desc">(озвучка по мере печати ответа)</span>
-                </span>
-              </label>
-              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="reading">
-                <input type="radio" name="shell-tts-playback-mode-panel" value="reading" aria-label="Чтение" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
-                <span class="shell-tts-playback-option-copy">
-                  <span class="shell-tts-playback-option-title">Чтение</span>
-                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера [tts-break])</span>
-                </span>
-              </label>
-            </span>
-          </span>
-        </div>
-
         </div>
 
         <div class="shell-settings-save-row">

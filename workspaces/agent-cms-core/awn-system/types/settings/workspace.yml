@@ -57,23 +57,37 @@ fieldGroups:
         sort: 4
       - id: voice-tts
         name: Озвучка (TTS)
+        description: Включение, способ озвучки, промпт и активный движок
         sort: 5
+        defaultOpen: true
+      - id: voice-tts-browser
+        name: Озвучка (TTS) · Web Speech
+        sort: 6
+      - id: voice-tts-edge
+        name: Озвучка (TTS) · Edge TTS
+        sort: 7
+      - id: voice-tts-piper
+        name: Озвучка (TTS) · Piper
+        sort: 8
+      - id: voice-tts-elevenlabs
+        name: Озвучка (TTS) · ElevenLabs
+        sort: 9
       - id: voice-proactive
         name: Проактивные пинги
-        sort: 6
+        sort: 10
       - id: voice-media
         name: Камера и экран
-        sort: 7
+        sort: 11
       - id: voice-window
         name: Окно Voice
-        sort: 8
+        sort: 12
       - id: voice-ui
         name: Интерфейс диалога
-        sort: 9
+        sort: 13
       - id: voice-compose
         name: Шаблоны compose
         description: Список шаблонов — repeater позже; пока заглушка
-        sort: 10
+        sort: 14
   - id: static
     name: Статичные параметры
     description: >
@@ -351,110 +365,157 @@ fields:
 
   voice-tts-enabled:
     type: awn.field.boolean
-    title: "{DRAFT} Озвучка ответов"
+    title: Включить озвучку ответа
     default: true
     group: voice-client
     subgroup: voice-tts
     sort: 66
 
-  voice-tts-engine:
-    type: awn.field.choice.one
-    title: "{DRAFT} Движок TTS"
-    default: browser
-    enum:
-      - key: browser
-        name: Browser
-      - key: edge
-        name: Edge
-      - key: elevenlabs
-        name: ElevenLabs
-    group: voice-client
-    subgroup: voice-tts
-    sort: 67
-
   voice-tts-playback-mode:
     type: awn.field.choice.one
-    title: "{DRAFT} Режим воспроизведения"
-    default: reading
+    title: Способ озвучки
+    default: dialog
     enum:
+      - key: dialog
+        name: Диалог (озвучка по мере печати ответа)
       - key: reading
-        name: Reading
-      - key: streaming
-        name: Streaming
+        name: Чтение (после полного ответа и маркера [tts-break])
     group: voice-client
     subgroup: voice-tts
     sort: 67
 
   voice-tts-prompt:
     type: awn.field.text
-    title: "{DRAFT} Промпт TTS"
+    title: Промпт на ответ с озвучкой
     description: Формат с маркером [tts-break]
     group: voice-client
     subgroup: voice-tts
     sort: 68
 
-  voice-tts-rate:
-    type: awn.field.string
-    title: "{DRAFT} Скорость"
-    default: "1"
-    group: voice-client
-    subgroup: voice-tts
-    sort: 69
-
-  voice-tts-pitch:
-    type: awn.field.string
-    title: "{DRAFT} Тон"
-    default: "1"
-    group: voice-client
-    subgroup: voice-tts
-    sort: 70
-
   voice-tts-include-captions:
     type: awn.field.boolean
-    title: "{DRAFT} Субтитры при озвучке"
+    title: Субтитры при озвучке
     default: true
     group: voice-client
     subgroup: voice-tts
     sort: 71
 
-  voice-tts-browser-lang:
-    type: awn.field.string
-    title: "{DRAFT} Browser TTS lang"
-    default: ru-RU
+  voice-tts-engine:
+    type: awn.field.choice.one
+    title: Провайдер (движок)
+    default: browser
+    enum:
+      - key: browser
+        name: Web Speech — в браузере (устройство)
+      - key: edge
+        name: Edge TTS — облако (Microsoft)
+      - key: piper
+        name: Piper — локально (сервер)
+      - key: elevenlabs
+        name: ElevenLabs — облако (ElevenLabs)
     group: voice-client
     subgroup: voice-tts
     sort: 72
 
+  voice-tts-browser-lang:
+    type: awn.field.string
+    title: Язык
+    default: ru-RU
+    group: voice-client
+    subgroup: voice-tts-browser
+    sort: 80
+
+  voice-tts-browser-voice:
+    type: awn.field.string
+    title: Голос
+    default: ""
+    group: voice-client
+    subgroup: voice-tts-browser
+    sort: 81
+
+  voice-tts-rate:
+    type: awn.field.string
+    title: Скорость
+    description: Web Speech
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts-browser
+    sort: 82
+
+  voice-tts-pitch:
+    type: awn.field.string
+    title: Высота голоса
+    description: Только Web Speech
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts-browser
+    sort: 83
+
   voice-tts-edge-voice:
     type: awn.field.string
-    title: "{DRAFT} Edge voice"
+    title: Голос Edge
     default: ru-RU-SvetlanaNeural
     group: voice-client
-    subgroup: voice-tts
-    sort: 73
+    subgroup: voice-tts-edge
+    sort: 90
+
+  voice-tts-edge-rate:
+    type: awn.field.string
+    title: Скорость
+    description: Edge TTS
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts-edge
+    sort: 91
+
+  voice-tts-piper-model:
+    type: awn.field.string
+    title: Модель Piper (.onnx)
+    default: ""
+    group: voice-client
+    subgroup: voice-tts-piper
+    sort: 100
+
+  voice-tts-piper-binary:
+    type: awn.field.string
+    title: Бинарник Piper
+    default: piper
+    group: voice-client
+    subgroup: voice-tts-piper
+    sort: 101
 
   voice-tts-elevenlabs-api-key:
     type: awn.field.string.secret
-    title: "{DRAFT} ElevenLabs API key (TTS)"
+    title: ElevenLabs API key · обязательно
     description: Маскируется в форме; для агента позже — зашифрованная выдача
     group: voice-client
-    subgroup: voice-tts
-    sort: 74
+    subgroup: voice-tts-elevenlabs
+    sort: 110
 
   voice-tts-elevenlabs-voice-id:
     type: awn.field.string
-    title: "{DRAFT} ElevenLabs voice ID"
+    title: ElevenLabs Voice ID
+    default: EXAVITQu4vr4xnSDxMaL
     group: voice-client
-    subgroup: voice-tts
-    sort: 75
+    subgroup: voice-tts-elevenlabs
+    sort: 111
 
   voice-tts-elevenlabs-model:
     type: awn.field.string
-    title: "{DRAFT} ElevenLabs TTS model"
+    title: Модель ElevenLabs
     default: eleven_multilingual_v2
     group: voice-client
-    subgroup: voice-tts
-    sort: 76
+    subgroup: voice-tts-elevenlabs
+    sort: 112
+
+  voice-tts-elevenlabs-rate:
+    type: awn.field.string
+    title: Скорость
+    description: ElevenLabs · speed (voice_settings)
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts-elevenlabs
+    sort: 113
 
   voice-proactive-enabled:
     type: awn.field.boolean

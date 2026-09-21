@@ -205,23 +205,6 @@ const TTS_ENGINE_PANEL_NODES = {
   elevenlabs: () => nodes.ttsElevenlabsPanel
 };
 
-const TTS_PROSODY_BY_ENGINE = {
-  browser: { rate: true, pitch: true, rateHint: "Web Speech", pitchHint: "Web Speech" },
-  edge: { rate: true, pitch: false, rateHint: "Edge TTS", pitchHint: "Не используется Edge TTS" },
-  elevenlabs: {
-    rate: true,
-    pitch: false,
-    rateHint: "ElevenLabs · speed (voice_settings)",
-    pitchHint: "Нет в API ElevenLabs (есть stability, similarity)"
-  },
-  piper: {
-    rate: false,
-    pitch: false,
-    rateHint: "Не используется Piper",
-    pitchHint: "Не используется Piper"
-  }
-};
-
 const VOICE_MODE_USER_GRACE_MS = 30000;
 /** Блокирует перезапись hero/header-контролов из SSE status во время autosave. */
 const heroAutosaveInFlight = {
@@ -1897,6 +1880,10 @@ const nodes = {
   ttsRateField: document.getElementById("shell-tts-rate-field"),
   ttsRateHint: document.getElementById("shell-tts-rate-hint"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
+  ttsEdgeRate: document.getElementById("shell-tts-edge-rate"),
+  ttsEdgeRateValue: document.getElementById("shell-tts-edge-rate-value"),
+  ttsElevenlabsRate: document.getElementById("shell-tts-elevenlabs-rate"),
+  ttsElevenlabsRateValue: document.getElementById("shell-tts-elevenlabs-rate-value"),
   ttsPitch: document.getElementById("shell-tts-pitch"),
   ttsPitchField: document.getElementById("shell-tts-pitch-field"),
   ttsPitchHint: document.getElementById("shell-tts-pitch-hint"),
@@ -9027,9 +9014,42 @@ async function refreshTtsVoiceOptions() {
   updateTtsTestBtnHint();
 }
 
+const TTS_RATE_INPUT_NODES = [
+  { input: () => nodes.ttsRate, value: () => nodes.ttsRateValue },
+  { input: () => nodes.ttsEdgeRate, value: () => nodes.ttsEdgeRateValue },
+  { input: () => nodes.ttsElevenlabsRate, value: () => nodes.ttsElevenlabsRateValue }
+];
+
+function getTtsRateInputNodes() {
+  return TTS_RATE_INPUT_NODES.map((entry) => entry.input()).filter(Boolean);
+}
+
+function syncTtsRateInputs(rate, source = null) {
+  const next = String(rate ?? 1);
+  for (const input of getTtsRateInputNodes()) {
+    if (input && input !== source) input.value = next;
+  }
+  updateTtsRateLabel();
+}
+
+function readTtsRateFromDom() {
+  const engine = normalizeTtsEngine(getTtsEngine());
+  const byEngine = {
+    browser: nodes.ttsRate,
+    edge: nodes.ttsEdgeRate,
+    elevenlabs: nodes.ttsElevenlabsRate
+  };
+  const input = byEngine[engine] || nodes.ttsRate;
+  return Number(input?.value || nodes.ttsRate?.value || 1);
+}
+
 function updateTtsRateLabel() {
-  if (!nodes.ttsRateValue || !nodes.ttsRate) return;
-  nodes.ttsRateValue.textContent = Number(nodes.ttsRate.value || 1).toFixed(1);
+  for (const entry of TTS_RATE_INPUT_NODES) {
+    const input = entry.input();
+    const label = entry.value();
+    if (!input || !label) continue;
+    label.textContent = Number(input.value || 1).toFixed(1);
+  }
 }
 
 function updateTtsPitchLabel() {
@@ -10273,27 +10293,12 @@ function refreshSttEngineSelectLabels() {
   }
 }
 
-function updateTtsProsodyUi(engine = normalizeTtsEngine(getTtsEngine())) {
-  const meta = TTS_PROSODY_BY_ENGINE[engine] || TTS_PROSODY_BY_ENGINE.browser;
-  if (nodes.ttsRateField) {
-    nodes.ttsRateField.dataset.applies = meta.rate ? "1" : "0";
-    if (nodes.ttsRate) nodes.ttsRate.disabled = !meta.rate;
-  }
-  if (nodes.ttsPitchField) {
-    nodes.ttsPitchField.dataset.applies = meta.pitch ? "1" : "0";
-    if (nodes.ttsPitch) nodes.ttsPitch.disabled = !meta.pitch;
-  }
-  if (nodes.ttsRateHint) nodes.ttsRateHint.textContent = meta.rateHint;
-  if (nodes.ttsPitchHint) nodes.ttsPitchHint.textContent = meta.pitchHint;
-}
-
 function updateTtsEngineUi({ reloadVoices = false } = {}) {
   const engine = normalizeTtsEngine(getTtsEngine());
   for (const [id, getPanel] of Object.entries(TTS_ENGINE_PANEL_NODES)) {
     const panel = getPanel();
     if (panel) panel.dataset.visible = id === engine ? "1" : "0";
   }
-  updateTtsProsodyUi(engine);
   if (reloadVoices) {
     void refreshTtsEngineVoices(engine);
   }
@@ -10475,7 +10480,7 @@ function applyTtsSettingsUi(settings) {
   const lang = settings.ttsBrowserLang || "ru-RU";
   const voice = settings.ttsBrowserVoice ?? "";
   if (nodes.ttsLang) nodes.ttsLang.value = lang;
-  if (nodes.ttsRate) nodes.ttsRate.value = String(settings.ttsRate ?? 1);
+  syncTtsRateInputs(settings.ttsRate ?? 1);
   if (nodes.ttsPitch) nodes.ttsPitch.value = String(settings.ttsPitch ?? 1);
   if (nodes.ttsEdgeVoice) nodes.ttsEdgeVoice.value = settings.ttsEdgeVoice || "ru-RU-SvetlanaNeural";
   if (nodes.ttsPiperModel) nodes.ttsPiperModel.value = settings.ttsPiperModel || "";
@@ -10544,7 +10549,7 @@ function collectTtsFormPatch() {
     ttsElevenlabsModel: nodes.ttsElevenlabsModel?.value || "",
     ttsPiperModel: nodes.ttsPiperModel?.value || "",
     ttsPiperBinary: nodes.ttsPiperBinary?.value || "",
-    ttsRate: Number(nodes.ttsRate?.value || 1),
+    ttsRate: readTtsRateFromDom(),
     ttsPitch: Number(nodes.ttsPitch?.value || 1)
   };
 }
@@ -12401,6 +12406,8 @@ function bindUi() {
     nodes.ttsElevenlabsVoiceId,
     nodes.ttsElevenlabsModel,
     nodes.ttsRate,
+    nodes.ttsEdgeRate,
+    nodes.ttsElevenlabsRate,
     nodes.ttsPitch
   ]) {
     el?.addEventListener("change", () => {
@@ -12463,11 +12470,13 @@ function bindUi() {
     markTtsDirty();
     void maybeAutoSaveElevenlabsCredentials();
   });
-  nodes.ttsRate?.addEventListener("input", () => {
-    updateTtsRateLabel();
-    updateTtsTestBtnHint();
-    markTtsDirty();
-  });
+  for (const input of getTtsRateInputNodes()) {
+    input.addEventListener("input", () => {
+      syncTtsRateInputs(input.value, input);
+      updateTtsTestBtnHint();
+      markTtsDirty();
+    });
+  }
   nodes.ttsPitch?.addEventListener("input", () => {
     updateTtsPitchLabel();
     markTtsDirty();

@@ -3360,13 +3360,19 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   display: flex;
   flex-direction: column;
   gap: var(--shell-tts-field-gap, 10px);
-  margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px solid var(--shell-surface-divider);
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .shell-tts-common-settings > .shell-field {
   margin: 0;
+}
+
+.shell-tts-engines {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--shell-surface-divider);
 }
 
 .shell-tts-panel-enable-field,
