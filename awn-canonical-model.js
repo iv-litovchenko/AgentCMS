@@ -1,7 +1,4 @@
-const fs = require("fs");
-const path = require("path");
-const { parseCsvText } = require("./awn-data-csv");
-const { getAgentCmsCoreAbsolute, AGENT_SYSTEM_REL, AWN_DATA_REL } = require("./platform-sources");
+const { AGENT_SYSTEM_REL } = require("./platform-sources");
 const {
   loadTypeCatalog,
   mergeTypeSchema,
@@ -62,7 +59,7 @@ const SLOT_CATEGORY_ORDER = new Map(DEFAULT_SLOT_CATEGORIES.map((row) => [row.id
 const DEFAULT_SYSTEM_ONLY_FOLDERS = ["preview/"];
 
 const SLOT_TYPES_SOURCE = `${AGENT_SYSTEM_REL}/types/slots/`;
-const SLOT_CATEGORIES_SOURCE = `${AWN_DATA_REL}/taxonomies/slot-categories/main.csv`;
+const SLOT_CATEGORIES_SOURCE = `${AGENT_SYSTEM_REL}/types/slots/_base.yml`;
 
 function normalizeCanonicalSlotContent(typeIds, byId) {
   const canonicalSet = new Set(CANONICAL_SLOT_CONTENT_TYPES);
@@ -88,53 +85,32 @@ function compareSlotEntries(a, b, categoryOrder = SLOT_CATEGORY_ORDER) {
   return String(a.id).localeCompare(String(b.id), "ru");
 }
 
-function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
-  const raw = String(agentRoot || "").trim();
-  if (!raw) return "";
-  return path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(projectRoot, raw);
+function normalizeSlotCategories(raw) {
+  if (!Array.isArray(raw)) return null;
+  const categories = raw
+    .map((row) => ({
+      id: String(row?.id || "").trim(),
+      name: String(row?.name || "").trim(),
+      sort: typeof row?.sort === "number" ? row.sort : Number(row?.sort) || 0,
+      description: String(row?.description || "").trim()
+    }))
+    .filter((row) => row.id);
+  if (!categories.length) return null;
+  categories.sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name, "ru"));
+  return { version: 1, categories };
 }
 
-function readSlotCategoriesCsv(csvPath) {
-  if (!csvPath || !fs.existsSync(csvPath)) return null;
-  try {
-    const { columns, rows } = parseCsvText(fs.readFileSync(csvPath, "utf-8"));
-    const codeIdx = columns.indexOf("code");
-    const labelIdx = columns.indexOf("label");
-    const sortIdx = columns.indexOf("sort");
-    const descIdx = columns.indexOf("description");
-    if (codeIdx < 0) return null;
-
-    const categories = rows
-      .map((row) => ({
-        id: String(row[codeIdx] || "").trim(),
-        name: String(row[labelIdx >= 0 ? labelIdx : codeIdx] || "").trim(),
-        sort: sortIdx >= 0 ? Number(row[sortIdx]) || 0 : 0,
-        description: descIdx >= 0 ? String(row[descIdx] || "").trim() : ""
-      }))
-      .filter((row) => row.id);
-
-    if (!categories.length) return null;
-    categories.sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name, "ru"));
-    return { version: 1, categories };
-  } catch {
-    return null;
-  }
+function readSlotCategoriesFromTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const base = catalog.byId.get("awn.slot");
+  if (!base) return null;
+  const merged = mergeTypeSchema(base, catalog.byId);
+  return normalizeSlotCategories(merged["slot-categories"]);
 }
 
 function readSlotCategories(projectRoot = process.cwd(), agentRoot = "") {
-  const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
-  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
-  const candidates = [];
-  if (agentRootAbs) {
-    candidates.push(path.join(agentRootAbs, SLOT_CATEGORIES_SOURCE));
-  }
-  candidates.push(path.join(coreRoot, SLOT_CATEGORIES_SOURCE));
-
-  for (const csvPath of candidates) {
-    const parsed = readSlotCategoriesCsv(csvPath);
-    if (parsed) return parsed;
-  }
-
+  const fromTypes = readSlotCategoriesFromTypeCatalog(projectRoot, agentRoot);
+  if (fromTypes) return fromTypes;
   return { version: 1, categories: [...DEFAULT_SLOT_CATEGORIES] };
 }
 
@@ -244,7 +220,7 @@ function getCanonicalModelPayload(projectRoot = process.cwd(), agentRoot = "") {
       slotContent:
         "В любом слоте допустимы только awn.content.record, awn.content.category, awn.content.sidecar",
       slotOrder: "Основные слоты топика — см. primarySlotTypes (main → … → todo)",
-      slotTypesSource: `Типы слотов — записи в ${SLOT_TYPES_SOURCE} (path, allowed-content, accept-files, slot-category)`
+      slotTypesSource: `Типы слотов — ${SLOT_TYPES_SOURCE}; категории — slot-categories в _base.yml`
     },
     slotTypes,
     slotCategories: categoriesDoc.categories,

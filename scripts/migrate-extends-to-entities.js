@@ -21,7 +21,6 @@ const DATA_STORES = new Set([
   "taxonomies/categories/manifest.md",
   "taxonomies/colors/manifest.md",
   "taxonomies/priorities/manifest.md",
-  "taxonomies/slot-categories/manifest.md",
   "taxonomies/statuses/manifest.md",
   "taxonomies/tags/manifest.md",
   "taxonomies/users/manifest.md"

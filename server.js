@@ -13128,7 +13128,7 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: "CMS-модель: GLOBAL_MCP_DOC.md + awn-system/types/; awn-data/taxonomies/slot-categories/"
+    hint: "CMS-модель: GLOBAL_MCP_DOC.md + awn-system/types/slots/_base.yml (slot-categories)"
   };
 }
 

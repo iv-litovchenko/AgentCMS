@@ -5,6 +5,29 @@ domain: slots
 status: active
 extends: awn.entity
 description: Базовый тип слоя памяти у топика
+
+slot-categories:
+  - id: memory
+    name: Память
+    sort: 1
+    description: Рабочая память темы — записи, входящие, заметки, источники
+  - id: files
+    name: Файлы
+    sort: 2
+    description: Медиа, активы, скрипты, шаблоны, база, NotebookLM, артефакты, репозитории
+  - id: single-file
+    name: Однофайловая
+    sort: 3
+    description: Один файл на слот — main.md, todo.md, log.md, CSV
+  - id: records
+    name: Записи
+    sort: 4
+    description: Системные слои — история, временные файлы, итоги
+  - id: communication
+    name: Общение
+    sort: 5
+    description: Диалоги и комментарии
+
 properties:
   storage-driver:
     title: Драйвер памяти
@@ -28,7 +51,7 @@ properties:
     description: Расширения файлов, допустимые в слоте (.md, .png…)
   slot-category:
     title: Категория
-    description: Группа слота в каталоге (см. awn-system/slot-categories.yml)
+    description: Группа слота в каталоге (канон — slot-categories в этом файле)
     enum: [memory, files, single-file, records, communication]
   slot-order:
     title: Порядок

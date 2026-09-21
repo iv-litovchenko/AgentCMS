@@ -14,7 +14,6 @@
 | коллекция | taxonomies | `taxonomies/categories` | [Категории](awn-data/taxonomies/categories/manifest.md) | Категории | 34 |
 | коллекция | taxonomies | `taxonomies/colors` | [Палитра](awn-data/taxonomies/colors/manifest.md) | Палитра | 6 |
 | коллекция | taxonomies | `taxonomies/priorities` | [Приоритеты](awn-data/taxonomies/priorities/manifest.md) | Приоритеты | 16 |
-| коллекция | taxonomies | `taxonomies/slot-categories` | [Категории слотов](awn-data/taxonomies/slot-categories/manifest.md) | Категории слотов | 5 |
 | коллекция | taxonomies | `taxonomies/statuses` | [Статусы](awn-data/taxonomies/statuses/manifest.md) | Статусы | 12 |
 | коллекция | taxonomies | `taxonomies/tags` | [Теги](awn-data/taxonomies/tags/manifest.md) | Теги | 205 |
 | коллекция | taxonomies | `taxonomies/users` | [Пользователи](awn-data/taxonomies/users/manifest.md) | Пользователи | 5 |
