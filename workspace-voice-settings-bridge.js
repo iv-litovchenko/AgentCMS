@@ -1,3 +1,21 @@
+const VOICE_INPUT_TO_SHELL = {
+  "voice-input-enabled": "sttEnabled",
+  "voice-input-mode": "voiceInputMode",
+  "voice-input-capture": "sttInputCapture",
+  "voice-input-global-listen": "voiceGlobalListen",
+  "voice-input-to-compose": "voiceToCompose",
+  "voice-input-response-enabled": "voiceResponseEnabled"
+};
+
+const STT_VOICE_TO_SHELL = {
+  "voice-stt-engine": "sttEngine",
+  "voice-stt-lang": "sttLang",
+  "voice-stt-prompt": "sttPrompt",
+  "voice-stt-whisper-model": "sttWhisperModel",
+  "voice-stt-elevenlabs-api-key": "sttElevenlabsApiKey",
+  "voice-stt-elevenlabs-model": "sttElevenlabsModel"
+};
+
 const PROACTIVE_VOICE_TO_SHELL = {
   "voice-proactive-enabled": "proactiveEnabled",
   "voice-proactive-idle-seconds-min": "proactiveIdleSecondsMin",
@@ -30,6 +48,24 @@ const TTS_VOICE_TO_SHELL = {
   "voice-tts-elevenlabs-api-key": "ttsElevenlabsApiKey",
   "voice-tts-elevenlabs-voice-id": "ttsElevenlabsVoiceId",
   "voice-tts-elevenlabs-model": "ttsElevenlabsModel"
+};
+
+const VOICE_INPUT_SHELL_DEFAULTS = {
+  "voice-input-enabled": false,
+  "voice-input-mode": "fn_button",
+  "voice-input-capture": "microphone",
+  "voice-input-global-listen": false,
+  "voice-input-to-compose": false,
+  "voice-input-response-enabled": false
+};
+
+const STT_SHELL_DEFAULTS = {
+  "voice-stt-engine": "browser",
+  "voice-stt-lang": "ru-RU",
+  "voice-stt-prompt": "",
+  "voice-stt-whisper-model": "base",
+  "voice-stt-elevenlabs-api-key": "",
+  "voice-stt-elevenlabs-model": "scribe_v2"
 };
 
 const PROACTIVE_SHELL_DEFAULTS = {
@@ -109,6 +145,14 @@ function hydrateWorkspaceVoiceProactiveFromShell(awnSettings = {}, shellFlat = {
   return hydrateVoiceKeysFromShell(awnSettings, shellFlat, PROACTIVE_VOICE_TO_SHELL);
 }
 
+function hydrateWorkspaceVoiceInputFromShell(awnSettings = {}, shellFlat = {}) {
+  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, VOICE_INPUT_TO_SHELL);
+}
+
+function hydrateWorkspaceVoiceSttFromShell(awnSettings = {}, shellFlat = {}) {
+  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, STT_VOICE_TO_SHELL);
+}
+
 function hydrateWorkspaceVoiceTtsFromShell(awnSettings = {}, shellFlat = {}) {
   let out = hydrateVoiceKeysFromShell(awnSettings, shellFlat, TTS_VOICE_TO_SHELL);
   out = hydrateTtsRateFields(out, shellFlat);
@@ -117,6 +161,8 @@ function hydrateWorkspaceVoiceTtsFromShell(awnSettings = {}, shellFlat = {}) {
 
 function hydrateWorkspaceVoiceFromShell(awnSettings = {}, shellFlat = {}) {
   let out = hydrateWorkspaceVoiceProactiveFromShell(awnSettings, shellFlat);
+  out = hydrateWorkspaceVoiceInputFromShell(out, shellFlat);
+  out = hydrateWorkspaceVoiceSttFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceTtsFromShell(out, shellFlat);
   return out;
 }
@@ -132,9 +178,19 @@ function buildShellTtsPatchFromWorkspace(awnSettings = {}) {
   return patch;
 }
 
+function buildShellVoiceInputPatchFromWorkspace(awnSettings = {}) {
+  return buildShellPatchFromWorkspace(awnSettings, VOICE_INPUT_TO_SHELL);
+}
+
+function buildShellSttPatchFromWorkspace(awnSettings = {}) {
+  return buildShellPatchFromWorkspace(awnSettings, STT_VOICE_TO_SHELL);
+}
+
 function buildShellVoicePatchFromWorkspace(awnSettings = {}) {
   return {
     ...buildShellProactivePatchFromWorkspace(awnSettings),
+    ...buildShellVoiceInputPatchFromWorkspace(awnSettings),
+    ...buildShellSttPatchFromWorkspace(awnSettings),
     ...buildShellTtsPatchFromWorkspace(awnSettings)
   };
 }
@@ -147,23 +203,41 @@ function getTtsVoiceSettingsDefaults() {
   return { ...TTS_SHELL_DEFAULTS };
 }
 
+function getVoiceInputSettingsDefaults() {
+  return { ...VOICE_INPUT_SHELL_DEFAULTS };
+}
+
+function getSttVoiceSettingsDefaults() {
+  return { ...STT_SHELL_DEFAULTS };
+}
+
 function getVoiceSettingsDefaults() {
   return {
     ...getProactiveVoiceSettingsDefaults(),
+    ...getVoiceInputSettingsDefaults(),
+    ...getSttVoiceSettingsDefaults(),
     ...getTtsVoiceSettingsDefaults()
   };
 }
 
 module.exports = {
+  VOICE_INPUT_TO_SHELL,
+  STT_VOICE_TO_SHELL,
   PROACTIVE_VOICE_TO_SHELL,
   TTS_RATE_VOICE_KEYS,
   TTS_VOICE_TO_SHELL,
+  hydrateWorkspaceVoiceInputFromShell,
+  hydrateWorkspaceVoiceSttFromShell,
   hydrateWorkspaceVoiceProactiveFromShell,
   hydrateWorkspaceVoiceTtsFromShell,
   hydrateWorkspaceVoiceFromShell,
+  buildShellVoiceInputPatchFromWorkspace,
+  buildShellSttPatchFromWorkspace,
   buildShellProactivePatchFromWorkspace,
   buildShellTtsPatchFromWorkspace,
   buildShellVoicePatchFromWorkspace,
+  getVoiceInputSettingsDefaults,
+  getSttVoiceSettingsDefaults,
   getProactiveVoiceSettingsDefaults,
   getTtsVoiceSettingsDefaults,
   getVoiceSettingsDefaults

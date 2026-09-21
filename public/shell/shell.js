@@ -1095,23 +1095,40 @@ function isTypingTarget(element) {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable;
 }
 
-function getVoiceInputMode() {
-  if (readSttEnabledFromDom() === false) return "disabled";
-  const raw =
-    nodes.voiceMode?.value ||
+function getVoiceModeSelects() {
+  return [nodes.voiceMode, nodes.sttVoiceMode].filter(Boolean);
+}
+
+function readVoiceInputModeValueFromDom() {
+  const selects = getVoiceModeSelects();
+  const active = document.activeElement;
+  if (selects.includes(active) && active.value) {
+    return String(active.value).trim();
+  }
+  for (const select of selects) {
+    const raw = String(select.value || "").trim();
+    if (raw) return raw;
+  }
+  return (
     state.sttResumeMode ||
     lastCommittedVoiceMode ||
     resolveVoiceInputMode(state.settings) ||
-    "hold";
-  const mode = normalizeVoiceInputMode(raw);
+    "hold"
+  );
+}
+
+function getVoiceInputMode() {
+  if (readSttEnabledFromDom() === false) return "disabled";
+  const mode = normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   if (mode === "live" && !LIVE_VOICE_MODE_ENABLED) return "hold";
   return mode === "disabled" ? "hold" : mode;
 }
 
 function isVoiceModeUserLocked() {
+  const active = document.activeElement;
   return (
     state.voiceModeInteracting ||
-    document.activeElement === nodes.voiceMode ||
+    getVoiceModeSelects().some((select) => active === select) ||
     Boolean(state.pendingVoiceInputMode) ||
     Date.now() - voiceModeUserChangedAt < VOICE_MODE_USER_GRACE_MS
   );
@@ -1119,10 +1136,10 @@ function isVoiceModeUserLocked() {
 
 function commitVoiceModeSelection({ persist = true } = {}) {
   if (nodes.sttEnabled?.checked === false) return;
-  const picked = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
+  const picked = normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   if (isComposeVoiceModeDisabled(picked)) {
     const fallback = lastCommittedVoiceMode || "hold";
-    if (nodes.voiceMode) nodes.voiceMode.value = fallback;
+    for (const select of getVoiceModeSelects()) select.value = fallback;
     updateVoiceModeSelectUi();
     return;
   }
@@ -1133,7 +1150,7 @@ function commitVoiceModeSelection({ persist = true } = {}) {
   voiceModeUserChangedAt = Date.now();
   lastCommittedVoiceMode = mode;
   state.pendingVoiceInputMode = mode;
-  if (nodes.voiceMode) nodes.voiceMode.value = mode;
+  for (const select of getVoiceModeSelects()) select.value = mode;
   state.sttResumeMode = mode;
   if (state.settings) state.settings.voiceInputMode = mode;
 
@@ -1149,13 +1166,50 @@ function commitVoiceModeSelection({ persist = true } = {}) {
 }
 
 function syncVoiceModeSelectFromDom() {
-  if (!nodes.voiceMode || nodes.sttEnabled?.checked === false) return;
-  const mode = normalizeVoiceInputMode(nodes.voiceMode.value || state.sttResumeMode || "hold");
+  if (!getVoiceModeSelects().length || nodes.sttEnabled?.checked === false) return;
+  const mode = normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   if (mode === lastCommittedVoiceMode) {
     updateVoiceModeSelectUi();
     return;
   }
   commitVoiceModeSelection();
+}
+
+function bindVoiceModeSelect(select) {
+  if (!select) return;
+  select.addEventListener("pointerdown", () => {
+    state.voiceModeInteracting = true;
+  });
+  select.addEventListener("focus", () => {
+    state.voiceModeInteracting = true;
+  });
+  select.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (!getVoiceModeSelects().some((el) => document.activeElement === el)) {
+        state.voiceModeInteracting = false;
+        syncVoiceModeSelectFromDom();
+        if (state.pendingVoiceInputMode) {
+          const pending = normalizeVoiceInputMode(state.pendingVoiceInputMode);
+          const stored = normalizeVoiceInputMode(state.settings?.voiceInputMode || "hold");
+          if (pending === stored) state.pendingVoiceInputMode = null;
+        }
+      }
+    }, 0);
+  });
+  select.addEventListener("change", (event) => {
+    const mode = normalizeVoiceInputMode(event.currentTarget.value || "hold");
+    for (const el of getVoiceModeSelects()) el.value = mode;
+    commitVoiceModeSelection();
+  });
+  select.addEventListener("input", () => syncVoiceModeSelectFromDom());
+  select.addEventListener("pointerup", () => {
+    window.requestAnimationFrame(() => syncVoiceModeSelectFromDom());
+  });
+  select.addEventListener("keyup", (event) => {
+    if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      syncVoiceModeSelectFromDom();
+    }
+  });
 }
 
 function readSttEngineFromDom(settings = state.settings) {
@@ -1897,8 +1951,8 @@ const nodes = {
   sttEngine: document.getElementById("shell-stt-engine"),
   sttCaptureGroup: document.getElementById("shell-stt-capture-group"),
   sttHeroSummaryText: document.getElementById("shell-stt-hero-summary-text"),
-  sttPanelSummaryText: document.getElementById("shell-stt-panel-summary-text"),
   sttEngineNote: document.getElementById("shell-stt-engine-note"),
+  sttBrowserPanel: document.getElementById("shell-stt-browser-panel"),
   sttWhisperPanel: document.getElementById("shell-stt-whisper-panel"),
   sttWhisperModel: document.getElementById("shell-stt-whisper-model"),
   sttElevenlabsPanel: document.getElementById("shell-stt-elevenlabs-panel"),
@@ -1914,6 +1968,7 @@ const nodes = {
   thinkingSoundDemo: document.getElementById("shell-thinking-sound-demo"),
   windowCompact: document.getElementById("shell-compact-exit"),
   voiceMode: document.getElementById("shell-voice-mode"),
+  sttVoiceMode: document.getElementById("shell-stt-voice-mode"),
   micBtn: document.getElementById("shell-mic-btn"),
   voiceRecordTimer: document.getElementById("shell-voice-record-timer"),
   voiceControl: document.getElementById("shell-voice-control"),
@@ -8452,7 +8507,7 @@ function buildComposeParamsPreviewRows() {
   const toggles = readComposeOptionToggles();
   const outbound = collectOutboundMessageSettings();
   const runtime = normalizeMessageRuntime(settings.messageTarget || nodes.messageTarget?.value || "qwenpaw");
-  const voiceMode = String(settings.voiceInputMode || nodes.voiceMode?.value || "hold").trim() || "hold";
+  const voiceMode = String(settings.voiceInputMode || readVoiceInputModeValueFromDom() || "hold").trim() || "hold";
   const locationEnabled = isShellLocationShareEnabled();
   const location = locationEnabled ? getShellDeviceLocation() : null;
 
@@ -9662,8 +9717,8 @@ function syncMicButtonUi({ force = false } = {}) {
   nodes.micBtn.classList.toggle("is-live-mode", mode === "live");
   nodes.voiceControl?.classList.toggle("has-mic", micVisible);
   nodes.voiceControl?.classList.toggle("is-stt-processing", processing);
-  if (nodes.voiceMode) {
-    nodes.voiceMode.disabled = sttOff || processing;
+  for (const select of getVoiceModeSelects()) {
+    select.disabled = sttOff || processing;
   }
 
   if (sttOff) {
@@ -9850,15 +9905,16 @@ function updateVoiceModeSelectUi() {
   const sttOff = readSttEnabledFromDom() === false;
   const mode = sttOff
     ? "disabled"
-    : normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
+    : normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   const captureActive = isMicPhysicalHold();
-  if (nodes.voiceMode) {
-    nodes.voiceMode.disabled = sttOff;
-    nodes.voiceMode.title = sttOff
-      ? "Голосовой ввод выключен — включите «Голосовой ввод (STT)» выше"
-      : VOICE_MODE_HINTS[mode] || `Режим: ${VOICE_MODE_LABELS[mode] || mode}`;
-    if (sttOff && document.activeElement === nodes.voiceMode) {
-      nodes.voiceMode.blur();
+  const modeTitle = sttOff
+    ? "Голосовой ввод выключен — включите «Голосовой ввод (STT)» выше"
+    : VOICE_MODE_HINTS[mode] || `Режим: ${VOICE_MODE_LABELS[mode] || mode}`;
+  for (const select of getVoiceModeSelects()) {
+    select.disabled = sttOff;
+    select.title = modeTitle;
+    if (sttOff && document.activeElement === select) {
+      select.blur();
     }
   }
   updateVoiceModeHint(mode);
@@ -9874,24 +9930,27 @@ function updateVoiceModeSelectUi() {
 }
 
 function populateVoiceModeSelect(selected = getVoiceInputMode()) {
-  if (!nodes.voiceMode) return;
+  const selects = getVoiceModeSelects();
+  if (!selects.length) return;
   let current = normalizeVoiceInputMode(selected === "disabled" ? state.sttResumeMode || "hold" : selected);
   if (isComposeVoiceModeDisabled(current)) current = "hold";
-  nodes.voiceMode.innerHTML = "";
-  for (const mode of COMPOSE_VOICE_MODE_ORDER) {
-    const opt = document.createElement("option");
-    opt.value = mode;
-    opt.textContent = composeVoiceModeSelectLabel(mode);
-    opt.disabled = isComposeVoiceModeDisabled(mode);
-    if (mode === current) opt.selected = true;
-    nodes.voiceMode.append(opt);
+  for (const select of selects) {
+    select.innerHTML = "";
+    for (const mode of COMPOSE_VOICE_MODE_ORDER) {
+      const opt = document.createElement("option");
+      opt.value = mode;
+      opt.textContent = composeVoiceModeSelectLabel(mode);
+      opt.disabled = isComposeVoiceModeDisabled(mode);
+      if (mode === current) opt.selected = true;
+      select.append(opt);
+    }
   }
   lastCommittedVoiceMode = current;
   updateVoiceModeSelectUi();
 }
 
 function syncVoiceModeUi(settings = state.settings) {
-  if (!nodes.voiceMode) return;
+  if (!getVoiceModeSelects().length) return;
   if (voiceInputModePersisting) {
     updateVoiceModeSelectUi();
     return;
@@ -9899,13 +9958,13 @@ function syncVoiceModeUi(settings = state.settings) {
 
   const stored = resolveVoiceInputMode(settings);
   const localMode = normalizeVoiceInputMode(
-    nodes.voiceMode.value || state.sttResumeMode || lastCommittedVoiceMode || "hold"
+    readVoiceInputModeValueFromDom() || state.sttResumeMode || lastCommittedVoiceMode || "hold"
   );
   const userLocked = isVoiceModeUserLocked();
 
   if (!voiceModeHydratedFromServer && !userLocked) {
     if (stored !== localMode) {
-      nodes.voiceMode.value = stored;
+      for (const select of getVoiceModeSelects()) select.value = stored;
       state.sttResumeMode = stored;
       lastCommittedVoiceMode = stored;
       if (state.settings) state.settings.voiceInputMode = stored;
@@ -9983,7 +10042,6 @@ function updateSttSummaries(settings = state.settings) {
   const engine = readSttEngineFromDom(settings);
   const summary = formatSttSummary(capture, engine, readSttLangFromDom(settings));
   if (nodes.sttHeroSummaryText) nodes.sttHeroSummaryText.textContent = summary;
-  if (nodes.sttPanelSummaryText) nodes.sttPanelSummaryText.textContent = summary;
 }
 
 function updateSttEngineNote(settings = state.settings) {
@@ -10027,7 +10085,7 @@ function collectSttFormPatch() {
 }
 
 function collectSttSettingsPatch() {
-  const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
+  const uiMode = normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   return {
     sttEnabled: readSttEnabledFromDom() !== false,
     voiceInputMode: uiMode,
@@ -10165,7 +10223,7 @@ async function persistVoiceResponseEnabled(enabled) {
 }
 
 async function persistSttEnabled(enabled) {
-  const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
+  const uiMode = normalizeVoiceInputMode(readVoiceInputModeValueFromDom());
   state.sttResumeMode = uiMode;
   if (!enabled) {
     shellTapVoice?.abortSession();
@@ -10373,6 +10431,12 @@ function updateSttEngineUi() {
       nodes.sttEngine.value = "google";
       if (state.settings) state.settings.sttEngine = "google";
     }
+  }
+  if (nodes.sttBrowserPanel) {
+    nodes.sttBrowserPanel.dataset.visible =
+      engine === "browser" || engine === "google" || engine === "whisper" || engine === "elevenlabs"
+        ? "1"
+        : "0";
   }
   if (nodes.sttWhisperPanel) {
     nodes.sttWhisperPanel.dataset.visible = engine === "whisper" ? "1" : "0";
@@ -12512,35 +12576,7 @@ function bindUi() {
   if (typeof speechSynthesis !== "undefined") {
     speechSynthesis.addEventListener("voiceschanged", refreshTtsVoiceOptions);
   }
-  nodes.voiceMode?.addEventListener("pointerdown", () => {
-    state.voiceModeInteracting = true;
-  });
-  nodes.voiceMode?.addEventListener("focus", () => {
-    state.voiceModeInteracting = true;
-  });
-  nodes.voiceMode?.addEventListener("blur", () => {
-    window.setTimeout(() => {
-      if (document.activeElement !== nodes.voiceMode) {
-        state.voiceModeInteracting = false;
-        syncVoiceModeSelectFromDom();
-        if (state.pendingVoiceInputMode) {
-          const pending = normalizeVoiceInputMode(state.pendingVoiceInputMode);
-          const stored = normalizeVoiceInputMode(state.settings?.voiceInputMode || "hold");
-          if (pending === stored) state.pendingVoiceInputMode = null;
-        }
-      }
-    }, 0);
-  });
-  nodes.voiceMode?.addEventListener("change", () => commitVoiceModeSelection());
-  nodes.voiceMode?.addEventListener("input", () => syncVoiceModeSelectFromDom());
-  nodes.voiceMode?.addEventListener("pointerup", () => {
-    window.requestAnimationFrame(() => syncVoiceModeSelectFromDom());
-  });
-  nodes.voiceMode?.addEventListener("keyup", (event) => {
-    if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
-      syncVoiceModeSelectFromDom();
-    }
-  });
+  for (const select of getVoiceModeSelects()) bindVoiceModeSelect(select);
 
   bindComposeSendUi();
   nodes.composeExpandToggle?.addEventListener("click", toggleComposeExpanded);

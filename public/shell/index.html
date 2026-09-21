@@ -1097,11 +1097,49 @@
           <span class="shell-label">Голосовой ввод (STT)</span>
         </div>
         <div class="shell-stt-settings" id="shell-stt-settings">
-          <div class="shell-stt-summary-row" id="shell-stt-panel-summary" aria-live="polite">
-            <span class="shell-stt-summary-label">Сейчас</span>
-            <span class="shell-stt-summary-value" id="shell-stt-panel-summary-text">🎤 · Web Speech</span>
+          <div class="shell-stt-common-settings" id="shell-stt-common-settings">
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-panel-enable-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Голосовой ввод — микрофон и режим 🎤"
+              >
+                <input id="shell-stt-panel-enabled" type="checkbox" checked aria-label="Включить голосовой ввод" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">🎤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Включить голосовой ввод</span>
+                  <span class="shell-tts-playback-option-desc">(микрофон и режим 🎤 у поля ввода)</span>
+                </span>
+              </label>
+            </span>
           </div>
-          <div class="shell-stt-engines" id="shell-stt-engines">
+
+          <label class="shell-field shell-field--compact shell-stt-voice-mode-field">
+            <span class="shell-label">Режим 🎤</span>
+            <select
+              id="shell-stt-voice-mode"
+              class="shell-select shell-select--full"
+              aria-label="Как вводить голос"
+              title="Как вводить голос"
+            ></select>
+          </label>
+
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-voice-response-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-voice-response shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Если выключено — перед отправкой показывается диалог «Распознано»"
+              >
+                <input id="shell-voice-response-enabled" type="checkbox" checked aria-label="Автоотправка распознанного текста" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">➤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Автоотправка</span>
+                  <span class="shell-tts-playback-option-desc">(сразу после 🎤 — агенту; выключите, чтобы править текст в диалоге)</span>
+                </span>
+              </label>
+            </span>
+          </div>
+
             <fieldset class="shell-field shell-field--compact shell-stt-capture-field">
               <legend class="shell-label">Что слушать</legend>
               <div
@@ -1134,6 +1172,24 @@
               </div>
             </fieldset>
 
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт для обработки речи
+              <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-stt-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="4"
+              spellcheck="false"
+              placeholder="Как агент читает блоки [stt]…[/stt] в сообщении (голос + текст). «Вставить заготовку» — шаблон."
+            ></textarea>
+          </label>
+          </div>
+
+          <div class="shell-stt-engines" id="shell-stt-engines">
             <label class="shell-field">
               <span class="shell-label shell-label-row shell-label-row--spread">Движок STT</span>
               <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Движок STT">
@@ -1146,7 +1202,7 @@
             </label>
 
             <div class="shell-stt-engine-panels">
-              <div class="shell-stt-common-panel" id="shell-stt-common-panel">
+              <div class="shell-stt-browser-panel" id="shell-stt-browser-panel" data-visible="0">
                 <div class="shell-stt-engine-fields">
                   <label class="shell-field shell-field--compact">
                     <span class="shell-label">Язык STT</span>
@@ -1201,53 +1257,6 @@
             Whisper: <code>Agent CMS Control → Установить зависимости</code>.
             <a href="#" id="shell-mic-help-link">Микрофон Safari</a>
           </p>
-
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label shell-label-row shell-label-row--spread">
-              Промпт для обработки речи
-              <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
-                Вставить заготовку
-              </button>
-            </span>
-            <textarea
-              id="shell-stt-prompt"
-              class="shell-textarea shell-textarea--compact"
-              rows="4"
-              spellcheck="false"
-              placeholder="Как агент читает блоки [stt]…[/stt] в сообщении (голос + текст). «Вставить заготовку» — шаблон."
-            ></textarea>
-          </label>
-          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-voice-response-field">
-            <span class="shell-tts-panel-playback" role="presentation">
-              <label
-                class="shell-stt-voice-response shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
-                title="Если выключено — перед отправкой показывается диалог «Распознано»"
-              >
-                <input id="shell-voice-response-enabled" type="checkbox" checked aria-label="Автоотправка распознанного текста" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">➤</span>
-                <span class="shell-tts-playback-option-copy">
-                  <span class="shell-tts-playback-option-title">Автоотправка</span>
-                  <span class="shell-tts-playback-option-desc">(сразу после 🎤 — агенту; выключите, чтобы править текст в диалоге)</span>
-                </span>
-              </label>
-            </span>
-          </div>
-
-          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-panel-enable-field">
-            <span class="shell-tts-panel-playback" role="presentation">
-              <label
-                class="shell-stt-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
-                title="Голосовой ввод — микрофон и режим 🎤"
-              >
-                <input id="shell-stt-panel-enabled" type="checkbox" checked aria-label="Включить голосовой ввод" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">🎤</span>
-                <span class="shell-tts-playback-option-copy">
-                  <span class="shell-tts-playback-option-title">Включить голосовой ввод</span>
-                  <span class="shell-tts-playback-option-desc">(микрофон и режим 🎤 у поля ввода)</span>
-                </span>
-              </label>
-            </span>
-          </div>
         </div>
         <div class="shell-settings-save-row">
           <div class="shell-settings-save-actions">

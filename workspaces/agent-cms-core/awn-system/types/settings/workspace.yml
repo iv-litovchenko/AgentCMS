@@ -51,43 +51,55 @@ fieldGroups:
         sort: 2
       - id: voice-input
         name: Ввод (микрофон)
+        description: Режим 🎤 у поля ввода и доп. опции
         sort: 3
       - id: voice-stt
         name: Распознавание (STT)
+        description: Включение, захват, промпт и движок
         sort: 4
+        defaultOpen: true
+      - id: voice-stt-browser
+        name: Распознавание (STT) · Web Speech
+        sort: 5
+      - id: voice-stt-whisper
+        name: Распознавание (STT) · Whisper
+        sort: 6
+      - id: voice-stt-elevenlabs
+        name: Распознавание (STT) · ElevenLabs Scribe
+        sort: 7
       - id: voice-tts
         name: Озвучка (TTS)
         description: Включение, способ озвучки, промпт и активный движок
-        sort: 5
+        sort: 8
         defaultOpen: true
       - id: voice-tts-browser
         name: Озвучка (TTS) · Web Speech
-        sort: 6
+        sort: 9
       - id: voice-tts-edge
         name: Озвучка (TTS) · Edge TTS
-        sort: 7
+        sort: 10
       - id: voice-tts-piper
         name: Озвучка (TTS) · Piper
-        sort: 8
+        sort: 11
       - id: voice-tts-elevenlabs
         name: Озвучка (TTS) · ElevenLabs
-        sort: 9
+        sort: 12
       - id: voice-proactive
         name: Проактивные пинги
-        sort: 10
+        sort: 13
       - id: voice-media
         name: Камера и экран
-        sort: 11
+        sort: 14
       - id: voice-window
         name: Окно Voice
-        sort: 12
+        sort: 15
       - id: voice-ui
         name: Интерфейс диалога
-        sort: 13
+        sort: 16
       - id: voice-compose
         name: Шаблоны compose
         description: Список шаблонов — repeater позже; пока заглушка
-        sort: 14
+        sort: 17
   - id: static
     name: Статичные параметры
     description: >
@@ -252,116 +264,135 @@ fields:
 
   voice-input-enabled:
     type: awn.field.boolean
-    title: "{DRAFT} Голосовой ввод"
+    title: Включить голосовой ввод
+    description: Микрофон и режим 🎤 у поля ввода
     default: false
     group: voice-client
-    subgroup: voice-input
-    sort: 54
+    subgroup: voice-stt
+    sort: 50
 
   voice-input-mode:
     type: awn.field.choice.one
-    title: "{DRAFT} Режим ввода"
+    title: Режим 🎤
+    description: Как вводить голос у поля ввода
     default: fn_button
     enum:
+      - key: live
+        name: Живой диалог
+      - key: meeting
+        name: Встреча (запись)
+      - key: hold
+        name: Голосовое
       - key: fn_button
-        name: Кнопка Fn
-      - key: push_to_talk
-        name: Push-to-talk
+        name: По кнопке Shift
     group: voice-client
-    subgroup: voice-input
-    sort: 55
+    subgroup: voice-stt
+    sort: 51
+
+  voice-input-response-enabled:
+    type: awn.field.boolean
+    title: Автоотправка
+    description: Сразу после 🎤 — агенту; выключите, чтобы править текст в диалоге
+    default: false
+    group: voice-client
+    subgroup: voice-stt
+    sort: 52
 
   voice-input-capture:
     type: awn.field.choice.one
-    title: "{DRAFT} Источник захвата"
+    title: Что слушать
     default: microphone
     enum:
       - key: microphone
         name: Микрофон
       - key: system
         name: Системный звук
+      - key: mix
+        name: Смешать потоки
+    group: voice-client
+    subgroup: voice-stt
+    sort: 53
+
+  voice-stt-prompt:
+    type: awn.field.text
+    title: Промпт для обработки речи
+    group: voice-client
+    subgroup: voice-stt
+    sort: 54
+
+  voice-stt-engine:
+    type: awn.field.choice.one
+    title: Движок STT
+    default: browser
+    enum:
+      - key: browser
+        name: Web Speech — в браузере (устройство)
+      - key: google
+        name: Google STT — облако (Google)
+      - key: whisper
+        name: Whisper — локально (сервер)
+      - key: elevenlabs
+        name: ElevenLabs Scribe — облако (ElevenLabs)
+    group: voice-client
+    subgroup: voice-stt
+    sort: 55
+
+  voice-input-global-listen:
+    type: awn.field.boolean
+    title: Глобальное прослушивание
+    default: false
     group: voice-client
     subgroup: voice-input
     sort: 56
 
-  voice-input-global-listen:
+  voice-input-to-compose:
     type: awn.field.boolean
-    title: "{DRAFT} Глобальное прослушивание"
+    title: Вставлять в compose
     default: false
     group: voice-client
     subgroup: voice-input
     sort: 57
 
-  voice-input-to-compose:
-    type: awn.field.boolean
-    title: "{DRAFT} Вставлять в compose"
-    default: false
-    group: voice-client
-    subgroup: voice-input
-    sort: 58
-
-  voice-input-response-enabled:
-    type: awn.field.boolean
-    title: "{DRAFT} Ответ на голосовой ввод"
-    default: false
-    group: voice-client
-    subgroup: voice-input
-    sort: 59
-
-  voice-stt-engine:
-    type: awn.field.choice.one
-    title: "{DRAFT} Движок STT"
-    default: browser
-    enum:
-      - key: browser
-        name: Browser
-      - key: whisper
-        name: Whisper
-      - key: elevenlabs
-        name: ElevenLabs
-    group: voice-client
-    subgroup: voice-stt
-    sort: 60
-
   voice-stt-lang:
     type: awn.field.string
-    title: "{DRAFT} Язык STT"
+    title: Язык STT
     default: ru-RU
     group: voice-client
-    subgroup: voice-stt
-    sort: 61
-
-  voice-stt-prompt:
-    type: awn.field.text
-    title: "{DRAFT} Промпт STT"
-    group: voice-client
-    subgroup: voice-stt
-    sort: 62
+    subgroup: voice-stt-browser
+    sort: 70
 
   voice-stt-whisper-model:
     type: awn.field.choice.one
-    title: "{DRAFT} Whisper model"
+    title: Модель Whisper
     default: base
-    enum: [tiny, base, small, medium, large]
+    enum:
+      - key: tiny
+        name: tiny — быстро, хуже качество
+      - key: base
+        name: base — баланс
+      - key: small
+        name: small
+      - key: medium
+        name: medium — медленнее, лучше
     group: voice-client
-    subgroup: voice-stt
-    sort: 63
+    subgroup: voice-stt-whisper
+    sort: 80
 
   voice-stt-elevenlabs-api-key:
     type: awn.field.string.secret
-    title: "{DRAFT} ElevenLabs API key (STT)"
-    description: Маскируется в форме; для агента позже — зашифрованная выдача
+    title: API key · Scribe
+    description: Если пусто — из TTS ElevenLabs; маскируется в форме
     group: voice-client
-    subgroup: voice-stt
-    sort: 64
+    subgroup: voice-stt-elevenlabs
+    sort: 90
 
   voice-stt-elevenlabs-model:
     type: awn.field.string
-    title: "{DRAFT} ElevenLabs STT model"
+    title: Модель Scribe
     default: scribe_v2
     group: voice-client
-    subgroup: voice-stt
-    sort: 65
+    subgroup: voice-stt-elevenlabs
+    sort: 91
 
   voice-tts-enabled:
     type: awn.field.boolean

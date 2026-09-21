@@ -3369,10 +3369,22 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   margin: 0;
 }
 
-.shell-tts-engines {
+.shell-tts-engines,
+.shell-stt-engines {
   margin-top: 2px;
   padding-top: 10px;
   border-top: 1px solid var(--shell-surface-divider);
+}
+
+.shell-stt-common-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap, 10px);
+}
+
+.shell-stt-common-settings > .shell-field,
+.shell-stt-common-settings > fieldset.shell-field {
+  margin: 0;
 }
 
 .shell-tts-panel-enable-field,
@@ -4611,11 +4623,13 @@ body.shell-desktop .shell-agent-gate select {
   gap: 8px;
 }
 
+.shell-stt-panel .shell-stt-browser-panel,
 .shell-stt-panel .shell-stt-whisper-panel,
 .shell-stt-panel .shell-stt-elevenlabs-panel {
   display: none;
 }
 
+.shell-stt-panel .shell-stt-browser-panel[data-visible="1"],
 .shell-stt-panel .shell-stt-whisper-panel[data-visible="1"],
 .shell-stt-panel .shell-stt-elevenlabs-panel[data-visible="1"] {
   display: block;
