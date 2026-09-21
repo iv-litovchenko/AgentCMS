@@ -17896,6 +17896,12 @@ a.header-tool-btn {
   background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
 }
 
+.header-index-cache-reset-wrap {
+  display: block;
+  width: 100%;
+  cursor: not-allowed;
+}
+
 .header-index-cache-reset-btn {
   display: flex;
   align-items: center;

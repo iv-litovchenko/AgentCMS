@@ -887,16 +887,21 @@
                   </button>
                 </div>
                 <div class="header-index-cache-bar">
-                  <button
-                    type="button"
-                    id="menu-workspace-index-cache-reset-btn"
-                    class="header-index-cache-reset-btn"
-                    title="Удалить все временные файлы в .agent-cms/cache (скоро)"
-                    disabled
-                    aria-disabled="true"
+                  <span
+                    class="header-index-cache-reset-wrap"
+                    title="Удалить временные файлы в .agent-cms/cache и awn-temp/ (скоро)"
                   >
-                    Сбросить кэш (удалить все временные файлы)
-                  </button>
+                    <button
+                      type="button"
+                      id="menu-workspace-index-cache-reset-btn"
+                      class="header-index-cache-reset-btn"
+                      disabled
+                      aria-disabled="true"
+                      aria-label="Сбросить кэш (удалить все временные файлы)"
+                    >
+                      Сбросить кэш (удалить все временные файлы)
+                    </button>
+                  </span>
                 </div>
                 <div class="header-index-flush-bar" role="toolbar" aria-label="Быстрый запуск индексирования">
                   <button
