@@ -8,6 +8,10 @@ let envExpandAll = false;
 const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
 const runningActions = new Set();
+
+function isControlActionAvailable(actionId) {
+  return Array.isArray(bootstrap?.actions) && bootstrap.actions.some((entry) => entry.id === actionId);
+}
 let lastServer = null;
 let clockTimer = null;
 let serverPollTimer = null;
@@ -774,7 +778,7 @@ function renderGuideStepServer() {
         ${serverButton("server-start-bg", "start-bg", isRunning)}
         ${serverButton("server-start-attached", "start", isRunning)}
         ${serverButton("server-stop", "stop", !isRunning)}
-        ${serverButton("server-restart", "restart", !isRunning)}
+        ${isControlActionAvailable("server-restart") ? serverButton("server-restart", "restart", !isRunning) : ""}
       </div>
       ${browserLinks}
     </div>

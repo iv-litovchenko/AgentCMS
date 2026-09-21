@@ -50,6 +50,8 @@ const ACTIONS = [
     id: "server-restart",
     category: "server",
     title: "Перезапустить",
+    command: "bash",
+    args: ["scripts/agent-https-service.sh", "restart"],
     tone: "default",
     preflight: "certs",
     serverRole: "restart"

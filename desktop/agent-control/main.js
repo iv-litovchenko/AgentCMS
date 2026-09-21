@@ -10,16 +10,6 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
-const {
-  ACTIONS,
-  APP_PRODUCTS,
-  CONTROL_SELF,
-  SETUP_ACTIONS,
-  SERVER_PORTS,
-  SERVER_TEST,
-  MCP_TEST,
-  CHROME_EXTENSION
-} = require("./actions");
 const controlPackage = require("./package.json");
 const { requireRepo } = require("./repo-resolve");
 const docsRegistry = requireRepo("docs-registry");
@@ -51,6 +41,7 @@ function buildProjectSetupFlags(root) {
 }
 
 function buildMcpConnectInfo(root) {
+  const { SERVER_PORTS } = loadActionsModule();
   const cmsBaseUrl = `https://localhost:${SERVER_PORTS.editorHttps}`;
   const mcpServerPath = path.join(root, "mcp-server", "index.js");
 
@@ -99,6 +90,7 @@ function buildMcpConnectInfo(root) {
 }
 
 function buildMobileConnectInfo(environment) {
+  const { SERVER_PORTS } = loadActionsModule();
   const lanIp = String(environment?.host?.lanIp || "").trim();
   const voiceHttpsPort = SERVER_PORTS.voiceHttps;
   const voiceHttpPort = SERVER_PORTS.voiceHttp;
@@ -162,6 +154,22 @@ function getProjectRoot() {
   }
 
   return REPO_ROOT;
+}
+
+function loadActionsModule() {
+  const root = getProjectRoot();
+  const devPath = path.join(root, "desktop", "agent-control", "actions.js");
+  const bundledPath = path.join(__dirname, "actions.js");
+  const target = fs.existsSync(devPath) ? devPath : bundledPath;
+
+  try {
+    const resolved = require.resolve(target);
+    if (require.cache[resolved]) delete require.cache[resolved];
+  } catch {
+    // first load
+  }
+
+  return require(target);
 }
 
 function sendLog(text, stream = "stdout") {
@@ -579,9 +587,16 @@ function stopAllActiveTasks() {
 }
 
 async function runAction(actionId) {
-  const action = ACTIONS.find((entry) => entry.id === actionId);
+  const normalizedId = String(actionId || "").trim();
+  const { ACTIONS } = loadActionsModule();
+  const action = ACTIONS.find((entry) => entry.id === normalizedId);
   if (!action) {
-    return { ok: false, error: "Неизвестное действие" };
+    return {
+      ok: false,
+      error: normalizedId
+        ? `Неизвестное действие: ${normalizedId}. Полностью закройте Agent CMS Control (Cmd+Q) и откройте снова.`
+        : "Неизвестное действие. Полностью закройте Agent CMS Control (Cmd+Q) и откройте снова."
+    };
   }
   if (activeTasks.has(actionId)) {
     return { ok: false, error: "Это действие уже выполняется." };
@@ -736,6 +751,16 @@ if (!gotLock) {
   app.whenReady().then(() => {
     ipcMain.handle("control:get-bootstrap", async () => {
       const root = getProjectRoot();
+      const {
+        ACTIONS,
+        APP_PRODUCTS,
+        CONTROL_SELF,
+        SETUP_ACTIONS,
+        SERVER_PORTS,
+        SERVER_TEST,
+        MCP_TEST,
+        CHROME_EXTENSION
+      } = loadActionsModule();
       const environment = await buildSystemEnvironment(root).catch(() => null);
       const server = await probeServerStatus();
       return {

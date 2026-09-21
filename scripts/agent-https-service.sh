@@ -227,6 +227,17 @@ stop_server() {
   echo "Остановлено."
 }
 
+restart_server() {
+  if ! server_listening; then
+    echo "Сервер не запущен."
+    return 1
+  fi
+
+  stop_server || return 1
+  sleep 0.4
+  start_direct
+}
+
 case "${1:-}" in
   start)
     if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -240,6 +251,9 @@ case "${1:-}" in
     ;;
   stop)
     stop_server
+    ;;
+  restart)
+    restart_server
     ;;
   status)
     if is_running; then
@@ -255,7 +269,7 @@ case "${1:-}" in
     fi
     ;;
   *)
-    echo "Usage: $0 {start|start-direct|stop|status}"
+    echo "Usage: $0 {start|start-direct|stop|restart|status}"
     exit 1
     ;;
 esac

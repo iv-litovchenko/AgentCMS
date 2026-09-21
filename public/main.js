@@ -9956,7 +9956,7 @@ let appLandingPlatformReadmeCache = null;
 
 async function loadAppLandingPlatformReadme(options = {}) {
   if (!options.force && appLandingPlatformReadmeCache) return appLandingPlatformReadmeCache;
-  const response = await fetch(buildApiUrl("/api/platform/readme"));
+  const response = await fetch("/api/platform/readme");
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   appLandingPlatformReadmeCache = {

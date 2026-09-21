@@ -26535,7 +26535,31 @@ async function handleApiForAgent(req, res, url) {
   return sendJson(res, 404, { error: "API route not found" });
 }
 
+async function readPlatformReadmePayload() {
+  const readmeAbsolute = path.join(getAppRoot(), "README.md");
+  try {
+    const content = await fs.readFile(readmeAbsolute, "utf-8");
+    return { path: "README.md", content, exists: true };
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return { path: "README.md", content: "", exists: false };
+    }
+    throw error;
+  }
+}
+
 async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/platform/readme") {
+    try {
+      return sendJson(res, 200, await readPlatformReadmePayload());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform README",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/app-lock/status") {
     try {
       const status = await getAppLockStatus();
@@ -26853,19 +26877,6 @@ async function handleApi(req, res, url) {
         error: "Failed to read global settings file",
         details: String(error.message || error)
       });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/platform/readme") {
-    const readmeAbsolute = path.join(getAppRoot(), "README.md");
-    try {
-      const content = await fs.readFile(readmeAbsolute, "utf-8");
-      return sendJson(res, 200, { path: "README.md", content, exists: true });
-    } catch (error) {
-      if (error && error.code === "ENOENT") {
-        return sendJson(res, 200, { path: "README.md", content: "", exists: false });
-      }
-      return sendJson(res, 500, { error: "Failed to read platform README", details: String(error.message || error) });
     }
   }
 
