@@ -887,10 +887,7 @@
                   </button>
                 </div>
                 <div class="header-index-cache-bar">
-                  <span
-                    class="header-index-cache-reset-wrap"
-                    title="Удалить временные файлы в .agent-cms/cache и awn-temp/ (скоро)"
-                  >
+                  <div class="header-index-cache-reset-row">
                     <button
                       type="button"
                       id="menu-workspace-index-cache-reset-btn"
@@ -901,7 +898,21 @@
                     >
                       Сбросить кэш (удалить все временные файлы)
                     </button>
-                  </span>
+                    <button
+                      type="button"
+                      id="menu-workspace-index-cache-reset-hint-btn"
+                      class="header-index-cache-reset-hint-btn"
+                      data-hint="Удалить временные файлы в .agent-cms/cache и awn-temp/ (скоро)"
+                      aria-label="Подсказка: что удаляется при сбросе кэша"
+                      aria-expanded="false"
+                    >
+                      <svg class="header-index-cache-reset-hint-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle>
+                        <path d="M9.75 9.75a2.25 2.25 0 1 1 3.55 1.84c-.78.6-1.05 1.05-1.05 1.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                        <circle cx="12" cy="16.75" r="1.1" fill="currentColor"></circle>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div class="header-index-flush-bar" role="toolbar" aria-label="Быстрый запуск индексирования">
                   <button

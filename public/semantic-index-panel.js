@@ -1195,6 +1195,87 @@
     });
   }
 
+  function initCacheResetHintButton() {
+    const hintBtn = document.getElementById("menu-workspace-index-cache-reset-hint-btn");
+    if (!hintBtn || hintBtn.dataset.hintBound === "1") return;
+    hintBtn.dataset.hintBound = "1";
+
+    let hintNode = null;
+    let hintOpen = false;
+
+    function ensureHintNode() {
+      if (hintNode) return hintNode;
+      hintNode = document.getElementById("app-floating-hint");
+      if (!hintNode) {
+        hintNode = document.createElement("div");
+        hintNode.id = "app-floating-hint";
+        hintNode.className = "app-floating-hint hidden";
+        hintNode.setAttribute("role", "tooltip");
+        document.body.appendChild(hintNode);
+      }
+      return hintNode;
+    }
+
+    function hideHint() {
+      hintOpen = false;
+      hintBtn.setAttribute("aria-expanded", "false");
+      ensureHintNode().classList.add("hidden");
+    }
+
+    function positionHint() {
+      const node = ensureHintNode();
+      const rect = hintBtn.getBoundingClientRect();
+      const margin = 8;
+      node.classList.remove("hidden");
+      const tipW = node.offsetWidth;
+      const tipH = node.offsetHeight;
+      let left = rect.left + rect.width / 2 - tipW / 2;
+      left = Math.max(margin, Math.min(left, window.innerWidth - tipW - margin));
+      let top = rect.bottom + margin;
+      if (top + tipH > window.innerHeight - margin) {
+        top = rect.top - tipH - margin;
+      }
+      node.style.left = `${Math.round(left)}px`;
+      node.style.top = `${Math.round(top)}px`;
+    }
+
+    function showHint() {
+      const text = String(hintBtn.dataset.hint || "").trim();
+      if (!text) return;
+      hintOpen = true;
+      hintBtn.setAttribute("aria-expanded", "true");
+      const node = ensureHintNode();
+      node.textContent = text;
+      positionHint();
+    }
+
+    hintBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (hintOpen) hideHint();
+      else showHint();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!hintOpen) return;
+      if (event.target.closest("#menu-workspace-index-cache-reset-hint-btn")) return;
+      hideHint();
+    });
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (hintOpen) positionHint();
+      },
+      true
+    );
+    window.addEventListener("resize", () => {
+      if (hintOpen) positionHint();
+    });
+  }
+
+  initCacheResetHintButton();
+
   window.addEventListener("header-index-popover-open", () => {
     void refreshStatus();
   });
