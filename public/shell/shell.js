@@ -6323,16 +6323,25 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   }
 }
 
+function qwenpawApprovalLevelFromBypass(bypass) {
+  return bypass ? "OFF" : "AUTO";
+}
+
+function qwenpawApprovalBypassFromLevel(level) {
+  return String(level || "AUTO").trim().toUpperCase() === "OFF";
+}
+
 function applyQwenpawRouteForm(settings = state.settings || {}) {
   if (nodes.qwenpawUrl && document.activeElement !== nodes.qwenpawUrl) {
     nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
   }
   if (nodes.qwenpawUserId && document.activeElement !== nodes.qwenpawUserId) {
-    nodes.qwenpawUserId.value = settings.qwenpawUserId || "shell";
+    nodes.qwenpawUserId.value = settings.qwenpawUserId || "default";
   }
   if (nodes.qwenpawAgentId && document.activeElement !== nodes.qwenpawAgentId) {
     nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
   }
+  syncQwenPawApprovalCheckbox(settings.qwenpawApprovalLevel || "AUTO");
   void loadQwenPawAgents(settings.qwenpawAgentId || "default");
 }
 
@@ -6350,8 +6359,11 @@ function buildRouteSnapshotFromSettings(settings = state.settings || {}) {
   const snap = {
     messageTarget: normalizeMessageRuntime(settings.messageTarget || "qwenpaw"),
     qwenpawBaseUrl: String(settings.qwenpawBaseUrl || "http://127.0.0.1:8088").trim() || "http://127.0.0.1:8088",
-    qwenpawUserId: String(settings.qwenpawUserId || "shell").trim() || "shell",
+    qwenpawUserId: String(settings.qwenpawUserId || "default").trim() || "default",
     qwenpawAgentId: String(settings.qwenpawAgentId || "default").trim() || "default",
+    qwenpawApprovalLevel: qwenpawApprovalLevelFromBypass(
+      qwenpawApprovalBypassFromLevel(settings?.qwenpawApprovalLevel)
+    ),
     systemPrompt: String(settings.systemPrompt || "").trim()
   };
   for (const id of SHELL_RUNTIMES) {
@@ -6424,8 +6436,9 @@ function collectRouteSettingsPatch({ validate = false } = {}) {
   const patch = {
     messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
-    qwenpawUserId: nodes.qwenpawUserId?.value.trim() || "shell",
+    qwenpawUserId: nodes.qwenpawUserId?.value.trim() || "default",
     qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default",
+    qwenpawApprovalLevel: qwenpawApprovalLevelFromBypass(Boolean(nodes.qwenpawPermissionMode?.checked)),
     systemPrompt: nodes.systemPrompt?.value || ""
   };
   if (runtimeUsesBridge(runtime)) {
@@ -7692,7 +7705,9 @@ async function loadQwenPawAgents(preferredId = "") {
     );
     state.qwenpawAgentsReachable = Array.isArray(data.agents) && data.agents.length > 0;
     syncQwenPawAgentInput(data.agents, lookupId || data.selectedAgentId || state.settings?.qwenpawAgentId);
-    syncQwenPawApprovalCheckbox(data.selectedAgentApproval);
+    syncQwenPawApprovalCheckbox(
+      data.selectedAgentApproval || state.settings?.qwenpawApprovalLevel || "AUTO"
+    );
   } catch {
     state.qwenpawAgentsReachable = false;
     syncQwenPawAgentInput([], lookupId || state.settings?.qwenpawAgentId || "default");
@@ -7703,16 +7718,15 @@ async function loadQwenPawAgents(preferredId = "") {
 
 async function persistQwenPawApprovalMode() {
   if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
-  const agentId =
-    String(nodes.qwenpawAgentId?.value || state.settings?.qwenpawAgentId || "default").trim() || "default";
+  const approvalLevel = qwenpawApprovalLevelFromBypass(Boolean(nodes.qwenpawPermissionMode?.checked));
   const data = await apiFetch("/api/shell/qwenpaw/agent-approval", {
     method: "POST",
-    body: JSON.stringify({
-      agentId,
-      bypass: Boolean(nodes.qwenpawPermissionMode?.checked)
-    })
+    body: JSON.stringify({ bypass: approvalLevel === "OFF" })
   });
-  syncQwenPawApprovalCheckbox(data.approvalLevel);
+  if (data.approvalLevel) {
+    state.settings = { ...(state.settings || {}), qwenpawApprovalLevel: data.approvalLevel };
+  }
+  syncQwenPawApprovalCheckbox(data.approvalLevel || approvalLevel);
 }
 
 function updateQwenPawChatUi(payload) {

@@ -109,7 +109,7 @@ HTTP: `POST /api/shell/screen/snapshot`, `GET /api/shell/screen/latest?kind=spee
 3. Ответ стримится из QwenPaw: Shell показывает текст по мере генерации (`assistant_delta` по SSE), затем финализирует markdown и TTS по предложениям.
 4. Режим **QwenPaw + лог в CMS** дополнительно пишет диалог в thread CMS (ответ — целиком; при обрыве — сохраняется часть).
 
-Настройки QwenPaw в CMS (`workspace.yml`): `voice-route-qwenpaw-url`, `voice-route-qwenpaw-user-id`, `voice-route-qwenpaw-agent-id`, `voice-route-qwenpaw-session-id`. Runtime qwenpaw (`chatName`, `stt.*`) — в `state/shell.json`.
+Настройки QwenPaw в CMS (`workspace.yml`): `voice-route-qwenpaw-url`, `voice-route-qwenpaw-user-id`, `voice-route-qwenpaw-agent-id`, `voice-route-qwenpaw-approval-level`, `voice-route-qwenpaw-session-id`. Runtime qwenpaw (`chatName`, `stt.*`) — в `state/shell.json`.
 
 ## Desktop
 

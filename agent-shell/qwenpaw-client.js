@@ -428,7 +428,7 @@ async function chatWithQwenPaw({
   baseUrl,
   agentId = "default",
   sessionId = "agent-shell",
-  userId = "shell",
+  userId = "default",
   text,
   input,
   onEvent,
@@ -469,7 +469,7 @@ async function chatWithQwenPaw({
       body: JSON.stringify({
         input: chatInput,
         session_id: String(sessionId || "agent-shell"),
-        user_id: String(userId || "shell"),
+        user_id: String(userId || "default"),
         channel: "console"
       }),
       signal: controller.signal
@@ -578,7 +578,7 @@ async function qwenpawRequest({
 async function listQwenPawChats({
   baseUrl,
   agentId = "default",
-  userId = "shell",
+  userId = "default",
   channel = "console"
 }) {
   const data = await qwenpawRequest({
@@ -607,7 +607,7 @@ async function fetchQwenPawChat({
 async function findQwenPawChatBySessionId({
   baseUrl,
   agentId = "default",
-  userId = "shell",
+  userId = "default",
   channel = "console",
   sessionId
 }) {
@@ -662,7 +662,7 @@ function mapQwenPawMessagesToDialogHistory(messages, { limit = 25 } = {}) {
 async function fetchQwenPawChatHistory({
   baseUrl,
   agentId = "default",
-  userId = "shell",
+  userId = "default",
   channel = "console",
   sessionId,
   limit = 25
@@ -702,7 +702,7 @@ async function createQwenPawChat({
   baseUrl,
   agentId = "default",
   sessionId,
-  userId = "shell",
+  userId = "default",
   channel = "console",
   name = "Agent Shell"
 }) {
@@ -728,7 +728,7 @@ async function updateQwenPawChat({
   chatId,
   name,
   sessionId,
-  userId = "shell",
+  userId = "default",
   channel = "console"
 }) {
   const id = String(chatId || "").trim();

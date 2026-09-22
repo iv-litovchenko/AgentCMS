@@ -16,6 +16,7 @@ const ROUTE_CONFIG_VOICE_TO_SHELL = {
   "voice-route-qwenpaw-url": "qwenpawBaseUrl",
   "voice-route-qwenpaw-user-id": "qwenpawUserId",
   "voice-route-qwenpaw-agent-id": "qwenpawAgentId",
+  "voice-route-qwenpaw-approval-level": "qwenpawApprovalLevel",
   "voice-route-qwenpaw-session-id": "qwenpawSessionId"
 };
 
@@ -35,8 +36,9 @@ const ROUTE_CONFIG_SHELL_DEFAULTS = {
   "voice-route-codex-session-id": "",
   "voice-route-codex-permission-mode": "",
   "voice-route-qwenpaw-url": "http://127.0.0.1:8088",
-  "voice-route-qwenpaw-user-id": "shell",
+  "voice-route-qwenpaw-user-id": "default",
   "voice-route-qwenpaw-agent-id": "default",
+  "voice-route-qwenpaw-approval-level": "AUTO",
   "voice-route-qwenpaw-session-id": ""
 };
 

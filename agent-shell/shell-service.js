@@ -101,7 +101,8 @@ const DEFAULT_SETTINGS = {
   qwenpawBaseUrl: "http://127.0.0.1:8088",
   qwenpawAgentId: "default",
   qwenpawSessionId: "agent-shell",
-  qwenpawUserId: "shell",
+  qwenpawUserId: "default",
+  qwenpawApprovalLevel: "AUTO",
   qwenpawChatName: "",
   qwenpawSttSessionId: "",
   qwenpawSttChatName: "Shell STT",
@@ -465,6 +466,10 @@ function normalizeSettings(raw) {
     || DEFAULT_SETTINGS.qwenpawSessionId;
   merged.qwenpawUserId = String(merged.qwenpawUserId || DEFAULT_SETTINGS.qwenpawUserId).trim()
     || DEFAULT_SETTINGS.qwenpawUserId;
+  const qwenpawApproval = String(merged.qwenpawApprovalLevel || DEFAULT_SETTINGS.qwenpawApprovalLevel)
+    .trim()
+    .toUpperCase();
+  merged.qwenpawApprovalLevel = qwenpawApproval === "OFF" ? "OFF" : "AUTO";
   merged.qwenpawChatName = String(merged.qwenpawChatName || "").trim();
   merged.qwenpawSttSessionId = String(merged.qwenpawSttSessionId || "").trim();
   merged.qwenpawSttChatName = String(merged.qwenpawSttChatName || DEFAULT_SETTINGS.qwenpawSttChatName).trim()
@@ -673,6 +678,21 @@ async function writeSettings(agentRoot, patch, agentId) {
     const workspacePatch = buildWorkspacePatchFromShell(configPatch);
     if (Object.keys(workspacePatch).length) {
       await patchWorkspaceSettings(agentRoot, workspacePatch, projectRoot);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(configPatch, "qwenpawApprovalLevel")) {
+      const draft = await readSettings(agentRoot);
+      if (usesQwenPaw(draft)) {
+        try {
+          await setQwenPawAgentApprovalLevel(
+            draft,
+            draft.qwenpawAgentId,
+            configPatch.qwenpawApprovalLevel
+          );
+        } catch {
+          /* QwenPaw may be offline — CMS value is still saved */
+        }
+      }
     }
 
     const normalized = await readSettings(agentRoot);

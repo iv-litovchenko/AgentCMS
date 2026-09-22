@@ -307,7 +307,7 @@ function nestQwenpawRuntime(flat) {
   nestStringField(block, "baseUrl", flat.qwenpawBaseUrl);
   nestStringField(block, "agentId", flat.qwenpawAgentId, "default");
   nestStringField(block, "sessionId", flat.qwenpawSessionId);
-  nestStringField(block, "userId", flat.qwenpawUserId, "shell");
+  nestStringField(block, "userId", flat.qwenpawUserId, "default");
   return Object.keys(block).length > 1 ? block : undefined;
 }
 

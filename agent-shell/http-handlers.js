@@ -1029,11 +1029,18 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "QwenPaw mode is not enabled" });
           return true;
         }
-        const agentId = String(payload?.agentId || settings.qwenpawAgentId || "default").trim() || "default";
         const bypass = Boolean(payload?.bypass);
         const approvalLevel = bypass ? "OFF" : "AUTO";
-        const result = await shellService.setQwenPawAgentApprovalLevel(settings, agentId, approvalLevel);
-        deps.sendJson(res, 200, { agentId, approvalLevel: result.approvalLevel, bypass });
+        const nextSettings = await shellService.writeSettings(
+          agentRoot,
+          { qwenpawApprovalLevel: approvalLevel },
+          agentId
+        );
+        deps.sendJson(res, 200, {
+          agentId,
+          approvalLevel: nextSettings.qwenpawApprovalLevel || approvalLevel,
+          bypass
+        });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to update QwenPaw agent approval",

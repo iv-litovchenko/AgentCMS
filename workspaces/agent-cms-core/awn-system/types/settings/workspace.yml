@@ -418,7 +418,7 @@ fields:
     type: awn.field.string
     title: User ID
     description: Идентификатор пользователя в QwenPaw API.
-    default: shell
+    default: default
     group: voice-client
     subgroup: voice-route-qwenpaw
     sort: 81
@@ -432,13 +432,27 @@ fields:
     subgroup: voice-route-qwenpaw
     sort: 82
 
+  voice-route-qwenpaw-approval-level:
+    type: awn.field.choice.one
+    title: Подтверждение инструментов
+    description: OFF — инструменты без окна «Разрешить?»; AUTO — с подтверждением.
+    default: AUTO
+    enum:
+      - key: AUTO
+        name: Спрашивать (AUTO)
+      - key: OFF
+        name: Без подтверждения (OFF)
+    group: voice-client
+    subgroup: voice-route-qwenpaw
+    sort: 83
+
   voice-route-qwenpaw-session-id:
     type: awn.field.string
     title: Session ID
     description: ID чата QwenPaw для Voice Shell.
     group: voice-client
     subgroup: voice-route-qwenpaw
-    sort: 83
+    sort: 84
 
   voice-route-cursor-stub:
     type: awn.field.text
