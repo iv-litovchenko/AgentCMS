@@ -51,13 +51,16 @@
 
 **Платформа:**
 - `awn-agents.json` → `.agent-cms/settings/agents-registry.json`
-- API-ключи (TTS и др.) → `.env`, не в `workspace.yml`
 
 **Архитектура (не срочно):**
 - Shell читает `workspace.yml` с диска, не только через API
 - шапка Shell не пишет default в CMS (`default-workspace-id`, `voice-route-runtime`)
 
 ---
+
+### На будущее (отложено)
+
+- **Секреты / API-ключи** (TTS ElevenLabs и др.) — не в `workspace.yml`, а `.env` / vault; идея: [7 Идея хранить секретные данные (пароли) и карты](workspaces/agent-cms-core/zadachi-plany-i-idei/awn-storage/main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md). Пока ключи могут оставаться в yaml локально.
 
 ### Не актуально (закрыто)
 
@@ -76,4 +79,4 @@
 
 ---
 
-**Итог:** Voice/QwenPaw конфиг в CMS. Долг: agents-registry, secrets в `.env`, camera + qwenpaw chatName runtime, синк шапки Shell.
+**Итог:** Voice/QwenPaw конфиг в CMS. Долг: agents-registry, camera + qwenpaw chatName runtime, синк шапки Shell. Секреты — на будущее (тема #7).

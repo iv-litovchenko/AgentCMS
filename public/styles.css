@@ -4400,8 +4400,6 @@ body.app-locked {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
-  max-height: min(44vh, 380px);
-  overflow: auto;
 }
 
 .app-landing-platform-readme-body {
