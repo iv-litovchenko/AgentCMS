@@ -42015,11 +42015,15 @@ function normalizeTopicSchemaState(raw) {
   for (const { id } of getTopicSchemaTargetSpecs()) {
     const block = source[id];
     if (block?.fields && typeof block.fields === "object") {
-      result[id].fields = { ...block.fields };
+      result[id].fields = Object.fromEntries(
+        Object.entries(block.fields).map(([key, def]) => [key, normalizeTopicSchemaCustomFieldDef(def)])
+      );
     }
   }
   if (source.sidecar?.fields && typeof source.sidecar.fields === "object") {
-    result.sidecar.fields = { ...source.sidecar.fields };
+    result.sidecar.fields = Object.fromEntries(
+      Object.entries(source.sidecar.fields).map(([key, def]) => [key, normalizeTopicSchemaCustomFieldDef(def)])
+    );
   }
   migrateLegacyTopicSchemaTargets(source, result);
   if (result.settings?.fields) {
@@ -45140,8 +45144,15 @@ function topicSchemaTargetHasCustomFields(targetId, cache = getTopicSchemaCache(
   return getTopicSchemaCustomFieldKeys(targetId, cache).length > 0;
 }
 
+const TOPIC_SCHEMA_FIELD_PLACEMENT = "editor-body";
+
 function getTopicSchemaLayoutSettingKeys() {
-  return ["placement", "group", "sort"];
+  return ["group", "sort"];
+}
+
+function normalizeTopicSchemaCustomFieldDef(fieldDef) {
+  if (!fieldDef || typeof fieldDef !== "object") return fieldDef;
+  return { ...fieldDef, placement: TOPIC_SCHEMA_FIELD_PLACEMENT };
 }
 
 function getTopicSchemaPendingGroup(target = topicSchemaActiveTarget) {
@@ -45549,7 +45560,7 @@ function buildTopicSchemaFieldDefaults(index = 1, target = topicSchemaActiveTarg
   const defaults = {
     type: "awn.field.string",
     name: "",
-    placement: "editor-body",
+    placement: TOPIC_SCHEMA_FIELD_PLACEMENT,
     sort: index * 10
   };
   const pending = getTopicSchemaPendingGroup(target);
@@ -46281,7 +46292,7 @@ function buildTopicSchemaTopicLeadHtml(sharedSlotMode = false) {
     (sharedSlotMode
       ? `При включённом «${TOPIC_SHARED_SLOT_RAIL_LABEL}» настраивайте поля для разделов, записей и sidecar в <code>awn-storage/</code> — как у многофайловой памяти. Типовые слоты (inbox, media…) здесь скрыты. `
       : "") +
-    "Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
+    "Пользовательские поля всегда показываются над текстом (<code>editor-body</code>). " +
     "Разделы: «+ Раздел» задаёт group для новых полей; у заголовка раздела — ✎ переименовать, ↑↓ переместить весь блок. " +
     "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
     "Поля WS и области здесь не смешиваются — только схема этой темы. " +
@@ -46442,11 +46453,11 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target 
     }
   });
 
-  fields[activeKey] = fieldDef;
-  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fieldDef));
+  fields[activeKey] = normalizeTopicSchemaCustomFieldDef(fieldDef);
+  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fields[activeKey]));
   row.querySelector(".topic-schema-settings-toggle")?.classList.toggle(
     "is-configured",
-    topicSchemaFieldHasAdvancedSettings(fieldDef)
+    topicSchemaFieldHasAdvancedSettings(fields[activeKey])
   );
 }
 
@@ -46999,11 +47010,11 @@ function readSectionSchemaFieldFromRow(row, cache, target, scope) {
     else delete fieldDef[propKey];
   });
 
-  fields[activeKey] = fieldDef;
-  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fieldDef));
+  fields[activeKey] = normalizeTopicSchemaCustomFieldDef(fieldDef);
+  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fields[activeKey]));
   row.querySelector(".topic-schema-settings-toggle")?.classList.toggle(
     "is-configured",
-    topicSchemaFieldHasAdvancedSettings(fieldDef)
+    topicSchemaFieldHasAdvancedSettings(fields[activeKey])
   );
 }
 

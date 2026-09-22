@@ -622,7 +622,7 @@ function normalizeAwnSchemaFieldMap(fields) {
   const next = { ...fields };
   for (const key of Object.keys(next)) {
     if (!next[key] || typeof next[key] !== "object") continue;
-    next[key] = { ...next[key] };
+    next[key] = { ...next[key], placement: "editor-body" };
     repairFieldDefEnum(next[key]);
   }
   return next;
@@ -700,7 +700,9 @@ function stringifyFieldDefYaml(fieldDef, indent) {
   }
   if (fieldDef.items) lines.push(`${pad}items: ${fieldDef.items}`);
   const placement = String(fieldDef.placement || "").trim();
-  if (placement) lines.push(`${pad}placement: ${formatYamlScalar(placement)}`);
+  if (placement && placement !== "editor-body") {
+    lines.push(`${pad}placement: ${formatYamlScalar(placement)}`);
+  }
   const group = String(fieldDef.group || "").trim();
   if (group) lines.push(`${pad}group: ${formatYamlScalar(group)}`);
   if (fieldDef.sort !== undefined && fieldDef.sort !== "" && fieldDef.sort !== null) {
