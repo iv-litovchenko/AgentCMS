@@ -22937,25 +22937,25 @@ function getProjectSettingsValuesFileLabel(scope = null) {
     scope ||
     collectProjectSettingsSidebarScopes().find((item) => item.path === getNodeSettingsManifestPath());
   if (activeScope?.level === "global" || isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
-    return "settings.global.yml";
+    return ".agent-cms/settings/platform.yml";
   }
   if (
     activeScope?.level === "settings-local" ||
     isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath())
   ) {
-    return "settings.yml";
+    return ".agent-cms/settings/workspace.yml";
   }
   if (
     activeScope?.level === "settings-integrations" ||
     isProjectSettingsIntegrationsSettingsScope(getNodeSettingsManifestPath())
   ) {
-    return ".agent-cms/integrations.yml";
+    return ".agent-cms/settings/integrations.yml";
   }
   if (
     activeScope?.level === "settings-user" ||
     isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
   ) {
-    return ".agent-cms/user-settings.yml";
+    return ".agent-cms/settings/user.yml";
   }
   return "config.yml";
 }
@@ -43847,13 +43847,13 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = isGlobalScope
-      ? `Глобальная политика платформы в <code>settings.global.yml</code> (<code>agent-cms-core</code>). Не сливается с workspace/user.`
+      ? `Глобальная политика платформы в <code>.agent-cms/settings/platform.yml</code>. Не сливается с workspace/user.`
       : isLocalScope
-        ? `Параметры хранилища в <code>settings.yml</code>. Отдельная область, не перекрывает platform/integrations/user.`
+        ? `Параметры хранилища в <code>.agent-cms/settings/workspace.yml</code>. Отдельная область, не перекрывает platform/integrations/user.`
         : isIntegrationsScope
           ? `Контейнеры skills, MCP tools и плагинов в <code>.agent-cms/settings/integrations.yml</code>.`
           : isUserScope
-          ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/settings/user-settings.yml</code>.`
+          ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/settings/user.yml</code>.`
           : scope
             ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
             : "Выберите уровень в списке слева.";

@@ -40,7 +40,7 @@ const {
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
 const NodeConfigBundle = require("./node-config-bundle");
-const { projectRel } = require("./paths/agent-cms");
+const { projectRel, legacy } = require("./paths/agent-cms");
 const {
   loadRegistryEntriesFromAwnData,
   saveRegistryEntriesToAwnData,
@@ -1236,7 +1236,8 @@ function pickDefaultAgentId(agentList) {
 function readDefaultWorkspaceIdFromPlatformSettingsSync() {
   if (!projectRoot) return "";
   const candidates = [
-    path.join(projectRoot, projectRel.settings.global),
+    path.join(projectRoot, projectRel.settings.platform),
+    path.join(projectRoot, legacy.platformSettings),
     path.join(getAgentCmsCoreAbsolute(projectRoot), "settings.global.yml")
   ];
   for (const absolutePath of candidates) {

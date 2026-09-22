@@ -6,8 +6,9 @@ const rel = {
   root: ROOT,
   settings: {
     dir: `${ROOT}/settings`,
-    workspaceSettings: `${ROOT}/settings/workspace.yml`,
-    userSettings: `${ROOT}/settings/user-settings.yml`,
+    platform: `${ROOT}/settings/platform.yml`,
+    workspace: `${ROOT}/settings/workspace.yml`,
+    user: `${ROOT}/settings/user.yml`,
     integrations: `${ROOT}/settings/integrations.yml`,
     integrationsDir: `${ROOT}/settings/integrations`,
     shell: `${ROOT}/settings/shell.json`
@@ -58,13 +59,15 @@ const shellLegacy = {
 const projectRel = {
   settings: {
     dir: `${ROOT}/settings`,
-    global: `${ROOT}/settings/global.yml`
+    platform: `${ROOT}/settings/platform.yml`
   }
 };
 
 const legacy = {
   workspaceSettings: "settings.yml",
-  userSettings: `${ROOT}/user-settings.yml`,
+  platformSettings: `${ROOT}/settings/global.yml`,
+  userSettings: `${ROOT}/settings/user-settings.yml`,
+  userSettingsRoot: `${ROOT}/user-settings.yml`,
   integrations: `${ROOT}/integrations.yml`,
   integrationsDir: `${ROOT}/integrations`,
   semanticIndex: `${ROOT}/semantic-index`,
@@ -97,7 +100,11 @@ function settingsDir(agentRoot) {
 }
 
 function userSettingsAbs(agentRoot) {
-  return abs(agentRoot, rel.settings.userSettings);
+  return abs(agentRoot, rel.settings.user);
+}
+
+function platformSettingsAbs(projectRoot) {
+  return abs(projectRoot, projectRel.settings.platform);
 }
 
 function integrationsAbs(agentRoot) {
@@ -155,16 +162,14 @@ function rewriteShellSnapshotRelPath(relPath) {
   return normalized;
 }
 
-function globalSettingsAbs(projectRoot) {
-  return abs(projectRoot, projectRel.settings.global);
-}
-
 module.exports = {
   ROOT,
   rel,
   projectRel,
   legacy,
-  globalSettingsAbs,
+  platformSettingsAbs,
+  /** @deprecated use platformSettingsAbs */
+  globalSettingsAbs: platformSettingsAbs,
   shellLegacy,
   abs,
   settingsDir,

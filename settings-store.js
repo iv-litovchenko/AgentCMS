@@ -17,13 +17,16 @@ const {
 } = require("./workspace-agent-settings");
 const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
 
-const { rel, projectRel, legacy, globalSettingsAbs } = require("./paths/agent-cms");
-const WORKSPACE_SETTINGS_FILE = rel.settings.workspaceSettings;
-const GLOBAL_SETTINGS_FILE = projectRel.settings.global;
-const GLOBAL_SETTINGS_LEGACY_FILE = "settings.global.yml";
+const { rel, projectRel, legacy, platformSettingsAbs } = require("./paths/agent-cms");
+const PLATFORM_SETTINGS_FILE = projectRel.settings.platform;
+const WORKSPACE_SETTINGS_FILE = rel.settings.workspace;
+const PLATFORM_SETTINGS_LEGACY_FILES = [legacy.platformSettings];
 const WORKSPACE_SETTINGS_LEGACY_FILE = legacy.workspaceSettings;
+const USER_SETTINGS_REL_PATH = rel.settings.user;
+const USER_SETTINGS_LEGACY_FILES = [legacy.userSettings, legacy.userSettingsRoot];
 
-const USER_SETTINGS_REL_PATH = rel.settings.userSettings;
+/** @deprecated use PLATFORM_SETTINGS_FILE */
+const GLOBAL_SETTINGS_FILE = PLATFORM_SETTINGS_FILE;
 const INTEGRATIONS_SETTINGS_REL_PATH = rel.settings.integrations;
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
@@ -32,19 +35,22 @@ const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 
 const WORKSPACE_SETTINGS_HEADER =
   "# Agent CMS — настройки workspace (только это хранилище)\n";
-const GLOBAL_SETTINGS_HEADER =
-  "# Agent CMS — глобальные настройки платформы\n";
+const PLATFORM_SETTINGS_HEADER =
+  "# Agent CMS — настройки платформы\n";
+/** @deprecated use PLATFORM_SETTINGS_HEADER */
+const GLOBAL_SETTINGS_HEADER = PLATFORM_SETTINGS_HEADER;
 const USER_SETTINGS_HEADER =
   "# Agent CMS — пользовательские настройки (UI, дерево меню)\n";
 const INTEGRATIONS_SETTINGS_HEADER =
   "# Agent CMS — интеграции и плагины (контейнеры внешних сервисов)\n";
 
-function getGlobalSettingsAbsolute(projectRoot) {
-  return globalSettingsAbs(projectRoot);
+function getPlatformSettingsAbsolute(projectRoot) {
+  return platformSettingsAbs(projectRoot);
 }
 
-function getGlobalSettingsLegacyAbsolute(projectRoot) {
-  return path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_LEGACY_FILE);
+/** @deprecated use getPlatformSettingsAbsolute */
+function getGlobalSettingsAbsolute(projectRoot) {
+  return getPlatformSettingsAbsolute(projectRoot);
 }
 
 function getWorkspaceSettingsAbsolute(agentRoot) {
@@ -151,7 +157,7 @@ function composeSettingsFileContent({ headerComment = "", awn_settings = {} } = 
 
 function composeGlobalSettingsFileContent({ headerComment = "", awn_settings = {}, awn_policy = null } = {}) {
   const settingsPart = composeSettingsFileContent({
-    headerComment: headerComment || GLOBAL_SETTINGS_HEADER.trim(),
+    headerComment: headerComment || PLATFORM_SETTINGS_HEADER.trim(),
     awn_settings
   }).trim();
   if (!awn_policy || typeof awn_policy !== "object") {
@@ -222,17 +228,32 @@ async function readFilePayload(absolutePath, relPath) {
   }
 }
 
-async function readGlobalSettingsFile(projectRoot) {
-  const absolutePath = getGlobalSettingsAbsolute(projectRoot);
-  const primary = await readFilePayload(absolutePath, GLOBAL_SETTINGS_FILE);
+async function readPlatformSettingsFile(projectRoot) {
+  const absolutePath = getPlatformSettingsAbsolute(projectRoot);
+  const primary = await readFilePayload(absolutePath, PLATFORM_SETTINGS_FILE);
   if (primary.exists) return primary;
-  const legacyAbsolute = getGlobalSettingsLegacyAbsolute(projectRoot);
-  const legacyRel = path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_LEGACY_FILE);
-  const legacy = await readFilePayload(legacyAbsolute, legacyRel);
-  if (legacy.exists) {
-    return { ...legacy, legacySource: legacyRel, canonicalPath: GLOBAL_SETTINGS_FILE };
+  const legacyCandidates = [
+    ...PLATFORM_SETTINGS_LEGACY_FILES.map((legacyRel) => ({
+      rel: legacyRel,
+      absolute: path.join(projectRoot, legacyRel)
+    })),
+    {
+      rel: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), "settings.global.yml"),
+      absolute: path.join(getAgentCmsCoreAbsolute(projectRoot), "settings.global.yml")
+    }
+  ];
+  for (const candidate of legacyCandidates) {
+    const legacy = await readFilePayload(candidate.absolute, candidate.rel);
+    if (legacy.exists) {
+      return { ...legacy, legacySource: candidate.rel, canonicalPath: PLATFORM_SETTINGS_FILE };
+    }
   }
   return primary;
+}
+
+/** @deprecated use readPlatformSettingsFile */
+async function readGlobalSettingsFile(projectRoot) {
+  return readPlatformSettingsFile(projectRoot);
 }
 
 async function readWorkspaceSettingsFile(agentRoot) {
@@ -249,8 +270,16 @@ async function readWorkspaceSettingsFile(agentRoot) {
 
 async function readUserSettingsFile(agentRoot) {
   const absolutePath = getUserSettingsAbsolute(agentRoot);
-  const relPath = USER_SETTINGS_REL_PATH;
-  return readFilePayload(absolutePath, relPath);
+  const primary = await readFilePayload(absolutePath, USER_SETTINGS_REL_PATH);
+  if (primary.exists) return primary;
+  for (const legacyRel of USER_SETTINGS_LEGACY_FILES) {
+    const legacyAbsolute = path.join(agentRoot, legacyRel);
+    const legacy = await readFilePayload(legacyAbsolute, legacyRel);
+    if (legacy.exists) {
+      return { ...legacy, legacySource: legacyRel, canonicalPath: USER_SETTINGS_REL_PATH };
+    }
+  }
+  return primary;
 }
 
 async function readIntegrationsSettingsFile(agentRoot) {
@@ -384,7 +413,7 @@ async function writeGlobalSettingsFile(projectRoot, content) {
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
   await fs.promises.writeFile(absolutePath, content, "utf-8");
   return {
-    path: GLOBAL_SETTINGS_FILE,
+    path: PLATFORM_SETTINGS_FILE,
     absolutePath,
     exists: true,
     content
@@ -619,7 +648,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
     nodeVersion: process.version,
     platformOs: process.platform,
     corePath: AGENT_CMS_CORE_REL.replace(/\\/g, "/"),
-    settingsPath: GLOBAL_SETTINGS_FILE,
+    settingsPath: PLATFORM_SETTINGS_FILE,
     registryPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), "awn-system/registry.yml"),
     docsMap: String(registryDoc.docs?.map || "GLOBAL_MCP_DOC.md").trim(),
     typeCatalogCount: byId.size,
@@ -652,7 +681,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
       {
         key: "settings-global-path",
         label: "Файл platform values",
-        value: GLOBAL_SETTINGS_FILE
+        value: PLATFORM_SETTINGS_FILE
       }
     ],
     enforcedFields: [
@@ -1027,6 +1056,7 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
 
 module.exports = {
   WORKSPACE_SETTINGS_FILE,
+  PLATFORM_SETTINGS_FILE,
   GLOBAL_SETTINGS_FILE,
   USER_SETTINGS_REL_PATH,
   INTEGRATIONS_SETTINGS_REL_PATH,
@@ -1035,11 +1065,12 @@ module.exports = {
   PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE,
   PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
   WORKSPACE_SETTINGS_HEADER,
+  PLATFORM_SETTINGS_HEADER,
   GLOBAL_SETTINGS_HEADER,
   USER_SETTINGS_HEADER,
   INTEGRATIONS_SETTINGS_HEADER,
+  getPlatformSettingsAbsolute,
   getGlobalSettingsAbsolute,
-  getGlobalSettingsLegacyAbsolute,
   getWorkspaceSettingsAbsolute,
   getWorkspaceSettingsLegacyAbsolute,
   hydrateWorkspaceSettingsFromShell,
@@ -1050,6 +1081,7 @@ module.exports = {
   extractAwnPolicyFromParsed,
   composeSettingsFileContent,
   composeGlobalSettingsFileContent,
+  readPlatformSettingsFile,
   readGlobalSettingsFile,
   readWorkspaceSettingsFile,
   readUserSettingsFile,

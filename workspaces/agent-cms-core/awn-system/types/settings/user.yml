@@ -6,23 +6,23 @@ status: active
 extends: awn.settings.base
 description: >
   UI и дерево меню для текущего пользователя в этом workspace (аналог uc в TYPO3).
-  Значения — .agent-cms/settings/user-settings.yml. Не влияют на MCP-политику.
+  Значения — .agent-cms/settings/user.yml. Не влияют на MCP-политику.
 scope: user
 enabled: true
 consumer: [ui]
-valuesFile: .agent-cms/settings/user-settings.yml
+valuesFile: .agent-cms/settings/user.yml
 
 fieldGroups:
   - id: tree
     name: Настройки дерева
-    description: Отображение дерева меню — пустые папки, активные темы, глубина раскрытия (.agent-cms/settings/user-settings.yml).
+    description: Отображение дерева меню — пустые папки, активные темы, глубина раскрытия (.agent-cms/settings/user.yml).
   - id: ui
     name: Интерфейс
     description: Персональные параметры UI — ширина сайдбара и закреплённая ветка меню.
   - id: static
     name: Статичные параметры
     description: >
-      Заглушка для персональных интеграций — внешние плагины, skills и сервисы (.agent-cms/settings/user-settings.yml).
+      Заглушка для персональных интеграций — внешние плагины, skills и сервисы (.agent-cms/settings/user.yml).
 
 fields:
 

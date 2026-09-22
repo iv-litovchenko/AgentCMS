@@ -6,16 +6,16 @@ status: active
 extends: awn.settings.base
 description: >
   Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, индексы, память.
-  Значения — .agent-cms/settings/global.yml. Не перекрываются workspace/user.
+  Значения — .agent-cms/settings/platform.yml. Не перекрываются workspace/user.
 scope: platform
 enabled: true
 consumer: [mcp-server, server, ui, context]
-valuesFile: .agent-cms/settings/global.yml
+valuesFile: .agent-cms/settings/platform.yml
 
 fieldGroups:
   - id: main
     name: Основные
-    description: Режим обслуживания, хранилище по умолчанию и язык UI для всей платформы (.agent-cms/settings/global.yml).
+    description: Режим обслуживания, хранилище по умолчанию и язык UI для всей платформы (.agent-cms/settings/platform.yml).
   - id: ui
     name: Интерфейс
     description: Глобальные настройки интерфейса — заглушка. Персональные параметры (дерево, сайдбар) — в «Пользовательские настройки».
@@ -23,7 +23,7 @@ fieldGroups:
     name: Автоконтекст
     description: >
       Что всегда попадает в контекст агента (always-context): документы платформы, корневые .md workspace
-      (галочки ниже) и текстовые файлы из каталога ws/ (settings.global.yml).
+      (галочки ниже) и текстовые файлы из каталога ws/ (platform.yml).
   - id: mcp
     name: MCP
     description: Политика MCP-tools — режим доступа, batch_invoke и лимиты чтения/записи файлов.
@@ -101,7 +101,7 @@ fields:
   maintenance-mode:
     type: awn.field.boolean
     title: Режим обслуживания
-    description: Закрывает API (кроме settings.global.yml). В UI — оверлей.
+    description: Закрывает API (кроме platform.yml). В UI — оверлей.
     default: false
     group: main
     sort: 20
