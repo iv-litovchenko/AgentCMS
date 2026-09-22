@@ -10,8 +10,7 @@ const rel = {
     workspace: `${ROOT}/settings/workspace.yml`,
     user: `${ROOT}/settings/user.yml`,
     integrations: `${ROOT}/settings/integrations.yml`,
-    integrationsDir: `${ROOT}/settings/integrations`,
-    shell: `${ROOT}/settings/shell.json`
+    integrationsDir: `${ROOT}/settings/integrations`
   },
   indexes: {
     dir: `${ROOT}/cache/indexes`,

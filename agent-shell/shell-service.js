@@ -60,8 +60,8 @@ function settingsFormatModule() {
 
 const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
 
-const SHELL_SETTINGS_REL = rel.settings.shell;
 const SHELL_STATE_REL = rel.state.shell;
+const WORKSPACE_SETTINGS_REL = rel.settings.workspace;
 const COMPOSE_DRAFT_REL = rel.state.composeDraft;
 
 /** Serializes atomic writes per target path — avoids rename races on shared `.tmp`. */
@@ -326,12 +326,17 @@ function buildShellShowDemoResult(text) {
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
-function settingsAbsolute(agentRoot) {
-  return agentCmsAbs(agentRoot, SHELL_SETTINGS_REL);
+function workspaceSettingsAbsolute(agentRoot) {
+  return agentCmsAbs(agentRoot, WORKSPACE_SETTINGS_REL);
 }
 
 function stateAbsolute(agentRoot) {
   return agentCmsAbs(agentRoot, SHELL_STATE_REL);
+}
+
+/** @deprecated settings/shell.json removed — workspace.yml + state/shell.json */
+function settingsAbsolute(agentRoot) {
+  return workspaceSettingsAbsolute(agentRoot);
 }
 
 function composeDraftAbsolute(agentRoot) {
@@ -624,23 +629,51 @@ function fillShellPromptPresets(agentRoot, settings) {
 }
 
 async function readSettings(agentRoot) {
-  try {
-    const raw = await fs.readFile(settingsAbsolute(agentRoot), "utf-8");
-    return fillShellPromptPresets(agentRoot, normalizeSettings(JSON.parse(raw)));
-  } catch {
-    return fillShellPromptPresets(agentRoot, normalizeSettings({}));
-  }
+  const projectRoot = resolveProjectRootFromPath(agentRoot);
+  const {
+    migrateLegacyShellSettingsFile,
+    readStateFile
+  } = require("./shell-settings-migrate");
+  const {
+    loadWorkspaceAwnSettings,
+    buildShellSettingsFromWorkspace
+  } = require("../workspace-shell-settings-bridge");
+
+  await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
+  const workspaceSettings = await loadWorkspaceAwnSettings(agentRoot);
+  const runtime = await readStateFile(agentRoot);
+  const merged = buildShellSettingsFromWorkspace(workspaceSettings, runtime);
+  return fillShellPromptPresets(agentRoot, normalizeSettings(merged));
 }
 
 async function writeSettings(agentRoot, patch, agentId) {
-  const target = settingsAbsolute(agentRoot);
+  const projectRoot = resolveProjectRootFromPath(agentRoot);
+  const target = stateAbsolute(agentRoot);
   const queueKey = `settings-write:${target}`;
   const previous = atomicWriteQueues.get(queueKey) || Promise.resolve();
   const queued = previous.catch(() => {}).then(async () => {
-    const current = await readSettings(agentRoot);
-    const normalized = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
-    const nested = settingsFormatModule().nestSettings(normalized);
-    await writeFileAtomicUnqueued(target, `${JSON.stringify(nested, null, 2)}\n`, "utf-8");
+    const {
+      pickShellRuntimePatch,
+      pickShellConfigPatch,
+      buildWorkspacePatchFromShell
+    } = require("../workspace-shell-settings-bridge");
+    const { writeStateFile } = require("./shell-settings-migrate");
+    const { patchWorkspaceSettings } = require("../settings-store");
+
+    const sourcePatch = patch && typeof patch === "object" ? patch : {};
+    const runtimePatch = pickShellRuntimePatch(sourcePatch);
+    const configPatch = pickShellConfigPatch(sourcePatch);
+
+    if (Object.keys(runtimePatch).length) {
+      await writeStateFile(agentRoot, runtimePatch);
+    }
+
+    const workspacePatch = buildWorkspacePatchFromShell(configPatch);
+    if (Object.keys(workspacePatch).length) {
+      await patchWorkspaceSettings(agentRoot, workspacePatch, projectRoot);
+    }
+
+    const normalized = await readSettings(agentRoot);
     invalidateRuntimeProbeCache();
     emitShellEvent(agentId, "settings", normalized);
     return normalized;
@@ -2542,7 +2575,9 @@ module.exports = {
   DEFAULT_SETTINGS,
   readSettings,
   writeSettings,
+  workspaceSettingsAbsolute,
   settingsAbsolute,
+  stateAbsolute,
   readComposeDraft,
   writeComposeDraft,
   appendVoiceToComposeDraft,

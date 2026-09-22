@@ -372,7 +372,6 @@ const {
   listAgentSettings,
   readAgentSetting,
   writeAgentSetting,
-  syncWorkspaceVoiceSettingsToShell,
   hydrateWorkspaceSettingsFromShell
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
@@ -20216,11 +20215,6 @@ async function handleApiForAgent(req, res, url) {
         agentRoot,
         nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
       );
-      try {
-        await syncWorkspaceVoiceSettingsToShell(agentRoot, parsed.awn_settings || {});
-      } catch (syncError) {
-        console.warn("[workspace-settings] voice settings sync to shell.json failed:", syncError);
-      }
       return sendJson(res, 200, {
         path: saved.path,
         content: saved.content,

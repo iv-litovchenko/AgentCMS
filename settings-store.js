@@ -67,31 +67,45 @@ function getWorkspaceSettingsLegacyAbsolute(agentRoot) {
 
 async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}, projectRoot = process.cwd()) {
   try {
-    const shellService = require("./agent-shell/shell-service");
-    const { hydrateWorkspaceVoiceFromShell } = require("./workspace-voice-settings-bridge");
-    const { hydrateWorkspaceWindowFromShell } = require("./workspace-window-settings-bridge");
-    const shellFlat = await shellService.readSettings(agentRoot);
-    let out = hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
-    return hydrateWorkspaceWindowFromShell(out, shellFlat);
+    const {
+      migrateLegacyShellSettingsFile,
+      readStateFile,
+      readLegacySettingsFile
+    } = require("./agent-shell/shell-settings-migrate");
+    const { hydrateWorkspaceFromShell } = require("./workspace-shell-settings-bridge");
+    await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
+    const legacyFlat = await readLegacySettingsFile(agentRoot);
+    const stateFlat = await readStateFile(agentRoot);
+    const shellFlat = { ...(legacyFlat || {}), ...(stateFlat || {}) };
+    return hydrateWorkspaceFromShell(awnSettings, shellFlat);
   } catch {
     return awnSettings;
   }
 }
 
-async function syncWorkspaceVoiceSettingsToShell(agentRoot, awnSettings = {}) {
-  try {
-    const shellService = require("./agent-shell/shell-service");
-    const { buildShellVoicePatchFromWorkspace } = require("./workspace-voice-settings-bridge");
-    const { buildShellWindowPatchFromWorkspace } = require("./workspace-window-settings-bridge");
-    const patch = {
-      ...buildShellVoicePatchFromWorkspace(awnSettings),
-      ...buildShellWindowPatchFromWorkspace(awnSettings)
-    };
-    if (!Object.keys(patch).length) return;
-    await shellService.writeSettings(agentRoot, patch);
-  } catch (error) {
-    console.warn("[settings] voice/window settings sync to shell.json failed:", error);
+async function patchWorkspaceSettings(agentRoot, workspacePatch = {}, projectRoot = process.cwd()) {
+  const patch = workspacePatch && typeof workspacePatch === "object" ? workspacePatch : {};
+  if (!Object.keys(patch).length) {
+    return normalizeWorkspaceAgentSettings({});
   }
+
+  const file = await readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot);
+  const parsed = file.exists
+    ? parseSettingsFileContent(file.content || "")
+    : { headerComment: WORKSPACE_SETTINGS_HEADER.trim(), awn_settings: file.awn_settings || {} };
+  const nextFlat = {
+    ...flattenAwnSettingsValues(parsed.awn_settings || {}),
+    ...patch
+  };
+  const nextContent = composeSettingsFileContent({
+    headerComment: parsed.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+  });
+  const saved = await writeWorkspaceSettingsFile(
+    agentRoot,
+    nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+  );
+  return normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
 }
 
 function enrichPlatformSettingsSchema(payload = {}, projectRoot = process.cwd()) {
@@ -1050,7 +1064,6 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
     agentRoot,
     nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
   );
-  await syncWorkspaceVoiceSettingsToShell(agentRoot, nextFlat);
   const normalized = normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
   return {
     ok: true,
@@ -1080,7 +1093,7 @@ module.exports = {
   getWorkspaceSettingsAbsolute,
   getWorkspaceSettingsLegacyAbsolute,
   hydrateWorkspaceSettingsFromShell,
-  syncWorkspaceVoiceSettingsToShell,
+  patchWorkspaceSettings,
   getUserSettingsAbsolute,
   getIntegrationsSettingsAbsolute,
   parseSettingsFileContent,

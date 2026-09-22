@@ -44,7 +44,8 @@ function createShellHandlers(deps) {
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: rel.settings.shell,
+          settingsFile: rel.settings.workspace,
+          stateFile: rel.state.shell,
           workspaceSettingsFile: rel.settings.workspace,
           settings
         });
@@ -70,7 +71,8 @@ function createShellHandlers(deps) {
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: rel.settings.shell,
+          settingsFile: rel.settings.workspace,
+          stateFile: rel.state.shell,
           workspaceSettingsFile: rel.settings.workspace,
           settings
         });
@@ -139,7 +141,8 @@ function createShellHandlers(deps) {
         deps.sendJson(res, 200, {
           agentId,
           agentRoot,
-          settingsFile: shellService.settingsAbsolute(agentRoot),
+          settingsFile: shellService.workspaceSettingsAbsolute(agentRoot),
+          stateFile: shellService.stateAbsolute(agentRoot),
           settings
         });
       } catch (error) {

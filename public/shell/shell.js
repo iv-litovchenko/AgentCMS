@@ -7851,7 +7851,7 @@ function formatSettingsFileLabel(settingsFile, agentId) {
     return settingsFile.replace(/^.*\/workspaces\//, "workspaces/").replace(/^\/Users\/macbook\//, "~/");
   }
   const id = String(agentId || "").trim();
-  return id ? `workspaces/${id}/.agent-cms/settings/shell.json` : ".agent-cms/settings/shell.json";
+  return id ? `workspaces/${id}/.agent-cms/settings/workspace.yml` : ".agent-cms/settings/workspace.yml";
 }
 
 function updateSettingsSaveHints(extra = {}) {

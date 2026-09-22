@@ -3,8 +3,8 @@ const path = require("path");
 const { rel } = require("../paths/agent-cms");
 
 const LEGACY_AWN_SHELL_FILE = "awn-shell.json";
-const SHELL_SETTINGS_FILE = rel.settings.shell;
 const WORKSPACE_SETTINGS_FILE = rel.settings.workspace;
+const SHELL_STATE_FILE = rel.state.shell;
 
 const WINDOW_PROFILE_NORMAL = {
   width: 460,
@@ -145,8 +145,8 @@ async function writeMergedWindowSettings(_projectRoot, agentRoot, shellService, 
 }
 
 module.exports = {
-  SHELL_SETTINGS_FILE,
   WORKSPACE_SETTINGS_FILE,
+  SHELL_STATE_FILE,
   LEGACY_AWN_SHELL_FILE,
   WINDOW_PROFILE_NORMAL,
   WINDOW_PROFILE_COMPACT,

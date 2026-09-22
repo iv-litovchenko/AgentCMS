@@ -38,7 +38,7 @@ fieldGroups:
     name: Голосовой клиент
     description: >
       Политика Agent CMS Voice для этого workspace (settings.yml).
-      Секреты API — в .env; сессии и sessionId — в shell.json.
+      Секреты API — в .env; sessionId и скролл — в .agent-cms/state/shell.json.
       Черновик схемы: UI и синхронизация с Voice — позже.
     subgroups:
       - id: voice-cms
@@ -290,8 +290,7 @@ fields:
   voice-cms-topic-path:
     type: awn.field.string
     title: Тема агента (manifest)
-    description: shell.json → cms.topicPath · устарело, sync из настроек проекта пока не подключён
-    readonly: true
+    description: Путь к manifest темы для Voice Shell (cms.topicPath)
     default: awn-agent-kit/agent/manifest.md
     group: voice-client
     subgroup: voice-cms
@@ -300,8 +299,7 @@ fields:
   voice-cms-channel:
     type: awn.field.choice.one
     title: Канал диалога
-    description: shell.json → cms.channel · устарело, sync из настроек проекта пока не подключён
-    readonly: true
+    description: Канал сообщений Voice Shell (thread или session)
     default: thread
     enum:
       - key: thread
@@ -315,7 +313,7 @@ fields:
   voice-route-system-prompt:
     type: awn.field.text
     title: System prompt Voice
-    description: shell.json → route.systemPrompt — доп. инструкции агенту для Voice Shell
+    description: Доп. system prompt для Voice Shell
     group: voice-client
     subgroup: voice-route
     sort: 53
@@ -1004,7 +1002,8 @@ fields:
 
   voice-ui-dialog-scroll-ratio:
     type: awn.field.string
-    title: "{DRAFT} Соотношение скролла диалога"
+    title: Позиция скролла диалога
+    description: 0–1, дефолт при первом открытии; дальше Shell запоминает в сессии
     default: "1"
     group: voice-client
     subgroup: voice-ui
