@@ -37,9 +37,8 @@ fieldGroups:
   - id: voice-client
     name: Голосовой клиент
     description: >
-      Политика Agent CMS Voice для этого workspace (settings.yml).
-      Секреты API — в .env; sessionId и скролл — в .agent-cms/state/shell.json.
-      Черновик схемы: UI и синхронизация с Voice — позже.
+      Настройки Agent CMS Voice для этого workspace.
+      Секреты API — в .env; живая сессия Shell — в .agent-cms/state/shell.json.
     subgroups:
       - id: voice-cms
         name: CMS и канал
@@ -138,7 +137,7 @@ fieldGroups:
         sort: 21
       - id: voice-window
         name: Окно Voice
-        description: Оформление окна Shell — персонаж, компактный режим, фон, звук. Синхронизируется с shell.json → window.*
+        description: Оформление окна Voice Shell — персонаж, компактный режим, фон, звук.
         sort: 22
         defaultOpen: true
       - id: voice-ui
@@ -146,7 +145,7 @@ fieldGroups:
         sort: 23
       - id: voice-compose
         name: Шаблоны compose
-        description: Команды для поля сообщения — синхронизируется с shell.json
+        description: Быстрые команды для поля сообщения в Voice Shell
         sort: 24
   - id: static
     name: Статичные параметры
@@ -266,7 +265,7 @@ fields:
   voice-route-runtime:
     type: awn.field.choice.one
     title: Runtime по умолчанию
-    description: shell.json → route.runtime · дефолт для Shell; в шапке — текущая сессия.
+    description: Дефолтный runtime при открытии Shell. В шапке можно выбрать другой на время сессии.
     default: codex
     enum:
       - key: claude
@@ -321,7 +320,7 @@ fields:
   voice-route-claude-cli-path:
     type: awn.field.string
     title: "{DRAFT} Путь к claude"
-    description: shell.json → route.runtimes.claude.cliPath
+    description: Команда или путь к исполняемому файлу Claude CLI.
     default: claude
     group: voice-client
     subgroup: voice-route-claude
@@ -330,7 +329,7 @@ fields:
   voice-route-claude-model:
     type: awn.field.string
     title: "{DRAFT} Модель Claude"
-    description: shell.json → route.runtimes.claude.model · пусто = по умолчанию из CLI
+    description: Модель Claude. Пусто — значение по умолчанию из CLI.
     group: voice-client
     subgroup: voice-route-claude
     sort: 61
@@ -346,7 +345,7 @@ fields:
   voice-route-claude-permission-mode:
     type: awn.field.choice.one
     title: "{DRAFT} Подтверждение инструментов"
-    description: shell.json → route.runtimes.claude.permissionMode
+    description: Как Claude CLI запрашивает подтверждение вызова инструментов.
     default: ""
     enum:
       - key: ""
@@ -368,7 +367,7 @@ fields:
   voice-route-codex-cli-path:
     type: awn.field.string
     title: "{DRAFT} Путь к codex"
-    description: shell.json → route.runtimes.codex.cliPath
+    description: Команда или путь к исполняемому файлу Codex CLI.
     default: codex
     group: voice-client
     subgroup: voice-route-codex
@@ -377,7 +376,7 @@ fields:
   voice-route-codex-model:
     type: awn.field.string
     title: "{DRAFT} Модель Codex"
-    description: shell.json → route.runtimes.codex.model
+    description: Модель Codex. Пусто — значение по умолчанию из CLI.
     group: voice-client
     subgroup: voice-route-codex
     sort: 71
@@ -393,7 +392,7 @@ fields:
   voice-route-codex-permission-mode:
     type: awn.field.choice.one
     title: "{DRAFT} Подтверждение команд"
-    description: shell.json → route.runtimes.codex.permissionMode
+    description: Как Codex CLI запрашивает подтверждение выполнения команд.
     default: ""
     enum:
       - key: ""
@@ -409,7 +408,7 @@ fields:
   voice-route-qwenpaw-url:
     type: awn.field.string
     title: "{DRAFT} URL QwenPaw"
-    description: shell.json → route.runtimes.qwenpaw.baseUrl
+    description: Базовый URL API QwenPaw для Voice Shell.
     default: http://127.0.0.1:8088
     group: voice-client
     subgroup: voice-route-qwenpaw
@@ -418,7 +417,7 @@ fields:
   voice-route-qwenpaw-agent-id:
     type: awn.field.string
     title: "{DRAFT} Agent ID"
-    description: shell.json → qwenpawAgentId
+    description: Идентификатор агента в QwenPaw.
     default: default
     group: voice-client
     subgroup: voice-route-qwenpaw
@@ -883,7 +882,7 @@ fields:
   voice-window-character-model:
     type: awn.field.choice.one
     title: Персонаж
-    description: shell.json → window.characterModel · 3D-модель в окне Voice (превью в Shell → Окно).
+    description: 3D-модель в окне Voice (превью в Shell → Окно).
     default: robot
     enum:
       - key: robot
@@ -909,7 +908,7 @@ fields:
   voice-window-compact-mode:
     type: awn.field.boolean
     title: Компактный режим
-    description: shell.json → window.compact · маленькое окно-облачко вместо полного hero.
+    description: Маленькое окно-облачко вместо полного hero.
     default: false
     group: voice-client
     subgroup: voice-window
@@ -918,7 +917,7 @@ fields:
   voice-window-topmost:
     type: awn.field.boolean
     title: Поверх окон
-    description: shell.json → window.topmost · окно Voice всегда поверх других приложений.
+    description: Окно Voice всегда поверх других приложений.
     default: true
     group: voice-client
     subgroup: voice-window
@@ -927,7 +926,7 @@ fields:
   voice-window-pet-overlay:
     type: awn.field.boolean
     title: Персонаж поверх окон
-    description: shell.json → window.petOverlay · отдельная моделька на рабочем столе (Voice.app).
+    description: Отдельная моделька на рабочем столе (Voice.app).
     default: false
     group: voice-client
     subgroup: voice-window
@@ -936,7 +935,7 @@ fields:
   voice-window-transparent:
     type: awn.field.boolean
     title: Прозрачный фон
-    description: shell.json → window.transparent · прозрачность окна, не выбор обоев.
+    description: Прозрачность окна, не выбор обоев.
     default: false
     group: voice-client
     subgroup: voice-window
@@ -945,7 +944,7 @@ fields:
   voice-window-background:
     type: awn.field.choice.one
     title: Фон
-    description: shell.json → window.background · при «Своя картинка» — URL ниже.
+    description: Фон окна Voice. При «Своя картинка» — URL ниже.
     default: wallpaper
     enum:
       - key: wallpaper
@@ -961,7 +960,7 @@ fields:
   voice-window-background-image-url:
     type: awn.field.string
     title: URL фона
-    description: shell.json → window.backgroundImageUrl · путь от корня workspace или https://…
+    description: Путь от корня workspace или https://…
     default: ""
     group: voice-client
     subgroup: voice-window
@@ -970,7 +969,7 @@ fields:
   voice-window-compact-dialog-qa:
     type: awn.field.boolean
     title: Последний вопрос и ответ
-    description: shell.json → window.compactDialogQa · в компактном режиме показывать последнюю пару Q&A над микрофоном.
+    description: В компактном режиме показывать последнюю пару Q&A над микрофоном.
     default: true
     group: voice-client
     subgroup: voice-window
@@ -979,7 +978,7 @@ fields:
   voice-window-keep-awake:
     type: awn.field.boolean
     title: Не гасить экран
-    description: shell.json → window.keepAwake · Wake Lock API, если поддерживается устройством/браузером.
+    description: Wake Lock API — не давать экрану гаснуть, если поддерживается устройством/браузером.
     default: false
     group: voice-client
     subgroup: voice-window
@@ -988,7 +987,7 @@ fields:
   voice-window-processing-sound:
     type: awn.field.choice.one
     title: Звук «думаю»
-    description: shell.json → window.processingSound · пока агент обрабатывает запрос.
+    description: Звук, пока агент обрабатывает запрос.
     default: off
     enum:
       - key: off
@@ -1004,7 +1003,7 @@ fields:
   voice-window-dialog-auto-scroll:
     type: awn.field.boolean
     title: Автопрокрутка диалога
-    description: shell.json → window.dialogAutoScroll
+    description: Прокручивать диалог к новым сообщениям автоматически.
     default: true
     group: voice-client
     subgroup: voice-window
@@ -1013,7 +1012,10 @@ fields:
   voice-ui-dialog-scroll-ratio:
     type: awn.field.string
     title: Позиция скролла диалога
-    description: 0–1, дефолт при первом открытии; дальше Shell запоминает в сессии
+    description: >
+      Только для справки. Реально хранится в localStorage браузера и
+      .agent-cms/state/shell.json (0–1). В CMS не редактируется.
+    readonly: true
     default: "1"
     group: voice-client
     subgroup: voice-ui
@@ -1023,8 +1025,7 @@ fields:
     type: awn.field.repeater
     title: Шаблоны compose
     description: >
-      shell.json → compose.promptTemplates[].
-      Ключ — маркер {{tpl:key}}; текст команды подставляется в сообщение.
+      Ключ — маркер {{tpl:key}}; текст команды подставляется в сообщение Voice Shell.
     group: voice-client
     subgroup: voice-compose
     sort: 99

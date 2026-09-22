@@ -10,6 +10,8 @@
 - **`state/shell.json`** — принят как runtime-хранилище Shell (не CMS, не трогаем)
 - **Session ID claude/codex/qwenpaw** → `workspace.yml` (`voice-route-*-session-id`), миграция `migrateStateSessionIdsToWorkspace()`
 - **`voice-wake-name`** → CMS + bridge + Shell UI (readonly, только sidecar)
+- **Descriptions в схеме `workspace.yml`** — убраны устаревшие `shell.json →`
+- **`dialogScrollRatio`** — localStorage + `state/shell.json`; поле в CMS readonly, bridge отключён
 
 ---
 
@@ -44,23 +46,13 @@
 
 ---
 
-### 3. Схема ↔ Agent CMS Voice — что ещё не совпадает
-
-| Блок | Статус |
-|------|--------|
-| ui `dialogScrollRatio` | ⚠️ **три источника**: CMS / `state/shell.json` / `localStorage` — убрать из CMS, оставить localStorage + опционально state |
-| descriptions в `workspace.yml` | ⚠️ устарели — много `shell.json →`, почистить |
-
----
-
-### 4. Что из идей чата не реализовали
+### 3. Что из идей чата не реализовали
 
 - Shell читает только API → всё ещё **читает `workspace.yml` с диска**
 - Синхронизация шапки Shell → CMS default — **нет**
 - `awn-agents.json` → agents-registry — **нет**
 - Секреты в `.env` — **нет**
-- Почистить descriptions в `workspace.yml` — **нет** (см. п.3)
 
 ---
 
-**Итог одной строкой:** конфиг Voice на CMS, `settings/shell.json` убран, sessionId и wakeName в CMS, `state/shell.json` — runtime. Дыры: agents-registry, secrets в `.env`, живая сессия шапки, dialogScrollRatio из трёх мест, устаревшие descriptions, qwenpaw/camera runtime без CMS-полей.
+**Итог одной строкой:** конфиг Voice на CMS, `settings/shell.json` убран, sessionId и wakeName в CMS, `state/shell.json` — runtime. Дыры: agents-registry, secrets в `.env`, живая сессия шапки, qwenpaw/camera runtime без CMS-полей.

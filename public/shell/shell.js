@@ -2210,9 +2210,9 @@ function readDialogScrollRatioFromSettings(settings = state.settings, agentId = 
 function syncDialogScrollFromSettings(settings = state.settings) {
   const agentId = state.agentId;
   const ratio = readDialogScrollRatioFromSettings(settings, agentId);
-  const serverRatio = normalizeDialogScrollRatio(settings?.dialogScrollRatio);
-  if (readLocalDialogScrollRatio(agentId) == null && serverRatio != null) {
-    writeLocalDialogScrollRatio(agentId, serverRatio);
+  const stateRatio = normalizeDialogScrollRatio(settings?.dialogScrollRatio);
+  if (readLocalDialogScrollRatio(agentId) == null && stateRatio != null) {
+    writeLocalDialogScrollRatio(agentId, stateRatio);
   }
   lastSavedDialogScrollRatio = ratio;
   shellDialog.scheduleScrollRestore?.(ratio);
