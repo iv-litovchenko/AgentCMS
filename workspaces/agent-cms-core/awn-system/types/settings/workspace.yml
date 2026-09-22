@@ -337,8 +337,8 @@ fields:
 
   voice-route-claude-session-id:
     type: awn.field.string
-    title: "{DRAFT} Session ID"
-    description: shell.json → route.runtimes.claude.sessionId
+    title: Session ID
+    description: Привязка к сессии Claude CLI (--resume). Пусто — новая сессия.
     group: voice-client
     subgroup: voice-route-claude
     sort: 62
@@ -384,8 +384,8 @@ fields:
 
   voice-route-codex-session-id:
     type: awn.field.string
-    title: "{DRAFT} Session ID"
-    description: shell.json → route.runtimes.codex.sessionId
+    title: Session ID
+    description: Привязка к сессии Codex CLI. Пусто — новая сессия.
     group: voice-client
     subgroup: voice-route-codex
     sort: 72
@@ -426,8 +426,8 @@ fields:
 
   voice-route-qwenpaw-session-id:
     type: awn.field.string
-    title: "{DRAFT} Session ID"
-    description: shell.json → route.runtimes.qwenpaw.sessionId
+    title: Session ID
+    description: ID чата QwenPaw для Voice Shell.
     group: voice-client
     subgroup: voice-route-qwenpaw
     sort: 82
@@ -629,13 +629,23 @@ fields:
     subgroup: voice-tts
     sort: 67
 
+  voice-wake-name:
+    type: awn.field.string
+    title: Имя для пробуждения (wake word)
+    description: Только voice sidecar; в браузерном Shell пока не используется. Пусто — без wake word.
+    readonly: true
+    default: ""
+    group: voice-client
+    subgroup: voice-tts
+    sort: 68
+
   voice-tts-prompt:
     type: awn.field.text
     title: Промпт на ответ с озвучкой
     description: Формат с маркером [tts-break]
     group: voice-client
     subgroup: voice-tts
-    sort: 68
+    sort: 69
 
   voice-tts-include-captions:
     type: awn.field.boolean

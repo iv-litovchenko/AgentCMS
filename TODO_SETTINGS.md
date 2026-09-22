@@ -7,7 +7,6 @@
 ### 1. Что не перенесли / упустили
 
 **В CMS нет полей (только runtime или только Shell):**
-- `wakeName` — wake word
 - `camera.deviceId` — выбранная камера
 - `qwenpaw` userId, chatName, stt.sessionId — только `state/shell.json`
 
@@ -17,7 +16,6 @@
 - `eng.traineddata` (OCR) — не трогали
 
 **В схеме есть, но не работает как настройка:**
-- `voice-route-*-session-id` — только показ (hydrate), **редактирование в CMS не влияет на Shell**
 - `voice-input-global-listen`, `voice-input-to-compose` — deprecated readonly
 
 ---
@@ -29,7 +27,6 @@
 **Риски:**
 - **Дефолт runtime = `codex`** в CMS перекрывает старый `claude` из `shell.json`, если в `workspace.yml` поле пустое
 - **Миграция** переносит в CMS только **пустые** ключи — если `workspace.yml` уже был, часть из старого `shell.json` могла не попасть
-- **SessionId в CMS** — сохраняется в yml, но Shell **не читает** (только `state/shell.json`)
 - **Шапка Shell** (workspace/runtime) — по-прежнему **сессия**, не синхронизируется с CMS
 
 Автотестов на миграцию нет — проверка только ручная.
@@ -52,14 +49,11 @@
 **Из старого `settings/shell.json` конфиг перенесён** — при миграции + bridge.
 
 **Осталось только в runtime (`state/`):**
-- sessionId всех runtime
 - qwenpaw userId/chatName/stt.*
 - cameraDeviceId
 - dialogScrollRatio (если был)
 
 **Потенциальная потеря:** если миграция не сработала (workspace уже заполнен) или workspace не создался — часть значений могла остаться только в удалённом `shell.json`. Для `agent-cms-test` миграция прошла: `workspace.yml` есть, `settings/shell.json` нет, `state/shell.json` есть.
-
-**Не переносилось (и раньше не было в CMS):** wakeName
 
 ---
 
@@ -67,8 +61,6 @@
 
 | Блок | Статус |
 |------|--------|
-| session-id поля в CMS | ⚠️ в схеме есть, **на Shell не влияют** |
-| wakeName | ❌ нет в схеме |
 | ui `dialogScrollRatio` | ⚠️ работает, но **три источника**: CMS / `state/shell.json` / `localStorage` — мелкий долг |
 | descriptions в `workspace.yml` | ⚠️ устарели — много `shell.json →`, почистить |
 
@@ -86,4 +78,4 @@
 
 ---
 
-**Итог одной строкой:** конфиг Voice на CMS, `settings/shell.json` убран. Дыры: sessionId в CMS, wakeName, agents-registry, secrets в `.env`, живая сессия шапки, dialogScrollRatio из трёх мест, устаревшие descriptions.
+**Итог одной строкой:** конфиг Voice на CMS, `settings/shell.json` убран. Дыры: agents-registry, secrets в `.env`, живая сессия шапки, dialogScrollRatio из трёх мест, устаревшие descriptions.

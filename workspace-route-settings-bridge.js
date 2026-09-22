@@ -7,12 +7,15 @@ const ROUTE_CONFIG_VOICE_TO_SHELL = {
   "voice-route-system-prompt": "systemPrompt",
   "voice-route-claude-cli-path": "claudeCliPath",
   "voice-route-claude-model": "claudeModel",
+  "voice-route-claude-session-id": "claudeSessionId",
   "voice-route-claude-permission-mode": "claudePermissionMode",
   "voice-route-codex-cli-path": "codexCliPath",
   "voice-route-codex-model": "codexModel",
+  "voice-route-codex-session-id": "codexSessionId",
   "voice-route-codex-permission-mode": "codexPermissionMode",
   "voice-route-qwenpaw-url": "qwenpawBaseUrl",
-  "voice-route-qwenpaw-agent-id": "qwenpawAgentId"
+  "voice-route-qwenpaw-agent-id": "qwenpawAgentId",
+  "voice-route-qwenpaw-session-id": "qwenpawSessionId"
 };
 
 const CMS_SHELL_DEFAULTS = {
@@ -24,12 +27,15 @@ const ROUTE_CONFIG_SHELL_DEFAULTS = {
   "voice-route-system-prompt": "",
   "voice-route-claude-cli-path": "claude",
   "voice-route-claude-model": "",
+  "voice-route-claude-session-id": "",
   "voice-route-claude-permission-mode": "",
   "voice-route-codex-cli-path": "codex",
   "voice-route-codex-model": "",
+  "voice-route-codex-session-id": "",
   "voice-route-codex-permission-mode": "",
   "voice-route-qwenpaw-url": "http://127.0.0.1:8088",
-  "voice-route-qwenpaw-agent-id": "default"
+  "voice-route-qwenpaw-agent-id": "default",
+  "voice-route-qwenpaw-session-id": ""
 };
 
 const ROUTE_CONFIG_TO_SHELL = {
@@ -62,15 +68,8 @@ function hydrateWorkspaceCmsFromShell(awnSettings = {}, shellFlat = {}) {
   return hydrateVoiceKeysFromShell(awnSettings, shellFlat, CMS_VOICE_TO_SHELL);
 }
 
-const SESSION_DISPLAY_TO_SHELL = {
-  "voice-route-claude-session-id": "claudeSessionId",
-  "voice-route-codex-session-id": "codexSessionId",
-  "voice-route-qwenpaw-session-id": "qwenpawSessionId"
-};
-
 function hydrateWorkspaceRouteConfigFromShell(awnSettings = {}, shellFlat = {}) {
-  let out = hydrateVoiceKeysFromShell(awnSettings, shellFlat, ROUTE_CONFIG_VOICE_TO_SHELL);
-  return hydrateVoiceKeysFromShell(out, shellFlat, SESSION_DISPLAY_TO_SHELL);
+  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, ROUTE_CONFIG_VOICE_TO_SHELL);
 }
 
 function hydrateWorkspaceRouteFromShell(awnSettings = {}, shellFlat = {}) {
@@ -86,6 +85,12 @@ function buildShellCmsPatchFromWorkspace(awnSettings = {}) {
 function buildShellRouteConfigPatchFromWorkspace(awnSettings = {}) {
   return buildShellPatchFromWorkspace(awnSettings, ROUTE_CONFIG_VOICE_TO_SHELL);
 }
+
+const SESSION_SHELL_TO_WORKSPACE = {
+  claudeSessionId: "voice-route-claude-session-id",
+  codexSessionId: "voice-route-codex-session-id",
+  qwenpawSessionId: "voice-route-qwenpaw-session-id"
+};
 
 function buildShellRoutePatchFromWorkspace(awnSettings = {}) {
   return {
@@ -121,5 +126,6 @@ module.exports = {
   buildShellRoutePatchFromWorkspace,
   getCmsSettingsDefaults,
   getRouteConfigSettingsDefaults,
-  getRouteSettingsDefaults
+  getRouteSettingsDefaults,
+  SESSION_SHELL_TO_WORKSPACE
 };

@@ -1911,6 +1911,7 @@ const nodes = {
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
   ttsPlaybackHint: document.getElementById("shell-tts-playback-hint"),
   ttsSettingsPanel: document.getElementById("shell-tts-panel"),
+  voiceWakeName: document.getElementById("shell-voice-wake-name"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
   ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
   ttsEngine: document.getElementById("shell-tts-engine"),
@@ -10568,6 +10569,9 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
 function applyTtsSettingsUi(settings) {
   syncTtsPlaybackModeUi(settings);
   syncTtsEnabledUi(settings);
+  if (nodes.voiceWakeName && document.activeElement !== nodes.voiceWakeName) {
+    nodes.voiceWakeName.value = settings.voiceWakeName || "";
+  }
   if (nodes.ttsPrompt && document.activeElement !== nodes.ttsPrompt) {
     nodes.ttsPrompt.value = settings.ttsPrompt || "";
   }
@@ -10634,6 +10638,7 @@ function collectOutboundMessageSettings() {
 
 function collectTtsFormPatch() {
   return {
+    voiceWakeName: nodes.voiceWakeName?.value.trim() || "",
     ttsPlaybackMode: getTtsPlaybackMode(),
     ttsPrompt: nodes.ttsPrompt?.value || "",
     ttsEngine: getTtsEngine(),

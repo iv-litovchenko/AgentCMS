@@ -3,6 +3,7 @@ const path = require("path");
 const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
 const { flattenSettings } = require("./shell-settings-format");
 const { hydrateWorkspaceFromShell, pickShellRuntimePatch } = require("../workspace-shell-settings-bridge");
+const { SESSION_SHELL_TO_WORKSPACE } = require("../workspace-route-settings-bridge");
 
 const LEGACY_SETTINGS_REL = ".agent-cms/settings/shell.json";
 const STATE_REL = rel.state.shell;
@@ -58,6 +59,39 @@ async function readLegacySettingsFile(agentRoot) {
   }
 }
 
+async function migrateStateSessionIdsToWorkspace(agentRoot, projectRoot = process.cwd()) {
+  const target = stateAbsolute(agentRoot);
+  if (!(await pathExists(target))) return false;
+
+  let raw = {};
+  try {
+    raw = JSON.parse(await fs.readFile(target, "utf-8"));
+  } catch {
+    return false;
+  }
+  if (!raw || typeof raw !== "object") return false;
+
+  const { patchWorkspaceSettings } = require("../settings-store");
+  const workspacePatch = {};
+  let changed = false;
+
+  for (const [shellKey, workspaceKey] of Object.entries(SESSION_SHELL_TO_WORKSPACE)) {
+    const value = String(raw[shellKey] ?? "").trim();
+    if (!value) continue;
+    workspacePatch[workspaceKey] = value;
+    delete raw[shellKey];
+    changed = true;
+  }
+
+  if (Object.keys(workspacePatch).length) {
+    await patchWorkspaceSettings(agentRoot, workspacePatch, projectRoot);
+  }
+  if (!changed) return false;
+
+  await fs.writeFile(target, `${JSON.stringify(raw, null, 2)}\n`, "utf-8");
+  return true;
+}
+
 async function migrateLegacyShellSettingsFile(agentRoot, projectRoot = process.cwd()) {
   const legacyPath = legacySettingsAbsolute(agentRoot);
   if (!(await pathExists(legacyPath))) return false;
@@ -98,5 +132,6 @@ module.exports = {
   readStateFile,
   writeStateFile,
   readLegacySettingsFile,
-  migrateLegacyShellSettingsFile
+  migrateLegacyShellSettingsFile,
+  migrateStateSessionIdsToWorkspace
 };

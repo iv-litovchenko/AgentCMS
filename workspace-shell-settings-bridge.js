@@ -23,9 +23,6 @@ const { MEDIA_VOICE_TO_SHELL } = require("./workspace-media-settings-bridge");
 const { UI_VOICE_TO_SHELL } = require("./workspace-ui-settings-bridge");
 
 const SHELL_RUNTIME_KEYS = new Set([
-  "claudeSessionId",
-  "codexSessionId",
-  "qwenpawSessionId",
   "cursorSessionId",
   "openclawSessionId",
   "hermesSessionId",

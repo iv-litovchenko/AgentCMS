@@ -4,7 +4,8 @@ const VOICE_INPUT_TO_SHELL = {
   "voice-input-capture": "sttInputCapture",
   "voice-input-global-listen": "voiceGlobalListen",
   "voice-input-to-compose": "voiceToCompose",
-  "voice-input-response-enabled": "voiceResponseEnabled"
+  "voice-input-response-enabled": "voiceResponseEnabled",
+  "voice-wake-name": "voiceWakeName"
 };
 
 const STT_VOICE_TO_SHELL = {
@@ -64,7 +65,8 @@ const VOICE_INPUT_SHELL_DEFAULTS = {
   "voice-input-capture": "microphone",
   "voice-input-global-listen": false,
   "voice-input-to-compose": false,
-  "voice-input-response-enabled": false
+  "voice-input-response-enabled": false,
+  "voice-wake-name": ""
 };
 
 const STT_SHELL_DEFAULTS = {

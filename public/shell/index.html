@@ -892,6 +892,21 @@
         </div>
 
         <label class="shell-field shell-field--compact">
+          <span class="shell-label">Имя для пробуждения</span>
+          <input
+            id="shell-voice-wake-name"
+            class="shell-input shell-input--compact"
+            type="text"
+            spellcheck="false"
+            placeholder="Только voice sidecar — в браузере пока не используется"
+            autocomplete="off"
+            readonly
+            aria-readonly="true"
+            aria-label="Имя для пробуждения (wake word)"
+          />
+        </label>
+
+        <label class="shell-field shell-field--compact">
           <span class="shell-label shell-label-row shell-label-row--spread">
             Промпт на ответ с озвучкой
             <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">

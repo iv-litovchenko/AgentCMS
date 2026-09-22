@@ -632,6 +632,7 @@ async function readSettings(agentRoot) {
   const projectRoot = resolveProjectRootFromPath(agentRoot);
   const {
     migrateLegacyShellSettingsFile,
+    migrateStateSessionIdsToWorkspace,
     readStateFile
   } = require("./shell-settings-migrate");
   const {
@@ -640,6 +641,7 @@ async function readSettings(agentRoot) {
   } = require("../workspace-shell-settings-bridge");
 
   await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
+  await migrateStateSessionIdsToWorkspace(agentRoot, projectRoot);
   const workspaceSettings = await loadWorkspaceAwnSettings(agentRoot);
   const runtime = await readStateFile(agentRoot);
   const merged = buildShellSettingsFromWorkspace(workspaceSettings, runtime);
