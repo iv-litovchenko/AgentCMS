@@ -35,9 +35,12 @@ const {
 } = require("./platform-agent");
 const {
   AGENT_CMS_CORE_REL,
+  getAgentCmsCoreAbsolute,
   getAgentsGroupsAssetsAbsolute,
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
+const NodeConfigBundle = require("./node-config-bundle");
+const { projectRel } = require("./paths/agent-cms");
 const {
   loadRegistryEntriesFromAwnData,
   saveRegistryEntriesToAwnData,
@@ -1230,6 +1233,39 @@ function pickDefaultAgentId(agentList) {
   return targetPool.find((agent) => agent.default)?.id || targetPool[0]?.id || "main";
 }
 
+function readDefaultWorkspaceIdFromPlatformSettingsSync() {
+  if (!projectRoot) return "";
+  const candidates = [
+    path.join(projectRoot, projectRel.settings.global),
+    path.join(getAgentCmsCoreAbsolute(projectRoot), "settings.global.yml")
+  ];
+  for (const absolutePath of candidates) {
+    try {
+      const content = fs.readFileSync(absolutePath, "utf-8");
+      const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
+      const value = String(bundle.awn_settings?.["default-workspace-id"] || "").trim();
+      if (value) return value;
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") {
+        // ignore parse/read errors and try legacy path
+      }
+    }
+  }
+  return "";
+}
+
+function applyPlatformDefaultWorkspaceId() {
+  const configured = readDefaultWorkspaceIdFromPlatformSettingsSync();
+  if (!configured) return;
+  const match = agents.find((agent) => agent.id === configured && normalizeAgentActive(agent.active));
+  if (match) defaultAgentId = configured;
+}
+
+function reloadDefaultAgentId() {
+  defaultAgentId = pickDefaultAgentId(agents);
+  applyPlatformDefaultWorkspaceId();
+}
+
 function deriveAgentIdFromPath(agentPath, fallbackIndex = 0) {
   const rootAbsolute = resolveAgentRootAbsolute(agentPath);
   const folderName = path.basename(String(rootAbsolute || "").replace(/[\\/]+$/, ""));
@@ -1290,7 +1326,7 @@ function loadRegistrySync() {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
     agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true, folderExists: true })];
   }
-  defaultAgentId = pickDefaultAgentId(agents);
+  reloadDefaultAgentId();
   loadAgentsGroupsSync();
 }
 
@@ -1939,6 +1975,7 @@ module.exports = {
   getActiveAgentId,
   resolveAgent,
   getDefaultAgentId,
+  reloadDefaultAgentId,
   getAgentsPublicList,
   createSystemCatalogNodeSync,
   saveAgentsRegistry,

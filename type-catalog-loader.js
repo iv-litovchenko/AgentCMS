@@ -292,8 +292,8 @@ const DEFAULT_AGENT_SETTINGS_REGISTRY = {
     }
   },
   values: {
-    platform: "settings.global.yml",
-    workspace: "settings.yml",
+    platform: ".agent-cms/settings/global.yml",
+    workspace: ".agent-cms/settings/workspace.yml",
     user: ".agent-cms/settings/user-settings.yml",
     integrations: ".agent-cms/settings/integrations.yml"
   }

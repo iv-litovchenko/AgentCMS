@@ -380,7 +380,8 @@ const {
   buildPlatformSettingsMeta,
   listAgentSettings,
   readAgentSetting,
-  writeAgentSetting
+  writeAgentSetting,
+  syncWorkspaceVoiceSettingsToShell
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -20155,6 +20156,7 @@ async function handleApiForAgent(req, res, url) {
       const payload = await writeAgentSetting(agentRoot, getProjectRoot(), scope, key, body.value);
       if (payload.policyReloadRequired) {
         reloadMcpPolicy({ projectRoot: getProjectRoot() });
+        agentRegistry.reloadDefaultAgentId();
       }
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -20230,10 +20232,7 @@ async function handleApiForAgent(req, res, url) {
         nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
       );
       try {
-        const voicePatch = buildShellVoicePatchFromWorkspace(parsed.awn_settings || {});
-        if (Object.keys(voicePatch).length) {
-          await shellService.writeSettings(agentRoot, voicePatch);
-        }
+        await syncWorkspaceVoiceSettingsToShell(agentRoot, parsed.awn_settings || {});
       } catch (syncError) {
         console.warn("[workspace-settings] voice settings sync to shell.json failed:", syncError);
       }
@@ -26954,6 +26953,7 @@ async function handleApi(req, res, url) {
       );
       invalidatePlatformSettingsCache();
       reloadMcpPolicy({ projectRoot: getProjectRoot() });
+      agentRegistry.reloadDefaultAgentId();
       return sendJson(res, 200, {
         path: saved.path,
         content: saved.content,

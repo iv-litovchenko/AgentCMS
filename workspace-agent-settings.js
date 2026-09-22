@@ -36,6 +36,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "always-context-global-response-style": true,
   "always-context-md-files": ["AGENTS.md"],
   "always-context-ws-folder": "awn-shared/context/awn-storage/",
+  "default-workspace-id": ""
 };
 
 const PLATFORM_FS_LIMITS = {

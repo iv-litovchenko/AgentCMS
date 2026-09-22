@@ -6,16 +6,16 @@ status: active
 extends: awn.settings.base
 description: >
   Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, индексы, память.
-  Значения — settings.global.yml. Не перекрываются workspace/user.
+  Значения — .agent-cms/settings/global.yml. Не перекрываются workspace/user.
 scope: platform
 enabled: true
 consumer: [mcp-server, server, ui, context]
-valuesFile: settings.global.yml
+valuesFile: .agent-cms/settings/global.yml
 
 fieldGroups:
   - id: main
     name: Основные
-    description: Режим обслуживания и язык UI по умолчанию для всей платформы (settings.global.yml).
+    description: Режим обслуживания, хранилище по умолчанию и язык UI для всей платформы (.agent-cms/settings/global.yml).
   - id: ui
     name: Интерфейс
     description: Глобальные настройки интерфейса — заглушка. Персональные параметры (дерево, сайдбар) — в «Пользовательские настройки».
@@ -114,6 +114,17 @@ fields:
     enum: [ru, en]
     group: main
     sort: 21
+
+  default-workspace-id:
+    type: awn.field.choice.one
+    title: Хранилище по умолчанию
+    description: >
+      Какой workspace открывать при старте CMS и Voice. Текущий выбор в шапке Shell — сессия
+      (localStorage), это поле задаёт дефолт при первом открытии.
+    default: ""
+    enum: []
+    group: main
+    sort: 22
 
   ui-theme:
     type: awn.field.choice.one

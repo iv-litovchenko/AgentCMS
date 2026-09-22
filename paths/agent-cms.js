@@ -6,6 +6,7 @@ const rel = {
   root: ROOT,
   settings: {
     dir: `${ROOT}/settings`,
+    workspaceSettings: `${ROOT}/settings/workspace.yml`,
     userSettings: `${ROOT}/settings/user-settings.yml`,
     integrations: `${ROOT}/settings/integrations.yml`,
     integrationsDir: `${ROOT}/settings/integrations`,
@@ -54,7 +55,15 @@ const shellLegacy = {
   screen: ".agent-shell/screen"
 };
 
+const projectRel = {
+  settings: {
+    dir: `${ROOT}/settings`,
+    global: `${ROOT}/settings/global.yml`
+  }
+};
+
 const legacy = {
+  workspaceSettings: "settings.yml",
   userSettings: `${ROOT}/user-settings.yml`,
   integrations: `${ROOT}/integrations.yml`,
   integrationsDir: `${ROOT}/integrations`,
@@ -146,10 +155,16 @@ function rewriteShellSnapshotRelPath(relPath) {
   return normalized;
 }
 
+function globalSettingsAbs(projectRoot) {
+  return abs(projectRoot, projectRel.settings.global);
+}
+
 module.exports = {
   ROOT,
   rel,
+  projectRel,
   legacy,
+  globalSettingsAbs,
   shellLegacy,
   abs,
   settingsDir,

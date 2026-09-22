@@ -7,7 +7,9 @@ const DEFAULT_POLICY_PATH = path.join(
   __dirname,
   "workspaces/agent-cms-core/awn-system/mcp-policy.yml"
 );
-const GLOBAL_SETTINGS_FILE = "settings.global.yml";
+const { projectRel } = require("./paths/agent-cms");
+const GLOBAL_SETTINGS_FILE = projectRel.settings.global;
+const GLOBAL_SETTINGS_LEGACY_FILE = "settings.global.yml";
 
 const FALLBACK_POLICY = {
   version: 1,
@@ -113,15 +115,19 @@ function resolvePolicyPath(customPath = "") {
 }
 
 function loadGlobalPolicyFromSettingsFile(projectRoot) {
-  try {
-    const absolutePath = path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_FILE);
+  const candidates = [
+    path.join(projectRoot, GLOBAL_SETTINGS_FILE),
+    path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_LEGACY_FILE)
+  ];
+  for (const absolutePath of candidates) {
+    try {
     const parsed = parseTypeYaml(fs.readFileSync(absolutePath, "utf-8")) || {};
     const policyRoot =
       parsed.awn_policy && typeof parsed.awn_policy === "object" ? parsed.awn_policy : parsed;
     const mcp = policyRoot.mcp && typeof policyRoot.mcp === "object" ? policyRoot.mcp : {};
     const batch =
       policyRoot.batch_invoke && typeof policyRoot.batch_invoke === "object" ? policyRoot.batch_invoke : {};
-    if (!Object.keys(mcp).length && !Object.keys(batch).length) return null;
+    if (!Object.keys(mcp).length && !Object.keys(batch).length) continue;
     return {
       policy: {
         version: Number(parsed.version) || 1,
@@ -130,9 +136,11 @@ function loadGlobalPolicyFromSettingsFile(projectRoot) {
       },
       path: absolutePath
     };
-  } catch {
-    return null;
+    } catch {
+      // try next candidate
+    }
   }
+  return null;
 }
 
 function loadMcpPolicyFromFile(policyPath) {
@@ -162,7 +170,7 @@ function loadMcpPolicy(options = {}) {
         cachedMtime = stat.mtimeMs;
         cachedPolicy = normalizePolicy(fromSettings.policy);
         cachedPolicy.path = policyPath;
-        cachedPolicy.source = "settings.global.yml";
+        cachedPolicy.source = GLOBAL_SETTINGS_FILE;
         return cachedPolicy;
       } catch {
         // fall through to legacy file

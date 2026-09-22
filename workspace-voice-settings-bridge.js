@@ -37,6 +37,10 @@ const COMPOSE_VOICE_TO_SHELL = {
   "voice-compose-templates": "composePromptTemplates"
 };
 
+const ROUTE_VOICE_TO_SHELL = {
+  "voice-route-runtime": "messageTarget"
+};
+
 const TTS_VOICE_TO_SHELL = {
   "voice-tts-enabled": "ttsEnabled",
   "voice-tts-engine": "ttsEngine",
@@ -85,6 +89,10 @@ const PROACTIVE_SHELL_DEFAULTS = {
 
 const COMPOSE_SHELL_DEFAULTS = {
   "voice-compose-templates": []
+};
+
+const ROUTE_SHELL_DEFAULTS = {
+  "voice-route-runtime": "codex"
 };
 
 const TTS_SHELL_DEFAULTS = {
@@ -171,8 +179,13 @@ function hydrateWorkspaceComposeFromShell(awnSettings = {}, shellFlat = {}) {
   return hydrateVoiceKeysFromShell(awnSettings, shellFlat, COMPOSE_VOICE_TO_SHELL);
 }
 
+function hydrateWorkspaceRouteFromShell(awnSettings = {}, shellFlat = {}) {
+  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, ROUTE_VOICE_TO_SHELL);
+}
+
 function hydrateWorkspaceVoiceFromShell(awnSettings = {}, shellFlat = {}) {
-  let out = hydrateWorkspaceVoiceProactiveFromShell(awnSettings, shellFlat);
+  let out = hydrateWorkspaceRouteFromShell(awnSettings, shellFlat);
+  out = hydrateWorkspaceVoiceProactiveFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceInputFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceSttFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceTtsFromShell(out, shellFlat);
@@ -203,8 +216,13 @@ function buildShellComposePatchFromWorkspace(awnSettings = {}) {
   return buildShellPatchFromWorkspace(awnSettings, COMPOSE_VOICE_TO_SHELL);
 }
 
+function buildShellRoutePatchFromWorkspace(awnSettings = {}) {
+  return buildShellPatchFromWorkspace(awnSettings, ROUTE_VOICE_TO_SHELL);
+}
+
 function buildShellVoicePatchFromWorkspace(awnSettings = {}) {
   return {
+    ...buildShellRoutePatchFromWorkspace(awnSettings),
     ...buildShellProactivePatchFromWorkspace(awnSettings),
     ...buildShellVoiceInputPatchFromWorkspace(awnSettings),
     ...buildShellSttPatchFromWorkspace(awnSettings),
@@ -233,8 +251,13 @@ function getComposeSettingsDefaults() {
   return { ...COMPOSE_SHELL_DEFAULTS };
 }
 
+function getRouteSettingsDefaults() {
+  return { ...ROUTE_SHELL_DEFAULTS };
+}
+
 function getVoiceSettingsDefaults() {
   return {
+    ...getRouteSettingsDefaults(),
     ...getProactiveVoiceSettingsDefaults(),
     ...getVoiceInputSettingsDefaults(),
     ...getSttVoiceSettingsDefaults(),
@@ -248,8 +271,10 @@ module.exports = {
   STT_VOICE_TO_SHELL,
   PROACTIVE_VOICE_TO_SHELL,
   COMPOSE_VOICE_TO_SHELL,
+  ROUTE_VOICE_TO_SHELL,
   TTS_RATE_VOICE_KEYS,
   TTS_VOICE_TO_SHELL,
+  hydrateWorkspaceRouteFromShell,
   hydrateWorkspaceVoiceInputFromShell,
   hydrateWorkspaceVoiceSttFromShell,
   hydrateWorkspaceVoiceProactiveFromShell,
@@ -261,11 +286,13 @@ module.exports = {
   buildShellProactivePatchFromWorkspace,
   buildShellTtsPatchFromWorkspace,
   buildShellComposePatchFromWorkspace,
+  buildShellRoutePatchFromWorkspace,
   buildShellVoicePatchFromWorkspace,
   getVoiceInputSettingsDefaults,
   getSttVoiceSettingsDefaults,
   getProactiveVoiceSettingsDefaults,
   getTtsVoiceSettingsDefaults,
   getComposeSettingsDefaults,
+  getRouteSettingsDefaults,
   getVoiceSettingsDefaults
 };

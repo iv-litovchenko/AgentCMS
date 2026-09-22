@@ -6,16 +6,18 @@ status: active
 extends: awn.settings.base
 description: >
   Параметры конкретного хранилища (workspace): агент, слоты, TTL, счётчик awn-id.
-  Значения — settings.yml. Отдельная область, не сливается с platform/user.
+  Значения — .agent-cms/settings/workspace.yml. Отдельная область, не сливается с platform/user.
 scope: workspace
 enabled: true
 consumer: [mcp-server, server, ui, context]
-valuesFile: settings.yml
+valuesFile: .agent-cms/settings/workspace.yml
 
 fieldGroups:
   - id: general
     name: Общие
-    description: Язык агента, стиль ответов и уведомления для этого хранилища (settings.yml).
+    description: >
+      Язык агента, runtime Voice по умолчанию и уведомления для этого хранилища
+      (.agent-cms/settings/workspace.yml, runtime → shell.json).
   - id: agent
     name: Агент
     description: Параметры агента для этого хранилища (settings.yml).
@@ -188,6 +190,29 @@ fields:
     group: general
     sort: 12
 
+  voice-route-runtime:
+    type: awn.field.choice.one
+    title: Runtime по умолчанию
+    description: shell.json → route.runtime. Параметры выбранного runtime — в «Голосовой клиент».
+    default: codex
+    enum:
+      - key: claude
+        name: Claude CLI (Anthropic)
+      - key: codex
+        name: Codex CLI (OpenAI)
+      - key: cursor
+        name: Cursor (Anysphere) — скоро
+      - key: openclaw
+        name: OpenClaw — скоро
+      - key: hermes
+        name: Hermes Agent — скоро
+      - key: agent-zero
+        name: Agent Zero — скоро
+      - key: qwenpaw
+        name: QwenPaw (AgentScope)
+    group: general
+    sort: 13
+
   awn-id-next:
     type: awn.field.number.integer
     title: Следующий id
@@ -284,30 +309,6 @@ fields:
     group: voice-client
     subgroup: voice-cms
     sort: 51
-
-  voice-route-runtime:
-    type: awn.field.choice.one
-    title: Runtime по умолчанию
-    description: shell.json → route.runtime. Параметры выбранного runtime — в аккордеоне ниже.
-    default: codex
-    enum:
-      - key: claude
-        name: Claude CLI (Anthropic)
-      - key: codex
-        name: Codex CLI (OpenAI)
-      - key: cursor
-        name: Cursor (Anysphere) — скоро
-      - key: openclaw
-        name: OpenClaw — скоро
-      - key: hermes
-        name: Hermes Agent — скоро
-      - key: agent-zero
-        name: Agent Zero — скоро
-      - key: qwenpaw
-        name: QwenPaw (AgentScope)
-    group: voice-client
-    subgroup: voice-route
-    sort: 52
 
   voice-route-system-prompt:
     type: awn.field.text

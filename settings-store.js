@@ -17,9 +17,11 @@ const {
 } = require("./workspace-agent-settings");
 const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
 
-const WORKSPACE_SETTINGS_FILE = "settings.yml";
-const GLOBAL_SETTINGS_FILE = "settings.global.yml";
-const { rel } = require("./paths/agent-cms");
+const { rel, projectRel, legacy, globalSettingsAbs } = require("./paths/agent-cms");
+const WORKSPACE_SETTINGS_FILE = rel.settings.workspaceSettings;
+const GLOBAL_SETTINGS_FILE = projectRel.settings.global;
+const GLOBAL_SETTINGS_LEGACY_FILE = "settings.global.yml";
+const WORKSPACE_SETTINGS_LEGACY_FILE = legacy.workspaceSettings;
 
 const USER_SETTINGS_REL_PATH = rel.settings.userSettings;
 const INTEGRATIONS_SETTINGS_REL_PATH = rel.settings.integrations;
@@ -31,20 +33,71 @@ const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 const WORKSPACE_SETTINGS_HEADER =
   "# Agent CMS — настройки workspace (только это хранилище)\n";
 const GLOBAL_SETTINGS_HEADER =
-  "# Agent CMS — глобальные настройки платформы (agent-cms-core)\n";
+  "# Agent CMS — глобальные настройки платформы\n";
 const USER_SETTINGS_HEADER =
   "# Agent CMS — пользовательские настройки (UI, дерево меню)\n";
 const INTEGRATIONS_SETTINGS_HEADER =
   "# Agent CMS — интеграции и плагины (контейнеры внешних сервисов)\n";
 
 function getGlobalSettingsAbsolute(projectRoot) {
-  return path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_FILE);
+  return globalSettingsAbs(projectRoot);
+}
+
+function getGlobalSettingsLegacyAbsolute(projectRoot) {
+  return path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_LEGACY_FILE);
 }
 
 function getWorkspaceSettingsAbsolute(agentRoot) {
   const root = String(agentRoot || "").trim();
   if (!root) return "";
   return path.join(root, WORKSPACE_SETTINGS_FILE);
+}
+
+function getWorkspaceSettingsLegacyAbsolute(agentRoot) {
+  const root = String(agentRoot || "").trim();
+  if (!root) return "";
+  return path.join(root, WORKSPACE_SETTINGS_LEGACY_FILE);
+}
+
+async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}) {
+  try {
+    const shellService = require("./agent-shell/shell-service");
+    const { hydrateWorkspaceVoiceFromShell } = require("./workspace-voice-settings-bridge");
+    const shellFlat = await shellService.readSettings(agentRoot);
+    return hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
+  } catch {
+    return awnSettings;
+  }
+}
+
+async function syncWorkspaceVoiceSettingsToShell(agentRoot, awnSettings = {}) {
+  try {
+    const shellService = require("./agent-shell/shell-service");
+    const { buildShellVoicePatchFromWorkspace } = require("./workspace-voice-settings-bridge");
+    const voicePatch = buildShellVoicePatchFromWorkspace(awnSettings);
+    if (!Object.keys(voicePatch).length) return;
+    await shellService.writeSettings(agentRoot, voicePatch);
+  } catch (error) {
+    console.warn("[settings] voice settings sync to shell.json failed:", error);
+  }
+}
+
+function enrichPlatformSettingsSchema(payload = {}, projectRoot = process.cwd()) {
+  const field = payload.fields?.["default-workspace-id"];
+  if (!field) return payload;
+  try {
+    const { getAgentsPublicList } = require("./agent-registry");
+    const agents = getAgentsPublicList();
+    field.enum = agents
+      .filter((agent) => agent.active !== false)
+      .map((agent) => ({
+        key: agent.id,
+        name: agent.name ? `${agent.name} (${agent.id})` : agent.id
+      }));
+  } catch {
+    field.enum = Array.isArray(field.enum) ? field.enum : [];
+  }
+  return payload;
 }
 
 function getUserSettingsAbsolute(agentRoot) {
@@ -171,14 +224,27 @@ async function readFilePayload(absolutePath, relPath) {
 
 async function readGlobalSettingsFile(projectRoot) {
   const absolutePath = getGlobalSettingsAbsolute(projectRoot);
-  const relPath = path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE);
-  return readFilePayload(absolutePath, relPath);
+  const primary = await readFilePayload(absolutePath, GLOBAL_SETTINGS_FILE);
+  if (primary.exists) return primary;
+  const legacyAbsolute = getGlobalSettingsLegacyAbsolute(projectRoot);
+  const legacyRel = path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_LEGACY_FILE);
+  const legacy = await readFilePayload(legacyAbsolute, legacyRel);
+  if (legacy.exists) {
+    return { ...legacy, legacySource: legacyRel, canonicalPath: GLOBAL_SETTINGS_FILE };
+  }
+  return primary;
 }
 
 async function readWorkspaceSettingsFile(agentRoot) {
   const absolutePath = getWorkspaceSettingsAbsolute(agentRoot);
-  const relPath = WORKSPACE_SETTINGS_FILE;
-  return readFilePayload(absolutePath, relPath);
+  const primary = await readFilePayload(absolutePath, WORKSPACE_SETTINGS_FILE);
+  if (primary.exists) return primary;
+  const legacyAbsolute = getWorkspaceSettingsLegacyAbsolute(agentRoot);
+  const legacy = await readFilePayload(legacyAbsolute, WORKSPACE_SETTINGS_LEGACY_FILE);
+  if (legacy.exists) {
+    return { ...legacy, legacySource: WORKSPACE_SETTINGS_LEGACY_FILE, canonicalPath: WORKSPACE_SETTINGS_FILE };
+  }
+  return primary;
 }
 
 async function readUserSettingsFile(agentRoot) {
@@ -196,7 +262,10 @@ async function readIntegrationsSettingsFile(agentRoot) {
 async function readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot) {
   const primary = await readWorkspaceSettingsFile(agentRoot);
   if (primary.exists) {
-    return { ...primary, source: "settings.yml" };
+    return { ...primary, source: WORKSPACE_SETTINGS_FILE };
+  }
+  if (primary.legacySource) {
+    return { ...primary, source: WORKSPACE_SETTINGS_LEGACY_FILE };
   }
 
   const manifestPath = path.join(agentRoot, "manifest.md");
@@ -315,7 +384,7 @@ async function writeGlobalSettingsFile(projectRoot, content) {
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
   await fs.promises.writeFile(absolutePath, content, "utf-8");
   return {
-    path: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE),
+    path: GLOBAL_SETTINGS_FILE,
     absolutePath,
     exists: true,
     content
@@ -512,6 +581,7 @@ function getAgentSettingsSchemaPayload(agentRoot, projectRoot, scope = "workspac
   const valuesFile = registry.values[scopeKey];
   if (valuesFile) payload.valuesFile = valuesFile;
   if (registry.description && !payload.description) payload.description = registry.description;
+  if (scopeKey === "platform") enrichPlatformSettingsSchema(payload, projectRoot);
   return payload;
 }
 
@@ -549,7 +619,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
     nodeVersion: process.version,
     platformOs: process.platform,
     corePath: AGENT_CMS_CORE_REL.replace(/\\/g, "/"),
-    settingsPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE),
+    settingsPath: GLOBAL_SETTINGS_FILE,
     registryPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), "awn-system/registry.yml"),
     docsMap: String(registryDoc.docs?.map || "GLOBAL_MCP_DOC.md").trim(),
     typeCatalogCount: byId.size,
@@ -582,7 +652,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
       {
         key: "settings-global-path",
         label: "Файл platform values",
-        value: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE)
+        value: GLOBAL_SETTINGS_FILE
       }
     ],
     enforcedFields: [
@@ -752,6 +822,7 @@ async function readSettingsRawForScope(agentRoot, projectRoot, scopeKey) {
       if (!error || error.code !== "ENOENT") throw error;
     }
   }
+  localSettings = await hydrateWorkspaceSettingsFromShell(agentRoot, localSettings);
 
   return {
     scope: scopeKey,
@@ -944,6 +1015,7 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
     agentRoot,
     nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
   );
+  await syncWorkspaceVoiceSettingsToShell(agentRoot, nextFlat);
   const normalized = normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
   return {
     ok: true,
@@ -967,7 +1039,11 @@ module.exports = {
   USER_SETTINGS_HEADER,
   INTEGRATIONS_SETTINGS_HEADER,
   getGlobalSettingsAbsolute,
+  getGlobalSettingsLegacyAbsolute,
   getWorkspaceSettingsAbsolute,
+  getWorkspaceSettingsLegacyAbsolute,
+  hydrateWorkspaceSettingsFromShell,
+  syncWorkspaceVoiceSettingsToShell,
   getUserSettingsAbsolute,
   getIntegrationsSettingsAbsolute,
   parseSettingsFileContent,
