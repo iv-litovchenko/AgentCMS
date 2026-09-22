@@ -342,6 +342,11 @@ const {
   hydrateWorkspaceVoiceFromShell,
   buildShellVoicePatchFromWorkspace
 } = require("./workspace-voice-settings-bridge");
+const {
+  hydrateWorkspaceWindowFromAwnShell,
+  buildAwnShellWindowPatchFromWorkspace
+} = require("./workspace-window-settings-bridge");
+const windowSettings = require("./agent-shell/window-settings");
 const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
@@ -20180,6 +20185,12 @@ async function handleApiForAgent(req, res, url) {
       } catch {
         // shell.json optional
       }
+      try {
+        const awnShellFlat = await windowSettings.readWindowSettings(getProjectRoot());
+        awnSettings = hydrateWorkspaceWindowFromAwnShell(awnSettings, awnShellFlat);
+      } catch {
+        // awn-shell.json optional
+      }
       const content = composeSettingsFileContent({
         headerComment: parsed.headerComment || file.headerComment || "",
         awn_settings: awnSettings
@@ -20225,6 +20236,14 @@ async function handleApiForAgent(req, res, url) {
         }
       } catch (syncError) {
         console.warn("[workspace-settings] voice settings sync to shell.json failed:", syncError);
+      }
+      try {
+        const windowPatch = buildAwnShellWindowPatchFromWorkspace(parsed.awn_settings || {});
+        if (Object.keys(windowPatch).length) {
+          await windowSettings.writeWindowSettings(getProjectRoot(), windowPatch);
+        }
+      } catch (syncError) {
+        console.warn("[workspace-settings] window settings sync to awn-shell.json failed:", syncError);
       }
       return sendJson(res, 200, {
         path: saved.path,

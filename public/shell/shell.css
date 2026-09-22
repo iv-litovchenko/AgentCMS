@@ -9444,6 +9444,30 @@ body.shell-embed .shell-path-header {
   margin-bottom: 0;
 }
 
+.shell-compact-qa-answer .shell-reply-tts-block {
+  border-color: rgba(14, 165, 233, 0.35);
+  background: rgba(14, 165, 233, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.06);
+}
+
+.shell-compact-qa-answer .shell-reply-tts-block-label {
+  color: #0369a1;
+}
+
+.shell-compact-qa-answer .shell-reply-tts-block-text,
+.shell-compact-qa-answer .shell-reply-tts-block-text.shell-md {
+  color: #0f172a;
+}
+
+.shell-compact-qa-answer .shell-reply-tts-block-text.shell-md a {
+  color: #0369a1;
+}
+
+.shell-compact-qa-answer .shell-reply-tts-block-text.shell-md code {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
 .shell-compact-qa-answer.shell-md ul,
 .shell-compact-qa-answer.shell-md ol {
   margin: 0.35em 0 0.5em;

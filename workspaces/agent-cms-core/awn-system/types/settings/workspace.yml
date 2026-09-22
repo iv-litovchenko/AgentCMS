@@ -869,6 +869,15 @@ fields:
     subgroup: voice-media
     sort: 88
 
+  voice-window-compact-mode:
+    type: awn.field.boolean
+    title: Компактный режим
+    description: awn-shell.json → windowCompact. Вкл — компактное окно (#shell-compact-stage); выкл — обычный hero с сенсором.
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 88
+
   voice-window-topmost:
     type: awn.field.boolean
     title: "{DRAFT} Поверх всех окон"
