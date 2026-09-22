@@ -316,6 +316,16 @@ fields:
     group: mcp
     sort: 18
 
+  indexing-ocr-langs:
+    type: awn.field.string
+    title: Языки OCR
+    description: >
+      Коды языков tesseract.js через «+», например rus+eng.
+      Модели скачиваются автоматически при первом запуске OCR.
+    default: rus+eng
+    group: indexing
+    sort: 19
+
   index-ocr-enabled:
     type: awn.field.boolean
     title: OCR (вложения)

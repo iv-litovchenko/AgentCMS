@@ -31,11 +31,14 @@ const SEARCH_SCOPE_OPTIONS = [
   { key: "fulltext", name: "Слова (fulltext)" }
 ];
 
+const DEFAULT_OCR_LANGS = "rus+eng";
+
 const INDEXING_POLICY_SETTING_KEYS = [
   "index-semantic-enabled",
   "index-fulltext-enabled",
   "index-storage-enabled",
   "index-links-enabled",
+  "indexing-ocr-langs",
   "index-ocr-enabled",
   "index-workspace-id-enabled",
   "index-storage-mode",
@@ -231,6 +234,26 @@ function resolveSearchScopes(settings = {}, requestedScopes = null) {
   return enabled.length ? enabled : [];
 }
 
+function normalizeOcrLangToken(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function parseOcrLangs(settings = {}, fallback = DEFAULT_OCR_LANGS) {
+  const raw = String(normalizePlatformAgentSettings(settings)["indexing-ocr-langs"] || "").trim();
+  if (!raw) return fallback;
+  const parts = raw.split("+").map(normalizeOcrLangToken).filter(Boolean);
+  return parts.length ? parts.join("+") : fallback;
+}
+
+function resolveOcrLangs(settings = {}, payload = {}) {
+  const override = String(payload?.langs || "").trim();
+  if (override) return parseOcrLangs({ "indexing-ocr-langs": override });
+  return parseOcrLangs(settings);
+}
+
 function getPlatformIndexStorageMode(settings = {}) {
   const mode = String(normalizePlatformAgentSettings(settings)["index-storage-mode"] || "quick")
     .trim()
@@ -262,6 +285,7 @@ function buildIndexPolicy(settings = {}) {
     excludeRules,
     storageMode,
     searchTuning,
+    ocrLangs: parseOcrLangs(settings),
     steps,
     isIndexable(relPath) {
       if (isPathExcluded(relPath, excludeRules)) return false;
@@ -311,6 +335,7 @@ function getIndexPolicyPayload(settings = {}) {
     excludePatterns: policy.excludePatterns,
     storageMode: policy.storageMode,
     searchTuning: policy.searchTuning,
+    ocrLangs: policy.ocrLangs,
     steps: policy.steps,
     layers: {
       semantic: policy.steps.semantic,
@@ -356,6 +381,9 @@ module.exports = {
   isPathExcluded,
   matchesIndexFileExtension,
   matchesIndexPathPrefix,
+  DEFAULT_OCR_LANGS,
+  parseOcrLangs,
+  resolveOcrLangs,
   getPlatformIndexStorageMode,
   getPlatformSearchTuning,
   isPlatformPipelineStepEnabled,

@@ -22,6 +22,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "index-fulltext-enabled": true,
   "index-storage-enabled": true,
   "index-links-enabled": true,
+  "indexing-ocr-langs": "rus+eng",
   "index-ocr-enabled": false,
   "index-workspace-id-enabled": true,
   "index-storage-mode": "quick",

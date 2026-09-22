@@ -46,6 +46,7 @@ const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const {
   buildIndexPolicy,
   resolvePipelineSteps,
+  resolveOcrLangs,
   getIndexPolicyPayload,
   getPlatformIndexStorageMode,
   getPlatformSearchTuning,
@@ -20701,10 +20702,11 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/ocr-index/run") {
     try {
       const payload = await readJsonBody(req);
+      const platformSettings = await getPlatformSettings(getProjectRoot());
       const data = await getOcrIndexService().run({
         force: Boolean(payload?.force),
         limit: payload?.limit,
-        langs: payload?.langs,
+        langs: resolveOcrLangs(platformSettings, payload),
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         sourcePath: payload?.sourcePath || payload?.file || ""
       });
@@ -20727,7 +20729,8 @@ async function handleApiForAgent(req, res, url) {
       const ocr = steps.ocr
         ? await getOcrIndexService().run({
             force: Boolean(payload?.forceOcr),
-            limit: payload?.ocrLimit ?? 200
+            limit: payload?.ocrLimit ?? 200,
+            langs: resolveOcrLangs(platformSettings, payload)
           })
         : { ok: false, skipped: true, reason: "step_disabled" };
       const fulltext = steps.fulltext

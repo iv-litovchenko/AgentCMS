@@ -1,58 +1,56 @@
 # Аудит миграции настроек Voice (shell.json → CMS)
 
-Кратко по каждому пункту:
+Актуально на 2026-09-22.
 
 ---
 
-### 0. Сделано (убрать из долга)
+### Сделано
 
-- **`settings/shell.json` удалён** — авто-миграция при первом открытии Shell
-- **`state/shell.json`** — принят как runtime-хранилище Shell (не CMS, не трогаем)
-- **Session ID claude/codex/qwenpaw** → `workspace.yml` (`voice-route-*-session-id`), миграция `migrateStateSessionIdsToWorkspace()`
-- **`voice-wake-name`** → CMS + bridge + Shell UI (readonly, только sidecar)
-- **Descriptions в схеме `workspace.yml`** — убраны устаревшие `shell.json →`
-- **`dialogScrollRatio`** — localStorage + `state/shell.json`; поле в CMS readonly, bridge отключён
-- **`*.traineddata`** — перенесены в `ocr-index/tessdata/` (пока без `langPath` в коде)
-
----
-
-### 1. Что не перенесли / упустили
-
-**В CMS нет полей (только runtime):**
-- `camera.deviceId` — выбранная камера
-- `qwenpaw` userId, chatName, stt.sessionId
-
-**Вне Voice workspace:**
-- `awn-agents.json` → `.agent-cms/settings/agents-registry.json` — не сделано
-- API-ключи в `.env` — не сделано
-
-**В схеме есть, legacy (readonly, не настройка пользователя):**
-- `voice-input-global-listen`, `voice-input-to-compose` — deprecated readonly
+| Что | Где |
+|-----|-----|
+| Конфиг Voice | `.agent-cms/settings/workspace.yml` |
+| Платформа / пользователь | `.agent-cms/settings/platform.yml`, `user.yml` |
+| Runtime Shell | `.agent-cms/state/shell.json` (принят, не CMS) |
+| Legacy `settings/shell.json` | удалён, авто-миграция при первом открытии Shell |
+| Session ID claude/codex/qwenpaw | `voice-route-*-session-id` в workspace + `migrateStateSessionIdsToWorkspace()` |
+| `voice-wake-name` | CMS + bridge + Shell UI (readonly, только sidecar) |
+| Descriptions в схеме | убраны устаревшие `shell.json →` |
+| `dialogScrollRatio` | localStorage + `state/shell.json`; CMS-поле readonly, bridge отключён |
+| `*.traineddata` | `ocr-index/tessdata/` (резерв, пока не используется) |
+| `indexing-ocr-langs` | platform.yml → OCR pipeline (`rus+eng` по умолчанию, модели из интернета) |
 
 ---
 
-### 2. Что могло сломаться / не применяется
+### Открыто
 
-**Работает:** основной конфиг Voice читается из `workspace.yml` + runtime в `state/shell.json`.
+**Runtime без CMS-полей:**
+- `camera.deviceId`
+- qwenpaw `userId`, `chatName`, `stt.sessionId`
 
-**Риски:**
-- **Дефолт runtime = `codex`** в CMS перекрывает старый `claude` из `shell.json`, если в `workspace.yml` поле пустое
-- **Миграция** переносит в CMS только **пустые** ключи — если `workspace.yml` уже был, часть из старого `shell.json` могла не попасть
-- **Шапка Shell** (workspace/runtime) — по-прежнему **сессия**, не синхронизируется с CMS (`default-workspace-id`, `voice-route-runtime`)
+**Платформа (не Voice workspace):**
+- `awn-agents.json` → `.agent-cms/settings/agents-registry.json`
+- API-ключи (TTS и др.) → `.env` / secrets, не в `workspace.yml`
 
-**Потенциальная потеря:** если миграция не сработала (workspace уже заполнен) — часть значений могла остаться только в удалённом `settings/shell.json`.
+**Legacy readonly в схеме (не настройка пользователя):**
+- `voice-input-global-listen`, `voice-input-to-compose`
+- `voice-ui-dialog-scroll-ratio`
 
-Автотестов на миграцию нет — проверка только ручная.
+**OCR (опционально):**
+- `langPath` → `ocr-index/tessdata/` для офлайн вместо скачивания
+
+**Архитектура (идеи, не срочно):**
+- Shell читает `workspace.yml` с диска, не только через API
+- шапка Shell (workspace/runtime) не пишет default обратно в CMS
 
 ---
 
-### 3. Что из идей чата не реализовали
+### Риски / проверить вручную
 
-- Shell читает только API → всё ещё **читает `workspace.yml` с диска**
-- Синхронизация шапки Shell → CMS default — **нет**
-- `awn-agents.json` → agents-registry — **нет**
-- Секреты в `.env` — **нет**
+- **Дефолт runtime = `codex`** в CMS, если `voice-route-runtime` пустой — перекрывает старый `claude` из legacy `shell.json`
+- **Миграция** в CMS только **пустых** ключей — при уже заполненном `workspace.yml` часть legacy могла не попасть
+- **Потеря значений** — только в удалённом `settings/shell.json`, если миграция не сработала
+- автотестов на миграцию нет
 
 ---
 
-**Итог одной строкой:** конфиг Voice на CMS, `settings/shell.json` убран, sessionId и wakeName в CMS, `state/shell.json` — runtime. Дыры: agents-registry, secrets в `.env`, живая сессия шапки, qwenpaw/camera runtime без CMS-полей.
+**Итог:** основная миграция Voice на CMS завершена. Осталось: agents-registry, secrets в `.env`, qwenpaw/camera runtime, синк шапки Shell.

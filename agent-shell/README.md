@@ -64,7 +64,15 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 | GET | `/api/shell/camera/latest?kind=speech\|manual` | Последний сохранённый кадр |
 | GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, assistant_delta, agent_activity, camera_snapshot_request, screen_snapshot_request |
 
-Настройки хранятся в workspace агента: `.agent-cms/settings/shell.json`.
+Настройки Voice хранятся в workspace агента:
+
+| Файл | Назначение |
+|------|------------|
+| `.agent-cms/settings/workspace.yml` | конфиг Voice (CMS), поля `voice-*` |
+| `.agent-cms/state/shell.json` | runtime Shell (фаза UI, синк, scroll, camera deviceId…) |
+| `.agent-cms/settings/platform.yml` | платформа (`default-workspace-id` и др.) |
+
+Legacy `.agent-cms/settings/shell.json` удалён — при первом открытии Shell мигрирует в `workspace.yml` + `state/`.
 
 ## Камера (Shell UI)
 
@@ -101,7 +109,7 @@ HTTP: `POST /api/shell/screen/snapshot`, `GET /api/shell/screen/latest?kind=spee
 3. Ответ стримится из QwenPaw: Shell показывает текст по мере генерации (`assistant_delta` по SSE), затем финализирует markdown и TTS по предложениям.
 4. Режим **QwenPaw + лог в CMS** дополнительно пишет диалог в thread CMS (ответ — целиком; при обрыве — сохраняется часть).
 
-Настройки QwenPaw: `qwenpawBaseUrl`, `qwenpawAgentId`, `qwenpawSessionId` в `.agent-cms/settings/shell.json`.
+Настройки QwenPaw в CMS (`workspace.yml`): `voice-route-qwenpaw-url`, `voice-route-qwenpaw-agent-id`, `voice-route-qwenpaw-session-id` (в Shell API — `qwenpawBaseUrl`, `qwenpawAgentId`, `qwenpawSessionId`). Runtime qwenpaw (`userId`, `chatName`, `stt.*`) — в `state/shell.json`.
 
 ## Desktop
 

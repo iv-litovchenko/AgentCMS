@@ -717,6 +717,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
       "index-fulltext-enabled",
       "index-storage-enabled",
       "index-links-enabled",
+      "indexing-ocr-langs",
       "index-ocr-enabled",
       "index-workspace-id-enabled",
       "index-storage-mode",
