@@ -21,6 +21,7 @@
 | Descriptions в схеме | убраны `shell.json →` |
 | `agent-shell/README.md` | актуальные пути и QwenPaw-поля |
 | Shell read settings | workspace через `settings-store` (`getEffectiveWorkspaceSettings`), не прямой fs |
+| Шапка Shell → CMS default | агент → `platform.yml` (`default-workspace-id`); runtime → `workspace.yml` (`voice-route-runtime`); URL/ЧПУ агента приоритетнее дефолта |
 
 **Платформа**
 | Что | Где |
@@ -53,9 +54,6 @@
 **Платформа:**
 - `awn-agents.json` → `.agent-cms/settings/agents-registry.json`
 
-**Архитектура (не срочно):**
-- шапка Shell не пишет default в CMS (`default-workspace-id`, `voice-route-runtime`)
-
 ---
 
 ### На будущее (отложено)
@@ -79,4 +77,4 @@
 
 ---
 
-**Итог:** Voice/QwenPaw конфиг в CMS. Долг: agents-registry, camera + qwenpaw chatName runtime, синк шапки Shell. Секреты — на будущее (тема #7).
+**Итог:** Voice/QwenPaw конфиг в CMS. Долг: agents-registry, camera + qwenpaw chatName runtime. Секреты — на будущее (тема #7).

@@ -83,6 +83,33 @@ async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}, pr
   }
 }
 
+async function patchPlatformSettings(platformPatch = {}, projectRoot = process.cwd()) {
+  const patch = platformPatch && typeof platformPatch === "object" ? platformPatch : {};
+  if (!Object.keys(patch).length) {
+    return normalizePlatformAgentSettings({});
+  }
+
+  const file = await readPlatformSettingsFile(projectRoot);
+  const parsed = file.exists
+    ? parseSettingsFileContent(file.content || "")
+    : { headerComment: PLATFORM_SETTINGS_HEADER.trim(), awn_settings: {}, awn_policy: null };
+  const nextFlat = {
+    ...flattenAwnSettingsValues(parsed.awn_settings || {}),
+    ...patch
+  };
+  const nextContent = composeGlobalSettingsFileContent({
+    headerComment: parsed.headerComment || PLATFORM_SETTINGS_HEADER.trim(),
+    awn_settings: nextFlat,
+    awn_policy: parsed.awn_policy || null
+  });
+  const saved = await writeGlobalSettingsFile(
+    projectRoot,
+    nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+  );
+  invalidatePlatformSettingsCache();
+  return normalizePlatformAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
+}
+
 async function patchWorkspaceSettings(agentRoot, workspacePatch = {}, projectRoot = process.cwd()) {
   const patch = workspacePatch && typeof workspacePatch === "object" ? workspacePatch : {};
   if (!Object.keys(patch).length) {
@@ -1094,6 +1121,7 @@ module.exports = {
   getWorkspaceSettingsAbsolute,
   getWorkspaceSettingsLegacyAbsolute,
   hydrateWorkspaceSettingsFromShell,
+  patchPlatformSettings,
   patchWorkspaceSettings,
   getUserSettingsAbsolute,
   getIntegrationsSettingsAbsolute,

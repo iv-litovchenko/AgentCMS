@@ -358,6 +358,7 @@ const {
   readIntegrationsSettingsFile,
   readWorkspaceSettingsWithLegacyFallback,
   getEffectiveWorkspaceSettings,
+  patchPlatformSettings,
   writeWorkspaceSettingsFile,
   writeGlobalSettingsFile,
   writeUserSettingsFile,
@@ -26911,6 +26912,34 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { path: ".env", content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save platform .env", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/default-workspace") {
+    try {
+      const payload = await readJsonBody(req);
+      const workspaceId = String(payload?.workspaceId ?? payload?.agentId ?? "").trim();
+      if (!workspaceId) {
+        return sendJson(res, 400, { error: "workspaceId is required" });
+      }
+      if (!getAgentsPublicList().some((agent) => agent.id === workspaceId && agent.active !== false)) {
+        return sendJson(res, 400, { error: "Unknown or inactive workspace", workspaceId });
+      }
+      const projectRoot = getProjectRoot();
+      const settings = await patchPlatformSettings(
+        { "default-workspace-id": workspaceId },
+        projectRoot
+      );
+      agentRegistry.reloadDefaultAgentId();
+      return sendJson(res, 200, {
+        ok: true,
+        defaultWorkspaceId: settings["default-workspace-id"] || workspaceId
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save default workspace",
+        details: String(error?.message || error)
+      });
     }
   }
 

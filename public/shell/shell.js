@@ -2770,6 +2770,24 @@ async function cancelInteractiveRequestsForAgent(agentId, reason = "Agent switch
   }
 }
 
+async function persistDefaultWorkspaceId(workspaceId) {
+  const id = String(workspaceId || "").trim();
+  if (!id) return;
+  try {
+    const response = await fetch("/api/platform/default-workspace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId: id })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.error || `HTTP ${response.status}`);
+    }
+  } catch (error) {
+    shellLog("warn", "default-workspace-id save failed", error.message);
+  }
+}
+
 async function onAgentSelectChange(next) {
   const agentId = String(next || "").trim();
   if (!agentId || agentId === state.agentId) return;
@@ -2779,6 +2797,7 @@ async function onAgentSelectChange(next) {
     await cancelInteractiveRequestsForAgent(previousAgentId);
   }
   navigateToShellAgent(agentId);
+  void persistDefaultWorkspaceId(agentId);
   if (state.eventSource) {
     state.eventSource.close();
     state.eventSource = null;
@@ -7068,7 +7087,9 @@ function navigateToShellAgent(agentId) {
 
 function bindShellAgentGateUi() {
   nodes.agentGateOpen?.addEventListener("click", () => {
-    navigateToShellAgent(nodes.agentGateSelect?.value || state.agentId);
+    const agentId = nodes.agentGateSelect?.value || state.agentId;
+    navigateToShellAgent(agentId);
+    void persistDefaultWorkspaceId(agentId);
   });
 }
 
@@ -7085,6 +7106,12 @@ async function ensureShellAgentSelected() {
     localStorage.setItem(SHELL_STORAGE.agent, fromPath);
     hideShellAgentGate();
     return fromPath;
+  }
+
+  const platformDefault = String(data.defaultAgentId || "").trim();
+  if (platformDefault && selectable.some((agent) => agent.id === platformDefault)) {
+    navigateToShellAgent(platformDefault);
+    return platformDefault;
   }
 
   const remembered = selectable.find((agent) => agent.id === state.agentId);
