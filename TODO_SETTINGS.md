@@ -20,6 +20,7 @@
 | `dialogScrollRatio` | localStorage + `state/shell.json`; CMS readonly, bridge отключён |
 | Descriptions в схеме | убраны `shell.json →` |
 | `agent-shell/README.md` | актуальные пути и QwenPaw-поля |
+| Shell read settings | workspace через `settings-store` (`getEffectiveWorkspaceSettings`), не прямой fs |
 
 **Платформа**
 | Что | Где |
@@ -53,7 +54,6 @@
 - `awn-agents.json` → `.agent-cms/settings/agents-registry.json`
 
 **Архитектура (не срочно):**
-- Shell читает `workspace.yml` с диска, не только через API
 - шапка Shell не пишет default в CMS (`default-workspace-id`, `voice-route-runtime`)
 
 ---

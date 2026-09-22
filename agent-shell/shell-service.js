@@ -647,7 +647,7 @@ async function readSettings(agentRoot) {
 
   await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
   await migrateStateSessionIdsToWorkspace(agentRoot, projectRoot);
-  const workspaceSettings = await loadWorkspaceAwnSettings(agentRoot);
+  const workspaceSettings = await loadWorkspaceAwnSettings(agentRoot, projectRoot);
   const runtime = await readStateFile(agentRoot);
   const merged = buildShellSettingsFromWorkspace(workspaceSettings, runtime);
   return fillShellPromptPresets(agentRoot, normalizeSettings(merged));

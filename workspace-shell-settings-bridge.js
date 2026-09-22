@@ -1,7 +1,4 @@
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const { rel } = require("./paths/agent-cms");
-const { parseSettingsFileContent } = require("./settings-store");
+const { getEffectiveWorkspaceSettings } = require("./settings-store");
 const { normalizeWorkspaceAgentSettings } = require("./workspace-agent-settings");
 const { buildShellVoicePatchFromWorkspace, hydrateWorkspaceVoiceFromShell } = require("./workspace-voice-settings-bridge");
 const { buildShellWindowPatchFromWorkspace, hydrateWorkspaceWindowFromShell } = require("./workspace-window-settings-bridge");
@@ -94,13 +91,12 @@ function buildWorkspacePatchFromShell(shellPatch = {}) {
   return out;
 }
 
-async function loadWorkspaceAwnSettings(agentRoot) {
+async function loadWorkspaceAwnSettings(agentRoot, projectRoot = process.cwd()) {
   const root = String(agentRoot || "").trim();
   if (!root) return normalizeWorkspaceAgentSettings({});
   try {
-    const content = await fs.readFile(path.join(root, rel.settings.workspace), "utf-8");
-    const parsed = parseSettingsFileContent(content);
-    return normalizeWorkspaceAgentSettings(parsed.awn_settings || {});
+    const bundle = await getEffectiveWorkspaceSettings(root, projectRoot);
+    return bundle.workspace || normalizeWorkspaceAgentSettings({});
   } catch {
     return normalizeWorkspaceAgentSettings({});
   }
