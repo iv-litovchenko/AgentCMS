@@ -319,7 +319,7 @@ fields:
 
   voice-route-claude-cli-path:
     type: awn.field.string
-    title: "{DRAFT} Путь к claude"
+    title: Путь к Claude CLI
     description: Команда или путь к исполняемому файлу Claude CLI.
     default: claude
     group: voice-client
@@ -328,7 +328,7 @@ fields:
 
   voice-route-claude-model:
     type: awn.field.string
-    title: "{DRAFT} Модель Claude"
+    title: Модель Claude
     description: Модель Claude. Пусто — значение по умолчанию из CLI.
     group: voice-client
     subgroup: voice-route-claude
@@ -344,7 +344,7 @@ fields:
 
   voice-route-claude-permission-mode:
     type: awn.field.choice.one
-    title: "{DRAFT} Подтверждение инструментов"
+    title: Подтверждение инструментов
     description: Как Claude CLI запрашивает подтверждение вызова инструментов.
     default: ""
     enum:
@@ -366,7 +366,7 @@ fields:
 
   voice-route-codex-cli-path:
     type: awn.field.string
-    title: "{DRAFT} Путь к codex"
+    title: Путь к Codex CLI
     description: Команда или путь к исполняемому файлу Codex CLI.
     default: codex
     group: voice-client
@@ -375,7 +375,7 @@ fields:
 
   voice-route-codex-model:
     type: awn.field.string
-    title: "{DRAFT} Модель Codex"
+    title: Модель Codex
     description: Модель Codex. Пусто — значение по умолчанию из CLI.
     group: voice-client
     subgroup: voice-route-codex
@@ -391,7 +391,7 @@ fields:
 
   voice-route-codex-permission-mode:
     type: awn.field.choice.one
-    title: "{DRAFT} Подтверждение команд"
+    title: Подтверждение команд
     description: Как Codex CLI запрашивает подтверждение выполнения команд.
     default: ""
     enum:
@@ -407,21 +407,30 @@ fields:
 
   voice-route-qwenpaw-url:
     type: awn.field.string
-    title: "{DRAFT} URL QwenPaw"
+    title: URL QwenPaw
     description: Базовый URL API QwenPaw для Voice Shell.
     default: http://127.0.0.1:8088
     group: voice-client
     subgroup: voice-route-qwenpaw
     sort: 80
 
+  voice-route-qwenpaw-user-id:
+    type: awn.field.string
+    title: User ID
+    description: Идентификатор пользователя в QwenPaw API.
+    default: shell
+    group: voice-client
+    subgroup: voice-route-qwenpaw
+    sort: 81
+
   voice-route-qwenpaw-agent-id:
     type: awn.field.string
-    title: "{DRAFT} Agent ID"
+    title: Agent ID
     description: Идентификатор агента в QwenPaw.
     default: default
     group: voice-client
     subgroup: voice-route-qwenpaw
-    sort: 81
+    sort: 82
 
   voice-route-qwenpaw-session-id:
     type: awn.field.string
@@ -429,7 +438,7 @@ fields:
     description: ID чата QwenPaw для Voice Shell.
     group: voice-client
     subgroup: voice-route-qwenpaw
-    sort: 82
+    sort: 83
 
   voice-route-cursor-stub:
     type: awn.field.text
@@ -836,7 +845,7 @@ fields:
 
   voice-media-camera-enabled:
     type: awn.field.boolean
-    title: "{DRAFT} Камера"
+    title: Камера
     default: false
     group: voice-client
     subgroup: voice-media
@@ -844,7 +853,7 @@ fields:
 
   voice-media-camera-on-speech:
     type: awn.field.boolean
-    title: "{DRAFT} Камера при речи"
+    title: Камера при речи
     default: true
     group: voice-client
     subgroup: voice-media
@@ -852,7 +861,7 @@ fields:
 
   voice-media-camera-facing:
     type: awn.field.choice.one
-    title: "{DRAFT} Камера — сторона"
+    title: Камера — сторона
     default: environment
     enum:
       - key: user
@@ -865,7 +874,7 @@ fields:
 
   voice-media-screen-enabled:
     type: awn.field.boolean
-    title: "{DRAFT} Захват экрана"
+    title: Захват экрана
     default: false
     group: voice-client
     subgroup: voice-media
@@ -873,7 +882,7 @@ fields:
 
   voice-media-screen-on-speech:
     type: awn.field.boolean
-    title: "{DRAFT} Экран при речи"
+    title: Экран при речи
     default: false
     group: voice-client
     subgroup: voice-media

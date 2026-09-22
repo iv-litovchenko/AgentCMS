@@ -27,7 +27,6 @@ const SHELL_RUNTIME_KEYS = new Set([
   "openclawSessionId",
   "hermesSessionId",
   "agent-zeroSessionId",
-  "qwenpawUserId",
   "qwenpawChatName",
   "qwenpawSttSessionId",
   "qwenpawSttChatName",

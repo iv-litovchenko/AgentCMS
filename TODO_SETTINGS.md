@@ -12,7 +12,8 @@
 | Конфиг Voice | `.agent-cms/settings/workspace.yml` |
 | Runtime Shell | `.agent-cms/state/shell.json` |
 | Legacy `settings/shell.json` | удалён, авто-миграция при первом открытии |
-| Session ID claude/codex/qwenpaw | `voice-route-*-session-id` + `migrateStateSessionIdsToWorkspace()` |
+| Session ID + QwenPaw user ID | `voice-route-*-session-id`, `voice-route-qwenpaw-user-id` + миграция из `state/` |
+| Route/QwenPaw/media titles | убраны `{DRAFT}` из схемы workspace |
 | `voice-wake-name` | CMS + bridge + Shell UI (readonly, sidecar) |
 | `dialogScrollRatio` | localStorage + `state/shell.json`; CMS readonly, bridge отключён |
 | Descriptions в схеме workspace | убраны `shell.json →` |
@@ -31,7 +32,7 @@
 
 **Runtime без CMS-полей (намеренно):**
 - `camera.deviceId`
-- qwenpaw `userId`, `chatName`, `stt.sessionId`
+- qwenpaw `chatName` — имя текущего чата в UI
 
 **Платформа:**
 - `awn-agents.json` → `.agent-cms/settings/agents-registry.json`
@@ -47,6 +48,7 @@
 
 - **Legacy readonly в workspace.yml:** `voice-input-global-listen`, `voice-input-to-compose`, `voice-ui-dialog-scroll-ratio` — оставлены для совместимости
 - **OCR offline:** `langPath` → `ocr-index/tessdata/` — решили качать языки из интернета (`indexing-ocr-langs`)
+- **QwenPaw STT-refine:** `qwenpawSttSessionId`, `qwenpawSttChatName` — отдельный чат для уточнения STT; `shouldRefineStt()` выключен, в runtime не используется
 
 ---
 
@@ -59,4 +61,4 @@
 
 ---
 
-**Итог:** миграция Voice/settings в CMS завершена. Долг: agents-registry, secrets в `.env`, qwenpaw/camera runtime, синк шапки Shell.
+**Итог:** миграция Voice/settings в CMS завершена. Долг: agents-registry, secrets в `.env`, qwenpaw chatName + camera runtime, синк шапки Shell.

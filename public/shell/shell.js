@@ -1873,6 +1873,7 @@ const nodes = {
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
+  qwenpawUserId: document.getElementById("shell-qwenpaw-user-id"),
   qwenpawAgentId: document.getElementById("shell-qwenpaw-agent-id"),
   qwenpawPermissionField: document.getElementById("shell-qwenpaw-permission-field"),
   qwenpawPermissionLabel: document.getElementById("shell-qwenpaw-permission-label"),
@@ -6326,6 +6327,9 @@ function applyQwenpawRouteForm(settings = state.settings || {}) {
   if (nodes.qwenpawUrl && document.activeElement !== nodes.qwenpawUrl) {
     nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
   }
+  if (nodes.qwenpawUserId && document.activeElement !== nodes.qwenpawUserId) {
+    nodes.qwenpawUserId.value = settings.qwenpawUserId || "shell";
+  }
   if (nodes.qwenpawAgentId && document.activeElement !== nodes.qwenpawAgentId) {
     nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
   }
@@ -6346,6 +6350,7 @@ function buildRouteSnapshotFromSettings(settings = state.settings || {}) {
   const snap = {
     messageTarget: normalizeMessageRuntime(settings.messageTarget || "qwenpaw"),
     qwenpawBaseUrl: String(settings.qwenpawBaseUrl || "http://127.0.0.1:8088").trim() || "http://127.0.0.1:8088",
+    qwenpawUserId: String(settings.qwenpawUserId || "shell").trim() || "shell",
     qwenpawAgentId: String(settings.qwenpawAgentId || "default").trim() || "default",
     systemPrompt: String(settings.systemPrompt || "").trim()
   };
@@ -6419,6 +6424,7 @@ function collectRouteSettingsPatch({ validate = false } = {}) {
   const patch = {
     messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
+    qwenpawUserId: nodes.qwenpawUserId?.value.trim() || "shell",
     qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default",
     systemPrompt: nodes.systemPrompt?.value || ""
   };
@@ -12355,6 +12361,8 @@ function bindUi() {
     markRouteDirty();
     void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
   });
+  nodes.qwenpawUserId?.addEventListener("input", markRouteDirty);
+  nodes.qwenpawUserId?.addEventListener("change", markRouteDirty);
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
   nodes.qwenpawAgentId?.addEventListener("change", () => {
     markRouteDirty();

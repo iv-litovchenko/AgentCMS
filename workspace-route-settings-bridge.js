@@ -14,6 +14,7 @@ const ROUTE_CONFIG_VOICE_TO_SHELL = {
   "voice-route-codex-session-id": "codexSessionId",
   "voice-route-codex-permission-mode": "codexPermissionMode",
   "voice-route-qwenpaw-url": "qwenpawBaseUrl",
+  "voice-route-qwenpaw-user-id": "qwenpawUserId",
   "voice-route-qwenpaw-agent-id": "qwenpawAgentId",
   "voice-route-qwenpaw-session-id": "qwenpawSessionId"
 };
@@ -34,6 +35,7 @@ const ROUTE_CONFIG_SHELL_DEFAULTS = {
   "voice-route-codex-session-id": "",
   "voice-route-codex-permission-mode": "",
   "voice-route-qwenpaw-url": "http://127.0.0.1:8088",
+  "voice-route-qwenpaw-user-id": "shell",
   "voice-route-qwenpaw-agent-id": "default",
   "voice-route-qwenpaw-session-id": ""
 };
@@ -89,7 +91,8 @@ function buildShellRouteConfigPatchFromWorkspace(awnSettings = {}) {
 const SESSION_SHELL_TO_WORKSPACE = {
   claudeSessionId: "voice-route-claude-session-id",
   codexSessionId: "voice-route-codex-session-id",
-  qwenpawSessionId: "voice-route-qwenpaw-session-id"
+  qwenpawSessionId: "voice-route-qwenpaw-session-id",
+  qwenpawUserId: "voice-route-qwenpaw-user-id"
 };
 
 function buildShellRoutePatchFromWorkspace(awnSettings = {}) {
