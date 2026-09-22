@@ -9718,12 +9718,7 @@ body.shell-embed .shell-path-header {
 }
 
 .shell-compact-sensor-status {
-  margin: 0;
-  min-height: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: rgba(51, 65, 85, 0.78);
+  display: none;
 }
 
 .shell-compact-exit {
