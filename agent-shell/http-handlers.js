@@ -33,14 +33,19 @@ function createShellHandlers(deps) {
 
     if (req.method === "GET" && url.pathname === "/api/shell/window") {
       try {
-        const agentSettings = await shellService.readSettings(agentRoot);
-        await windowSettings.migrateWindowSettingsFromAgent(projectRoot, agentSettings);
+        let agentSettings = await shellService.readSettings(agentRoot);
+        agentSettings = await windowSettings.migrateLegacyAwnShellToAgent(
+          projectRoot,
+          agentRoot,
+          shellService,
+          agentSettings
+        );
         const settings = await windowSettings.readMergedWindowSettings(projectRoot, agentSettings);
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
           settingsFile: rel.settings.shell,
-          globalSettingsFile: windowSettings.AWN_SHELL_FILE,
+          workspaceSettingsFile: rel.settings.workspace,
           settings
         });
       } catch (error) {
@@ -66,7 +71,7 @@ function createShellHandlers(deps) {
           agentId,
           projectRoot,
           settingsFile: rel.settings.shell,
-          globalSettingsFile: windowSettings.AWN_SHELL_FILE,
+          workspaceSettingsFile: rel.settings.workspace,
           settings
         });
       } catch (error) {

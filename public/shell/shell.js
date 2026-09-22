@@ -5688,17 +5688,22 @@ async function takeManualScreenshot() {
   renderPhase("waiting", "Сначала включите камеру 📷 или демонстрацию экрана 🖥");
 }
 
+function resolveWindowBackgroundSelectValue(rawBackground = "wallpaper") {
+  const bg = String(rawBackground || "wallpaper").trim();
+  if (bg === "dark" || bg === "custom") return bg;
+  return "wallpaper";
+}
+
 function buildWindowSettingsPayload(overrides = {}) {
-  const windowBackground = nodes.windowBackground?.value || "wallpaper";
-  const windowTransparent =
-    nodes.windowTransparent?.checked === true || windowBackground === "transparent";
+  const windowBackground = resolveWindowBackgroundSelectValue(nodes.windowBackground?.value || "wallpaper");
+  const windowTransparent = nodes.windowTransparent?.checked === true;
   const compactDialogQa = settingsSave.isSectionDirty("window")
     ? nodes.compactDialogQa?.checked !== false
     : state.windowSettings?.compactDialogQa !== false;
   return {
     windowTopmost: nodes.topmost?.checked !== false,
     windowTransparent,
-    windowBackground: windowTransparent ? "transparent" : windowBackground,
+    windowBackground,
     windowBackgroundImageUrl: String(nodes.windowBackgroundImage?.value || "").trim(),
     windowCompact: isWindowCompactEnabled(),
     windowPetOverlay: nodes.windowPetOverlay?.checked === true,
@@ -5712,8 +5717,8 @@ function buildWindowSettingsPayload(overrides = {}) {
 }
 
 function syncWindowBackgroundCustomUi(background = nodes.windowBackground?.value || "wallpaper") {
-  const bg = String(background || "wallpaper").trim();
-  const showCustom = bg === "custom" && !nodes.windowTransparent?.checked;
+  const bg = resolveWindowBackgroundSelectValue(background || "wallpaper");
+  const showCustom = bg === "custom";
   nodes.windowBgCustomWrap?.toggleAttribute("hidden", !showCustom);
   if (nodes.windowBackgroundImage) {
     nodes.windowBackgroundImage.disabled = !showCustom;
@@ -6112,7 +6117,7 @@ function onShellPhaseChange(nextState) {
 
 function applyWindowAppearance(settings) {
   const ws = settings || state.windowSettings || {};
-  const transparent = Boolean(ws.windowTransparent || ws.windowBackground === "transparent");
+  const transparent = Boolean(ws.windowTransparent);
   const compact = Boolean(ws.windowCompact);
   document.body.classList.toggle("shell-window-transparent", transparent);
   document.body.classList.toggle("shell-compact", compact);
@@ -6120,7 +6125,12 @@ function applyWindowAppearance(settings) {
   if (nodes.shellApp) nodes.shellApp.dataset.compactQa = isCompactDialogQaEnabled() && compact ? "1" : "0";
   document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent", "shell-bg-custom");
   document.body.style.removeProperty("--shell-bg-image");
-  let bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
+  if (transparent) {
+    document.body.classList.add("shell-bg-transparent");
+    syncCompactQa();
+    return;
+  }
+  let bg = resolveWindowBackgroundSelectValue(ws.windowBackground || "wallpaper");
   if (bg === "custom") {
     const imageUrl = String(ws.windowBackgroundImageUrl || "").trim();
     if (imageUrl) {
@@ -6147,17 +6157,20 @@ function applyWindowSettings(settings) {
   syncDialogAutoScrollFromWindowSettings(settings);
   if (!settingsSave.isSectionDirty("window")) {
     if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
-    if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
+    const legacyTransparent =
+      Boolean(settings.windowTransparent) || String(settings.windowBackground || "").trim() === "transparent";
+    if (nodes.windowTransparent) nodes.windowTransparent.checked = legacyTransparent;
     if (nodes.windowPetOverlay) nodes.windowPetOverlay.checked = Boolean(settings.windowPetOverlay);
     if (nodes.compactDialogQa) nodes.compactDialogQa.checked = settings.compactDialogQa !== false;
+    const backgroundValue = resolveWindowBackgroundSelectValue(settings.windowBackground || "wallpaper");
     if (nodes.windowBackground) {
-      nodes.windowBackground.value = settings.windowBackground || "wallpaper";
-      nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
+      nodes.windowBackground.value = backgroundValue;
+      nodes.windowBackground.disabled = false;
     }
     if (nodes.windowBackgroundImage) {
       nodes.windowBackgroundImage.value = String(settings.windowBackgroundImageUrl || "");
     }
-    syncWindowBackgroundCustomUi(settings.windowBackground);
+    syncWindowBackgroundCustomUi(backgroundValue);
   }
   if (nodes.windowCompact) {
     nodes.windowCompact.setAttribute("aria-pressed", settings.windowCompact ? "true" : "false");
@@ -12146,15 +12159,8 @@ function bindWindowSettingsUi() {
   if (document.body.dataset.shellWindowBound === "1") return;
   document.body.dataset.shellWindowBound = "1";
   const onWindowFieldChange = () => {
-    const windowBackground = nodes.windowBackground?.value || "wallpaper";
-    const windowTransparent =
-      nodes.windowTransparent?.checked === true || windowBackground === "transparent";
-    if (nodes.windowTransparent) {
-      nodes.windowTransparent.checked = windowTransparent;
-    }
-    if (nodes.windowBackground) {
-      nodes.windowBackground.disabled = windowTransparent && nodes.windowTransparent?.checked === true;
-    }
+    const windowBackground = resolveWindowBackgroundSelectValue(nodes.windowBackground?.value || "wallpaper");
+    if (nodes.windowBackground) nodes.windowBackground.disabled = false;
     syncWindowBackgroundCustomUi(windowBackground);
     previewWindowFromForm();
     markSettingsDirty("window");
@@ -12180,12 +12186,7 @@ function bindWindowSettingsUi() {
       }
     });
   }
-  nodes.windowTransparent?.addEventListener("change", () => {
-    if (!nodes.windowTransparent.checked && nodes.windowBackground?.value === "transparent") {
-      nodes.windowBackground.value = "wallpaper";
-    }
-    onWindowFieldChange();
-  });
+  nodes.windowTransparent?.addEventListener("change", onWindowFieldChange);
   nodes.windowBackground?.addEventListener("change", onWindowFieldChange);
   nodes.windowBackgroundImage?.addEventListener("input", onWindowFieldChange);
   nodes.characterStage?.addEventListener("shell-character-model", () => {

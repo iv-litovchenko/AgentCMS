@@ -65,12 +65,14 @@ function getWorkspaceSettingsLegacyAbsolute(agentRoot) {
   return path.join(root, WORKSPACE_SETTINGS_LEGACY_FILE);
 }
 
-async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}) {
+async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}, projectRoot = process.cwd()) {
   try {
     const shellService = require("./agent-shell/shell-service");
     const { hydrateWorkspaceVoiceFromShell } = require("./workspace-voice-settings-bridge");
+    const { hydrateWorkspaceWindowFromShell } = require("./workspace-window-settings-bridge");
     const shellFlat = await shellService.readSettings(agentRoot);
-    return hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
+    let out = hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
+    return hydrateWorkspaceWindowFromShell(out, shellFlat);
   } catch {
     return awnSettings;
   }
@@ -80,11 +82,15 @@ async function syncWorkspaceVoiceSettingsToShell(agentRoot, awnSettings = {}) {
   try {
     const shellService = require("./agent-shell/shell-service");
     const { buildShellVoicePatchFromWorkspace } = require("./workspace-voice-settings-bridge");
-    const voicePatch = buildShellVoicePatchFromWorkspace(awnSettings);
-    if (!Object.keys(voicePatch).length) return;
-    await shellService.writeSettings(agentRoot, voicePatch);
+    const { buildShellWindowPatchFromWorkspace } = require("./workspace-window-settings-bridge");
+    const patch = {
+      ...buildShellVoicePatchFromWorkspace(awnSettings),
+      ...buildShellWindowPatchFromWorkspace(awnSettings)
+    };
+    if (!Object.keys(patch).length) return;
+    await shellService.writeSettings(agentRoot, patch);
   } catch (error) {
-    console.warn("[settings] voice settings sync to shell.json failed:", error);
+    console.warn("[settings] voice/window settings sync to shell.json failed:", error);
   }
 }
 
@@ -851,7 +857,7 @@ async function readSettingsRawForScope(agentRoot, projectRoot, scopeKey) {
       if (!error || error.code !== "ENOENT") throw error;
     }
   }
-  localSettings = await hydrateWorkspaceSettingsFromShell(agentRoot, localSettings);
+  localSettings = await hydrateWorkspaceSettingsFromShell(agentRoot, localSettings, projectRoot);
 
   return {
     scope: scopeKey,

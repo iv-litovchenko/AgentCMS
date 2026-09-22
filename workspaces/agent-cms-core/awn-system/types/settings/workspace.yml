@@ -16,8 +16,7 @@ fieldGroups:
   - id: general
     name: Общие
     description: >
-      Язык агента, runtime Voice по умолчанию и уведомления для этого хранилища
-      (.agent-cms/settings/workspace.yml, runtime → shell.json).
+      Язык агента и уведомления для этого хранилища (.agent-cms/settings/workspace.yml).
   - id: agent
     name: Агент
     description: Параметры агента для этого хранилища (settings.yml).
@@ -139,7 +138,9 @@ fieldGroups:
         sort: 21
       - id: voice-window
         name: Окно Voice
+        description: Оформление окна Shell — персонаж, компактный режим, фон, звук. Синхронизируется с shell.json → window.*
         sort: 22
+        defaultOpen: true
       - id: voice-ui
         name: Интерфейс диалога
         sort: 23
@@ -189,29 +190,6 @@ fields:
     default: false
     group: general
     sort: 12
-
-  voice-route-runtime:
-    type: awn.field.choice.one
-    title: Runtime по умолчанию
-    description: shell.json → route.runtime. Параметры выбранного runtime — в «Голосовой клиент».
-    default: codex
-    enum:
-      - key: claude
-        name: Claude CLI (Anthropic)
-      - key: codex
-        name: Codex CLI (OpenAI)
-      - key: cursor
-        name: Cursor (Anysphere) — скоро
-      - key: openclaw
-        name: OpenClaw — скоро
-      - key: hermes
-        name: Hermes Agent — скоро
-      - key: agent-zero
-        name: Agent Zero — скоро
-      - key: qwenpaw
-        name: QwenPaw (AgentScope)
-    group: general
-    sort: 13
 
   awn-id-next:
     type: awn.field.number.integer
@@ -284,6 +262,30 @@ fields:
     group: hooks
     sort: 41
     items: awn.field.trigger.rule
+
+  voice-route-runtime:
+    type: awn.field.choice.one
+    title: Runtime по умолчанию
+    description: shell.json → route.runtime · дефолт для Shell; в шапке — текущая сессия.
+    default: codex
+    enum:
+      - key: claude
+        name: Claude CLI (Anthropic)
+      - key: codex
+        name: Codex CLI (OpenAI)
+      - key: cursor
+        name: Cursor (Anysphere) — скоро
+      - key: openclaw
+        name: OpenClaw — скоро
+      - key: hermes
+        name: Hermes Agent — скоро
+      - key: agent-zero
+        name: Agent Zero — скоро
+      - key: qwenpaw
+        name: QwenPaw (AgentScope)
+    group: voice-client
+    subgroup: voice-cms
+    sort: 49
 
   voice-cms-topic-path:
     type: awn.field.string
@@ -870,89 +872,115 @@ fields:
     subgroup: voice-media
     sort: 88
 
+  voice-window-character-model:
+    type: awn.field.choice.one
+    title: Персонаж
+    description: shell.json → window.characterModel · 3D-модель в окне Voice (превью в Shell → Окно).
+    default: robot
+    enum:
+      - key: robot
+        name: 🤖 Робот
+      - key: fox
+        name: 🦊 Лиса
+      - key: parrot
+        name: 🦜 Попугай
+      - key: flamingo
+        name: 🦩 Фламинго
+      - key: orc
+        name: ⚔️ Орк
+      - key: pirate
+        name: 🏴‍☠️ Пират
+      - key: kimono
+        name: 👘 Кимоно
+      - key: lego
+        name: LEGO
+    group: voice-client
+    subgroup: voice-window
+    sort: 801
+
   voice-window-compact-mode:
     type: awn.field.boolean
     title: Компактный режим
-    description: awn-shell.json → windowCompact. Вкл — компактное окно (#shell-compact-stage); выкл — обычный hero с сенсором.
+    description: shell.json → window.compact · маленькое окно-облачко вместо полного hero.
     default: false
     group: voice-client
     subgroup: voice-window
-    sort: 88
+    sort: 802
 
   voice-window-topmost:
     type: awn.field.boolean
-    title: "{DRAFT} Поверх всех окон"
-    default: false
+    title: Поверх окон
+    description: shell.json → window.topmost · окно Voice всегда поверх других приложений.
+    default: true
     group: voice-client
     subgroup: voice-window
-    sort: 89
-
-  voice-window-transparent:
-    type: awn.field.boolean
-    title: "{DRAFT} Прозрачное окно"
-    default: false
-    group: voice-client
-    subgroup: voice-window
-    sort: 90
-
-  voice-window-background:
-    type: awn.field.choice.one
-    title: "{DRAFT} Фон окна"
-    default: wallpaper
-    enum:
-      - key: wallpaper
-        name: Обои
-      - key: solid
-        name: Сплошной
-      - key: transparent
-        name: Прозрачный
-    group: voice-client
-    subgroup: voice-window
-    sort: 91
+    sort: 803
 
   voice-window-pet-overlay:
     type: awn.field.boolean
-    title: "{DRAFT} Pet overlay"
+    title: Персонаж поверх окон
+    description: shell.json → window.petOverlay · отдельная моделька на рабочем столе (Voice.app).
     default: false
     group: voice-client
     subgroup: voice-window
-    sort: 92
+    sort: 804
+
+  voice-window-transparent:
+    type: awn.field.boolean
+    title: Прозрачный фон
+    description: shell.json → window.transparent · прозрачность окна, не выбор обоев.
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 805
+
+  voice-window-background:
+    type: awn.field.choice.one
+    title: Фон
+    description: shell.json → window.background · при «Своя картинка» — URL ниже.
+    default: wallpaper
+    enum:
+      - key: wallpaper
+        name: По умолчанию (обои)
+      - key: dark
+        name: Тёмный
+      - key: custom
+        name: Своя картинка (URL)
+    group: voice-client
+    subgroup: voice-window
+    sort: 806
+
+  voice-window-background-image-url:
+    type: awn.field.string
+    title: URL фона
+    description: shell.json → window.backgroundImageUrl · путь от корня workspace или https://…
+    default: ""
+    group: voice-client
+    subgroup: voice-window
+    sort: 807
 
   voice-window-compact-dialog-qa:
     type: awn.field.boolean
-    title: "{DRAFT} Компактный Q&A"
+    title: Последний вопрос и ответ
+    description: shell.json → window.compactDialogQa · в компактном режиме показывать последнюю пару Q&A над микрофоном.
     default: true
     group: voice-client
     subgroup: voice-window
-    sort: 93
-
-  voice-window-dialog-auto-scroll:
-    type: awn.field.boolean
-    title: "{DRAFT} Автопрокрутка диалога"
-    default: true
-    group: voice-client
-    subgroup: voice-window
-    sort: 94
-
-  voice-window-character-model:
-    type: awn.field.string
-    title: "{DRAFT} Модель персонажа"
-    default: kimono
-    group: voice-client
-    subgroup: voice-window
-    sort: 95
+    sort: 808
 
   voice-window-keep-awake:
     type: awn.field.boolean
-    title: "{DRAFT} Не гасить экран"
+    title: Не гасить экран
+    description: shell.json → window.keepAwake · Wake Lock API, если поддерживается устройством/браузером.
     default: false
     group: voice-client
     subgroup: voice-window
-    sort: 96
+    sort: 809
 
   voice-window-processing-sound:
     type: awn.field.choice.one
-    title: "{DRAFT} Звук обработки"
+    title: Звук «думаю»
+    description: shell.json → window.processingSound · пока агент обрабатывает запрос.
     default: off
     enum:
       - key: off
@@ -963,7 +991,16 @@ fields:
         name: Вкл
     group: voice-client
     subgroup: voice-window
-    sort: 97
+    sort: 810
+
+  voice-window-dialog-auto-scroll:
+    type: awn.field.boolean
+    title: Автопрокрутка диалога
+    description: shell.json → window.dialogAutoScroll
+    default: true
+    group: voice-client
+    subgroup: voice-window
+    sort: 811
 
   voice-ui-dialog-scroll-ratio:
     type: awn.field.string

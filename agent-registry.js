@@ -67,7 +67,6 @@ const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
 const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
-const AWN_SHELL_FILE = "awn-shell.json";
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
@@ -1966,7 +1965,6 @@ module.exports = {
   agentFolderNameToSlug,
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
-  AWN_SHELL_FILE,
   AGENT_CMS_CORE_REL,
   AWN_DEPENDENCIES_FILE,
   AWN_AUTOINCREMENT_ID_FILE,

@@ -811,20 +811,19 @@
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
             <select id="shell-window-background" class="shell-select">
-              <option value="wallpaper" selected>Обои (горы)</option>
-              <option value="custom">Своя картинка</option>
+              <option value="wallpaper" selected>По умолчанию</option>
               <option value="dark">Тёмный</option>
-              <option value="transparent">Прозрачный</option>
+              <option value="custom">Своя картинка (URL)</option>
             </select>
           </label>
           <label class="shell-field shell-field--compact shell-window-bg-custom" id="shell-window-bg-custom-wrap" hidden>
-            <span class="shell-label">URL картинки фона</span>
+            <span class="shell-label">URL картинки</span>
             <input
               id="shell-window-background-image"
               class="shell-input shell-input--full"
-              type="url"
+              type="text"
               inputmode="url"
-              placeholder="/shell/wallpaper.png или https://…"
+              placeholder="путь от корня workspace или https://…"
               autocomplete="off"
             />
           </label>

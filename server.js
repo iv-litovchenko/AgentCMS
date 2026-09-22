@@ -338,15 +338,6 @@ const {
   getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder
 } = require("./workspace-agent-settings");
-const {
-  hydrateWorkspaceVoiceFromShell,
-  buildShellVoicePatchFromWorkspace
-} = require("./workspace-voice-settings-bridge");
-const {
-  hydrateWorkspaceWindowFromAwnShell,
-  buildAwnShellWindowPatchFromWorkspace
-} = require("./workspace-window-settings-bridge");
-const windowSettings = require("./agent-shell/window-settings");
 const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
@@ -381,7 +372,8 @@ const {
   listAgentSettings,
   readAgentSetting,
   writeAgentSetting,
-  syncWorkspaceVoiceSettingsToShell
+  syncWorkspaceVoiceSettingsToShell,
+  hydrateWorkspaceSettingsFromShell
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -20182,16 +20174,9 @@ async function handleApiForAgent(req, res, url) {
         : { headerComment: "", awn_settings: file.awn_settings || {} };
       let awnSettings = { ...(parsed.awn_settings || {}) };
       try {
-        const shellFlat = await shellService.readSettings(agentRoot);
-        awnSettings = hydrateWorkspaceVoiceFromShell(awnSettings, shellFlat);
+        awnSettings = await hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings, getProjectRoot());
       } catch {
         // shell.json optional
-      }
-      try {
-        const awnShellFlat = await windowSettings.readWindowSettings(getProjectRoot());
-        awnSettings = hydrateWorkspaceWindowFromAwnShell(awnSettings, awnShellFlat);
-      } catch {
-        // awn-shell.json optional
       }
       const content = composeSettingsFileContent({
         headerComment: parsed.headerComment || file.headerComment || "",
@@ -20235,14 +20220,6 @@ async function handleApiForAgent(req, res, url) {
         await syncWorkspaceVoiceSettingsToShell(agentRoot, parsed.awn_settings || {});
       } catch (syncError) {
         console.warn("[workspace-settings] voice settings sync to shell.json failed:", syncError);
-      }
-      try {
-        const windowPatch = buildAwnShellWindowPatchFromWorkspace(parsed.awn_settings || {});
-        if (Object.keys(windowPatch).length) {
-          await windowSettings.writeWindowSettings(getProjectRoot(), windowPatch);
-        }
-      } catch (syncError) {
-        console.warn("[workspace-settings] window settings sync to awn-shell.json failed:", syncError);
       }
       return sendJson(res, 200, {
         path: saved.path,

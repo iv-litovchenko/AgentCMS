@@ -1,7 +1,10 @@
 const fs = require("fs/promises");
 const path = require("path");
+const { rel } = require("../paths/agent-cms");
 
-const AWN_SHELL_FILE = "awn-shell.json";
+const LEGACY_AWN_SHELL_FILE = "awn-shell.json";
+const SHELL_SETTINGS_FILE = rel.settings.shell;
+const WORKSPACE_SETTINGS_FILE = rel.settings.workspace;
 
 const WINDOW_PROFILE_NORMAL = {
   width: 460,
@@ -41,18 +44,13 @@ const AGENT_WINDOW_KEYS = new Set([
   "windowBackground",
   "windowBackgroundImageUrl",
   "windowPetOverlay",
+  "windowCompact",
   "compactDialogQa",
   "dialogAutoScroll",
   "windowCharacterModel",
   "windowKeepAwake",
   "windowProcessingSound"
 ]);
-
-const GLOBAL_WINDOW_KEYS = new Set(["windowCompact"]);
-
-function windowSettingsPath(projectRoot) {
-  return path.join(projectRoot, AWN_SHELL_FILE);
-}
 
 function normalizeWindowSettings(raw) {
   const merged = {
@@ -66,9 +64,9 @@ function normalizeWindowSettings(raw) {
     merged.windowBackground = "wallpaper";
   }
   merged.windowBackgroundImageUrl = String(merged.windowBackgroundImageUrl || "").trim();
-  if (merged.windowTransparent || merged.windowBackground === "transparent") {
+  if (merged.windowBackground === "transparent") {
     merged.windowTransparent = true;
-    merged.windowBackground = "transparent";
+    merged.windowBackground = "wallpaper";
   }
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
@@ -84,15 +82,12 @@ function normalizeWindowSettings(raw) {
   return merged;
 }
 
-function splitWindowPatch(patch = {}) {
-  const agentPatch = {};
-  const globalPatch = {};
+function pickAgentWindowPatch(patch = {}) {
+  const out = {};
   for (const [key, value] of Object.entries(patch || {})) {
-    if (AGENT_WINDOW_KEYS.has(key)) agentPatch[key] = value;
-    else if (GLOBAL_WINDOW_KEYS.has(key)) globalPatch[key] = value;
-    else globalPatch[key] = value;
+    if (AGENT_WINDOW_KEYS.has(key)) out[key] = value;
   }
-  return { agentPatch, globalPatch };
+  return out;
 }
 
 function mergeAgentWindowSettings(agentSettings = {}) {
@@ -103,6 +98,7 @@ function mergeAgentWindowSettings(agentSettings = {}) {
     windowBackground: src.windowBackground,
     windowBackgroundImageUrl: src.windowBackgroundImageUrl,
     windowPetOverlay: src.windowPetOverlay,
+    windowCompact: src.windowCompact,
     compactDialogQa: src.compactDialogQa,
     dialogAutoScroll: src.dialogAutoScroll,
     windowCharacterModel: src.windowCharacterModel,
@@ -111,96 +107,56 @@ function mergeAgentWindowSettings(agentSettings = {}) {
   });
 }
 
-async function readMergedWindowSettings(projectRoot, agentSettings = {}) {
-  const global = await readWindowSettings(projectRoot);
-  const flatAgent = agentSettings && typeof agentSettings === "object" ? agentSettings : {};
-  const agent = mergeAgentWindowSettings(agentSettings);
-  const dialogAutoScroll =
-    flatAgent.dialogAutoScroll !== undefined
-      ? flatAgent.dialogAutoScroll !== false
-      : global.dialogAutoScroll !== undefined
-        ? global.dialogAutoScroll !== false
-        : true;
-  return normalizeWindowSettings({
-    ...agent,
-    windowCompact: global.windowCompact,
-    windowTopmost: agent.windowTopmost ?? global.windowTopmost,
-    windowTransparent: agent.windowTransparent ?? global.windowTransparent,
-    windowBackground: agent.windowBackground || global.windowBackground,
-    windowBackgroundImageUrl: agent.windowBackgroundImageUrl || global.windowBackgroundImageUrl,
-    windowPetOverlay: agent.windowPetOverlay ?? global.windowPetOverlay,
-    compactDialogQa: agent.compactDialogQa ?? global.compactDialogQa,
-    dialogAutoScroll
-  });
+function agentHasWindowSettings(agentSettings = {}) {
+  const src = agentSettings && typeof agentSettings === "object" ? agentSettings : {};
+  return AGENT_WINDOW_KEYS.some((key) => src[key] !== undefined && src[key] !== null);
 }
 
-async function writeMergedWindowSettings(projectRoot, agentRoot, shellService, patch = {}) {
-  const { agentPatch, globalPatch } = splitWindowPatch(patch);
-  if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogAutoScroll")) {
-    agentPatch.dialogAutoScroll = patch.dialogAutoScroll;
-    globalPatch.dialogAutoScroll = patch.dialogAutoScroll;
-  }
-  let agentSettings = null;
-  if (Object.keys(agentPatch).length && shellService?.writeSettings) {
-    agentSettings = await shellService.writeSettings(agentRoot, agentPatch);
-  } else if (shellService?.readSettings) {
-    agentSettings = await shellService.readSettings(agentRoot);
-  }
-  let global = null;
-  if (Object.keys(globalPatch).length) {
-    global = await writeWindowSettings(projectRoot, globalPatch);
-  } else {
-    global = await readWindowSettings(projectRoot);
-  }
-  return readMergedWindowSettings(projectRoot, agentSettings || {});
-}
-
-async function readWindowSettings(projectRoot) {
+async function readLegacyAwnShellSettings(projectRoot) {
   try {
-    const raw = await fs.readFile(windowSettingsPath(projectRoot), "utf-8");
+    const raw = await fs.readFile(path.join(projectRoot, LEGACY_AWN_SHELL_FILE), "utf-8");
     return normalizeWindowSettings(JSON.parse(raw));
   } catch {
-    return normalizeWindowSettings({});
+    return null;
   }
 }
 
-async function writeWindowSettings(projectRoot, patch) {
-  const current = await readWindowSettings(projectRoot);
-  const next = normalizeWindowSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
-  const target = windowSettingsPath(projectRoot);
-  const tmp = `${target}.tmp`;
-  await fs.writeFile(tmp, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
-  await fs.rename(tmp, target);
-  return next;
+async function migrateLegacyAwnShellToAgent(projectRoot, agentRoot, shellService, agentSettings = {}) {
+  if (agentHasWindowSettings(agentSettings)) return agentSettings;
+  const legacy = await readLegacyAwnShellSettings(projectRoot);
+  if (!legacy || !shellService?.writeSettings) return agentSettings;
+  const patch = pickAgentWindowPatch(legacy);
+  if (!Object.keys(patch).length) return agentSettings;
+  return shellService.writeSettings(agentRoot, patch);
 }
 
-async function migrateWindowSettingsFromAgent(projectRoot, agentSettings) {
-  try {
-    await fs.access(windowSettingsPath(projectRoot));
-    return readWindowSettings(projectRoot);
-  } catch {
-    // first run — migrate legacy per-agent setting if present
+async function readMergedWindowSettings(_projectRoot, agentSettings = {}) {
+  return mergeAgentWindowSettings(agentSettings);
+}
+
+async function writeMergedWindowSettings(_projectRoot, agentRoot, shellService, patch = {}) {
+  const agentPatch = pickAgentWindowPatch(patch);
+  if (!shellService?.writeSettings) return mergeAgentWindowSettings({});
+  if (!Object.keys(agentPatch).length) {
+    return mergeAgentWindowSettings(await shellService.readSettings(agentRoot));
   }
-  if (agentSettings && typeof agentSettings.windowTopmost === "boolean") {
-    return writeWindowSettings(projectRoot, { windowTopmost: agentSettings.windowTopmost });
-  }
-  return normalizeWindowSettings({});
+  const updated = await shellService.writeSettings(agentRoot, agentPatch);
+  return mergeAgentWindowSettings(updated);
 }
 
 module.exports = {
-  AWN_SHELL_FILE,
+  SHELL_SETTINGS_FILE,
+  WORKSPACE_SETTINGS_FILE,
+  LEGACY_AWN_SHELL_FILE,
   WINDOW_PROFILE_NORMAL,
   WINDOW_PROFILE_COMPACT,
   WINDOW_PROFILE_COMPACT_QA,
   DEFAULT_WINDOW_SETTINGS,
   AGENT_WINDOW_KEYS,
-  GLOBAL_WINDOW_KEYS,
   normalizeWindowSettings,
-  splitWindowPatch,
+  pickAgentWindowPatch,
   mergeAgentWindowSettings,
+  migrateLegacyAwnShellToAgent,
   readMergedWindowSettings,
-  writeMergedWindowSettings,
-  readWindowSettings,
-  writeWindowSettings,
-  migrateWindowSettingsFromAgent
+  writeMergedWindowSettings
 };
