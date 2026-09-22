@@ -12,6 +12,7 @@
 - **`voice-wake-name`** → CMS + bridge + Shell UI (readonly, только sidecar)
 - **Descriptions в схеме `workspace.yml`** — убраны устаревшие `shell.json →`
 - **`dialogScrollRatio`** — localStorage + `state/shell.json`; поле в CMS readonly, bridge отключён
+- **`*.traineddata`** — перенесены в `ocr-index/tessdata/` (пока без `langPath` в коде)
 
 ---
 
@@ -24,7 +25,6 @@
 **Вне Voice workspace:**
 - `awn-agents.json` → `.agent-cms/settings/agents-registry.json` — не сделано
 - API-ключи в `.env` — не сделано
-- `eng.traineddata` (OCR) — не трогали
 
 **В схеме есть, legacy (readonly, не настройка пользователя):**
 - `voice-input-global-listen`, `voice-input-to-compose` — deprecated readonly
