@@ -699,6 +699,14 @@ function stringifyFieldDefYaml(fieldDef, indent) {
     }
   }
   if (fieldDef.items) lines.push(`${pad}items: ${fieldDef.items}`);
+  const placement = String(fieldDef.placement || "").trim();
+  if (placement) lines.push(`${pad}placement: ${formatYamlScalar(placement)}`);
+  const group = String(fieldDef.group || "").trim();
+  if (group) lines.push(`${pad}group: ${formatYamlScalar(group)}`);
+  if (fieldDef.sort !== undefined && fieldDef.sort !== "" && fieldDef.sort !== null) {
+    const sortNum = Number(fieldDef.sort);
+    if (Number.isFinite(sortNum)) lines.push(`${pad}sort: ${sortNum}`);
+  }
   if (fieldDef.scope) lines.push(`${pad}scope: ${formatYamlScalar(String(fieldDef.scope))}`);
   if (fieldDef.accept) lines.push(`${pad}accept: ${formatYamlScalar(String(fieldDef.accept))}`);
   if (fieldDef.multiple === true) lines.push(`${pad}multiple: true`);

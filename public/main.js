@@ -45956,6 +45956,36 @@ function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
   topicSchemaBaseFieldsNode.textContent = parts.join(" · ") || "—";
 }
 
+function syncTopicSchemaSettingsToggleButton(btn, expanded) {
+  if (!btn) return;
+  btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  btn.classList.toggle("is-expanded", expanded);
+  if (!btn.querySelector(".topic-schema-settings-toggle-label")) {
+    btn.replaceChildren();
+    const label = document.createElement("span");
+    label.className = "topic-schema-settings-toggle-label";
+    label.textContent = "Настройки";
+    const chevron = document.createElement("span");
+    chevron.className = "topic-schema-settings-toggle-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    btn.append(label, chevron);
+  }
+}
+
+function createTopicSchemaSettingsToggleButton({ expanded = false, hasAdvancedSettings = false, schemaKey = "" } = {}) {
+  const settingsBtn = document.createElement("button");
+  settingsBtn.type = "button";
+  settingsBtn.className = "topic-schema-settings-toggle";
+  settingsBtn.dataset.schemaAction = "toggle-settings";
+  if (schemaKey) settingsBtn.dataset.schemaKey = schemaKey;
+  settingsBtn.title = hasAdvancedSettings
+    ? "Расширенные настройки (заполнены)"
+    : "Расширенные настройки";
+  settingsBtn.classList.toggle("is-configured", hasAdvancedSettings);
+  syncTopicSchemaSettingsToggleButton(settingsBtn, expanded);
+  return settingsBtn;
+}
+
 function createTopicSchemaSortButton(action, key, { disabled = false, title = "" } = {}) {
   const button = document.createElement("button");
   button.type = "button";
@@ -46024,10 +46054,7 @@ function restoreTopicSchemaFieldRowUiAfterRerender(activeKey, target = topicSche
   nextRow.classList.add("is-settings-open");
   nextRow.querySelector(".topic-schema-field-settings")?.classList.remove("is-collapsed");
   const toggle = nextRow.querySelector('[data-schema-action="toggle-settings"]');
-  if (toggle) {
-    toggle.setAttribute("aria-expanded", "true");
-    toggle.textContent = "Скрыть";
-  }
+  if (toggle) syncTopicSchemaSettingsToggleButton(toggle, true);
 }
 
 function getTopicSchemaScrollRoot(root = topicSchemaPanelNode) {
@@ -46223,17 +46250,11 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     titleInput.dataset.schemaField = "title";
     titleInput.title = "name (подпись поля)";
 
-    const settingsBtn = document.createElement("button");
-    settingsBtn.type = "button";
-    settingsBtn.className = "topic-schema-settings-toggle";
-    settingsBtn.dataset.schemaAction = "toggle-settings";
-    settingsBtn.dataset.schemaKey = key;
-    settingsBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
-    settingsBtn.title = hasAdvancedSettings
-      ? "Расширенные настройки (заполнены)"
-      : "Расширенные настройки";
-    settingsBtn.classList.toggle("is-configured", hasAdvancedSettings);
-    settingsBtn.textContent = expanded ? "Скрыть" : "Настройки";
+    const settingsBtn = createTopicSchemaSettingsToggleButton({
+      expanded,
+      hasAdvancedSettings,
+      schemaKey: key
+    });
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
@@ -46498,8 +46519,7 @@ function handleTopicSchemaFieldsClick(event) {
     const expanded = toggleTopicSchemaFieldExpanded(topicSchemaActiveTarget, key);
     const row = btn.closest(".topic-schema-field-row");
     row?.classList.toggle("is-settings-open", expanded);
-    btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-    btn.textContent = expanded ? "Скрыть" : "Настройки";
+    syncTopicSchemaSettingsToggleButton(btn, expanded);
     const settingsHost = row?.querySelector(".topic-schema-field-settings");
     settingsHost?.classList.toggle("is-collapsed", !expanded);
   }
@@ -47146,14 +47166,11 @@ function renderSectionSchemaCustomFields(panel, cache) {
     titleInput.dataset.schemaKey = key;
     titleInput.dataset.schemaField = "title";
 
-    const settingsBtn = document.createElement("button");
-    settingsBtn.type = "button";
-    settingsBtn.className = "topic-schema-settings-toggle";
-    settingsBtn.dataset.schemaAction = "toggle-settings";
-    settingsBtn.dataset.schemaKey = key;
-    settingsBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
-    settingsBtn.classList.toggle("is-configured", hasAdvancedSettings);
-    settingsBtn.textContent = expanded ? "Скрыть" : "Настройки";
+    const settingsBtn = createTopicSchemaSettingsToggleButton({
+      expanded,
+      hasAdvancedSettings,
+      schemaKey: key
+    });
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
@@ -47290,8 +47307,7 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
       const expanded = toggleSectionSchemaFieldExpanded(scope, target, key);
       const row = btn.closest(".topic-schema-field-row");
       row?.classList.toggle("is-settings-open", expanded);
-      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-      btn.textContent = expanded ? "Скрыть" : "Настройки";
+      syncTopicSchemaSettingsToggleButton(btn, expanded);
       row?.querySelector(".topic-schema-field-settings")?.classList.toggle("is-collapsed", !expanded);
     }
   });
@@ -53164,17 +53180,8 @@ function resolveRepeaterItemsTypeId(fieldDef) {
   return entry?.items ? resolveFieldTypeId(entry.items) : "";
 }
 
-function resolveRepeaterItemPropertyDefs(fieldDef) {
-  const itemsTypeId = resolveRepeaterItemsTypeId(fieldDef);
-  if (!itemsTypeId) return [];
-  const registry = awnTypesCache?.fieldRegistry || {};
-  const entry =
-    registry[itemsTypeId] ||
-    registry[normalizeCanonicalFieldTypeId(itemsTypeId)] ||
-    registry[`awn.field.${String(itemsTypeId).replace(/^awn\./, "")}`];
-  const properties =
-    entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
-  const preferredOrder = ["key", "label", "text", "group"];
+function buildRepeaterPropertyDefs(properties, preferredOrder = []) {
+  if (!properties || typeof properties !== "object") return [];
   const metaKeys = new Set([
     "type",
     "name",
@@ -53203,6 +53210,25 @@ function resolveRepeaterItemPropertyDefs(fieldDef) {
       type: properties[key]?.type || "awn.field.string"
     }
   }));
+}
+
+function resolveRepeaterItemPropertyDefs(fieldDef) {
+  const preferredOrder = ["key", "label", "text", "group"];
+  const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
+  if (inlineProperties && Object.keys(inlineProperties).length) {
+    return buildRepeaterPropertyDefs(inlineProperties, preferredOrder);
+  }
+
+  const itemsTypeId = resolveRepeaterItemsTypeId(fieldDef);
+  if (!itemsTypeId) return [];
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry =
+    registry[itemsTypeId] ||
+    registry[normalizeCanonicalFieldTypeId(itemsTypeId)] ||
+    registry[`awn.field.${String(itemsTypeId).replace(/^awn\./, "")}`];
+  const properties =
+    entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
+  return buildRepeaterPropertyDefs(properties, preferredOrder);
 }
 
 function createRepeaterItemDefault(propertyDefs, index = 0, existing = []) {

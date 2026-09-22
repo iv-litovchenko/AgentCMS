@@ -969,11 +969,25 @@ fields:
     description: >
       shell.json → compose.promptTemplates[].
       Ключ — маркер {{tpl:key}}; текст команды подставляется в сообщение.
-    items: awn.field.compose.template
     group: voice-client
     subgroup: voice-compose
     sort: 99
     default: []
+    properties:
+      key:
+        type: awn.field.string.slug
+        title: Ключ
+        description: Маркер {{tpl:key}} в тексте сообщения
+      label:
+        type: awn.field.string
+        title: Название
+      text:
+        type: awn.field.text
+        title: Текст команды
+      group:
+        type: awn.field.string
+        title: Группа
+        default: Стиль ответа
 
   ws-static-plugin-example:
     type: awn.field.string

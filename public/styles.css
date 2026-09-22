@@ -13572,6 +13572,9 @@ body.app-locked {
 }
 
 .topic-schema-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 6px;
   background: #f8fafc;
@@ -13583,6 +13586,27 @@ body.app-locked {
   padding: 4px 7px;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.topic-schema-settings-toggle-label {
+  line-height: 1;
+}
+
+.topic-schema-settings-toggle-chevron {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  margin-top: -1px;
+  flex-shrink: 0;
+}
+
+.topic-schema-settings-toggle.is-expanded .topic-schema-settings-toggle-chevron {
+  transform: rotate(45deg);
+  margin-top: -2px;
 }
 
 .topic-schema-field-row.is-settings-open .topic-schema-settings-toggle {
