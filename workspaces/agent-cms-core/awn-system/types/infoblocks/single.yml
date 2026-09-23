@@ -8,23 +8,3 @@ store-kind: singleton
 description: manifest + ровно один main.md
 record-file: main.md
 elements-schema-extends: awn.infoblock.element.default
-elements-schema:
-  fields:
-    awn-title:
-      type: awn.field.string
-      title: Название
-      required: true
-      tab: main
-    awn-name:
-      type: awn.field.string
-      title: Имя
-      tab: main
-    awn-description:
-      type: awn.field.text
-      title: Описание
-      tab: main
-  tabs:
-    main: Основное
-    system: Системное
-examples:
-  - awn-database/agent-registry/agents/

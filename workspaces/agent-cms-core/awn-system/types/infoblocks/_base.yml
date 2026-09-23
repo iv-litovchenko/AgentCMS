@@ -14,7 +14,7 @@ kind-ui:
 properties:
   store-kind:
     title: Kind runtime
-    description: group | collection | singleton — маппинг в awn-database-loader
+    description: group | collection | single (runtime alias singleton) — маппинг в awn-database-loader
   record-id-mode:
     title: Режим id записи
     description: slug | uuid

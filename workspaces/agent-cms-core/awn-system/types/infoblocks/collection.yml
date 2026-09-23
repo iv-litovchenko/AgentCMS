@@ -10,35 +10,3 @@ record-id-mode: slug
 record-file: "{id}.md"
 record-hierarchy: false
 elements-schema-extends: awn.infoblock.element.default
-elements-schema:
-  fields:
-    awn-title:
-      type: awn.field.string
-      title: Название
-      required: true
-      tab: main
-    awn-typeId:
-      type: awn.field.string
-      title: ID типа
-      required: true
-      tab: main
-    awn-kind:
-      type: awn.field.string
-      title: Kind
-      tab: main
-    awn-domain:
-      type: awn.field.string
-      title: Domain
-      tab: main
-    awn-status:
-      type: awn.field.choice.one
-      title: Статус
-      enum: [active, draft, deprecated, inactive]
-      default: active
-      tab: main
-  tabs:
-    main: Основное
-examples:
-  - awn-system/types/pages/
-  - awn-database/taxonomies/tags/
-  - awn-system/types/fields/

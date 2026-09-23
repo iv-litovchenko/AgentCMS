@@ -61144,6 +61144,36 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-left: auto;
 }
 
+.awn-database-view-accordion-actions .awn-database-view-schema-file,
+.awn-database-view-accordion-actions .awn-database-view-schema-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  margin: 0;
+  padding: 0.12rem 0.4rem;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  border-radius: 0.3rem;
+  white-space: nowrap;
+}
+
+.awn-database-view-accordion-actions .awn-database-view-schema-btn {
+  font-family: inherit;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.awn-database-view-accordion-actions .awn-database-view-schema-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
 .awn-database-view-accordion-body {
   display: flex;
   flex-direction: column;

@@ -6,7 +6,3 @@ status: active
 extends: awn.infoblock.base
 store-kind: group
 description: manifest + подпапки-накопители, без собственных записей
-record-hierarchy: false
-examples:
-  - awn-database/taxonomies/
-  - awn-database/taxonomies/
