@@ -21,4 +21,5 @@ awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 awn-runtime-commands: false
+awn-id: 10
 ---
