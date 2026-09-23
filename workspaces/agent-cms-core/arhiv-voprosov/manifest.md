@@ -25,4 +25,5 @@ awn-focus: false
 awn-main: false
 awn-slots-flexible: false
 awn-name: "Архив вопросов"
+awn-id: 8
 ---
