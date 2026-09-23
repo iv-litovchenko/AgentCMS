@@ -4,9 +4,9 @@ awn_settings:
   agent-language: ru
   response-style: agents-md
   notify-on-complete: false
-  awn-id-next: 15
-  awn-id-issued: 14
-  awn-id-updated-at: "2026-09-23T16:27:58.158Z"
+  awn-id-next: 17
+  awn-id-issued: 16
+  awn-id-updated-at: "2026-09-23T18:30:42.949Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -78,14 +78,14 @@ awn_settings:
   voice-media-camera-facing: environment
   voice-media-screen-enabled: false
   voice-media-screen-on-speech: false
-  voice-window-character-model: robot
+  voice-window-character-model: cloud
   voice-window-compact-mode: false
-  voice-window-topmost: true
+  voice-window-topmost: false
   voice-window-pet-overlay: false
   voice-window-transparent: false
   voice-window-background: wallpaper
-  voice-window-compact-dialog-qa: true
-  voice-window-keep-awake: true
+  voice-window-compact-dialog-qa: false
+  voice-window-keep-awake: false
   voice-window-processing-sound: off
   voice-window-dialog-auto-scroll: true
   ws-static-example-1: значение 1

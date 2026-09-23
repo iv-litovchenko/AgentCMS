@@ -22358,7 +22358,8 @@ async function handleApiForAgent(req, res, url) {
         store: payload?.store,
         id: payload?.id,
         title: payload?.title,
-        parent: payload?.parent
+        parent: payload?.parent,
+        isSection: Boolean(payload?.isSection)
       });
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {

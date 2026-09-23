@@ -98,7 +98,11 @@ const CONTAINER_SUPERTYPE = {
   single: `${DATA_CONTAINERS_PREFIX}single.md`
 };
 const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
-const DEFAULT_RECORD_ELEMENT_TYPE = "awn.infoblock.record";
+const ELEMENT_TYPE_RECORD = "awn.infoblock.element.record";
+const ELEMENT_TYPE_CATEGORY = "awn.infoblock.element.category";
+const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
+const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
+const DEFAULT_RECORD_ELEMENT_TYPE = ELEMENT_TYPE_RECORD;
 /** @deprecated use DEFAULT_ELEMENT_SCHEMA_TYPE */
 const DEFAULT_ELEMENT_SCHEMA = `${AWN_DATA_DIR}/cms-base/data-elements/default.md`;
 
@@ -175,10 +179,42 @@ function normalizeCollectionKind(value, fallback = "records") {
   return raw === "files" ? "files" : "records";
 }
 
+function normalizeCollectionType(value, fallback = "md") {
+  const raw = String(value || fallback).trim().toLowerCase();
+  if (raw === "csv" || raw === "files") return raw;
+  return "md";
+}
+
+function recordPropsFromCollectionType(collectionType) {
+  const type = normalizeCollectionType(collectionType);
+  if (type === "files") return { collectionType: type, collectionKind: "files", recordStorage: "md" };
+  if (type === "csv") return { collectionType: type, collectionKind: "records", recordStorage: "csv" };
+  return { collectionType: type, collectionKind: "records", recordStorage: "md" };
+}
+
+function collectionTypeFromRecordProps(record = {}) {
+  const explicit = String(record?.collectionType || "").trim().toLowerCase();
+  if (explicit === "md" || explicit === "csv" || explicit === "files") return explicit;
+  if (normalizeCollectionKind(record?.collectionKind) === "files") return "files";
+  if (normalizeRecordStorage(record?.storage) === "csv") return "csv";
+  return "md";
+}
+
 function getCollectionKind(schema) {
   const fromRecord = schema?.record?.collectionKind;
   if (fromRecord) return normalizeCollectionKind(fromRecord);
+  const fromType = schema?.record?.collectionType;
+  if (fromType) return recordPropsFromCollectionType(fromType).collectionKind;
   return "records";
+}
+
+function getCollectionType(schema) {
+  const fromRecord = schema?.record?.collectionType;
+  if (fromRecord) return normalizeCollectionType(fromRecord);
+  return collectionTypeFromRecordProps({
+    collectionKind: schema?.record?.collectionKind,
+    storage: schema?.record?.storage
+  });
 }
 
 function getRecordHierarchy(schema) {
@@ -219,13 +255,21 @@ function loadContainerTypeDefaults(kind, agentRoot, projectRoot) {
   const normalizedKind = normalizeStoreKind(kind);
   const typeId = CONTAINER_TYPE_ID[normalizedKind] || "";
   const { fields } = loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot);
-  const recordStorage = normalizeRecordStorage(readTypeFieldDefault(fields, "awn-record-storage"), "md");
-  const collectionKind = normalizeCollectionKind(readTypeFieldDefault(fields, "awn-collection-kind"), "records");
+  const collectionType = normalizeCollectionType(readTypeFieldDefault(fields, "awn-collection-type"), "md");
+  const mapped = recordPropsFromCollectionType(collectionType);
   const hierarchyDefault = readTypeFieldDefault(fields, "awn-record-hierarchy");
   const recordHierarchy =
     hierarchyDefault === true || String(hierarchyDefault || "").trim().toLowerCase() === "true";
   const recordFileTypes = String(readTypeFieldDefault(fields, "awn-record-file-types") || "").trim();
-  return { typeId, fields, recordStorage, collectionKind, recordHierarchy, recordFileTypes };
+  return {
+    typeId,
+    fields,
+    collectionType: mapped.collectionType,
+    recordStorage: mapped.recordStorage,
+    collectionKind: mapped.collectionKind,
+    recordHierarchy,
+    recordFileTypes
+  };
 }
 
 function toAwnFieldKey(key) {
@@ -272,6 +316,32 @@ function awnDataStoreKindRank(kind) {
   return Object.prototype.hasOwnProperty.call(AWN_DATA_STORE_KIND_ORDER, kind)
     ? AWN_DATA_STORE_KIND_ORDER[kind]
     : 1;
+}
+
+function compareAwnDataStoreSiblings(a, b, sortOrder = null) {
+  const kindDiff = awnDataStoreKindRank(a.kind) - awnDataStoreKindRank(b.kind);
+  if (kindDiff !== 0) return kindDiff;
+
+  if (sortOrder?.length) {
+    const resolveSortKey = (store) => {
+      const rel = String(store?.relPath || "").trim();
+      const slash = rel.lastIndexOf("/");
+      return slash >= 0 ? rel.slice(slash + 1) : rel;
+    };
+    const aKey = resolveSortKey(a);
+    const bKey = resolveSortKey(b);
+    const ai = sortOrder.indexOf(aKey);
+    const bi = sortOrder.indexOf(bKey);
+    if (ai !== -1 || bi !== -1) {
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      if (ai !== bi) return ai - bi;
+    }
+  }
+
+  const aName = String(a.name || a.relPath);
+  const bName = String(b.name || b.relPath);
+  return aName.localeCompare(bName, "ru", { sensitivity: "base" });
 }
 
 function compareAwnDataStoresTopLevel(a, b, rootSort = null) {
@@ -518,16 +588,28 @@ function extractElementSchemaBlock(raw) {
 
 function extractFlatRecordProps(raw) {
   const record = {};
-  const storage = readStoreProp(raw, ["awn-record-storage"], "");
   const idMode = readStoreProp(raw, ["awn-record-id-mode"], "");
   const file = readStoreProp(raw, ["awn-record-file"], "");
   const hierarchy = raw["awn-record-hierarchy"];
-  const collectionKind = readStoreProp(raw, ["awn-collection-kind"], "");
   const fileTypes = readStoreProp(raw, ["awn-record-file-types"], "");
-  if (storage) record.storage = storage;
+  const collectionTypeRaw = readStoreProp(raw, ["awn-collection-type"], "");
+  if (collectionTypeRaw) {
+    const mapped = recordPropsFromCollectionType(collectionTypeRaw);
+    record.collectionType = mapped.collectionType;
+    record.collectionKind = mapped.collectionKind;
+    record.storage = mapped.recordStorage;
+  } else {
+    const storage = readStoreProp(raw, ["awn-record-storage"], "");
+    const collectionKind = readStoreProp(raw, ["awn-collection-kind"], "");
+    if (storage) record.storage = normalizeRecordStorage(storage);
+    if (collectionKind) record.collectionKind = normalizeCollectionKind(collectionKind);
+    record.collectionType = collectionTypeFromRecordProps(record);
+    const mapped = recordPropsFromCollectionType(record.collectionType);
+    record.collectionKind = mapped.collectionKind;
+    record.storage = mapped.recordStorage;
+  }
   if (idMode) record["id-mode"] = idMode;
   if (file) record.file = file;
-  if (collectionKind) record.collectionKind = normalizeCollectionKind(collectionKind);
   if (fileTypes) record.fileTypes = String(fileTypes).trim();
   if (hierarchy !== undefined && hierarchy !== null && String(hierarchy).trim() !== "") {
     record.hierarchy = hierarchy === true || String(hierarchy).trim().toLowerCase() === "true";
@@ -923,9 +1005,17 @@ function readSortJson(dirPath) {
   }
 }
 
-function isRecordFile(name, kind) {
+function isNestedSectionManifest(name, relPrefix = "") {
+  return (
+    String(name || "").toLowerCase() === COLLECTION_MANIFEST.toLowerCase() &&
+    Boolean(String(relPrefix || "").trim())
+  );
+}
+
+function isRecordFile(name, kind, relPrefix = "") {
   const lower = name.toLowerCase();
   if (!lower.endsWith(".md")) return false;
+  if (isNestedSectionManifest(name, relPrefix)) return true;
   if (isSystemStoreFile(name)) return false;
   if (kind === "single" && lower !== SINGLETON_RECORD) return false;
   if (kind === "collection" && lower === SINGLETON_RECORD) return false;
@@ -988,7 +1078,7 @@ function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
       listRecordFiles(fullPath, kind, path.posix.join(relPrefix, entry.name), acc);
       continue;
     }
-    if (!isRecordFile(entry.name, kind)) continue;
+    if (!isRecordFile(entry.name, kind, relPrefix)) continue;
     acc.push({
       absPath: fullPath,
       fileName: entry.name,
@@ -1034,10 +1124,16 @@ function mergeRecordBodyFields(frontmatter, body) {
   return merged;
 }
 
+function isSectionManifestRecord(fileEntry) {
+  return isNestedSectionManifest(fileEntry?.fileName, path.dirname(String(fileEntry?.relPath || "")));
+}
+
 function parseRecordFile(fileEntry, storeRel) {
   const raw = fs.readFileSync(fileEntry.absPath, "utf-8");
   const { frontmatter, body } = splitFrontmatter(raw);
   const mergedFrontmatter = mergeRecordBodyFields(frontmatter, body);
+  const sectionManifest = isSectionManifestRecord(fileEntry);
+  const sectionFolder = sectionManifest ? path.basename(path.dirname(fileEntry.relPath)) : "";
   const id =
     String(
       mergedFrontmatter["awn-id"] ||
@@ -1045,13 +1141,21 @@ function parseRecordFile(fileEntry, storeRel) {
         frontmatter["awn-id"] ||
         frontmatter.id ||
         ""
-    ).trim() || path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
+    ).trim() ||
+    sectionFolder ||
+    path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
   const parent = String(
     mergedFrontmatter["awn-parent"] || mergedFrontmatter.parent || frontmatter["awn-parent"] || frontmatter.parent || ""
   ).trim();
-  const pathParent = path.dirname(fileEntry.relPath);
-  const inferredParent =
-    pathParent && pathParent !== "." ? path.basename(pathParent) : "";
+  let inferredParent = "";
+  if (sectionManifest) {
+    const sectionParentPath = path.dirname(path.dirname(fileEntry.relPath));
+    inferredParent =
+      sectionParentPath && sectionParentPath !== "." ? path.basename(sectionParentPath) : "";
+  } else {
+    const pathParent = path.dirname(fileEntry.relPath);
+    inferredParent = pathParent && pathParent !== "." ? path.basename(pathParent) : "";
+  }
 
   return {
     id,
@@ -1060,6 +1164,7 @@ function parseRecordFile(fileEntry, storeRel) {
     fileName: fileEntry.fileName,
     frontmatter: mergedFrontmatter,
     body,
+    isSection: sectionManifest,
     title: String(
       mergedFrontmatter["awn-title"] ||
         mergedFrontmatter.title ||
@@ -1152,6 +1257,7 @@ function loadStore(dataRoot, storeEntry) {
     : "";
 
   const collectionKind = kind === "collection" ? getCollectionKind(schema) : "records";
+  const collectionType = kind === "collection" ? getCollectionType(schema) : "md";
   const recordHierarchy = kind === "collection" ? getRecordHierarchy(schema) : false;
   const recordFileTypes = kind === "collection" ? getRecordFileTypes(schema) : "";
   const recordStorage = kind === "collection" ? getRecordStorage(schema) : "md";
@@ -1183,6 +1289,7 @@ function loadStore(dataRoot, storeEntry) {
     schema,
     sortOrder,
     collectionKind,
+    collectionType,
     recordHierarchy,
     recordFileTypes,
     recordStorage,
@@ -1241,19 +1348,8 @@ function organizeAwnDataStores(stores, dataRoot) {
 
   for (const group of stores.filter((s) => s.kind === "group")) {
     const groupSort = readSortJson(path.join(dataRoot, group.relPath));
-    if (groupSort?.length && group.children.length) {
-      group.children.sort((a, b) => {
-        const aSlug = a.relPath.split("/").pop();
-        const bSlug = b.relPath.split("/").pop();
-        const ai = groupSort.indexOf(aSlug);
-        const bi = groupSort.indexOf(bSlug);
-        if (ai === -1 && bi === -1) return String(a.name).localeCompare(String(b.name), "ru");
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-    } else {
-      group.children.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+    if (group.children.length) {
+      group.children.sort((a, b) => compareAwnDataStoreSiblings(a, b, groupSort));
     }
     group.childCount = group.children.length;
     group.recordCount = group.children.reduce((sum, child) => sum + (Number(child.recordCount) || 0), 0);
@@ -1413,8 +1509,8 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
   if (options.indexExclude) lines.push("awn-index-exclude: true");
 
   const record = schema.record && typeof schema.record === "object" ? schema.record : {};
-  if (record.collectionKind) lines.push(`awn-collection-kind: ${record.collectionKind}`);
-  if (record.storage) lines.push(`awn-record-storage: ${record.storage}`);
+  const collectionType = collectionTypeFromRecordProps(record);
+  lines.push(`awn-collection-type: ${collectionType}`);
   if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
   if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
   if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
@@ -1573,6 +1669,7 @@ function buildCollectionSchemaContent({
   const desc = String(description || name || slug).trim();
   const kind = normalizeCollectionKind(collectionKind, "records");
   const storage = normalizeRecordStorage(recordStorage, "md");
+  const collectionType = collectionTypeFromRecordProps({ collectionKind: kind, storage });
   const hierarchy = storage === "csv" ? false : Boolean(recordHierarchy);
   const fileTypes = kind === "files" ? String(recordFileTypes || "").trim() : "";
   const recordFields = {
@@ -1599,6 +1696,7 @@ function buildCollectionSchemaContent({
       extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
       fieldsInSchemeMod: true,
       record: {
+        collectionType,
         collectionKind: kind,
         storage,
         "id-mode": "slug",
@@ -1697,11 +1795,19 @@ function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
   writeStoreManifest(storeAbs, schema, manifestBody);
 }
 
-function buildRecordMarkdown({ id, title, parent, storeRel = "", extra = {} }) {
+function buildRecordMarkdown({
+  id,
+  title,
+  parent,
+  storeRel = "",
+  extra = {},
+  elementType = DEFAULT_RECORD_ELEMENT_TYPE,
+  body = ""
+} = {}) {
   const lines = ["---"];
   const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
-  if (store) lines.push(`awn-type: ${DEFAULT_RECORD_ELEMENT_TYPE}`);
-  lines.push(`awn-store: ${store}`);
+  if (store || elementType) lines.push(`awn-type: ${elementType || DEFAULT_RECORD_ELEMENT_TYPE}`);
+  if (store) lines.push(`awn-store: ${store}`);
   const ts = nowIsoMinute();
   lines.push(`awn-created: "${ts}"`, `awn-updated: "${ts}"`);
   if (title) lines.push(`awn-title: ${title}`);
@@ -1715,6 +1821,8 @@ function buildRecordMarkdown({ id, title, parent, storeRel = "", extra = {} }) {
         "awn-created",
         "awn-updated",
         "awn-title",
+        "awn-type",
+        "awn-store",
         "awn-supertype",
         "id",
         "parent",
@@ -1727,8 +1835,25 @@ function buildRecordMarkdown({ id, title, parent, storeRel = "", extra = {} }) {
     }
     lines.push(`${awnKey}: ${value}`);
   }
-  lines.push("---", "", title ? `${title}.` : "");
+  lines.push("---", "");
+  const bodyText = String(body || "").trim();
+  if (bodyText) {
+    lines.push(bodyText);
+  } else if (title) {
+    lines.push(`${title}.`);
+  }
   return `${lines.join("\n")}\n`;
+}
+
+function buildSectionManifestMarkdown({ id, title, parent, storeRel = "" }) {
+  return buildRecordMarkdown({
+    id,
+    title,
+    parent,
+    storeRel,
+    elementType: ELEMENT_TYPE_CATEGORY,
+    body: "> Описание раздела."
+  });
 }
 
 function createAwnDataStore(agentRoot, projectRoot, options = {}) {
@@ -1864,7 +1989,14 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "numeric").trim();
   let id = String(options.id || "").trim();
   if (!id) {
-    id = idMode === "numeric" ? resolveNextNumericRecordId(store.records || []) : slugifyStoreName(options.title || "record");
+    if (options.isSection) {
+      id = slugifyStoreName(options.title || "section");
+    } else {
+      id =
+        idMode === "numeric"
+          ? resolveNextNumericRecordId(store.records || [])
+          : slugifyStoreName(options.title || "record");
+    }
   }
 
   const parent = String(options.parent || "").trim();
@@ -1890,10 +2022,24 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     fs.mkdirSync(path.dirname(absFile), { recursive: true });
   }
 
-  if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
-
-  const content = buildRecordMarkdown({ id, title, parent: parent || null, storeRel });
-  fs.writeFileSync(absFile, content, "utf-8");
+  if (options.isSection) {
+    const sectionId = id;
+    const sectionDir = parent ? path.join(storeAbs, parent, sectionId) : path.join(storeAbs, sectionId);
+    const manifestPath = path.join(sectionDir, COLLECTION_MANIFEST);
+    if (fs.existsSync(sectionDir)) throw new Error(`Раздел уже существует: ${sectionId}`);
+    fs.mkdirSync(sectionDir, { recursive: true });
+    const content = buildSectionManifestMarkdown({
+      id: sectionId,
+      title,
+      parent: parent || null,
+      storeRel
+    });
+    fs.writeFileSync(manifestPath, content, "utf-8");
+  } else {
+    if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
+    const content = buildRecordMarkdown({ id, title, parent: parent || null, storeRel });
+    fs.writeFileSync(absFile, content, "utf-8");
+  }
 
   const sortPath = path.join(storeAbs, "sort.json");
   if (fs.existsSync(sortPath) && !parent) {
@@ -2314,6 +2460,11 @@ module.exports = {
   CONTAINER_TYPE_ID,
   DEFAULT_ELEMENT_SCHEMA_TYPE,
   DEFAULT_RECORD_ELEMENT_TYPE,
+  ELEMENT_TYPE_RECORD,
+  ELEMENT_TYPE_CATEGORY,
+  ELEMENT_TYPE_SIDECAR,
+  ELEMENT_TYPE_COMMENT,
+  buildSectionManifestMarkdown,
   toAwnFieldKey,
   KIND_TO_AWN_PROP_TYPE
 };

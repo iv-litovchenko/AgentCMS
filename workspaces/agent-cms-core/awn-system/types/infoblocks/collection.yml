@@ -13,23 +13,17 @@ kind-ui:
   badge: { background: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" }
 
 fields:
-  awn-collection-kind:
+  awn-collection-type:
     type: awn.field.choice.one
     title: Тип коллекции
-    enum: [records, files]
-    default: records
-    description: records — md/csv записи; files — загрузка файлов заданных типов
-  awn-record-storage:
-    type: awn.field.choice.one
-    title: Драйвер записей
-    enum: [md, csv]
+    enum: [md, csv, files]
     default: md
-    description: Только для коллекций записей (records)
+    description: md — файл на запись; csv — одна таблица main.csv; files — загрузка файлов
   awn-record-hierarchy:
     type: awn.boolean
     title: Иерархия (разделы)
     default: false
-    description: Родительская запись как раздел; для MD, файлов и загрузок; не для CSV-таблицы
+    description: Вложенные разделы; для md и files; не для csv-таблицы
   awn-record-file-types:
     type: awn.string
     title: Типы файлов

@@ -1,8 +1,8 @@
-id: awn.infoblock.record
+id: awn.infoblock.element.record
 name: Запись накопителя
 kind: data-element
 domain: infoblock
 status: active
-extends: awn.infoblock.element.default
+extends: awn.content.record
 description: Обычная запись в collection/single store (*.md или строка CSV)
 record-role: record

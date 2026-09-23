@@ -5623,24 +5623,42 @@
             <option value="csv">CSV — одна таблица main.csv</option>
           </select>
         </label>
-        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
-          <input id="awn-database-create-hierarchy-input" type="checkbox" />
-          <span class="awn-database-create-checkbox-label">Иерархия (разделы)</span>
-        </label>
         <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-file-types-wrap">
           <span>Типы файлов</span>
-          <input id="awn-database-create-file-types-input" type="text" placeholder="image/*,.pdf,.md" spellcheck="false" autocomplete="off" />
+          <div class="awn-database-create-file-types-picker">
+            <div
+              id="awn-database-create-file-types-presets"
+              class="awn-database-create-file-types-presets"
+              role="group"
+              aria-label="Типы файлов для загрузки"
+            ></div>
+            <input
+              id="awn-database-create-file-types-input"
+              type="text"
+              placeholder="Дополнительно: .txt, application/json"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
           <p class="agents-registry-create-footnote">
-            Через запятую: <code>image/*</code>, <code>.pdf</code>, <code>.md</code>. Пусто — любые файлы.
+            Выберите пресеты или укажите свои через запятую. Пусто — любые файлы.
           </p>
         </label>
-        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap">
-          <input id="awn-database-create-sample-input" type="checkbox" checked />
-          <span class="awn-database-create-checkbox-label">Создать запись-пример</span>
+        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
+          <input id="awn-database-create-hierarchy-input" type="checkbox" />
+          <span class="awn-database-create-checkbox-label">Включить поддержку разделов (иерархическая структура)</span>
         </label>
-        <label class="awn-database-create-checkbox-field create-form-indexing-option" for="awn-database-create-index-exclude" title="Исключить накопитель и записи из поиска и индексов">
+        <label
+          class="awn-database-create-checkbox-field create-form-indexing-option hidden"
+          id="awn-database-create-index-exclude-wrap"
+          title="Исключить накопитель и записи из поиска и индексов"
+        >
           <input id="awn-database-create-index-exclude" type="checkbox" />
           <span class="awn-database-create-checkbox-label">Запретить индексирование</span>
+        </label>
+        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap" title="Только для коллекций md-файлов">
+          <input id="awn-database-create-sample-input" type="checkbox" checked />
+          <span class="awn-database-create-checkbox-label">Создать первую запись</span>
         </label>
         <div class="modal-actions">
           <button id="awn-database-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -5789,7 +5807,43 @@
             </section>
             <div class="awn-database-view-elements-main">
               <div class="awn-database-view-section-panel hidden">
-                <div class="awn-database-view-section-label">Разделы</div>
+                <div class="awn-database-view-section-head">
+                  <div class="awn-database-view-section-label">Разделы</div>
+                  <button
+                    type="button"
+                    class="awn-database-view-section-create-btn"
+                    data-awn-database-action="toggle-create-section"
+                    title="Создать раздел"
+                  >
+                    Создать раздел
+                  </button>
+                </div>
+                <div class="awn-database-view-section-create-form hidden">
+                  <input
+                    class="awn-database-view-section-create-input"
+                    type="text"
+                    placeholder="Название раздела"
+                    spellcheck="false"
+                    aria-label="Название раздела"
+                  />
+                  <button
+                    type="button"
+                    class="awn-database-view-section-create-submit-btn"
+                    data-awn-database-action="create-section"
+                  >
+                    Добавить
+                  </button>
+                </div>
+                <div class="awn-database-view-section-search-wrap">
+                  <input
+                    type="search"
+                    class="awn-database-view-section-search-input"
+                    placeholder="Поиск разделов…"
+                    spellcheck="false"
+                    autocomplete="off"
+                    aria-label="Поиск разделов"
+                  />
+                </div>
                 <div class="awn-database-view-section-tree" role="tree"></div>
               </div>
               <div class="awn-database-view-elements-head">
