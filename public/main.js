@@ -42890,6 +42890,59 @@ function mergeProjectSettingsScopeStatus(normalized, patch) {
   projectSettingsScopeStatusByPath.set(normalized, { ...prev, ...patch, path: normalized });
 }
 
+function projectSettingsScopeMarkerTitle(kind, hasValue) {
+  if (kind === "env") {
+    return hasValue ? ".env — есть переменные" : ".env — нет";
+  }
+  if (kind === "schema") {
+    return hasValue ? "schema.yml — есть поля" : "schema.yml — нет";
+  }
+  return hasValue ? "config.yml — есть значения" : "config.yml — нет";
+}
+
+function patchProjectSettingsScopeMarkerElement(marker, kind, hasValue) {
+  if (!marker) return;
+  marker.classList.toggle("has-value", hasValue);
+  marker.title = projectSettingsScopeMarkerTitle(kind, hasValue);
+}
+
+function patchProjectSettingsScopeListMarkers() {
+  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+
+  for (const btn of projectSettingsScopeListNode.querySelectorAll(".project-settings-scope-item[data-path]")) {
+    const path = btn.dataset.path;
+    if (!path) continue;
+    const status = getProjectSettingsScopeStatus(path);
+    const hasConfigValues = Boolean(status?.hasLocalValues);
+    const hasSchemaFields = Boolean(status?.hasLocalSchema);
+    const hasEnvValues = Boolean(status?.envHasValues);
+    btn.classList.toggle("has-local-values", hasConfigValues);
+    btn.classList.toggle("has-schema-values", hasSchemaFields);
+    btn.classList.toggle("has-env-values", hasEnvValues);
+    btn.classList.toggle("is-empty-scope", !hasConfigValues && !hasSchemaFields && !hasEnvValues);
+
+    const markers = btn.querySelector(".project-settings-scope-markers");
+    if (!markers) continue;
+    patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-schema-kind"), "schema", hasSchemaFields);
+    patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-config-kind"), "config", hasConfigValues);
+    patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-env-kind"), "env", hasEnvValues);
+  }
+
+  for (const envBtn of projectSettingsScopeListNode.querySelectorAll(".project-settings-scope-group-env-btn")) {
+    const envScopePath = envBtn.dataset.envScopePath;
+    if (!envScopePath) continue;
+    const status = getProjectSettingsScopeStatus(envScopePath);
+    const hasEnvValues = Boolean(status?.envHasValues);
+    envBtn.title =
+      hasEnvValues
+        ? `.env — ${status.envValueCount} переменных`
+        : status?.envExists
+          ? ".env — файл есть, переменных нет"
+          : ".env — открыть редактор";
+    patchProjectSettingsScopeMarkerElement(envBtn.querySelector(".is-env-kind"), "env", hasEnvValues);
+  }
+}
+
 function countProjectSettingsValuesFromCache(cache) {
   return (cache?.entries || []).filter((entry) => {
     if (!entry?.key) return false;
@@ -42918,6 +42971,7 @@ function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
     valueCount,
     hasLocalValues: valueCount > 0
   });
+  patchProjectSettingsScopeListMarkers();
 }
 
 function setProjectSettingsSchemaStatusFromCache(manifestPath, schemaCache) {
@@ -42933,6 +42987,7 @@ function setProjectSettingsSchemaStatusFromCache(manifestPath, schemaCache) {
     schemaFieldCount,
     hasLocalSchema: schemaFieldCount > 0
   });
+  patchProjectSettingsScopeListMarkers();
 }
 
 function syncProjectSettingsScopeMarkersAfterSchemaSave(manifestPath, schemaCache) {
@@ -42951,6 +43006,7 @@ function setProjectSettingsEnvStatusFromCache(manifestPath, cache) {
     envValueCount,
     envHasValues: envValueCount > 0
   });
+  patchProjectSettingsScopeListMarkers();
 }
 
 async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettingsManifestScopes()) {
@@ -42968,6 +43024,7 @@ async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettings
     if (!normalized) continue;
     mergeProjectSettingsScopeStatus(normalized, item);
   }
+  patchProjectSettingsScopeListMarkers();
 }
 
 function collectProjectSettingsManifestScopes() {
@@ -43061,18 +43118,7 @@ function createProjectSettingsScopeMarker(kind, hasValue) {
   marker.classList.toggle("is-config-kind", kind === "config");
   marker.classList.toggle("is-env-kind", kind === "env");
   marker.classList.toggle("has-value", hasValue);
-  marker.title =
-    kind === "env"
-      ? hasValue
-        ? ".env — есть переменные"
-        : ".env — нет"
-      : kind === "schema"
-        ? hasValue
-          ? "schema.yml — есть поля"
-          : "schema.yml — нет"
-        : hasValue
-          ? "config.yml — есть значения"
-          : "config.yml — нет";
+  marker.title = projectSettingsScopeMarkerTitle(kind, hasValue);
   marker.setAttribute("aria-hidden", "true");
   return marker;
 }
@@ -43230,6 +43276,7 @@ function createProjectSettingsScopeGroupTitle(group, scopePath) {
     const envBtn = document.createElement("button");
     envBtn.type = "button";
     envBtn.className = "project-settings-scope-group-env-btn";
+    envBtn.dataset.envScopePath = envScopePath;
     envBtn.title =
       status?.envHasValues
         ? `.env — ${status.envValueCount} переменных`
@@ -43508,7 +43555,10 @@ function patchProjectSettingsScopeListActiveState(activeScopePath = getNodeSetti
 
 function syncProjectSettingsScopeListUi(options = {}) {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
-  if (!options.force && patchProjectSettingsScopeListActiveState()) return;
+  if (!options.force && patchProjectSettingsScopeListActiveState()) {
+    patchProjectSettingsScopeListMarkers();
+    return;
+  }
   renderProjectSettingsScopeList();
 }
 
@@ -44350,6 +44400,7 @@ async function loadProjectSettingsContent(options = {}) {
     }
     const cache = await loadProjectSettingsScopeData({ force });
     applyProjectSettingsPageUi(cache);
+    renderProjectSettingsScopeList();
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
   } catch (error) {
