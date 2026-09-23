@@ -133,7 +133,7 @@ function saveRegistryEntriesToAwnData(projectRoot, normalizedAgents) {
   const dataRoot = ensureAwnDataBase(coreRoot, projectRoot);
   const storeAbs = getStoreAbsolute(projectRoot, AGENTS_STORE_ID);
   if (!storeAbs || !fs.existsSync(path.join(storeAbs, SCHEMA_FILE))) {
-    throw new Error("awn-data store agents not found");
+    throw new Error("awn-database store agents not found");
   }
 
   const keepIds = new Set();
@@ -221,7 +221,7 @@ function saveGroupsToAwnData(projectRoot, groups, ungrouped) {
   const dataRoot = ensureAwnDataBase(coreRoot, projectRoot);
   const storeAbs = getStoreAbsolute(projectRoot, AGENT_GROUPS_STORE_ID);
   if (!storeAbs || !fs.existsSync(path.join(storeAbs, SCHEMA_FILE))) {
-    throw new Error("awn-data store agent-groups not found");
+    throw new Error("awn-database store agent-groups not found");
   }
 
   const keepIds = new Set([UNGROUPED_RECORD_ID]);

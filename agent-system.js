@@ -32,7 +32,7 @@ const SYSTEM_DOMAIN_LABELS = {
   views: "Views",
   mixins: "Mixins",
   settings: "Settings",
-  data: "Накопители (awn-data)"
+  data: "Накопители (awn-database)"
 };
 
 function getAgentSystemRoot(agentRoot) {
@@ -49,23 +49,23 @@ function agentSystemExists(agentRoot) {
 
 function normalizeAgentSystemRelPath(relPath) {
   let normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (normalized.startsWith("awn-data/cms-base/")) {
+  if (normalized.startsWith("awn-database/cms-base/")) {
     return normalized;
   }
-  if (normalized.startsWith("awn-data/") && isAwnDataTypeRecordPath(normalized)) {
+  if (normalized.startsWith("awn-database/") && isAwnDataTypeRecordPath(normalized)) {
     return normalized;
   }
   return normalized;
 }
 
 function isAwnDataStoreManifestPath(normalized) {
-  return /^awn-data\/.+\/manifest\.md$/i.test(normalized);
+  return /^awn-database\/.+\/manifest\.md$/i.test(normalized);
 }
 
 function isAwnDataTypeRecordPath(normalized) {
   if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
   if (/\/manifest\.md$/i.test(normalized)) return false;
-  return normalized.startsWith("awn-data/cms-base/mixins/");
+  return normalized.startsWith("awn-database/cms-base/mixins/");
 }
 
 function isAgentSystemRelPath(relPath) {
@@ -74,7 +74,7 @@ function isAgentSystemRelPath(relPath) {
   return (
     normalized === AGENT_SYSTEM_REL ||
     normalized.startsWith(`${AGENT_SYSTEM_REL}/`) ||
-    normalized.startsWith("awn-data/cms-base/") ||
+    normalized.startsWith("awn-database/cms-base/") ||
     isAwnDataStoreManifestPath(normalized) ||
     isAwnDataTypeRecordPath(normalized)
   );
@@ -86,7 +86,7 @@ function resolveAgentSystemAbsolute(agentRoot, relPath, projectRoot = process.cw
     return resolveAgentSystemFileAbsolute(agentRoot, normalized);
   }
   if (
-    normalized.startsWith("awn-data/cms-base/") ||
+    normalized.startsWith("awn-database/cms-base/") ||
     isAwnDataStoreManifestPath(normalized) ||
     isAwnDataTypeRecordPath(normalized)
   ) {
@@ -157,7 +157,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
     const storeFolder = useYaml
       ? getAgentSystemTypesSectionFolder(domain)
       : DOMAIN_TYPE_STORES[domain]
-        ? `awn-data/${DOMAIN_TYPE_STORES[domain]}`
+        ? `awn-database/${DOMAIN_TYPE_STORES[domain]}`
         : `${configRel}/${domain}`;
 
     if (domain === "data") {

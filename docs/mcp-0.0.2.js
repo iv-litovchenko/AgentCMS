@@ -302,42 +302,42 @@ module.exports = {
       id: "iblock",
       title: "Инфоблоки (iblock_*)",
       tools: [
-        { name: "iblock_list", description: "Список инфоблоков.", parameters: "—", http: "GET /api/awn-data" },
-        { name: "iblock_get", description: "Один инфоблок: schema, records, tree.", parameters: "store", http: "GET /api/awn-data?store=" },
+        { name: "iblock_list", description: "Список инфоблоков.", parameters: "—", http: "GET /api/awn-database" },
+        { name: "iblock_get", description: "Один инфоблок: schema, records, tree.", parameters: "store", http: "GET /api/awn-database?store=" },
         {
           name: "iblock_read_index",
-          description: "Оглавление инфоблоков (awn-data/index.md): kind, group, path, title, description.",
+          description: "Оглавление инфоблоков (awn-database/index.md): kind, group, path, title, description.",
           parameters: "—",
-          http: "GET /api/agent/awn-data-index"
+          http: "GET /api/agent/awn-database-index"
         },
         {
           name: "iblock_refresh_index",
-          description: "Обновить awn-data/index.md из iblock_list.",
+          description: "Обновить awn-database/index.md из iblock_list.",
           parameters: "overwrite?",
-          http: "POST /api/agent/awn-data-index"
+          http: "POST /api/agent/awn-database-index"
         },
-        { name: "iblock_create", description: "Создать group/collection/singleton.", parameters: "slug, kind?, …", http: "POST /api/awn-data/stores" },
+        { name: "iblock_create", description: "Создать group/collection/singleton.", parameters: "slug, kind?, …", http: "POST /api/awn-database/stores" },
         {
           name: "iblock_read_schema",
           description: "schema.yml инфоблока (экземпляр, не каталог типов).",
           parameters: "store",
-          http: "GET /api/awn-data/store-schema"
+          http: "GET /api/awn-database/store-schema"
         },
-        { name: "iblock_read_properties", description: "Frontmatter manifest инфоблока.", parameters: "store", http: "GET /api/awn-data/store-properties" },
-        { name: "iblock_write_properties", description: "Patch manifest инфоблока.", parameters: "store, content", http: "POST /api/awn-data/store-properties" },
-        { name: "iblock_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-data/store-properties?key=" },
-        { name: "iblock_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-data/store-properties" }
+        { name: "iblock_read_properties", description: "Frontmatter manifest инфоблока.", parameters: "store", http: "GET /api/awn-database/store-properties" },
+        { name: "iblock_write_properties", description: "Patch manifest инфоблока.", parameters: "store, content", http: "POST /api/awn-database/store-properties" },
+        { name: "iblock_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-database/store-properties?key=" },
+        { name: "iblock_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-database/store-properties" }
       ]
     },
     {
       id: "iblock-content",
       title: "Содержимое инфоблоков (iblock_content_*)",
       tools: [
-        { name: "iblock_content_create", description: "Добавить запись.", parameters: "store, id?, title?, parent?", http: "POST /api/awn-data/records" },
-        { name: "iblock_content_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-data/record-properties" },
-        { name: "iblock_content_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-data/record-properties" },
-        { name: "iblock_content_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-data/record-properties?key=" },
-        { name: "iblock_content_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-data/record-properties" }
+        { name: "iblock_content_create", description: "Добавить запись.", parameters: "store, id?, title?, parent?", http: "POST /api/awn-database/records" },
+        { name: "iblock_content_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-database/record-properties" },
+        { name: "iblock_content_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-database/record-properties" },
+        { name: "iblock_content_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-database/record-properties?key=" },
+        { name: "iblock_content_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-database/record-properties" }
       ]
     },
     {

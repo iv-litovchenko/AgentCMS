@@ -1,7 +1,7 @@
 # Карта Agent CMS — `[Agent CMS] Test` (архив)
 
 > **Устарело.** Канон для агента: [GLOBAL_MCP_DOC.md](../../../GLOBAL_MCP_DOC.md).  
-> **Агент = CMS.** Схема типов — в `awn-system/types/`; данные — в `awn-data/` (tasks, taxonomies, … + `cms-base/`).  
+> **Агент = CMS.** Схема типов — в `awn-system/types/`; данные — в `awn-database/` (tasks, taxonomies, … + `cms-base/`).  
 > Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.  
 > Итоговая спецификация модели: [SPEC.md](./SPEC.md)
 
@@ -14,7 +14,7 @@ workspaces/agent-cms-test/
 │
 ├── manifest.md                 ← awn.page.ws (корень агента)
 ├── AGENTS.md                   ← этот файл
-├── awn-data/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
+├── awn-database/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
 │   ├── cms-base/               ← entities, mixins, registry
 │   └── taxonomies/             ← справочники (tags, slot-categories, …)
 ├── awn-system/                 ← ★ CMS-типы + presets (pages, content, slots, fields, md-blocks — YAML)
@@ -34,7 +34,7 @@ workspaces/agent-cms-test/
 ├── awn-agent-kit/              ← runtime агента
 │   ├── agent/                  ← persona + thread/
 │   ├── user/
-│   └── awn-data/taxonomies/{tags,categories,statuses,…}/
+│   └── awn-database/taxonomies/{tags,categories,statuses,…}/
 │
 └── awn-storage/                ← assets workspace-уровня
 ```
@@ -56,7 +56,7 @@ workspaces/agent-cms-test/
 
 **Markdown-блоки** — `awn-system/types/md-blocks/` (`awn.block.*`, палитра редактора).
 
-**Справочники** — `awn-data/taxonomies/*/main.csv`.
+**Справочники** — `awn-database/taxonomies/*/main.csv`.
 
 ### Pages (меню)
 
@@ -83,7 +83,7 @@ workspaces/agent-cms-test/
 
 **Каталог:** `awn-system/types/slots/multi-file/` (много файлов), `…/single-file/` (один файл), `…/multi-file/system/` (системные).
 
-**Категории слотов** (группы в каталоге): `awn-data/taxonomies/slot-categories/main.csv` — Память, Файлы, Однофайловая, Записи, Общение.
+**Категории слотов** (группы в каталоге): `awn-database/taxonomies/slot-categories/main.csv` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```
 main/      → awn.content.record, awn.content.category  (см. awn-system/types/slots/multi-file/main.yml)
@@ -169,7 +169,7 @@ awn_schema:
 | Диалог | `awn.content.dialog` |
 | Комментарий | `awn.content.comment` |
 | Служебный док (agent-kit) | `awn.page.topic.agent-kit.*` |
-| Справочники (tags, statuses) | `awn-data/taxonomies/*` (не page-type) |
+| Справочники (tags, statuses) | `awn-database/taxonomies/*` (не page-type) |
 
 Старые `awn.topic`, `awn.record`, `service-doc`, `catalog`, `taxonomy`, … в этом агенте **больше не используются**.
 
@@ -198,4 +198,4 @@ awn_schema:
 node scripts/bootstrap-agent-awn-system.js agent-cms-test
 ```
 
-(agent-типы поверх platform; свои записи в `awn-data/` сохраняй отдельно)
+(agent-типы поверх platform; свои записи в `awn-database/` сохраняй отдельно)

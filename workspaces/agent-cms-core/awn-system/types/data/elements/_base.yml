@@ -4,7 +4,7 @@ kind: data-element
 domain: data
 status: active
 extends: awn.entity
-description: Общие поля записи внутри awn-data collection/single (Фаза B — расширение)
+description: Общие поля записи внутри awn-database collection/single (Фаза B — расширение)
 kind-ui:
   label: Запись
   badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" }

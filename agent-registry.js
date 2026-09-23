@@ -793,7 +793,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Глобальные — `awn-data/taxonomies/categories/main.csv`. Локальные — в `taxonomies/` agent-kit.\n",
+      "# Категории\n\nСправочник категорий workspace. Глобальные — `awn-database/taxonomies/categories/main.csv`. Локальные — в `taxonomies/` agent-kit.\n",
     content:
       "id,label,color\n" +
       "general,Общее (по умолчанию),#64748b\n" +
@@ -820,7 +820,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace. Глобальные — `awn-data/taxonomies/tags/main.csv`. Локальные — `taxonomies/tags/` в agent-kit.\n\nТемы ссылаются через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace. Глобальные — `awn-database/taxonomies/tags/main.csv`. Локальные — `taxonomies/tags/` в agent-kit.\n\nТемы ссылаются через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
@@ -830,7 +830,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — `awn-data/taxonomies/statuses/main.csv`.\n",
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — `awn-database/taxonomies/statuses/main.csv`.\n",
     content:
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\nnone,⚪ Без статуса\n"
   },

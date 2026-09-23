@@ -11,7 +11,7 @@ const {
 
 const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
-/** domain id → awn-data store folder (legacy MD types; YAML in awn-system/types/) */
+/** domain id → awn-database store folder (legacy MD types; YAML in awn-system/types/) */
 const DOMAIN_TYPE_STORES = {
   settings: "settings"
 };
@@ -120,7 +120,7 @@ function recordToCatalogEntry(record, domain, source = "platform") {
     domain,
     fileName: path.posix.basename(relWithinStore).replace(/\.md$/i, ""),
     relPath,
-    catalogFile: `awn-data/${storeRel}/${relWithinStore}`.replace(/\\/g, "/"),
+    catalogFile: `awn-database/${storeRel}/${relWithinStore}`.replace(/\\/g, "/"),
     source,
     schema,
     status: String(schema.status || "active").trim(),
@@ -196,9 +196,14 @@ function cmsConfigExists(agentRoot, projectRoot = process.cwd()) {
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
   if (!agentRootAbs) return false;
   if (agentSystemDirExists(agentRootAbs)) return true;
-  const configRoot = path.join(agentRootAbs, "awn-data", CMS_CONFIG_STORE);
-  if (!fs.existsSync(configRoot)) return false;
-  return fs.existsSync(path.join(configRoot, "registry.yml"));
+  for (const rel of [
+    path.join("awn-database", CMS_CONFIG_STORE),
+    path.join("awn-data", CMS_CONFIG_STORE)
+  ]) {
+    const configRoot = path.join(agentRootAbs, rel);
+    if (fs.existsSync(path.join(configRoot, "registry.yml"))) return true;
+  }
+  return false;
 }
 
 function readCmsConfigFile(agentRoot, fileName, projectRoot = process.cwd()) {

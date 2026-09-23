@@ -18,7 +18,10 @@ const {
   LEGACY_CONFIGURATION_SCHEMA_FILE
 } = require("./schema-mod-paths");
 
-const AWN_DATA_DIR = "awn-data";
+const AWN_DATABASE_DIR = "awn-database";
+const LEGACY_AWN_DATA_DIR = "awn-data";
+/** @deprecated use AWN_DATABASE_DIR */
+const AWN_DATA_DIR = AWN_DATABASE_DIR;
 const TABLE_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/table.base.md`;
 const ROW_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/row.base.md`;
 const ENTITY_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/base.md`;
@@ -232,7 +235,11 @@ function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
 function getAwnDataRoot(agentRoot, projectRoot = process.cwd()) {
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
   if (!agentRootAbs) return "";
-  return path.join(agentRootAbs, AWN_DATA_DIR);
+  const databasePath = path.join(agentRootAbs, AWN_DATABASE_DIR);
+  const legacyPath = path.join(agentRootAbs, LEGACY_AWN_DATA_DIR);
+  if (fs.existsSync(databasePath)) return databasePath;
+  if (fs.existsSync(legacyPath)) return legacyPath;
+  return databasePath;
 }
 
 function readSchemaFile(schemaPath) {
@@ -350,7 +357,9 @@ function isStoreManifestFrontmatter(raw) {
 function findAwnDataRootFromStoreAbs(storeAbs) {
   let dir = path.resolve(String(storeAbs || ""));
   while (dir) {
-    if (path.basename(dir) === AWN_DATA_DIR) return dir;
+    if (path.basename(dir) === AWN_DATABASE_DIR || path.basename(dir) === LEGACY_AWN_DATA_DIR) {
+      return dir;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -388,7 +397,8 @@ function normalizeExtendsRef(ref) {
   if (
     normalized &&
     !isTypeIdRef(normalized) &&
-    !normalized.startsWith(`${AWN_DATA_DIR}/`) &&
+    !normalized.startsWith(`${AWN_DATABASE_DIR}/`) &&
+    !normalized.startsWith(`${LEGACY_AWN_DATA_DIR}/`) &&
     !normalized.startsWith(".") &&
     !path.isAbsolute(normalized)
   ) {
@@ -451,8 +461,10 @@ function resolveExtendsSchemaAbs(storeAbs, extendsRef, agentRoot = "") {
     }
   }
 
-  if (dataRoot && ref.startsWith(`${AWN_DATA_DIR}/`)) {
-    const withinData = ref.slice(`${AWN_DATA_DIR}/`.length);
+  if (dataRoot && (ref.startsWith(`${AWN_DATABASE_DIR}/`) || ref.startsWith(`${LEGACY_AWN_DATA_DIR}/`))) {
+    const withinData = ref.startsWith(`${AWN_DATABASE_DIR}/`)
+      ? ref.slice(`${AWN_DATABASE_DIR}/`.length)
+      : ref.slice(`${LEGACY_AWN_DATA_DIR}/`.length);
     if (withinData.endsWith(".md") || withinData.endsWith(".yml")) {
       candidates.push(path.join(dataRoot, withinData));
     }
@@ -716,7 +728,7 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
   const fields = normalizeAwnFieldsMap(schema.fields || {});
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
   const extendsRef = resolveElementExtendsRef(schema.extends || DEFAULT_ELEMENT_SCHEMA_TYPE);
-  const lines = ["version: 1", "layer: awn-data-store", "", "awn_schema:", "  record:"];
+  const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:", "  record:"];
   if (extendsRef) lines.push(`    extends: ${extendsRef}`);
   lines.push("    fields:");
   if (Object.keys(fields).length) {
@@ -1122,7 +1134,7 @@ function loadAwnDataStores(agentRoot, projectRoot = process.cwd()) {
 
   return {
     specVersion: "0.2",
-    model: "awn-data",
+    model: "awn-database",
     root: dataRoot.replace(/\\/g, "/"),
     storeCount: stores.length,
     stores
@@ -1195,7 +1207,7 @@ function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "")
 
 const BASE_SCHEMA_TEMPLATE = `---
 awn-type: awn.data.base
-awn-layer: awn-data-base
+awn-layer: awn-database-base
 awn-fields:
   awn-id:
     type: awn.string
@@ -1210,7 +1222,7 @@ awn-fields:
     title: Обновлено
 ---
 
-Базовые поля каждой записи в awn-data (наследуются всеми накопителями).
+Базовые поля каждой записи в awn-database (наследуются всеми накопителями).
 `;
 
 function yamlQuote(value) {
@@ -2063,6 +2075,8 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
 }
 
 module.exports = {
+  AWN_DATABASE_DIR,
+  LEGACY_AWN_DATA_DIR,
   AWN_DATA_DIR,
   STORE_CONTRACT_FILE,
   STORE_MD_FILE,

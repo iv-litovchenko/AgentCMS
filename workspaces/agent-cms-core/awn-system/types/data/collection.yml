@@ -40,5 +40,5 @@ elements-schema:
     main: Основное
 examples:
   - awn-system/types/pages/
-  - awn-data/taxonomies/tags/
+  - awn-database/taxonomies/tags/
   - awn-system/types/fields/

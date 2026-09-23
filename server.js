@@ -11943,7 +11943,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
 
 async function buildAwnDataIndexMarkdown({ stores }) {
   const entries = flattenAwnDataStoresForIndex(stores);
-  const lines = ["# Оглавление инфоблоков (awn-data)", ""];
+  const lines = ["# Оглавление инфоблоков (awn-database)", ""];
   lines.push(formatAwnDataIndexEntriesMarkdown(entries));
   return `${lines.join("\n").trimEnd()}\n`;
 }
@@ -11971,7 +11971,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-data. Полный → iblock_read_index / iblock_list."
+      hint: "Краткий каталог awn-database. Полный → iblock_read_index / iblock_list."
     };
   }
 
@@ -11987,7 +11987,7 @@ async function buildAgentDataStoresSummary() {
     version: 1,
     model: "data-stores-summary",
     hint:
-      "Краткий каталог инфоблоков awn-data (path, kind, title, recordCount). " +
+      "Краткий каталог инфоблоков awn-database (path, kind, title, recordCount). " +
       "Полный оглавление → iblock_read_index; детали store → iblock_get / iblock_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
@@ -12012,7 +12012,7 @@ async function buildAgentAwnDataIndex() {
   if (!agentRoot) {
     return {
       version: 1,
-      model: "awn-data-index",
+      model: "awn-database-index",
       entries: [],
       entryCount: 0,
       storeCount: 0,
@@ -12028,14 +12028,14 @@ async function buildAgentAwnDataIndex() {
 
   return {
     version: 1,
-    model: "awn-data-index",
+    model: "awn-database-index",
     hint:
-      "Оглавление накопителей awn-data (kind, group, path, title, description, recordCount) без body и properties. " +
-      "Полный каталог → GET /api/awn-data.",
+      "Оглавление накопителей awn-database (kind, group, path, title, description, recordCount) без body и properties. " +
+      "Полный каталог → GET /api/awn-database.",
     whenToUse: {
       iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
       iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-data (таблица kind/group/path/title/description)."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица kind/group/path/title/description)."
     },
     path: manifestPath,
     indexFile: {
@@ -12076,8 +12076,8 @@ async function writeAgentAwnDataIndex(options = {}) {
   }
   return {
     version: 1,
-    model: "awn-data-index-write",
-    hint: "index.md обновлён в awn-data/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-data-index.",
+    model: "awn-database-index-write",
+    hint: "index.md обновлён в awn-database/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-database-index.",
     whenToUse: payload.whenToUse,
     path: payload.path,
     overwrite,
@@ -13147,15 +13147,15 @@ const SESSION_CONTEXT_API_MAP = {
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   awnDataIndex:
-    "GET /api/agent/awn-data-index — оглавление awn-data/index.md (kind, group, path, title, description; инфоблоки)",
-  awnDataIndexWrite: "POST /api/agent/awn-data-index — обновить awn-data/index.md (body: overwrite?)",
-  dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
-  dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
-  dataRecordCreate: "POST /api/awn-data/records — добавить запись",
-  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — schema.yml полей записей",
-  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить schema.yml",
+    "GET /api/agent/awn-database-index — оглавление awn-database/index.md (kind, group, path, title, description; инфоблоки)",
+  awnDataIndexWrite: "POST /api/agent/awn-database-index — обновить awn-database/index.md (body: overwrite?)",
+  dataStores: "GET /api/awn-database — накопители awn-database; ?store= для одного",
+  dataStoreCreate: "POST /api/awn-database/stores — создать накопитель",
+  dataRecordCreate: "POST /api/awn-database/records — добавить запись",
+  dataStoreSchemaRead: "GET /api/awn-database/store-schema?store= — schema.yml полей записей",
+  dataStoreSchemaWrite: "POST /api/awn-database/store-schema — сохранить schema.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
-  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-data/ui/*)",
+  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-database/ui/*)",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
@@ -18880,6 +18880,12 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 
 function normalizeApiPathname(pathname) {
   const path = String(pathname || "");
+  if (path === "/api/awn-data" || path.startsWith("/api/awn-data/")) {
+    return path.replace(/^\/api\/awn-data(?=\/|$)/, "/api/awn-database");
+  }
+  if (path === "/api/agent/awn-data-index") {
+    return "/api/agent/awn-database-index";
+  }
   if (path === "/api/file/page-config" || path === "/api/page/config") return "/api/file/node-config";
   if (path === "/api/file/page-schema") return "/api/file/topic-schema";
   if (path === "/api/page/env" || path === "/api/file/page-env") return "/api/env";
@@ -19932,19 +19938,19 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/awn-data-index") {
+  if (req.method === "GET" && url.pathname === "/api/agent/awn-database-index") {
     try {
       const payload = await buildAgentAwnDataIndex();
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to read awn-data index",
+        error: "Failed to read awn-database index",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/agent/awn-data-index") {
+  if (req.method === "POST" && url.pathname === "/api/agent/awn-database-index") {
     try {
       const payload = await readJsonBody(req);
       const result = await writeAgentAwnDataIndex({
@@ -19960,7 +19966,7 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, result);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to write awn-data index",
+        error: "Failed to write awn-database index",
         details: String(error.message || error)
       });
     }
@@ -22241,7 +22247,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22250,13 +22256,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to load awn-data stores",
+        error: "Failed to load awn-database stores",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/stores") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/stores") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22273,13 +22279,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {
       return sendJson(res, 400, {
-        error: "Failed to create awn-data store",
+        error: "Failed to create awn-database store",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/records") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/records") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22293,13 +22299,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {
       return sendJson(res, 400, {
-        error: "Failed to create awn-data record",
+        error: "Failed to create awn-database record",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data/store-schema") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database/store-schema") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22309,13 +22315,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
-        error: "Failed to read awn-data store schema",
+        error: "Failed to read awn-database store schema",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/store-schema") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/store-schema") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22332,13 +22338,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
       return sendJson(res, 400, {
-        error: "Failed to save awn-data store schema",
+        error: "Failed to save awn-database store schema",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data/store-properties") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database/store-properties") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22362,7 +22368,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/store-properties") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/store-properties") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22400,7 +22406,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data/store-property") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database/store-property") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22418,7 +22424,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/store-property") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/store-property") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22446,7 +22452,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data/record-properties") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database/record-properties") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22477,7 +22483,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/record-properties") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/record-properties") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22523,7 +22529,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/awn-data/record-property") {
+  if (req.method === "GET" && url.pathname === "/api/awn-database/record-property") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22548,7 +22554,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-data/record-property") {
+  if (req.method === "POST" && url.pathname === "/api/awn-database/record-property") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22695,7 +22701,7 @@ async function handleApiForAgent(req, res, url) {
       const isStoreManifest = /\/manifest\.md$/i.test(normPath) || /\/manifest\.store\.md$/i.test(normPath);
       const isTypeFile =
         !isStoreManifest &&
-        (/^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
+        (/^(?:awn-database|awn-data)\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
           /^awn-system\/types\/.+\.ya?ml$/i.test(normPath));
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");

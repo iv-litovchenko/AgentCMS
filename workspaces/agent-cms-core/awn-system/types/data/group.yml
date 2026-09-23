@@ -8,5 +8,5 @@ store-kind: group
 description: manifest + подпапки-накопители, без собственных записей
 record-hierarchy: false
 examples:
-  - awn-data/taxonomies/
-  - awn-data/taxonomies/
+  - awn-database/taxonomies/
+  - awn-database/taxonomies/

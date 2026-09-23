@@ -4,7 +4,7 @@ const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { findCatalogScaffold } = require("./agent-registry");
 const { AWN_DATA_DIR, getAwnDataPayload } = require("./awn-data-loader");
 
-/** Presets backed by awn-data/taxonomies/{preset}/ */
+/** Presets backed by awn-database/taxonomies/{preset}/ */
 const AWN_DATA_TAXONOMY_PRESETS = new Set([
   "tags",
   "categories",
@@ -23,7 +23,7 @@ const PRESET_TO_STORE_REL = {
   users: "taxonomies/users"
 };
 
-const AWN_DATA_MANIFEST_REL_PREFIX = "awn-data/taxonomies";
+const AWN_DATA_MANIFEST_REL_PREFIX = "awn-database/taxonomies";
 
 function getAwnDataTaxonomyManifestRel(preset) {
   return `${AWN_DATA_MANIFEST_REL_PREFIX}/${preset}/manifest.md`;
@@ -141,7 +141,7 @@ function loadTaxonomyItemsFromAwnData(projectRoot, preset) {
 function loadTaxonomyPresetFromAwnData(projectRoot, preset) {
   const items = loadTaxonomyItemsFromAwnData(projectRoot, preset);
   if (!items?.length) return null;
-  return { items, source: "awn-data", storeRel: getTaxonomyStoreRel(preset) };
+  return { items, source: "awn-database", storeRel: getTaxonomyStoreRel(preset) };
 }
 
 module.exports = {

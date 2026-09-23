@@ -3,7 +3,7 @@ import { z } from "zod";
 const storePath = z
   .string()
   .min(1)
-  .describe("Store relPath under awn-data/, e.g. tasks, taxonomies/statuses, agent-registry/agents");
+  .describe("Store relPath under awn-database/, e.g. tasks, taxonomies/statuses, agent-registry/agents");
 
 const recordRef = z
   .string()
@@ -15,9 +15,9 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_list",
-    "List infoblocks (awn-data): groups, collections, singletons.",
+    "List infoblocks (awn-database): groups, collections, singletons.",
     z.object({}),
-    () => client.get("/api/awn-data")
+    () => client.get("/api/awn-database")
   );
 
   reg(
@@ -26,7 +26,7 @@ export function registerIblockTools(reg, client) {
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/statuses, tasks")
     }),
-    ({ store }) => client.get("/api/awn-data", { store })
+    ({ store }) => client.get("/api/awn-database", { store })
   );
 
   reg(
@@ -34,25 +34,25 @@ export function registerIblockTools(reg, client) {
     "Create infoblock: group, collection (MD or CSV for taxonomies/), or singleton.",
     z.object({
       kind: z.enum(["group", "collection", "singleton"]).optional(),
-      slug: z.string().min(1).describe("Folder slug under awn-data/, e.g. taxonomies/users"),
+      slug: z.string().min(1).describe("Folder slug under awn-database/, e.g. taxonomies/users"),
       name: z.string().optional(),
       description: z.string().optional(),
       hierarchy: z.boolean().optional(),
       withSampleRecord: z.boolean().optional()
     }),
-    (payload) => client.post("/api/awn-data/stores", payload)
+    (payload) => client.post("/api/awn-database/stores", payload)
   );
 
   reg(
     "iblock_read_index",
-    "Quick TOC for all infoblocks: kind, group, path, title, description, recordCount (awn-data/index.md). No body. indexFile.exists shows on-disk index.md.",
+    "Quick TOC for all infoblocks: kind, group, path, title, description, recordCount (awn-database/index.md). No body. indexFile.exists shows on-disk index.md.",
     z.object({}),
-    () => client.get("/api/agent/awn-data-index")
+    () => client.get("/api/agent/awn-database-index")
   );
 
   reg(
     "iblock_refresh_index",
-    "Refresh (rebuild and save) awn-data/index.md from iblock_list (kind/group/path/title/description table). overwrite=false skips if file exists.",
+    "Refresh (rebuild and save) awn-database/index.md from iblock_list (kind/group/path/title/description table). overwrite=false skips if file exists.",
     z.object({
       overwrite: z
         .boolean()
@@ -60,7 +60,7 @@ export function registerIblockTools(reg, client) {
         .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
     }),
     ({ overwrite }) =>
-      client.post("/api/agent/awn-data-index", {
+      client.post("/api/agent/awn-database-index", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
   );
@@ -71,14 +71,14 @@ export function registerIblockTools(reg, client) {
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
     }),
-    ({ store }) => client.get("/api/awn-data/store-schema", { store })
+    ({ store }) => client.get("/api/awn-database/store-schema", { store })
   );
 
   reg(
     "iblock_read_properties",
     "Read full YAML frontmatter of infoblock manifest.md.",
     z.object({ store: storePath }),
-    ({ store }) => client.get("/api/awn-data/store-properties", { store })
+    ({ store }) => client.get("/api/awn-database/store-properties", { store })
   );
 
   reg(
@@ -88,7 +88,7 @@ export function registerIblockTools(reg, client) {
       store: storePath,
       content: z.string().describe("YAML patch, e.g. awn-name: Задачи")
     }),
-    ({ store, content }) => client.post("/api/awn-data/store-properties", { store, content })
+    ({ store, content }) => client.post("/api/awn-database/store-properties", { store, content })
   );
 
   reg(
@@ -98,7 +98,7 @@ export function registerIblockTools(reg, client) {
       store: storePath,
       key: z.string().min(1)
     }),
-    ({ store, key }) => client.get("/api/awn-data/store-properties", { store, key })
+    ({ store, key }) => client.get("/api/awn-database/store-properties", { store, key })
   );
 
   reg(
@@ -109,7 +109,7 @@ export function registerIblockTools(reg, client) {
       key: z.string().min(1),
       value: z.string()
     }),
-    ({ store, key, value }) => client.post("/api/awn-data/store-properties", { store, key, value })
+    ({ store, key, value }) => client.post("/api/awn-database/store-properties", { store, key, value })
   );
 
   // ── Infoblock content (iblock_content_*) ───────────────────────────────────
@@ -123,7 +123,7 @@ export function registerIblockTools(reg, client) {
       title: z.string().optional(),
       parent: z.string().optional()
     }),
-    (payload) => client.post("/api/awn-data/records", payload)
+    (payload) => client.post("/api/awn-database/records", payload)
   );
 
   reg(
@@ -134,7 +134,7 @@ export function registerIblockTools(reg, client) {
       record: recordRef
     }),
     ({ store, record }) =>
-      client.get("/api/awn-data/record-properties", {
+      client.get("/api/awn-database/record-properties", {
         store,
         ...(record ? { record } : {})
       })
@@ -149,7 +149,7 @@ export function registerIblockTools(reg, client) {
       content: z.string()
     }),
     ({ store, record, content }) =>
-      client.post("/api/awn-data/record-properties", {
+      client.post("/api/awn-database/record-properties", {
         store,
         content,
         ...(record ? { record } : {})
@@ -165,7 +165,7 @@ export function registerIblockTools(reg, client) {
       key: z.string().min(1)
     }),
     ({ store, record, key }) =>
-      client.get("/api/awn-data/record-properties", {
+      client.get("/api/awn-database/record-properties", {
         store,
         key,
         ...(record ? { record } : {})
@@ -182,7 +182,7 @@ export function registerIblockTools(reg, client) {
       value: z.string()
     }),
     ({ store, record, key, value }) =>
-      client.post("/api/awn-data/record-properties", {
+      client.post("/api/awn-database/record-properties", {
         store,
         key,
         value,

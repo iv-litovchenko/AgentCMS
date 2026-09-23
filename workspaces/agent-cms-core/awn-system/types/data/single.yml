@@ -27,4 +27,4 @@ elements-schema:
     main: Основное
     system: Системное
 examples:
-  - awn-data/agent-registry/agents/
+  - awn-database/agent-registry/agents/

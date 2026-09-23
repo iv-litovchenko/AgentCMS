@@ -38,8 +38,11 @@ function stripStorageRootPrefix(relPath) {
 }
 /** Служебный слой Neos-like: node-types, fields — не в меню контента */
 const CONFIGURATION_ROOT_FOLDER = "configuration";
-/** Накопители информации (инфоблоки) — sidebar awn-data, не в дереве тем */
-const AWN_DATA_ROOT_FOLDER = "awn-data";
+/** Накопители информации (инфоблоки) — sidebar awn-database, не в дереве тем */
+const AWN_DATABASE_ROOT_FOLDER = "awn-database";
+const LEGACY_AWN_DATA_ROOT_FOLDER = "awn-data";
+/** @deprecated use AWN_DATABASE_ROOT_FOLDER */
+const AWN_DATA_ROOT_FOLDER = AWN_DATABASE_ROOT_FOLDER;
 /** Google Drive sync — отдельный UI, не в дереве тем */
 const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";
 /** Каталог исходников — sidebar «Репозитории», не в дереве тем */
@@ -55,15 +58,21 @@ const AWN_WORKSPACE_BACKUP_FOLDER = "awn-backup";
 /** Кастомные дашборды и виджеты — sidebar, не в дереве тем */
 const AWN_DASHBOARDS_FOLDER = "awn-dashboards";
 const PLATFORM_DATA_ROOT_FOLDERS = [
-  AWN_DATA_ROOT_FOLDER,
+  AWN_DATABASE_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER
 ];
 const SERVICE_AREA_NAME = "Служебные темы и компоненты";
 
+function isAwnDatabaseFolderName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return lower === AWN_DATABASE_ROOT_FOLDER || lower === LEGACY_AWN_DATA_ROOT_FOLDER;
+}
+
+/** @deprecated use isAwnDatabaseFolderName */
 function isAwnDataFolderName(name) {
-  return String(name || "").trim().toLowerCase() === AWN_DATA_ROOT_FOLDER;
+  return isAwnDatabaseFolderName(name);
 }
 
 function isAwnGoogleDriveFolderName(name) {
@@ -1416,7 +1425,10 @@ module.exports = {
   stripStorageRootPrefix,
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
+  AWN_DATABASE_ROOT_FOLDER,
+  LEGACY_AWN_DATA_ROOT_FOLDER,
   AWN_DATA_ROOT_FOLDER,
+  isAwnDatabaseFolderName,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,

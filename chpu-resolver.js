@@ -315,7 +315,7 @@ async function resolveAwnDataPath(agentRoot, chpuPath) {
   const normalized = String(chpuPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
-  if (!/^awn-data(?:\/|$)/i.test(normalized)) return null;
+  if (!/^awn-database(?:\/|$)/i.test(normalized)) return null;
 
   const segments = normalized.split("/").filter(Boolean);
   for (let len = segments.length; len >= 1; len -= 1) {
@@ -331,7 +331,7 @@ async function resolveAwnDataPath(agentRoot, chpuPath) {
 
     const tail = segments.slice(len);
     const recordId = tail.length ? tail.join("/").replace(/\.md$/i, "") : null;
-    const storeRel = dirRel.replace(/^awn-data\/?/i, "");
+    const storeRel = dirRel.replace(/^awn-database\/?/i, "");
     const workspacePath = recordId ? `${dirRel}/${recordId}` : dirRel;
     return {
       kind: "awnDataStore",
@@ -341,9 +341,9 @@ async function resolveAwnDataPath(agentRoot, chpuPath) {
     };
   }
 
-  const rootAbs = path.join(agentRoot, "awn-data");
-  if (normalized === "awn-data" && (await isDirectory(rootAbs))) {
-    return { kind: "awnDataRoot", workspacePath: "awn-data" };
+  const rootAbs = path.join(agentRoot, "awn-database");
+  if (normalized === "awn-database" && (await isDirectory(rootAbs))) {
+    return { kind: "awnDataRoot", workspacePath: "awn-database" };
   }
 
   return null;

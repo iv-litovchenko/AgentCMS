@@ -165,7 +165,7 @@ function createServer() {
   registerFactsTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── Infoblocks (awn-data): iblock_* + iblock_content_* ─────────────────────
+  // ── Infoblocks (awn-database): iblock_* + iblock_content_* ─────────────────────
 
   registerIblockTools(reg, client);
 

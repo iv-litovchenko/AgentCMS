@@ -80,10 +80,10 @@ const TYPE_ID_ALIASES = {
   "awn.slot.dialogs": "awn.slot.discussion",
   "awn.slot.quick-notes": "awn.slot.note",
   "awn.data.singleton": "awn.data.single",
-  "awn-data/cms-base/data-containers/group.md": "awn.data.group",
-  "awn-data/cms-base/data-containers/collection.md": "awn.data.collection",
-  "awn-data/cms-base/data-containers/single.md": "awn.data.single",
-  "awn-data/cms-base/data-elements/default.md": "awn.data.element.default"
+  "awn-database/cms-base/data-containers/group.md": "awn.data.group",
+  "awn-database/cms-base/data-containers/collection.md": "awn.data.collection",
+  "awn-database/cms-base/data-containers/single.md": "awn.data.single",
+  "awn-database/cms-base/data-elements/default.md": "awn.data.element.default"
 };
 
 function normalizeLegacyCatalogPath(catalogPath) {
@@ -94,12 +94,12 @@ function normalizeLegacyCatalogPath(catalogPath) {
     const rest = normalized.slice("awn-system/types/".length).replace(/\.ya?ml$/i, ".md");
     const domain = rest.split("/")[0];
     const store = DOMAIN_TYPE_STORES[domain];
-    if (store) return `awn-data/${store}/${rest.slice(domain.length + 1)}`;
+    if (store) return `awn-database/${store}/${rest.slice(domain.length + 1)}`;
   }
 
   normalized = normalized.replace(
-    /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\//,
-    "awn-data/$1/"
+    /^awn-database\/(pages|content|slots|base|mixins|settings)\/types\//,
+    "awn-database/$1/"
   );
 
   const legacyPlatform = normalized.match(
@@ -107,7 +107,7 @@ function normalizeLegacyCatalogPath(catalogPath) {
   );
   if (legacyPlatform) {
     const store = DOMAIN_TYPE_STORES[legacyPlatform[1]];
-    if (store) return `awn-data/${store}/${legacyPlatform[2]}.md`;
+    if (store) return `awn-database/${store}/${legacyPlatform[2]}.md`;
   }
 
   return normalized;
@@ -377,7 +377,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const byDomain = {};
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
-    : ["platform:agent-cms-core/awn-data"];
+    : ["platform:agent-cms-core/awn-database"];
   const platformExtraDomains = ["mixins", "settings", "md-blocks", "data", "presets"];
 
   if (coreUsesYaml) {
@@ -411,7 +411,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
       ingestYamlDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
     }
   } else if (isCoreAgent) {
-    sources.push("awn-data/cms-base:agent");
+    sources.push("awn-database/cms-base:agent");
     for (const domain of resolveAgentDomainIds(getCmsConfigAbsolute(agentRootAbs))) {
       ingestDomainTypesFromAwnData(projectRoot, domain, "agent", byId, byDomain, agentRootAbs);
     }
@@ -569,7 +569,7 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
     fileName: entry.fileName,
     catalogFile:
       entry.catalogFile ||
-      `awn-data/${DOMAIN_TYPE_STORES[entry.domain] || entry.domain}/${entry.relPath || entry.fileName}.md`,
+      `awn-database/${DOMAIN_TYPE_STORES[entry.domain] || entry.domain}/${entry.relPath || entry.fileName}.md`,
     source: entry.source || "platform",
     kind: entry.kind || entry.schema?.kind || null,
     status: entry.status,
@@ -955,7 +955,7 @@ function getTypeUsage(entry, merged, byId) {
         consumers.push(`поле темы «${merged["props-field"]}»`);
         wired = true;
       }
-      if (merged["data-path"]) consumers.push("справочник (awn-data)");
+      if (merged["data-path"]) consumers.push("справочник (awn-database)");
       if (merged["create-node-group"]) consumers.push("меню «создать»");
       if (!consumers.length) note = "нет props-field/data-path — ни к чему не привязан";
       break;

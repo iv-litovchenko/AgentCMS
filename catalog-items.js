@@ -121,7 +121,7 @@ async function addCatalogItemToAwnData(projectRoot, preset, itemInput) {
     preset,
     item,
     total: existing.length + 1,
-    source: "awn-data",
+    source: "awn-database",
     storeRel
   };
 }

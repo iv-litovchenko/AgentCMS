@@ -22,13 +22,13 @@
     {
       "title": "Справочники",
       "items": [
-        { "label": "Таксономии (справочники)", "path": "awn-data/taxonomies/manifest.md" },
-        { "label": "Теги", "path": "awn-data/taxonomies/tags/manifest.md" },
-        { "label": "Категории", "path": "awn-data/taxonomies/categories/manifest.md" },
-        { "label": "Статусы", "path": "awn-data/taxonomies/statuses/manifest.md" },
-        { "label": "Пользователи", "path": "awn-data/taxonomies/users/manifest.md" },
-        { "label": "Приоритеты", "path": "awn-data/taxonomies/priorities/manifest.md" },
-        { "label": "Палитра", "path": "awn-data/taxonomies/colors/manifest.md" }
+        { "label": "Таксономии (справочники)", "path": "awn-database/taxonomies/manifest.md" },
+        { "label": "Теги", "path": "awn-database/taxonomies/tags/manifest.md" },
+        { "label": "Категории", "path": "awn-database/taxonomies/categories/manifest.md" },
+        { "label": "Статусы", "path": "awn-database/taxonomies/statuses/manifest.md" },
+        { "label": "Пользователи", "path": "awn-database/taxonomies/users/manifest.md" },
+        { "label": "Приоритеты", "path": "awn-database/taxonomies/priorities/manifest.md" },
+        { "label": "Палитра", "path": "awn-database/taxonomies/colors/manifest.md" }
       ]
     },
     {

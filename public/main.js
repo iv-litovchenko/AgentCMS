@@ -79,10 +79,10 @@ const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-cr
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
 const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-data-create-group-btn");
 const menuAwnDataSearchInputNode = document.getElementById("menu-awn-data-search-input");
-const menuAwnDataIndexRowNode = document.getElementById("menu-awn-data-index-row");
-const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-data-index-open-btn");
-const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-data-index-refresh-btn");
-const AWN_DATA_INDEX_REL_PATH = "awn-data/index.md";
+const menuAwnDataIndexRowNode = document.getElementById("menu-awn-database-index-row");
+const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-database-index-open-btn");
+const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-database-index-refresh-btn");
+const AWN_DATA_INDEX_REL_PATH = "awn-database/index.md";
 /** false = форма видна, но disabled (без отправки/ответов/реакций) */
 const AWN_DATA_COMMENTS_ENABLED = false;
 const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
@@ -2434,7 +2434,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openRepositoryWorkspacePath(folderPath, { skipRouteSync: true });
       return;
     }
-    if (/^awn-data(?:\/|$)/i.test(folderPath)) {
+    if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
         resolved.agentId || activeAgentId,
@@ -2457,7 +2457,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openRepositoryWorkspacePath(filePath, { skipRouteSync: true });
       return;
     }
-    if (/^awn-data\//i.test(filePath)) {
+    if (/^(?:awn-database|awn-data)\//i.test(filePath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         filePath.replace(/\.md$/i, ""),
         resolved.agentId || activeAgentId,
@@ -2476,7 +2476,7 @@ async function applyChpuResolvedRoute(resolved) {
   if (resolved?.kind === "awnDataStore" || resolved?.kind === "awnDataRoot") {
     hideHomeView();
     const opened = await openAwnDataRouteFromWorkspacePath(
-      resolved.workspacePath || "awn-data",
+      resolved.workspacePath || "awn-database",
       resolved.agentId || activeAgentId,
       { skipRouteSync: true }
     );
@@ -2492,7 +2492,7 @@ async function applyChpuResolvedRoute(resolved) {
       .replace(/\\/g, "/")
       .replace(/\/manifest\.md$/i, "")
       .replace(/^\/+|\/+$/g, "");
-    if (/^awn-data(?:\/|$)/i.test(topicPath)) {
+    if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(topicPath)) {
       hideHomeView();
       const opened = await openAwnDataRouteFromWorkspacePath(
         topicPath,
@@ -2543,7 +2543,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openAwnDataIndexOverview();
       return;
     }
-    if (/^awn-data\//i.test(fileRel)) {
+    if (/^(?:awn-database|awn-data)\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
         resolved.agentId || activeAgentId,
@@ -2768,7 +2768,7 @@ function getChpuWorkspacePathFromState() {
     return appendChpuViewToWorkspacePath(folderPath, "folder", { force: true });
   }
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
-    let routePath = `awn-data/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
+    let routePath = `awn-database/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
     const recordId = String(awnDataViewRecordId || "").trim();
     if (recordId) routePath += `/${recordId}`;
     return routePath;
@@ -3120,7 +3120,7 @@ function buildActiveFocusFromState() {
 
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
     return {
-      entity: "awn-data-store",
+      entity: "awn-database-store",
       store: { relPath: awnDataViewStoreRel },
       editing: false
     };
@@ -4254,7 +4254,7 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (parseStorageLayerRef(normalizedPart)) {
     return normalizedPart;
   }
-  if (/^(?:awn-container|awn-repositories|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
+  if (/^(?:awn-container|awn-repositories|awn-database|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
     return normalizedPart;
   }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
@@ -22571,7 +22571,7 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
 }
 
 const PLATFORM_DATA_ROOT_FOLDERS = new Set([
-  "awn-data",
+  "awn-database",
   "awn-google-drive",
   "awn-repositories",
   "awn-vendor"
@@ -43177,11 +43177,11 @@ function projectSettingsScopeSearchHaystack(scope) {
             : scope?.level === "topic"
               ? "тема темы"
               : scope?.level === "iblock-group"
-                ? "инфоблок группа awn-data"
+                ? "инфоблок группа awn-database"
                 : scope?.level === "iblock-collection"
-                  ? "инфоблок коллекция awn-data"
+                  ? "инфоблок коллекция awn-database"
                   : scope?.level === "iblock-singleton"
-                    ? "инфоблок одиночка awn-data"
+                    ? "инфоблок одиночка awn-database"
                     : "";
   return [scope?.label, path, pathTail, levelLabel]
     .map((value) => String(value || "").trim())
@@ -43377,7 +43377,7 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   btn.classList.toggle("has-iblock-records", recordCount > 0);
   btn.title = [
     scope.label,
-    storeRel ? `awn-data/${storeRel}` : "",
+    storeRel ? `awn-database/${storeRel}` : "",
     kindLabel,
     recordCount > 0 ? `${recordCount} записей` : "записей нет",
     "заглушка — редактор в разработке"
@@ -43959,7 +43959,7 @@ function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifest
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = storeRel
-      ? `Заглушка для <code>awn-data/${escapeHtml(storeRel)}</code> (${escapeHtml(kindLabel)}). Настройки <code>schema.yml</code> и <code>config.yml</code> инфоблока появятся здесь позже.`
+      ? `Заглушка для <code>awn-database/${escapeHtml(storeRel)}</code> (${escapeHtml(kindLabel)}). Настройки <code>schema.yml</code> и <code>config.yml</code> инфоблока появятся здесь позже.`
       : "Заглушка: настройки инфоблока в разработке.";
   }
 
@@ -88428,7 +88428,7 @@ function buildNewFieldTypeYaml(slug, displayName) {
 function resolveNewTypeFilePath(domain, slug) {
   if (domain === "fields") return `awn-system/types/fields/${slug}.yml`;
   const store = AWN_DATA_TYPE_STORE[domain] || domain;
-  return `awn-data/${store}/${slug}.md`;
+  return `awn-database/${store}/${slug}.md`;
 }
 
 async function createStarterRenderer(relPath, title) {
@@ -97287,7 +97287,7 @@ const AWN_TYPE_NAV_GROUPS = [
   { label: "Блоки редактора", domains: ["md-blocks"] },
   { label: "Настройки", domains: ["settings"] },
   { label: "Пресеты", domains: ["presets"] },
-  { label: "Данные (awn-data)", domains: ["data"] },
+  { label: "Данные (awn-database)", domains: ["data"] },
   { label: "Миксины", domains: ["mixins"] },
   { label: "Базовые", kinds: ["base", "entity", "meta"] }
 ];
@@ -98061,7 +98061,7 @@ function appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataP
   nodes.push({
     id: awnDataRootId,
     label: "Инфоблоки",
-    graphSubLabel: "awn-data",
+    graphSubLabel: "awn-database",
     graphGlyph: "🧩",
     isSatelliteRoot: true,
     type: "iblock",
@@ -98118,7 +98118,7 @@ async function loadAgentGraphAwnDataPayload() {
   const resolvedAgent = String(activeAgentId || "").trim();
   if (!resolvedAgent) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-data", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/awn-database", {}, resolvedAgent));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -101108,7 +101108,7 @@ function getAwnDataIndexRelPath() {
 }
 
 async function probeAwnDataIndexExists() {
-  for (const relPath of [getAwnDataIndexRelPath(), "awn-data/INDEX.md"]) {
+  for (const relPath of [getAwnDataIndexRelPath(), "awn-database/INDEX.md"]) {
     try {
       const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
       if (response.ok) return true;
@@ -101189,10 +101189,10 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
       entry.type ||
       ({ group: "группа", collection: "коллекция", singleton: "одиночка" }[entry.kind] || entry.kind),
     group: entry.group || "—",
-    linkPath: entry.linkPath || (entry.path ? `awn-data/${entry.path}/manifest.md`.replace(/\/+/g, "/") : "")
+    linkPath: entry.linkPath || (entry.path ? `awn-database/${entry.path}/manifest.md`.replace(/\/+/g, "/") : "")
   }));
   return [
-    "# Оглавление инфоблоков (awn-data)",
+    "# Оглавление инфоблоков (awn-database)",
     "",
     formatAwnDataIndexEntriesMarkdown(entries)
   ]
@@ -101201,10 +101201,10 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
 }
 
 async function fetchAwnDataIndexMarkdownFromApi() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-data-index"));
+  const response = await fetch(buildApiUrl("/api/agent/awn-database-index"));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.details || `awn-data-index ${response.status}`);
+    throw new Error(errorData.error || errorData.details || `awn-database-index ${response.status}`);
   }
   const payload = await response.json();
   return `${formatAwnDataIndexPayloadAsMarkdown(payload)}\n`;
@@ -101224,19 +101224,19 @@ async function openAwnDataIndexOverview() {
     }
   }
   hideHomeView();
-  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-data" });
+  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-database" });
   void renderFolderBrowseFileView();
 }
 
 async function refreshAwnDataIndexOverview() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-data-index"), {
+  const response = await fetch(buildApiUrl("/api/agent/awn-database-index"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ overwrite: true })
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.details || `awn-data-index ${response.status}`);
+    throw new Error(errorData.error || errorData.details || `awn-database-index ${response.status}`);
   }
   awnDataIndexPreviewOverride = null;
   return true;
@@ -101989,15 +101989,15 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (awnDataCreateModalHintNode) {
     if (awnDataCreateKind === "group") {
       awnDataCreateModalHintNode.innerHTML =
-        "Папка в <code>awn-data/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
+        "Папка в <code>awn-database/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-data/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
+        "Поднакопитель в <code>awn-database/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "singleton"
-          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema.yml</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema.yml</code> и записями <code>{id}.md</code>.";
+          ? "Папка в <code>awn-database/</code> с <code>manifest.md</code>, <code>schema.yml</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-database/</code> с <code>manifest.md</code>, <code>schema.yml</code> и записями <code>{id}.md</code>.";
     }
   }
   awnDataCreateSampleWrapNode?.classList.toggle(
@@ -102183,7 +102183,7 @@ function resolveAwnDataStoreSchemeModRel() {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return "";
-  return `awn-data/${storeRel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
+  return `awn-database/${storeRel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
 }
 
 function setAwnDataViewSettingsAccordionOpen(open) {
@@ -102224,7 +102224,7 @@ async function beginAwnDataViewSchemeModEdit() {
     } else if (response.status === 404) {
       content = [
         "version: 1",
-        "layer: awn-data-store",
+        "layer: awn-database-store",
         "",
         "awn_schema:",
         "  record:",
@@ -102275,7 +102275,7 @@ async function saveAwnDataViewSchemeModEdit() {
     await refreshMenuAwnDataStores(catalogAgentId);
     if (storeRel) {
       const reloadResponse = await fetch(
-        buildApiUrl("/api/awn-data", { store: storeRel }, catalogAgentId)
+        buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId)
       );
       if (reloadResponse.ok) {
         const reloadData = await reloadResponse.json();
@@ -102492,8 +102492,8 @@ function resolveAwnDataStoreManifestRelPath(store) {
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
   if (!rel) return "";
-  if (/\/manifest\.md$/i.test(rel)) return rel.startsWith("awn-data/") ? rel : `awn-data/${rel}`;
-  return `awn-data/${rel}/manifest.md`;
+  if (/\/manifest\.md$/i.test(rel)) return rel.startsWith("awn-database/") ? rel : `awn-database/${rel}`;
+  return `awn-database/${rel}/manifest.md`;
 }
 
 function resolveAwnDataCommentsContext(store, record = null) {
@@ -102593,7 +102593,7 @@ function renderAwnDataIblockDescription(store) {
   emptyNode?.classList.add("hidden");
   briefFold?.classList.toggle("is-empty", false);
   const manifestPath =
-    store?.manifestRelPath || (store?.relPath ? `awn-data/${store.relPath}/manifest.md` : "");
+    store?.manifestRelPath || (store?.relPath ? `awn-database/${store.relPath}/manifest.md` : "");
   if (typeof renderMarkdownToHtml === "function") {
     descNode.innerHTML = renderMarkdownToHtml(markdown, { nodePath: manifestPath });
   } else {
@@ -102623,7 +102623,7 @@ async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = active
     const storeRel = parts.slice(0, len).join("/");
     const recordPart = parts.slice(len).join("/");
     try {
-      const response = await fetch(buildApiUrl("/api/awn-data", { store: storeRel }, agentId));
+      const response = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, agentId));
       if (!response.ok) continue;
       if (recordPart) {
         const recordId = recordPart.replace(/\.md$/i, "");
@@ -102878,7 +102878,7 @@ async function loadAwnDataViewStore(agentId = activeAgentId) {
   awnDataViewAddWrapNode?.classList.add("hidden");
 
   try {
-    const response = await fetch(buildApiUrl("/api/awn-data", { store: storeRel }, agentId));
+    const response = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, agentId));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (isStale()) return;
@@ -103266,7 +103266,7 @@ function resolveAwnDataStoreFileRel(fileName = "") {
     .replace(/^\/+/, "");
   if (!storeRel) return "";
   const resolvedName = String(fileName || resolveAwnDataStoreSchemaFileName()).trim() || "manifest.md";
-  return `awn-data/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
+  return `awn-database/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
 }
 
 function setAwnDataViewSchemaEditMode(enabled) {
@@ -103329,7 +103329,7 @@ async function saveAwnDataViewSchemaEdit() {
     await refreshMenuAwnDataStores(catalogAgentId);
     if (storeRel) {
       const reloadResponse = await fetch(
-        buildApiUrl("/api/awn-data", { store: storeRel }, catalogAgentId)
+        buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId)
       );
       if (reloadResponse.ok) {
         const reloadData = await reloadResponse.json();
@@ -103354,7 +103354,7 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return;
-  const fileRel = `awn-data/${storeRel}/${fileName}`.replace(/\\/g, "/");
+  const fileRel = `awn-database/${storeRel}/${fileName}`.replace(/\\/g, "/");
   const label =
     labelHint ||
     `${awnDataViewStoreCache?.name || storeRel} · ${fileName}`;
@@ -103414,7 +103414,7 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
       awnDataViewModalPathNode.classList.add("hidden");
       awnDataViewModalPathNode.textContent = "";
     } else {
-      awnDataViewModalPathNode.textContent = `awn-data/${viewStore.relPath}`;
+      awnDataViewModalPathNode.textContent = `awn-database/${viewStore.relPath}`;
       awnDataViewModalPathNode.classList.remove("hidden");
     }
   }
@@ -103633,7 +103633,7 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
   }
   if (!relPath) return;
 
-  const fileRel = relPath.startsWith("awn-data/") ? relPath : `awn-data/${relPath}`;
+  const fileRel = relPath.startsWith("awn-database/") ? relPath : `awn-database/${relPath}`;
   const label = isCsvStore
     ? `${store?.name || storeRel} · ${store?.recordFile || "main.csv"}`
     : record.title || record.id || fileRel.split("/").pop() || fileRel;
@@ -103786,7 +103786,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   if (isCsvStore && storeRel) {
     fileRel = `${storeRel}/${viewStore.recordFile || "main.csv"}`;
   }
-  if (!fileRel.startsWith("awn-data/")) fileRel = `awn-data/${fileRel}`;
+  if (!fileRel.startsWith("awn-database/")) fileRel = `awn-database/${fileRel}`;
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
 
   try {
@@ -104272,7 +104272,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
 
   awnDataCreateSubmitBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-data/stores", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-database/stores", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -104308,7 +104308,7 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
 
   awnDataAddRecordBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-data/records", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-database/records", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -105686,7 +105686,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
   }
 
   try {
-    const response = await fetch(buildApiUrl("/api/awn-data", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/awn-database", {}, resolvedAgent));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuAwnDataStoresLoadSeq) return;

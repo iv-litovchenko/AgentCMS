@@ -1,0 +1,38 @@
+version: 1
+layer: awn-database-store
+
+awn_schema:
+  record:
+    extends: awn.data.element.default
+    fields:
+      awn-title:
+        type: awn.string
+        title: Название
+        required: true
+        tab: main
+      awn-parent:
+        type: awn.string
+        title: Родитель
+        description: id родительской задачи
+        tab: main
+      awn-status:
+        type: awn.field.choice.one
+        title: Статус
+        enum:
+          - open
+          - in_progress
+          - done
+          - cancelled
+        default: open
+        tab: main
+      awn-priority:
+        type: awn.field.choice.one
+        title: Приоритет
+        enum:
+          - low
+          - normal
+          - high
+        default: normal
+        tab: main
+    tabs:
+      main: Задача
