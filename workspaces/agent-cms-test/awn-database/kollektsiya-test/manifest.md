@@ -5,7 +5,9 @@ awn-record-storage: md
 awn-record-id-mode: numeric
 awn-record-file: "{id}.md"
 awn-record-hierarchy: true
+awn-id: 19
 ---
+
 # Коллекция-тест
 
 Коллекция-тест

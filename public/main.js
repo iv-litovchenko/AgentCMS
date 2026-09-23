@@ -105025,11 +105025,6 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
     headRow.appendChild(th);
   }
 
-  const actionsHead = document.createElement("th");
-  actionsHead.scope = "col";
-  actionsHead.className = "awn-database-view-transposed-actions-head";
-  actionsHead.setAttribute("aria-label", "Действия");
-  headRow.appendChild(actionsHead);
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -105050,51 +105045,37 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
       const cell = document.createElement("td");
       const value = formatAwnDataViewCellValue(record, column);
       cell.className = "awn-database-view-transposed-field-value";
-      if (column.kind === "id") cell.classList.add("awn-database-view-record-id");
-      cell.textContent = value;
+      if (column.kind === "id") {
+        cell.classList.add("awn-database-view-record-id");
+        const idWrap = document.createElement("div");
+        idWrap.className = "awn-database-view-record-id-wrap";
+        const idText = document.createElement("span");
+        idText.className = "awn-database-view-record-id-text";
+        idText.textContent = value;
+        idWrap.append(idText);
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "awn-database-view-edit-btn";
+        editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
+        editBtn.setAttribute("aria-label", editBtn.title);
+        editBtn.append(createOverviewEditManifestIcon());
+        editBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void openAwnDataRecordEditor(record, viewStore);
+        });
+        idWrap.append(editBtn);
+        cell.append(idWrap);
+      } else {
+        cell.textContent = value;
+      }
       if (value !== "—") cell.title = value;
       if (isAwnDataSystemRecord(record)) cell.classList.add("is-system");
       wireAwnDataViewRecordOpen(cell, record, viewStore);
       row.appendChild(cell);
     }
 
-    const actionsCell = document.createElement("td");
-    actionsCell.className = "awn-database-view-transposed-actions-spacer";
-    actionsCell.setAttribute("aria-hidden", "true");
-    row.appendChild(actionsCell);
     tbody.appendChild(row);
   }
-
-  const actionsRow = document.createElement("tr");
-  actionsRow.className = "awn-database-view-transposed-actions-row";
-  const actionsLabel = document.createElement("th");
-  actionsLabel.scope = "row";
-  actionsLabel.className = "awn-database-view-transposed-field-label";
-  actionsLabel.textContent = "Действия";
-  actionsRow.appendChild(actionsLabel);
-
-  for (const record of records) {
-    const cell = document.createElement("td");
-    cell.className = "awn-database-view-record-actions";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "awn-database-view-edit-btn";
-    editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
-    editBtn.setAttribute("aria-label", editBtn.title);
-    editBtn.append(createOverviewEditManifestIcon());
-    editBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      void openAwnDataRecordEditor(record, viewStore);
-    });
-    cell.appendChild(editBtn);
-    actionsRow.appendChild(cell);
-  }
-
-  const actionsTail = document.createElement("td");
-  actionsTail.className = "awn-database-view-transposed-actions-spacer";
-  actionsTail.setAttribute("aria-hidden", "true");
-  actionsRow.appendChild(actionsTail);
-  tbody.appendChild(actionsRow);
 
   table.appendChild(tbody);
   return table;

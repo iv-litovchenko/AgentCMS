@@ -62284,6 +62284,14 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-table--transposed {
   min-width: max-content;
+  width: 100%;
+}
+
+.awn-database-view-table--transposed th,
+.awn-database-view-table--transposed td {
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: middle;
 }
 
 .awn-database-view-table--transposed .awn-database-view-transposed-corner,
@@ -62291,6 +62299,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   position: sticky;
   left: 0;
   z-index: 2;
+  width: 1%;
   min-width: 7.5rem;
   max-width: 11rem;
   font-size: 0.6875rem;
@@ -62300,7 +62309,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #64748b;
   background: #f8fafc;
   border-right: 1px solid #e2e8f0;
-  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .awn-database-view-table--transposed .awn-database-view-transposed-record-head {
@@ -62310,7 +62319,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-weight: 600;
   color: #0f172a;
   cursor: pointer;
-  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -62327,8 +62335,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-table--transposed .awn-database-view-transposed-field-value {
   min-width: 7rem;
-  max-width: 16rem;
   cursor: pointer;
+  color: #334155;
 }
 
 .awn-database-view-table--transposed .awn-database-view-transposed-field-value:hover {
@@ -62339,14 +62347,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #fafafa;
 }
 
-.awn-database-view-table--transposed .awn-database-view-transposed-actions-head,
-.awn-database-view-table--transposed .awn-database-view-transposed-actions-spacer {
-  width: 2.75rem;
+.awn-database-view-table--transposed .awn-database-view-transposed-field-value.awn-database-view-record-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #475569;
 }
 
-.awn-database-view-table--transposed .awn-database-view-transposed-actions-row .awn-database-view-transposed-field-label {
-  text-transform: none;
-  font-size: 0.8125rem;
+.awn-database-view-table--transposed .awn-database-view-transposed-field-row td {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.awn-database-view-table--transposed .awn-database-view-transposed-field-row:last-child td {
+  border-bottom: none;
 }
 
 .awn-database-view-cards {
