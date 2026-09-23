@@ -4329,7 +4329,7 @@ body.shell-desktop .shell-agent-gate select {
   flex-shrink: 0;
 }
 
-.shell-tts-playback-radio-option span {
+.shell-tts-playback-radio-option span:not(.shell-proactive-future-badge) {
   display: inline-flex;
   align-items: center;
   min-height: auto;
@@ -4342,7 +4342,7 @@ body.shell-desktop .shell-agent-gate select {
   background: transparent;
 }
 
-.shell-tts-playback-radio-option:has(input:checked) span {
+.shell-tts-playback-radio-option:has(input:checked) span:not(.shell-proactive-future-badge) {
   color: rgba(125, 211, 252, 0.96);
   background: transparent;
 }
@@ -8600,17 +8600,19 @@ body.shell-bg-wallpaper .shell-character-viewport {
   white-space: normal;
 }
 
-.shell-proactive-future-badge {
+.shell-tts-playback-radio-option .shell-proactive-future-badge {
   display: inline-block;
   flex-shrink: 0;
   margin: 0 0 0 6px;
-  padding: 1px 4px;
+  padding: 2px 5px;
   border-radius: 3px;
   font-size: 9px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: #713f12;
-  background: #facc15;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  color: #422006;
+  background: #ffcc00;
   vertical-align: middle;
 }
 
