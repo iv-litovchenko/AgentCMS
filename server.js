@@ -11892,12 +11892,6 @@ async function resolveAwnDataIndexFileOnDisk() {
   return { path: canonical, exists: false };
 }
 
-const AWN_DATA_KIND_INDEX_LABELS = {
-  group: "группа",
-  collection: "коллекция",
-  single: "одиночка"
-};
-
 function formatAwnDataIndexConfigurations(store) {
   const kind = normalizeStoreKind(store?.kind || "collection");
   if (kind === "group") {
@@ -11912,18 +11906,19 @@ function formatAwnDataIndexConfigurations(store) {
     .toLowerCase();
   if (collectionKind === "files") {
     const types = String(store?.recordFileTypes || store?.schema?.record?.fileTypes || "").trim();
-    const recordCount = Number(store?.recordCount) || 0;
+    const hierarchy =
+      store?.recordHierarchy === true ||
+      store?.schema?.record?.hierarchy === true ||
+      String(store?.schema?.record?.hierarchy || "").trim().toLowerCase() === "true";
     const base = types ? `FILES · ${types}` : "FILES";
-    return recordCount > 0 ? `${base} · ${recordCount} файл.` : base;
+    return hierarchy ? `${base} · разд.` : base;
   }
   const storage = String(store?.recordStorage || "md").toUpperCase();
-  const recordCount = Number(store?.recordCount) || 0;
   const hierarchy =
     store?.recordHierarchy === true ||
     store?.schema?.record?.hierarchy === true ||
     String(store?.schema?.record?.hierarchy || "").trim().toLowerCase() === "true";
-  const hierarchySuffix = hierarchy ? " · разд." : "";
-  return recordCount > 0 ? `${storage} · ${recordCount} зап.${hierarchySuffix}` : `${storage}${hierarchySuffix}`;
+  return hierarchy ? `${storage} · разд.` : storage;
 }
 
 function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
@@ -11934,10 +11929,11 @@ function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
     : relPath
       ? `${AWN_DATA_DIR}/${relPath}/manifest.md`.replace(/\/+/g, "/")
       : "";
+  const workspacePath = relPath ? `${AWN_DATA_DIR}/${relPath}`.replace(/\/+/g, "/") : "";
   return {
-    path: relPath,
+    path: workspacePath,
     linkPath: manifestRel,
-    type: AWN_DATA_KIND_INDEX_LABELS[kind] || kind,
+    type: kind,
     kind,
     group: parentGroup || "—",
     title: String(store?.name || relPath || "").trim(),
@@ -11963,11 +11959,16 @@ function flattenAwnDataStoresForIndex(stores, parentGroup = "") {
   );
 }
 
+function formatContentIndexRecordCount(recordCount) {
+  if (recordCount == null || !Number.isFinite(recordCount) || recordCount < 0) return "—";
+  return String(recordCount);
+}
+
 function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
   if (!entries?.length) return emptyHint;
   const lines = [
-    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Конфигурации |",
-    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | --- |"
+    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Конфигурации |",
+    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
   ];
   for (const entry of entries) {
     const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
@@ -11977,9 +11978,11 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
     const linesCell = formatContentIndexLineCount(entry.lineCount);
     const idCell = formatContentIndexAwnIdCell(entry.awnId);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
+    const recordCountCell = formatContentIndexRecordCount(entry.recordCount);
     const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
+    const typeCell = escapeContentIndexTableCell(entry.kind || entry.type) || "—";
     lines.push(
-      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${configurationsCell} |`
+      `| ${idCell} | ${typeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${configurationsCell} |`
     );
   }
   return lines.join("\n");
@@ -12088,12 +12091,12 @@ async function buildAgentAwnDataIndex() {
     version: 1,
     model: "awn-database-index",
     hint:
-      "Оглавление накопителей awn-database (ID, kind, path, title, description, размер, строки, важность, конфигурации) без body и properties. " +
+      "Оглавление накопителей awn-database (ID, kind, path, title, description, размер, строки, важность, записей, конфигурации) без body и properties. " +
       "Полный каталог → GET /api/awn-database.",
     whenToUse: {
       iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
       iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица ID/тип/путь/название/описание/размер/строки/важность/конфигурации)."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/конфигурации)."
     },
     path: manifestPath,
     indexFile: {

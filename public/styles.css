@@ -59687,11 +59687,9 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-database-store-group-head .folder-toggle-btn--empty-group {
-  opacity: 0.7;
   border-style: dashed;
   border-color: #c4b5fd;
   color: #8b5cf6;
-  cursor: default;
 }
 
 .menu-awn-database-store-group-open-btn {
@@ -59998,28 +59996,24 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #475569;
 }
 
-.menu-awn-database-store-badge--empty {
-  min-width: auto;
-  height: 1.125rem;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.22);
-  color: #64748b;
-  font-size: 0.5625rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
 .menu-awn-database-store-group-empty-hint {
   margin: 0;
-  padding: 0.3rem 0.45rem 0.35rem var(--menu-awn-database-nest-inset);
-  font-size: 0.6875rem;
-  line-height: 1.35;
-  font-style: italic;
-  color: #94a3b8;
+  padding: 0.2rem 0.35rem 0.35rem;
+  padding-left: var(--menu-awn-database-nest-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.5rem;
   list-style: none;
+}
+
+.menu-awn-database-store-group-empty-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  opacity: 0.42;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/%3E%3Cpath d='M9 14h6'/%3E%3C/svg%3E");
 }
 
 .menu-awn-database-store--empty {
@@ -60711,6 +60705,14 @@ body.is-cms-page-picker-active #discuss-aside * {
   max-width: 28rem;
 }
 
+.awn-database-modal-card .slug-field-row {
+  margin-bottom: 10px;
+}
+
+.awn-database-modal-card #awn-database-create-parent-hint {
+  margin-top: 4px;
+}
+
 .awn-database-view-comments-mount {
   margin-top: 18px;
 }
@@ -61014,12 +61016,12 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-iblock-description-body {
   border-top: 0;
-  padding-top: 0;
+  padding: 0.85rem 0.95rem 0.95rem;
 }
 
 .awn-database-view-iblock-description-empty {
-  margin: 0 0.95rem 0.95rem;
-  padding: 10px 12px;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.92);
   border: 1px dashed rgba(148, 163, 184, 0.42);
@@ -61036,8 +61038,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-size: 0.875rem;
   line-height: 1.55;
   color: #475569;
-  padding: 0.85rem 0.95rem;
-  background: #fff;
+  padding: 0;
+  background: transparent;
 }
 
 .awn-database-view-iblock-description.hidden {

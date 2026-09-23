@@ -1573,7 +1573,7 @@ function buildCollectionSchemaContent({
   const desc = String(description || name || slug).trim();
   const kind = normalizeCollectionKind(collectionKind, "records");
   const storage = normalizeRecordStorage(recordStorage, "md");
-  const hierarchy = kind === "records" && storage === "md" ? Boolean(recordHierarchy) : false;
+  const hierarchy = storage === "csv" ? false : Boolean(recordHierarchy);
   const fileTypes = kind === "files" ? String(recordFileTypes || "").trim() : "";
   const recordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
@@ -1762,9 +1762,9 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       ? "csv"
       : normalizeRecordStorage(options.recordStorage || typeDefaults.recordStorage, "md");
     const recordHierarchy =
-      collectionKind === "records" && recordStorage === "md"
-        ? options.recordHierarchy ?? typeDefaults.recordHierarchy ?? false
-        : false;
+      recordStorage === "csv"
+        ? false
+        : options.recordHierarchy ?? typeDefaults.recordHierarchy ?? false;
     const recordFileTypes =
       collectionKind === "files"
         ? String(options.recordFileTypes || typeDefaults.recordFileTypes || "").trim()

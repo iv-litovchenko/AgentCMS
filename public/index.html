@@ -5570,35 +5570,58 @@
         <p class="agents-registry-hint" id="awn-database-create-modal-hint">
           Папка в <code>awn-database/</code> с <code>manifest.md</code>.
         </p>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Название</span>
-          <input id="awn-database-create-name-input" type="text" placeholder="Задачи" spellcheck="false" autocomplete="off" required />
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Папка (slug)</span>
-          <input id="awn-database-create-slug-input" type="text" placeholder="tasks" spellcheck="false" autocomplete="off" required />
-          <p class="agents-registry-create-footnote">kebab-case; можно <code>taxonomies/statuses</code></p>
-        </label>
+        <label class="popover-label" for="awn-database-create-name-input">Название</label>
+        <input
+          id="awn-database-create-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Задачи"
+          spellcheck="false"
+          autocomplete="off"
+          required
+        />
+        <div id="awn-database-create-slug-row" class="slug-field-row">
+          <label class="slug-field-label" for="awn-database-create-slug-input">Имя папки (slug)</label>
+          <div class="slug-input-row">
+            <input
+              id="awn-database-create-slug-input"
+              class="popover-input slug-input"
+              type="text"
+              placeholder="tasks"
+              spellcheck="false"
+              autocomplete="off"
+              readonly
+              required
+            />
+            <button
+              id="awn-database-create-slug-unlink-btn"
+              class="slug-unlink-btn is-linked"
+              type="button"
+              title="Редактировать slug вручную"
+              aria-label="Редактировать slug вручную"
+            >✎</button>
+          </div>
+          <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
+          <p id="awn-database-create-parent-hint" class="agents-registry-create-footnote hidden"></p>
+        </div>
         <label class="agents-registry-field agents-registry-create-field">
           <span>Описание</span>
           <textarea id="awn-database-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении"></textarea>
         </label>
         <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-kind-wrap">
-          <span>Тип коллекции</span>
+          <span>Типы коллекции</span>
           <select id="awn-database-create-kind-input" class="agents-registry-select">
-            <option value="records">Записи (md или csv)</option>
-            <option value="files">Файлы (загрузка)</option>
+            <option value="md">Записи из md-файлов (файл на каждую запись)</option>
+            <option value="csv">Записи на базе 1 CSV-таблицы (одна таблица main.csv)</option>
+            <option value="files">Файлы с поддержкой загрузки</option>
           </select>
         </label>
-        <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-storage-wrap">
+        <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-storage-wrap" hidden>
           <span>Драйвер записей</span>
           <select id="awn-database-create-storage-input" class="agents-registry-select">
             <option value="md">Markdown — файл на каждую запись</option>
             <option value="csv">CSV — одна таблица main.csv</option>
           </select>
-          <p class="agents-registry-create-footnote">
-            MD: отдельные <code>slug.md</code> в папке инфоблока. CSV: строки в <code>main.csv</code>.
-          </p>
         </label>
         <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
           <input id="awn-database-create-hierarchy-input" type="checkbox" />

@@ -29,7 +29,7 @@ fields:
     type: awn.boolean
     title: Иерархия (разделы)
     default: false
-    description: Родительская запись как раздел; только MD + records
+    description: Родительская запись как раздел; для MD, файлов и загрузок; не для CSV-таблицы
   awn-record-file-types:
     type: awn.string
     title: Типы файлов

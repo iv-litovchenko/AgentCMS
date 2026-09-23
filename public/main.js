@@ -90,6 +90,8 @@ const awnDataCreateModalTitleNode = document.getElementById("awn-database-create
 const awnDataCreateModalHintNode = document.getElementById("awn-database-create-modal-hint");
 const awnDataCreateNameInputNode = document.getElementById("awn-database-create-name-input");
 const awnDataCreateSlugInputNode = document.getElementById("awn-database-create-slug-input");
+const awnDataCreateSlugUnlinkBtn = document.getElementById("awn-database-create-slug-unlink-btn");
+const awnDataCreateParentHintNode = document.getElementById("awn-database-create-parent-hint");
 const awnDataCreateDescriptionInputNode = document.getElementById("awn-database-create-description-input");
 const awnDataCreateKindWrapNode = document.getElementById("awn-database-create-kind-wrap");
 const awnDataCreateKindInputNode = document.getElementById("awn-database-create-kind-input");
@@ -63244,6 +63246,27 @@ function formatStorageIndexLineCount(lineCount) {
   return String(lineCount);
 }
 
+function formatStorageIndexRecordCount(recordCount) {
+  if (recordCount == null || !Number.isFinite(recordCount) || recordCount < 0) return "—";
+  return String(recordCount);
+}
+
+function resolveAwnDataIndexTypeKey(entry = {}) {
+  const kind = String(entry.kind || "").trim().toLowerCase();
+  if (kind === "group" || kind === "collection" || kind === "single") return kind;
+  const type = String(entry.type || "").trim().toLowerCase();
+  if (type === "group" || type === "collection" || type === "single") return type;
+  const ruToKey = { группа: "group", коллекция: "collection", одиночка: "single" };
+  return ruToKey[type] || type || "—";
+}
+
+function resolveAwnDataIndexWorkspacePath(entry = {}) {
+  const raw = String(entry.path || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  if (raw === "awn-database" || raw.startsWith("awn-database/")) return raw.replace(/\/+/g, "/");
+  return `awn-database/${raw}`.replace(/\/+/g, "/");
+}
+
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
   return page?.slotsFlexible ? "гибкий" : "типовые";
@@ -63298,14 +63321,14 @@ function formatStorageIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeAwnDatabase
-    ? "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Конфигурации |"
+    ? "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Конфигурации |"
     : includeSlotsMode
       ? "| ID | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
       : includeSlotLabel
         ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
         : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
   const divider = includeAwnDatabase
-    ? "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | --- |"
+    ? "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
     : includeSlotsMode
       ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
       : includeSlotLabel
@@ -63325,9 +63348,12 @@ function formatStorageIndexEntriesMarkdown(
     const importanceCell = formatStorageIndexImportanceCell(entry.importance);
 
     if (includeAwnDatabase) {
+      const typeCell = escapeStorageIndexTableCell(resolveAwnDataIndexTypeKey(entry)) || "—";
+      const awnPathCell = `\`${escapeStorageIndexTableCell(resolveAwnDataIndexWorkspacePath(entry))}\``;
+      const recordCountCell = formatStorageIndexRecordCount(entry.recordCount);
       const configurationsCell = escapeStorageIndexTableCell(entry.configurations) || "—";
       lines.push(
-        `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${configurationsCell} |`
+        `| ${idCell} | ${typeCell} | ${awnPathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${configurationsCell} |`
       );
       continue;
     }
@@ -101239,15 +101265,22 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
 }
 
 function formatAwnDataIndexPayloadAsMarkdown(payload) {
-  const entries = (payload?.entries || []).map((entry) => ({
+  const entries = (payload?.entries || []).map((entry) => {
+    const workspacePath = resolveAwnDataIndexWorkspacePath(entry);
+    const storeRel = workspacePath.replace(/^awn-database\/?/, "");
+    return {
     ...entry,
-    type:
-      entry.type ||
-      ({ group: "группа", collection: "коллекция", single: "одиночка" }[entry.kind] || entry.kind),
+    type: resolveAwnDataIndexTypeKey(entry),
+    kind: entry.kind || resolveAwnDataIndexTypeKey(entry),
+    path: workspacePath,
     group: entry.group || "—",
-    linkPath: entry.linkPath || (entry.path ? `awn-database/${entry.path}/manifest.md`.replace(/\/+/g, "/") : ""),
+    linkPath:
+      entry.linkPath ||
+      (storeRel ? `awn-database/${storeRel}/manifest.md`.replace(/\/+/g, "/") : ""),
+    recordCount: Number.isFinite(Number(entry.recordCount)) ? Number(entry.recordCount) : 0,
     configurations: entry.configurations || "—"
-  }));
+  };
+  });
   const lines = ["# Оглавление инфоблоков", "", formatAwnDataIndexEntriesMarkdown(entries)];
   appendContentIndexLegends(lines, { includeLinesLegend: true });
   return lines.join("\n").trimEnd();
@@ -101513,6 +101546,7 @@ let awnDataViewCatalogAgentId = null;
 let activeFolderBrowseAgentId = null;
 let awnDataCreateKind = "collection";
 let awnDataCreateParentGroup = "";
+let awnDataCreateSlugLinked = true;
 let awnDataViewStoreRel = "";
 let awnDataManifestEditReturnRel = "";
 let awnDataViewStoreCache = null;
@@ -102008,6 +102042,47 @@ function renderMenuGoogleDriveStats(payload = null, { loading = false, error = f
   }
 }
 
+function getAwnDataCreateSlugInputValue() {
+  return sanitizeSlugValue(awnDataCreateSlugInputNode?.value || "");
+}
+
+function syncAwnDataCreateSlugFromName() {
+  if (!awnDataCreateSlugLinked || !awnDataCreateSlugInputNode) return;
+  awnDataCreateSlugInputNode.value = transliterateDisplayToSlug(awnDataCreateNameInputNode?.value || "");
+}
+
+function applyAwnDataCreateSlugLinkedUi() {
+  if (!awnDataCreateSlugInputNode || !awnDataCreateSlugUnlinkBtn) return;
+  awnDataCreateSlugInputNode.readOnly = awnDataCreateSlugLinked;
+  awnDataCreateSlugUnlinkBtn.classList.toggle("is-linked", awnDataCreateSlugLinked);
+  awnDataCreateSlugUnlinkBtn.textContent = awnDataCreateSlugLinked ? "✎" : "↩";
+  awnDataCreateSlugUnlinkBtn.title = awnDataCreateSlugLinked
+    ? "Редактировать slug вручную"
+    : "Привязать slug к названию (автотранслит)";
+  awnDataCreateSlugUnlinkBtn.setAttribute(
+    "aria-label",
+    awnDataCreateSlugLinked ? "Редактировать slug вручную" : "Привязать slug к названию"
+  );
+}
+
+function setAwnDataCreateSlugLinked(linked) {
+  awnDataCreateSlugLinked = Boolean(linked);
+  applyAwnDataCreateSlugLinkedUi();
+  if (awnDataCreateSlugLinked) syncAwnDataCreateSlugFromName();
+}
+
+function syncAwnDataCreateParentHint() {
+  if (!awnDataCreateParentHintNode) return;
+  const parent = String(awnDataCreateParentGroup || "").trim().replace(/\/+$/g, "");
+  if (!parent) {
+    awnDataCreateParentHintNode.classList.add("hidden");
+    awnDataCreateParentHintNode.textContent = "";
+    return;
+  }
+  awnDataCreateParentHintNode.classList.remove("hidden");
+  awnDataCreateParentHintNode.innerHTML = `Путь: <code>awn-database/${parent}/…</code>`;
+}
+
 function slugifyAwnDataStoreName(name) {
   const map = {
     а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i",
@@ -102059,19 +102134,15 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   }
   const showCollectionOptions = awnDataCreateKind === "collection" && !isTaxonomy;
   awnDataCreateKindWrapNode?.classList.toggle("hidden", !showCollectionOptions);
-  if (awnDataCreateKindInputNode) awnDataCreateKindInputNode.value = "records";
-  if (awnDataCreateStorageInputNode) {
-    awnDataCreateStorageInputNode.value = "md";
-    awnDataCreateStorageInputNode.disabled = isTaxonomy;
-  }
+  if (awnDataCreateKindInputNode) awnDataCreateKindInputNode.value = "md";
+  if (awnDataCreateStorageInputNode) awnDataCreateStorageInputNode.value = "md";
   if (awnDataCreateHierarchyInputNode) awnDataCreateHierarchyInputNode.checked = false;
   if (awnDataCreateFileTypesInputNode) awnDataCreateFileTypesInputNode.value = "";
   syncAwnDataCreateCollectionOptions({ showCollectionOptions });
   if (awnDataCreateNameInputNode) awnDataCreateNameInputNode.value = "";
-  if (awnDataCreateSlugInputNode) {
-    awnDataCreateSlugInputNode.value = awnDataCreateParentGroup ? `${awnDataCreateParentGroup}/` : "";
-    delete awnDataCreateSlugInputNode.dataset.manual;
-  }
+  if (awnDataCreateSlugInputNode) awnDataCreateSlugInputNode.value = "";
+  setAwnDataCreateSlugLinked(true);
+  syncAwnDataCreateParentHint();
   if (awnDataCreateDescriptionInputNode) awnDataCreateDescriptionInputNode.value = "";
   if (awnDataCreateSampleInputNode) awnDataCreateSampleInputNode.checked = true;
   awnDataCreateModalNode.classList.remove("hidden");
@@ -102084,20 +102155,44 @@ function closeAwnDataCreateModal() {
   if (awnDataCreateIndexExcludeInput) awnDataCreateIndexExcludeInput.checked = false;
 }
 
+const AWN_DATA_CREATE_COLLECTION_TYPES = {
+  md: { collectionKind: "records", recordStorage: "md" },
+  csv: { collectionKind: "records", recordStorage: "csv" },
+  files: { collectionKind: "files", recordStorage: "md" }
+};
+
+function getAwnDataCreateCollectionType() {
+  const raw = String(awnDataCreateKindInputNode?.value || "md").trim().toLowerCase();
+  return AWN_DATA_CREATE_COLLECTION_TYPES[raw] ? raw : "md";
+}
+
+function resolveAwnDataCreateCollectionPayload() {
+  const type = getAwnDataCreateCollectionType();
+  const spec = AWN_DATA_CREATE_COLLECTION_TYPES[type];
+  return {
+    collectionKind: spec.collectionKind,
+    recordStorage: spec.recordStorage,
+    recordHierarchy: type !== "csv" && Boolean(awnDataCreateHierarchyInputNode?.checked),
+    recordFileTypes: type === "files" ? String(awnDataCreateFileTypesInputNode?.value || "").trim() : ""
+  };
+}
+
 function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
   const showOptions =
     showCollectionOptions ?? !awnDataCreateKindWrapNode?.classList.contains("hidden");
-  const collectionKind = String(awnDataCreateKindInputNode?.value || "records").trim().toLowerCase();
-  const isRecords = collectionKind !== "files";
-  const storage = String(awnDataCreateStorageInputNode?.value || "md").trim().toLowerCase();
-  const isMd = storage === "md";
+  const type = getAwnDataCreateCollectionType();
+  const isCsv = type === "csv";
+  const isFiles = type === "files";
+  const isMd = type === "md";
 
-  awnDataCreateStorageWrapNode?.classList.toggle("hidden", !showOptions || !isRecords);
-  awnDataCreateHierarchyWrapNode?.classList.toggle("hidden", !showOptions || !isRecords || !isMd);
-  awnDataCreateFileTypesWrapNode?.classList.toggle("hidden", !showOptions || isRecords);
+  awnDataCreateStorageWrapNode?.classList.add("hidden");
+  awnDataCreateHierarchyWrapNode?.classList.toggle("hidden", !showOptions || isCsv);
+  awnDataCreateFileTypesWrapNode?.classList.toggle("hidden", !showOptions || !isFiles);
+  awnDataCreateSampleWrapNode?.classList.toggle("hidden", !showOptions || !isMd);
 
-  const showSample = showOptions && isRecords && isMd;
-  awnDataCreateSampleWrapNode?.classList.toggle("hidden", !showSample);
+  if (isCsv && awnDataCreateHierarchyInputNode?.checked) {
+    awnDataCreateHierarchyInputNode.checked = false;
+  }
 }
 
 /** @deprecated use syncAwnDataCreateCollectionOptions */
@@ -104713,11 +104808,12 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     return;
   }
   const name = String(awnDataCreateNameInputNode?.value || "").trim();
-  let slug = String(awnDataCreateSlugInputNode?.value || "").trim() || slugifyAwnDataStoreName(name);
-  if (awnDataCreateParentGroup && !slug.startsWith(`${awnDataCreateParentGroup}/`)) {
-    const tail = slug.replace(/^\/+/, "").split("/").pop();
-    slug = `${awnDataCreateParentGroup}/${tail || slugifyAwnDataStoreName(name)}`;
-  }
+  const tail =
+    getAwnDataCreateSlugInputValue() ||
+    transliterateDisplayToSlug(name) ||
+    sanitizeSlugValue(slugifyAwnDataStoreName(name).split("/").pop() || "");
+  const parentGroup = String(awnDataCreateParentGroup || "").trim().replace(/\/+$/g, "");
+  const slug = parentGroup && tail ? `${parentGroup}/${tail}` : tail;
   const description = String(awnDataCreateDescriptionInputNode?.value || "").trim();
   if (!name || !slug) {
     showToast("Укажите название и папку (slug)", "error");
@@ -104735,14 +104831,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
         slug,
         description,
         withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false,
-        ...(awnDataCreateKind === "collection"
-          ? {
-              collectionKind: String(awnDataCreateKindInputNode?.value || "records").trim().toLowerCase(),
-              recordStorage: String(awnDataCreateStorageInputNode?.value || "md").trim().toLowerCase(),
-              recordHierarchy: Boolean(awnDataCreateHierarchyInputNode?.checked),
-              recordFileTypes: String(awnDataCreateFileTypesInputNode?.value || "").trim()
-            }
-          : {}),
+        ...(awnDataCreateKind === "collection" ? resolveAwnDataCreateCollectionPayload() : {}),
         ...(readCreateFormIndexExclude(awnDataCreateIndexExcludeInput) ? { indexExclude: true } : {})
       })
     });
@@ -105786,15 +105875,15 @@ function setupAwnDataStoresUi() {
   awnDataCreateSubmitBtn?.addEventListener("click", () => void submitAwnDataCreateStore());
 
   awnDataCreateNameInputNode?.addEventListener("input", () => {
-    if (!awnDataCreateSlugInputNode) return;
-    if (awnDataCreateSlugInputNode.dataset.manual === "1") return;
-    const tail = slugifyAwnDataStoreName(awnDataCreateNameInputNode.value);
-    awnDataCreateSlugInputNode.value = awnDataCreateParentGroup
-      ? `${awnDataCreateParentGroup}/${tail}`
-      : tail;
+    syncAwnDataCreateSlugFromName();
   });
   awnDataCreateSlugInputNode?.addEventListener("input", () => {
-    if (awnDataCreateSlugInputNode) awnDataCreateSlugInputNode.dataset.manual = "1";
+    if (!awnDataCreateSlugLinked && awnDataCreateSlugInputNode) {
+      awnDataCreateSlugInputNode.value = sanitizeSlugValue(awnDataCreateSlugInputNode.value);
+    }
+  });
+  awnDataCreateSlugUnlinkBtn?.addEventListener("click", () => {
+    setAwnDataCreateSlugLinked(!awnDataCreateSlugLinked);
   });
 
   awnDataCreateModalNode?.addEventListener("click", (event) => {
@@ -105874,14 +105963,16 @@ function positionAwnDataGroupCreatePopover(anchor) {
   awnDataGroupCreatePopoverNode.classList.remove("hidden");
   const anchorRect = anchor.getBoundingClientRect();
   const popoverRect = awnDataGroupCreatePopoverNode.getBoundingClientRect();
+  const margin = 6;
   const left = Math.min(
     Math.max(8, anchorRect.right - popoverRect.width),
     Math.max(8, window.innerWidth - popoverRect.width - 8)
   );
-  const top = Math.min(
-    anchorRect.bottom + 4,
-    Math.max(8, window.innerHeight - popoverRect.height - 8)
-  );
+  let top = anchorRect.top - popoverRect.height - margin;
+  if (top < 8) {
+    top = anchorRect.bottom + margin;
+  }
+  top = Math.max(8, Math.min(top, window.innerHeight - popoverRect.height - 8));
   awnDataGroupCreatePopoverNode.style.left = `${left}px`;
   awnDataGroupCreatePopoverNode.style.top = `${top}px`;
 }
@@ -105893,8 +105984,8 @@ function populateAwnDataGroupCreatePopover(parentGroupRel) {
   list.replaceChildren();
 
   for (const item of [
-    { action: "collection", label: "+ Коллекцию" },
-    { action: "single", label: "+ Одиночку" }
+    { action: "collection", label: "Коллекция" },
+    { action: "single", label: "Одиночка" }
   ]) {
     const row = document.createElement("li");
     row.className = "menu-context-menu-item";
@@ -105961,15 +106052,15 @@ function createAwnDataStoreMetaNode(store) {
   if (store?.kind === "group") {
     const childCount = resolveAwnDataRecordCount(store);
     const badge = document.createElement("span");
-    if (childCount <= 0) {
-      badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--empty";
-      badge.textContent = "пусто";
-      badge.title = "В группе нет инфоблоков";
-    } else {
-      badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
-      badge.textContent = String(childCount);
-      badge.title = childCount === 1 ? "1 инфоблок" : `${childCount} инфоблоков`;
-    }
+    badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
+    if (childCount <= 0) badge.classList.add("is-zero");
+    badge.textContent = String(childCount);
+    badge.title =
+      childCount <= 0
+        ? "В группе нет инфоблоков"
+        : childCount === 1
+          ? "1 инфоблок"
+          : `${childCount} инфоблоков`;
     metaNode.appendChild(badge);
     return metaNode;
   }
@@ -106115,9 +106206,9 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   item.className = "menu-awn-database-store-group";
 
   const children = Array.isArray(store.children) ? store.children : [];
-  const hasContent = children.length > 0;
-  let isCollapsed = hasContent ? !forceExpanded && false : false;
-  if (!hasContent) item.classList.add("is-empty");
+  const hasChildren = children.length > 0;
+  let isCollapsed = forceExpanded ? false : false;
+  if (!hasChildren) item.classList.add("is-empty");
 
   const headRow = document.createElement("div");
   headRow.className = "menu-awn-database-store-group-head";
@@ -106128,20 +106219,15 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   const syncCollapsedUi = () => {
     item.classList.toggle("is-collapsed", isCollapsed);
     body.hidden = isCollapsed;
-    if (!hasContent) {
-      toggleBtn.textContent = "·";
-      toggleBtn.title = "Пустая группа";
-      return;
-    }
-    toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasContent);
+    toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, true);
     toggleBtn.title = isCollapsed ? "Раскрыть" : "Скрыть";
   };
 
-  const toggleBtn = createFolderToggleButton(hasContent, isCollapsed, () => {
+  const toggleBtn = createFolderToggleButton(true, isCollapsed, () => {
     isCollapsed = !isCollapsed;
     syncCollapsedUi();
   });
-  if (!hasContent) {
+  if (!hasChildren) {
     toggleBtn.classList.add("folder-toggle-btn--empty-group");
   }
 
@@ -106189,10 +106275,15 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
 
   const childList = document.createElement("ul");
   childList.className = "menu-awn-database-store-group-children";
-  if (!hasContent) {
+  if (!hasChildren) {
     const empty = document.createElement("li");
     empty.className = "menu-awn-database-store-group-empty-hint";
-    empty.textContent = "Пусто — добавьте коллекцию или одиночку";
+    empty.title = "Пусто";
+    empty.setAttribute("aria-label", "Пусто");
+    const emptyIcon = document.createElement("span");
+    emptyIcon.className = "menu-awn-database-store-group-empty-icon";
+    emptyIcon.setAttribute("aria-hidden", "true");
+    empty.appendChild(emptyIcon);
     childList.appendChild(empty);
   } else {
     children.forEach((child, index) => {
