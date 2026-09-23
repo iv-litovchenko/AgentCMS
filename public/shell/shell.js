@@ -212,7 +212,8 @@ const heroAutosaveInFlight = {
   messageTarget: false,
   ttsEnabled: false,
   ttsPlaybackMode: false,
-  voiceResponseEnabled: false
+  voiceResponseEnabled: false,
+  proactiveMode: false
 };
 let ttsPlaybackModePersisting = false;
 let ttsEngineCapabilities = {};
@@ -223,6 +224,7 @@ let voiceModeUserChangedAt = 0;
 let voiceModeHydratedFromServer = false;
 let lastCommittedVoiceMode = "";
 let proactiveModePersistToken = 0;
+let lastProactiveModeFromUi = "";
 
 const TTS_PLAYBACK_MODE_NAMES = ["shell-tts-playback-mode", "shell-tts-playback-mode-panel"];
 const PROACTIVE_MODE_NAME = "shell-proactive-mode";
@@ -239,9 +241,14 @@ function readProactiveModeFromDom() {
 }
 
 function getProactiveMode(settings = state.settings) {
-  if (isSettingsViewOpen()) {
-    const fromDom = readProactiveModeFromDom();
-    if (fromDom) return fromDom;
+  const fromDom = readProactiveModeFromDom();
+  if (fromDom) return fromDom;
+  if (
+    lastProactiveModeFromUi &&
+    PROACTIVE_MODE_VALUES.includes(lastProactiveModeFromUi) &&
+    (isSettingsViewOpen() || settingsSave.isSectionDirty("proactive"))
+  ) {
+    return lastProactiveModeFromUi;
   }
   return normalizeProactiveMode(settings || {});
 }
@@ -274,46 +281,42 @@ async function persistProactiveMode(mode) {
     ? String(mode).trim()
     : "off";
   const token = ++proactiveModePersistToken;
-  if (!state.agentId) {
-    try {
-      await ensureShellAgentSelected();
-    } catch (error) {
-      renderPhase("waiting", error.message);
-      throw error;
-    }
-  }
-  if (!state.agentId) {
-    const message = "Выберите хранилище (агента) в шапке";
-    renderPhase("waiting", message);
-    throw new Error(message);
-  }
   if (state.settings) state.settings.proactiveMode = proactiveMode;
+  lastProactiveModeFromUi = proactiveMode;
+  syncProactiveModeUi(state.settings, { force: true });
   shellProactive?.syncSettings(state.settings || { proactiveMode });
+  beginHeroAutosave("proactiveMode");
   try {
-    await saveSettings({ proactiveMode }, { apply: "none" });
+    const ok = await persistAgentSettingsPatch(
+      { proactiveMode },
+      { baselineSection: "proactive", commitSection: !isSettingsViewOpen() }
+    );
     if (token !== proactiveModePersistToken) return proactiveMode;
-    syncProactiveModeUi(state.settings, { force: true });
-    settingsSave.patchBaseline("proactive", { proactiveMode });
-    markSettingsDirty("proactive");
+    if (!ok) {
+      const message = "Не удалось сохранить проактивность";
+      renderPhase("waiting", message);
+      throw new Error(message);
+    }
     return proactiveMode;
   } catch (error) {
     if (token === proactiveModePersistToken) {
-      markSettingsDirty("proactive");
       renderPhase("waiting", error.message);
     }
     throw error;
+  } finally {
+    endHeroAutosave("proactiveMode");
   }
 }
 
 function handleProactiveModeChange(source) {
   if (!(source instanceof HTMLInputElement) || source.name !== PROACTIVE_MODE_NAME) return;
   void playShellUiSound("toggle");
-  const mode = readProactiveModeFromDom();
+  const mode = PROACTIVE_MODE_VALUES.includes(source.value) ? source.value : readProactiveModeFromDom();
   if (!mode) return;
+  lastProactiveModeFromUi = mode;
   shellProactive?.syncSettings({ ...(state.settings || {}), proactiveMode: mode });
-  shellLog("proactive", `Режим: ${formatProactiveModeLog(mode)}`);
+  shellLog("proactive", `Режим в форме: ${formatProactiveModeLog(mode)} (сохраните кнопкой)`);
   markSettingsDirty("proactive");
-  void persistProactiveMode(mode).catch(() => {});
 }
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
@@ -6663,7 +6666,11 @@ function applySettingsFormsFromServer(settings = state.settings) {
   if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("stt")) {
     applySttSettingsUi(settings);
   }
-  if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("proactive")) {
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("proactive") &&
+    !isHeroAutosaveActive("proactiveMode")
+  ) {
     applyProactiveFormUi(settings);
     shellProactive?.syncSettings(settings);
   } else if (isSettingsViewOpen() && settingsSave.isSectionDirty("proactive") && shellProactive) {
@@ -6671,7 +6678,7 @@ function applySettingsFormsFromServer(settings = state.settings) {
       ...(settings || {}),
       ...collectProactiveFormPatch()
     });
-  } else if (!isSettingsViewOpen()) {
+  } else if (!isSettingsViewOpen() && !isHeroAutosaveActive("proactiveMode")) {
     shellProactive?.syncSettings(settings);
   }
   if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("templates")) {
@@ -6920,6 +6927,13 @@ async function saveSettingsSection(section) {
 
   const patch =
     section === "route" ? collectRouteSettingsPatch({ validate: true }) : getSettingsSnapshot(section);
+  if (section === "proactive") {
+    const modeFromDom = readProactiveModeFromDom();
+    if (modeFromDom) {
+      patch.proactiveMode = modeFromDom;
+      lastProactiveModeFromUi = modeFromDom;
+    }
+  }
   const prevRouteTarget =
     section === "route" ? normalizeMessageRuntime(state.settings?.messageTarget) : "";
   if (section === "stt") {
@@ -6942,8 +6956,14 @@ async function saveSettingsSection(section) {
     await reloadShellDialogContext({ restoreScroll: false });
     refreshRuntimeSelectLabels();
   }
+  if (section === "proactive" && patch.proactiveMode && state.settings) {
+    state.settings.proactiveMode = patch.proactiveMode;
+  }
   applySavedSettingsSection(section, state.settings);
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
+  if (section === "proactive" && patch.proactiveMode) {
+    lastProactiveModeFromUi = patch.proactiveMode;
+  }
 }
 
 function applySavedSettingsSection(section, settings = state.settings) {
@@ -6993,7 +7013,10 @@ function applySettings(settings) {
     ? readVoiceResponseEnabledFromDom()
     : undefined;
   let nextSettings = settings;
-  if (isSettingsViewOpen()) {
+  if (
+    !isHeroAutosaveActive("proactiveMode") &&
+    (isSettingsViewOpen() || settingsSave.isSectionDirty("proactive"))
+  ) {
     const domMode = readProactiveModeFromDom();
     if (domMode) {
       nextSettings = { ...settings, proactiveMode: domMode };
@@ -7006,12 +7029,12 @@ function applySettings(settings) {
     state.settings.voiceResponseEnabled = preserveVoiceResponseEnabled;
   }
   shellLog("settings", "applySettings", {
-    proactiveMode: normalizeProactiveMode(settings),
+    proactiveMode: normalizeProactiveMode(nextSettings),
     proactiveDirty: settingsSave.isSectionDirty("proactive"),
     settingsOpen: isSettingsViewOpen()
   });
 
-  applySettingsFormsFromServer(settings);
+  applySettingsFormsFromServer(nextSettings);
 
   if (nodes.cameraFacing) {
     nodes.cameraFacing.value = settings.cameraFacing || "user";
@@ -8323,10 +8346,14 @@ async function saveWindowSettings(patch) {
 }
 
 async function saveSettings(patch, { apply = "full" } = {}) {
+  const sourcePatch = patch && typeof patch === "object" ? patch : {};
+  if (state.settings && Object.keys(sourcePatch).length) {
+    state.settings = { ...state.settings, ...sourcePatch };
+  }
   try {
     const data = await apiFetch("/api/shell/settings", {
       method: "POST",
-      body: JSON.stringify({ settings: patch })
+      body: JSON.stringify({ settings: sourcePatch })
     });
     if (data.settingsFile) state.settingsFile = data.settingsFile;
     if (data.agentRoot) state.agentRoot = data.agentRoot;
@@ -8334,10 +8361,12 @@ async function saveSettings(patch, { apply = "full" } = {}) {
     updateTtsSaveAgentHint(data);
     const settings = data.settings;
     if (settings) {
-      state.settings = { ...(state.settings || {}), ...settings };
-      if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogScrollRatio")) {
-        lastSavedDialogScrollRatio = readDialogScrollRatioFromSettings(settings);
+      state.settings = { ...(state.settings || {}), ...settings, ...sourcePatch };
+      if (Object.prototype.hasOwnProperty.call(sourcePatch, "dialogScrollRatio")) {
+        lastSavedDialogScrollRatio = readDialogScrollRatioFromSettings(state.settings);
       }
+    } else if (state.settings && Object.keys(sourcePatch).length) {
+      state.settings = { ...state.settings, ...sourcePatch };
     }
     if (apply === "none") return settings;
     if (apply === "tts") applyTtsSummarySettings(settings);
@@ -10380,6 +10409,8 @@ function getProactivePromptForSnapshot() {
 }
 
 function applyProactiveFormUi(settings) {
+  const mode = normalizeProactiveMode(settings || {});
+  lastProactiveModeFromUi = mode;
   syncProactiveModeUi(settings, { force: true });
   shellProactive?.syncSettings(settings || state.settings || {});
   const idleRange = normalizeProactiveIdleRange(settings || {});
@@ -12722,7 +12753,12 @@ function bindUi() {
       void toggleVoiceResponseEnabledFromHero();
     }
   });
-  nodes.proactiveRow?.addEventListener("click", () => {
+  nodes.proactiveRow?.addEventListener("click", (event) => {
+    if (event.target.closest("#shell-proactive-toggle")) return;
+    void toggleProactiveFromHero();
+  });
+  nodes.proactiveToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
     void toggleProactiveFromHero();
   });
   nodes.proactiveToggle?.addEventListener("keydown", (event) => {

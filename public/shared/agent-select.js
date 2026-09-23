@@ -56,6 +56,9 @@ export function formatAgentSelectLabel(agent, groupTitle = "") {
   if (isPlatformAgent(agent)) {
     label = `${name} — глобальные справочники`;
   }
+  if (isOrchestratorAgent(agent)) {
+    return `${resolveAgentSelectStatusEmoji(agent)} ★ ${label}`;
+  }
   const prefix = String(groupTitle || "").trim();
   const core = prefix ? `${prefix} · ${label}` : label;
   return `${resolveAgentSelectStatusEmoji(agent)} ${core}`;
@@ -65,6 +68,9 @@ export function createAgentSelectOption(agent, groupTitle = "") {
   const option = document.createElement("option");
   option.value = agent.id;
   option.textContent = formatAgentSelectLabel(agent, groupTitle);
+  if (isOrchestratorAgent(agent)) {
+    option.title = "Оркестратор";
+  }
   option.disabled = !isAgentRegistryActive(agent);
   return option;
 }
@@ -111,7 +117,7 @@ function renderAgentSelectGrouped(selectEl, agents, groups) {
   }
 
   if (orchestrator) {
-    selectEl.appendChild(createAgentSelectOption(orchestrator, "Оркестратор"));
+    selectEl.appendChild(createAgentSelectOption(orchestrator));
   }
 
   for (const group of grouped) {

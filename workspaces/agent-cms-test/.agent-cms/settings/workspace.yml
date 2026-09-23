@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T11:55:38.829Z"
+  awn-id-updated-at: "2026-09-23T12:09:00.983Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -18,7 +18,7 @@ awn_settings:
   voice-route-qwenpaw-user-id: default
   voice-route-qwenpaw-agent-id: default
   voice-route-qwenpaw-approval-level: AUTO
-  voice-input-enabled: false
+  voice-input-enabled: true
   voice-input-mode: fn_button
   voice-input-response-enabled: true
   voice-input-capture: microphone
@@ -65,26 +65,14 @@ awn_settings:
   voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
   voice-tts-elevenlabs-model: eleven_multilingual_v2
   voice-tts-elevenlabs-rate: 1
-  voice-proactive-mode: off
+  voice-proactive-mode: ping
   voice-proactive-idle-seconds-min: 3600
   voice-proactive-idle-seconds-max: 3600
-  voice-proactive-cooldown-seconds: 8700
-  voice-proactive-quiet-hours-enabled: false
+  voice-proactive-cooldown-seconds: 900
+  voice-proactive-quiet-hours-enabled: true
   voice-proactive-quiet-hours-start: "23:00"
   voice-proactive-quiet-hours-end: "04:00"
-  voice-proactive-prompt: |
-    Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек).
-    
-    Сначала загляни в Agent CMS (MCP): заметки, задачи, расписание, недавние темы. Потом — последние реплики в этом диалоге.
-    
-    Если есть повод — ответь коротко (1–2 предложения), живо и по делу. Приоритет:
-    1) Конкретика из workspace: открытая задача, дедлайн, напоминание, незакрытый вопрос.
-    2) Короткое продолжение последней темы разговора — уточнение, мысль, мягкий вопрос по контексту.
-    3) Лёгкое наблюдение, связанное с workspace или диалогом (не random-fact «из воздуха»).
-    
-    [proactive-empty] — только если реально проверил MCP и диалог: нет открытых задач/тем, нечего уместно добавить. Тогда одна строка [proactive-empty], без другого текста.
-    
-    Не повторяй дословно одну и ту же фразу из недавних проактивных ответов. Не напоминай про таймер и бездействие. Не начинай монолог.
+  voice-proactive-prompt: test
   voice-media-camera-enabled: false
   voice-media-camera-on-speech: true
   voice-media-camera-facing: environment
