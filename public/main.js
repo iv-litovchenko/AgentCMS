@@ -174,7 +174,6 @@ const notFoundPathNode = document.getElementById("app-not-found-path");
 const notFoundHomeBtn = document.getElementById("app-not-found-home-btn");
 const notFoundBackBtn = document.getElementById("app-not-found-back-btn");
 const maintenancePaneNode = document.getElementById("maintenance-pane");
-const maintenanceRetryBtn = document.getElementById("app-maintenance-retry-btn");
 const home2HeadNode = document.getElementById("home2-head");
 const home2ContentNode = document.getElementById("home2-content");
 const home3ContentNode = document.getElementById("home3-content");
