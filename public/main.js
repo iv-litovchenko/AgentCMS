@@ -105599,7 +105599,8 @@ function syncAwnDataViewAddForm(store) {
         : "Любые файлы в папку инфоблока.";
     }
     if (awnDataUploadBtnNode) {
-      awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label")?.textContent = "Загрузить";
+      const uploadLabel = awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label");
+      if (uploadLabel) uploadLabel.textContent = "Загрузить";
     }
   } else if (isCsvFiles) {
     if (awnDataUploadInputNode) awnDataUploadInputNode.setAttribute("accept", ".csv");
@@ -105607,7 +105608,8 @@ function syncAwnDataViewAddForm(store) {
       awnDataUploadHintNode.textContent = "Загрузить существующий .csv — имя файла станет id записи.";
     }
     if (awnDataUploadBtnNode) {
-      awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label")?.textContent = "Загрузить CSV";
+      const uploadLabel = awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label");
+      if (uploadLabel) uploadLabel.textContent = "Загрузить CSV";
     }
   }
 }
