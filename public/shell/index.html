@@ -3071,6 +3071,24 @@ CMS workspace</pre>
       </div>
     </dialog>
 
+    <div id="shell-maintenance-pane" class="shell-maintenance-pane hidden" aria-labelledby="shell-maintenance-pane-title" role="alertdialog" aria-modal="true">
+      <div class="shell-maintenance-bg" aria-hidden="true"></div>
+      <div class="shell-maintenance-inner">
+        <div class="shell-maintenance-visual" aria-hidden="true">
+          <div class="shell-maintenance-code">503</div>
+          <img class="shell-maintenance-logo" src="/shell/favicon.svg" width="56" height="56" alt="" />
+        </div>
+        <p class="shell-maintenance-eyebrow">Режим обслуживания</p>
+        <h2 id="shell-maintenance-pane-title" class="shell-maintenance-title">Agent CMS Voice недоступен</h2>
+        <p class="shell-maintenance-lead">
+          Платформа Agent CMS на обслуживании. Голосовой клиент, диалоги и shell API временно отключены.
+        </p>
+        <div class="shell-maintenance-actions">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-maintenance-retry-btn">Проверить снова</button>
+        </div>
+      </div>
+    </div>
+
     <div id="shell-debug-panel" class="shell-debug-panel hidden" aria-hidden="true">
       <header class="shell-debug-panel-head">
         <span class="shell-debug-panel-title">Журнал Shell</span>
@@ -3083,6 +3101,7 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
+    <script src="/platform-status.js"></script>
     <script src="/shell/shell.js?v=663" type="module"></script>
   </body>
 </html>

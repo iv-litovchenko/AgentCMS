@@ -9,10 +9,23 @@ const NODE_CONFIG_RESERVED_ROOT_KEYS = new Set([
 
 function formatYamlScalar(value) {
   const text = String(value ?? "");
-  if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
-    return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  if (!text) return '""';
+  if (/[\n\r\t"]/.test(text) || /[:#\[\]{}&,*?]/.test(text) || /^[\s-]/.test(text) || /\s$/.test(text)) {
+    return JSON.stringify(text);
   }
   return text;
+}
+
+function appendYamlStringSetting(lines, pad, key, value) {
+  const text = String(value ?? "");
+  if (text.includes("\n")) {
+    lines.push(`${pad}${key}: |`);
+    for (const line of text.split("\n")) {
+      lines.push(`${pad}  ${line}`);
+    }
+    return;
+  }
+  lines.push(`${pad}${key}: ${formatYamlScalar(text)}`);
 }
 
 function stringifyYamlInlineValue(value) {
@@ -260,7 +273,7 @@ function stringifyIndentedPropsYaml(obj, indent = 2) {
       lines.push(`${pad}${entry.key}: null`);
       continue;
     }
-    lines.push(`${pad}${entry.key}: ${formatYamlScalar(entry.value ?? "")}`);
+    appendYamlStringSetting(lines, pad, entry.key, entry.value ?? "");
   }
   return lines.join("\n");
 }

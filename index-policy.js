@@ -16,7 +16,9 @@ const INDEX_FILE_EXTENSION_OPTIONS = [
   { key: ".yml", name: "YAML (.yml)" },
   { key: ".yaml", name: "YAML (.yaml)" },
   { key: ".txt", name: "Text (.txt)" },
-  { key: ".json", name: "JSON (.json)" }
+  { key: ".json", name: "JSON (.json)" },
+  { key: ".csv", name: "CSV (.csv)" },
+  { key: ".html", name: "HTML (.html)" }
 ];
 
 const INDEX_PATH_PREFIX_OPTIONS = [

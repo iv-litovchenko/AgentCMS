@@ -13567,3 +13567,176 @@ body.shell-pet-electron .shell-pet-stage .shell-character-viewport.is-dragging {
   user-select: none;
   pointer-events: none;
 }
+
+/* ── Maintenance (503) — Voice ── */
+.shell-maintenance-standalone,
+.shell-maintenance-pane {
+  --shell-maint-accent: #c026d3;
+  --shell-maint-accent-dim: #7c3aed;
+}
+
+.shell-maintenance-standalone {
+  margin: 0;
+  min-height: 100vh;
+  background: #070812;
+  color: #eef2ff;
+}
+
+.shell-maintenance-page,
+.shell-maintenance-pane {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 48px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.shell-maintenance-standalone .shell-maintenance-page {
+  min-height: 100vh;
+}
+
+.shell-maintenance-pane {
+  position: fixed;
+  inset: 0;
+  z-index: 120000;
+  min-height: 100dvh;
+}
+
+body.shell-maintenance-active .shell-app,
+body.shell-maintenance-active .shell-agent-gate {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.shell-maintenance-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(192, 38, 211, 0.22), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 88% 18%, rgba(124, 58, 237, 0.18), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 72% 88%, rgba(168, 85, 247, 0.14), transparent 50%),
+    linear-gradient(160deg, #120a24 0%, #070812 42%, #0a1020 100%);
+}
+
+.shell-maintenance-inner {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.shell-maintenance-visual {
+  position: relative;
+  width: min(240px, 72vw);
+  height: 110px;
+  margin-bottom: 4px;
+}
+
+.shell-maintenance-code {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(4rem, 16vw, 6.5rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  background: linear-gradient(135deg, rgba(192, 38, 211, 0.2) 0%, rgba(124, 58, 237, 0.14) 55%, rgba(99, 102, 241, 0.1) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  user-select: none;
+}
+
+.shell-maintenance-logo {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.28);
+}
+
+.shell-maintenance-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e879f9;
+}
+
+.shell-maintenance-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.15;
+  color: #f5f3ff;
+}
+
+.shell-maintenance-lead {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(203, 213, 225, 0.88);
+}
+
+.shell-maintenance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.shell-maintenance-admin {
+  width: min(100%, 420px);
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(192, 38, 211, 0.24);
+  background: rgba(15, 23, 42, 0.72);
+  text-align: left;
+}
+
+.shell-maintenance-admin > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f5d0fe;
+}
+
+.shell-maintenance-admin-lead {
+  margin: 10px 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(203, 213, 225, 0.86);
+}
+
+.shell-maintenance-admin-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #e9d5ff;
+}
+
+.shell-maintenance-admin-actions {
+  margin-top: 12px;
+}
+
+.shell-maintenance-admin-status {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #f0abfc;
+}

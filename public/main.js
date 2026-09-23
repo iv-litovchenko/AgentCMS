@@ -175,7 +175,6 @@ const notFoundHomeBtn = document.getElementById("app-not-found-home-btn");
 const notFoundBackBtn = document.getElementById("app-not-found-back-btn");
 const maintenancePaneNode = document.getElementById("maintenance-pane");
 const maintenanceRetryBtn = document.getElementById("app-maintenance-retry-btn");
-const maintenanceSettingsBtn = document.getElementById("app-maintenance-settings-btn");
 const home2HeadNode = document.getElementById("home2-head");
 const home2ContentNode = document.getElementById("home2-content");
 const home3ContentNode = document.getElementById("home3-content");
@@ -19491,6 +19490,7 @@ function saveMenuTreeSettings(agentId, patch) {
 
 let platformUiSettings = { maintenanceMode: false, defaultLocale: "ru" };
 let platformMaintenanceViewActive = false;
+let maintenancePaneUiReady = false;
 
 function applyPlatformDefaultLocale(locale = "ru") {
   const normalized = String(locale || "ru").trim().toLowerCase() === "en" ? "en" : "ru";
@@ -19590,28 +19590,25 @@ async function loadPlatformUiSettings() {
 }
 
 function setupMaintenancePaneUi() {
+  if (maintenancePaneUiReady) return;
+  maintenancePaneUiReady = true;
+
   window.PlatformStatus?.bindMaintenancePage?.({
     retryButtonId: "app-maintenance-retry-btn",
-    adminPanelId: "app-maintenance-admin-panel",
-    adminToggleId: "app-maintenance-admin-toggle",
-    adminSaveId: "app-maintenance-admin-save",
-    adminStatusId: "app-maintenance-admin-status"
-  });
-
-  maintenanceRetryBtn?.addEventListener("click", async () => {
-    const settings = await loadPlatformUiSettings().catch(() => null);
-    if (settings?.maintenanceMode) return;
-    hideMaintenanceView();
-    showHomeView();
-    if (activeAgentId) {
-      void refreshMenu().catch((error) => {
-        if (isMaintenanceErrorMessage(error?.message)) showMaintenanceView();
-      });
+    onRecovered: () => {
+      void loadPlatformUiSettings()
+        .then((settings) => {
+          if (settings?.maintenanceMode) return;
+          hideMaintenanceView();
+          showHomeView();
+          if (activeAgentId) {
+            void refreshMenu().catch((error) => {
+              if (isMaintenanceErrorMessage(error?.message)) showMaintenanceView();
+            });
+          }
+        })
+        .catch(() => {});
     }
-  });
-
-  maintenanceSettingsBtn?.addEventListener("click", () => {
-    void openHeaderGlobalSettingsModal();
   });
 }
 
@@ -107081,6 +107078,7 @@ async function deleteNode() {
 }
 
 async function init() {
+  setupMaintenancePaneUi();
   const splashStartedAt = Date.now();
   const finishSplash = () => {
     const elapsed = Date.now() - splashStartedAt;
@@ -107106,7 +107104,6 @@ async function init() {
 
     await loadPlatformUiSettings().catch(() => {});
     if (platformUiSettings.maintenanceMode) {
-      setupMaintenancePaneUi();
       return;
     }
 

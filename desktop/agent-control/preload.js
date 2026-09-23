@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("agentControl", {
   testUrl: (url) => ipcRenderer.invoke("control:test-url", url),
   notify: (title, body) => ipcRenderer.invoke("control:notify", { title, body }),
   renderQr: (text) => ipcRenderer.invoke("control:render-qr", text),
+  getMaintenanceMode: () => ipcRenderer.invoke("control:get-maintenance-mode"),
+  setMaintenanceMode: (enabled) => ipcRenderer.invoke("control:set-maintenance-mode", enabled),
   onLog: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on("control:log", handler);

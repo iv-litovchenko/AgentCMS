@@ -17,6 +17,8 @@ let clockTimer = null;
 let serverPollTimer = null;
 let mcpOk = null;
 let suppressServerDownNotify = false;
+let maintenanceModeEnabled = false;
+let maintenanceModeBusy = false;
 
 const SERVER_POLL_MS = 8000;
 
@@ -772,6 +774,10 @@ function renderGuideStepServer() {
     </div>
   `;
 
+  const maintenanceDisabled = maintenanceModeBusy;
+  const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
+  const maintenanceStateLabel = maintenanceModeEnabled ? "включён" : "выключен";
+
   const controlBlock = `
     <div class="server-controls">
       <div class="server-deck" role="group" aria-label="Управление сервером">
@@ -779,6 +785,16 @@ function renderGuideStepServer() {
         ${serverButton("server-start-attached", "start", isRunning)}
         ${serverButton("server-stop", "stop", !isRunning)}
         ${isControlActionAvailable("server-restart") ? serverButton("server-restart", "restart", !isRunning) : ""}
+      </div>
+      <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
+        <div class="maintenance-toggle-copy">
+          <strong>Режим обслуживания</strong>
+          <span>Заглушка 503 для Editor и Voice · сейчас ${maintenanceStateLabel}</span>
+        </div>
+        <label class="toggle-switch" title="maintenance-mode в .agent-cms/settings/platform.yml">
+          <input type="checkbox" id="maintenance-mode-toggle"${maintenanceChecked}${maintenanceDisabled ? " disabled" : ""} />
+          <span class="toggle-switch-track" aria-hidden="true"></span>
+        </label>
       </div>
       ${browserLinks}
     </div>
@@ -1067,11 +1083,12 @@ function renderAppsSection() {
   return section;
 }
 
-function renderLayout() {
+async function renderLayout() {
   actionsRoot.innerHTML = "";
   actionsRoot.appendChild(renderAppsSection());
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
+  await bindMaintenanceToggle();
   syncMcpConfigPreview();
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
   syncServerUi(lastServer || bootstrap?.server);
@@ -1120,6 +1137,61 @@ async function runUrlTest(button) {
     button.disabled = false;
     button.textContent = prevLabel;
   }
+}
+
+async function refreshMaintenanceModeState() {
+  if (!window.agentControl?.getMaintenanceMode) return;
+  try {
+    const result = await window.agentControl.getMaintenanceMode();
+    maintenanceModeEnabled = Boolean(result?.enabled);
+  } catch {
+    maintenanceModeEnabled = false;
+  }
+}
+
+async function bindMaintenanceToggle() {
+  const toggle = document.getElementById("maintenance-mode-toggle");
+  const card = document.getElementById("maintenance-toggle-card");
+  if (!toggle || toggle.dataset.bound) return;
+  toggle.dataset.bound = "1";
+
+  toggle.addEventListener("change", async () => {
+    if (!window.agentControl?.setMaintenanceMode) return;
+    const next = toggle.checked;
+    const prev = !next;
+    maintenanceModeBusy = true;
+    toggle.disabled = true;
+    if (card) card.dataset.state = "pending";
+
+    try {
+      const result = await window.agentControl.setMaintenanceMode(next);
+      if (!result?.ok) {
+        throw new Error(result?.error || "Не удалось сохранить maintenance-mode");
+      }
+      maintenanceModeEnabled = Boolean(result.enabled);
+      appendLog(
+        maintenanceModeEnabled
+          ? "Включён maintenance-mode.\n"
+          : "Выключен maintenance-mode.\n"
+      );
+    } catch (error) {
+      toggle.checked = prev;
+      maintenanceModeEnabled = prev;
+      appendLog(`Ошибка maintenance-mode: ${error.message}\n`, "stderr");
+    } finally {
+      maintenanceModeBusy = false;
+      toggle.disabled = false;
+      if (card) {
+        card.dataset.state = maintenanceModeEnabled ? "on" : "off";
+        const copy = card.querySelector(".maintenance-toggle-copy span");
+        if (copy) {
+          copy.textContent = `Заглушка 503 для Editor и Voice · сейчас ${
+            maintenanceModeEnabled ? "включён" : "выключен"
+          }`;
+        }
+      }
+    }
+  });
 }
 
 function bindActionHandlers() {
@@ -1192,7 +1264,8 @@ async function runAction(actionId) {
       }
       if (data.mobileConnect) bootstrap.mobileConnect = data.mobileConnect;
     }
-    renderLayout();
+    await refreshMaintenanceModeState();
+    await renderLayout();
   } finally {
     runningActions.delete(actionId);
     updateRunningButtons();
@@ -1303,7 +1376,8 @@ async function init() {
   bootstrap = await window.agentControl.getBootstrap();
   renderEnvironment(bootstrap.environment);
   await handleServerStatusUpdate(bootstrap.server, { skipNotify: true });
-  renderLayout();
+  await refreshMaintenanceModeState();
+  await renderLayout();
   renderAppFooter();
   startFlipClock();
   startServerPoll();
@@ -1346,7 +1420,8 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
     await handleServerStatusUpdate(data.server, { skipNotify: true });
-    renderLayout();
+    await refreshMaintenanceModeState();
+    await renderLayout();
     renderAppFooter();
   } catch (error) {
     appendLog(`Ошибка обновления: ${error.message}\n`, "stderr");

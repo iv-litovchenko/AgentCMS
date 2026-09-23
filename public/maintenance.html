@@ -31,32 +31,13 @@
         <h1 id="maintenance-title" class="status-title">Платформа временно недоступна</h1>
         <p class="status-lead">
           Agent CMS сейчас на обслуживании: агенты, меню, shell и рабочие API недоступны.
-          Настройки платформы остаются доступны администратору.
         </p>
 
         <div class="status-actions">
           <button type="button" class="status-btn status-btn--primary" id="maintenance-retry-btn">
             Проверить снова
           </button>
-          <a href="/" class="status-btn">На главную</a>
         </div>
-
-        <details class="status-admin-panel" id="maintenance-admin-panel">
-          <summary>Администратор</summary>
-          <p class="status-admin-lead">
-            Снимите флаг <code>maintenance-mode</code> в глобальных настройках платформы.
-          </p>
-          <label class="status-admin-toggle">
-            <input type="checkbox" id="maintenance-admin-toggle" checked />
-            <span>Платформа доступна (maintenance-mode: false)</span>
-          </label>
-          <div class="status-admin-actions">
-            <button type="button" class="status-btn status-btn--primary" id="maintenance-admin-save">
-              Сохранить
-            </button>
-          </div>
-          <p class="status-admin-status" id="maintenance-admin-status" aria-live="polite"></p>
-        </details>
 
         <p class="status-footnote">Workspaces / *.md — «Пауза — это тоже намерение.»</p>
       </div>

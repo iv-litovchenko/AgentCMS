@@ -117,6 +117,8 @@ function loadQrCode() {
   }
 }
 const { buildSystemEnvironment } = requireRepo("lib/system-environment");
+const { getPlatformSettings, patchPlatformSettings } = requireRepo("settings-store");
+const { isPlatformMaintenanceMode } = requireRepo("workspace-agent-settings");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;
@@ -788,6 +790,28 @@ if (!gotLock) {
     ipcMain.handle("control:refresh-status", async () => ({
       server: await probeServerStatus()
     }));
+
+    ipcMain.handle("control:get-maintenance-mode", async () => {
+      try {
+        const root = getProjectRoot();
+        const settings = await getPlatformSettings(root);
+        return { ok: true, enabled: isPlatformMaintenanceMode(settings) };
+      } catch (error) {
+        return { ok: false, enabled: false, error: String(error?.message || error) };
+      }
+    });
+
+    ipcMain.handle("control:set-maintenance-mode", async (_event, enabled) => {
+      try {
+        const root = getProjectRoot();
+        const next = Boolean(enabled);
+        await patchPlatformSettings({ "maintenance-mode": next }, root);
+        const settings = await getPlatformSettings(root);
+        return { ok: true, enabled: isPlatformMaintenanceMode(settings) };
+      } catch (error) {
+        return { ok: false, error: String(error?.message || error) };
+      }
+    });
 
     ipcMain.handle("control:refresh-bootstrap", async () => {
       const root = getProjectRoot();

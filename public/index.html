@@ -3146,26 +3146,11 @@
           <p class="status-eyebrow">Режим обслуживания</p>
           <h2 id="app-maintenance-title" class="status-title">Платформа временно недоступна</h2>
           <p class="status-lead">
-            Agent CMS на обслуживании: агенты, меню и shell недоступны. Настройки платформы остаются доступны администратору.
+            Agent CMS на обслуживании: агенты, меню и shell недоступны.
           </p>
           <div class="status-actions">
             <button type="button" id="app-maintenance-retry-btn" class="status-btn status-btn--primary">Проверить снова</button>
-            <button type="button" id="app-maintenance-settings-btn" class="status-btn">Глобальные настройки</button>
           </div>
-          <details class="status-admin-panel" id="app-maintenance-admin-panel">
-            <summary>Администратор</summary>
-            <p class="status-admin-lead">
-              Снимите флаг <code>maintenance-mode</code> в глобальных настройках платформы.
-            </p>
-            <label class="status-admin-toggle">
-              <input type="checkbox" id="app-maintenance-admin-toggle" checked />
-              <span>Платформа доступна (maintenance-mode: false)</span>
-            </label>
-            <div class="status-admin-actions">
-              <button type="button" class="status-btn status-btn--primary" id="app-maintenance-admin-save">Сохранить</button>
-            </div>
-            <p class="status-admin-status" id="app-maintenance-admin-status" aria-live="polite"></p>
-          </details>
         </div>
       </main>
 

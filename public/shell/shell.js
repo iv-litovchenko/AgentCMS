@@ -2581,6 +2581,49 @@ function apiUrl(path, params = {}, agentIdOverride) {
   return url.toString();
 }
 
+let shellMaintenanceViewActive = false;
+let shellMaintenanceUiReady = false;
+
+function showShellMaintenanceView() {
+  if (shellMaintenanceViewActive) return;
+  shellMaintenanceViewActive = true;
+  const pane = document.getElementById("shell-maintenance-pane");
+  pane?.classList.remove("hidden");
+  document.body.classList.add("shell-maintenance-active");
+}
+
+function hideShellMaintenanceView() {
+  if (!shellMaintenanceViewActive) return;
+  shellMaintenanceViewActive = false;
+  document.getElementById("shell-maintenance-pane")?.classList.add("hidden");
+  document.body.classList.remove("shell-maintenance-active");
+}
+
+function setupShellMaintenanceUi() {
+  if (shellMaintenanceUiReady) return;
+  shellMaintenanceUiReady = true;
+  window.PlatformStatus?.bindMaintenancePage?.({
+    retryButtonId: "shell-maintenance-retry-btn",
+    onRecovered: () => {
+      hideShellMaintenanceView();
+      void bootShellAgentLayer().catch((error) => {
+        shellLog("error", "Не удалось восстановить Shell после maintenance", error.message);
+      });
+    }
+  });
+}
+
+async function ensureShellPlatformAvailable() {
+  setupShellMaintenanceUi();
+  const active = await window.PlatformStatus?.fetchMaintenanceMode?.();
+  if (active) {
+    showShellMaintenanceView();
+    return false;
+  }
+  hideShellMaintenanceView();
+  return true;
+}
+
 async function apiFetch(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 0;
   const { timeoutMs: _timeoutMs, agentId: agentIdOverride, ...fetchOptions } = options;
@@ -2600,6 +2643,10 @@ async function apiFetch(path, options = {}) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (response.status === 503 && data?.error === "maintenance") {
+        showShellMaintenanceView();
+        throw new Error("maintenance");
+      }
       throw new Error(data.details || data.error || `HTTP ${response.status}`);
     }
     return data;
@@ -12980,6 +13027,9 @@ async function boot() {
   syncShellAgentReadyUi();
   if (window.agentAppLock?.whenUnlocked) {
     await window.agentAppLock.whenUnlocked();
+  }
+  if (!(await ensureShellPlatformAvailable())) {
+    return;
   }
   cleanShellUrl();
   try {

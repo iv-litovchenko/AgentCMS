@@ -16652,6 +16652,58 @@ async function serveVoiceShellHtml(res) {
   res.end(content);
 }
 
+async function isPlatformMaintenanceActive() {
+  try {
+    const settings = await getPlatformSettings(getProjectRoot());
+    return isPlatformMaintenanceMode(settings);
+  } catch {
+    return false;
+  }
+}
+
+async function serveMaintenanceHtml(res) {
+  const maintenanceHtmlPath = path.join(getPublicDir(), "maintenance.html");
+  const content = await fs.readFile(maintenanceHtmlPath);
+  res.writeHead(503, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Retry-After": "300"
+  });
+  res.end(content);
+}
+
+function isMaintenanceStaticBypassPath(safePath) {
+  if (!safePath) return false;
+  if (safePath === "maintenance.html") return true;
+  if (safePath === "404.html") return true;
+  if (safePath === "platform-status.js") return true;
+  if (safePath === "project-version.js") return true;
+  if (safePath === "styles.css") return true;
+  if (safePath === "favicon.svg" || safePath === "favicon.png" || safePath === "apple-touch-icon.png") {
+    return true;
+  }
+  return false;
+}
+
+async function shouldServeMaintenancePage(reqPath, safePath) {
+  if (!(await isPlatformMaintenanceActive())) return false;
+  if (isMaintenanceStaticBypassPath(safePath)) return false;
+
+  const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
+  if (normalized === "/maintenance") return false;
+
+  if (safePath === "index.html" || normalized === "/") return true;
+  if (isSpaAppRoute(reqPath)) return true;
+  if (isVoiceShellSpaRoute(reqPath)) return true;
+
+  const shellTarget = resolveShellStaticPath(reqPath);
+  if (shellTarget === "/shell/index.html") return true;
+
+  const ext = path.extname(safePath).toLowerCase();
+  if (!ext || ext === ".html") return true;
+  return false;
+}
+
 async function serveIndexHtml(res, reqHost = "") {
   const indexPath = path.join(getPublicDir(), "index.html");
   let content = await fs.readFile(indexPath, "utf8");
@@ -16740,6 +16792,33 @@ async function serveStatic(reqPath, res, req) {
     return;
   }
 
+  if (await shouldServeMaintenancePage(reqPath, safePath)) {
+    await serveMaintenanceHtml(res);
+    return;
+  }
+
+  if (safePath === "maintenance.html" || reqPath === "/maintenance" || reqPath === "/maintenance/") {
+    if (!(await isPlatformMaintenanceActive())) {
+      res.writeHead(302, { Location: "/" });
+      res.end();
+      return;
+    }
+    try {
+      const content = await fs.readFile(path.join(getPublicDir(), "maintenance.html"));
+      res.writeHead(503, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Retry-After": "300"
+      });
+      res.end(content);
+      return;
+    } catch {
+      res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Service Unavailable");
+      return;
+    }
+  }
+
   if (safePath === "index.html") {
     await serveIndexHtml(res, String(req?.headers?.host || "").trim());
     return;
@@ -16763,6 +16842,10 @@ async function serveStatic(reqPath, res, req) {
       return;
     }
     if (!ext || ext === ".html" || isSpaAppRoute(reqPath)) {
+      if (await shouldServeMaintenancePage(reqPath, safePath)) {
+        await serveMaintenanceHtml(res);
+        return;
+      }
       try {
         await serveIndexHtml(res, String(req?.headers?.host || "").trim());
         return;
@@ -27713,6 +27796,10 @@ function createRequestHandler() {
     }
 
     if (isVoiceShellSpaRoute(url.pathname)) {
+      if (await isPlatformMaintenanceActive()) {
+        await serveMaintenanceHtml(res);
+        return;
+      }
       await serveVoiceShellHtml(res);
       return;
     }

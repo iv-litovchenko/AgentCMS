@@ -405,6 +405,10 @@ fields:
         name: Text (.txt)
       - key: ".json"
         name: JSON (.json)
+      - key: ".csv"
+        name: CSV (.csv)
+      - key: ".html"
+        name: HTML (.html)
     group: indexing
     sort: 27
 

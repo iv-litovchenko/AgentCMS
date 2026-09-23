@@ -11,6 +11,8 @@ const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
 const agentRegistry = require("./agent-registry");
+const { getPlatformSettings } = require("./settings-store");
+const { isPlatformMaintenanceMode } = require("./workspace-agent-settings");
 const { getLanIPv4 } = require("./lib/lan-ip");
 const voiceChpu = require("./lib/voice-chpu");
 const {
@@ -74,7 +76,9 @@ const VOICE_RESERVED_ROOT = new Set([
   "markdown-it-footnote.min.js",
   "index.html",
   "404.html",
-  "preview.html"
+  "preview.html",
+  "platform-status.js",
+  "maintenance.html"
 ]);
 
 let httpServer = null;
@@ -206,6 +210,48 @@ function proxyToCms(req, res, url) {
   req.pipe(proxyReq);
 }
 
+async function isVoiceMaintenanceActive() {
+  try {
+    const settings = await getPlatformSettings(ROOT);
+    return isPlatformMaintenanceMode(settings);
+  } catch {
+    return false;
+  }
+}
+
+async function serveVoiceMaintenanceHtml(res) {
+  const maintenancePath = path.join(getPublicDir(), "shell", "maintenance.html");
+  const content = await fs.readFile(maintenancePath);
+  res.writeHead(503, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Retry-After": "300"
+  });
+  res.end(content);
+}
+
+function isVoiceMaintenanceBypassPath(safePath, reqPath) {
+  const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
+  if (normalized === "/maintenance") return true;
+  if (safePath === "shell/maintenance.html") return true;
+  if (safePath === "platform-status.js") return true;
+  if (safePath === "project-version.js") return true;
+  if (safePath.startsWith("shell/") && /\.(css|js|svg|png|webp|ico|woff2?|webmanifest|wasm)$/i.test(safePath)) {
+    return true;
+  }
+  return false;
+}
+
+async function shouldServeVoiceMaintenancePage(reqPath, safePath) {
+  if (!(await isVoiceMaintenanceActive())) return false;
+  if (isVoiceMaintenanceBypassPath(safePath, reqPath)) return false;
+  if (safePath === "shell/index.html") return true;
+  if (isSpaFallbackPath(reqPath)) return true;
+  const ext = path.extname(safePath).toLowerCase();
+  if (!ext || ext === ".html") return true;
+  return false;
+}
+
 async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
   const publicDir = getPublicDir();
   let safePath = path.normalize(relativePath).replace(/^(\.\.[\\/])+/, "").replace(/^[/\\]+/, "");
@@ -214,6 +260,22 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
   if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);
     res.end("Forbidden");
+    return;
+  }
+
+  const reqPath = spaSourcePath || `/${safePath}`;
+  if (await shouldServeVoiceMaintenancePage(reqPath.startsWith("/") ? reqPath : `/${reqPath}`, safePath)) {
+    await serveVoiceMaintenanceHtml(res);
+    return;
+  }
+
+  if (safePath === "shell/maintenance.html" || String(reqPath).replace(/\/+$/, "") === "/maintenance") {
+    if (!(await isVoiceMaintenanceActive())) {
+      res.writeHead(302, { Location: "/" });
+      res.end();
+      return;
+    }
+    await serveVoiceMaintenanceHtml(res);
     return;
   }
 
@@ -276,6 +338,20 @@ function createVoiceRequestHandler() {
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname.startsWith("/api/")) {
+      if (url.pathname === "/api/platform/settings-global") {
+        proxyToCms(req, res, url);
+        return;
+      }
+      if (await isVoiceMaintenanceActive()) {
+        res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(
+          JSON.stringify({
+            error: "maintenance",
+            message: "Платформа в режиме обслуживания. Доступны только настройки platform."
+          })
+        );
+        return;
+      }
       proxyToCms(req, res, url);
       return;
     }
