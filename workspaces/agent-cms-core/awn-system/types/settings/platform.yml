@@ -396,19 +396,19 @@ fields:
       - key: ".md"
         name: Markdown (.md)
       - key: ".sidecar.md"
-        name: Sidecar (.sidecar.md)
-      - key: ".yml"
-        name: YAML (.yml)
-      - key: ".yaml"
-        name: YAML (.yaml)
-      - key: ".txt"
-        name: Text (.txt)
-      - key: ".json"
-        name: JSON (.json)
+        name: Markdown Sidecar (.sidecar.md)
       - key: ".csv"
         name: CSV (.csv)
       - key: ".html"
         name: HTML (.html)
+      - key: ".txt"
+        name: Text (.txt)
+      - key: ".json"
+        name: JSON (.json)
+      - key: ".yml"
+        name: YAML (.yml)
+      - key: ".yaml"
+        name: YAML (.yaml)
     group: indexing
     sort: 27
 
