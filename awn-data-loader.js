@@ -103,6 +103,12 @@ const ELEMENT_TYPE_CATEGORY = "awn.infoblock.element.category";
 const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
 const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
 const DEFAULT_RECORD_ELEMENT_TYPE = ELEMENT_TYPE_RECORD;
+const AWN_DATA_SCHEMA_TARGETS = ["category", "record", "sidecar"];
+const AWN_DATA_SCHEMA_TARGET_EXTENDS = {
+  category: ELEMENT_TYPE_CATEGORY,
+  record: ELEMENT_TYPE_RECORD,
+  sidecar: ELEMENT_TYPE_SIDECAR
+};
 /** @deprecated use DEFAULT_ELEMENT_SCHEMA_TYPE */
 const DEFAULT_ELEMENT_SCHEMA = `${AWN_DATA_DIR}/cms-base/data-elements/default.md`;
 
@@ -865,6 +871,16 @@ function resolveStoreSchemeModPath(storeAbs) {
   return path.join(storeAbs, SCHEMA_MOD_FILE);
 }
 
+function readStoreSchemeModBlock(awnSchema, kind) {
+  const block = awnSchema?.[kind];
+  if (!block || typeof block !== "object") return null;
+  return {
+    fields: normalizeAwnFieldsMap(block.fields || {}),
+    tabs: block.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {},
+    extends: resolveElementExtendsRef(block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind] || "")
+  };
+}
+
 function readStoreSchemeModOverlay(storeAbs) {
   const schemePath = resolveStoreSchemeModPath(storeAbs);
   if (!fs.existsSync(schemePath)) return null;
@@ -872,21 +888,32 @@ function readStoreSchemeModOverlay(storeAbs) {
     const parsed = parseTypeYaml(fs.readFileSync(schemePath, "utf-8"));
     const awnSchema = parsed?.awn_schema;
     if (!awnSchema || typeof awnSchema !== "object") {
-      return { fields: {}, tabs: {}, schemePath, exists: true };
+      return { fields: {}, tabs: {}, blocks: {}, schemePath, exists: true };
     }
-    const block = awnSchema.record || awnSchema.store || awnSchema.element || null;
-    const rawFields =
-      (block && typeof block === "object" ? block.fields : null) ||
-      awnSchema.record?.fields ||
-      awnSchema.fields ||
-      {};
-    const extendsRef = resolveElementExtendsRef(
-      (block && typeof block === "object" ? block.extends : "") || awnSchema.extends || ""
-    );
+
+    const blocks = {};
+    for (const kind of AWN_DATA_SCHEMA_TARGETS) {
+      const block = readStoreSchemeModBlock(awnSchema, kind);
+      if (block) blocks[kind] = block;
+    }
+
+    const legacyBlock = awnSchema.record || awnSchema.store || awnSchema.element || null;
+    if (!blocks.record && legacyBlock && typeof legacyBlock === "object") {
+      blocks.record = {
+        fields: normalizeAwnFieldsMap(legacyBlock.fields || awnSchema.fields || {}),
+        tabs: legacyBlock.tabs && typeof legacyBlock.tabs === "object" ? { ...legacyBlock.tabs } : {},
+        extends: resolveElementExtendsRef(
+          legacyBlock.extends || awnSchema.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS.record
+        )
+      };
+    }
+
+    const recordBlock = blocks.record || { fields: {}, tabs: {}, extends: AWN_DATA_SCHEMA_TARGET_EXTENDS.record };
     return {
-      fields: normalizeAwnFieldsMap(rawFields),
-      tabs: block?.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {},
-      extends: extendsRef,
+      fields: recordBlock.fields,
+      tabs: recordBlock.tabs,
+      extends: recordBlock.extends,
+      blocks,
       schemePath,
       exists: true
     };
@@ -896,19 +923,40 @@ function readStoreSchemeModOverlay(storeAbs) {
 }
 
 function composeAwnDataStoreSchemeModYaml(schema = {}) {
-  const fields = normalizeAwnFieldsMap(schema.fields || {});
-  const tabs = schema.elementSchemaTabs || schema.tabs || {};
-  const extendsRef = resolveElementExtendsRef(schema.extends || DEFAULT_ELEMENT_SCHEMA_TYPE);
-  const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:", "  record:"];
-  if (extendsRef) lines.push(`    extends: ${extendsRef}`);
-  lines.push("    fields:");
-  if (Object.keys(fields).length) {
-    lines.push(...dumpYamlBlock(fields, 3));
+  const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:"];
+  const blocks = schema.blocks && typeof schema.blocks === "object" ? schema.blocks : null;
+
+  if (blocks) {
+    for (const kind of AWN_DATA_SCHEMA_TARGETS) {
+      const block = blocks[kind] || {};
+      const extendsRef = resolveElementExtendsRef(
+        block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind] || DEFAULT_ELEMENT_SCHEMA_TYPE
+      );
+      const fields = normalizeAwnFieldsMap(block.fields || {});
+      const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
+      lines.push(`  ${kind}:`);
+      if (extendsRef) lines.push(`    extends: ${extendsRef}`);
+      lines.push("    fields:");
+      if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
+      if (tabs && Object.keys(tabs).length) {
+        lines.push("    tabs:");
+        lines.push(...dumpYamlBlock(tabs, 3));
+      }
+    }
+  } else {
+    const fields = normalizeAwnFieldsMap(schema.fields || {});
+    const tabs = schema.elementSchemaTabs || schema.tabs || {};
+    const extendsRef = resolveElementExtendsRef(schema.extends || DEFAULT_ELEMENT_SCHEMA_TYPE);
+    lines.push("  record:");
+    if (extendsRef) lines.push(`    extends: ${extendsRef}`);
+    lines.push("    fields:");
+    if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
+    if (tabs && Object.keys(tabs).length) {
+      lines.push("    tabs:");
+      lines.push(...dumpYamlBlock(tabs, 3));
+    }
   }
-  if (tabs && Object.keys(tabs).length) {
-    lines.push("    tabs:");
-    lines.push(...dumpYamlBlock(tabs, 3));
-  }
+
   lines.push("");
   return `${lines.join("\n")}`;
 }
@@ -2356,18 +2404,23 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
     content = fs.readFileSync(schemePath, "utf-8");
   }
 
+  const awnSchema = {};
+  for (const kind of AWN_DATA_SCHEMA_TARGETS) {
+    const block = overlay?.blocks?.[kind] || (kind === "record" ? overlay : null);
+    awnSchema[kind] = {
+      fields: block?.fields || (kind === "record" ? overlay?.fields || {} : {}),
+      tabs: block?.tabs || (kind === "record" ? overlay?.tabs || {} : {}),
+      extends: block?.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind]
+    };
+  }
+
   return {
     store: rel,
     kind: store.kind,
     schemeModRelPath,
     schemeModExists: Boolean(overlay?.exists || fs.existsSync(schemePath)),
     content,
-    awnSchema: {
-      record: {
-        fields: overlay?.fields || {},
-        tabs: overlay?.tabs || {}
-      }
-    },
+    awnSchema,
     mergedFields: merged?.fields || {},
     fieldsLocal: merged?.fieldsLocal || {},
     fieldsInSchemeMod: Boolean(merged?.fieldsInSchemeMod)
@@ -2388,17 +2441,30 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
     extractRecordSchemaFromSchemeModContent(nextContent);
   } else {
     const awnSchema = options.awnSchema && typeof options.awnSchema === "object" ? options.awnSchema : null;
-    const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
-    const fields = normalizeAwnFieldsMap(
-      options.fields || (block && block.fields) || awnSchema?.record?.fields || awnSchema?.fields || {}
-    );
-    const tabs =
-      options.tabs ||
-      options.elementSchemaTabs ||
-      (block && block.tabs) ||
-      awnSchema?.record?.tabs ||
-      {};
-    nextContent = composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs });
+    if (awnSchema && (awnSchema.category || awnSchema.record || awnSchema.sidecar)) {
+      const blocks = {};
+      for (const kind of AWN_DATA_SCHEMA_TARGETS) {
+        const block = awnSchema[kind] || {};
+        blocks[kind] = {
+          extends: block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind],
+          fields: normalizeAwnFieldsMap(block.fields || {}),
+          tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
+        };
+      }
+      nextContent = composeAwnDataStoreSchemeModYaml({ blocks });
+    } else {
+      const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
+      const fields = normalizeAwnFieldsMap(
+        options.fields || (block && block.fields) || awnSchema?.record?.fields || awnSchema?.fields || {}
+      );
+      const tabs =
+        options.tabs ||
+        options.elementSchemaTabs ||
+        (block && block.tabs) ||
+        awnSchema?.record?.tabs ||
+        {};
+      nextContent = composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs });
+    }
   }
 
   fs.writeFileSync(schemePath, nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`, "utf-8");
@@ -2464,6 +2530,8 @@ module.exports = {
   ELEMENT_TYPE_CATEGORY,
   ELEMENT_TYPE_SIDECAR,
   ELEMENT_TYPE_COMMENT,
+  AWN_DATA_SCHEMA_TARGETS,
+  AWN_DATA_SCHEMA_TARGET_EXTENDS,
   buildSectionManifestMarkdown,
   toAwnFieldKey,
   KIND_TO_AWN_PROP_TYPE

@@ -101643,12 +101643,20 @@ let awnDataViewRecordCache = null;
 let awnDataViewSectionId = "__all__";
 let awnDataViewSchemaEditing = false;
 let awnDataViewSchemaDraft = "";
-let awnDataViewSchemeModEditing = false;
-let awnDataViewSchemeModDraft = "";
-let awnDataViewSchemeModTextareaNode = null;
-let awnDataViewSchemeModReadNode = null;
-let awnDataViewSchemeModEditNode = null;
-let awnDataViewEditSchemeModBtn = null;
+let awnDataViewElementSchemaPanelNode = null;
+let awnDataViewOpenSchemaEditorBtn = null;
+let awnDataStoreSchemaLoadSeq = 0;
+const AWN_DATA_SCHEMA_TARGETS = ["category", "record", "sidecar"];
+const AWN_DATA_SCHEMA_TARGET_LABELS = {
+  category: "Раздел",
+  record: "Запись",
+  sidecar: "Sidecar"
+};
+const AWN_DATA_SCHEMA_TARGET_TYPES = {
+  category: "awn.infoblock.element.category",
+  record: "awn.infoblock.element.record",
+  sidecar: "awn.infoblock.element.sidecar"
+};
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout";
 let awnDataViewRecordsLayout = "table";
 
@@ -102708,101 +102716,372 @@ function setAwnDataViewFieldsAccordionOpen(open) {
   }
 }
 
-function setAwnDataViewSchemeModEditMode(enabled) {
-  awnDataViewSchemeModEditing = Boolean(enabled);
-  awnDataViewSchemeModReadNode?.classList.toggle("hidden", awnDataViewSchemeModEditing);
-  awnDataViewSchemeModEditNode?.classList.toggle("hidden", !awnDataViewSchemeModEditing);
-  if (enabled) setAwnDataViewFieldsAccordionOpen(true);
-  if (awnDataViewEditSchemeModBtn) {
-    awnDataViewEditSchemeModBtn.textContent = awnDataViewSchemeModEditing
-      ? "Только просмотр"
-      : "Редактировать";
+function emptyAwnDataStoreSchemaState() {
+  const result = {};
+  for (const id of AWN_DATA_SCHEMA_TARGETS) {
+    result[id] = { fields: {} };
   }
+  return result;
 }
 
-async function beginAwnDataViewSchemeModEdit() {
-  const fileRel = resolveAwnDataStoreSchemeModRel();
-  if (!fileRel) return;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
-  try {
-    if (awnDataViewEditSchemeModBtn) awnDataViewEditSchemeModBtn.disabled = true;
-    const response = await fetch(buildApiUrl("/api/agent-system/file", { path: fileRel }, catalogAgentId));
-    let content = "";
-    if (response.ok) {
-      const data = await response.json();
-      content = String(data.content ?? "");
-    } else if (response.status === 404) {
-      content = [
-        "version: 1",
-        "layer: awn-database-store",
-        "",
-        "awn_schema:",
-        "  record:",
-        "    fields: {}",
-        ""
-      ].join("\n");
-    } else {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || data.details || `HTTP ${response.status}`);
-    }
-    awnDataViewSchemeModDraft = content;
-    if (awnDataViewSchemeModTextareaNode) awnDataViewSchemeModTextareaNode.value = content;
-    setAwnDataViewSchemeModEditMode(true);
-  } catch (error) {
-    showToast(String(error.message || error), "error");
-  } finally {
-    if (awnDataViewEditSchemeModBtn) awnDataViewEditSchemeModBtn.disabled = false;
-  }
-}
-
-function cancelAwnDataViewSchemeModEdit() {
-  if (awnDataViewSchemeModTextareaNode) {
-    awnDataViewSchemeModTextareaNode.value = awnDataViewSchemeModDraft;
-  }
-  setAwnDataViewSchemeModEditMode(false);
-}
-
-async function saveAwnDataViewSchemeModEdit() {
-  const fileRel = resolveAwnDataStoreSchemeModRel();
-  if (!fileRel || !awnDataViewSchemeModTextareaNode) return;
-  const content = awnDataViewSchemeModTextareaNode.value;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
-  const storeRel = awnDataViewStoreRel;
-  const saveBtn = awnDataViewRoot?.querySelector('[data-awn-database-action="save-schema-mod"]');
-  try {
-    if (saveBtn) saveBtn.disabled = true;
-    const response = await fetch(buildApiUrl("/api/agent-system/file", {}, catalogAgentId), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: fileRel, content })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
-    awnDataViewSchemeModDraft = content;
-    setAwnDataViewSchemeModEditMode(false);
-    showToast(`${SCHEMA_MOD_FILE} сохранён`, "success");
-    invalidateTypeCatalogCache(catalogAgentId);
-    await refreshMenuAwnDataStores(catalogAgentId);
-    if (storeRel) {
-      const reloadResponse = await fetch(
-        buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId)
+function normalizeAwnDataStoreSchemaState(raw) {
+  const result = emptyAwnDataStoreSchemaState();
+  if (!raw || typeof raw !== "object") return result;
+  for (const id of AWN_DATA_SCHEMA_TARGETS) {
+    const block = raw[id];
+    if (block?.fields && typeof block.fields === "object") {
+      result[id].fields = Object.fromEntries(
+        Object.entries(block.fields).map(([key, def]) => [key, normalizeTopicSchemaCustomFieldDef(def)])
       );
-      if (reloadResponse.ok) {
-        const reloadData = await reloadResponse.json();
-        const store = normalizeAwnDataStoreView(reloadData.store);
-        if (store) {
-          awnDataViewStoreCache = store;
-          renderAwnDataViewHeader(store);
-          renderAwnDataViewSchema(store);
-          if (store.kind !== "group") renderAwnDataViewRecords(store);
+    }
+  }
+  return result;
+}
+
+function resolveAwnDataSchemaBaseType(target, cache) {
+  const typeName = AWN_DATA_SCHEMA_TARGET_TYPES[target];
+  const typeDef = typeName ? mergeClientTypeDefinition(typeName) : null;
+  if (typeDef?.fields) {
+    return {
+      name: typeName,
+      kind: typeDef.kind || "type",
+      fields: { ...typeDef.fields }
+    };
+  }
+  return cache?.baseTypes?.[target] || null;
+}
+
+function enrichAwnDataStoreSchemaCacheFromTypes(cache) {
+  if (!cache) return cache;
+  cache.baseTypes = {};
+  cache.merged = {};
+  for (const id of AWN_DATA_SCHEMA_TARGETS) {
+    const base = resolveAwnDataSchemaBaseType(id, cache);
+    if (base) cache.baseTypes[id] = base;
+    const custom = cache.awnSchema?.[id]?.fields || {};
+    cache.merged[id] = { ...base, fields: { ...(base?.fields || {}), ...custom } };
+  }
+  return cache;
+}
+
+function countAwnDataStoreSchemaFields(awnSchema) {
+  let total = 0;
+  for (const id of AWN_DATA_SCHEMA_TARGETS) {
+    total += Object.keys(awnSchema?.[id]?.fields || {}).length;
+  }
+  return total;
+}
+
+function getAwnDataStoreSchemaCacheKey(storeRel) {
+  return `awn-data-store:${String(storeRel || "").trim()}`;
+}
+
+async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
+  const normalizedStoreRel = String(storeRel || "").trim();
+  if (!normalizedStoreRel) return null;
+  const response = await fetch(
+    buildApiUrl("/api/awn-database/store-schema", { store: normalizedStoreRel }, agentId)
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  if (!awnTypesCache?.types) await loadAwnTypes(agentId);
+  const cache = {
+    storeRel: normalizedStoreRel,
+    cacheKey: getAwnDataStoreSchemaCacheKey(normalizedStoreRel),
+    schemeModRelPath: data.schemeModRelPath || "",
+    awnSchema: normalizeAwnDataStoreSchemaState(data.awnSchema),
+    activeTarget: "record",
+    fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {}
+  };
+  enrichAwnDataStoreSchemaCacheFromTypes(cache);
+  return cache;
+}
+
+function markAwnDataStoreSchemaPanelDirty(panel) {
+  panel._awnDataStoreSchemaDirty = true;
+  panel.querySelector(".awn-database-view-element-schema-save-btn")?.classList.add("is-dirty");
+}
+
+function renderAwnDataStoreSchemaTargetTabs(panel, cache) {
+  const tabsNode = panel.querySelector(".awn-database-view-element-schema-tabs");
+  if (!tabsNode) return;
+  tabsNode.replaceChildren();
+  const row = document.createElement("div");
+  row.className = "topic-schema-target-tab-row topic-schema-target-tab-row--core";
+  for (const targetId of AWN_DATA_SCHEMA_TARGETS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "topic-schema-target-tab topic-schema-target-tab--slot";
+    if (targetId === "category") btn.classList.add("topic-schema-target-tab--slot-meta");
+    if (targetId === "sidecar") btn.classList.add("topic-schema-target-tab--slot-sidecar");
+    btn.dataset.target = targetId;
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", targetId === cache.activeTarget ? "true" : "false");
+    btn.classList.toggle("is-active", targetId === cache.activeTarget);
+    const configured = Object.keys(cache.awnSchema?.[targetId]?.fields || {}).length > 0;
+    btn.classList.toggle("is-configured", configured);
+    const fieldCount = Object.keys(cache.awnSchema?.[targetId]?.fields || {}).length;
+    const mark = document.createElement("span");
+    mark.className = "topic-schema-target-tab-mark";
+    mark.classList.toggle("is-filled", configured);
+    mark.classList.toggle("is-empty", !configured);
+    mark.setAttribute("aria-hidden", "true");
+    btn.appendChild(mark);
+    const labelNode = document.createElement("span");
+    labelNode.className = "topic-schema-target-tab-label";
+    labelNode.textContent = AWN_DATA_SCHEMA_TARGET_LABELS[targetId] || targetId;
+    btn.appendChild(labelNode);
+    const countNode = document.createElement("span");
+    countNode.className = "topic-schema-target-tab-count";
+    countNode.textContent = String(fieldCount);
+    countNode.setAttribute("aria-hidden", "true");
+    btn.appendChild(countNode);
+    btn.addEventListener("click", () => {
+      readSectionSchemaFieldsFromPanel(panel, cache);
+      cache.activeTarget = targetId;
+      renderAwnDataStoreSchemaEditor(panel, cache);
+    });
+    row.appendChild(btn);
+  }
+  tabsNode.appendChild(row);
+}
+
+function renderAwnDataStoreSchemaBaseFields(panel, cache) {
+  const baseNode = panel.querySelector(".awn-database-view-element-schema-base-fields");
+  const titleNode = panel.querySelector(".awn-database-view-element-schema-base-title");
+  if (!baseNode) return;
+  const target = cache.activeTarget;
+  const base = resolveAwnDataSchemaBaseType(target, cache);
+  const typeName = AWN_DATA_SCHEMA_TARGET_TYPES[target];
+  if (titleNode) {
+    const label = AWN_DATA_SCHEMA_TARGET_LABELS[target] || target;
+    titleNode.textContent = typeName
+      ? `Базовые поля · ${label} (${typeName})`
+      : "Базовые поля (read-only)";
+  }
+  if (!base?.fields) {
+    baseNode.textContent = "—";
+    return;
+  }
+  const parts = Object.entries(base.fields).map(([key, def]) => {
+    const title = def?.title ? ` (${def.title})` : "";
+    return `${key}${title} · ${getAwnFieldTypeLabel(def?.type)}`;
+  });
+  baseNode.textContent = parts.join(" · ") || "—";
+}
+
+function renderAwnDataStoreSchemaEditor(panel, cache) {
+  if (!panel || !cache) return;
+  closeTopicSchemaSectionEditor(panel);
+  renderAwnDataStoreSchemaTargetTabs(panel, cache);
+  renderAwnDataStoreSchemaBaseFields(panel, cache);
+  renderSectionSchemaCustomFields(panel, cache);
+  const pathNode = panel.querySelector(".awn-database-view-element-schema-path");
+  if (pathNode) {
+    const rel = cache.schemeModRelPath || resolveAwnDataStoreSchemeModRel() || SCHEMA_MOD_FILE;
+    pathNode.textContent = rel.replace(/^awn-database\//, "");
+  }
+}
+
+function bindAwnDataStoreSchemaPanelEvents(panel, cache) {
+  if (!panel || panel.dataset.awnDataSchemaBound === "1") return;
+  panel.dataset.awnDataSchemaBound = "1";
+  panel._awnDataStoreSchemaCache = cache;
+
+  panel.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-schema-field]")) return;
+    readSectionSchemaFieldFromRow(
+      event.target.closest(".topic-schema-field-row"),
+      cache,
+      cache.activeTarget,
+      cache.cacheKey
+    );
+    markAwnDataStoreSchemaPanelDirty(panel);
+  });
+
+  panel.addEventListener("click", (event) => {
+    if (event.target.closest(".topic-schema-pending-group-reset")) {
+      const wrap = event.target.closest(".topic-schema-pending-group-hint-wrap");
+      const target = wrap?.dataset.schemaTarget || cache.activeTarget;
+      resetTopicSchemaPendingGroup(target);
+      return;
+    }
+    if (event.target.closest(".topic-schema-add-section-btn")) {
+      event.preventDefault();
+      event.stopPropagation();
+      addTopicSchemaSection(cache.activeTarget, panel);
+      return;
+    }
+    const btn = event.target.closest("[data-schema-action]");
+    if (!btn) return;
+    const action = btn.dataset.schemaAction;
+    const target = cache.activeTarget;
+    const scope = cache.cacheKey;
+    const fields = cache.awnSchema[target]?.fields || {};
+    const fieldKeys = Object.keys(fields);
+
+    if (action === "group-move-up" || action === "group-move-down") {
+      const groupId = btn.dataset.schemaGroup;
+      if (!groupId) return;
+      if (moveSchemaEditorGroup(fields, fieldKeys, groupId, action === "group-move-up" ? "up" : "down")) {
+        renderAwnDataStoreSchemaEditor(panel, cache);
+        markAwnDataStoreSchemaPanelDirty(panel);
+      }
+      return;
+    }
+    if (action === "group-rename") {
+      const groupId = btn.dataset.schemaGroup;
+      if (!groupId) return;
+      const fieldsRoot = panel.querySelector(".topic-schema-fields");
+      beginTopicSchemaGroupRename(groupId, target, fieldsRoot, {
+        onCommit: (trimmed) => {
+          if (!renameSchemaEditorGroup(fields, fieldKeys, groupId, trimmed, target)) return;
+          renderAwnDataStoreSchemaEditor(panel, cache);
+          markAwnDataStoreSchemaPanelDirty(panel);
+          showToast(`Раздел переименован в «${trimmed}»`, "success");
         }
+      });
+      return;
+    }
+
+    const key = btn.dataset.schemaKey;
+    if (action === "remove" && key) {
+      delete cache.awnSchema[target].fields[key];
+      setSectionSchemaFieldExpanded(scope, target, key, false);
+      renderAwnDataStoreSchemaEditor(panel, cache);
+      markAwnDataStoreSchemaPanelDirty(panel);
+      return;
+    }
+    if ((action === "move-up" || action === "move-down") && key) {
+      const keys = Object.keys(fields);
+      const index = keys.indexOf(key);
+      if (index < 0) return;
+      const nextIndex = action === "move-up" ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= keys.length) return;
+      keys.splice(index, 1);
+      keys.splice(nextIndex, 0, key);
+      const reordered = {};
+      for (const fieldKey of keys) reordered[fieldKey] = fields[fieldKey];
+      cache.awnSchema[target].fields = reordered;
+      renderAwnDataStoreSchemaEditor(panel, cache);
+      markAwnDataStoreSchemaPanelDirty(panel);
+      return;
+    }
+    if (action === "toggle-settings" && key) {
+      const expanded = toggleSectionSchemaFieldExpanded(scope, target, key);
+      const row = btn.closest(".topic-schema-field-row");
+      row?.classList.toggle("is-settings-open", expanded);
+      syncTopicSchemaSettingsToggleButton(btn, expanded);
+      row?.querySelector(".topic-schema-field-settings")?.classList.toggle("is-collapsed", !expanded);
+    }
+  });
+
+  panel.querySelector(".section-schema-add-btn")?.addEventListener("click", () => {
+    const target = cache.activeTarget;
+    if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
+    const fields = cache.awnSchema[target].fields;
+    let index = 1;
+    let key = defaultSectionSchemaFieldKey(target, index);
+    while (fields[key]) {
+      index += 1;
+      key = defaultSectionSchemaFieldKey(target, index);
+    }
+    fields[key] = buildTopicSchemaFieldDefaults(index, target);
+    renderAwnDataStoreSchemaEditor(panel, cache);
+    markAwnDataStoreSchemaPanelDirty(panel);
+    panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] [data-schema-field="key"]`)?.focus();
+  });
+
+  panel.querySelector(".awn-database-view-element-schema-save-btn")?.addEventListener("click", () => {
+    const saveBtn = panel.querySelector(".awn-database-view-element-schema-save-btn");
+    if (saveBtn?.disabled) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Сохраняю…";
+    void saveAwnDataStoreSchemaFromPanel(panel)
+      .then(() => {
+        showToast(`Схема сохранена в ${SCHEMA_MOD_FILE}`, "success");
+      })
+      .catch((error) => {
+        showToast(`Ошибка сохранения схемы: ${error.message}`, "error");
+      })
+      .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Сохранить схему";
+      });
+  });
+}
+
+async function saveAwnDataStoreSchemaFromPanel(panel) {
+  const cache = panel?._awnDataStoreSchemaCache;
+  if (!cache) throw new Error("Схема не загружена");
+  readSectionSchemaFieldsFromPanel(panel, cache);
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const storeRel = cache.storeRel || awnDataViewStoreRel;
+  const response = await fetch(buildApiUrl("/api/awn-database/store-schema", {}, catalogAgentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      store: storeRel,
+      awnSchema: normalizeAwnDataStoreSchemaState(cache.awnSchema)
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  cache.awnSchema = normalizeAwnDataStoreSchemaState(data.awnSchema || cache.awnSchema);
+  enrichAwnDataStoreSchemaCacheFromTypes(cache);
+  panel._awnDataStoreSchemaDirty = false;
+  panel.querySelector(".awn-database-view-element-schema-save-btn")?.classList.remove("is-dirty");
+  renderAwnDataStoreSchemaEditor(panel, cache);
+  if (awnDataViewSchemaFieldsCountNode) {
+    awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(
+      countAwnDataStoreSchemaFields(cache.awnSchema)
+    );
+  }
+  invalidateTypeCatalogCache(catalogAgentId);
+  await refreshMenuAwnDataStores(catalogAgentId);
+  if (storeRel) {
+    const reloadResponse = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId));
+    if (reloadResponse.ok) {
+      const reloadData = await reloadResponse.json();
+      const store = normalizeAwnDataStoreView(reloadData.store);
+      if (store) {
+        awnDataViewStoreCache = store;
+        renderAwnDataViewHeader(store);
+        if (store.kind !== "group") renderAwnDataViewRecords(store);
       }
     }
-  } catch (error) {
-    showToast(String(error.message || error), "error");
-  } finally {
-    if (saveBtn) saveBtn.disabled = false;
   }
+  return data;
+}
+
+async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
+  const panel = awnDataViewElementSchemaPanelNode;
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "").trim();
+  if (!panel || !storeRel || store?.kind === "group") return;
+
+  const loadSeq = ++awnDataStoreSchemaLoadSeq;
+  const baseFieldsNode = panel.querySelector(".awn-database-view-element-schema-base-fields");
+  if (baseFieldsNode) baseFieldsNode.textContent = "Загрузка…";
+  try {
+    const cache = await loadAwnDataStoreSchemaEditor(storeRel, agentId);
+    if (loadSeq !== awnDataStoreSchemaLoadSeq) return;
+    panel._awnDataStoreSchemaCache = cache;
+    bindAwnDataStoreSchemaPanelEvents(panel, cache);
+    renderAwnDataStoreSchemaEditor(panel, cache);
+    if (awnDataViewSchemaFieldsCountNode) {
+      awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(
+        countAwnDataStoreSchemaFields(cache.awnSchema)
+      );
+    }
+  } catch (error) {
+    if (loadSeq !== awnDataStoreSchemaLoadSeq) return;
+    if (baseFieldsNode) baseFieldsNode.textContent = `Ошибка: ${error.message}`;
+  }
+}
+
+function openAwnDataStoreSchemaEditor() {
+  setAwnDataViewFieldsAccordionOpen(true);
+  awnDataViewElementSchemaPanelNode?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function resolveAwnDataStoreSchemaFileName() {
@@ -102894,10 +103173,8 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewSchemaTbodyNode = root.querySelector(".awn-database-view-schema-tbody");
   awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-database-view-schema-fields-count");
   awnDataViewEditStoreBtn = root.querySelector('[data-awn-database-action="edit-store"]');
-  awnDataViewSchemeModReadNode = root.querySelector(".awn-database-view-scheme-mod-read");
-  awnDataViewSchemeModEditNode = root.querySelector(".awn-database-view-scheme-mod-edit");
-  awnDataViewSchemeModTextareaNode = root.querySelector(".awn-database-view-scheme-mod-textarea");
-  awnDataViewEditSchemeModBtn = root.querySelector('[data-awn-database-action="edit-schema-mod"]');
+  awnDataViewElementSchemaPanelNode = root.querySelector(".awn-database-view-element-schema-panel");
+  awnDataViewOpenSchemaEditorBtn = root.querySelector('[data-awn-database-action="open-schema-editor"]');
   awnDataViewRecordsNode = root.querySelector(".awn-database-view-records");
   awnDataViewSearchInputNode = root.querySelector(".awn-database-view-search-input");
   awnDataViewCountNode = root.querySelector(".awn-database-view-count");
@@ -103226,20 +103503,8 @@ function wireAwnDataViewPageEvents(hub) {
       cancelAwnDataViewSchemaEdit();
       return;
     }
-    if (action === "edit-schema-mod") {
-      if (awnDataViewSchemeModEditing) {
-        cancelAwnDataViewSchemeModEdit();
-        return;
-      }
-      void beginAwnDataViewSchemeModEdit();
-      return;
-    }
-    if (action === "save-schema-mod") {
-      void saveAwnDataViewSchemeModEdit();
-      return;
-    }
-    if (action === "cancel-schema-mod") {
-      cancelAwnDataViewSchemeModEdit();
+    if (action === "open-schema-editor") {
+      openAwnDataStoreSchemaEditor();
       return;
     }
     if (action === "back-store") {
@@ -103756,13 +104021,11 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
 
   if (loading || error || !store) {
     setAwnDataViewSchemaEditMode(false);
-    setAwnDataViewSchemeModEditMode(false);
+    awnDataStoreSchemaLoadSeq += 1;
     awnDataViewSchemaWrapNode.classList.add("hidden");
     awnDataViewSchemaFieldsSectionNode?.classList.add("hidden");
     renderAwnDataIblockDescription(null);
     awnDataViewSchemaMetaTbodyNode?.replaceChildren();
-    awnDataViewSchemaFieldsWrapNode?.classList.add("hidden");
-    awnDataViewSchemaTbodyNode?.replaceChildren();
     if (awnDataViewSchemaFieldsCountNode) awnDataViewSchemaFieldsCountNode.textContent = "";
     return;
   }
@@ -103801,49 +104064,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     schemaModFileNode.textContent = SCHEMA_MOD_FILE;
   }
 
-  setAwnDataViewSchemeModEditMode(false);
-
-  const schemaFields = schema.fields && typeof schema.fields === "object" ? schema.fields : {};
-  const localFieldKeys = new Set(
-    Object.keys(schema.fieldsLocal && typeof schema.fieldsLocal === "object" ? schema.fieldsLocal : schemaFields)
-  );
-  const fieldKeys = Object.keys(schemaFields);
-
-  if (awnDataViewSchemaFieldsCountNode) {
-    if (isGroup || !fieldKeys.length) {
-      awnDataViewSchemaFieldsCountNode.textContent = "";
-    } else {
-      awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(fieldKeys.length);
-    }
-  }
-
-  if (awnDataViewSchemaFieldsWrapNode && awnDataViewSchemaTbodyNode) {
-    awnDataViewSchemaTbodyNode.replaceChildren();
-    if (!fieldKeys.length || isGroup) {
-      awnDataViewSchemaFieldsWrapNode.classList.add("hidden");
-    } else {
-      awnDataViewSchemaFieldsWrapNode.classList.remove("hidden");
-      for (const key of fieldKeys.sort((a, b) => a.localeCompare(b, "ru"))) {
-        const field = schemaFields[key] || {};
-        const row = document.createElement("tr");
-        const cells = [
-          { text: key, className: "awn-database-view-schema-key" },
-          { text: String(field.title || key).trim() || key },
-          { text: formatAwnDataSchemaFieldType(field), className: "awn-database-view-schema-type" },
-          { text: field.required ? "да" : "—", className: field.required ? "is-required" : "is-optional" },
-          { text: formatAwnDataSchemaDefault(field), className: "awn-database-view-schema-default" }
-        ];
-        if (!localFieldKeys.has(key)) row.classList.add("is-inherited");
-        for (const cellSpec of cells) {
-          const cell = document.createElement("td");
-          if (cellSpec.className) cell.className = cellSpec.className;
-          cell.textContent = cellSpec.text;
-          row.appendChild(cell);
-        }
-        awnDataViewSchemaTbodyNode.appendChild(row);
-      }
-    }
-  }
+  void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
 }
 
 function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeAgentId) {
@@ -104366,22 +104587,55 @@ function filterAwnDataViewRecords(records, query) {
   });
 }
 
+function formatAwnDataViewFieldLabel(field, key) {
+  return String(field?.title || key).trim().replace(/^\{[^}]+\}\s*/, "") || key;
+}
+
+function sortAwnDataViewSchemaFieldKeys(keys, fields = {}) {
+  return [...keys].sort((a, b) => {
+    const sortA = Number(fields[a]?.sort);
+    const sortB = Number(fields[b]?.sort);
+    const hasA = Number.isFinite(sortA);
+    const hasB = Number.isFinite(sortB);
+    if (hasA && hasB && sortA !== sortB) return sortA - sortB;
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+    return a.localeCompare(b, "ru");
+  });
+}
+
+function resolveAwnDataViewRecordSchemaFields(store) {
+  const schema = store?.schema && typeof store.schema === "object" ? store.schema : {};
+  const fieldsLocal = schema.fieldsLocal && typeof schema.fieldsLocal === "object" ? schema.fieldsLocal : {};
+  if (Object.keys(fieldsLocal).length) return fieldsLocal;
+  return {};
+}
+
+function isAwnDataViewTitleFieldKey(key) {
+  const normalized = String(key || "").trim().toLowerCase();
+  return normalized === "title" || normalized === "awn-title";
+}
+
 function getAwnDataViewColumns(store) {
-  const schemaFields = store?.schema?.fields || {};
+  const schemaFields = resolveAwnDataViewRecordSchemaFields(store);
   const columns = [{ key: "__id__", label: "ID", kind: "id" }];
 
-  for (const [key, field] of Object.entries(schemaFields)) {
-    if (key === "id") continue;
+  for (const key of sortAwnDataViewSchemaFieldKeys(Object.keys(schemaFields), schemaFields)) {
+    if (key === "id" || key === "awn-id") continue;
+    const field = schemaFields[key] || {};
+    if (field.hidden) continue;
     columns.push({
       key,
-      label: String(field?.title || key).trim() || key,
+      label: formatAwnDataViewFieldLabel(field, key),
       kind: "field",
       fieldType: String(field?.type || "awn.field.string"),
       field
     });
   }
 
-  const hasParentInSchema = Object.prototype.hasOwnProperty.call(schemaFields, "parent");
+  const hasParentInSchema =
+    Object.prototype.hasOwnProperty.call(schemaFields, "parent") ||
+    Object.prototype.hasOwnProperty.call(schemaFields, "awn-parent");
   const records = Array.isArray(store?.records) ? store.records : [];
   const hasParentInData = records.some((record) => String(record.parent || "").trim());
   if (!hasParentInSchema && hasParentInData && store?.kind === "collection") {
@@ -104398,7 +104652,7 @@ function formatAwnDataViewCellValue(record, column) {
   const frontmatter = record?.frontmatter || {};
   let raw = frontmatter[column.key];
   if (raw === undefined || raw === null || String(raw).trim() === "") {
-    if (column.key === "title") return record.title || "—";
+    if (isAwnDataViewTitleFieldKey(column.key)) return record.title || "—";
     return "—";
   }
 
@@ -104563,7 +104817,10 @@ function createAwnDataViewRecordCard(record, viewStore, columns) {
   head.className = "awn-database-view-record-card-head";
   const title = document.createElement("div");
   title.className = "awn-database-view-record-card-title";
-  title.textContent = formatAwnDataViewCellValue(record, columns.find((c) => c.key === "title") || { key: "title" });
+  title.textContent = formatAwnDataViewCellValue(
+    record,
+    columns.find((c) => isAwnDataViewTitleFieldKey(c.key)) || { key: "awn-title" }
+  );
   head.appendChild(title);
   const editBtn = document.createElement("button");
   editBtn.type = "button";
@@ -104580,7 +104837,7 @@ function createAwnDataViewRecordCard(record, viewStore, columns) {
   const body = document.createElement("dl");
   body.className = "awn-database-view-record-card-fields";
   for (const column of columns) {
-    if (column.key === "title") continue;
+    if (isAwnDataViewTitleFieldKey(column.key)) continue;
     const value = formatAwnDataViewCellValue(record, column);
     const row = document.createElement("div");
     row.className = "awn-database-view-record-card-field";
@@ -105052,10 +105309,6 @@ function renderAwnDataViewRecords(store) {
     th.textContent = column.label;
     headRow.appendChild(th);
   }
-  const actionsHead = document.createElement("th");
-  actionsHead.scope = "col";
-  actionsHead.setAttribute("aria-label", "Действия");
-  headRow.appendChild(actionsHead);
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -105084,8 +105337,26 @@ function renderAwnDataViewRecords(store) {
 
       if (column.kind === "id") {
         cell.className = "awn-database-view-record-id";
-        cell.textContent = value;
-      } else if (column.key === "title") {
+        const idWrap = document.createElement("div");
+        idWrap.className = "awn-database-view-record-id-wrap";
+        const idText = document.createElement("span");
+        idText.className = "awn-database-view-record-id-text";
+        idText.textContent = value;
+        idWrap.append(idText);
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "awn-database-view-edit-btn";
+        const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+        editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
+        editBtn.setAttribute("aria-label", editBtn.title);
+        editBtn.append(createOverviewEditManifestIcon());
+        editBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void openAwnDataRecordEditor(record, viewStore);
+        });
+        idWrap.appendChild(editBtn);
+        cell.appendChild(idWrap);
+      } else if (isAwnDataViewTitleFieldKey(column.key)) {
         cell.className = "awn-database-view-record-title";
         const titleText = document.createElement("span");
         titleText.textContent = value;
@@ -105107,22 +105378,6 @@ function renderAwnDataViewRecords(store) {
 
       row.appendChild(cell);
     }
-
-    const actionsCell = document.createElement("td");
-    actionsCell.className = "awn-database-view-record-actions";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "awn-database-view-edit-btn";
-    const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
-    editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
-    editBtn.setAttribute("aria-label", editBtn.title);
-    editBtn.append(createOverviewEditManifestIcon());
-    editBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      void openAwnDataRecordEditor(record, viewStore);
-    });
-    actionsCell.appendChild(editBtn);
-    row.appendChild(actionsCell);
 
     tbody.appendChild(row);
   }

@@ -5758,50 +5758,62 @@
                     <span class="nav-book-toc-folder-chevron"></span>
                   </span>
                   <span class="awn-database-view-accordion-summary-main">
-                    <span class="awn-database-view-accordion-title">Схема полей записей</span>
+                    <span class="awn-database-view-accordion-title">Схема полей элементов</span>
                     <span class="awn-database-view-accordion-meta awn-database-view-schema-fields-count" aria-live="polite"></span>
                   </span>
                   <span class="awn-database-view-accordion-actions">
                     <code class="awn-database-view-schema-file awn-database-view-schema-mod-file">schema.yml</code>
-                    <button type="button" class="awn-database-view-schema-btn" data-awn-database-action="edit-schema-mod">
+                    <button type="button" class="awn-database-view-schema-btn" data-awn-database-action="open-schema-editor">
                       Редактировать
                     </button>
                   </span>
                 </summary>
                 <div class="awn-database-view-accordion-body">
-                  <div class="awn-database-view-scheme-mod-read">
-                    <div class="awn-database-view-schema-fields-wrap hidden">
-                      <div class="awn-database-view-schema-table-wrap">
-                        <table class="awn-database-view-schema-table">
-                          <thead>
-                            <tr>
-                              <th scope="col">Ключ</th>
-                              <th scope="col">Название</th>
-                              <th scope="col">Тип</th>
-                              <th scope="col">Обяз.</th>
-                              <th scope="col">По умолч.</th>
-                            </tr>
-                          </thead>
-                          <tbody class="awn-database-view-schema-tbody"></tbody>
-                        </table>
+                  <section
+                    class="awn-database-view-element-schema-panel topic-schema-panel"
+                    aria-label="Схема полей элементов"
+                  >
+                    <header class="topic-schema-head">
+                      <div>
+                        <p class="topic-schema-lead">
+                          Дополнительные поля для разделов, записей и sidecar внутри инфоблока.
+                          <span class="topic-schema-lead-hint"
+                            >Сохраняется в <code>schema.yml</code> рядом с manifest коллекции.</span
+                          >
+                        </p>
+                        <p class="section-schema-meta">
+                          <span class="section-schema-meta-label">Файл:</span>
+                          <code class="section-schema-path awn-database-view-element-schema-path"></code>
+                        </p>
                       </div>
+                    </header>
+                    <div
+                      class="topic-schema-target-tabs awn-database-view-element-schema-tabs"
+                      role="tablist"
+                      aria-label="Тип элемента"
+                    ></div>
+                    <section class="topic-schema-base-card" aria-label="Базовые поля типа">
+                      <h4 class="topic-schema-base-title awn-database-view-element-schema-base-title">
+                        Базовые поля (read-only)
+                      </h4>
+                      <p class="topic-schema-base-fields awn-database-view-element-schema-base-fields"></p>
+                    </section>
+                    <div class="topic-schema-fields awn-database-view-element-schema-fields"></div>
+                    <div class="topic-schema-add-area">
+                      <p class="topic-schema-empty awn-database-view-element-schema-empty hidden">
+                        Дополнительных полей пока нет — добавьте поле кнопкой ниже.
+                      </p>
+                      <footer class="topic-schema-footer section-schema-footer">
+                        <button type="button" class="topic-schema-add-section-btn section-schema-add-section-btn">
+                          + Раздел
+                        </button>
+                        <button type="button" class="topic-schema-add-btn section-schema-add-btn">+ Поле</button>
+                        <button type="button" class="section-schema-save-btn awn-database-view-element-schema-save-btn">
+                          Сохранить схему
+                        </button>
+                      </footer>
                     </div>
-                  </div>
-                  <div class="awn-database-view-scheme-mod-edit hidden">
-                    <textarea
-                      class="awn-database-view-schema-textarea awn-database-view-scheme-mod-textarea"
-                      spellcheck="false"
-                      rows="14"
-                    ></textarea>
-                    <div class="awn-database-view-schema-edit-actions">
-                      <button type="button" class="awn-database-view-schema-btn is-primary" data-awn-database-action="save-schema-mod">
-                        Сохранить schema.yml
-                      </button>
-                      <button type="button" class="awn-database-view-schema-btn" data-awn-database-action="cancel-schema-mod">
-                        Отмена
-                      </button>
-                    </div>
-                  </div>
+                  </section>
                 </div>
               </details>
             </section>

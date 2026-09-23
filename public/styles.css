@@ -61254,6 +61254,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
+.awn-database-view-element-schema-panel.topic-schema-panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.awn-database-view-schema-fields-accordion .awn-database-view-accordion-body {
+  padding-top: 0.35rem;
+}
+
 .awn-database-view-accordion {
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
@@ -62102,11 +62114,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: 1px solid #e2e8f0;
 }
 
-.awn-database-view-table thead th:last-child {
-  width: 2.75rem;
-  text-align: center;
-}
-
 .awn-database-view-record-row td {
   padding: 0.4rem 0.55rem;
   vertical-align: middle;
@@ -62122,12 +62129,26 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-record-id {
-  min-width: 5rem;
-  max-width: 10rem;
+  min-width: 6.5rem;
+  max-width: 12rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem;
   color: #475569;
   word-break: break-word;
+}
+
+.awn-database-view-record-id-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.awn-database-view-record-id-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .awn-database-view-record-title {
