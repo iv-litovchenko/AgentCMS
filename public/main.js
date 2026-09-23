@@ -104373,15 +104373,19 @@ function renderAwnDatabaseManifestEditBreadcrumbs() {
   });
   appendBreadcrumbSeparator();
 
+  const activeNodePath = getResolvedNodePath(activePath);
+  const editingManifest = isAwnDatabaseManifestPath(activeNodePath);
   const storeRel =
     awnDataManifestEditReturnRel ||
-    resolveAwnDataStoreRelFromManifestPath(getResolvedNodePath(activePath));
+    resolveAwnDataStoreRelFromManifestPath(activeNodePath) ||
+    resolveAwnDataStoreRelFromRecordPath(activeNodePath);
   const parts = String(storeRel || "").split("/").filter(Boolean);
   for (let index = 0; index < parts.length; index += 1) {
     const partPath = parts.slice(0, index + 1).join("/");
-    const isCurrent = index === parts.length - 1;
+    const isLastStorePart = index === parts.length - 1;
+    const isCurrent = editingManifest && isLastStorePart;
     const label = resolveAwnDataStoreDisplayName(partPath, parts[index]);
-    const store = resolveAwnDataBreadcrumbStore(partPath, isCurrent);
+    const store = resolveAwnDataBreadcrumbStore(partPath, isLastStorePart);
     const storeKind = store?.kind || (index < parts.length - 1 ? "group" : "collection");
     const crumbClass =
       storeKind === "group"
@@ -104400,14 +104404,24 @@ function renderAwnDatabaseManifestEditBreadcrumbs() {
     if (!isCurrent) appendBreadcrumbSeparator();
   }
 
+  if (!editingManifest && isAwnDatabaseEditableRecordPath(activeNodePath)) {
+    if (parts.length) appendBreadcrumbSeparator();
+    appendBreadcrumbCrumb(resolveAwnDataRecordBreadcrumbLabel(activeNodePath), {
+      isCurrent: true,
+      title: activeNodePath
+    });
+  }
+
   updateWorkspaceShareLinkButton();
   syncWorkspaceRevealFolderButton();
 }
 
 async function closeAwnDatabaseManifestEditor() {
+  const activeNodePath = getResolvedNodePath(activePath);
   const storeRel =
     awnDataManifestEditReturnRel ||
-    resolveAwnDataStoreRelFromManifestPath(getResolvedNodePath(activePath));
+    resolveAwnDataStoreRelFromManifestPath(activeNodePath) ||
+    resolveAwnDataStoreRelFromRecordPath(activeNodePath);
   awnDataManifestEditReturnRel = "";
   nodeSettingsViewActive = false;
   if (storeRel) {
@@ -104831,8 +104845,10 @@ function updateAwnDataViewCount(shown, total) {
     shown === total ? formatCount(total) : `${shown} из ${formatCount(total)}`;
 }
 
-async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
-  const storeRel = String(store?.relPath || awnDataViewStoreRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+function resolveAwnDataRecordFilePath(record, store = awnDataViewStoreCache) {
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
   const isCsvStore =
     String(store?.recordStorage || "").trim().toLowerCase() === "csv" ||
     String(record?.fileName || "").trim().toLowerCase() === "main.csv";
@@ -104842,16 +104858,33 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
     const csvFile = String(store?.recordFile || "main.csv").trim() || "main.csv";
     relPath = `${storeRel}/${csvFile}`;
   }
-  if (!relPath) return;
+  if (!relPath) return "";
+  return relPath.startsWith("awn-database/") ? relPath : `awn-database/${relPath}`;
+}
 
-  const fileRel = relPath.startsWith("awn-database/") ? relPath : `awn-database/${relPath}`;
+async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
+  const filePath = resolveAwnDataRecordFilePath(record, store);
+  if (!filePath) return;
+
+  const isCsvStore =
+    String(store?.recordStorage || "").trim().toLowerCase() === "csv" ||
+    String(record?.fileName || "").trim().toLowerCase() === "main.csv";
   const label = isCsvStore
-    ? `${store?.name || storeRel} · ${store?.recordFile || "main.csv"}`
-    : record.title || record.id || fileRel.split("/").pop() || fileRel;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+    ? `${store?.name || store?.relPath || ""} · ${store?.recordFile || "main.csv"}`
+    : String(record?.title || record?.id || filePath.split("/").pop() || filePath).trim();
+
+  awnDataManifestEditReturnRel = String(store?.relPath || awnDataViewStoreRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  nodeSettingsViewActive = true;
+  nodeMemoryViewActive = false;
   try {
-    await openFolderBrowseFile(label, fileRel, { agentId: catalogAgentId });
+    await selectNodeManifest(label, filePath, "description");
+    syncNodeSettingsModeSelect();
+    applyNodeWorkspaceViewUi();
+    updateBreadcrumbsForActiveMode();
   } catch (error) {
+    awnDataManifestEditReturnRel = "";
     showToast(String(error.message || error), "error");
   }
 }
