@@ -1,0 +1,12 @@
+# Группы sidebar для awn-repositories (без физических подпапок)
+groups:
+  - id: study
+    title: "Изучение"
+  - id: new
+    title: "Новый"
+  - id: archived
+    title: "Архив"
+  - id: vendored
+    title: "Вендор"
+assignments:
+  sayt-platformy: archived
