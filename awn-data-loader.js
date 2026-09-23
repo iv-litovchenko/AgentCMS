@@ -3220,7 +3220,10 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
           tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
         };
       }
-      nextContent = composeAwnDataStoreSchemeModYaml({ blocks, frameTypeId });
+      const hasAnyCustom = targets.some((kind) => Object.keys(blocks[kind]?.fields || {}).length > 0);
+      nextContent = hasAnyCustom
+        ? composeAwnDataStoreSchemeModYaml({ blocks, frameTypeId, includeEmptyBlocks: true })
+        : "";
     } else {
       const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
       const fields = normalizeAwnFieldsMap(

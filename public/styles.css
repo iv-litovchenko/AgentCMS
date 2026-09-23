@@ -61169,6 +61169,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   padding-top: 0;
 }
 
+.awn-database-view-iblock-brief-fold.is-empty .awn-database-view-iblock-description-empty {
+  margin-top: 0.85rem;
+}
+
 .awn-database-view-iblock-description-empty {
   margin: 0 0.95rem 0.95rem;
   padding: 10px 12px;
@@ -62736,11 +62740,26 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
-.awn-database-view-single-content {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #fff;
+.awn-database-view-single-card {
+  overflow: hidden;
+}
+
+.awn-database-view-single-card-head {
+  justify-content: flex-end;
+  min-height: 0;
+  padding: 0.65rem 0.95rem;
+}
+
+.awn-database-view-single-card-body {
   padding: 0.85rem 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.awn-database-view-single-content {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
   font-size: 0.875rem;
   line-height: 1.55;
 }
