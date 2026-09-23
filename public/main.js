@@ -13156,6 +13156,10 @@ function selectAgentOption(agentId) {
   if (!agentId || agentId === activeAgentId) return;
   if (agentSelectNode) agentSelectNode.value = agentId;
   switchActiveAgent(agentId).catch((error) => {
+    if (isMaintenanceErrorMessage(error?.message)) {
+      showMaintenanceView();
+      return;
+    }
     showHomeView(`Ошибка переключения агента: ${error.message}`);
     renderAgentSelect();
   });
@@ -107164,6 +107168,10 @@ agentSelectNode?.addEventListener("change", () => {
   }
   if (nextAgentId === activeAgentId) return;
   switchActiveAgent(nextAgentId).catch((error) => {
+    if (isMaintenanceErrorMessage(error?.message)) {
+      showMaintenanceView();
+      return;
+    }
     showAgentHomeView(`Ошибка переключения агента: ${error.message}`);
     renderAgentSelect();
   });
