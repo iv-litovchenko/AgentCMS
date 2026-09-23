@@ -1,10 +1,10 @@
 id: awn.infoblock.element.base
 name: База записи накопителя
-kind: data-element
+kind: element-base
 domain: infoblock
 status: active
 extends: awn.base
-description: Общие поля записи внутри awn-database collection/single (Фаза B — расширение)
+description: Общие поля записи внутри frame collection/single (awn-storage/data/)
 kind-ui:
   label: Запись
   badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" }

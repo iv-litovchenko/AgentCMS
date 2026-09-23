@@ -1,9 +1,9 @@
-id: awn.infoblock.group
+id: awn.infoblock.frame.group
 name: Группа
-kind: type
+kind: frame
 domain: infoblock
 status: active
-extends: awn.infoblock.base
+extends: awn.infoblock.frame.base
 description: manifest + подпапки-накопители, без собственных записей
 manifest-pattern: manifest.md
 

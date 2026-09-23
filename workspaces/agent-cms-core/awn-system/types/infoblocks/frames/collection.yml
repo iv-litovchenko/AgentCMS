@@ -1,9 +1,9 @@
-id: awn.infoblock.collection
+id: awn.infoblock.frame.collection
 name: Коллекция
-kind: type
+kind: frame
 domain: infoblock
 status: active
-extends: awn.infoblock.base
+extends: awn.infoblock.frame.base
 description: manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/
 manifest-pattern: manifest.md
 

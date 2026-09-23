@@ -311,7 +311,8 @@ const {
   readAwnDataRecordProperty,
   writeAwnDataRecordProperty,
   readAwnDataRecordProperties,
-  writeAwnDataRecordProperties
+  writeAwnDataRecordProperties,
+  getContainerTypesPayload
 } = require("./awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./awn-system-presets-loader");
 const {
@@ -22345,6 +22346,20 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load awn-database stores",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-database/container-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = getContainerTypesPayload(agentRoot, getProjectRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load awn-database container types",
         details: String(error.message || error)
       });
     }

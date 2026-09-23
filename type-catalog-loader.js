@@ -80,13 +80,19 @@ const TYPE_ID_ALIASES = {
   "awn.slot.thread": "awn.slot.discussion",
   "awn.slot.dialogs": "awn.slot.discussion",
   "awn.slot.quick-notes": "awn.slot.note",
-  "awn.data.singleton": "awn.infoblock.single",
-  "awn.data.single": "awn.infoblock.single",
-  "awn.data.group": "awn.infoblock.group",
-  "awn.data.collection": "awn.infoblock.collection",
+  "awn.data.singleton": "awn.infoblock.frame.single",
+  "awn.data.single": "awn.infoblock.frame.single",
+  "awn.data.group": "awn.infoblock.frame.group",
+  "awn.data.collection": "awn.infoblock.frame.collection",
+  "awn.infoblock.group": "awn.infoblock.frame.group",
+  "awn.infoblock.collection": "awn.infoblock.frame.collection",
+  "awn.infoblock.single": "awn.infoblock.frame.single",
+  "awn.infoblock.singleton": "awn.infoblock.frame.single",
   "awn.data.base": "awn.infoblock.base",
   "awn.data.element.base": "awn.infoblock.element.base",
-  "awn.data.element.default": "awn.infoblock.element.default",
+  "awn.data.element.default": "awn.infoblock.element.record",
+  "awn.infoblock.element.default": "awn.infoblock.element.record",
+  "awn-database/cms-base/data-elements/default.md": "awn.infoblock.element.record",
   "awn.data.element.record": "awn.infoblock.element.record",
   "awn.data.record": "awn.infoblock.element.record",
   "awn.infoblock.record": "awn.infoblock.element.record",
@@ -96,10 +102,14 @@ const TYPE_ID_ALIASES = {
   "awn.infoblock.sidecar": "awn.infoblock.element.sidecar",
   "awn.data.comment": "awn.infoblock.element.comment",
   "awn.infoblock.comment": "awn.infoblock.element.comment",
-  "awn-database/cms-base/data-containers/group.md": "awn.infoblock.group",
-  "awn-database/cms-base/data-containers/collection.md": "awn.infoblock.collection",
-  "awn-database/cms-base/data-containers/single.md": "awn.infoblock.single",
-  "awn-database/cms-base/data-elements/default.md": "awn.infoblock.element.default"
+  "awn.infoblock.content.base": "awn.infoblock.element.base",
+  "awn.infoblock.content.record": "awn.infoblock.element.record",
+  "awn.infoblock.content.category": "awn.infoblock.element.category",
+  "awn.infoblock.content.sidecar": "awn.infoblock.element.sidecar",
+  "awn.infoblock.content.comment": "awn.infoblock.element.comment",
+  "awn-database/cms-base/data-containers/group.md": "awn.infoblock.frame.group",
+  "awn-database/cms-base/data-containers/collection.md": "awn.infoblock.frame.collection",
+  "awn-database/cms-base/data-containers/single.md": "awn.infoblock.frame.single"
 };
 
 function normalizeLegacyCatalogPath(catalogPath) {
@@ -709,8 +719,10 @@ function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", option
   if (preset === "data-containers") {
     types = types.filter(
       (t) =>
+        t.kind === "frame" ||
+        t.kind === "frame-base" ||
         t.kind === "data-container" ||
-        (t.domain === "infoblock" && t.kind === "type" && String(t.id || "").startsWith("awn.infoblock.") && !String(t.id).includes(".element."))
+        (t.domain === "infoblock" && String(t.id || "").startsWith("awn.infoblock.frame."))
     );
     return {
       specVersion: "1.0",
@@ -723,7 +735,13 @@ function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", option
   }
 
   if (preset === "data-elements") {
-    types = types.filter((t) => t.kind === "data-element");
+    types = types.filter(
+      (t) =>
+        t.kind === "element" ||
+        t.kind === "element-base" ||
+        t.kind === "data-element" ||
+        String(t.id || "").startsWith("awn.infoblock.element.")
+    );
     return {
       specVersion: "1.0",
       model: "types-list",

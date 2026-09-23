@@ -13522,6 +13522,15 @@ body.app-locked {
   color: #475569;
 }
 
+.topic-schema-custom-title {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
 .topic-schema-fields {
   display: flex;
   flex-direction: column;
@@ -60131,16 +60140,17 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 2rem;
-  padding: 0.15rem 0;
+  min-height: 2.75rem;
+  padding: 0.35rem 0;
   margin: 0;
 }
 
+.awn-database-empty-folder-icon,
 .menu-awn-database-store-group-empty-icon {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  opacity: 0.5;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  opacity: 0.65;
   background: center / contain no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7.5V5a2 2 0 0 1 2-2h4l2 2.5H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.5'/%3E%3Cpath d='M8 13h8' stroke-dasharray='2.5 2.5'/%3E%3C/svg%3E");
 }
@@ -61993,6 +62003,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin: 0;
 }
 
+.awn-database-view-section-create-slug-row .slug-input,
+.awn-database-view-add-records-form .awn-database-add-slug-row .slug-input {
+  padding: 6px 34px 6px 7px;
+  font-size: 12px;
+  line-height: 1.25;
+  border-radius: 7px;
+  margin-bottom: 0;
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
 .awn-database-view-section-create-slug-row .slug-field-hint {
   margin: 0.2rem 0 0;
 }
@@ -62139,6 +62161,19 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-empty {
   padding: 0.85rem 0.75rem;
+}
+
+.awn-database-view-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 3rem;
+  text-align: center;
+}
+
+.awn-database-view-empty-text {
   font-size: 0.8125rem;
   color: #64748b;
 }

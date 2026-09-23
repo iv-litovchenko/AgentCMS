@@ -1,9 +1,9 @@
-id: awn.infoblock.single
+id: awn.infoblock.frame.single
 name: Одиночка
-kind: type
+kind: frame
 domain: infoblock
 status: active
-extends: awn.infoblock.base
+extends: awn.infoblock.frame.base
 description: manifest + schema в корне; main.md в awn-storage/data/
 manifest-pattern: manifest.md
 

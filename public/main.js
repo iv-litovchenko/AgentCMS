@@ -102281,12 +102281,26 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
     }
   }
   const showCollectionOptions = awnDataCreateKind === "collection" && !isTaxonomy;
-  if (awnDataCreateKindInputNode) awnDataCreateKindInputNode.value = "md";
-  if (awnDataCreateStorageInputNode) awnDataCreateStorageInputNode.value = "md";
-  if (awnDataCreateHierarchyInputNode) awnDataCreateHierarchyInputNode.checked = false;
-  if (awnDataCreateFileTypesInputNode) awnDataCreateFileTypesInputNode.value = "";
-  syncAwnDataCreateFileTypePresetUi();
-  syncAwnDataCreateCollectionOptions({ showCollectionOptions });
+  void loadAwnDataContainerTypes()
+    .then(() => {
+      applyAwnDataCreateContainerTypeSchema(awnDataCreateKind);
+      if (!showCollectionOptions) {
+        if (awnDataCreateKindInputNode) awnDataCreateKindInputNode.value = "md";
+        if (awnDataCreateStorageInputNode) awnDataCreateStorageInputNode.value = "md";
+        if (awnDataCreateHierarchyInputNode) awnDataCreateHierarchyInputNode.checked = false;
+        if (awnDataCreateFileTypesInputNode) awnDataCreateFileTypesInputNode.value = "";
+      }
+      syncAwnDataCreateFileTypePresetUi();
+      syncAwnDataCreateCollectionOptions({ showCollectionOptions });
+    })
+    .catch(() => {
+      if (awnDataCreateKindInputNode) awnDataCreateKindInputNode.value = "md";
+      if (awnDataCreateStorageInputNode) awnDataCreateStorageInputNode.value = "md";
+      if (awnDataCreateHierarchyInputNode) awnDataCreateHierarchyInputNode.checked = false;
+      if (awnDataCreateFileTypesInputNode) awnDataCreateFileTypesInputNode.value = "";
+      syncAwnDataCreateFileTypePresetUi();
+      syncAwnDataCreateCollectionOptions({ showCollectionOptions });
+    });
   if (awnDataCreateNameInputNode) awnDataCreateNameInputNode.value = "";
   if (awnDataCreateSlugInputNode) awnDataCreateSlugInputNode.value = "";
   setAwnDataCreateSlugLinked(true);
@@ -102308,6 +102322,80 @@ const AWN_DATA_CREATE_COLLECTION_TYPES = {
   csv: { collectionKind: "records", recordStorage: "csv" },
   files: { collectionKind: "files", recordStorage: "md" }
 };
+const AWN_DATA_CREATE_COLLECTION_TYPE_LABELS = {
+  md: "Записи из md-файлов (файл на каждую запись)",
+  csv: "Записи на базе 1 CSV-таблицы (одна таблица main.csv)",
+  files: "Файлы с поддержкой загрузки"
+};
+let awnDataContainerTypesCache = null;
+
+async function loadAwnDataContainerTypes(agentId = activeAgentId) {
+  if (awnDataContainerTypesCache) return awnDataContainerTypesCache;
+  const response = await fetch(buildApiUrl("/api/awn-database/container-types", {}, agentId));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
+  }
+  awnDataContainerTypesCache = await response.json();
+  return awnDataContainerTypesCache;
+}
+
+function applyAwnDataCreateContainerTypeSchema(kind) {
+  const containerType = awnDataContainerTypesCache?.types?.[kind];
+  if (!containerType) return;
+
+  const fields = containerType.fields || {};
+  const defaults = containerType.defaults || {};
+
+  const collectionTypeField = fields["awn-collection-type"];
+  if (collectionTypeField && awnDataCreateKindInputNode) {
+    const labelSpan = awnDataCreateKindWrapNode?.querySelector("span");
+    if (labelSpan && collectionTypeField.title) labelSpan.textContent = collectionTypeField.title;
+    const enumVals = Array.isArray(collectionTypeField.enum)
+      ? collectionTypeField.enum.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+      : ["md", "csv", "files"];
+    awnDataCreateKindInputNode.replaceChildren();
+    for (const value of enumVals) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = AWN_DATA_CREATE_COLLECTION_TYPE_LABELS[value] || value;
+      awnDataCreateKindInputNode.appendChild(option);
+    }
+    const defaultValue = String(defaults.collectionType || collectionTypeField.default || "md")
+      .trim()
+      .toLowerCase();
+    awnDataCreateKindInputNode.value = enumVals.includes(defaultValue) ? defaultValue : enumVals[0] || "md";
+  }
+
+  const hierarchyField = fields["awn-record-hierarchy"];
+  if (hierarchyField && awnDataCreateHierarchyWrapNode) {
+    const labelSpan = awnDataCreateHierarchyWrapNode.querySelector(".awn-database-create-checkbox-label");
+    if (labelSpan) {
+      labelSpan.textContent =
+        hierarchyField.description || hierarchyField.title || labelSpan.textContent;
+    }
+    if (awnDataCreateHierarchyInputNode) {
+      awnDataCreateHierarchyInputNode.checked = Boolean(defaults.recordHierarchy);
+    }
+  }
+
+  const fileTypesField = fields["awn-record-file-types"];
+  if (fileTypesField && awnDataCreateFileTypesWrapNode) {
+    const labelSpan = awnDataCreateFileTypesWrapNode.querySelector("span");
+    if (labelSpan && fileTypesField.title) labelSpan.textContent = fileTypesField.title;
+    if (awnDataCreateFileTypesInputNode) {
+      awnDataCreateFileTypesInputNode.value = String(
+        defaults.recordFileTypes || fileTypesField.default || ""
+      ).trim();
+      awnDataCreateFileTypesInputNode.placeholder =
+        fileTypesField.description || "image/*,.pdf,.md";
+    }
+  }
+
+  if (containerType.description && awnDataCreateModalHintNode && kind !== "collection") {
+    awnDataCreateModalHintNode.textContent = containerType.description;
+  }
+}
 
 function getAwnDataCreateCollectionType() {
   const raw = String(awnDataCreateKindInputNode?.value || "md").trim().toLowerCase();
@@ -105846,6 +105934,22 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
   return wrap;
 }
 
+function createAwnDatabaseViewEmptyState(message) {
+  const empty = document.createElement("div");
+  empty.className = "awn-database-view-empty";
+  const state = document.createElement("div");
+  state.className = "awn-database-view-empty-state";
+  const icon = document.createElement("span");
+  icon.className = "awn-database-empty-folder-icon";
+  icon.setAttribute("aria-hidden", "true");
+  const text = document.createElement("span");
+  text.className = "awn-database-view-empty-text";
+  text.textContent = message;
+  state.append(icon, text);
+  empty.appendChild(state);
+  return empty;
+}
+
 function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
@@ -105859,25 +105963,19 @@ function renderAwnDataViewRecords(store) {
   updateAwnDataViewCount(records.length, sectionRecords.length);
 
   if (!allRecords.length) {
-    const empty = document.createElement("div");
-    empty.className = "awn-database-view-empty";
     const recordStorage = resolveAwnDataRecordStorage(viewStore);
+    let message = "Элементов пока нет";
     if (viewStore?.kind === "single") {
-      empty.textContent = "main.md пуст или не найден";
+      message = "main.md пуст или не найден";
     } else if (recordStorage === "csv") {
-      empty.textContent = `${viewStore.recordFile || "main.csv"} пуст или не найден`;
-    } else {
-      empty.textContent = "Элементов пока нет";
+      message = `${viewStore.recordFile || "main.csv"} пуст или не найден`;
     }
-    awnDataViewRecordsNode.appendChild(empty);
+    awnDataViewRecordsNode.appendChild(createAwnDatabaseViewEmptyState(message));
     return;
   }
 
   if (!records.length) {
-    const empty = document.createElement("div");
-    empty.className = "awn-database-view-empty";
-    empty.textContent = "Ничего не найдено";
-    awnDataViewRecordsNode.appendChild(empty);
+    awnDataViewRecordsNode.appendChild(createAwnDatabaseViewEmptyState("Ничего не найдено"));
     return;
   }
 
@@ -105983,10 +106081,9 @@ function renderAwnDataViewGroupChildren(store) {
   awnDataViewRecordsNode.replaceChildren();
   const children = Array.isArray(store?.children) ? store.children : [];
   if (!children.length) {
-    const empty = document.createElement("p");
-    empty.className = "awn-database-view-empty";
-    empty.textContent = "В группе пока нет справочников.";
-    awnDataViewRecordsNode.appendChild(empty);
+    awnDataViewRecordsNode.appendChild(
+      createAwnDatabaseViewEmptyState("В группе пока нет справочников.")
+    );
     return;
   }
   const list = document.createElement("ul");

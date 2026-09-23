@@ -1,9 +1,9 @@
 id: awn.infoblock.element.category
 name: Категория накопителя
-kind: data-element
+kind: element
 domain: infoblock
 status: active
 extends: awn.content.category
-description: Раздел в awn-database collection — папка с manifest.md
+description: Раздел в collection frame — папка с manifest.md в awn-storage/data/
 record-role: category
 allow-children: true

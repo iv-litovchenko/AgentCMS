@@ -1,6 +1,6 @@
 id: awn.infoblock.element.sidecar
 name: Sidecar накопителя
-kind: data-element
+kind: element
 domain: infoblock
 status: active
 extends: awn.content.sidecar
