@@ -62259,6 +62259,13 @@ body.is-cms-page-picker-active #discuss-aside * {
   max-width: 100%;
 }
 
+.awn-database-view-record-id-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .awn-database-view-record-edit-icon-btn {
   display: inline-flex;
   align-items: center;

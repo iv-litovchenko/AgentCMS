@@ -104689,13 +104689,11 @@ function syncAwnDataViewGroupPresentation(store) {
   syncAwnDataViewElementsTitle(store);
 }
 
-function resolveAwnDataViewSectionFilterLabel(records, sectionId) {
+function resolveAwnDataViewSectionFilterLabel(store, sectionId) {
   const sid = String(sectionId || "__all__");
   if (sid === "__all__") return "";
   if (sid === "__root__") return "Корень";
-  const section = (Array.isArray(records) ? records : []).find(
-    (record) => isAwnDataSectionRecord(record) && String(record.id || "").trim() === sid
-  );
+  const section = getAwnDataStoreSections(store).find((record) => String(record.id || "").trim() === sid);
   return resolveAwnDataRecordDisplayName(section) || sid;
 }
 
@@ -104713,7 +104711,7 @@ function syncAwnDataViewElementsTitle(store) {
   }
   const hierarchy = resolveAwnDataRecordHierarchy(viewStore);
   const sectionLabel = hierarchy
-    ? resolveAwnDataViewSectionFilterLabel(viewStore?.records, awnDataViewSectionId)
+    ? resolveAwnDataViewSectionFilterLabel(viewStore, awnDataViewSectionId)
     : "";
   titleNode.textContent = sectionLabel ? `Элементы · ${sectionLabel}` : "Элементы";
 }
@@ -105309,6 +105307,8 @@ function resolveAwnDataRecordDataDirPath(record) {
 
 function isAwnDataSectionRecord(record) {
   if (record?.isSection) return true;
+  const relPath = String(record?.relPath || "").replace(/\\/g, "/");
+  if (/\/awn-storage\/data\/[^/]+\/manifest\.md$/i.test(relPath)) return true;
   const awnType = String(record?.frontmatter?.["awn-type"] || "").trim();
   if (
     awnType === "awn.infoblock.element.category" ||
@@ -105316,7 +105316,8 @@ function isAwnDataSectionRecord(record) {
   ) {
     return true;
   }
-  if (String(record?.fileName || "").toLowerCase() === "manifest.md") return true;
+  const fileName = String(record?.fileName || "").toLowerCase();
+  if (fileName === "manifest.md" && /\/[^/]+\/manifest\.md$/i.test(relPath)) return true;
   const val = String(
     record?.frontmatter?.["awn-section"] || record?.frontmatter?.section || ""
   )
@@ -105325,12 +105326,35 @@ function isAwnDataSectionRecord(record) {
   return val === "true" || val === "yes" || val === "1";
 }
 
-function buildAwnDataSectionTree(records) {
-  const sections = (Array.isArray(records) ? records : []).filter(isAwnDataSectionRecord);
+function getAwnDataStoreSections(store) {
+  const viewStore = store || {};
+  if (Array.isArray(viewStore.sections)) return viewStore.sections;
+  return (Array.isArray(viewStore.records) ? viewStore.records : []).filter(isAwnDataSectionRecord);
+}
+
+function getAwnDataViewContentRecords(store) {
+  const viewStore = store || {};
+  if (Array.isArray(viewStore.sections)) {
+    return Array.isArray(viewStore.records) ? viewStore.records : [];
+  }
+  return (Array.isArray(viewStore.records) ? viewStore.records : []).filter(
+    (record) => !isAwnDataSectionRecord(record)
+  );
+}
+
+function getAwnDataStoreAllRecords(store) {
+  const viewStore = store || {};
+  const content = Array.isArray(viewStore.records) ? viewStore.records : [];
+  if (Array.isArray(viewStore.sections)) return [...viewStore.sections, ...content];
+  return content;
+}
+
+function buildAwnDataSectionTree(sections) {
+  const list = (Array.isArray(sections) ? sections : []).filter(isAwnDataSectionRecord);
   const byId = new Map();
   const byPath = new Map();
 
-  for (const record of sections) {
+  for (const record of list) {
     const id = String(record?.id || "").trim();
     if (!id) continue;
     const sectionPath = resolveAwnDataSectionDataRelPath(record);
@@ -105446,9 +105470,8 @@ function resolveAwnDataCreateSectionParent() {
 function resolveAwnDataViewActiveSectionPath(store = awnDataViewStoreCache) {
   const sid = String(awnDataViewSectionId || "__all__");
   if (sid === "__all__" || sid === "__root__") return "";
-  const records = Array.isArray(store?.records) ? store.records : [];
-  const section = records.find(
-    (record) => isAwnDataSectionRecord(record) && String(record.id || "").trim() === sid
+  const section = getAwnDataStoreSections(store).find(
+    (record) => String(record.id || "").trim() === sid
   );
   if (section) {
     return resolveAwnDataSectionDataRelPath(section) || sid;
@@ -105458,9 +105481,8 @@ function resolveAwnDataViewActiveSectionPath(store = awnDataViewStoreCache) {
 
 function collectAwnDataSectionTreeIds(store) {
   const ids = new Set(["__all__", "__root__"]);
-  const records = Array.isArray(store?.records) ? store.records : [];
-  for (const record of records) {
-    if (isAwnDataSectionRecord(record)) ids.add(String(record.id));
+  for (const record of getAwnDataStoreSections(store)) {
+    ids.add(String(record.id));
   }
   return ids;
 }
@@ -105534,7 +105556,7 @@ function syncAwnDataViewSectionTree(store) {
   if (!awnDataViewSectionWrapNode || !awnDataViewSectionTreeNode) return;
 
   const viewStore = normalizeAwnDataStoreView(store || {});
-  const records = Array.isArray(viewStore?.records) ? viewStore.records : [];
+  const sections = getAwnDataStoreSections(viewStore);
   const hierarchyEnabled = resolveAwnDataRecordHierarchy(viewStore);
 
   if (viewStore?.kind !== "collection" || !hierarchyEnabled || isAwnDataSingleCsvStore(viewStore)) {
@@ -105571,7 +105593,7 @@ function syncAwnDataViewSectionTree(store) {
     }
   }
 
-  const sectionTree = buildAwnDataSectionTree(records);
+  const sectionTree = buildAwnDataSectionTree(sections);
   for (const node of sectionTree) {
     if (!queryLower || awnDataSectionTreeNodeMatchesQuery(node, queryLower)) {
       appendAwnDataViewSectionTreeBranchFiltered(awnDataViewSectionTreeNode, node, 0, queryLower);
@@ -105589,11 +105611,14 @@ function syncAwnDataViewSectionTree(store) {
   applyAwnDataActiveSectionToAddParentSelect();
 }
 
-function filterAwnDataViewRecordsBySection(records, sectionId) {
-  const contentRecords = records.filter((record) => !isAwnDataSectionRecord(record));
+function filterAwnDataViewRecordsBySection(contentRecords, sectionId, sectionCatalog) {
+  const records = (Array.isArray(contentRecords) ? contentRecords : []).filter(
+    (record) => !isAwnDataSectionRecord(record)
+  );
   const sid = String(sectionId || "__all__");
-  if (sid === "__all__") return contentRecords;
-  return contentRecords.filter((record) => recordMatchesAwnDataSectionFilter(record, sid, records));
+  if (sid === "__all__") return records;
+  const catalog = Array.isArray(sectionCatalog) ? sectionCatalog : records;
+  return records.filter((record) => recordMatchesAwnDataSectionFilter(record, sid, catalog));
 }
 
 function filterAwnDataViewRecords(records, query) {
@@ -105665,18 +105690,28 @@ function getAwnDataViewColumns(store) {
   const hasParentInSchema =
     Object.prototype.hasOwnProperty.call(schemaFields, "parent") ||
     Object.prototype.hasOwnProperty.call(schemaFields, "awn-parent");
-  const records = Array.isArray(store?.records) ? store.records : [];
+  const records = getAwnDataViewContentRecords(store);
   const hasParentInData = records.some((record) => String(record.parent || "").trim());
   if (!hasParentInSchema && hasParentInData && store?.kind === "collection") {
-    columns.push({ key: "__parent__", label: "Родитель", kind: "parent" });
+    columns.push({ key: "__parent__", label: "Раздел", kind: "parent" });
+  }
+
+  const hasTitleColumn = columns.some((column) => column.kind === "title" || isAwnDataViewTitleFieldKey(column.key));
+  if (!hasTitleColumn) {
+    columns.splice(1, 0, { key: "__title__", label: "Название", kind: "title" });
   }
 
   return columns;
 }
 
-function formatAwnDataViewCellValue(record, column) {
+function formatAwnDataViewCellValue(record, column, store = awnDataViewStoreCache) {
   if (column.kind === "id") return record.id || "—";
-  if (column.kind === "parent") return record.parent || "—";
+  if (column.kind === "parent") {
+    const parentId = String(record.parent || "").trim();
+    if (!parentId) return "—";
+    const section = getAwnDataStoreSections(store).find((item) => String(item.id || "").trim() === parentId);
+    return section ? resolveAwnDataRecordDisplayName(section) : parentId;
+  }
   if (column.kind === "title") {
     return String(record.title || record.fileName || record.id || "—").trim() || "—";
   }
@@ -105764,7 +105799,6 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
 }
 
 function buildAwnDataParentSectionSelectOptions(store) {
-  const records = Array.isArray(store?.records) ? store.records : [];
   const options = [{ value: "", label: "Корень (без родителя)" }];
 
   const walk = (nodes, depth = 0) => {
@@ -105775,7 +105809,7 @@ function buildAwnDataParentSectionSelectOptions(store) {
       if (Array.isArray(node.children) && node.children.length) walk(node.children, depth + 1);
     }
   };
-  walk(buildAwnDataSectionTree(records));
+  walk(buildAwnDataSectionTree(getAwnDataStoreSections(store)));
   return options;
 }
 
@@ -106178,6 +106212,11 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   const awnId = resolveAwnDataRecordAwnId(record);
 
   wrap.appendChild(createAwnDataViewRecordEditIconButton(record, viewStore, recordLabel));
+  const idLabel = document.createElement("span");
+  idLabel.className = "awn-database-view-record-id-label";
+  idLabel.textContent = recordLabel;
+  idLabel.title = recordLabel;
+  wrap.appendChild(idLabel);
 
   if (awnId) {
     const idBadge = createNavBookTocIdBadge(awnId);
@@ -106712,14 +106751,19 @@ function renderAwnDataViewRecords(store) {
   }
   syncAwnDataViewElementsTitle(viewStore);
   awnDataViewRecordsNode.replaceChildren();
-  const allRecords = Array.isArray(viewStore?.records) ? viewStore.records : [];
+  const contentRecords = getAwnDataViewContentRecords(viewStore);
+  const allStoreRecords = getAwnDataStoreAllRecords(viewStore);
   const query = String(awnDataViewSearchInputNode?.value || "").trim();
-  const sectionRecords = filterAwnDataViewRecordsBySection(allRecords, awnDataViewSectionId);
+  const sectionRecords = filterAwnDataViewRecordsBySection(
+    contentRecords,
+    awnDataViewSectionId,
+    allStoreRecords
+  );
   const filteredRecords = filterAwnDataViewRecords(sectionRecords, query);
   const records = sortAwnDataViewRecords(filteredRecords, viewStore);
   updateAwnDataViewCount(records.length, sectionRecords.length);
 
-  if (!allRecords.length) {
+  if (!contentRecords.length) {
     const recordStorage = resolveAwnDataRecordStorage(viewStore);
     let message = "Элементов пока нет";
     if (viewStore?.kind === "single") {
@@ -106800,7 +106844,7 @@ function renderAwnDataViewRecords(store) {
 
     for (const column of columns) {
       const cell = document.createElement("td");
-      const value = formatAwnDataViewCellValue(record, column);
+      const value = formatAwnDataViewCellValue(record, column, viewStore);
 
       if (column.kind === "id") {
         cell.className = "awn-database-view-record-id";

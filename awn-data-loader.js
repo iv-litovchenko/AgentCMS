@@ -1549,6 +1549,16 @@ function parseRecordFile(fileEntry, storeRel, storeAbs) {
   };
 }
 
+function partitionStoreRecords(records) {
+  const sections = [];
+  const contentRecords = [];
+  for (const record of Array.isArray(records) ? records : []) {
+    if (record?.isSection) sections.push(record);
+    else contentRecords.push(record);
+  }
+  return { sections, contentRecords };
+}
+
 function buildRecordTree(records) {
   const byId = new Map(records.map((r) => [r.id, { ...r, children: [] }]));
   const roots = [];
@@ -1698,7 +1708,7 @@ function loadStore(dataRoot, storeEntry) {
     recordHierarchy,
     recordFileTypes,
     recordStorage,
-    recordCount: kind === "group" ? 0 : records.length,
+    recordCount: kind === "group" ? 0 : partitionStoreRecords(records).contentRecords.length,
     recordFile:
       kind === "single"
         ? SINGLETON_RECORD
@@ -1725,7 +1735,9 @@ function loadStore(dataRoot, storeEntry) {
     payload.record = main;
     payload.records = main ? [main] : [];
   } else {
-    payload.records = records;
+    const { sections, contentRecords } = partitionStoreRecords(records);
+    payload.sections = sections;
+    payload.records = contentRecords;
     payload.tree = buildRecordTree(records);
   }
 
