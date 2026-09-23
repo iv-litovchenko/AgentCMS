@@ -62448,35 +62448,39 @@ body.is-cms-page-picker-active #discuss-aside * {
   word-break: break-word;
 }
 
-.awn-database-view-record-grid-card .awn-database-view-record-grid-edit {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 2;
-  display: inline-flex;
+.awn-database-view-record-grid-footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.awn-database-view-record-grid-footer-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.awn-database-view-record-grid-footer-actions {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #64748b;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
-.awn-database-view-record-grid-card:hover .awn-database-view-record-grid-edit,
-.awn-database-view-record-grid-card:focus-within .awn-database-view-record-grid-edit {
-  opacity: 1;
-  pointer-events: auto;
+.awn-database-view-record-grid-footer-actions .awn-database-view-record-id-wrap {
+  max-width: 100%;
 }
 
-.awn-database-view-record-grid-card .awn-database-view-record-grid-edit:hover {
-  background: #fff;
-  color: #7c3aed;
+.awn-database-view-record-grid-footer-actions .awn-database-view-record-id-btn {
+  max-width: 100%;
+}
+
+.awn-database-view-record-grid-footer-actions .node-overview-edit-btn {
+  min-height: 26px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
 }
 
 .awn-database-view-property-catalog,
@@ -62603,19 +62607,13 @@ body.is-cms-page-picker-active #discuss-aside * {
   cursor: pointer;
 }
 
-.awn-database-view-record-edit-btn {
-  border-color: #7c3aed;
-  background: #f5f3ff;
-  color: #5b21b6;
+.awn-database-view-record-toolbar .node-overview-edit-btn {
+  min-height: 27px;
 }
 
 .awn-database-view-record-back-btn:hover {
   border-color: #94a3b8;
   background: #f8fafc;
-}
-
-.awn-database-view-record-edit-btn:hover {
-  background: #ede9fe;
 }
 
 .awn-database-view-record-fields-list {

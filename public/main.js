@@ -105123,17 +105123,6 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
     imgWrap.appendChild(label);
   }
 
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "awn-database-view-record-grid-edit awn-database-view-edit-btn";
-  editBtn.title = "Редактировать";
-  editBtn.setAttribute("aria-label", "Редактировать");
-  editBtn.append(createOverviewEditManifestIcon());
-  editBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    void openAwnDataRecordEditor(record, viewStore);
-  });
-  imgWrap.appendChild(editBtn);
   open.appendChild(imgWrap);
 
   const titleColumn = columns.find((c) => isAwnDataViewTitleFieldKey(c.key)) || { key: "awn-title" };
@@ -105143,18 +105132,35 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   const footerMeta = title !== "—" && title !== idLabel ? idLabel : "";
 
   const footer = document.createElement("div");
-  footer.className = "folder-browse-image-footer";
+  footer.className = "folder-browse-image-footer awn-database-view-record-grid-footer";
+  const footerMain = document.createElement("div");
+  footerMain.className = "awn-database-view-record-grid-footer-main";
   const nameNode = document.createElement("span");
   nameNode.className = "folder-browse-image-name";
   nameNode.textContent = footerName;
   nameNode.title = footerName;
-  footer.appendChild(nameNode);
+  footerMain.appendChild(nameNode);
   if (footerMeta) {
     const metaNode = document.createElement("span");
     metaNode.className = "folder-browse-image-size";
     metaNode.textContent = footerMeta;
-    footer.appendChild(metaNode);
+    footerMain.appendChild(metaNode);
   }
+  footer.appendChild(footerMain);
+
+  const footerActions = document.createElement("div");
+  footerActions.className = "awn-database-view-record-grid-footer-actions";
+  if (awnDataViewCardsColumns === 1) {
+    footerActions.appendChild(
+      createNodeOverviewEditButton(() => openAwnDataRecordEditor(record, viewStore), "Редактировать")
+    );
+  } else {
+    const idWrap = document.createElement("div");
+    idWrap.className = "awn-database-view-record-id-wrap";
+    idWrap.appendChild(createAwnDataViewRecordIdEditButton(record, viewStore, idLabel));
+    footerActions.appendChild(idWrap);
+  }
+  footer.appendChild(footerActions);
   open.appendChild(footer);
   card.appendChild(open);
 
@@ -105164,12 +105170,12 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
     void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
   };
   card.addEventListener("click", (event) => {
-    if (event.target.closest(".awn-database-view-edit-btn")) return;
+    if (event.target.closest(".awn-database-view-edit-btn, .node-overview-edit-btn")) return;
     void openRecord();
   });
   card.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.target.closest(".awn-database-view-edit-btn")) return;
+    if (event.target.closest(".awn-database-view-edit-btn, .node-overview-edit-btn")) return;
     event.preventDefault();
     void openRecord();
   });
@@ -105377,7 +105383,10 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
       cell.className = "awn-database-view-transposed-field-value";
       if (column.kind === "id") {
         cell.classList.add("awn-database-view-record-id");
-        cell.append(createAwnDataViewRecordIdEditButton(record, viewStore, value));
+        const idWrap = document.createElement("div");
+        idWrap.className = "awn-database-view-record-id-wrap";
+        idWrap.appendChild(createAwnDataViewRecordIdEditButton(record, viewStore, value));
+        cell.append(idWrap);
       } else {
         cell.textContent = value;
       }
@@ -105647,7 +105656,10 @@ function renderAwnDataViewRecords(store) {
 
       if (column.kind === "id") {
         cell.className = "awn-database-view-record-id";
-        cell.appendChild(createAwnDataViewRecordIdEditButton(record, viewStore, value));
+        const idWrap = document.createElement("div");
+        idWrap.className = "awn-database-view-record-id-wrap";
+        idWrap.appendChild(createAwnDataViewRecordIdEditButton(record, viewStore, value));
+        cell.appendChild(idWrap);
       } else if (isAwnDataViewTitleFieldKey(column.key)) {
         cell.className = "awn-database-view-record-title";
         const titleText = document.createElement("span");
