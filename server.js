@@ -2490,6 +2490,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         envExists: false,
         envValueCount: 0,
         envHasValues: false,
+        envHasContent: false,
         schemaPath: "",
         schemaExists: false,
         schemaFieldCount: 0,
