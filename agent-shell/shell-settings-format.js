@@ -234,7 +234,10 @@ function flattenSettings(raw) {
   flattenTtsEngines(tts, flat);
 
   const proactive = raw.proactive || {};
-  if (proactive.enabled !== undefined) flat.proactiveEnabled = proactive.enabled;
+  if (proactive.mode !== undefined) flat.proactiveMode = proactive.mode;
+  if (proactive.enabled !== undefined && flat.proactiveMode === undefined) {
+    flat.proactiveMode = proactive.enabled ? "ping" : "off";
+  }
   if (proactive.idleSecondsMin !== undefined) flat.proactiveIdleSecondsMin = proactive.idleSecondsMin;
   if (proactive.idleSecondsMax !== undefined) flat.proactiveIdleSecondsMax = proactive.idleSecondsMax;
   if (proactive.idleSeconds !== undefined) flat.proactiveIdleSeconds = proactive.idleSeconds;
@@ -393,7 +396,7 @@ function nestSettings(flat) {
       })
     }),
     proactive: compactObject({
-      enabled: source.proactiveEnabled,
+      mode: source.proactiveMode,
       idleSecondsMin: source.proactiveIdleSecondsMin,
       idleSecondsMax: source.proactiveIdleSecondsMax,
       idleSeconds: source.proactiveIdleSeconds,

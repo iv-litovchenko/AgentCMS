@@ -52,7 +52,7 @@
           "@shell/compose-templates": "/shell/shell-compose-templates.js?v=5",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/help": "/shell/shell-help.js?v=207",
-          "@shell/hints": "/shell/shell-hints.js?v=314",
+          "@shell/hints": "/shell/shell-hints.js?v=315",
           "@shell/image-lightbox": "/shell/shell-image-lightbox.js?v=2",
           "@shell/proactive": "/shell/shell-proactive.js?v=331",
           "@shell/proactive-format": "/shell/proactive-format.js?v=2",
@@ -652,23 +652,39 @@
 
         <section class="shell-proactive-panel" id="shell-proactive-panel" role="tabpanel" aria-labelledby="shell-settings-tab-proactive" hidden>
         <div class="shell-proactive-options">
-          <p class="shell-proactive-note">
-            Выключено — никаких фоновых проверок и вызовов агента.
-            Включено — после бездействия Shell ждёт случайный интервал в диапазоне «от–до» и отправляет промпт ниже агенту.
-            В чате пинг виден как свёрнутый блок <code>[proactive]</code> (аккордеон); агенту уходит текст промпта без тегов.
-            Включение — кнопка <strong>✨ Проактив</strong> внизу экрана или чекбокс ниже.
-            Плейсхолдеры: <code>{{agent-cms-voice:idle_seconds}}</code>, <code>{{agent-cms-voice:idle_minutes}}</code>.
-            Отдельно от системного промпта (вкладка «Маршрут»).
-          </p>
-          <div class="shell-proactive-enable-block">
-            <label class="shell-check shell-proactive-check">
-              <input id="shell-proactive-enabled" type="checkbox" />
-              <span>Включить проактивность</span>
-            </label>
-            <p class="shell-proactive-natural-note">
-              <span class="shell-proactive-future-badge">скоро</span>
-              Пока галочка выключена — естественная проактивность: по звукам, действиям пользователя и контексту, без пингов по таймеру.
-            </p>
+          <div class="shell-field shell-field--compact shell-proactive-mode-field">
+            <span class="shell-label">Режим проактивности</span>
+            <span class="shell-tts-panel-playback" role="presentation">
+              <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Режим проактивности">
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="off">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-off" value="off" checked />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">⏸</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">Выключить проактивность</span>
+                    <span class="shell-tts-playback-option-desc">(без фоновых пингов и вызовов агента)</span>
+                  </span>
+                </label>
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="natural">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-natural" value="natural" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">🌿</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">
+                      Естественная проактивность
+                      <span class="shell-proactive-future-badge">скоро</span>
+                    </span>
+                    <span class="shell-tts-playback-option-desc">(по звукам, действиям и контексту — без таймера)</span>
+                  </span>
+                </label>
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="ping">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-ping" value="ping" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">✨</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">Проактивность по пингу</span>
+                    <span class="shell-tts-playback-option-desc">(таймер бездействия и промпт ниже)</span>
+                  </span>
+                </label>
+              </span>
+            </span>
           </div>
           <div class="shell-proactive-grid">
             <label class="shell-field shell-field--compact">
@@ -750,8 +766,12 @@
               class="shell-textarea shell-textarea--compact"
               rows="5"
               spellcheck="false"
-              placeholder="Фоновый пинг при бездействии. MCP: заметки, расписание, интересные темы из workspace.&#10;&#10;Если поле пустое — заготовка из shell-proactive-prompt.yml"
+              placeholder="Текст фонового пинга. Пустое поле — на рантайме подставится заготовка из shell-proactive-prompt.yml"
             ></textarea>
+            <span class="shell-proactive-prompt-hint" id="shell-proactive-prompt-hint" hidden>
+              Сейчас в <code>workspace.yml</code> промпт не задан — при пинге возьмётся заготовка из <code>shell-proactive-prompt.yml</code>.
+              То же поле, что <code>voice-proactive-prompt</code> в настройках проекта.
+            </span>
           </label>
         </div>
         <div class="shell-settings-save-row">
@@ -771,7 +791,7 @@
           <p class="shell-proactive-note shell-compose-templates-note">
             Быстрые команды для поля сообщения в чате. Вставляются как <code>{{tpl:brief}}</code> — при отправке
             раскрываются в текст команды. Ключ стабилен, название можно менять. Хранится в
-            <code>.agent-shell/settings.json</code>.
+            <code>.agent-cms/settings/workspace.yml</code> (<code>voice-compose-templates</code>).
           </p>
           <div class="shell-compose-templates-editor" id="shell-compose-templates-editor-root"></div>
           <div class="shell-compose-templates-editor-toolbar">

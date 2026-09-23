@@ -152,7 +152,7 @@ const DEFAULT_SETTINGS = {
   cameraDeviceId: "",
   screenEnabled: false,
   screenOnSpeech: true,
-  proactiveEnabled: false,
+  proactiveMode: "off",
   proactiveIdleSeconds: 180,
   proactiveIdleSecondsMin: 120,
   proactiveIdleSecondsMax: 240,
@@ -365,93 +365,7 @@ function normalizeProactiveQuietTime(value, fallback = "23:00") {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-const DEFAULT_COMPOSE_PROMPT_TEMPLATES = [
-  {
-    id: "very-brief",
-    key: "very-brief",
-    group: "Стиль ответа",
-    label: "Ответ очень кратко",
-    text: "Ответь очень кратко — одним-двумя предложениями."
-  },
-  {
-    id: "brief",
-    key: "brief",
-    group: "Стиль ответа",
-    label: "Ответ кратко",
-    text: "Ответь кратко, без лишних деталей."
-  },
-  {
-    id: "detailed",
-    key: "detailed",
-    group: "Стиль ответа",
-    label: "Ответ развернуто",
-    text: "Ответь развёрнуто, с подробностями и примерами."
-  }
-];
-
-function slugifyTemplateKey(value, fallback = "tpl") {
-  const base = String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const normalized = base.replace(/^[^a-z]+/, "") || fallback;
-  return normalized.slice(0, 48) || fallback;
-}
-
-function assignTemplateKey(item, usedKeys, index) {
-  const id = String(item.id || "").trim();
-  const fromKey = slugifyTemplateKey(item.key, "");
-  const fromId = slugifyTemplateKey(id, "");
-  const fromLabel = slugifyTemplateKey(item.label, "");
-  let key = fromKey || fromId || fromLabel || `tpl-${index + 1}`;
-  if (!/^[a-z][a-z0-9_-]*$/.test(key)) {
-    key = slugifyTemplateKey(key, `tpl-${index + 1}`);
-  }
-  let candidate = key;
-  let n = 2;
-  while (usedKeys.has(candidate)) {
-    candidate = `${key}-${n}`;
-    n += 1;
-  }
-  usedKeys.add(candidate);
-  return candidate;
-}
-
-function normalizeTemplateGroup(value) {
-  const group = String(value ?? "").trim();
-  return group || "Стиль ответа";
-}
-
-function normalizeComposePromptTemplates(raw) {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return DEFAULT_COMPOSE_PROMPT_TEMPLATES.map((item) => ({ ...item }));
-  }
-  const out = [];
-  const seenIds = new Set();
-  const usedKeys = new Set();
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const label = String(item.label || "").trim();
-    const text = String(item.text || "").trim();
-    if (!label || !text) continue;
-    let id = String(item.id || "").trim();
-    if (!id) id = `tpl-${out.length + 1}`;
-    while (seenIds.has(id)) id = `${id}-${out.length + 1}`;
-    seenIds.add(id);
-    const key = assignTemplateKey({ ...item, id }, usedKeys, out.length);
-    out.push({
-      id,
-      key,
-      group: normalizeTemplateGroup(item.group),
-      label,
-      text
-    });
-  }
-  return out.length ? out : DEFAULT_COMPOSE_PROMPT_TEMPLATES.map((item) => ({ ...item }));
-}
+const { normalizeVoiceComposeTemplates: normalizeComposePromptTemplates } = require("../workspace-compose-templates");
 
 function normalizeSettings(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...flattenSettings(raw && typeof raw === "object" ? raw : {}) };
@@ -563,7 +477,15 @@ function normalizeSettings(raw) {
   merged.cameraDeviceId = String(merged.cameraDeviceId || "").trim();
   merged.screenEnabled = Boolean(merged.screenEnabled);
   merged.screenOnSpeech = merged.screenOnSpeech !== false;
-  merged.proactiveEnabled = Boolean(merged.proactiveEnabled);
+  const proactiveMode = String(merged.proactiveMode || "").trim();
+  if (proactiveMode === "off" || proactiveMode === "natural" || proactiveMode === "ping") {
+    merged.proactiveMode = proactiveMode;
+  } else if (merged.proactiveEnabled !== undefined) {
+    merged.proactiveMode = merged.proactiveEnabled ? "ping" : "off";
+  } else {
+    merged.proactiveMode = "off";
+  }
+  delete merged.proactiveEnabled;
   const legacyIdle = Math.min(3600, Math.max(30, Number(merged.proactiveIdleSeconds) || 180));
   let idleMin = Number(merged.proactiveIdleSecondsMin);
   let idleMax = Number(merged.proactiveIdleSecondsMax);

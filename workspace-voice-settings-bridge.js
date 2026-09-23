@@ -1,3 +1,9 @@
+const {
+  isVoiceComposeTemplatesEmpty,
+  normalizeVoiceComposeTemplates,
+  resolveEffectiveVoiceComposeTemplates
+} = require("./workspace-compose-templates");
+
 const VOICE_INPUT_TO_SHELL = {
   "voice-input-enabled": "sttEnabled",
   "voice-input-mode": "voiceInputMode",
@@ -17,8 +23,10 @@ const STT_VOICE_TO_SHELL = {
   "voice-stt-elevenlabs-model": "sttElevenlabsModel"
 };
 
+const PROACTIVE_MODE_VALUES = new Set(["off", "natural", "ping"]);
+
 const PROACTIVE_VOICE_TO_SHELL = {
-  "voice-proactive-enabled": "proactiveEnabled",
+  "voice-proactive-mode": "proactiveMode",
   "voice-proactive-idle-seconds-min": "proactiveIdleSecondsMin",
   "voice-proactive-idle-seconds-max": "proactiveIdleSecondsMax",
   "voice-proactive-cooldown-seconds": "proactiveCooldownSeconds",
@@ -79,7 +87,7 @@ const STT_SHELL_DEFAULTS = {
 };
 
 const PROACTIVE_SHELL_DEFAULTS = {
-  "voice-proactive-enabled": false,
+  "voice-proactive-mode": "off",
   "voice-proactive-idle-seconds-min": 30,
   "voice-proactive-idle-seconds-max": 60,
   "voice-proactive-cooldown-seconds": 180,
@@ -159,8 +167,36 @@ function buildShellPatchFromWorkspace(awnSettings = {}, keyMap) {
   return patch;
 }
 
+function normalizeProactiveModeValue(value, fallback = "off") {
+  const mode = String(value ?? "").trim();
+  return PROACTIVE_MODE_VALUES.has(mode) ? mode : fallback;
+}
+
+function resolveProactiveModeFromLegacy(awnSettings = {}, shellFlat = {}) {
+  if ("voice-proactive-mode" in awnSettings) {
+    return normalizeProactiveModeValue(awnSettings["voice-proactive-mode"]);
+  }
+  if ("voice-proactive-enabled" in awnSettings) {
+    return awnSettings["voice-proactive-enabled"] ? "ping" : "off";
+  }
+  if (shellFlat.proactiveMode !== undefined) {
+    return normalizeProactiveModeValue(shellFlat.proactiveMode);
+  }
+  if (shellFlat.proactiveEnabled !== undefined) {
+    return shellFlat.proactiveEnabled ? "ping" : "off";
+  }
+  return "off";
+}
+
 function hydrateWorkspaceVoiceProactiveFromShell(awnSettings = {}, shellFlat = {}) {
-  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, PROACTIVE_VOICE_TO_SHELL);
+  let out = hydrateVoiceKeysFromShell(awnSettings, shellFlat, PROACTIVE_VOICE_TO_SHELL);
+  if (!("voice-proactive-mode" in out)) {
+    out["voice-proactive-mode"] = resolveProactiveModeFromLegacy(awnSettings, shellFlat);
+  } else {
+    out["voice-proactive-mode"] = normalizeProactiveModeValue(out["voice-proactive-mode"]);
+  }
+  if ("voice-proactive-enabled" in out) delete out["voice-proactive-enabled"];
+  return out;
 }
 
 function hydrateWorkspaceVoiceInputFromShell(awnSettings = {}, shellFlat = {}) {
@@ -178,7 +214,20 @@ function hydrateWorkspaceVoiceTtsFromShell(awnSettings = {}, shellFlat = {}) {
 }
 
 function hydrateWorkspaceComposeFromShell(awnSettings = {}, shellFlat = {}) {
-  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, COMPOSE_VOICE_TO_SHELL);
+  const out = { ...(awnSettings && typeof awnSettings === "object" ? awnSettings : {}) };
+  const workspaceValue = out["voice-compose-templates"];
+  const shellValue = shellFlat?.composePromptTemplates;
+
+  if (isVoiceComposeTemplatesEmpty(workspaceValue)) {
+    if (!isVoiceComposeTemplatesEmpty(shellValue)) {
+      out["voice-compose-templates"] = normalizeVoiceComposeTemplates(shellValue);
+    } else {
+      out["voice-compose-templates"] = resolveEffectiveVoiceComposeTemplates(workspaceValue);
+    }
+  } else {
+    out["voice-compose-templates"] = normalizeVoiceComposeTemplates(workspaceValue);
+  }
+  return out;
 }
 
 function hydrateWorkspaceRouteFromShell(awnSettings = {}, shellFlat = {}) {
@@ -196,7 +245,13 @@ function hydrateWorkspaceVoiceFromShell(awnSettings = {}, shellFlat = {}) {
 }
 
 function buildShellProactivePatchFromWorkspace(awnSettings = {}) {
-  return buildShellPatchFromWorkspace(awnSettings, PROACTIVE_VOICE_TO_SHELL);
+  const patch = buildShellPatchFromWorkspace(awnSettings, PROACTIVE_VOICE_TO_SHELL);
+  if (!("proactiveMode" in patch)) {
+    patch.proactiveMode = resolveProactiveModeFromLegacy(awnSettings, {});
+  } else {
+    patch.proactiveMode = normalizeProactiveModeValue(patch.proactiveMode);
+  }
+  return patch;
 }
 
 function buildShellTtsPatchFromWorkspace(awnSettings = {}) {
@@ -215,7 +270,11 @@ function buildShellSttPatchFromWorkspace(awnSettings = {}) {
 }
 
 function buildShellComposePatchFromWorkspace(awnSettings = {}) {
-  return buildShellPatchFromWorkspace(awnSettings, COMPOSE_VOICE_TO_SHELL);
+  const source = awnSettings && typeof awnSettings === "object" ? awnSettings : {};
+  if (!("voice-compose-templates" in source)) return {};
+  return {
+    composePromptTemplates: resolveEffectiveVoiceComposeTemplates(source["voice-compose-templates"])
+  };
 }
 
 function buildShellRoutePatchFromWorkspace(awnSettings = {}) {
@@ -271,6 +330,7 @@ function getVoiceSettingsDefaults() {
 module.exports = {
   VOICE_INPUT_TO_SHELL,
   STT_VOICE_TO_SHELL,
+  PROACTIVE_MODE_VALUES,
   PROACTIVE_VOICE_TO_SHELL,
   COMPOSE_VOICE_TO_SHELL,
   ROUTE_VOICE_TO_SHELL,
@@ -296,5 +356,10 @@ module.exports = {
   getTtsVoiceSettingsDefaults,
   getComposeSettingsDefaults,
   getRouteSettingsDefaults,
-  getVoiceSettingsDefaults
+  getVoiceSettingsDefaults,
+  normalizeProactiveModeValue,
+  resolveProactiveModeFromLegacy,
+  resolveEffectiveVoiceComposeTemplates,
+  normalizeVoiceComposeTemplates,
+  isVoiceComposeTemplatesEmpty
 };

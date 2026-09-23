@@ -85,6 +85,15 @@ export function pickProactiveIdleTarget(min, max) {
   return lo + Math.floor(Math.random() * (hi - lo + 1));
 }
 
+const PROACTIVE_MODE_VALUES = new Set(["off", "natural", "ping"]);
+
+export function normalizeProactiveMode(settings = {}) {
+  const mode = String(settings.proactiveMode ?? "").trim();
+  if (PROACTIVE_MODE_VALUES.has(mode)) return mode;
+  if (settings.proactiveEnabled === true) return "ping";
+  return "off";
+}
+
 export function formatProactiveIdleRangeHint(min, max) {
   const { min: lo, max: hi } = normalizeProactiveIdleRange({
     proactiveIdleSecondsMin: min,
@@ -111,7 +120,7 @@ export function createShellProactive(deps) {
   let lastActivityAt = Date.now();
   let lastTriggeredAt = 0;
   let timer = null;
-  let enabled = false;
+  let mode = "off";
   let idleSecondsMin = 120;
   let idleSecondsMax = 240;
   let idleTargetSeconds = 180;
@@ -130,9 +139,10 @@ export function createShellProactive(deps) {
     pickIdleTarget();
   }
 
-  function syncToggleUi(on) {
+  function syncToggleUi(currentMode = mode) {
     const btn = deps.toggleBtn;
     if (!btn) return;
+    const on = currentMode === "ping";
     btn.setAttribute("aria-pressed", on ? "true" : "false");
     const rangeHint = formatProactiveIdleRangeHint(idleSecondsMin, idleSecondsMax);
     const hint = on
@@ -140,11 +150,10 @@ export function createShellProactive(deps) {
       : "Проактивность — агент сам начнёт диалог при бездействии";
     btn.title = hint;
     btn.dataset.hint = hint;
-    deps.syncEnabledUi?.(on);
   }
 
   function syncSettings(settings = {}) {
-    enabled = Boolean(settings.proactiveEnabled);
+    mode = normalizeProactiveMode(settings);
     const range = normalizeProactiveIdleRange(settings);
     idleSecondsMin = range.min;
     idleSecondsMax = range.max;
@@ -153,7 +162,7 @@ export function createShellProactive(deps) {
     quietStart = normalizeQuietTime(settings.proactiveQuietStart, "23:00");
     quietEnd = normalizeQuietTime(settings.proactiveQuietEnd, "07:00");
     pickIdleTarget();
-    syncToggleUi(enabled);
+    syncToggleUi(mode);
     syncRunningState();
   }
 
@@ -162,7 +171,8 @@ export function createShellProactive(deps) {
   }
 
   function getBlockReason() {
-    if (!enabled) return "disabled";
+    if (mode === "natural") return "natural-stub";
+    if (mode !== "ping") return "disabled";
     if (
       isProactiveQuietHours(new Date(), {
         enabled: quietHoursEnabled,
@@ -227,7 +237,7 @@ export function createShellProactive(deps) {
   }
 
   function ensureRunning() {
-    if (!enabled) return;
+    if (mode !== "ping") return;
     bindActivityListeners();
     if (timer) return;
     timer = window.setInterval(() => {
@@ -244,7 +254,7 @@ export function createShellProactive(deps) {
   }
 
   function syncRunningState() {
-    if (enabled) {
+    if (mode === "ping") {
       bumpActivity();
       ensureRunning();
     } else {
@@ -253,12 +263,12 @@ export function createShellProactive(deps) {
   }
 
   async function toggleEnabled() {
-    const next = !enabled;
-    await deps.persistEnabled(next);
-    enabled = next;
-    syncToggleUi(enabled);
+    const next = mode === "ping" ? "off" : "ping";
+    await deps.persistMode(next);
+    mode = next;
+    syncToggleUi(mode);
     syncRunningState();
-    return next;
+    return mode === "ping";
   }
 
   return {
@@ -269,6 +279,7 @@ export function createShellProactive(deps) {
     canTrigger,
     getBlockReason,
     maybeTrigger,
-    isEnabled: () => enabled
+    isEnabled: () => mode === "ping",
+    getMode: () => mode
   };
 }

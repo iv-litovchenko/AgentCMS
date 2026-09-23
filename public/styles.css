@@ -12624,9 +12624,17 @@ body.app-locked {
 }
 
 .node-config-field-row--compact.is-tall {
-  align-items: start;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  gap: 6px;
+}
+
+.node-config-field-row--compact.is-tall .node-config-field-head,
+.node-config-field-row--compact.is-tall .node-config-field-value {
+  width: 100%;
+  min-width: 0;
 }
 
 .node-config-field-row--compact.has-field-description {
@@ -12731,6 +12739,30 @@ body.app-locked {
   outline: none;
   border-color: #93c5fd;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.node-config-field-row--compact.is-tall textarea.props-form-value--textarea {
+  min-height: 120px;
+  max-height: min(42vh, 360px);
+  resize: vertical;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  box-sizing: border-box;
+}
+
+.node-config-field-row--compact.is-tall textarea.props-form-value--code {
+  min-height: 140px;
+}
+
+.node-config-field-row--compact.is-tall .props-form-value-wrap--boolean {
+  padding: 2px 0;
+}
+
+.project-settings-fields .node-config-field-row--compact:not(.is-tall) .node-config-field-value input.props-form-value,
+.project-settings-fields .node-config-field-row--compact:not(.is-tall) .node-config-field-value select.props-form-value {
+  min-height: 30px;
+  box-sizing: border-box;
 }
 
 .node-config-field-value .props-form-value-wrap--boolean {

@@ -39,6 +39,21 @@ export function bindTtsPlaybackOptionHints() {
   });
 }
 
+const PROACTIVE_MODE_HINTS = {
+  off: "Никаких фоновых проверок и вызовов агента.",
+  natural:
+    "Естественная проактивность — по звукам, действиям пользователя и контексту, без пингов по таймеру. Скоро.",
+  ping:
+    "После бездействия Shell ждёт случайный интервал в диапазоне «от–до» и отправляет промпт ниже агенту. В чате пинг виден как свёрнутый блок [proactive]; агенту уходит текст без тегов. Быстрое переключение — кнопка ✨ Проактив внизу (выкл ↔ по пингу). Плейсхолдеры: {{agent-cms-voice:idle_seconds}}, {{agent-cms-voice:idle_minutes}}. Отдельно от системного промпта (вкладка «Маршрут»)."
+};
+
+export function bindProactiveModeOptionHints() {
+  document.querySelectorAll("[data-proactive-mode]").forEach((el) => {
+    const mode = el.dataset.proactiveMode;
+    if (PROACTIVE_MODE_HINTS[mode]) el.dataset.hint = PROACTIVE_MODE_HINTS[mode];
+  });
+}
+
 export function updateTtsPlaybackHint() {
   /* подсказки на каждой кнопке — см. bindTtsPlaybackOptionHints */
 }
@@ -83,6 +98,7 @@ export function initShellHints() {
   }
 
   bindTtsPlaybackOptionHints();
+  bindProactiveModeOptionHints();
 
   document.querySelectorAll("[data-hint]").forEach((el) => {
     if (el.dataset.hintBound === "1") return;

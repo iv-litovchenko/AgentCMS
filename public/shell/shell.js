@@ -97,6 +97,7 @@ import {
   normalizeProactiveAgentReply,
   PROACTIVE_EMPTY_MARKER,
   normalizeProactiveIdleRange,
+  normalizeProactiveMode,
   normalizeQuietTime
 } from "@shell/proactive";
 import { shellVoicePlaceholder } from "@shell/prompt-placeholders";
@@ -221,8 +222,48 @@ let voiceInputModePersisting = false;
 let voiceModeUserChangedAt = 0;
 let voiceModeHydratedFromServer = false;
 let lastCommittedVoiceMode = "";
+let proactiveSaveInFlight = false;
 
 const TTS_PLAYBACK_MODE_NAMES = ["shell-tts-playback-mode", "shell-tts-playback-mode-panel"];
+const PROACTIVE_MODE_NAME = "shell-proactive-mode";
+const PROACTIVE_MODE_VALUES = ["off", "natural", "ping"];
+
+function readProactiveModeFromDom() {
+  const checked = document.querySelector(`input[name="${PROACTIVE_MODE_NAME}"]:checked`);
+  const value = checked?.value;
+  return PROACTIVE_MODE_VALUES.includes(value) ? value : null;
+}
+
+function getProactiveMode(settings = state.settings) {
+  if (isSettingsViewOpen()) {
+    const fromDom = readProactiveModeFromDom();
+    if (fromDom) return fromDom;
+  }
+  return normalizeProactiveMode(settings || {});
+}
+
+function syncProactiveModeUi(settings = state.settings, { force = false } = {}) {
+  const active = document.activeElement;
+  if (
+    !force &&
+    active instanceof HTMLInputElement &&
+    active.name === PROACTIVE_MODE_NAME
+  ) {
+    return;
+  }
+  const mode = normalizeProactiveMode(settings || {});
+  for (const input of document.querySelectorAll(`input[name="${PROACTIVE_MODE_NAME}"]`)) {
+    if (input instanceof HTMLInputElement) {
+      input.checked = input.value === mode;
+    }
+  }
+}
+
+function formatProactiveModeLog(mode) {
+  if (mode === "ping") return "по пингу";
+  if (mode === "natural") return "естественная (скоро)";
+  return "выкл";
+}
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
 function readTtsPlaybackModeFromDom() {
@@ -2048,7 +2089,7 @@ const nodes = {
   keepAwake: document.getElementById("shell-keep-awake"),
   proactiveRow: document.getElementById("shell-proactive-row"),
   proactiveToggle: document.getElementById("shell-proactive-toggle"),
-  proactiveEnabled: document.getElementById("shell-proactive-enabled"),
+  proactiveModeGroup: document.getElementById("shell-proactive-mode-off"),
   proactiveIdleMin: document.getElementById("shell-proactive-idle-min"),
   proactiveIdleMax: document.getElementById("shell-proactive-idle-max"),
   proactiveCooldownSeconds: document.getElementById("shell-proactive-cooldown-seconds"),
@@ -2482,17 +2523,15 @@ function initShellProactiveController() {
     isMicActive: () =>
       Boolean(state.micActive || state.micTapHeld || shellTapVoice?.isTapHeld?.()),
     sendProactive: (idleSeconds) => sendProactiveMessage(idleSeconds),
-    syncEnabledUi: (on) => {
-      if (nodes.proactiveEnabled) nodes.proactiveEnabled.checked = on;
-    },
-    persistEnabled: async (enabled) => {
-      await saveSettings({ proactiveEnabled: enabled }, { apply: "none" });
-      state.settings = { ...(state.settings || {}), proactiveEnabled: enabled };
-      if (nodes.proactiveEnabled) nodes.proactiveEnabled.checked = enabled;
-      settingsSave.patchBaseline("proactive", { proactiveEnabled: enabled });
+    persistMode: async (mode) => {
+      const proactiveMode = PROACTIVE_MODE_VALUES.includes(mode) ? mode : "off";
+      await saveSettings({ proactiveMode }, { apply: "none" });
+      state.settings = { ...(state.settings || {}), proactiveMode };
+      syncProactiveModeUi(state.settings);
+      settingsSave.patchBaseline("proactive", { proactiveMode });
     }
   });
-  shellProactive.syncSettings(state.settings || { proactiveEnabled: false });
+  shellProactive.syncSettings(state.settings || { proactiveMode: "off" });
   shellDebug.watchProactive(shellProactive);
 }
 
@@ -6386,6 +6425,7 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   if (nodes.bridgeSessionId && document.activeElement !== nodes.bridgeSessionId) {
     nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "";
   }
+  syncBridgeSessionIdValidationUi(id);
   if (runtimeUsesCli(id) && nodes.bridgePermissionMode) {
     syncBridgePermissionModeSelect(id, read("permissionMode") || defaults.permissionMode || "");
   }
@@ -6472,8 +6512,8 @@ function collectBridgeFormPatch(runtime, { validate = true } = {}) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
   const sessionId = nodes.bridgeSessionId?.value.trim() || defaults.sessionId || "";
-  if (validate && id === "codex" && sessionId) {
-    const check = validateCodexSessionId(sessionId);
+  if (validate && runtimeUsesCli(id) && sessionId) {
+    const check = validateBridgeSessionId(id, sessionId);
     if (!check.ok) throw new Error(check.message);
   }
   const patch = {
@@ -6537,13 +6577,9 @@ function markSettingsDirty(section) {
   settingsSave.markDirty(section, snapshot);
 }
 
-function bindSettingsSaveButton(btn, section) {
+function bindSettingsSaveButton(btn) {
   if (!btn || btn.dataset.shellSaveBound === "1") return;
   btn.dataset.shellSaveBound = "1";
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    void handleSettingsSaveClick(section, btn);
-  });
 }
 
 function applySettingsFormsFromServer(settings = state.settings) {
@@ -6635,6 +6671,8 @@ function commitCleanSettingsBaselines() {
 
 async function handleSettingsSaveClick(section, btn) {
   if (!section) return;
+  if (btn?.dataset.shellSaving === "1") return;
+  if (section === "proactive" && proactiveSaveInFlight) return;
   if (!state.agentId) {
     try {
       await ensureShellAgentSelected();
@@ -6649,13 +6687,18 @@ async function handleSettingsSaveClick(section, btn) {
   }
   btn?.classList.add("is-saving");
   btn?.setAttribute("disabled", "disabled");
+  if (btn) btn.dataset.shellSaving = "1";
+  if (section === "proactive") proactiveSaveInFlight = true;
   try {
     if (section === "tts") await persistTtsSettings();
     else await saveSettingsSection(section);
     void playShellUiSound("saved");
   } catch (error) {
     renderPhase("waiting", error.message);
+    markSettingsDirty(section);
   } finally {
+    if (section === "proactive") proactiveSaveInFlight = false;
+    if (btn) delete btn.dataset.shellSaving;
     btn?.classList.remove("is-saving");
     btn?.removeAttribute("disabled");
     settingsSave.syncUi();
@@ -6693,12 +6736,12 @@ function refreshSettingsSaveUi() {
     toggleButtons: {},
     settingsMenuBtn: nodes.settingsBtn
   });
-  bindSettingsSaveButton(nodes.windowSave, "window");
-  bindSettingsSaveButton(nodes.routeSave, "route");
-  bindSettingsSaveButton(nodes.proactiveSave, "proactive");
-  bindSettingsSaveButton(nodes.templatesSave, "templates");
-  bindSettingsSaveButton(nodes.ttsSave, "tts");
-  bindSettingsSaveButton(nodes.sttSave, "stt");
+  bindSettingsSaveButton(nodes.windowSave);
+  bindSettingsSaveButton(nodes.routeSave);
+  bindSettingsSaveButton(nodes.proactiveSave);
+  bindSettingsSaveButton(nodes.templatesSave);
+  bindSettingsSaveButton(nodes.ttsSave);
+  bindSettingsSaveButton(nodes.sttSave);
 }
 
 function bindSettingsDirtyUi() {
@@ -6787,19 +6830,6 @@ function isAnySettingsSectionDirty() {
   );
 }
 
-async function persistRoutePermissionMode() {
-  const runtime = getSelectedRuntime();
-  if (!runtimeUsesCli(runtime)) return;
-  const permissionKey = bridgeRuntimeField(runtime, "permissionMode");
-  const patch = {
-    [permissionKey]: normalizeRuntimePermissionMode(runtime, nodes.bridgePermissionMode?.value ?? "")
-  };
-  await persistAgentSettingsPatch(patch, {
-    baselineSection: "route",
-    commitSection: false
-  });
-}
-
 function isRuntimePermissionModePermissive(runtime, mode) {
   const id = normalizeMessageRuntime(runtime);
   const value = String(mode ?? "").trim();
@@ -6848,14 +6878,28 @@ async function saveSettingsSection(section) {
 
   const patch =
     section === "route" ? collectRouteSettingsPatch({ validate: true }) : getSettingsSnapshot(section);
+  const prevRouteTarget =
+    section === "route" ? normalizeMessageRuntime(state.settings?.messageTarget) : "";
   if (section === "stt") {
     applyRecognitionLang(patch.sttLang);
   }
   const applyMode =
-    section === "route" || section === "tts" || section === "stt" || section === "templates"
+    section === "route" ||
+    section === "proactive" ||
+    section === "tts" ||
+    section === "stt" ||
+    section === "templates"
       ? "none"
       : "full";
   await saveSettings(patch, { apply: applyMode });
+  if (
+    section === "route" &&
+    patch.messageTarget &&
+    normalizeMessageRuntime(patch.messageTarget) !== prevRouteTarget
+  ) {
+    await reloadShellDialogContext({ restoreScroll: false });
+    refreshRuntimeSelectLabels();
+  }
   applySavedSettingsSection(section, state.settings);
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
 }
@@ -6902,7 +6946,7 @@ function applySttSummarySettings(settings = state.settings) {
 
 function applySettings(settings) {
   if (!settings) return;
-  const prevProactive = Boolean(state.settings?.proactiveEnabled);
+  const prevProactive = normalizeProactiveMode(state.settings || {});
   const preserveVoiceResponseEnabled = settingsSave.isSectionDirty("stt")
     ? readVoiceResponseEnabledFromDom()
     : undefined;
@@ -6911,7 +6955,7 @@ function applySettings(settings) {
     state.settings.voiceResponseEnabled = preserveVoiceResponseEnabled;
   }
   shellLog("settings", "applySettings", {
-    proactiveEnabled: settings.proactiveEnabled,
+    proactiveMode: normalizeProactiveMode(settings),
     proactiveDirty: settingsSave.isSectionDirty("proactive"),
     settingsOpen: isSettingsViewOpen()
   });
@@ -6955,8 +6999,9 @@ function applySettings(settings) {
       }
     }
   }
-  if (prevProactive !== Boolean(settings.proactiveEnabled)) {
-    shellLog("proactive", `С сервера: ${settings.proactiveEnabled ? "вкл" : "выкл"}`);
+  const nextProactive = normalizeProactiveMode(settings);
+  if (prevProactive !== nextProactive) {
+    shellLog("proactive", `С сервера: ${formatProactiveModeLog(nextProactive)}`);
   }
   syncCompactSensorAvailability();
   syncDialogScrollFromSettings(settings);
@@ -7178,19 +7223,66 @@ async function ensureShellAgentSelected() {
   return state.agentId;
 }
 
-const CODEX_SESSION_UUID_RE =
+const BRIDGE_SESSION_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function validateCodexSessionId(value) {
+function looksLikeBrokenUuid(value) {
   const sid = String(value || "").trim();
+  if (!sid || BRIDGE_SESSION_UUID_RE.test(sid)) return false;
+  return /^[0-9a-f-]+$/i.test(sid) && sid.includes("-");
+}
+
+function validateBridgeSessionId(runtime, value) {
+  const sid = String(value || "").trim();
+  const id = normalizeMessageRuntime(runtime);
   if (!sid) return { ok: true, normalized: "" };
-  if (CODEX_SESSION_UUID_RE.test(sid)) return { ok: true, normalized: sid };
-  return {
-    ok: false,
-    normalized: "",
-    message:
-      "Codex resume: укажите thread id из Codex или оставьте поле пустым — id подставится после первого сообщения"
-  };
+  if (BRIDGE_SESSION_UUID_RE.test(sid)) return { ok: true, normalized: sid };
+  if (id === "claude" && !looksLikeBrokenUuid(sid)) {
+    return { ok: true, normalized: sid };
+  }
+  if (id === "codex") {
+    return {
+      ok: false,
+      normalized: "",
+      message:
+        "Codex: укажите thread id (UUID) из Codex или оставьте пустым — id подставится после первого сообщения"
+    };
+  }
+  if (id === "claude") {
+    return {
+      ok: false,
+      normalized: "",
+      message: "Claude: неверный UUID сессии (или укажите имя сессии без формата UUID)"
+    };
+  }
+  return { ok: true, normalized: sid };
+}
+
+function validateCodexSessionId(value) {
+  return validateBridgeSessionId("codex", value);
+}
+
+function syncBridgeSessionIdValidationUi(runtime = readRouteRuntimeSelectValue() || getSelectedRuntime()) {
+  refreshRoutePanelNodes();
+  const input = nodes.bridgeSessionId;
+  if (!input) return;
+  const id = normalizeMessageRuntime(runtime);
+  if (!runtimeUsesCli(id)) {
+    input.removeAttribute("data-invalid");
+    input.removeAttribute("aria-invalid");
+    if (!input.matches(":focus")) input.title = "";
+    return;
+  }
+  const check = validateBridgeSessionId(id, input.value);
+  if (check.ok) {
+    input.removeAttribute("data-invalid");
+    input.removeAttribute("aria-invalid");
+    if (!input.matches(":focus")) input.title = "";
+  } else {
+    input.dataset.invalid = "1";
+    input.setAttribute("aria-invalid", "true");
+    input.title = check.message || "Неверный session id";
+  }
 }
 
 function createCliSessionUuid() {
@@ -7415,6 +7507,9 @@ async function bootstrapRuntimeSelect() {
     if (settings) {
       state.settings = { ...(state.settings || {}), ...settings };
       syncDialogScrollFromSettings(settings);
+      if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("proactive")) {
+        applyProactiveFormUi(state.settings);
+      }
     }
     const selected = normalizeMessageRuntime(
       settings?.messageTarget || state.settings?.messageTarget || "qwenpaw"
@@ -7543,10 +7638,13 @@ function generateBridgeSessionUuid() {
   const sessionInput = nodes.bridgeSessionId || document.getElementById("shell-runtime-bridge-session-id");
   if (!sessionInput) return;
   const runtime = normalizeMessageRuntime(readRouteRuntimeSelectValue() || getSelectedRuntime());
-  // Codex выдаёт свой thread id после первого сообщения — случайный UUID только мешает resume.
-  sessionInput.value = runtime === "codex" ? "" : createCliSessionUuid();
+  if (!runtimeUsesCli(runtime)) return;
+  sessionInput.value = createCliSessionUuid();
+  syncBridgeSessionIdValidationUi(runtime);
   sessionInput.dispatchEvent(new Event("input", { bubbles: true }));
   markSettingsDirty("route");
+  sessionInput.focus();
+  sessionInput.select();
 }
 
 function readRouteRuntimeSelectValue() {
@@ -7666,6 +7764,7 @@ function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) 
     }
     updateBridgePermissionFieldUi(runtime);
     applyBridgeModelPlaceholder(runtime);
+    syncBridgeSessionIdValidationUi(runtime);
   }
   syncDialogConnectionState();
 }
@@ -7790,19 +7889,6 @@ async function loadQwenPawAgents(preferredId = "") {
   } finally {
     syncQwenPawPanelAvailability();
   }
-}
-
-async function persistQwenPawApprovalMode() {
-  if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
-  const approvalLevel = qwenpawApprovalLevelFromBypass(Boolean(nodes.qwenpawPermissionMode?.checked));
-  const data = await apiFetch("/api/shell/qwenpaw/agent-approval", {
-    method: "POST",
-    body: JSON.stringify({ bypass: approvalLevel === "OFF" })
-  });
-  if (data.approvalLevel) {
-    state.settings = { ...(state.settings || {}), qwenpawApprovalLevel: data.approvalLevel };
-  }
-  syncQwenPawApprovalCheckbox(data.approvalLevel || approvalLevel);
 }
 
 function updateQwenPawChatUi(payload) {
@@ -8668,7 +8754,7 @@ function buildComposeParamsPreviewRows() {
     },
     {
       key: shellVoicePlaceholder("proactive_enabled"),
-      value: settings.proactiveEnabled ? "true" : "false",
+      value: normalizeProactiveMode(settings) === "ping" ? "true" : "false",
       target: "таймер Shell (не агенту)"
     },
     {
@@ -9037,6 +9123,7 @@ function insertProactivePromptTemplate() {
     DEFAULT_PROACTIVE_PROMPT;
   nodes.proactivePrompt.value = template;
   state.settings = { ...(state.settings || {}), proactivePrompt: template };
+  syncProactivePromptHint(state.settings);
   markSettingsDirty("proactive");
 }
 
@@ -10222,10 +10309,28 @@ function collectSttSettingsPatch() {
   };
 }
 
+function readProactivePromptFromDom() {
+  if (!nodes.proactivePrompt) return "";
+  return String(nodes.proactivePrompt.value || "");
+}
+
+function resolveProactivePromptForForm(settings = state.settings) {
+  const stored = String(settings?.proactivePrompt || "").trim();
+  if (stored) return stored;
+  const fromDom = readProactivePromptFromDom().trim();
+  if (fromDom) return fromDom;
+  return "";
+}
+
+function getProactivePromptForSnapshot() {
+  const fromDom = readProactivePromptFromDom().trim();
+  if (fromDom) return fromDom;
+  return String(state.settings?.proactivePrompt || "").trim();
+}
+
 function applyProactiveFormUi(settings) {
-  if (nodes.proactiveEnabled) {
-    nodes.proactiveEnabled.checked = Boolean(settings.proactiveEnabled);
-  }
+  syncProactiveModeUi(settings, { force: true });
+  shellProactive?.syncSettings(settings || state.settings || {});
   const idleRange = normalizeProactiveIdleRange(settings || {});
   if (nodes.proactiveIdleMin) {
     nodes.proactiveIdleMin.value = String(idleRange.min);
@@ -10246,8 +10351,16 @@ function applyProactiveFormUi(settings) {
     nodes.proactiveQuietEnd.value = normalizeQuietTime(settings.proactiveQuietEnd, "07:00");
   }
   if (nodes.proactivePrompt && document.activeElement !== nodes.proactivePrompt) {
-    nodes.proactivePrompt.value = settings.proactivePrompt || "";
+    nodes.proactivePrompt.value = resolveProactivePromptForForm(settings);
   }
+  syncProactivePromptHint(settings);
+}
+
+function syncProactivePromptHint(settings = state.settings) {
+  const hint = document.getElementById("shell-proactive-prompt-hint");
+  if (!hint) return;
+  const stored = String(settings?.proactivePrompt || readProactivePromptFromDom() || "").trim();
+  hint.hidden = Boolean(stored);
 }
 
 function applyTemplatesFormUi(settings) {
@@ -10267,7 +10380,7 @@ function collectProactiveFormPatch() {
     proactiveIdleSeconds: state.settings?.proactiveIdleSeconds
   });
   return {
-    proactiveEnabled: Boolean(nodes.proactiveEnabled?.checked),
+    proactiveMode: getProactiveMode(),
     proactiveIdleSecondsMin: idleRange.min,
     proactiveIdleSecondsMax: idleRange.max,
     proactiveIdleSeconds: idleRange.min,
@@ -10278,7 +10391,7 @@ function collectProactiveFormPatch() {
     proactiveQuietHoursEnabled: Boolean(nodes.proactiveQuietEnabled?.checked),
     proactiveQuietStart: normalizeQuietTime(nodes.proactiveQuietStart?.value, "23:00"),
     proactiveQuietEnd: normalizeQuietTime(nodes.proactiveQuietEnd?.value, "07:00"),
-    proactivePrompt: nodes.proactivePrompt?.value || ""
+    proactivePrompt: getProactivePromptForSnapshot()
   };
 }
 
@@ -11381,7 +11494,7 @@ function connectStream() {
       const payload = JSON.parse(event.data);
       logSse("status", {
         phase: payload?.state?.phase,
-        proactiveEnabled: payload?.settings?.proactiveEnabled
+        proactiveMode: normalizeProactiveMode(payload?.settings || {})
       });
       applyStatusPayload(payload);
     } catch {
@@ -12322,7 +12435,9 @@ function handleMessageTargetChange() {
   markSettingsDirty("route");
   syncRuntimeSelects("header");
   updateRuntimeUi({ runtime });
-  void persistMessageTarget(runtime);
+  if (!isSettingsViewOpen()) {
+    void persistMessageTarget(runtime);
+  }
 }
 
 function handleRouteRuntimeChange() {
@@ -12335,7 +12450,9 @@ function handleRouteRuntimeChange() {
   syncRuntimeSelects("route");
   updateRuntimeUi({ runtime, reloadForms: true });
   markSettingsDirty("route");
-  void persistMessageTarget(runtime);
+  if (!isSettingsViewOpen()) {
+    void persistMessageTarget(runtime);
+  }
 }
 
 function bindUi() {
@@ -12458,25 +12575,24 @@ function bindUi() {
     markRouteDirty();
     void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
   });
-  nodes.qwenpawPermissionMode?.addEventListener("change", () => {
-    void persistQwenPawApprovalMode().catch((error) => renderPhase("waiting", error.message));
-  });
+  nodes.qwenpawPermissionMode?.addEventListener("change", markRouteDirty);
   updateQwenPawPermissionFieldUi();
   syncQwenPawPanelAvailability();
-  for (const input of [
-    nodes.bridgeUrl,
-    nodes.bridgeApiKey,
-    nodes.bridgeModel,
-    nodes.bridgeAgentMeta,
-    nodes.bridgeSessionId
-  ]) {
+  for (const input of [nodes.bridgeUrl, nodes.bridgeApiKey, nodes.bridgeModel, nodes.bridgeAgentMeta]) {
     input?.addEventListener("input", markRouteDirty);
     input?.addEventListener("change", markRouteDirty);
   }
+  nodes.bridgeSessionId?.addEventListener("input", () => {
+    syncBridgeSessionIdValidationUi();
+    markRouteDirty();
+  });
+  nodes.bridgeSessionId?.addEventListener("change", () => {
+    syncBridgeSessionIdValidationUi();
+    markRouteDirty();
+  });
   nodes.bridgePermissionMode?.addEventListener("change", () => {
     syncBridgePermissionEmojiUi(getSelectedRuntime(), nodes.bridgePermissionMode?.value ?? "");
-    markSettingsDirty("route");
-    void persistRoutePermissionMode().catch((error) => renderPhase("waiting", error.message));
+    markRouteDirty();
   });
   nodes.systemPrompt?.addEventListener("input", markRouteDirty);
   nodes.systemPromptInsert?.addEventListener("click", (event) => {
@@ -12616,8 +12732,10 @@ function bindUi() {
     event.preventDefault();
     insertProactivePromptTemplate();
   });
+  for (const input of document.querySelectorAll(`input[name="${PROACTIVE_MODE_NAME}"]`)) {
+    input.addEventListener("change", markProactiveDirty);
+  }
   for (const el of [
-    nodes.proactiveEnabled,
     nodes.proactiveIdleMin,
     nodes.proactiveIdleMax,
     nodes.proactiveCooldownSeconds,
@@ -12628,21 +12746,18 @@ function bindUi() {
     el?.addEventListener("change", markProactiveDirty);
     el?.addEventListener("input", markProactiveDirty);
   }
-  nodes.proactivePrompt?.addEventListener("input", markProactiveDirty);
-  nodes.proactivePrompt?.addEventListener("change", markProactiveDirty);
-  nodes.proactiveEnabled?.addEventListener("change", () => {
-    const patch = collectProactiveFormPatch();
-    shellProactive?.syncSettings({ ...(state.settings || {}), ...patch });
-    const enabled = Boolean(patch.proactiveEnabled);
-    if (enabled === Boolean(state.settings?.proactiveEnabled)) return;
-    shellLog("proactive", enabled ? "Включена в настройках" : "Выключена в настройках");
-    void saveSettings({ proactiveEnabled: enabled }, { apply: "none" })
-      .then(() => {
-        state.settings = { ...(state.settings || {}), proactiveEnabled: enabled };
-        settingsSave.patchBaseline("proactive", { proactiveEnabled: enabled });
-      })
-      .catch((error) => shellLog("error", "Не сохранилась проактивность", error.message));
+  nodes.proactivePrompt?.addEventListener("input", () => {
+    syncProactivePromptHint({ proactivePrompt: nodes.proactivePrompt?.value || "" });
+    markProactiveDirty();
   });
+  nodes.proactivePrompt?.addEventListener("change", markProactiveDirty);
+  for (const input of document.querySelectorAll(`input[name="${PROACTIVE_MODE_NAME}"]`)) {
+    input.addEventListener("change", () => {
+      const patch = collectProactiveFormPatch();
+      shellProactive?.syncSettings({ ...(state.settings || {}), ...patch });
+      shellLog("proactive", `Режим в форме: ${formatProactiveModeLog(patch.proactiveMode)} (сохраните кнопкой)`);
+    });
+  }
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
   nodes.ttsElevenlabsKey?.addEventListener("input", () => {
@@ -12999,7 +13114,7 @@ async function connectShellAgentData() {
     shellLog("boot", "Агент подключён", {
       agentId: state.agentId,
       messageTarget: state.settings?.messageTarget || getSelectedRuntime(),
-      proactiveEnabled: Boolean(state.settings?.proactiveEnabled)
+      proactiveMode: normalizeProactiveMode(state.settings || {})
     });
   } catch (error) {
     shellLog("error", "connectShellAgentData failed", error.message);

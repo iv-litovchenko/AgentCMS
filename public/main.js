@@ -42890,27 +42890,55 @@ function mergeProjectSettingsScopeStatus(normalized, patch) {
   projectSettingsScopeStatusByPath.set(normalized, { ...prev, ...patch, path: normalized });
 }
 
-function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
-  const normalized = normalizeMenuNodePath(manifestPath);
-  if (!normalized || !cache) return;
-  if (
-    !isProjectSettingsGlobalScope(normalized) &&
-    !isProjectSettingsWorkspaceSettingsScope(normalized) &&
-    !isProjectSettingsIntegrationsSettingsScope(normalized)
-  ) {
-    return;
-  }
-  const valueCount = (cache.entries || []).filter((entry) => {
+function countProjectSettingsValuesFromCache(cache) {
+  return (cache?.entries || []).filter((entry) => {
     if (!entry?.key) return false;
     if (entry.kind === "bool" || entry.kind === "number") return true;
     if (entry.kind === "null") return false;
     return String(entry.value ?? "").trim() !== "";
   }).length;
+}
+
+function countAwnSchemaFieldEntries(awnSchema) {
+  const normalized = normalizeTopicSchemaState(awnSchema || {});
+  let count = 0;
+  for (const { id } of getTopicSchemaTargetSpecs()) {
+    count += Object.keys(normalized[id]?.fields || {}).length;
+  }
+  count += Object.keys(normalized.sidecar?.fields || {}).length;
+  return count;
+}
+
+function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized || !cache) return;
+  const valueCount = countProjectSettingsValuesFromCache(cache);
   mergeProjectSettingsScopeStatus(normalized, {
     configExists: Boolean(cache.exists),
     valueCount,
     hasLocalValues: valueCount > 0
   });
+}
+
+function setProjectSettingsSchemaStatusFromCache(manifestPath, schemaCache) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized || !schemaCache) return;
+  const schemaFieldCount = countAwnSchemaFieldEntries(schemaCache.awnSchema);
+  const schemaExists = Boolean(
+    schemaCache.configExists ?? schemaCache.schemaExists ?? schemaFieldCount > 0
+  );
+  mergeProjectSettingsScopeStatus(normalized, {
+    schemaPath: schemaCache.schemaPath || schemaCache.configPath || "",
+    schemaExists,
+    schemaFieldCount,
+    hasLocalSchema: schemaFieldCount > 0
+  });
+}
+
+function syncProjectSettingsScopeMarkersAfterSchemaSave(manifestPath, schemaCache) {
+  if (!isProjectSettingsMode()) return;
+  setProjectSettingsSchemaStatusFromCache(manifestPath, schemaCache);
+  renderProjectSettingsScopeList();
 }
 
 function setProjectSettingsEnvStatusFromCache(manifestPath, cache) {
@@ -44552,7 +44580,13 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
   row.className = "node-config-field-row node-config-field-row--compact";
   if (readonly) row.classList.add("is-readonly");
   else if (locked) row.classList.add("is-readonly");
-  if (entryKind === "array" || isFileFieldTypeId(fieldDef?.type) || fieldTypeIs(typeId, "text")) {
+  const settingsWidget = resolvePropsFieldWidget(entry.key, fieldDef);
+  if (
+    entryKind === "array" ||
+    isFileFieldTypeId(fieldDef?.type) ||
+    fieldTypeIs(typeId, "text") ||
+    ["textarea", "code", "json", "object", "repeater"].includes(settingsWidget)
+  ) {
     row.classList.add("is-tall");
   }
   row.dataset.configRowKey = entry.key;
@@ -46829,6 +46863,7 @@ async function saveWorkspaceSchemaContent() {
   cache.schemaPath = data.schemaPath || cache.schemaPath;
   enrichTopicSchemaCacheFromTypes(cache);
   renderTopicSchemaEditor();
+  syncProjectSettingsScopeMarkersAfterSchemaSave(manifestPath, cache);
   return data;
 }
 
@@ -46929,6 +46964,7 @@ async function saveTopicSchemaContent() {
     if (activeContentMode === "configs") renderNodeSettingsEditor(settingsCache);
   }
   renderTopicSchemaEditor();
+  syncProjectSettingsScopeMarkersAfterSchemaSave(manifestPath, cache);
   return data;
 }
 
@@ -53831,8 +53867,10 @@ function createPropsFormTextareaControl(entry, meta, { locked = false } = {}) {
   const wrap = createPropsFormValueWrap("textarea");
   const textarea = document.createElement("textarea");
   textarea.className = "props-form-value props-form-value--textarea";
-  textarea.rows = 3;
-  textarea.value = getPropsEntryDisplayValue(entry);
+  const displayValue = getPropsEntryDisplayValue(entry);
+  const lineCount = String(displayValue || "").split(/\r?\n/).length;
+  textarea.rows = Math.max(6, Math.min(16, lineCount + 2));
+  textarea.value = displayValue;
   if (meta.hint) textarea.title = meta.hint;
   textarea.placeholder = meta.hint || "—";
   bindPropsFormLockedState(textarea, locked);

@@ -6,69 +6,22 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T11:01:32.264Z"
+  awn-id-updated-at: "2026-09-23T11:41:38.571Z"
   awn-id-model: workspace-id-autoincrement-v1
-  ws-static-example-1: значение 1
-  ws-static-example-2: значение 2
-  ws-static-example-3: значение 3
   default-slot: main
   awn-temp-ttl-days: 0
-  voice-cms-topic-path: awn-agent-kit/agent/manifest.md
-  voice-cms-channel: thread
+  hooks-rules: []
+  voice-route-runtime: claude
   voice-route-claude-cli-path: claude
   voice-route-codex-cli-path: codex
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
   voice-route-qwenpaw-user-id: default
   voice-route-qwenpaw-agent-id: default
   voice-route-qwenpaw-approval-level: AUTO
-  voice-route-runtime: codex
-  voice-proactive-enabled: false
-  voice-proactive-idle-seconds-min: 44
-  voice-proactive-idle-seconds-max: 77
-  voice-proactive-cooldown-seconds: 88
-  voice-proactive-quiet-hours-enabled: false
-  voice-proactive-quiet-hours-start: "22:00"
-  voice-proactive-quiet-hours-end: "05:00"
   voice-input-enabled: true
   voice-input-mode: fn_button
-  voice-input-capture: microphone
-  voice-input-global-listen: false
-  voice-input-to-compose: false
   voice-input-response-enabled: true
-  voice-stt-engine: browser
-  voice-stt-lang: ru-RU
-  voice-stt-whisper-model: base
-  voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: false
-  voice-tts-engine: browser
-  voice-tts-playback-mode: reading
-  voice-tts-rate: 1
-  voice-tts-pitch: 1
-  voice-tts-include-captions: true
-  voice-tts-browser-lang: ru-RU
-  voice-tts-edge-voice: ru-RU-SvetlanaNeural
-  voice-tts-edge-rate: 1
-  voice-tts-piper-binary: piper
-  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
-  voice-tts-elevenlabs-model: eleven_multilingual_v2
-  voice-tts-elevenlabs-rate: 1
-  voice-compose-templates: []
-  voice-media-camera-enabled: false
-  voice-media-camera-on-speech: true
-  voice-media-camera-facing: environment
-  voice-media-screen-enabled: false
-  voice-media-screen-on-speech: false
-  voice-window-character-model: robot
-  voice-window-compact-mode: false
-  voice-window-topmost: true
-  voice-window-pet-overlay: false
-  voice-window-transparent: false
-  voice-window-background: wallpaper
-  voice-window-compact-dialog-qa: true
-  voice-window-dialog-auto-scroll: true
-  voice-window-keep-awake: false
-  voice-window-processing-sound: off
-  voice-route-codex-permission-mode: untrusted
+  voice-input-capture: microphone
   voice-stt-prompt: |
     В сообщении пользователя может быть смесь обычного текста и голосовых блоков:
     
@@ -82,6 +35,12 @@ awn_settings:
     Понимай смысл по всему сообщению целиком; восстанавливай формулировку мысленно, не выдумывая новых фактов.
     Если смысл голосового блока неясен — спроси уточнение.
     Не удаляй и не переписывай разметку [stt] в цитатах пользователя.
+  voice-stt-engine: browser
+  voice-stt-lang: ru-RU
+  voice-stt-whisper-model: base
+  voice-stt-elevenlabs-model: scribe_v2
+  voice-tts-enabled: true
+  voice-tts-playback-mode: dialog
   voice-tts-prompt: |
     Каждый ответ пользователю используй в формате (строго, в таком порядке):
     
@@ -95,4 +54,67 @@ awn_settings:
     
     Формат обязателен для любых ответов, включая уточняющие вопросы.
     Без HTML-комментариев <!-- -->.
-  voice-proactive-prompt: 534
+  voice-tts-include-captions: true
+  voice-tts-engine: browser
+  voice-tts-browser-lang: ru-RU
+  voice-tts-rate: 1
+  voice-tts-pitch: 1
+  voice-tts-edge-voice: ru-RU-SvetlanaNeural
+  voice-tts-edge-rate: 1
+  voice-tts-piper-binary: piper
+  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
+  voice-tts-elevenlabs-model: eleven_multilingual_v2
+  voice-tts-elevenlabs-rate: 1
+  voice-proactive-mode: off
+  voice-proactive-idle-seconds-min: 3600
+  voice-proactive-idle-seconds-max: 3600
+  voice-proactive-cooldown-seconds: 8700
+  voice-proactive-quiet-hours-enabled: false
+  voice-proactive-quiet-hours-start: "23:00"
+  voice-proactive-quiet-hours-end: "04:00"
+  voice-proactive-prompt: |
+    Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек).
+    
+    Сначала загляни в Agent CMS (MCP): заметки, задачи, расписание, недавние темы. Потом — последние реплики в этом диалоге.
+    
+    Если есть повод — ответь коротко (1–2 предложения), живо и по делу. Приоритет:
+    1) Конкретика из workspace: открытая задача, дедлайн, напоминание, незакрытый вопрос.
+    2) Короткое продолжение последней темы разговора — уточнение, мысль, мягкий вопрос по контексту.
+    3) Лёгкое наблюдение, связанное с workspace или диалогом (не random-fact «из воздуха»).
+    
+    [proactive-empty] — только если реально проверил MCP и диалог: нет открытых задач/тем, нечего уместно добавить. Тогда одна строка [proactive-empty], без другого текста.
+    
+    Не повторяй дословно одну и ту же фразу из недавних проактивных ответов. Не напоминай про таймер и бездействие. Не начинай монолог.
+  voice-media-camera-enabled: false
+  voice-media-camera-on-speech: true
+  voice-media-camera-facing: environment
+  voice-media-screen-enabled: false
+  voice-media-screen-on-speech: false
+  voice-window-character-model: cloud
+  voice-window-compact-mode: false
+  voice-window-topmost: false
+  voice-window-pet-overlay: false
+  voice-window-transparent: false
+  voice-window-background: wallpaper
+  voice-window-compact-dialog-qa: false
+  voice-window-keep-awake: false
+  voice-window-processing-sound: off
+  voice-window-dialog-auto-scroll: true
+  ws-static-example-1: значение 1
+  ws-static-example-2: значение 2
+  ws-static-example-3: значение 3
+  voice-route-system-prompt: |
+    Ты — личный ассистент пользователя в Agent CMS Voice.
+    
+    Правила:
+    1. Факты о workspace и памяти — только через MCP Agent CMS (поиск, страницы, заметки, файлы). Не выдумывай.
+    2. Ответы короткие и разговорные: пользователь часто на мобильном и говорит голосом.
+    3. Язык ответа — как у пользователя (если не просит иного).
+    4. Показывай результат, не сырой JSON, не имена инструментов и не детали MCP.
+    5. Секреты, ключи API и пароли — не выводи и не озвучивай.
+    6. Перед записью в workspace: если неочевидно, куда положить — спроси. Если подходящей страницы или темы нет — предложи создать новую и обсуди с пользователем название и место, прежде чем записывать.
+  voice-route-claude-model: sonnet
+  voice-route-claude-session-id: dca6bc90-3700-43de-a741-391ae93091d9
+  voice-input-global-listen: false
+  voice-route-codex-session-id: 878f40b8-2c6f-4e32-8c6f-b2ca9252396b
+  voice-route-codex-permission-mode: untrusted

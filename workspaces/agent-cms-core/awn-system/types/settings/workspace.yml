@@ -796,10 +796,18 @@ fields:
     subgroup: voice-tts-elevenlabs
     sort: 113
 
-  voice-proactive-enabled:
-    type: awn.field.boolean
-    title: Включить проактивность
-    default: false
+  voice-proactive-mode:
+    type: awn.field.choice.one
+    title: Режим проактивности
+    description: Выключено — без фоновых пингов. По пингу — таймер бездействия. Естественная — скоро.
+    default: off
+    enum:
+      - key: off
+        name: Выключить проактивность
+      - key: natural
+        name: Естественная проактивность (скоро)
+      - key: ping
+        name: Проактивность по пингу
     group: voice-client
     subgroup: voice-proactive
     sort: 100
@@ -855,6 +863,7 @@ fields:
   voice-proactive-prompt:
     type: awn.field.text
     title: Промпт проактивности
+    description: То же поле, что в Shell → Проактивность. Пустое — заготовка shell-proactive-prompt.yml.
     group: voice-client
     subgroup: voice-proactive
     sort: 107
@@ -930,20 +939,20 @@ fields:
     subgroup: voice-window
     sort: 801
 
-  voice-window-compact-mode:
-    type: awn.field.boolean
-    title: Компактный режим
-    description: Маленькое окно-облачко вместо полного hero.
-    default: false
-    group: voice-client
-    subgroup: voice-window
-    sort: 802
-
   voice-window-topmost:
     type: awn.field.boolean
     title: Поверх окон
     description: Окно Voice всегда поверх других приложений.
     default: true
+    group: voice-client
+    subgroup: voice-window
+    sort: 802
+
+  voice-window-transparent:
+    type: awn.field.boolean
+    title: Прозрачный фон
+    description: Прозрачность окна, не выбор обоев.
+    default: false
     group: voice-client
     subgroup: voice-window
     sort: 803
@@ -957,14 +966,23 @@ fields:
     subgroup: voice-window
     sort: 804
 
-  voice-window-transparent:
+  voice-window-compact-dialog-qa:
     type: awn.field.boolean
-    title: Прозрачный фон
-    description: Прозрачность окна, не выбор обоев.
-    default: false
+    title: Последний вопрос и ответ
+    description: В компактном режиме показывать последнюю пару Q&A над микрофоном.
+    default: true
     group: voice-client
     subgroup: voice-window
     sort: 805
+
+  voice-window-keep-awake:
+    type: awn.field.boolean
+    title: Не гасить экран
+    description: Wake Lock API — не давать экрану гаснуть, если поддерживается устройством/браузером.
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 806
 
   voice-window-background:
     type: awn.field.choice.one
@@ -980,7 +998,7 @@ fields:
         name: Своя картинка (URL)
     group: voice-client
     subgroup: voice-window
-    sort: 806
+    sort: 807
 
   voice-window-background-image-url:
     type: awn.field.string
@@ -989,25 +1007,7 @@ fields:
     default: ""
     group: voice-client
     subgroup: voice-window
-    sort: 807
-
-  voice-window-compact-dialog-qa:
-    type: awn.field.boolean
-    title: Последний вопрос и ответ
-    description: В компактном режиме показывать последнюю пару Q&A над микрофоном.
-    default: true
-    group: voice-client
-    subgroup: voice-window
     sort: 808
-
-  voice-window-keep-awake:
-    type: awn.field.boolean
-    title: Не гасить экран
-    description: Wake Lock API — не давать экрану гаснуть, если поддерживается устройством/браузером.
-    default: false
-    group: voice-client
-    subgroup: voice-window
-    sort: 809
 
   voice-window-processing-sound:
     type: awn.field.choice.one
@@ -1023,12 +1023,21 @@ fields:
         name: Вкл
     group: voice-client
     subgroup: voice-window
+    sort: 809
+
+  voice-window-compact-mode:
+    type: awn.field.boolean
+    title: Компактный режим
+    description: Маленькое окно-облачко вместо полного hero. В Shell включается кликом по облачку.
+    default: false
+    group: voice-client
+    subgroup: voice-window
     sort: 810
 
   voice-window-dialog-auto-scroll:
     type: awn.field.boolean
     title: Автопрокрутка диалога
-    description: Прокручивать диалог к новым сообщениям автоматически.
+    description: Прокручивать диалог к новым сообщениям автоматически. В Shell — кнопка в шапке диалога.
     default: true
     group: voice-client
     subgroup: voice-window
@@ -1051,11 +1060,16 @@ fields:
     title: Шаблоны compose
     description: >
       Ключ — маркер {{tpl:key}}; текст команды подставляется в сообщение Voice Shell.
+      Пустой список в workspace.yml означает встроенные шаблоны по умолчанию (как во вкладке «Шаблоны» Shell).
     group: voice-client
     subgroup: voice-compose
     sort: 99
     default: []
     properties:
+      id:
+        type: awn.field.string.slug
+        title: ID
+        description: Стабильный идентификатор шаблона
       key:
         type: awn.field.string.slug
         title: Ключ
