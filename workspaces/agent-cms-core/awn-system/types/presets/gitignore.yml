@@ -27,6 +27,8 @@ body: |
   .agent-cms/
 
   # Временные файлы workspace
+  .agent-cms/cache/
+  .agent-cms/state/
   awn-temp/
 
   # Прочий кэш и временные файлы

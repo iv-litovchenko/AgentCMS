@@ -1,0 +1,12 @@
+# Agent CMS — интеграции и плагины (контейнеры внешних сервисов)
+awn_settings:
+  integrations-model-version: stub-v1
+  integrations-containers-note: static-groups-stub
+  container-cursor-skill-enabled: true
+  container-cursor-skill-kind: skill
+  container-cursor-skill-source: ~/.cursor/skills/automate
+  container-cursor-skill-namespace: cursor-skill
+  container-mcp-bridge-enabled: false
+  container-mcp-bridge-endpoint: http://127.0.0.1:7337/mcp
+  container-mcp-bridge-tools: list_workspaces, read_page_body, search_workspace_content
+  container-mcp-bridge-auth-token: ""
