@@ -13605,6 +13605,10 @@ body.shell-pet-electron .shell-pet-stage .shell-character-viewport.is-dragging {
   min-height: 100dvh;
 }
 
+.shell-maintenance-pane.hidden {
+  display: none !important;
+}
+
 body.shell-maintenance-active .shell-app,
 body.shell-maintenance-active .shell-agent-gate {
   visibility: hidden;

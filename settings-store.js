@@ -368,6 +368,17 @@ async function readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot) {
 }
 
 let platformSettingsPayloadCache = null;
+let platformSettingsCacheMtimeMs = null;
+
+async function getPlatformSettingsFileMtime(projectRoot = process.cwd()) {
+  try {
+    const absolutePath = getPlatformSettingsAbsolute(projectRoot);
+    const stat = await fs.promises.stat(absolutePath);
+    return stat.mtimeMs;
+  } catch {
+    return null;
+  }
+}
 
 async function loadPlatformSettingsPayload(projectRoot = process.cwd()) {
   const globalFile = await readGlobalSettingsFile(projectRoot);
@@ -381,9 +392,17 @@ async function loadPlatformSettingsPayload(projectRoot = process.cwd()) {
 }
 
 async function getPlatformSettingsPayload(projectRoot = process.cwd()) {
-  if (!platformSettingsPayloadCache) {
-    platformSettingsPayloadCache = await loadPlatformSettingsPayload(projectRoot);
+  const mtimeMs = await getPlatformSettingsFileMtime(projectRoot);
+  if (
+    platformSettingsPayloadCache &&
+    platformSettingsCacheMtimeMs != null &&
+    mtimeMs != null &&
+    mtimeMs === platformSettingsCacheMtimeMs
+  ) {
+    return platformSettingsPayloadCache;
   }
+  platformSettingsPayloadCache = await loadPlatformSettingsPayload(projectRoot);
+  platformSettingsCacheMtimeMs = mtimeMs;
   return platformSettingsPayloadCache;
 }
 
@@ -394,6 +413,7 @@ async function getPlatformSettings(projectRoot = process.cwd()) {
 
 function invalidatePlatformSettingsCache() {
   platformSettingsPayloadCache = null;
+  platformSettingsCacheMtimeMs = null;
 }
 
 async function getEffectiveWorkspaceSettings(agentRoot, projectRoot) {

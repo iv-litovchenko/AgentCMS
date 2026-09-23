@@ -2593,7 +2593,6 @@ function showShellMaintenanceView() {
 }
 
 function hideShellMaintenanceView() {
-  if (!shellMaintenanceViewActive) return;
   shellMaintenanceViewActive = false;
   document.getElementById("shell-maintenance-pane")?.classList.add("hidden");
   document.body.classList.remove("shell-maintenance-active");
@@ -2644,7 +2643,10 @@ async function apiFetch(path, options = {}) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 503 && data?.error === "maintenance") {
-        showShellMaintenanceView();
+        const maintenanceActive = await window.PlatformStatus?.fetchMaintenanceMode?.();
+        if (maintenanceActive) {
+          showShellMaintenanceView();
+        }
         throw new Error("maintenance");
       }
       throw new Error(data.details || data.error || `HTTP ${response.status}`);
