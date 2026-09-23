@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T11:41:38.571Z"
+  awn-id-updated-at: "2026-09-23T11:46:45.242Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -118,3 +118,19 @@ awn_settings:
   voice-input-global-listen: false
   voice-route-codex-session-id: 878f40b8-2c6f-4e32-8c6f-b2ca9252396b
   voice-route-codex-permission-mode: untrusted
+  voice-compose-templates:
+    - id: very-brief
+      key: very-brief
+      group: Стиль ответа
+      label: Ответ очень кратко
+      text: Ответь очень кратко — одним-двумя предложениями.
+    - id: brief
+      key: brief
+      group: Стиль ответа
+      label: Ответ кратко
+      text: "Ответь кратко, без лишних деталей."
+    - id: detailed
+      key: detailed
+      group: Стиль ответа
+      label: Ответ развернуто
+      text: "Ответь развёрнуто, с подробностями и примерами.333"

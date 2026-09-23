@@ -222,14 +222,18 @@ let voiceInputModePersisting = false;
 let voiceModeUserChangedAt = 0;
 let voiceModeHydratedFromServer = false;
 let lastCommittedVoiceMode = "";
-let proactiveSaveInFlight = false;
+let proactiveModePersistToken = 0;
 
 const TTS_PLAYBACK_MODE_NAMES = ["shell-tts-playback-mode", "shell-tts-playback-mode-panel"];
 const PROACTIVE_MODE_NAME = "shell-proactive-mode";
 const PROACTIVE_MODE_VALUES = ["off", "natural", "ping"];
 
 function readProactiveModeFromDom() {
-  const checked = document.querySelector(`input[name="${PROACTIVE_MODE_NAME}"]:checked`);
+  const root =
+    document.getElementById("shell-proactive-panel") ||
+    document.querySelector(".shell-proactive-mode-field") ||
+    document;
+  const checked = root.querySelector(`input[name="${PROACTIVE_MODE_NAME}"]:checked`);
   const value = checked?.value;
   return PROACTIVE_MODE_VALUES.includes(value) ? value : null;
 }
@@ -263,6 +267,53 @@ function formatProactiveModeLog(mode) {
   if (mode === "ping") return "по пингу";
   if (mode === "natural") return "естественная (скоро)";
   return "выкл";
+}
+
+async function persistProactiveMode(mode) {
+  const proactiveMode = PROACTIVE_MODE_VALUES.includes(String(mode || "").trim())
+    ? String(mode).trim()
+    : "off";
+  const token = ++proactiveModePersistToken;
+  if (!state.agentId) {
+    try {
+      await ensureShellAgentSelected();
+    } catch (error) {
+      renderPhase("waiting", error.message);
+      throw error;
+    }
+  }
+  if (!state.agentId) {
+    const message = "Выберите хранилище (агента) в шапке";
+    renderPhase("waiting", message);
+    throw new Error(message);
+  }
+  if (state.settings) state.settings.proactiveMode = proactiveMode;
+  shellProactive?.syncSettings(state.settings || { proactiveMode });
+  try {
+    await saveSettings({ proactiveMode }, { apply: "none" });
+    if (token !== proactiveModePersistToken) return proactiveMode;
+    syncProactiveModeUi(state.settings, { force: true });
+    settingsSave.patchBaseline("proactive", { proactiveMode });
+    markSettingsDirty("proactive");
+    return proactiveMode;
+  } catch (error) {
+    if (token === proactiveModePersistToken) {
+      markSettingsDirty("proactive");
+      renderPhase("waiting", error.message);
+    }
+    throw error;
+  }
+}
+
+function handleProactiveModeChange(source) {
+  if (!(source instanceof HTMLInputElement) || source.name !== PROACTIVE_MODE_NAME) return;
+  void playShellUiSound("toggle");
+  const mode = readProactiveModeFromDom();
+  if (!mode) return;
+  shellProactive?.syncSettings({ ...(state.settings || {}), proactiveMode: mode });
+  shellLog("proactive", `Режим: ${formatProactiveModeLog(mode)}`);
+  markSettingsDirty("proactive");
+  void persistProactiveMode(mode).catch(() => {});
 }
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
@@ -2523,13 +2574,7 @@ function initShellProactiveController() {
     isMicActive: () =>
       Boolean(state.micActive || state.micTapHeld || shellTapVoice?.isTapHeld?.()),
     sendProactive: (idleSeconds) => sendProactiveMessage(idleSeconds),
-    persistMode: async (mode) => {
-      const proactiveMode = PROACTIVE_MODE_VALUES.includes(mode) ? mode : "off";
-      await saveSettings({ proactiveMode }, { apply: "none" });
-      state.settings = { ...(state.settings || {}), proactiveMode };
-      syncProactiveModeUi(state.settings);
-      settingsSave.patchBaseline("proactive", { proactiveMode });
-    }
+    persistMode: (mode) => persistProactiveMode(mode)
   });
   shellProactive.syncSettings(state.settings || { proactiveMode: "off" });
   shellDebug.watchProactive(shellProactive);
@@ -6672,7 +6717,6 @@ function commitCleanSettingsBaselines() {
 async function handleSettingsSaveClick(section, btn) {
   if (!section) return;
   if (btn?.dataset.shellSaving === "1") return;
-  if (section === "proactive" && proactiveSaveInFlight) return;
   if (!state.agentId) {
     try {
       await ensureShellAgentSelected();
@@ -6688,7 +6732,6 @@ async function handleSettingsSaveClick(section, btn) {
   btn?.classList.add("is-saving");
   btn?.setAttribute("disabled", "disabled");
   if (btn) btn.dataset.shellSaving = "1";
-  if (section === "proactive") proactiveSaveInFlight = true;
   try {
     if (section === "tts") await persistTtsSettings();
     else await saveSettingsSection(section);
@@ -6697,7 +6740,6 @@ async function handleSettingsSaveClick(section, btn) {
     renderPhase("waiting", error.message);
     markSettingsDirty(section);
   } finally {
-    if (section === "proactive") proactiveSaveInFlight = false;
     if (btn) delete btn.dataset.shellSaving;
     btn?.classList.remove("is-saving");
     btn?.removeAttribute("disabled");
@@ -6950,7 +6992,16 @@ function applySettings(settings) {
   const preserveVoiceResponseEnabled = settingsSave.isSectionDirty("stt")
     ? readVoiceResponseEnabledFromDom()
     : undefined;
-  state.settings = settings;
+  let nextSettings = settings;
+  if (isSettingsViewOpen()) {
+    const domMode = readProactiveModeFromDom();
+    if (domMode) {
+      nextSettings = { ...settings, proactiveMode: domMode };
+    } else if (settingsSave.isSectionDirty("proactive")) {
+      nextSettings = { ...settings, ...collectProactiveFormPatch() };
+    }
+  }
+  state.settings = nextSettings;
   if (preserveVoiceResponseEnabled !== undefined && state.settings) {
     state.settings.voiceResponseEnabled = preserveVoiceResponseEnabled;
   }
@@ -12733,7 +12784,7 @@ function bindUi() {
     insertProactivePromptTemplate();
   });
   for (const input of document.querySelectorAll(`input[name="${PROACTIVE_MODE_NAME}"]`)) {
-    input.addEventListener("change", markProactiveDirty);
+    input.addEventListener("change", (event) => handleProactiveModeChange(event.target));
   }
   for (const el of [
     nodes.proactiveIdleMin,
@@ -12751,13 +12802,6 @@ function bindUi() {
     markProactiveDirty();
   });
   nodes.proactivePrompt?.addEventListener("change", markProactiveDirty);
-  for (const input of document.querySelectorAll(`input[name="${PROACTIVE_MODE_NAME}"]`)) {
-    input.addEventListener("change", () => {
-      const patch = collectProactiveFormPatch();
-      shellProactive?.syncSettings({ ...(state.settings || {}), ...patch });
-      shellLog("proactive", `Режим в форме: ${formatProactiveModeLog(patch.proactiveMode)} (сохраните кнопкой)`);
-    });
-  }
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
   nodes.ttsElevenlabsKey?.addEventListener("input", () => {
