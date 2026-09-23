@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { parseTypeYaml } = require("./awn-yaml-utils");
+const { parseTypeYaml, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const {
   getRecordStorage,
@@ -176,12 +176,34 @@ const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
 const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
 const ELEMENT_TYPE_PREFIXES = ["awn.infoblock.element.", "awn.infoblock.content."];
 const DEFAULT_RECORD_ELEMENT_TYPE = ELEMENT_TYPE_RECORD;
-const AWN_DATA_SCHEMA_TARGETS = ["category", "record", "sidecar"];
+const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "sidecar"];
 const AWN_DATA_SCHEMA_TARGET_EXTENDS = {
   category: ELEMENT_TYPE_CATEGORY,
   record: ELEMENT_TYPE_RECORD,
   sidecar: ELEMENT_TYPE_SIDECAR
 };
+
+function resolveStoreFrameTypeId(storeAbs, storeKind = "") {
+  const leaf = readRawStoreSchemaAt(storeAbs);
+  const kind = normalizeStoreKind(storeKind || leaf?.schema?.kind || "collection");
+  return (
+    String(leaf?.schema?.typeId || leaf?.schema?.supertype || "").trim() ||
+    KIND_TO_AWN_PROP_TYPE[kind] ||
+    CONTAINER_TYPE_ID[kind] ||
+    CONTAINER_TYPE_ID.collection
+  );
+}
+
+function resolveAwnDataSchemaTargetExtends(kind, frameTypeId = "") {
+  if (kind === "frame") return String(frameTypeId || "").trim();
+  return AWN_DATA_SCHEMA_TARGET_EXTENDS[kind] || "";
+}
+
+function hasSchemeModBlockContent(block = {}) {
+  const fields = normalizeAwnFieldsMap(block.fields || {});
+  const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
+  return Object.keys(fields).length > 0 || Object.keys(tabs).length > 0;
+}
 /** @deprecated use DEFAULT_ELEMENT_SCHEMA_TYPE */
 const DEFAULT_ELEMENT_SCHEMA = `${AWN_DATA_DIR}/cms-base/data-elements/default.md`;
 
@@ -1012,13 +1034,14 @@ function resolveStoreSchemeModPath(storeAbs) {
   return path.join(storeAbs, SCHEMA_MOD_FILE);
 }
 
-function readStoreSchemeModBlock(awnSchema, kind) {
+function readStoreSchemeModBlock(awnSchema, kind, frameTypeId = "") {
   const block = awnSchema?.[kind];
   if (!block || typeof block !== "object") return null;
+  const extendsRef = resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
   return {
     fields: normalizeAwnFieldsMap(block.fields || {}),
     tabs: block.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {},
-    extends: resolveElementExtendsRef(block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind] || "")
+    extends: resolveElementExtendsRef(block.extends || extendsRef || "")
   };
 }
 
@@ -1032,9 +1055,10 @@ function readStoreSchemeModOverlay(storeAbs) {
       return { fields: {}, tabs: {}, blocks: {}, schemePath, exists: true };
     }
 
+    const frameTypeId = resolveStoreFrameTypeId(storeAbs);
     const blocks = {};
     for (const kind of AWN_DATA_SCHEMA_TARGETS) {
-      const block = readStoreSchemeModBlock(awnSchema, kind);
+      const block = readStoreSchemeModBlock(awnSchema, kind, frameTypeId);
       if (block) blocks[kind] = block;
     }
 
@@ -1066,15 +1090,19 @@ function readStoreSchemeModOverlay(storeAbs) {
 function composeAwnDataStoreSchemeModYaml(schema = {}) {
   const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:"];
   const blocks = schema.blocks && typeof schema.blocks === "object" ? schema.blocks : null;
+  const frameTypeId = String(schema.frameTypeId || "").trim();
 
   if (blocks) {
+    let wroteAny = false;
     for (const kind of AWN_DATA_SCHEMA_TARGETS) {
-      const block = blocks[kind] || {};
-      const extendsRef = resolveElementExtendsRef(
-        block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind] || ELEMENT_TYPE_RECORD
-      );
+      const block = blocks[kind];
+      if (!block) continue;
       const fields = normalizeAwnFieldsMap(block.fields || {});
       const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
+      if (!hasSchemeModBlockContent(block)) continue;
+      const extendsRef = resolveElementExtendsRef(
+        block.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId) || ELEMENT_TYPE_RECORD
+      );
       lines.push(`  ${kind}:`);
       if (extendsRef) lines.push(`    extends: ${extendsRef}`);
       lines.push("    fields:");
@@ -1083,7 +1111,9 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
         lines.push("    tabs:");
         lines.push(...dumpYamlBlock(tabs, 3));
       }
+      wroteAny = true;
     }
+    if (!wroteAny) return "";
   } else {
     const fields = normalizeAwnFieldsMap(schema.fields || {});
     const tabs = schema.elementSchemaTabs || schema.tabs || {};
@@ -1104,9 +1134,10 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
 
 function writeStoreSchemeMod(storeAbs, schema = {}) {
   const fields = schema.fields || {};
+  // schema.yml — только пользовательские поля записей; база приходит из type-catalog (extends в runtime).
+  if (!Object.keys(fields).length) return false;
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
   const extendsRef = schema.extends || ELEMENT_TYPE_RECORD;
-  if (!Object.keys(fields).length && !Object.keys(tabs).length && !extendsRef) return false;
   fs.writeFileSync(
     path.join(storeAbs, SCHEMA_MOD_FILE),
     composeAwnDataStoreSchemeModYaml({ extends: extendsRef, fields, elementSchemaTabs: tabs }),
@@ -1274,11 +1305,19 @@ function listCollectionFiles(storeAbs, fileTypesSpec, relPrefix = "", acc = []) 
   return walkCollectionFiles(resolveStoreRecordRootAbs(storeAbs), fileTypesSpec, relPrefix, acc);
 }
 
-function parseCollectionFile(fileEntry, storeRel, storeAbs) {
+function parseCollectionFile(fileEntry, storeRel, storeAbs, options = {}) {
   const id = path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
+  const innerRel = String(fileEntry.relPath || "").replace(/\\/g, "/");
+  let parent = null;
+  if (options.hierarchy) {
+    const pathParent = path.dirname(innerRel);
+    if (pathParent && pathParent !== ".") {
+      parent = path.basename(pathParent);
+    }
+  }
   return {
     id,
-    parent: null,
+    parent,
     relPath: formatStoreRecordRelPath(storeRel, fileEntry.relPath, storeAbs),
     fileName: fileEntry.fileName,
     frontmatter: {},
@@ -1502,7 +1541,16 @@ function loadStore(dataRoot, storeEntry) {
   if (kind !== "group") {
     if (kind === "collection" && collectionKind === "files") {
       const fileEntries = listCollectionFiles(storeAbs, recordFileTypes);
-      records = fileEntries.map((fileEntry) => parseCollectionFile(fileEntry, storeRel, storeAbs));
+      records = fileEntries.map((fileEntry) =>
+        parseCollectionFile(fileEntry, storeRel, storeAbs, { hierarchy: recordHierarchy })
+      );
+      if (recordHierarchy) {
+        const sectionEntries = listRecordFiles(storeAbs, kind).filter((fileEntry) =>
+          isNestedSectionManifest(fileEntry.fileName, path.dirname(fileEntry.relPath))
+        );
+        const sections = sectionEntries.map((fileEntry) => parseRecordFile(fileEntry, storeRel, storeAbs));
+        records = [...sections, ...records];
+      }
     } else if (kind === "collection" && recordStorage === "csv") {
       records = loadCsvRecords(storeAbs, storeRel, schema);
     } else {
@@ -1743,36 +1791,171 @@ function dumpYamlBlock(obj, indent = 0) {
   return lines;
 }
 
+function manifestFieldDefaultYaml(key, fieldDef) {
+  const def = fieldDef && typeof fieldDef === "object" ? fieldDef : {};
+  const defaultValue = def.default;
+  if (defaultValue === undefined || defaultValue === null || String(defaultValue).trim() === "") {
+    const kind = String(def.type || def.kind || "").toLowerCase();
+    if (kind.includes("array") || kind.includes("list") || kind.includes("tags")) return `${key}: []`;
+    if (kind.includes("bool")) return `${key}: false`;
+    return `${key}: ""`;
+  }
+  if (typeof defaultValue === "boolean") return `${key}: ${defaultValue}`;
+  if (typeof defaultValue === "number") return `${key}: ${defaultValue}`;
+  if (Array.isArray(defaultValue)) return `${key}: []`;
+  return `${key}: ${yamlQuote(String(defaultValue))}`;
+}
+
+function buildContainerManifestFrontmatter(typeId, displayName, fields) {
+  const normalized = normalizeAwnFieldsMap(fields || {});
+  const now = new Date().toISOString();
+  const lines = [];
+  const preferredOrder = [
+    "awn-name",
+    "awn-description",
+    "awn-preview",
+    "awn-web-url",
+    "awn-status",
+    "awn-quality",
+    "awn-importance",
+    "awn-note-todo-sticker",
+    "awn-emoji",
+    "awn-sort",
+    "awn-runtime-load-always",
+    "awn-runtime-heartbeat",
+    "awn-runtime-cron",
+    "awn-runtime-cron-schedule",
+    "awn-runtime-commands",
+    "awn-index-exclude",
+    "awn-category",
+    "awn-owner",
+    "awn-priority",
+    "awn-color",
+    "awn-tags",
+    "awn-type",
+    "awn-create",
+    "awn-update",
+    "awn-version"
+  ];
+  const orderedKeys = [
+    ...preferredOrder.filter((key) => key in normalized),
+    ...Object.keys(normalized).filter((key) => !preferredOrder.includes(key))
+  ];
+  const seen = new Set();
+
+  for (const key of orderedKeys) {
+    if (seen.has(key) || key === "awn-id") continue;
+    seen.add(key);
+    if (key === "awn-type") {
+      lines.push(`awn-type: ${typeId}`);
+      continue;
+    }
+    if (key === "awn-name" && displayName) {
+      lines.push(`awn-name: ${yamlQuote(displayName)}`);
+      continue;
+    }
+    if (key === "awn-create" || key === "awn-update") {
+      lines.push(`${key}: ${now}`);
+      continue;
+    }
+    lines.push(manifestFieldDefaultYaml(key, normalized[key]));
+  }
+
+  if (!seen.has("awn-type")) lines.push(`awn-type: ${typeId}`);
+  if (displayName && !seen.has("awn-name")) lines.push(`awn-name: ${yamlQuote(displayName)}`);
+  if (!seen.has("awn-create")) lines.push(`awn-create: ${now}`);
+  if (!seen.has("awn-update")) lines.push(`awn-update: ${now}`);
+
+  return lines.join("\n");
+}
+
+function resolveContainerManifestFields(schema, kind, options = {}) {
+  const normalizedKind = normalizeStoreKind(kind);
+  const fromOptions = normalizeAwnFieldsMap(options.typeFields || {});
+  if (Object.keys(fromOptions).length) return fromOptions;
+
+  const fromSchema = normalizeAwnFieldsMap(
+    schema?.containerFields || (normalizedKind === "group" ? schema?.fields : null) || {}
+  );
+  if (Object.keys(fromSchema).length) return fromSchema;
+
+  const typeMeta = loadContainerTypeMeta(
+    normalizedKind,
+    options.agentRoot || "",
+    options.projectRoot || process.cwd()
+  );
+  return normalizeAwnFieldsMap(typeMeta.typeFields || {});
+}
+
 function buildStoreManifestContent(schema, body = "", options = {}) {
   const kind = normalizeStoreKind(schema.kind || "collection");
-  const lines = ["---"];
-  lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || CONTAINER_TYPE_ID.collection || "awn.infoblock.collection"}`);
-  if (schema.id) lines.push(`awn-id: ${schema.id}`);
-  if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
-  if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
-  if (options.indexExclude) lines.push("awn-index-exclude: true");
+  const typeId =
+    schema.typeId ||
+    schema.supertype ||
+    KIND_TO_AWN_PROP_TYPE[kind] ||
+    CONTAINER_TYPE_ID.collection ||
+    "awn.infoblock.collection";
+  const agentRoot = options.agentRoot || "";
+  const projectRoot = options.projectRoot || process.cwd();
+  const displayName = String(schema.name || schema.id || "").trim();
+  const userDescription = String(schema.description || "").trim();
 
+  const containerFields = resolveContainerManifestFields(schema, kind, options);
+  let frontmatter = "";
+  if (Object.keys(containerFields).length) {
+    frontmatter = buildContainerManifestFrontmatter(typeId, displayName, containerFields);
+  }
+
+  if (!frontmatter) {
+    const fallback = [];
+    fallback.push(`awn-type: ${typeId}`);
+    if (schema.id) fallback.push(`awn-id: ${schema.id}`);
+    if (schema.layer) fallback.push(`awn-layer: ${schema.layer}`);
+    if (displayName) fallback.push(`awn-name: ${yamlQuote(displayName)}`);
+    frontmatter = fallback.join("\n");
+  }
+
+  const overrides = {};
+  if (schema.id) overrides["awn-id"] = schema.id;
+  if (schema.layer) overrides["awn-layer"] = schema.layer;
+  if (userDescription && userDescription !== displayName) overrides["awn-description"] = userDescription;
+  if (options.indexExclude) overrides["awn-index-exclude"] = true;
+  frontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
+
+  const extraLines = [];
   if (kind !== "group") {
     const record = schema.record && typeof schema.record === "object" ? schema.record : {};
     const collectionType = collectionTypeFromRecordProps(record);
-    lines.push(`awn-collection-type: ${collectionType}`);
-    if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
-    if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
-    if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
-    if (record.fileTypes !== undefined && String(record.fileTypes).trim()) {
-      lines.push(`awn-record-file-types: ${yamlQuote(record.fileTypes)}`);
+    extraLines.push(`awn-collection-type: ${collectionType}`);
+    if (record.storage) extraLines.push(`awn-record-storage: ${record.storage}`);
+    if (record["id-mode"]) extraLines.push(`awn-record-id-mode: ${record["id-mode"]}`);
+    if (record.file) extraLines.push(`awn-record-file: ${yamlQuote(record.file)}`);
+    if (record.hierarchy !== undefined) {
+      extraLines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
     }
-    if (!record["id-mode"] && !record.file && !record.hierarchy && Object.keys(record).length) {
-      lines.push("awn-record:");
-      lines.push(...dumpYamlBlock(record, 1));
+    if (record.fileTypes !== undefined && String(record.fileTypes).trim()) {
+      extraLines.push(`awn-record-file-types: ${yamlQuote(record.fileTypes)}`);
+    }
+    if (
+      !record.storage &&
+      !record["id-mode"] &&
+      !record.file &&
+      record.hierarchy === undefined &&
+      Object.keys(record).length
+    ) {
+      extraLines.push("awn-record:");
+      extraLines.push(...dumpYamlBlock(record, 1));
     }
   }
 
-  lines.push("---", "");
+  if (extraLines.length) {
+    frontmatter = `${frontmatter}\n${extraLines.join("\n")}`.trim();
+  }
+
   const manifestBody =
     String(body || "").trim() ||
     buildPlainManifestContent(schema.name, schema.description).trim();
-  return `${lines.join("\n")}${manifestBody}\n`;
+  return `---\n${frontmatter}\n---\n\n${manifestBody}\n`;
 }
 
 /** @deprecated use buildStoreManifestContent */
@@ -2057,13 +2240,13 @@ function buildCollectionSchemaContent({
       typeId: typeMeta.typeId || CONTAINER_TYPE_ID.collection,
       supertype: typeMeta.typeId || CONTAINER_TYPE_ID.collection,
       extends: elementScheme.extends,
-      fieldsInSchemeMod: true,
+      fieldsInSchemeMod: false,
       record,
       fields: elementScheme.fields,
       containerFields: normalizeAwnFieldsMap(typeMeta.typeFields || {}),
       elementSchemaTabs: elementScheme.tabs
     },
-    schemeModFields: {},
+    schemeModFields: null,
     schemeModTabs: elementScheme.tabs,
     schemeModExtends: elementScheme.extends,
     manifestBody: buildCollectionManifestBody({
@@ -2140,13 +2323,13 @@ function buildSingletonSchemaContent({
       typeId: typeMeta.typeId || CONTAINER_TYPE_ID.single,
       supertype: typeMeta.typeId || CONTAINER_TYPE_ID.single,
       extends: elementScheme.extends,
-      fieldsInSchemeMod: true,
+      fieldsInSchemeMod: false,
       record,
       fields: elementScheme.fields,
       containerFields: normalizeAwnFieldsMap(typeMeta.typeFields || {}),
       elementSchemaTabs: elementScheme.tabs
     },
-    schemeModFields: {},
+    schemeModFields: null,
     schemeModTabs: elementScheme.tabs,
     schemeModExtends: elementScheme.extends,
     manifestBody: buildStoreManifestBody({
@@ -2196,6 +2379,12 @@ function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
   writeStoreManifest(storeAbs, schema, manifestBody);
 }
 
+function resolveElementManifestFields(elementType, agentRoot = "", projectRoot = process.cwd()) {
+  return normalizeAwnFieldsMap(
+    loadInheritedFieldsFromTypeId(elementType, agentRoot, projectRoot).fields || {}
+  );
+}
+
 function buildRecordMarkdown({
   id,
   name,
@@ -2204,15 +2393,35 @@ function buildRecordMarkdown({
   storeRel = "",
   extra = {},
   elementType = DEFAULT_RECORD_ELEMENT_TYPE,
-  body = ""
+  body = "",
+  agentRoot = "",
+  projectRoot = process.cwd()
 } = {}) {
-  const lines = ["---"];
+  const displayName = String(name || title || "").trim();
   const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
-  if (store || elementType) lines.push(`awn-type: ${elementType || DEFAULT_RECORD_ELEMENT_TYPE}`);
+  const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
+  const typeFields = resolveElementManifestFields(typeId, agentRoot, projectRoot);
+
+  if (Object.keys(typeFields).length) {
+    let frontmatter = buildContainerManifestFrontmatter(typeId, displayName, typeFields);
+    const overrides = {};
+    if (store) overrides["awn-store"] = store;
+    if (parent) overrides["awn-parent"] = parent;
+    for (const [key, value] of Object.entries(extra || {})) {
+      if (value === undefined || value === null) continue;
+      overrides[toAwnFieldKey(key)] = value;
+    }
+    frontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
+    const bodyText = String(body || "").trim();
+    const bodyContent = bodyText || (displayName ? `${displayName}.` : "");
+    return `---\n${frontmatter}\n---\n\n${bodyContent}\n`;
+  }
+
+  const lines = ["---"];
+  if (store || typeId) lines.push(`awn-type: ${typeId}`);
   if (store) lines.push(`awn-store: ${store}`);
   const ts = nowIsoMinute();
   lines.push(`awn-created: "${ts}"`, `awn-updated: "${ts}"`);
-  const displayName = String(name || title || "").trim();
   if (displayName) lines.push(`awn-name: ${displayName}`);
   if (parent) lines.push(`awn-parent: "${parent}"`);
   for (const [key, value] of Object.entries(extra)) {
@@ -2250,14 +2459,24 @@ function buildRecordMarkdown({
   return `${lines.join("\n")}\n`;
 }
 
-function buildSectionManifestMarkdown({ id, name, title, parent, storeRel = "" }) {
+function buildSectionManifestMarkdown({
+  id,
+  name,
+  title,
+  parent,
+  storeRel = "",
+  agentRoot = "",
+  projectRoot = process.cwd()
+}) {
   return buildRecordMarkdown({
     id,
     name: name || title,
     parent,
     storeRel,
     elementType: ELEMENT_TYPE_CATEGORY,
-    body: "> Описание раздела."
+    body: "> Описание раздела.",
+    agentRoot,
+    projectRoot
   });
 }
 
@@ -2282,7 +2501,11 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   const isTaxonomy = slug.startsWith("taxonomies/");
   const withSample =
     kind === "collection" && !isTaxonomy ? options.withSampleRecord !== false : false;
-  const manifestOptions = options.indexExclude ? { indexExclude: true } : {};
+  const manifestOptions = {
+    agentRoot,
+    projectRoot,
+    ...(options.indexExclude ? { indexExclude: true } : {})
+  };
 
   if (kind === "collection") {
     const typeDefaults = loadContainerTypeDefaults("collection", agentRoot, projectRoot);
@@ -2313,8 +2536,11 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           agentRoot,
           projectRoot
         });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
-    if (bundle.schemeModFields) {
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, {
+      ...manifestOptions,
+      typeFields: bundle.schema.containerFields || {}
+    });
+    if (bundle.schemeModFields && Object.keys(bundle.schemeModFields).length) {
       writeStoreSchemeMod(storeAbs, {
         extends: bundle.schemeModExtends || ELEMENT_TYPE_RECORD,
         fields: bundle.schemeModFields,
@@ -2328,18 +2554,30 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(dataAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
-      const recordContent = buildRecordMarkdown({ id: "1", name: "Первая запись", storeRel: slug });
+      const recordContent = buildRecordMarkdown({
+        id: "1",
+        name: "Первая запись",
+        storeRel: slug,
+        agentRoot,
+        projectRoot
+      });
       fs.writeFileSync(path.join(dataAbs, "1.md"), recordContent, "utf-8");
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
     }
   } else if (kind === "group") {
     const bundle = buildGroupSchemaContent({ slug, name, description, agentRoot, projectRoot });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, {
+      ...manifestOptions,
+      typeFields: bundle.schema.fields || {}
+    });
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
   } else {
     const bundle = buildSingletonSchemaContent({ slug, name, description, agentRoot, projectRoot });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
-    if (bundle.schemeModFields) {
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, {
+      ...manifestOptions,
+      typeFields: bundle.schema.containerFields || {}
+    });
+    if (bundle.schemeModFields && Object.keys(bundle.schemeModFields).length) {
       writeStoreSchemeMod(storeAbs, {
         extends: bundle.schemeModExtends || ELEMENT_TYPE_RECORD,
         fields: bundle.schemeModFields,
@@ -2350,7 +2588,9 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       id: slug.replace(/\//g, "."),
       name,
       storeRel: slug,
-      extra: { note: "" }
+      extra: { note: "" },
+      agentRoot,
+      projectRoot
     });
     fs.writeFileSync(path.join(dataAbs, SINGLETON_RECORD), recordContent, "utf-8");
   }
@@ -2454,12 +2694,22 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
       name,
       title,
       parent: parent || null,
-      storeRel
+      storeRel,
+      agentRoot,
+      projectRoot
     });
     fs.writeFileSync(manifestPath, content, "utf-8");
   } else {
     if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
-    const content = buildRecordMarkdown({ id, name, title, parent: parent || null, storeRel });
+    const content = buildRecordMarkdown({
+      id,
+      name,
+      title,
+      parent: parent || null,
+      storeRel,
+      agentRoot,
+      projectRoot
+    });
     fs.writeFileSync(absFile, content, "utf-8");
   }
 
@@ -2783,10 +3033,11 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
     content = fs.readFileSync(schemePath, "utf-8");
   }
 
+  const frameTypeId = resolveStoreFrameTypeId(storeAbs, store.kind);
   const awnSchema = {};
   for (const kind of AWN_DATA_SCHEMA_TARGETS) {
     const block = overlay?.blocks?.[kind] || (kind === "record" ? overlay : null);
-    const extendsRef = block?.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind];
+    const extendsRef = block?.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
     const storedFields = block?.fields || (kind === "record" ? overlay?.fields || {} : {});
     awnSchema[kind] = {
       fields: extractCustomSchemeModFields(
@@ -2803,6 +3054,7 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
   return {
     store: rel,
     kind: store.kind,
+    frameTypeId,
     schemeModRelPath,
     schemeModExists: Boolean(overlay?.exists || fs.existsSync(schemePath)),
     content,
@@ -2815,10 +3067,8 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
 
 function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {}) {
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
-  if (store.kind === "group") {
-    throw new Error("Record field schema is not supported for group stores");
-  }
-
+  const isGroup = store.kind === "group";
+  const frameTypeId = resolveStoreFrameTypeId(storeAbs, store.kind);
   const schemePath = path.join(storeAbs, SCHEMA_MOD_FILE);
   let nextContent = "";
 
@@ -2827,12 +3077,16 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
     extractRecordSchemaFromSchemeModContent(nextContent);
   } else {
     const awnSchema = options.awnSchema && typeof options.awnSchema === "object" ? options.awnSchema : null;
-    if (awnSchema && (awnSchema.category || awnSchema.record || awnSchema.sidecar)) {
+    if (
+      awnSchema &&
+      (awnSchema.frame || awnSchema.category || awnSchema.record || awnSchema.sidecar)
+    ) {
       const agentRootResolved = findAgentRootFromStoreAbs(storeAbs);
       const blocks = {};
-      for (const kind of AWN_DATA_SCHEMA_TARGETS) {
+      const targets = isGroup ? ["frame"] : AWN_DATA_SCHEMA_TARGETS;
+      for (const kind of targets) {
         const block = awnSchema[kind] || {};
-        const extendsRef = block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind];
+        const extendsRef = block.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
         blocks[kind] = {
           extends: extendsRef,
           fields: extractCustomSchemeModFields(
@@ -2844,7 +3098,7 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
           tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
         };
       }
-      nextContent = composeAwnDataStoreSchemeModYaml({ blocks });
+      nextContent = composeAwnDataStoreSchemeModYaml({ blocks, frameTypeId });
     } else {
       const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
       const fields = normalizeAwnFieldsMap(
@@ -2860,7 +3114,11 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
     }
   }
 
-  fs.writeFileSync(schemePath, nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`, "utf-8");
+  if (!String(nextContent || "").trim()) {
+    if (fs.existsSync(schemePath)) fs.unlinkSync(schemePath);
+  } else {
+    fs.writeFileSync(schemePath, nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`, "utf-8");
+  }
   return readAwnDataStoreSchemaPayload(agentRoot, projectRoot, rel);
 }
 

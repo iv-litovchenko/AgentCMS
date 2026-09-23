@@ -59785,7 +59785,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-database-store-group-head {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.4rem;
   padding: 0.25rem 0.35rem;
   font-size: 0.8125rem;
   line-height: 1.3;
@@ -60066,6 +60066,16 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-elements-main.is-group-mode .awn-database-view-elements-head {
   gap: 0.25rem;
+}
+
+.awn-database-view-elements-main.is-single-mode .awn-database-view-elements-head {
+  display: none;
+}
+
+.awn-database-view-elements-main.is-single-mode .awn-database-view-table-wrap {
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .awn-database-view-store-panel.is-loading {
@@ -61127,6 +61137,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-awn-database-store-id-badge {
   flex-shrink: 0;
+  align-self: center;
 }
 
 .awn-database-view-iblock-card .awn-database-view-path.hidden {
@@ -62714,8 +62725,33 @@ body.is-cms-page-picker-active #discuss-aside * {
   overflow: visible;
 }
 
-.awn-database-view-record-body.file-content-preview:empty {
+.awn-database-view-record-body.file-content-preview:empty,
+.awn-database-view-single-content.file-content-preview:empty {
   display: none;
+}
+
+.awn-database-view-single-content {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.awn-database-view-single-content.file-content-preview {
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.doc-stack .awn-database-view-single-content.file-content-preview,
+.doc-slab-main .awn-database-view-single-content.file-content-preview {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
 }
 
 .menu-awn-database-store.is-active,

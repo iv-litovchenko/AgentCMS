@@ -18,12 +18,12 @@ fields:
     title: Тип коллекции
     enum: [md, csv, files]
     default: md
-    description: md — файл на запись; csv — одна таблица main.csv; files — загрузка файлов
+    description: md — записи на базе md-файлов; csv — одна таблица main.csv; files — загрузка файлов
   awn-record-hierarchy:
     type: awn.boolean
-    title: Иерархия (разделы)
+    title: Поддержка разделов
     default: false
-    description: Вложенные разделы; для md и files; не для csv-таблицы
+    description: Для md и files; не для csv-таблицы
   awn-record-file-types:
     type: awn.string
     title: Типы файлов

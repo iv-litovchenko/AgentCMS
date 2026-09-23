@@ -5611,8 +5611,8 @@
         <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-kind-wrap">
           <span>Типы коллекции</span>
           <select id="awn-database-create-kind-input" class="agents-registry-select">
-            <option value="md">Записи из md-файлов (файл на каждую запись)</option>
-            <option value="csv">Записи на базе 1 CSV-таблицы (одна таблица main.csv)</option>
+            <option value="md">Записи на базе md-файлов (файл на каждую запись)</option>
+            <option value="csv">Записи на базе CSV-таблицы (одна таблица main.csv)</option>
             <option value="files">Файлы с поддержкой загрузки</option>
           </select>
         </label>
@@ -5647,7 +5647,7 @@
         <div class="awn-database-create-checkbox-group hidden" id="awn-database-create-checkbox-group">
           <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
             <input id="awn-database-create-hierarchy-input" type="checkbox" />
-            <span class="awn-database-create-checkbox-label">Включить поддержку разделов (иерархическая структура)</span>
+            <span class="awn-database-create-checkbox-label">Поддержка разделов</span>
           </label>
           <label
             class="awn-database-create-checkbox-field hidden"
@@ -5778,9 +5778,9 @@
                     <header class="topic-schema-head">
                       <div>
                         <p class="topic-schema-lead">
-                          Дополнительные поля для разделов, записей и sidecar внутри инфоблока.
+                          Дополнительные поля для инфоблока, разделов, записей и sidecar.
                           <span class="topic-schema-lead-hint"
-                            >Сохраняется в <code>schema.yml</code> рядом с manifest коллекции.</span
+                            >Сохраняется в <code>schema.yml</code> рядом с manifest инфоблока.</span
                           >
                         </p>
                         <p class="section-schema-meta">
