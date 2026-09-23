@@ -59635,6 +59635,20 @@ body.is-cms-page-picker-active #discuss-aside * {
   --menu-awn-database-nest-inset: calc(var(--menu-win-toggle-slot, 16px) + var(--menu-win-toggle-gap, 4px));
 }
 
+.menu-awn-database-store-group.is-empty {
+  border-style: dashed;
+  border-color: rgba(124, 58, 237, 0.28);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.menu-awn-database-store-group.is-empty .menu-awn-database-store-group-head {
+  color: #64748b;
+}
+
+.menu-awn-database-store-group.is-empty.is-active .menu-awn-database-store-group-head {
+  color: #6d28d9;
+}
+
 .menu-awn-database-store-group-head {
   display: flex;
   align-items: center;
@@ -59670,6 +59684,14 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-database-store-group-head .folder-toggle-btn:disabled {
   opacity: 0.35;
   border-color: #c0c0c0;
+}
+
+.menu-awn-database-store-group-head .folder-toggle-btn--empty-group {
+  opacity: 0.7;
+  border-style: dashed;
+  border-color: #c4b5fd;
+  color: #8b5cf6;
+  cursor: default;
 }
 
 .menu-awn-database-store-group-open-btn {
@@ -59974,6 +59996,30 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-database-store-badge--count.is-zero {
   background: #e2e8f0;
   color: #475569;
+}
+
+.menu-awn-database-store-badge--empty {
+  min-width: auto;
+  height: 1.125rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  color: #64748b;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.menu-awn-database-store-group-empty-hint {
+  margin: 0;
+  padding: 0.3rem 0.45rem 0.35rem var(--menu-awn-database-nest-inset);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-style: italic;
+  color: #94a3b8;
+  list-style: none;
 }
 
 .menu-awn-database-store--empty {

@@ -105416,8 +105416,8 @@ function createAwnDataGroupCreateBtn(store) {
   const createBtn = document.createElement("button");
   createBtn.type = "button";
   createBtn.className = "menu-awn-database-group-create-btn";
-  createBtn.title = `Новый справочник в ${store.relPath}/`;
-  createBtn.setAttribute("aria-label", "Новый справочник");
+  createBtn.title = `Новый инфоблок в ${store.relPath}/`;
+  createBtn.setAttribute("aria-label", "Новый инфоблок");
   createBtn.innerHTML =
     '<svg class="menu-awn-database-group-create-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
   createBtn.addEventListener("click", (event) => {
@@ -105435,10 +105435,15 @@ function createAwnDataStoreMetaNode(store) {
   if (store?.kind === "group") {
     const childCount = resolveAwnDataRecordCount(store);
     const badge = document.createElement("span");
-    badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
-    if (childCount <= 0) badge.classList.add("is-zero");
-    badge.textContent = String(childCount);
-    badge.title = childCount === 1 ? "1 справочник" : `${childCount} справочников`;
+    if (childCount <= 0) {
+      badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--empty";
+      badge.textContent = "пусто";
+      badge.title = "В группе нет инфоблоков";
+    } else {
+      badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
+      badge.textContent = String(childCount);
+      badge.title = childCount === 1 ? "1 инфоблок" : `${childCount} инфоблоков`;
+    }
     metaNode.appendChild(badge);
     return metaNode;
   }
@@ -105585,7 +105590,8 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
 
   const children = Array.isArray(store.children) ? store.children : [];
   const hasContent = children.length > 0;
-  let isCollapsed = forceExpanded ? false : false;
+  let isCollapsed = hasContent ? !forceExpanded && false : false;
+  if (!hasContent) item.classList.add("is-empty");
 
   const headRow = document.createElement("div");
   headRow.className = "menu-awn-database-store-group-head";
@@ -105596,14 +105602,22 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   const syncCollapsedUi = () => {
     item.classList.toggle("is-collapsed", isCollapsed);
     body.hidden = isCollapsed;
+    if (!hasContent) {
+      toggleBtn.textContent = "·";
+      toggleBtn.title = "Пустая группа";
+      return;
+    }
     toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasContent);
-    toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+    toggleBtn.title = isCollapsed ? "Раскрыть" : "Скрыть";
   };
 
   const toggleBtn = createFolderToggleButton(hasContent, isCollapsed, () => {
     isCollapsed = !isCollapsed;
     syncCollapsedUi();
   });
+  if (!hasContent) {
+    toggleBtn.classList.add("folder-toggle-btn--empty-group");
+  }
 
   const kindNode = document.createElement("span");
   kindNode.className = `menu-awn-database-store-kind ${awnDataStoreKindClass(store.kind)}`;
@@ -105651,8 +105665,8 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   childList.className = "menu-awn-database-store-group-children";
   if (!hasContent) {
     const empty = document.createElement("li");
-    empty.className = "menu-awn-database-store menu-awn-database-store--empty";
-    empty.textContent = "Нет справочников";
+    empty.className = "menu-awn-database-store-group-empty-hint";
+    empty.textContent = "Пусто — добавьте коллекцию или одиночку";
     childList.appendChild(empty);
   } else {
     children.forEach((child, index) => {
