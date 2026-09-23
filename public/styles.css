@@ -61565,6 +61565,9 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-layout-control {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .awn-database-view-toolbar .awn-database-view-layout-btn {
@@ -62406,72 +62409,74 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: none;
 }
 
-.awn-database-view-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 0.65rem;
+.awn-database-view-cards-grid-wrap {
+  margin: 0;
   padding: 0.65rem;
 }
 
-.awn-database-view-record-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #fff;
-  padding: 0.65rem 0.75rem;
+.awn-database-view-cards-grid-wrap .folder-browse-images-grid {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.awn-database-view-record-grid-card {
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.awn-database-view-record-card:hover,
-.awn-database-view-record-card:focus-visible {
-  border-color: #c4b5fd;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
-  outline: none;
-}
-
-.awn-database-view-record-card.is-system {
+.awn-database-view-record-grid-card.is-system {
   background: #fafafa;
 }
 
-.awn-database-view-record-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.45rem;
+.awn-database-view-record-grid-card:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.45);
+  outline-offset: -2px;
 }
 
-.awn-database-view-record-card-title {
-  min-width: 0;
-  font-size: 0.875rem;
+.awn-database-view-record-grid-thumb-placeholder {
+  background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.awn-database-view-record-grid-thumb-label {
+  display: block;
+  max-width: calc(100% - 1rem);
+  padding: 0 0.75rem;
+  text-align: center;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #0f172a;
+  line-height: 1.35;
+  color: #475569;
   word-break: break-word;
 }
 
-.awn-database-view-record-card-fields {
-  margin: 0;
-  display: grid;
-  gap: 0.35rem;
-}
-
-.awn-database-view-record-card-field {
-  display: grid;
-  grid-template-columns: minmax(4.5rem, 35%) 1fr;
-  gap: 0.45rem;
-  font-size: 0.75rem;
-}
-
-.awn-database-view-record-card-field dt {
-  margin: 0;
+.awn-database-view-record-grid-card .awn-database-view-record-grid-edit {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
   color: #64748b;
-  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.awn-database-view-record-card-field dd {
-  margin: 0;
-  color: #334155;
-  word-break: break-word;
+.awn-database-view-record-grid-card:hover .awn-database-view-record-grid-edit,
+.awn-database-view-record-grid-card:focus-within .awn-database-view-record-grid-edit {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.awn-database-view-record-grid-card .awn-database-view-record-grid-edit:hover {
+  background: #fff;
+  color: #7c3aed;
 }
 
 .awn-database-view-property-catalog,

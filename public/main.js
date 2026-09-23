@@ -101659,8 +101659,11 @@ const AWN_DATA_SCHEMA_TARGET_TYPES = {
 };
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout.v2";
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY_LEGACY = "yamlcms.awnDataViewRecordsLayout";
+const AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY = "yamlcms.awnDataViewCardsColumns";
+const AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS = [1, 3, 5];
 const AWN_DATA_VIEW_SORT_SCOPE = "awn-database-view";
 let awnDataViewRecordsLayout = "table";
+let awnDataViewCardsColumns = 3;
 
 function formatRussianFileCount(count) {
   const n = Number(count) || 0;
@@ -103234,23 +103237,41 @@ function setupAwnDataViewToolbarControls(root) {
     controls.appendChild(layoutMount);
   }
 
-  awnDataViewLayoutToggleNode = controls.querySelector(".awn-database-view-layout-toggle");
+  awnDataViewLayoutToggleNode = controls.querySelector(".awn-database-view-layout-control");
   syncAwnDataViewLayoutToggleUi();
+}
+
+function loadAwnDataViewCardsColumns() {
+  try {
+    const stored = Number(localStorage.getItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY));
+    if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(stored)) awnDataViewCardsColumns = stored;
+  } catch {
+    // ignore
+  }
+}
+
+function saveAwnDataViewCardsColumns(columns) {
+  if (!AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(columns)) return;
+  awnDataViewCardsColumns = columns;
+  try {
+    localStorage.setItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY, String(columns));
+  } catch {
+    // ignore
+  }
 }
 
 function createAwnDataViewRecordsLayoutToggle() {
   const control = document.createElement("div");
   control.className = "folder-browse-images-cols-control awn-database-view-layout-control";
 
-  const toggle = document.createElement("div");
-  toggle.className = "folder-browse-images-cols-toggle awn-database-view-layout-toggle";
-  toggle.setAttribute("role", "group");
-  toggle.setAttribute("aria-label", "Вид списка элементов");
+  const listToggle = document.createElement("div");
+  listToggle.className = "folder-browse-images-cols-toggle awn-database-view-layout-toggle awn-database-view-layout-toggle--list";
+  listToggle.setAttribute("role", "group");
+  listToggle.setAttribute("aria-label", "Вид списка");
 
   for (const spec of [
     { value: "table", label: "☰", title: "Список" },
-    { value: "fields", label: "▤", title: "Поля" },
-    { value: "cards", label: "▦", title: "Карточки" }
+    { value: "fields", label: "▤", title: "Поля" }
   ]) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -103264,14 +103285,38 @@ function createAwnDataViewRecordsLayoutToggle() {
       event.stopPropagation();
       saveAwnDataViewRecordsLayout(spec.value);
     });
-    toggle.appendChild(btn);
+    listToggle.appendChild(btn);
   }
 
-  control.appendChild(toggle);
+  const cardsToggle = document.createElement("div");
+  cardsToggle.className =
+    "folder-browse-images-cols-toggle awn-database-view-layout-toggle awn-database-view-layout-toggle--cards";
+  cardsToggle.setAttribute("role", "group");
+  cardsToggle.setAttribute("aria-label", "Вид карточек");
+
+  for (const cols of AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "folder-browse-images-cols-btn awn-database-view-layout-btn awn-database-view-cards-cols-btn";
+    btn.dataset.awnDatabaseCardsCols = String(cols);
+    btn.textContent = String(cols);
+    btn.title = cols === 1 ? "1 колонка" : `${cols} колонки`;
+    btn.setAttribute("aria-label", btn.title);
+    btn.addEventListener("mousedown", (event) => event.stopPropagation());
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      saveAwnDataViewCardsLayout(cols);
+      saveAwnDataViewRecordsLayout("cards");
+    });
+    cardsToggle.appendChild(btn);
+  }
+
+  control.append(listToggle, cardsToggle);
   return control;
 }
 
 function loadAwnDataViewRecordsLayout() {
+  loadAwnDataViewCardsColumns();
   try {
     const stored = localStorage.getItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY);
     if (stored === "table" || stored === "fields" || stored === "cards") {
@@ -103299,10 +103344,34 @@ function saveAwnDataViewRecordsLayout(layout) {
   if (awnDataViewStoreCache && !awnDataViewRecordId) renderAwnDataViewRecords(awnDataViewStoreCache);
 }
 
+function saveAwnDataViewCardsLayout(columns) {
+  if (!AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(columns)) return;
+  const layoutChanged = awnDataViewRecordsLayout !== "cards";
+  const colsChanged = awnDataViewCardsColumns !== columns;
+  if (!layoutChanged && !colsChanged) return;
+  saveAwnDataViewCardsColumns(columns);
+  if (layoutChanged) {
+    awnDataViewRecordsLayout = "cards";
+    try {
+      localStorage.setItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY, "cards");
+    } catch {
+      // ignore
+    }
+  }
+  syncAwnDataViewLayoutToggleUi();
+  if (awnDataViewStoreCache && !awnDataViewRecordId) renderAwnDataViewRecords(awnDataViewStoreCache);
+}
+
 function syncAwnDataViewLayoutToggleUi() {
   if (!awnDataViewLayoutToggleNode) return;
-  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll(".awn-database-view-layout-btn")) {
+  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-database-layout]")) {
     const active = btn.dataset.awnDatabaseLayout === awnDataViewRecordsLayout;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-database-cards-cols]")) {
+    const cols = Number(btn.dataset.awnDatabaseCardsCols);
+    const active = awnDataViewRecordsLayout === "cards" && cols === awnDataViewCardsColumns;
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   }
@@ -104982,51 +105051,115 @@ function resolveAwnDataAddParentValue() {
   return String(awnDataAddParentInputNode?.value || "").trim();
 }
 
-function createAwnDataViewRecordCard(record, viewStore, columns) {
+function resolveAwnDataViewRecordGridPreview(record, viewStore) {
+  const filePath = resolveAwnDataRecordFilePath(record, viewStore);
+  const fileName = String(record?.fileName || filePath.split("/").pop() || "").trim();
+  const gridColumns = awnDataViewCardsColumns;
+  if (ATTACHMENTS_IMAGE_EXT_RE.test(fileName) && filePath) {
+    return {
+      isImage: true,
+      src: buildWorkspaceFolderBrowseFileUrl(filePath, {
+        thumb: gridColumns !== 1,
+        max: gridColumns === 1 ? 960 : MEDIA_THUMB_MAX_GRID
+      })
+    };
+  }
+
+  const storeRel = String(viewStore?.relPath || "").replace(/^\/+|\/+$/g, "");
+  const frontmatter = record?.frontmatter || {};
+  for (const key of ["awn-preview", "preview", "cover", "image", "thumbnail"]) {
+    const raw = String(frontmatter[key] || "").trim();
+    if (!raw) continue;
+    const previewName = raw.split("/").pop() || raw;
+    if (!ATTACHMENTS_IMAGE_EXT_RE.test(previewName)) continue;
+    const rel = raw.startsWith("awn-database/")
+      ? raw
+      : resolveWorkspaceBrowseRelPath(storeRel ? `awn-database/${storeRel}` : "awn-database", raw);
+    return {
+      isImage: true,
+      src: buildWorkspaceFolderBrowseFileUrl(rel, {
+        thumb: gridColumns !== 1,
+        max: gridColumns === 1 ? 960 : MEDIA_THUMB_MAX_GRID
+      })
+    };
+  }
+
+  const titleColumn = { key: "awn-title" };
+  const title = formatAwnDataViewCellValue(record, titleColumn);
+  const idLabel = formatAwnDataViewCellValue(record, { kind: "id", key: "__id__" });
+  const label = title !== "—" ? title : idLabel;
+  return { isImage: false, label };
+}
+
+function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   const card = document.createElement("article");
-  card.className = "awn-database-view-record-card";
+  card.className = "folder-browse-image-card awn-database-view-record-grid-card";
   if (isAwnDataSystemRecord(record)) card.classList.add("is-system");
-  card.tabIndex = 0;
-  card.setAttribute("role", "button");
   card.title = "Открыть запись";
 
-  const head = document.createElement("div");
-  head.className = "awn-database-view-record-card-head";
-  const title = document.createElement("div");
-  title.className = "awn-database-view-record-card-title";
-  title.textContent = formatAwnDataViewCellValue(
-    record,
-    columns.find((c) => isAwnDataViewTitleFieldKey(c.key)) || { key: "awn-title" }
-  );
-  head.appendChild(title);
+  const open = document.createElement("div");
+  open.className = "folder-browse-image-open";
+
+  const imgWrap = document.createElement("div");
+  imgWrap.className = "folder-browse-image-thumb";
+  if (awnDataViewCardsColumns === 1) {
+    imgWrap.classList.add("folder-browse-image-thumb--original");
+  }
+
+  const preview = resolveAwnDataViewRecordGridPreview(record, viewStore);
+  if (preview.isImage && preview.src) {
+    const img = document.createElement("img");
+    img.alt = preview.label || record.title || record.id || "";
+    img.loading = "lazy";
+    img.draggable = false;
+    img.src = preview.src;
+    attachFolderBrowseImageFallback(img);
+    imgWrap.appendChild(img);
+  } else {
+    imgWrap.classList.add("awn-database-view-record-grid-thumb-placeholder");
+    const label = document.createElement("span");
+    label.className = "awn-database-view-record-grid-thumb-label";
+    label.textContent = preview.label || record.id || "—";
+    imgWrap.appendChild(label);
+  }
+
   const editBtn = document.createElement("button");
   editBtn.type = "button";
-  editBtn.className = "awn-database-view-edit-btn";
+  editBtn.className = "awn-database-view-record-grid-edit awn-database-view-edit-btn";
   editBtn.title = "Редактировать";
+  editBtn.setAttribute("aria-label", "Редактировать");
   editBtn.append(createOverviewEditManifestIcon());
   editBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     void openAwnDataRecordEditor(record, viewStore);
   });
-  head.appendChild(editBtn);
-  card.appendChild(head);
+  imgWrap.appendChild(editBtn);
+  open.appendChild(imgWrap);
 
-  const body = document.createElement("dl");
-  body.className = "awn-database-view-record-card-fields";
-  for (const column of columns) {
-    if (isAwnDataViewTitleFieldKey(column.key)) continue;
-    const value = formatAwnDataViewCellValue(record, column);
-    const row = document.createElement("div");
-    row.className = "awn-database-view-record-card-field";
-    const dt = document.createElement("dt");
-    dt.textContent = column.label;
-    const dd = document.createElement("dd");
-    dd.textContent = value;
-    row.append(dt, dd);
-    body.appendChild(row);
+  const titleColumn = columns.find((c) => isAwnDataViewTitleFieldKey(c.key)) || { key: "awn-title" };
+  const title = formatAwnDataViewCellValue(record, titleColumn);
+  const idLabel = formatAwnDataViewCellValue(record, { kind: "id", key: "__id__" });
+  const footerName = title !== "—" ? title : idLabel;
+  const footerMeta = title !== "—" && title !== idLabel ? idLabel : "";
+
+  const footer = document.createElement("div");
+  footer.className = "folder-browse-image-footer";
+  const nameNode = document.createElement("span");
+  nameNode.className = "folder-browse-image-name";
+  nameNode.textContent = footerName;
+  nameNode.title = footerName;
+  footer.appendChild(nameNode);
+  if (footerMeta) {
+    const metaNode = document.createElement("span");
+    metaNode.className = "folder-browse-image-size";
+    metaNode.textContent = footerMeta;
+    footer.appendChild(metaNode);
   }
-  card.appendChild(body);
+  open.appendChild(footer);
+  card.appendChild(open);
 
+  card.tabIndex = 0;
+  card.setAttribute("role", "listitem");
   const openRecord = () => {
     void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
   };
@@ -105036,6 +105169,7 @@ function createAwnDataViewRecordCard(record, viewStore, columns) {
   });
   card.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest(".awn-database-view-edit-btn")) return;
     event.preventDefault();
     void openRecord();
   });
@@ -105460,12 +105594,17 @@ function renderAwnDataViewRecords(store) {
   }
 
   if (awnDataViewRecordsLayout === "cards") {
+    const wrap = document.createElement("div");
+    wrap.className = "awn-database-view-cards-grid-wrap navigation-media-images-grid-wrap";
     const grid = document.createElement("div");
-    grid.className = "awn-database-view-cards";
+    grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${awnDataViewCardsColumns}`;
+    grid.setAttribute("role", "list");
+    grid.setAttribute("aria-label", "Записи");
     for (const record of records) {
-      grid.appendChild(createAwnDataViewRecordCard(record, viewStore, columns));
+      grid.appendChild(createAwnDataViewRecordGridCard(record, viewStore, columns));
     }
-    awnDataViewRecordsNode.appendChild(grid);
+    wrap.appendChild(grid);
+    awnDataViewRecordsNode.appendChild(wrap);
     return;
   }
 
