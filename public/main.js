@@ -44110,9 +44110,11 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     } else {
       const envHint = activeStatus?.envHasValues
         ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-        : activeStatus?.envExists
-          ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
-          : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
+        : activeStatus?.envHasContent
+          ? `Файл <code>${escapeHtml(envPath)}</code> содержит текст, но переменных <code>KEY=value</code> пока нет.`
+          : activeStatus?.envExists
+            ? `Файл <code>${escapeHtml(envPath)}</code> есть, но пустой.`
+            : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
       projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
     }
   }

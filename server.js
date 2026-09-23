@@ -2334,6 +2334,14 @@ function countEnvFileValues(content) {
   return count;
 }
 
+function envFileHasContent(content) {
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) return true;
+  }
+  return false;
+}
+
 async function readEnvFileStatus(absolutePath, displayPath = ".env") {
   let exists = false;
   let content = "";
@@ -2344,11 +2352,13 @@ async function readEnvFileStatus(absolutePath, displayPath = ".env") {
     if (error && error.code !== "ENOENT") throw error;
   }
   const envValueCount = countEnvFileValues(content);
+  const envHasContent = envFileHasContent(content);
   return {
     envPath: displayPath,
     envExists: exists,
     envValueCount,
-    envHasValues: envValueCount > 0
+    envHasValues: envValueCount > 0,
+    envHasContent
   };
 }
 
@@ -2433,6 +2443,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         envExists: false,
         envValueCount: 0,
         envHasValues: false,
+        envHasContent: false,
         schemaPath: "",
         schemaExists: false,
         schemaFieldCount: 0,
@@ -2457,6 +2468,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         envExists: false,
         envValueCount: 0,
         envHasValues: false,
+        envHasContent: false,
         schemaPath: "",
         schemaExists: false,
         schemaFieldCount: 0,
@@ -2490,12 +2502,14 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
     const envRelPath = toEnvFilePath(manifestCtx.rel);
     let envExists = false;
     let envValueCount = 0;
+    let envHasContent = false;
     try {
       const envAbsolute = await resolveNodeStorageFileAbsolute(manifestCtx.absolute, ".env");
       if (envAbsolute) {
         const envContent = await fs.readFile(envAbsolute, "utf-8");
         envExists = true;
         envValueCount = countEnvFileValues(envContent);
+        envHasContent = envFileHasContent(envContent);
       }
     } catch (error) {
       if (!error || error.code !== "ENOENT") {
@@ -2519,6 +2533,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         envExists,
         envValueCount,
         envHasValues: envValueCount > 0,
+        envHasContent,
         schemaPath: schemaStatus.schemaPath,
         schemaExists: schemaStatus.schemaExists,
         schemaFieldCount: schemaStatus.schemaFieldCount,
@@ -2543,6 +2558,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       envExists,
       envValueCount,
       envHasValues: envValueCount > 0,
+      envHasContent,
       schemaPath: schemaStatus.schemaPath,
       schemaExists: schemaStatus.schemaExists,
       schemaFieldCount: schemaStatus.schemaFieldCount,
