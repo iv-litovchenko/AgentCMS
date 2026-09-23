@@ -11721,6 +11721,12 @@ body.app-locked {
   background: rgba(255, 251, 235, 0.95);
 }
 
+.project-settings-scope-group-env-btn:has(.project-settings-scope-marker.is-env-kind.has-value) {
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #92400e;
+  background: rgba(255, 251, 235, 0.98);
+}
+
 .project-settings-scope-group-title.has-env-action {
   padding-right: 4px;
 }

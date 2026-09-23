@@ -42884,15 +42884,32 @@ function countEnvFileValues(content) {
   return count;
 }
 
+function envFileHasContent(content) {
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) return true;
+  }
+  return false;
+}
+
 function mergeProjectSettingsScopeStatus(normalized, patch) {
   if (!normalized) return;
   const prev = projectSettingsScopeStatusByPath.get(normalized) || { path: normalized };
   projectSettingsScopeStatusByPath.set(normalized, { ...prev, ...patch, path: normalized });
 }
 
-function projectSettingsScopeMarkerTitle(kind, hasValue) {
+function projectSettingsScopeEnvMarkerLit(status) {
+  return Boolean(status?.envHasContent);
+}
+
+function projectSettingsScopeMarkerTitle(kind, hasValue, status = null) {
   if (kind === "env") {
-    return hasValue ? ".env — есть переменные" : ".env — нет";
+    if (status?.envHasValues) {
+      return `.env — ${Number(status.envValueCount) || 0} переменных`;
+    }
+    if (status?.envHasContent) return ".env — есть содержимое";
+    if (status?.envExists) return ".env — файл пустой";
+    return ".env — нет";
   }
   if (kind === "schema") {
     return hasValue ? "schema.yml — есть поля" : "schema.yml — нет";
@@ -42900,10 +42917,11 @@ function projectSettingsScopeMarkerTitle(kind, hasValue) {
   return hasValue ? "config.yml — есть значения" : "config.yml — нет";
 }
 
-function patchProjectSettingsScopeMarkerElement(marker, kind, hasValue) {
+function patchProjectSettingsScopeMarkerElement(marker, kind, hasValue, status = null) {
   if (!marker) return;
-  marker.classList.toggle("has-value", hasValue);
-  marker.title = projectSettingsScopeMarkerTitle(kind, hasValue);
+  const lit = kind === "env" ? projectSettingsScopeEnvMarkerLit(status) : hasValue;
+  marker.classList.toggle("has-value", lit);
+  marker.title = projectSettingsScopeMarkerTitle(kind, lit, kind === "env" ? status : null);
 }
 
 function patchProjectSettingsScopeListMarkers() {
@@ -42915,31 +42933,29 @@ function patchProjectSettingsScopeListMarkers() {
     const status = getProjectSettingsScopeStatus(path);
     const hasConfigValues = Boolean(status?.hasLocalValues);
     const hasSchemaFields = Boolean(status?.hasLocalSchema);
+    const hasEnvFile = projectSettingsScopeEnvMarkerLit(status);
     const hasEnvValues = Boolean(status?.envHasValues);
     btn.classList.toggle("has-local-values", hasConfigValues);
     btn.classList.toggle("has-schema-values", hasSchemaFields);
-    btn.classList.toggle("has-env-values", hasEnvValues);
-    btn.classList.toggle("is-empty-scope", !hasConfigValues && !hasSchemaFields && !hasEnvValues);
+    btn.classList.toggle("has-env-values", hasEnvFile);
+    btn.classList.toggle("is-empty-scope", !hasConfigValues && !hasSchemaFields && !hasEnvFile);
 
     const markers = btn.querySelector(".project-settings-scope-markers");
     if (!markers) continue;
     patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-schema-kind"), "schema", hasSchemaFields);
     patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-config-kind"), "config", hasConfigValues);
-    patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-env-kind"), "env", hasEnvValues);
+    patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-env-kind"), "env", hasEnvValues, status);
   }
 
   for (const envBtn of projectSettingsScopeListNode.querySelectorAll(".project-settings-scope-group-env-btn")) {
     const envScopePath = envBtn.dataset.envScopePath;
     if (!envScopePath) continue;
     const status = getProjectSettingsScopeStatus(envScopePath);
-    const hasEnvValues = Boolean(status?.envHasValues);
-    envBtn.title =
-      hasEnvValues
-        ? `.env — ${status.envValueCount} переменных`
-        : status?.envExists
-          ? ".env — файл есть, переменных нет"
-          : ".env — открыть редактор";
-    patchProjectSettingsScopeMarkerElement(envBtn.querySelector(".is-env-kind"), "env", hasEnvValues);
+    envBtn.title = projectSettingsScopeMarkerTitle("env", false, status);
+    if (!envBtn.title || envBtn.title === ".env — нет") {
+      envBtn.title = ".env — открыть редактор";
+    }
+    patchProjectSettingsScopeMarkerElement(envBtn.querySelector(".is-env-kind"), "env", false, status);
   }
 }
 
@@ -42999,12 +43015,15 @@ function syncProjectSettingsScopeMarkersAfterSchemaSave(manifestPath, schemaCach
 function setProjectSettingsEnvStatusFromCache(manifestPath, cache) {
   const normalized = normalizeMenuNodePath(manifestPath);
   if (!normalized || !cache) return;
-  const envValueCount = countEnvFileValues(cache.content || "");
+  const envContent = cache.content || "";
+  const envValueCount = countEnvFileValues(envContent);
+  const envHasContent = envFileHasContent(envContent);
   mergeProjectSettingsScopeStatus(normalized, {
     envPath: cache.envPath || getEnvFilePathForManifest(normalized),
     envExists: Boolean(cache.exists),
     envValueCount,
-    envHasValues: envValueCount > 0
+    envHasValues: envValueCount > 0,
+    envHasContent
   });
   patchProjectSettingsScopeListMarkers();
 }
@@ -43111,14 +43130,15 @@ function collectProjectSettingsScopes() {
   return collectProjectSettingsManifestScopes();
 }
 
-function createProjectSettingsScopeMarker(kind, hasValue) {
+function createProjectSettingsScopeMarker(kind, hasValue, status = null) {
   const marker = document.createElement("span");
   marker.className = "project-settings-scope-marker";
   marker.classList.toggle("is-schema-kind", kind === "schema");
   marker.classList.toggle("is-config-kind", kind === "config");
   marker.classList.toggle("is-env-kind", kind === "env");
-  marker.classList.toggle("has-value", hasValue);
-  marker.title = projectSettingsScopeMarkerTitle(kind, hasValue);
+  const lit = kind === "env" ? projectSettingsScopeEnvMarkerLit(status) : hasValue;
+  marker.classList.toggle("has-value", lit);
+  marker.title = projectSettingsScopeMarkerTitle(kind, lit, kind === "env" ? status : null);
   marker.setAttribute("aria-hidden", "true");
   return marker;
 }
@@ -43199,7 +43219,7 @@ function projectSettingsScopeMatchesFileFilters(scope) {
   const status = getProjectSettingsScopeStatus(scope.path);
   if (schema && status?.hasLocalSchema) return true;
   if (config && status?.hasLocalValues) return true;
-  if (env && status?.envHasValues) return true;
+  if (env && projectSettingsScopeEnvMarkerLit(status)) return true;
   return false;
 }
 
@@ -43277,15 +43297,11 @@ function createProjectSettingsScopeGroupTitle(group, scopePath) {
     envBtn.type = "button";
     envBtn.className = "project-settings-scope-group-env-btn";
     envBtn.dataset.envScopePath = envScopePath;
-    envBtn.title =
-      status?.envHasValues
-        ? `.env — ${status.envValueCount} переменных`
-        : status?.envExists
-          ? ".env — файл есть, переменных нет"
-          : ".env — открыть редактор";
+    envBtn.title = projectSettingsScopeMarkerTitle("env", false, status);
+    if (!status?.envHasContent) envBtn.title = ".env — открыть редактор";
     envBtn.setAttribute("aria-label", "Открыть .env");
     envBtn.append(
-      createProjectSettingsScopeMarker("env", Boolean(status?.envHasValues)),
+      createProjectSettingsScopeMarker("env", false, status),
       Object.assign(document.createElement("span"), {
         className: "project-settings-scope-group-env-label",
         textContent: ".env"
@@ -43656,10 +43672,11 @@ function renderProjectSettingsScopeList() {
       const schemaCount = Number(status?.schemaFieldCount) || 0;
       const schemaPath = status?.schemaPath || "";
       const hasEnvValues = Boolean(status?.envHasValues);
+      const hasEnvFile = projectSettingsScopeEnvMarkerLit(status);
       const envCount = Number(status?.envValueCount) || 0;
       const envPath = status?.envPath || getEnvFilePathForManifest(scope.path);
       const isActive = scope.path === activeScopePath;
-      const isEmptyScope = !hasConfigValues && !hasSchemaFields && !hasEnvValues;
+      const isEmptyScope = !hasConfigValues && !hasSchemaFields && !hasEnvFile;
       const valuesFileLabel = getProjectSettingsValuesFileLabel(scope);
 
       const btn = document.createElement("button");
@@ -43671,7 +43688,7 @@ function renderProjectSettingsScopeList() {
       btn.classList.toggle("is-active", isActive);
       btn.classList.toggle("has-local-values", hasConfigValues);
       btn.classList.toggle("has-schema-values", hasSchemaFields);
-      btn.classList.toggle("has-env-values", hasEnvValues);
+      btn.classList.toggle("has-env-values", hasEnvFile);
       btn.classList.toggle("is-empty-scope", isEmptyScope);
       btn.title = [
         scope.level === "global" ? "agent-cms-core" : scope.label,
@@ -43695,9 +43712,11 @@ function renderProjectSettingsScopeList() {
         scope.level !== "global"
           ? hasEnvValues
             ? `${envPath}: ${envCount} перем.`
-            : status?.envExists
-              ? `${envPath}: файл есть, переменных нет`
-              : `${envPath}: не создан`
+            : status?.envHasContent
+              ? `${envPath}: есть содержимое`
+              : status?.envExists
+                ? `${envPath}: файл пустой`
+                : `${envPath}: не создан`
           : null
       ]
         .filter(Boolean)
@@ -43720,7 +43739,7 @@ function renderProjectSettingsScopeList() {
         markers.append(
           createProjectSettingsScopeMarker("schema", hasSchemaFields),
           createProjectSettingsScopeMarker("config", hasConfigValues),
-          createProjectSettingsScopeMarker("env", hasEnvValues)
+          createProjectSettingsScopeMarker("env", hasEnvValues, status)
         );
         status.append(markers);
         btn.append(status);
@@ -44074,15 +44093,19 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       projectSettingsEnvLeadNode.innerHTML =
         (activeStatus?.envHasValues
           ? `В корневом <code>.env</code> workspace задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-          : activeStatus?.envExists
-            ? `Корневой <code>.env</code> workspace есть, но переменных пока нет.`
-            : `Корневой <code>.env</code> workspace ещё не создан.`) + ` Секреты API — здесь, не в yaml.`;
+          : activeStatus?.envHasContent
+            ? `Корневой <code>.env</code> workspace содержит текст, но переменных <code>KEY=value</code> пока нет.`
+            : activeStatus?.envExists
+              ? `Корневой <code>.env</code> workspace есть, но файл пустой.`
+              : `Корневой <code>.env</code> workspace ещё не создан.`) + ` Секреты API — здесь, не в yaml.`;
     } else if (isGlobalScope) {
       const envHint = activeStatus?.envHasValues
         ? `В корневом <code>.env</code> платформы задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-        : activeStatus?.envExists
-          ? `Корневой <code>.env</code> платформы есть, но переменных пока нет.`
-          : `Корневой <code>.env</code> платформы ещё не создан.`;
+        : activeStatus?.envHasContent
+          ? `Корневой <code>.env</code> платформы содержит текст, но переменных <code>KEY=value</code> пока нет.`
+          : activeStatus?.envExists
+            ? `Корневой <code>.env</code> платформы есть, но файл пустой.`
+            : `Корневой <code>.env</code> платформы ещё не создан.`;
       projectSettingsEnvLeadNode.innerHTML = `${envHint} Секреты API — здесь, не в yaml.`;
     } else {
       const envHint = activeStatus?.envHasValues

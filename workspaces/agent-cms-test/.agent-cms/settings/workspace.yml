@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T12:09:00.983Z"
+  awn-id-updated-at: "2026-09-23T12:29:19.744Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -20,7 +20,7 @@ awn_settings:
   voice-route-qwenpaw-approval-level: AUTO
   voice-input-enabled: true
   voice-input-mode: fn_button
-  voice-input-response-enabled: true
+  voice-input-response-enabled: false
   voice-input-capture: microphone
   voice-stt-prompt: |
     В сообщении пользователя может быть смесь обычного текста и голосовых блоков:
@@ -65,14 +65,14 @@ awn_settings:
   voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
   voice-tts-elevenlabs-model: eleven_multilingual_v2
   voice-tts-elevenlabs-rate: 1
-  voice-proactive-mode: ping
-  voice-proactive-idle-seconds-min: 3600
-  voice-proactive-idle-seconds-max: 3600
-  voice-proactive-cooldown-seconds: 900
+  voice-proactive-mode: off
+  voice-proactive-idle-seconds-min: 500
+  voice-proactive-idle-seconds-max: 1000
+  voice-proactive-cooldown-seconds: 9000
   voice-proactive-quiet-hours-enabled: true
-  voice-proactive-quiet-hours-start: "23:00"
+  voice-proactive-quiet-hours-start: "11:02"
   voice-proactive-quiet-hours-end: "04:00"
-  voice-proactive-prompt: test
+  voice-proactive-prompt: testощшошщ
   voice-media-camera-enabled: false
   voice-media-camera-on-speech: true
   voice-media-camera-facing: environment

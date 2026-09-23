@@ -240,17 +240,38 @@ function readProactiveModeFromDom() {
   return PROACTIVE_MODE_VALUES.includes(value) ? value : null;
 }
 
-function getProactiveMode(settings = state.settings) {
+function shouldPreferProactiveModeFromUi() {
+  return (
+    isHeroAutosaveActive("proactiveMode") ||
+    settingsSave.isSectionDirty("proactive") ||
+    (isSettingsViewOpen() && state.settingsTab === "proactive")
+  );
+}
+
+function resolveProactiveModeFromUi(settings = state.settings) {
   const fromDom = readProactiveModeFromDom();
   if (fromDom) return fromDom;
-  if (
-    lastProactiveModeFromUi &&
-    PROACTIVE_MODE_VALUES.includes(lastProactiveModeFromUi) &&
-    (isSettingsViewOpen() || settingsSave.isSectionDirty("proactive"))
-  ) {
+  if (lastProactiveModeFromUi && PROACTIVE_MODE_VALUES.includes(lastProactiveModeFromUi)) {
     return lastProactiveModeFromUi;
   }
   return normalizeProactiveMode(settings || {});
+}
+
+function collectProactiveSettingsSnapshot() {
+  const patch = collectProactiveFormPatch();
+  patch.proactiveMode = resolveProactiveModeFromUi();
+  return patch;
+}
+
+function getProactiveMode(settings = state.settings) {
+  if (shouldPreferProactiveModeFromUi()) {
+    return resolveProactiveModeFromUi(settings);
+  }
+  return normalizeProactiveMode(settings || {});
+}
+
+function isProactiveSettingsTabActive() {
+  return isSettingsViewOpen() && state.settingsTab === "proactive";
 }
 
 function syncProactiveModeUi(settings = state.settings, { force = false } = {}) {
@@ -316,7 +337,7 @@ function handleProactiveModeChange(source) {
   lastProactiveModeFromUi = mode;
   shellProactive?.syncSettings({ ...(state.settings || {}), proactiveMode: mode });
   shellLog("proactive", `Режим в форме: ${formatProactiveModeLog(mode)} (сохраните кнопкой)`);
-  markSettingsDirty("proactive");
+  settingsSave.markDirty("proactive", collectProactiveSettingsSnapshot());
 }
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
@@ -6606,7 +6627,7 @@ function collectRouteSettingsPatch({ validate = false } = {}) {
 function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
   if (section === "route") return collectRouteSettingsPatch();
-  if (section === "proactive") return collectProactiveFormPatch();
+  if (section === "proactive") return collectProactiveSettingsSnapshot();
   if (section === "templates") return collectTemplatesFormPatch();
   if (section === "tts") return collectTtsSettingsPatch();
   if (section === "stt") return collectSttSettingsPatch();
@@ -6667,18 +6688,18 @@ function applySettingsFormsFromServer(settings = state.settings) {
     applySttSettingsUi(settings);
   }
   if (
-    !isSettingsViewOpen() &&
     !settingsSave.isSectionDirty("proactive") &&
-    !isHeroAutosaveActive("proactiveMode")
+    !isHeroAutosaveActive("proactiveMode") &&
+    !isProactiveSettingsTabActive()
   ) {
     applyProactiveFormUi(settings);
     shellProactive?.syncSettings(settings);
-  } else if (isSettingsViewOpen() && settingsSave.isSectionDirty("proactive") && shellProactive) {
+  } else if (settingsSave.isSectionDirty("proactive") && shellProactive) {
     shellProactive.syncSettings({
       ...(settings || {}),
       ...collectProactiveFormPatch()
     });
-  } else if (!isSettingsViewOpen() && !isHeroAutosaveActive("proactiveMode")) {
+  } else if (!isHeroAutosaveActive("proactiveMode")) {
     shellProactive?.syncSettings(settings);
   }
   if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("templates")) {
@@ -6739,6 +6760,7 @@ async function handleSettingsSaveClick(section, btn) {
   btn?.classList.add("is-saving");
   btn?.setAttribute("disabled", "disabled");
   if (btn) btn.dataset.shellSaving = "1";
+  if (section === "proactive") beginHeroAutosave("proactiveMode");
   try {
     if (section === "tts") await persistTtsSettings();
     else await saveSettingsSection(section);
@@ -6747,6 +6769,7 @@ async function handleSettingsSaveClick(section, btn) {
     renderPhase("waiting", error.message);
     markSettingsDirty(section);
   } finally {
+    if (section === "proactive") endHeroAutosave("proactiveMode");
     if (btn) delete btn.dataset.shellSaving;
     btn?.classList.remove("is-saving");
     btn?.removeAttribute("disabled");
@@ -6804,7 +6827,9 @@ function bindSettingsDirtyTracking() {
   document.body.dataset.shellDirtyDocBound = "1";
   const onFieldChange = (event) => {
     if (!isSettingsViewOpen()) return;
-    const section = settingsSectionFromTarget(event.target);
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.name === PROACTIVE_MODE_NAME) return;
+    const section = settingsSectionFromTarget(target);
     if (!section) return;
     markSettingsDirty(section);
   };
@@ -6850,7 +6875,7 @@ function commitAllSettingsBaselines() {
   settingsSave.commitAllBaselines({
     window: collectWindowSnapshot(),
     route: collectRouteSettingsPatch(),
-    proactive: collectProactiveFormPatch(),
+    proactive: collectProactiveSettingsSnapshot(),
     templates: collectTemplatesFormPatch(),
     tts: collectTtsSettingsPatch(),
     stt: collectSttSettingsPatch()
@@ -6928,11 +6953,9 @@ async function saveSettingsSection(section) {
   const patch =
     section === "route" ? collectRouteSettingsPatch({ validate: true }) : getSettingsSnapshot(section);
   if (section === "proactive") {
-    const modeFromDom = readProactiveModeFromDom();
-    if (modeFromDom) {
-      patch.proactiveMode = modeFromDom;
-      lastProactiveModeFromUi = modeFromDom;
-    }
+    const mode = resolveProactiveModeFromUi();
+    patch.proactiveMode = mode;
+    lastProactiveModeFromUi = mode;
   }
   const prevRouteTarget =
     section === "route" ? normalizeMessageRuntime(state.settings?.messageTarget) : "";
@@ -7015,14 +7038,9 @@ function applySettings(settings) {
   let nextSettings = settings;
   if (
     !isHeroAutosaveActive("proactiveMode") &&
-    (isSettingsViewOpen() || settingsSave.isSectionDirty("proactive"))
+    (settingsSave.isSectionDirty("proactive") || isProactiveSettingsTabActive())
   ) {
-    const domMode = readProactiveModeFromDom();
-    if (domMode) {
-      nextSettings = { ...settings, proactiveMode: domMode };
-    } else if (settingsSave.isSectionDirty("proactive")) {
-      nextSettings = { ...settings, ...collectProactiveFormPatch() };
-    }
+    nextSettings = { ...settings, proactiveMode: resolveProactiveModeFromUi(settings) };
   }
   state.settings = nextSettings;
   if (preserveVoiceResponseEnabled !== undefined && state.settings) {
@@ -9204,7 +9222,7 @@ function insertProactivePromptTemplate() {
   nodes.proactivePrompt.value = template;
   state.settings = { ...(state.settings || {}), proactivePrompt: template };
   syncProactivePromptHint(state.settings);
-  markSettingsDirty("proactive");
+  settingsSave.markDirty("proactive", collectProactiveSettingsSnapshot());
 }
 
 function resolveProactivePromptTemplate() {
@@ -12551,7 +12569,8 @@ function bindUi() {
   const markRouteDirty = () => markSettingsDirty("route");
   const markTtsDirty = () => markSettingsDirty("tts");
   const markSttDirty = () => markSettingsDirty("stt");
-  const markProactiveDirty = () => markSettingsDirty("proactive");
+  const markProactiveDirty = () =>
+    settingsSave.markDirty("proactive", collectProactiveSettingsSnapshot());
 
   nodes.cameraEnabled?.addEventListener("change", () => {
     const enabled = nodes.cameraEnabled.checked;
