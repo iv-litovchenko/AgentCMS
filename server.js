@@ -379,6 +379,7 @@ const {
   listAgentSettings,
   readAgentSetting,
   writeAgentSetting,
+  resetAgentSettingsScope,
   hydrateWorkspaceSettingsFromShell
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
@@ -20208,6 +20209,29 @@ async function handleApiForAgent(req, res, url) {
       else if (/readonly|Invalid |scope must be|is required|not writable/i.test(message)) status = 400;
       return sendJson(res, status, {
         error: "Failed to write setting",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/settings/reset") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const scope = String(body?.scope || "").trim();
+      if (!scope) return sendJson(res, 400, { error: "scope is required" });
+      const payload = await resetAgentSettingsScope(agentRoot, getProjectRoot(), scope);
+      if (payload.policyReloadRequired) {
+        reloadMcpPolicy({ projectRoot: getProjectRoot() });
+        agentRegistry.reloadDefaultAgentId();
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /scope must be/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to reset settings",
         details: message
       });
     }

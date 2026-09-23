@@ -1005,6 +1005,106 @@ async function readAgentSetting(agentRoot, projectRoot, scope, key) {
   };
 }
 
+function buildResetSettingsFlatForScope(scopeKey, schema, currentRaw = {}) {
+  const current = normalizeSettingsForScope(scopeKey, currentRaw);
+  const nextFlat = normalizeSettingsForScope(scopeKey, getDefaultsForScope(scopeKey));
+  for (const [key, fieldDef] of Object.entries(schema.fields || {})) {
+    if (!isSettingFieldReadonly(fieldDef)) continue;
+    if (Object.prototype.hasOwnProperty.call(current, key)) {
+      nextFlat[key] = current[key];
+    }
+  }
+  return nextFlat;
+}
+
+async function resetAgentSettingsScope(agentRoot, projectRoot, scope) {
+  const scopeKey = resolveSettingsScopeKey(scope);
+  const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
+  const payload = await readSettingsRawForScope(agentRoot, projectRoot, scopeKey);
+  const nextFlat = buildResetSettingsFlatForScope(scopeKey, schema, payload.raw);
+
+  if (scopeKey === "platform") {
+    const nextContent = composeGlobalSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || PLATFORM_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat,
+      awn_policy: payload.awn_policy || null
+    });
+    const saved = await writeGlobalSettingsFile(
+      projectRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    invalidatePlatformSettingsCache();
+    const parsed = parseSettingsFileContent(saved.content);
+    return {
+      ok: true,
+      scope: "platform",
+      path: saved.path,
+      content: saved.content,
+      exists: true,
+      settings: normalizePlatformAgentSettings(parsed.awn_settings),
+      policyReloadRequired: true
+    };
+  }
+
+  if (scopeKey === "user") {
+    const nextContent = composeSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || USER_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat
+    });
+    const saved = await writeUserSettingsFile(
+      agentRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    const parsed = parseSettingsFileContent(saved.content);
+    return {
+      ok: true,
+      scope: "user",
+      path: saved.path,
+      content: saved.content,
+      exists: true,
+      settings: normalizeUserAgentSettings(parsed.awn_settings)
+    };
+  }
+
+  if (scopeKey === "integrations") {
+    const nextContent = composeSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || INTEGRATIONS_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat
+    });
+    const saved = await writeIntegrationsSettingsFile(
+      agentRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    const parsed = parseSettingsFileContent(saved.content);
+    return {
+      ok: true,
+      scope: "integrations",
+      path: saved.path,
+      content: saved.content,
+      exists: true,
+      settings: normalizeIntegrationsAgentSettings(parsed.awn_settings)
+    };
+  }
+
+  const nextContent = composeSettingsFileContent({
+    headerComment: payload.parsed?.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+  });
+  const saved = await writeWorkspaceSettingsFile(
+    agentRoot,
+    nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+  );
+  const parsed = parseSettingsFileContent(saved.content);
+  return {
+    ok: true,
+    scope: "workspace",
+    path: saved.path,
+    content: saved.content,
+    exists: true,
+    settings: normalizeWorkspaceAgentSettings(parsed.awn_settings)
+  };
+}
+
 async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
   const scopeKey = resolveSettingsScopeKey(scope);
   const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
@@ -1160,5 +1260,6 @@ module.exports = {
   buildPlatformSettingsMeta,
   listAgentSettings,
   readAgentSetting,
-  writeAgentSetting
+  writeAgentSetting,
+  resetAgentSettingsScope
 };

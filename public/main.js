@@ -501,6 +501,7 @@ const projectSettingsFieldsNode = document.getElementById("project-settings-fiel
 const projectSettingsEnvWrapNode = document.getElementById("project-settings-env-wrap");
 const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
 const projectSettingsEnvSaveBtnNode = document.getElementById("project-settings-env-save-btn");
+const projectSettingsResetBtnNode = document.getElementById("project-settings-reset-btn");
 const projectSettingsSaveBtnNode = document.getElementById("project-settings-save-btn");
 const projectSettingsRefreshBtnNode = document.getElementById("project-settings-refresh-btn");
 const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
@@ -43085,9 +43086,10 @@ function finishProjectSettingsEnvFocus() {
 async function openProjectSettingsEnvEditor(scopePath, options = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!projectSettingsScopeSupportsEnvEditor(normalized)) return;
+  const current = getNodeSettingsManifestPath();
+  syncNodeSettingsCacheFromDom(getNodeSettingsCache(current));
   projectSettingsEnvOnlyMode = true;
   projectSettingsEnvFocusPending = true;
-  const current = getNodeSettingsManifestPath();
   if (current !== normalized) {
     await selectProjectSettingsScope(normalized, { originButton: options.originButton, envOnly: true });
     return;
@@ -43096,6 +43098,7 @@ async function openProjectSettingsEnvEditor(scopePath, options = {}) {
   try {
     await loadProjectSettingsEnvForManifest(normalized, { force: true });
     renderProjectSettingsPage();
+    commitProjectSettingsEnvBaseline();
   } catch (error) {
     projectSettingsEnvFocusPending = false;
     showToast(`Не удалось открыть .env: ${error.message}`, "error");
@@ -43361,8 +43364,13 @@ function applyProjectSettingsAgentGroupTabUi(cache = getNodeSettingsCache()) {
   }
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
-  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  syncProjectSettingsFormActionsVisibility(true);
   syncProjectSettingsSaveButtonState();
+}
+
+function syncProjectSettingsFormActionsVisibility(visible) {
+  projectSettingsResetBtnNode?.classList.toggle("hidden", !visible);
+  projectSettingsSaveBtnNode?.classList.toggle("hidden", !visible);
 }
 
 function patchProjectSettingsScopeListActiveState(activeScopePath = getNodeSettingsManifestPath()) {
@@ -43569,10 +43577,10 @@ function renderProjectSettingsScopeList() {
 async function selectProjectSettingsAgentSettingsTab(scopePath, groupId, originButton = null) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized || !groupId) return;
+  syncNodeSettingsCacheFromDom(getNodeSettingsCache(normalized));
   projectSettingsScopePath = normalized;
   projectSettingsActiveGroupId = groupId;
   projectSettingsEnvOnlyMode = false;
-  projectSettingsEnvSnapshot = null;
   try {
     if (!getNodeSettingsCache(normalized)) {
       await loadProjectSettingsContent({ force: false });
@@ -43591,9 +43599,10 @@ async function selectProjectSettingsAgentSettingsTab(scopePath, groupId, originB
 async function selectProjectSettingsScope(scopePath, options = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized) return;
+  syncNodeSettingsCacheFromDom(getNodeSettingsCache(getNodeSettingsManifestPath()));
   projectSettingsScopePath = normalized;
-  projectSettingsEnvSnapshot = null;
   if (!options.envOnly) {
+    projectSettingsEnvSnapshot = null;
     projectSettingsEnvOnlyMode = false;
   }
   if (options.groupId) {
@@ -43795,7 +43804,7 @@ function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifest
     projectSettingsEmptyNode.textContent =
       "Редактор настроек инфоблока в разработке. Пока используйте «Накопители информации» в боковом меню.";
   }
-  projectSettingsSaveBtnNode?.classList.add("hidden");
+  syncProjectSettingsFormActionsVisibility(false);
   syncProjectSettingsScopeListUi();
 }
 
@@ -43812,7 +43821,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   }
 
   projectSettingsFieldsNode?.classList.remove("hidden");
-  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  syncProjectSettingsFormActionsVisibility(true);
   projectSettingsPageNode?.querySelector(".project-settings-block:not(.project-settings-block--env)")?.classList.remove(
     "hidden"
   );
@@ -43935,10 +43944,10 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (showSettingsForm) {
     projectSettingsFieldsNode?.classList.remove("hidden");
     renderNodeSettingsEditor(cache);
-    projectSettingsSaveBtnNode?.classList.remove("hidden");
+    syncProjectSettingsFormActionsVisibility(true);
   } else {
     projectSettingsFieldsNode?.classList.add("hidden");
-    projectSettingsSaveBtnNode?.classList.add("hidden");
+    syncProjectSettingsFormActionsVisibility(false);
     projectSettingsEmptyNode?.classList.add("hidden");
     projectSettingsGroupTabsNode?.classList.add("hidden");
   }
@@ -43956,7 +43965,9 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       envBlockTitleNode.textContent = isLocalScope || isGlobalScope ? ".env" : envPath || ".env";
     }
     renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
-    projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
+    if (projectSettingsEnvSnapshot === null) {
+      projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
+    }
     syncProjectSettingsEnvEditorUi();
     finishProjectSettingsEnvFocus();
   }
@@ -44031,8 +44042,21 @@ function syncProjectSettingsSaveButtonState() {
   syncSaveButtonLamp();
 }
 
+function setProjectSettingsFormButtonsState(disabled, labels = {}) {
+  const saveLabel = labels.save || "Сохранить";
+  const resetLabel = labels.reset || "Сбросить";
+  if (projectSettingsSaveBtnNode) {
+    projectSettingsSaveBtnNode.textContent = saveLabel;
+    if (disabled) projectSettingsSaveBtnNode.disabled = true;
+  }
+  if (projectSettingsResetBtnNode) {
+    projectSettingsResetBtnNode.textContent = resetLabel;
+    projectSettingsResetBtnNode.disabled = disabled;
+  }
+}
+
 async function saveProjectSettingsFormContent() {
-  setSaveButtonsState(true, "Сохраняю...");
+  setProjectSettingsFormButtonsState(true, { save: "Сохраняю..." });
   let saveSucceeded = false;
   try {
     await saveNodeSettingsContent();
@@ -44042,13 +44066,77 @@ async function saveProjectSettingsFormContent() {
   } catch (error) {
     showToast(`Ошибка сохранения: ${error.message}`, "error");
   } finally {
-    setSaveButtonsState(false);
+    setProjectSettingsFormButtonsState(false);
     if (saveSucceeded) {
       commitEditorSaveBaseline();
       if (isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
         void loadPlatformUiSettings();
       }
     }
+    syncProjectSettingsSaveButtonState();
+  }
+}
+
+async function resetProjectSettingsFormContent() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (!isProjectSettingsAgentSettingsScope(manifestPath)) return;
+  const scopeLabel =
+    isProjectSettingsGlobalScope(manifestPath)
+      ? "глобальные настройки платформы"
+      : isProjectSettingsLocalScope(manifestPath)
+        ? "локальные настройки хранилища"
+        : isProjectSettingsIntegrationsSettingsScope(manifestPath)
+          ? "интеграции и плагины"
+          : isProjectSettingsUserSettingsScope(manifestPath)
+            ? "пользовательские настройки"
+            : "настройки";
+  if (
+    !window.confirm(
+      `Сбросить ${scopeLabel} к значениям по умолчанию?\n\nПоля только для чтения (счётчики, системные) не изменятся.`
+    )
+  ) {
+    return;
+  }
+
+  setProjectSettingsFormButtonsState(true, { reset: "Сбрасываю..." });
+  let resetSucceeded = false;
+  try {
+    const scope = resolveAgentSettingsSchemaScope(manifestPath);
+    const response = await fetch(buildApiUrl("/api/agent/settings/reset"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const reason = errorData.error || `Request failed with ${response.status}`;
+      const details = errorData.details ? `: ${errorData.details}` : "";
+      throw new Error(`${reason}${details}`);
+    }
+    const data = await response.json();
+    const cache = await loadNodeSettingsForManifest(manifestPath, { force: true });
+    if (cache && data?.content) {
+      const nextState = parseNodeSettingsState(data.content);
+      cache.headerComment = nextState.headerComment;
+      cache.entries = buildNodeSettingsEntriesFromSchema(nextState.entries, cache.settingsFields || {});
+      cache.defaultLandingMode = nextState.defaultLandingMode;
+      cache.awnSchemaYaml = nextState.awnSchemaYaml;
+      nodeSettingsCacheByManifest.set(manifestPath, cache);
+    }
+    resetSucceeded = true;
+    showToast("Настройки сброшены", "success");
+    renderProjectSettingsPage(cache);
+    if (isProjectSettingsGlobalScope(manifestPath)) {
+      void loadPlatformUiSettings();
+    }
+    if (cache?.settingsScope === "user") {
+      applyUserSettingsFromCache(cache);
+    }
+  } catch (error) {
+    showToast(`Не удалось сбросить: ${error.message}`, "error");
+  } finally {
+    setProjectSettingsFormButtonsState(false);
+    if (resetSucceeded) commitEditorSaveBaseline();
     syncProjectSettingsSaveButtonState();
   }
 }
@@ -44438,14 +44526,17 @@ function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
   const fieldsNode = getNodeSettingsFieldsContainer();
   if (!cache || !fieldsNode) return cache;
   const schemaFields = cache.settingsFields || {};
-  const entries = [];
+  const entryMap = new Map((cache.entries || []).map((entry) => [entry.key, entry]));
   fieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
-    const entry = readNodeSettingsEntryFromRow(row);
+    const entry = readNodeSettingsEntryFromRow(row, cache);
     if (!entry.key || !schemaFields[entry.key]) return;
     if (isProjectSettingsReadonlyField(schemaFields[entry.key])) return;
-    entries.push(entry);
+    entryMap.set(
+      entry.key,
+      normalizeNodeSettingsEntryValue(entry, schemaFields[entry.key])
+    );
   });
-  cache.entries = buildNodeSettingsEntriesFromSchema(entries, schemaFields);
+  cache.entries = buildNodeSettingsEntriesFromSchema(Array.from(entryMap.values()), schemaFields);
   return cache;
 }
 
@@ -101010,6 +101101,9 @@ function setupProjectSettingsScopeSearch() {
   projectSettingsScopeSearchInputNode?.addEventListener("input", (event) => {
     projectSettingsScopeSearchQuery = String(event.target.value || "");
     renderProjectSettingsScopeList();
+  });
+  projectSettingsResetBtnNode?.addEventListener("click", () => {
+    void resetProjectSettingsFormContent();
   });
   projectSettingsSaveBtnNode?.addEventListener("click", () => {
     void saveProjectSettingsFormContent();
