@@ -3,91 +3,80 @@
 awn_settings:
   agent-language: ru
   response-style: brief
-  notify-on-complete: false
+  notify-on-complete: true
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T09:21:22.017Z"
+  awn-id-updated-at: "2026-09-23T09:41:06.441Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 30
+  hooks-rules: []
+  voice-route-runtime: claude
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
   voice-route-system-prompt: Ты — личный ассистент пользователя в Agent CMS Voice.
-  2. Ответы короткие и разговорные: пользователь часто на мобильном и говорит голосом.
-  6. Перед записью в workspace: "если неочевидно, куда положить — спроси. Если подходящей страницы или темы нет — предложи создать новую и обсуди с пользователем название и место, прежде чем записывать.\""
+  voice-route-claude-cli-path: claude
   voice-route-claude-session-id: new-session-abc
+  voice-route-codex-cli-path: codex
   voice-route-codex-model: gpt-6-astra
   voice-route-codex-session-id: 01a08615-e047-74b2-8d13-905c0c82c565
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
+  voice-route-qwenpaw-user-id: default
+  voice-route-qwenpaw-agent-id: default
+  voice-route-qwenpaw-approval-level: AUTO
   voice-route-qwenpaw-session-id: agent-shell
-  voice-route-runtime: claude
+  voice-input-enabled: false
+  voice-input-mode: fn_button
+  voice-input-response-enabled: false
+  voice-input-capture: microphone
+  voice-stt-prompt: "В сообщении пользователя может быть смесь обычного текста и голосовых блоков:"
+  voice-stt-engine: browser
+  voice-stt-lang: ru-RU
+  voice-stt-whisper-model: base
+  voice-stt-elevenlabs-model: scribe_v2
+  voice-tts-enabled: false
+  voice-tts-playback-mode: dialog
+  voice-tts-prompt: "Каждый ответ пользователю используй в формате (строго, в таком порядке):"
+  voice-tts-include-captions: true
+  voice-tts-engine: browser
+  voice-tts-browser-lang: ru-RU
+  voice-tts-browser-voice: Милена
+  voice-tts-rate: 1
+  voice-tts-pitch: 1
+  voice-tts-edge-voice: ru-RU-SvetlanaNeural
+  voice-tts-edge-rate: 1
+  voice-tts-piper-binary: piper
+  voice-tts-elevenlabs-api-key: sk_4aa9fb58faddf21a3156b9e98175bd0709bf310e6c61b370
+  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
+  voice-tts-elevenlabs-model: eleven_multilingual_v2
+  voice-tts-elevenlabs-rate: 1
   voice-proactive-enabled: false
   voice-proactive-idle-seconds-min: 30
   voice-proactive-idle-seconds-max: 60
   voice-proactive-cooldown-seconds: 180
-  voice-proactive-prompt: "Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек)."
-  Сначала загляни в Agent CMS (MCP): "заметки, задачи, расписание, недавние темы. Потом — последние реплики в этом диалоге."
-  1) Конкретика из workspace: "открытая задача, дедлайн, напоминание, незакрытый вопрос."
-  [proactive-empty] — только если реально проверил MCP и диалог: "нет открытых задач/тем, нечего уместно добавить. Тогда одна строка [proactive-empty], без другого текста."
   voice-proactive-quiet-hours-enabled: true
   voice-proactive-quiet-hours-start: "23:00"
   voice-proactive-quiet-hours-end: "07:00"
-  voice-input-enabled: false
-  voice-input-mode: fn_button
-  voice-input-capture: microphone
-  voice-input-global-listen: false
-  voice-input-to-compose: false
-  voice-input-response-enabled: false
-  voice-stt-engine: browser
-  voice-stt-lang: ru-RU
-  voice-stt-prompt: "В сообщении пользователя может быть смесь обычного текста и голосовых блоков:"
-  Внутри [stt] — сказано голосом: "возможны «э-э», «эээ», «мм», «ну», ошибки распознавания и пунктуации."
-  voice-stt-whisper-model: base
-  voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: false
-  voice-tts-engine: browser
-  voice-tts-playback-mode: dialog
-  voice-tts-prompt: "Каждый ответ пользователю используй в формате (строго, в таком порядке):"
-  3) Подробный ответ для экрана (markdown, списки, код). Если главное уже сказано голосом — начни с короткой отсылки: «Подробнее ниже» или «Смотри детали ниже».
-  voice-tts-pitch: 1
-  voice-tts-include-captions: true
-  voice-tts-browser-lang: ru-RU
-  voice-tts-browser-voice: Милена
-  voice-tts-edge-voice: ru-RU-SvetlanaNeural
-  voice-tts-elevenlabs-api-key: sk_4aa9fb58faddf21a3156b9e98175bd0709bf310e6c61b370
-  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
-  voice-tts-elevenlabs-model: eleven_multilingual_v2
-  voice-tts-rate: 1
-  voice-tts-edge-rate: 1
-  voice-tts-elevenlabs-rate: 1
-  voice-compose-templates:
-    - id: very-brief
-      key: very-brief
-      group: Стиль ответа
-      label: Ответ очень кратко
-      text: Ответь очень кратко — одним-двумя предложениями.
-    - id: brief
-      key: brief
-      group: Стиль ответа
-      label: Ответ кратко
-      text: "Ответь кратко, без лишних деталей."
-    - id: detailed
-      key: detailed
-      group: Стиль ответа
-      label: Ответ развернуто
-      text: "Ответь развёрнуто, с подробностями и примерами.2"
+  voice-proactive-prompt: "Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек)."
   voice-media-camera-enabled: false
   voice-media-camera-on-speech: true
   voice-media-camera-facing: environment
   voice-media-screen-enabled: false
   voice-media-screen-on-speech: false
   voice-window-character-model: kimono
+  voice-window-compact-mode: false
   voice-window-topmost: false
   voice-window-pet-overlay: false
   voice-window-transparent: false
   voice-window-background: wallpaper
   voice-window-compact-dialog-qa: true
-  voice-window-dialog-auto-scroll: true
   voice-window-keep-awake: false
   voice-window-processing-sound: off
-  voice-ui-dialog-scroll-ratio: 1
+  voice-window-dialog-auto-scroll: true
+  voice-compose-templates:
+    - "[object Object]"
+    - "[object Object]"
+    - "[object Object]"
+  ws-static-example-1: значение 1
+  ws-static-example-2: значение 2
+  ws-static-example-3: значение 3
