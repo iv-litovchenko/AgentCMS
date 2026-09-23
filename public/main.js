@@ -105153,6 +105153,26 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   }
 }
 
+function createAwnDataViewRecordIdEditButton(record, viewStore, value) {
+  const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const label = String(value || record?.id || "—").trim() || "—";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "awn-database-view-record-id-btn awn-database-view-edit-btn";
+  btn.title = isCsvStore ? "Открыть main.csv" : `Редактировать: ${label}`;
+  btn.setAttribute("aria-label", btn.title);
+  btn.append(createOverviewEditManifestIcon());
+  const idText = document.createElement("span");
+  idText.className = "awn-database-view-record-id-text";
+  idText.textContent = label;
+  btn.append(idText);
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void openAwnDataRecordEditor(record, viewStore);
+  });
+  return btn;
+}
+
 function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
   rowOrCell.title = record.relPath || record.id || "";
   rowOrCell.tabIndex = 0;
@@ -105206,7 +105226,6 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
 
   for (const column of columns) {
     const row = document.createElement("tr");
@@ -105224,24 +105243,7 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
       cell.className = "awn-database-view-transposed-field-value";
       if (column.kind === "id") {
         cell.classList.add("awn-database-view-record-id");
-        const idWrap = document.createElement("div");
-        idWrap.className = "awn-database-view-record-id-wrap";
-        const idText = document.createElement("span");
-        idText.className = "awn-database-view-record-id-text";
-        idText.textContent = value;
-        idWrap.append(idText);
-        const editBtn = document.createElement("button");
-        editBtn.type = "button";
-        editBtn.className = "awn-database-view-edit-btn";
-        editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
-        editBtn.setAttribute("aria-label", editBtn.title);
-        editBtn.append(createOverviewEditManifestIcon());
-        editBtn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          void openAwnDataRecordEditor(record, viewStore);
-        });
-        idWrap.append(editBtn);
-        cell.append(idWrap);
+        cell.append(createAwnDataViewRecordIdEditButton(record, viewStore, value));
       } else {
         cell.textContent = value;
       }
@@ -105506,25 +105508,7 @@ function renderAwnDataViewRecords(store) {
 
       if (column.kind === "id") {
         cell.className = "awn-database-view-record-id";
-        const idWrap = document.createElement("div");
-        idWrap.className = "awn-database-view-record-id-wrap";
-        const idText = document.createElement("span");
-        idText.className = "awn-database-view-record-id-text";
-        idText.textContent = value;
-        idWrap.append(idText);
-        const editBtn = document.createElement("button");
-        editBtn.type = "button";
-        editBtn.className = "awn-database-view-edit-btn";
-        const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
-        editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
-        editBtn.setAttribute("aria-label", editBtn.title);
-        editBtn.append(createOverviewEditManifestIcon());
-        editBtn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          void openAwnDataRecordEditor(record, viewStore);
-        });
-        idWrap.appendChild(editBtn);
-        cell.appendChild(idWrap);
+        cell.appendChild(createAwnDataViewRecordIdEditButton(record, viewStore, value));
       } else if (isAwnDataViewTitleFieldKey(column.key)) {
         cell.className = "awn-database-view-record-title";
         const titleText = document.createElement("span");
@@ -105625,7 +105609,12 @@ async function submitAwnDataUploadFiles(fileList, agentId = activeAgentId) {
   const files = Array.from(fileList || []).filter(Boolean);
   if (!files.length) return;
 
-  const folderPath = `awn-database/${String(awnDataViewStoreRel || "").replace(/^\/+/, "")}`;
+  const storeRel = String(awnDataViewStoreRel || "").replace(/^\/+/, "");
+  const store = awnDataViewStoreCache || {};
+  const recordRoot = String(store.recordRoot || "").replace(/^\/+|\/+$/g, "");
+  const folderPath = recordRoot
+    ? `awn-database/${storeRel}/${recordRoot}`
+    : `awn-database/${storeRel}`;
   awnDataUploadBtnNode?.setAttribute("disabled", "disabled");
   awnDataUploadBtnNode?.classList.add("is-uploading");
   try {

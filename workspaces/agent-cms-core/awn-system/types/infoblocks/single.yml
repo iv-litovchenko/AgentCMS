@@ -4,7 +4,7 @@ kind: type
 domain: infoblock
 status: active
 extends: awn.infoblock.base
-description: manifest + ровно один main.md
+description: manifest + schema в корне; main.md в awn-storage/data/
 manifest-pattern: manifest.md
 
 kind-ui:

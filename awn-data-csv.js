@@ -3,6 +3,27 @@ const path = require("path");
 
 const DEFAULT_CSV_FILE = "main.csv";
 const DEFAULT_CSV_DELIMITER = ",";
+const STORE_STORAGE_ROOT = "awn-storage";
+const STORE_DATA_DIR = "data";
+
+function resolveCsvAbsPath(storeAbs, schema) {
+  const csvFile = getCsvFileName(schema);
+  const nestedDir = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR);
+  const nested = path.join(nestedDir, csvFile);
+  const flat = path.join(storeAbs, csvFile);
+  if (fs.existsSync(nested)) return nested;
+  if (fs.existsSync(flat)) return flat;
+  if (fs.existsSync(nestedDir)) return nested;
+  return flat;
+}
+
+function formatCsvRecordRelPath(storeRel, csvFile, storeAbs) {
+  const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR, csvFile);
+  if (fs.existsSync(nested)) {
+    return `${storeRel}/${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}/${csvFile}`.replace(/\\/g, "/");
+  }
+  return `${storeRel}/${csvFile}`.replace(/\\/g, "/");
+}
 
 function countDelimitersOutsideQuotes(line, delimiter) {
   let count = 0;
@@ -142,7 +163,7 @@ function resolveCsvId(rowObj, columns, idMode) {
 
 function loadCsvRecords(storeAbs, storeRel, schema) {
   const csvFile = getCsvFileName(schema);
-  const csvPath = path.join(storeAbs, csvFile);
+  const csvPath = resolveCsvAbsPath(storeAbs, schema);
   if (!fs.existsSync(csvPath)) return [];
 
   const { columns, rows } = parseCsvText(fs.readFileSync(csvPath, "utf-8"));
@@ -150,7 +171,7 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
 
   const normalizedCols = columns.map((c) => String(c).trim());
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "slug").trim();
-  const relPath = `${storeRel}/${csvFile}`.replace(/\\/g, "/");
+  const relPath = formatCsvRecordRelPath(storeRel, csvFile, storeAbs);
 
   return rows
     .map((cells, rowIndex) => {
@@ -186,7 +207,7 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
 
 function appendCsvRecord(storeAbs, schema, recordData) {
   const csvFile = getCsvFileName(schema);
-  const csvPath = path.join(storeAbs, csvFile);
+  const csvPath = resolveCsvAbsPath(storeAbs, schema);
   const columns = getCsvColumnsFromSchema(schema);
 
   let existing = { columns: [], rows: [], delimiter: DEFAULT_CSV_DELIMITER };
@@ -221,7 +242,7 @@ function appendCsvRecord(storeAbs, schema, recordData) {
 
 function writeCsvFromRecords(storeAbs, schema, records) {
   const csvFile = getCsvFileName(schema);
-  const csvPath = path.join(storeAbs, csvFile);
+  const csvPath = resolveCsvAbsPath(storeAbs, schema);
   const columns = getCsvColumnsFromSchema(schema);
   const rows = records.map((record) => {
     const fm = record.frontmatter || record;
@@ -238,6 +259,10 @@ function writeCsvFromRecords(storeAbs, schema, records) {
 module.exports = {
   DEFAULT_CSV_FILE,
   DEFAULT_CSV_DELIMITER,
+  STORE_STORAGE_ROOT,
+  STORE_DATA_DIR,
+  resolveCsvAbsPath,
+  formatCsvRecordRelPath,
   detectCsvDelimiter,
   parseCsvText,
   serializeCsv,

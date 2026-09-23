@@ -43,8 +43,74 @@ const STORE_FILE = "store.yml";
 const SCHEMA_FILE = COLLECTION_MANIFEST;
 const LEGACY_STORE_FILE = "configuration-schema.yml";
 const SINGLETON_RECORD = "main.md";
+const STORE_STORAGE_ROOT = "awn-storage";
+const STORE_DATA_DIR = "data";
+const STORE_ASSETS_DIR = "assets";
 const DISCOVER_SKIP_DIRS = new Set([".awn-cache", "history", "table-base"]);
-const RECORD_WALK_SKIP_DIRS = new Set(["table-base", "record-base", "row-base", "_base", ".awn-cache", "history"]);
+const RECORD_WALK_SKIP_DIRS = new Set([
+  "table-base",
+  "record-base",
+  "row-base",
+  "_base",
+  ".awn-cache",
+  "history",
+  STORE_STORAGE_ROOT
+]);
+
+function resolveStoreStorageDataAbs(storeAbs) {
+  const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR);
+  if (fs.existsSync(nested) && fs.statSync(nested).isDirectory()) return nested;
+  return storeAbs;
+}
+
+function usesStoreStorageDataLayout(storeAbs) {
+  const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR);
+  return fs.existsSync(nested) && fs.statSync(nested).isDirectory();
+}
+
+function ensureStoreStorageLayout(storeAbs) {
+  const storageRoot = path.join(storeAbs, STORE_STORAGE_ROOT);
+  const dataDir = path.join(storageRoot, STORE_DATA_DIR);
+  const assetsDir = path.join(storageRoot, STORE_ASSETS_DIR);
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(assetsDir, { recursive: true });
+  fs.mkdirSync(path.join(assetsDir, "attachments"), { recursive: true });
+  return dataDir;
+}
+
+function resolveStoreRecordRootAbs(storeAbs) {
+  return resolveStoreStorageDataAbs(storeAbs);
+}
+
+function formatStoreRecordRelPath(storeRel, innerRelPath, storeAbs) {
+  const normalized = String(innerRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (usesStoreStorageDataLayout(storeAbs)) {
+    return `${storeRel}/${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}/${normalized}`.replace(/\/+/g, "/");
+  }
+  return `${storeRel}/${normalized}`.replace(/\/+/g, "/");
+}
+
+function resolveStoreSingletonRecordAbs(storeAbs) {
+  const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR, SINGLETON_RECORD);
+  if (fs.existsSync(nested)) return nested;
+  return path.join(storeAbs, SINGLETON_RECORD);
+}
+
+function resolveStoreRecordAbs(storeAbs, relWithinStore) {
+  const normalized = String(relWithinStore || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  const recordRoot = resolveStoreRecordRootAbs(storeAbs);
+  const abs = path.join(recordRoot, normalized);
+  if (fs.existsSync(abs)) return abs;
+  if (recordRoot !== storeAbs) {
+    const legacy = path.join(storeAbs, normalized);
+    if (fs.existsSync(legacy)) return legacy;
+  }
+  return abs;
+}
 
 function isSystemStoreFile(name) {
   const lower = String(name || "").toLowerCase();
@@ -1080,14 +1146,14 @@ function isCollectionContentFile(name) {
   return true;
 }
 
-function listCollectionFiles(dirPath, fileTypesSpec, relPrefix = "", acc = []) {
+function walkCollectionFiles(dirPath, fileTypesSpec, relPrefix = "", acc = []) {
   if (!fs.existsSync(dirPath)) return acc;
   for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
     if (entry.name.startsWith(".")) continue;
     const fullPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
       if (RECORD_WALK_SKIP_DIRS.has(entry.name)) continue;
-      listCollectionFiles(fullPath, fileTypesSpec, path.posix.join(relPrefix, entry.name), acc);
+      walkCollectionFiles(fullPath, fileTypesSpec, path.posix.join(relPrefix, entry.name), acc);
       continue;
     }
     if (!isCollectionContentFile(entry.name)) continue;
@@ -1101,12 +1167,16 @@ function listCollectionFiles(dirPath, fileTypesSpec, relPrefix = "", acc = []) {
   return acc;
 }
 
-function parseCollectionFile(fileEntry, storeRel) {
+function listCollectionFiles(storeAbs, fileTypesSpec, relPrefix = "", acc = []) {
+  return walkCollectionFiles(resolveStoreRecordRootAbs(storeAbs), fileTypesSpec, relPrefix, acc);
+}
+
+function parseCollectionFile(fileEntry, storeRel, storeAbs) {
   const id = path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
   return {
     id,
     parent: null,
-    relPath: `${storeRel}/${fileEntry.relPath}`.replace(/\\/g, "/"),
+    relPath: formatStoreRecordRelPath(storeRel, fileEntry.relPath, storeAbs),
     fileName: fileEntry.fileName,
     frontmatter: {},
     body: "",
@@ -1116,14 +1186,14 @@ function parseCollectionFile(fileEntry, storeRel) {
   };
 }
 
-function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
+function walkRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
   if (!fs.existsSync(dirPath)) return acc;
   for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
     if (entry.name.startsWith(".")) continue;
     const fullPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
       if (RECORD_WALK_SKIP_DIRS.has(entry.name)) continue;
-      listRecordFiles(fullPath, kind, path.posix.join(relPrefix, entry.name), acc);
+      walkRecordFiles(fullPath, kind, path.posix.join(relPrefix, entry.name), acc);
       continue;
     }
     if (!isRecordFile(entry.name, kind, relPrefix)) continue;
@@ -1134,6 +1204,10 @@ function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
     });
   }
   return acc;
+}
+
+function listRecordFiles(storeAbs, kind, relPrefix = "", acc = []) {
+  return walkRecordFiles(resolveStoreRecordRootAbs(storeAbs), kind, relPrefix, acc);
 }
 
 function parseRecordBodyFields(body) {
@@ -1176,7 +1250,7 @@ function isSectionManifestRecord(fileEntry) {
   return isNestedSectionManifest(fileEntry?.fileName, path.dirname(String(fileEntry?.relPath || "")));
 }
 
-function parseRecordFile(fileEntry, storeRel) {
+function parseRecordFile(fileEntry, storeRel, storeAbs) {
   const raw = fs.readFileSync(fileEntry.absPath, "utf-8");
   const { frontmatter, body } = splitFrontmatter(raw);
   const mergedFrontmatter = mergeRecordBodyFields(frontmatter, body);
@@ -1208,7 +1282,7 @@ function parseRecordFile(fileEntry, storeRel) {
   return {
     id,
     parent: parent || inferredParent || null,
-    relPath: `${storeRel}/${fileEntry.relPath}`.replace(/\\/g, "/"),
+    relPath: formatStoreRecordRelPath(storeRel, fileEntry.relPath, storeAbs),
     fileName: fileEntry.fileName,
     frontmatter: mergedFrontmatter,
     body,
@@ -1313,12 +1387,12 @@ function loadStore(dataRoot, storeEntry) {
   if (kind !== "group") {
     if (kind === "collection" && collectionKind === "files") {
       const fileEntries = listCollectionFiles(storeAbs, recordFileTypes);
-      records = fileEntries.map((fileEntry) => parseCollectionFile(fileEntry, storeRel));
+      records = fileEntries.map((fileEntry) => parseCollectionFile(fileEntry, storeRel, storeAbs));
     } else if (kind === "collection" && recordStorage === "csv") {
       records = loadCsvRecords(storeAbs, storeRel, schema);
     } else {
       const recordFiles = listRecordFiles(storeAbs, kind);
-      records = recordFiles.map((f) => parseRecordFile(f, storeRel));
+      records = recordFiles.map((f) => parseRecordFile(f, storeRel, storeAbs));
     }
   }
 
@@ -1347,7 +1421,14 @@ function loadStore(dataRoot, storeEntry) {
         ? SINGLETON_RECORD
         : kind === "collection" && recordStorage === "csv"
           ? getCsvFileName(schema)
-          : null
+          : null,
+    storageLayout: usesStoreStorageDataLayout(storeAbs) ? "storage-data" : "flat",
+    recordRoot: usesStoreStorageDataLayout(storeAbs)
+      ? `${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}`
+      : "",
+    assetsRoot: fs.existsSync(path.join(storeAbs, STORE_STORAGE_ROOT, STORE_ASSETS_DIR))
+      ? `${STORE_STORAGE_ROOT}/${STORE_ASSETS_DIR}`
+      : ""
   };
 
   if (kind === "group") {
@@ -1918,6 +1999,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   const storeAbs = getStoreAbsolutePath(dataRoot, slug);
   fs.mkdirSync(storeAbs, { recursive: true });
+  const dataAbs = ensureStoreStorageLayout(storeAbs);
 
   const name = String(options.name || slug).trim();
   const description = String(options.description || "").trim();
@@ -1966,10 +2048,10 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       // files-only collection: no sample record
     } else if (recordStorage === "csv") {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
-      fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
+      fs.writeFileSync(path.join(dataAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
       const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись", storeRel: slug });
-      fs.writeFileSync(path.join(storeAbs, "1.md"), recordContent, "utf-8");
+      fs.writeFileSync(path.join(dataAbs, "1.md"), recordContent, "utf-8");
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
     }
   } else if (kind === "group") {
@@ -1992,7 +2074,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       storeRel: slug,
       extra: { note: "" }
     });
-    fs.writeFileSync(path.join(storeAbs, SINGLETON_RECORD), recordContent, "utf-8");
+    fs.writeFileSync(path.join(dataAbs, SINGLETON_RECORD), recordContent, "utf-8");
   }
 
   if (slug.includes("/")) {
@@ -2062,17 +2144,20 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     return getAwnDataPayload(agentRoot, projectRoot, storeRel).store;
   }
 
+  const recordRoot = resolveStoreRecordRootAbs(storeAbs);
   let relFile = `${id}.md`;
-  let absFile = path.join(storeAbs, relFile);
+  let absFile = path.join(recordRoot, relFile);
   if (parent && hierarchy) {
     relFile = path.posix.join(parent, `${id}.md`);
-    absFile = path.join(storeAbs, parent, `${id}.md`);
+    absFile = path.join(recordRoot, parent, `${id}.md`);
     fs.mkdirSync(path.dirname(absFile), { recursive: true });
   }
 
   if (options.isSection) {
     const sectionId = id;
-    const sectionDir = parent ? path.join(storeAbs, parent, sectionId) : path.join(storeAbs, sectionId);
+    const sectionDir = parent
+      ? path.join(recordRoot, parent, sectionId)
+      : path.join(recordRoot, sectionId);
     const manifestPath = path.join(sectionDir, COLLECTION_MANIFEST);
     if (fs.existsSync(sectionDir)) throw new Error(`Раздел уже существует: ${sectionId}`);
     fs.mkdirSync(sectionDir, { recursive: true });
@@ -2219,11 +2304,12 @@ function readStoreManifestRaw(storeAbs) {
 function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
   const kind = normalizeStoreKind(storeEntry?.kind || "");
   if (kind === "single") {
-    return path.join(storeAbs, SINGLETON_RECORD);
+    return resolveStoreSingletonRecordAbs(storeAbs);
   }
   const ref = String(recordRef || "").trim();
   if (!ref) throw new Error("record is required");
 
+  const storeRel = String(storeEntry?.relPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   const records = storeEntry?.records || [];
   const hit = records.find(
     (item) =>
@@ -2235,15 +2321,18 @@ function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
       item.relPath.endsWith(`/${ref}.md`)
   );
   if (hit) {
-    const withinStore = String(hit.relPath || "")
-      .replace(/^[^/]+\//, "")
-      .replace(/\\/g, "/");
+    const relPath = String(hit.relPath || "").replace(/\\/g, "/");
+    if (storeRel && relPath.startsWith(`${storeRel}/`)) {
+      const withinStore = relPath.slice(storeRel.length + 1);
+      return resolveStoreRecordAbs(storeAbs, withinStore);
+    }
+    const withinStore = relPath.replace(/^[^/]+\//, "").replace(/\\/g, "/");
     const rel = withinStore || hit.fileName || `${ref}.md`;
-    return path.join(storeAbs, rel);
+    return resolveStoreRecordAbs(storeAbs, rel);
   }
 
   const direct = ref.endsWith(".md") ? ref : `${ref}.md`;
-  const abs = path.join(storeAbs, direct);
+  const abs = resolveStoreRecordAbs(storeAbs, direct);
   if (fs.existsSync(abs)) return abs;
   throw new Error(`Record not found: ${ref}`);
 }
@@ -2480,6 +2569,13 @@ module.exports = {
   STORE_FILE,
   SCHEMA_FILE,
   SINGLETON_RECORD,
+  STORE_STORAGE_ROOT,
+  STORE_DATA_DIR,
+  STORE_ASSETS_DIR,
+  resolveStoreRecordRootAbs,
+  usesStoreStorageDataLayout,
+  ensureStoreStorageLayout,
+  formatStoreRecordRelPath,
   COLLECTION_MANIFEST,
   SCHEME_MOD_FILE,
   SCHEMA_MOD_FILE,
