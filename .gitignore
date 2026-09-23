@@ -36,8 +36,10 @@ Desktop.ini
 
 # Cache & temp
 .cache/
-# Platform app lock (repo root only)
-/.agent-cms/
+# Platform runtime (.agent-cms) — ws-list registry stays in git
+/.agent-cms/*
+!/.agent-cms/ws-list-agents.json
+!/.agent-cms/ws-list-groups.json
 # Workspace runtime
 **/.agent-cms/cache/
 **/.agent-cms/state/

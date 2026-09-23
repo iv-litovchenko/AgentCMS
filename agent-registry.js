@@ -42,11 +42,12 @@ const {
 const NodeConfigBundle = require("./node-config-bundle");
 const { projectRel, legacy } = require("./paths/agent-cms");
 const {
-  loadRegistryEntriesFromAwnData,
-  saveRegistryEntriesToAwnData,
-  loadGroupsFromAwnData,
-  saveGroupsToAwnData
-} = require("./awn-data-agents-bridge");
+  loadRegistryEntriesWithMigration,
+  saveRegistryEntriesToWsList,
+  loadGroupsWithMigration,
+  saveGroupsToWsList,
+  LEGACY_AGENTS_REGISTRY_FILE
+} = require("./ws-list-bridge");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const agentContext = new AsyncLocalStorage();
@@ -66,7 +67,8 @@ const WORKSPACE_AWN_TYPES = new Set([WORKSPACE_AWN_TYPE, WORKSPACE_AWN_TYPE_LEGA
 const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
-const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
+/** @deprecated legacy root registry; canonical: .agent-cms/ws-list-agents.json */
+const AWN_AGENTS_REGISTRY_FILE = LEGACY_AGENTS_REGISTRY_FILE;
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
@@ -570,7 +572,7 @@ function setGroupBackgroundOnCache(groupId, background) {
 }
 
 function persistAgentsGroupsCacheToDisk() {
-  saveGroupsToAwnData(projectRoot, agentsGroupsCache.groups, agentsGroupsCache.ungrouped);
+  saveGroupsToWsList(projectRoot, agentsGroupsCache.groups, agentsGroupsCache.ungrouped);
 }
 
 function writeGroupBackgroundFile(groupId, buffer, ext) {
@@ -649,7 +651,7 @@ function normalizeAgentsGroupEntry(raw, index, knownAgentIds) {
 function loadAgentsGroupsSync() {
   const knownAgentIds = getKnownAgentIdsSet();
 
-  const fromAwn = loadGroupsFromAwnData(projectRoot);
+  const fromAwn = loadGroupsWithMigration(projectRoot);
   if (fromAwn) {
     const seen = new Set();
     const groups = (Array.isArray(fromAwn.groups) ? fromAwn.groups : [])
@@ -1298,17 +1300,12 @@ function normalizeAgentEntry(entry, index = 0) {
 
 function loadRawRegistryEntriesSync() {
   try {
-    const fromAwn = loadRegistryEntriesFromAwnData(projectRoot);
-    if (fromAwn && fromAwn.length > 0) return fromAwn;
+    const fromWsList = loadRegistryEntriesWithMigration(projectRoot);
+    if (fromWsList && fromWsList.length > 0) return fromWsList;
   } catch {
-    // fallback to awn-agents.json
+    // no registry sources
   }
-
-  const registryPath = getAgentsRegistryPathSync();
-  if (!fs.existsSync(registryPath)) return null;
-
-  const raw = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
-  return Array.isArray(raw.agents) ? raw.agents : [];
+  return null;
 }
 
 function loadRegistrySync() {
@@ -1525,33 +1522,16 @@ function saveAgentsRegistry(rawAgents) {
     if (firstActive) firstActive.default = true;
   }
 
-  try {
-    saveRegistryEntriesToAwnData(
-      projectRoot,
-      normalized.map((agent) => ({
-        id: agent.id,
-        name: path.basename(String(resolveAgentRootAbsolute(agent.path) || agent.id).replace(/[\\/]+$/, "")),
-        path: agent.path,
-        environment: agent.environment,
-        default: agent.default,
-        orchestrator: agent.orchestrator
-      }))
-    );
-  } catch {
-    // awn-data store may be missing during bootstrap — JSON fallback below
-  }
-
-  const registryPath = getAgentsRegistryPathSync();
-  const payload = {
-    agents: normalized.map(({ path: agentPath, environment, default: isDefault, orchestrator: isOrchestrator }) => {
-      const item = { path: agentPath, environment };
-      if (isDefault) item.default = true;
-      if (isOrchestrator) item.orchestrator = true;
-      return item;
-    })
-  };
-
-  fs.writeFileSync(registryPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+  saveRegistryEntriesToWsList(
+    projectRoot,
+    normalized.map((agent) => ({
+      id: agent.id,
+      path: agent.path,
+      environment: agent.environment,
+      default: agent.default,
+      orchestrator: agent.orchestrator
+    }))
+  );
   loadRegistrySync();
 
   return {

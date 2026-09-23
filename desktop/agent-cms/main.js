@@ -227,13 +227,14 @@ async function openWorkspaceDialog() {
   if (result.canceled || !result.filePaths[0]) return;
 
   const selectedRoot = path.resolve(result.filePaths[0]);
-  const registryPath = path.join(selectedRoot, "awn-agents.json");
-  if (!fs.existsSync(registryPath)) {
+  const wsListAgentsPath = path.join(selectedRoot, ".agent-cms", "ws-list-agents.json");
+  const legacyRegistryPath = path.join(selectedRoot, "awn-agents.json");
+  if (!fs.existsSync(wsListAgentsPath) && !fs.existsSync(legacyRegistryPath)) {
     const response = dialog.showMessageBoxSync(mainWindow || undefined, {
       type: "warning",
       title: "Workspace",
-      message: "В выбранной папке нет awn-agents.json",
-      detail: "Agent CMS может использовать эту папку как корень проекта, но список агентов нужно будет настроить вручную.",
+      message: "В выбранной папке нет реестра агентов",
+      detail: "Ожидается .agent-cms/ws-list-agents.json (или legacy awn-agents.json). Список агентов нужно будет настроить вручную.",
       buttons: ["Использовать", "Отмена"],
       defaultId: 0,
       cancelId: 1

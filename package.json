@@ -78,7 +78,8 @@
       "docs/**/*",
       "agent-shell/**/*",
       "mcp-server/**/*",
-      "awn-agents.json",
+      ".agent-cms/ws-list-agents.json",
+      ".agent-cms/ws-list-groups.json",
       "workspaces/**/*",
       "package.json"
     ],

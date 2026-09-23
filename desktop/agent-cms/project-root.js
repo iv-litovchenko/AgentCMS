@@ -43,10 +43,15 @@ function ensureWritableProject(app) {
 
   fs.mkdirSync(writableRoot, { recursive: true });
 
-  const registryTarget = path.join(writableRoot, "awn-agents.json");
-  const registrySource = path.join(bundledRoot, "awn-agents.json");
-  if (fs.existsSync(registrySource)) {
-    fs.copyFileSync(registrySource, registryTarget);
+  const agentCmsDir = path.join(writableRoot, ".agent-cms");
+  fs.mkdirSync(agentCmsDir, { recursive: true });
+
+  for (const fileName of ["ws-list-agents.json", "ws-list-groups.json"]) {
+    const agentCmsTarget = path.join(agentCmsDir, fileName);
+    const agentCmsSource = path.join(bundledRoot, ".agent-cms", fileName);
+    if (fs.existsSync(agentCmsSource)) {
+      fs.copyFileSync(agentCmsSource, agentCmsTarget);
+    }
   }
 
   const workspacesSource = path.join(bundledRoot, "workspaces");

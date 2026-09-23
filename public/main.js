@@ -10199,6 +10199,8 @@ let landingAgentsUngroupedCache = {
 let landingGroupBackgroundModalGroupId = null;
 
 const LANDING_UNGROUPED_GROUP_ID = "__ungrouped__";
+/** Фоны групп отложены — кнопка видна, но недоступна. */
+const LANDING_GROUP_BACKGROUND_ENABLED = false;
 
 function mapLandingUngroupedFromApi(ungrouped) {
   return {
@@ -10272,7 +10274,13 @@ function refreshLandingGroupBackgroundBtn(groupId) {
   if (btn) {
     const hasBg = Boolean(group.backgroundUrl);
     btn.textContent = hasBg ? "Фон ✓" : "Фон";
-    btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
+    if (!LANDING_GROUP_BACKGROUND_ENABLED) {
+      btn.disabled = true;
+      btn.title = "Фоны групп временно отключены";
+    } else {
+      btn.disabled = false;
+      btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
+    }
   }
 }
 
@@ -10359,11 +10367,16 @@ function createLandingGroupBackgroundBtn(group) {
   btn.className = "app-landing-group-bg-open-btn";
   const hasBg = Boolean(group.backgroundUrl);
   btn.textContent = hasBg ? "Фон ✓" : "Фон";
-  btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
-  btn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openLandingGroupBackgroundModal(group);
-  });
+  if (!LANDING_GROUP_BACKGROUND_ENABLED) {
+    btn.disabled = true;
+    btn.title = "Фоны групп временно отключены";
+  } else {
+    btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openLandingGroupBackgroundModal(group);
+    });
+  }
   return btn;
 }
 

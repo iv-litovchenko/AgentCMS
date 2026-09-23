@@ -43,6 +43,10 @@ const rel = {
   digest: {
     dir: `${ROOT}/digest`,
     workspaceDigest: `${ROOT}/digest/workspace-digest.md`
+  },
+  wsList: {
+    agents: `${ROOT}/ws-list-agents.json`,
+    groups: `${ROOT}/ws-list-groups.json`
   }
 };
 
@@ -106,6 +110,14 @@ function platformSettingsAbs(projectRoot) {
   return abs(projectRoot, projectRel.settings.platform);
 }
 
+function wsListAgentsAbs(projectRoot) {
+  return abs(projectRoot, rel.wsList.agents);
+}
+
+function wsListGroupsAbs(projectRoot) {
+  return abs(projectRoot, rel.wsList.groups);
+}
+
 function integrationsAbs(agentRoot) {
   return abs(agentRoot, rel.settings.integrations);
 }
@@ -167,6 +179,8 @@ module.exports = {
   projectRel,
   legacy,
   platformSettingsAbs,
+  wsListAgentsAbs,
+  wsListGroupsAbs,
   /** @deprecated use platformSettingsAbs */
   globalSettingsAbs: platformSettingsAbs,
   shellLegacy,

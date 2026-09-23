@@ -5312,6 +5312,20 @@ body.app-locked {
   background: #eff6ff;
 }
 
+.app-landing-group-bg-open-btn:disabled {
+  opacity: 0.45;
+  filter: blur(0.4px);
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.app-landing-group-bg-open-btn:disabled:hover {
+  background: #f8fafc;
+}
+
 .app-landing-group-bg-modal-card {
   width: min(520px, calc(100vw - 32px));
 }
