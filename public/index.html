@@ -5583,6 +5583,13 @@
           <span>Описание</span>
           <textarea id="awn-database-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении"></textarea>
         </label>
+        <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-kind-wrap">
+          <span>Тип коллекции</span>
+          <select id="awn-database-create-kind-input" class="agents-registry-select">
+            <option value="records">Записи (md или csv)</option>
+            <option value="files">Файлы (загрузка)</option>
+          </select>
+        </label>
         <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-storage-wrap">
           <span>Драйвер записей</span>
           <select id="awn-database-create-storage-input" class="agents-registry-select">
@@ -5591,6 +5598,17 @@
           </select>
           <p class="agents-registry-create-footnote">
             MD: отдельные <code>slug.md</code> в папке инфоблока. CSV: строки в <code>main.csv</code>.
+          </p>
+        </label>
+        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
+          <input id="awn-database-create-hierarchy-input" type="checkbox" />
+          <span class="awn-database-create-checkbox-label">Иерархия (разделы)</span>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-file-types-wrap">
+          <span>Типы файлов</span>
+          <input id="awn-database-create-file-types-input" type="text" placeholder="image/*,.pdf,.md" spellcheck="false" autocomplete="off" />
+          <p class="agents-registry-create-footnote">
+            Через запятую: <code>image/*</code>, <code>.pdf</code>, <code>.md</code>. Пусто — любые файлы.
           </p>
         </label>
         <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap">
@@ -5627,6 +5645,7 @@
                     </div>
                     <div class="awn-database-view-path hidden"></div>
                   </div>
+                  <div class="awn-database-view-iblock-card-head-actions" aria-label="Действия"></div>
                 </div>
                 <details class="awn-database-view-iblock-brief-fold awn-database-view-accordion" open>
                   <summary class="awn-database-view-accordion-summary awn-database-view-iblock-brief-summary">
@@ -5652,7 +5671,6 @@
                   </span>
                   <span class="awn-database-view-accordion-summary-main">
                     <span class="awn-database-view-accordion-title">Настройки инфоблока</span>
-                    <span class="awn-database-view-accordion-meta awn-database-view-schema-settings-meta" aria-live="polite"></span>
                   </span>
                   <span class="awn-database-view-accordion-actions">
                     <code class="awn-database-view-schema-file">manifest.md</code>
@@ -5776,15 +5794,28 @@
                 </div>
               </div>
               <div class="awn-database-view-actions hidden">
-                <label class="agents-registry-field">
-                  <span>Новый элемент</span>
-                  <input class="awn-database-add-title-input" type="text" placeholder="Название" spellcheck="false" />
-                </label>
-                <label class="agents-registry-field">
-                  <span>Родитель (id, опционально)</span>
-                  <input class="awn-database-add-parent-input" type="text" placeholder="1" spellcheck="false" />
-                </label>
-                <button class="external-create-section-btn awn-database-add-record-btn" type="button">Добавить элемент</button>
+                <div class="awn-database-view-add-records-form">
+                  <label class="agents-registry-field awn-database-add-title-field">
+                    <span>Новый элемент</span>
+                    <input class="awn-database-add-title-input" type="text" placeholder="Название" spellcheck="false" />
+                  </label>
+                  <label class="agents-registry-field awn-database-add-parent-field">
+                    <span class="awn-database-add-parent-label">Родитель (id, опционально)</span>
+                    <input class="awn-database-add-parent-input" type="text" placeholder="1" spellcheck="false" />
+                    <select class="agents-registry-select awn-database-add-parent-select hidden" aria-label="Раздел"></select>
+                  </label>
+                  <button class="external-create-section-btn awn-database-add-record-btn" type="button">Добавить элемент</button>
+                </div>
+                <div class="awn-database-view-add-files-form hidden">
+                  <input class="awn-database-upload-input hidden" type="file" multiple />
+                  <button class="folder-browse-upload-btn awn-database-upload-btn" type="button">
+                    <svg class="folder-browse-upload-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 16V4m0 0 7 7m-7-7 7 7M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <span class="folder-browse-upload-btn-label">Загрузить</span>
+                  </button>
+                  <p class="agents-registry-hint awn-database-upload-hint"></p>
+                </div>
               </div>
             </div>
             <div class="awn-database-view-iblock-comments-mount awn-database-view-comments-mount" aria-label="Комментарии к инфоблоку"></div>

@@ -170,12 +170,62 @@ function normalizeRecordStorage(value, fallback = "md") {
   return raw === "csv" ? "csv" : "md";
 }
 
+function normalizeCollectionKind(value, fallback = "records") {
+  const raw = String(value || fallback).trim().toLowerCase();
+  return raw === "files" ? "files" : "records";
+}
+
+function getCollectionKind(schema) {
+  const fromRecord = schema?.record?.collectionKind;
+  if (fromRecord) return normalizeCollectionKind(fromRecord);
+  return "records";
+}
+
+function getRecordHierarchy(schema) {
+  const hierarchy = schema?.record?.hierarchy;
+  return hierarchy === true || String(hierarchy || "").trim().toLowerCase() === "true";
+}
+
+function getRecordFileTypes(schema) {
+  return String(schema?.record?.fileTypes || schema?.record?.["file-types"] || "").trim();
+}
+
+function matchesFileTypePattern(fileName, pattern) {
+  const name = String(fileName || "").toLowerCase();
+  const pat = String(pattern || "").trim().toLowerCase();
+  if (!pat) return true;
+  if (pat.startsWith("*.")) return name.endsWith(pat.slice(1));
+  if (pat.startsWith(".")) return name.endsWith(pat);
+  if (pat.endsWith("/*")) {
+    const prefix = pat.slice(0, -1);
+    if (prefix === "image") return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|tiff)$/.test(name);
+    if (prefix === "video") return /\.(mp4|webm|mov|avi|mkv)$/.test(name);
+    if (prefix === "audio") return /\.(mp3|wav|ogg|m4a|flac)$/.test(name);
+    return true;
+  }
+  return name === pat || name.endsWith(`.${pat}`);
+}
+
+function matchesFileTypesSpec(fileName, spec) {
+  const filters = String(spec || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!filters.length) return true;
+  return filters.some((pattern) => matchesFileTypePattern(fileName, pattern));
+}
+
 function loadContainerTypeDefaults(kind, agentRoot, projectRoot) {
   const normalizedKind = normalizeStoreKind(kind);
   const typeId = CONTAINER_TYPE_ID[normalizedKind] || "";
   const { fields } = loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot);
   const recordStorage = normalizeRecordStorage(readTypeFieldDefault(fields, "awn-record-storage"), "md");
-  return { typeId, fields, recordStorage };
+  const collectionKind = normalizeCollectionKind(readTypeFieldDefault(fields, "awn-collection-kind"), "records");
+  const hierarchyDefault = readTypeFieldDefault(fields, "awn-record-hierarchy");
+  const recordHierarchy =
+    hierarchyDefault === true || String(hierarchyDefault || "").trim().toLowerCase() === "true";
+  const recordFileTypes = String(readTypeFieldDefault(fields, "awn-record-file-types") || "").trim();
+  return { typeId, fields, recordStorage, collectionKind, recordHierarchy, recordFileTypes };
 }
 
 function toAwnFieldKey(key) {
@@ -472,9 +522,13 @@ function extractFlatRecordProps(raw) {
   const idMode = readStoreProp(raw, ["awn-record-id-mode"], "");
   const file = readStoreProp(raw, ["awn-record-file"], "");
   const hierarchy = raw["awn-record-hierarchy"];
+  const collectionKind = readStoreProp(raw, ["awn-collection-kind"], "");
+  const fileTypes = readStoreProp(raw, ["awn-record-file-types"], "");
   if (storage) record.storage = storage;
   if (idMode) record["id-mode"] = idMode;
   if (file) record.file = file;
+  if (collectionKind) record.collectionKind = normalizeCollectionKind(collectionKind);
+  if (fileTypes) record.fileTypes = String(fileTypes).trim();
   if (hierarchy !== undefined && hierarchy !== null && String(hierarchy).trim() !== "") {
     record.hierarchy = hierarchy === true || String(hierarchy).trim().toLowerCase() === "true";
   }
@@ -878,6 +932,52 @@ function isRecordFile(name, kind) {
   return true;
 }
 
+function isCollectionContentFile(name) {
+  const lower = String(name || "").toLowerCase();
+  if (!lower || lower.startsWith(".")) return false;
+  if (isSystemStoreFile(name)) return false;
+  if (lower === "sort.json") return false;
+  if (lower === "schema.yml" || lower.endsWith(".schema.yml")) return false;
+  if (lower === "main.csv") return false;
+  return true;
+}
+
+function listCollectionFiles(dirPath, fileTypesSpec, relPrefix = "", acc = []) {
+  if (!fs.existsSync(dirPath)) return acc;
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue;
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      if (RECORD_WALK_SKIP_DIRS.has(entry.name)) continue;
+      listCollectionFiles(fullPath, fileTypesSpec, path.posix.join(relPrefix, entry.name), acc);
+      continue;
+    }
+    if (!isCollectionContentFile(entry.name)) continue;
+    if (!matchesFileTypesSpec(entry.name, fileTypesSpec)) continue;
+    acc.push({
+      absPath: fullPath,
+      fileName: entry.name,
+      relPath: path.posix.join(relPrefix, entry.name).replace(/\\/g, "/")
+    });
+  }
+  return acc;
+}
+
+function parseCollectionFile(fileEntry, storeRel) {
+  const id = path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
+  return {
+    id,
+    parent: null,
+    relPath: `${storeRel}/${fileEntry.relPath}`.replace(/\\/g, "/"),
+    fileName: fileEntry.fileName,
+    frontmatter: {},
+    body: "",
+    title: fileEntry.fileName,
+    bodyFields: {},
+    isFile: true
+  };
+}
+
 function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
   if (!fs.existsSync(dirPath)) return acc;
   for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
@@ -1051,10 +1151,16 @@ function loadStore(dataRoot, storeEntry) {
     ? `${storeRel}/${schema.schemeModFile}`.replace(/\\/g, "/")
     : "";
 
+  const collectionKind = kind === "collection" ? getCollectionKind(schema) : "records";
+  const recordHierarchy = kind === "collection" ? getRecordHierarchy(schema) : false;
+  const recordFileTypes = kind === "collection" ? getRecordFileTypes(schema) : "";
   const recordStorage = kind === "collection" ? getRecordStorage(schema) : "md";
   let records = [];
   if (kind !== "group") {
-    if (kind === "collection" && recordStorage === "csv") {
+    if (kind === "collection" && collectionKind === "files") {
+      const fileEntries = listCollectionFiles(storeAbs, recordFileTypes);
+      records = fileEntries.map((fileEntry) => parseCollectionFile(fileEntry, storeRel));
+    } else if (kind === "collection" && recordStorage === "csv") {
       records = loadCsvRecords(storeAbs, storeRel, schema);
     } else {
       const recordFiles = listRecordFiles(storeAbs, kind);
@@ -1076,6 +1182,9 @@ function loadStore(dataRoot, storeEntry) {
     schemaFile,
     schema,
     sortOrder,
+    collectionKind,
+    recordHierarchy,
+    recordFileTypes,
     recordStorage,
     recordCount: kind === "group" ? 0 : records.length,
     recordFile:
@@ -1304,10 +1413,12 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
   if (options.indexExclude) lines.push("awn-index-exclude: true");
 
   const record = schema.record && typeof schema.record === "object" ? schema.record : {};
+  if (record.collectionKind) lines.push(`awn-collection-kind: ${record.collectionKind}`);
   if (record.storage) lines.push(`awn-record-storage: ${record.storage}`);
   if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
   if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
   if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
+  if (record.fileTypes) lines.push(`awn-record-file-types: ${yamlQuote(record.fileTypes)}`);
   if (!record["id-mode"] && !record.file && !record.hierarchy && Object.keys(record).length) {
     lines.push("awn-record:");
     lines.push(...dumpYamlBlock(record, 1));
@@ -1450,9 +1561,20 @@ function recordBaseExtendsPath(_slug) {
   return rowBaseExtendsPath();
 }
 
-function buildCollectionSchemaContent({ slug, name, description, recordStorage = "md" }) {
+function buildCollectionSchemaContent({
+  slug,
+  name,
+  description,
+  recordStorage = "md",
+  collectionKind = "records",
+  recordHierarchy = false,
+  recordFileTypes = ""
+}) {
   const desc = String(description || name || slug).trim();
+  const kind = normalizeCollectionKind(collectionKind, "records");
   const storage = normalizeRecordStorage(recordStorage, "md");
+  const hierarchy = kind === "records" && storage === "md" ? Boolean(recordHierarchy) : false;
+  const fileTypes = kind === "files" ? String(recordFileTypes || "").trim() : "";
   const recordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
     "awn-parent": {
@@ -1477,10 +1599,12 @@ function buildCollectionSchemaContent({ slug, name, description, recordStorage =
       extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
       fieldsInSchemeMod: true,
       record: {
+        collectionKind: kind,
         storage,
         "id-mode": "slug",
         ...(storage === "csv" ? { file: "main.csv" } : {}),
-        hierarchy: false
+        hierarchy,
+        ...(fileTypes ? { fileTypes } : {})
       },
       fields: recordFields,
       elementSchemaTabs: { main: "Основное" }
@@ -1631,12 +1755,31 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   if (kind === "collection") {
     const typeDefaults = loadContainerTypeDefaults("collection", agentRoot, projectRoot);
+    const collectionKind = isTaxonomy
+      ? "records"
+      : normalizeCollectionKind(options.collectionKind || typeDefaults.collectionKind, "records");
     const recordStorage = isTaxonomy
       ? "csv"
       : normalizeRecordStorage(options.recordStorage || typeDefaults.recordStorage, "md");
+    const recordHierarchy =
+      collectionKind === "records" && recordStorage === "md"
+        ? options.recordHierarchy ?? typeDefaults.recordHierarchy ?? false
+        : false;
+    const recordFileTypes =
+      collectionKind === "files"
+        ? String(options.recordFileTypes || typeDefaults.recordFileTypes || "").trim()
+        : "";
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
-      : buildCollectionSchemaContent({ slug, name, description, recordStorage });
+      : buildCollectionSchemaContent({
+          slug,
+          name,
+          description,
+          recordStorage,
+          collectionKind,
+          recordHierarchy,
+          recordFileTypes
+        });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
       writeStoreSchemeMod(storeAbs, {
@@ -1646,7 +1789,9 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       });
     }
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
-    if (recordStorage === "csv") {
+    if (collectionKind === "files") {
+      // files-only collection: no sample record
+    } else if (recordStorage === "csv") {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
@@ -2133,6 +2278,10 @@ module.exports = {
   buildRecordTree,
   normalizeStoreKind,
   normalizeRecordStorage,
+  normalizeCollectionKind,
+  getCollectionKind,
+  getRecordHierarchy,
+  getRecordFileTypes,
   loadContainerTypeDefaults,
   normalizeStoreSlug,
   slugifyStoreName,

@@ -60833,10 +60833,27 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-iblock-card-head {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   position: relative;
   min-height: 4.75rem;
   box-sizing: border-box;
+}
+
+.awn-database-view-iblock-card-head-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-top: 0.1rem;
+}
+
+.awn-database-view-iblock-card-head-actions.hidden {
+  display: none;
+}
+
+.awn-database-view-iblock-card-head-actions .node-navigation-hero-actions {
+  justify-content: flex-end;
 }
 
 .awn-database-view-iblock-description-block.is-loading:not(.is-skeleton) .awn-database-view-description-card {
@@ -60917,6 +60934,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-iblock-card-head-main {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -62443,6 +62461,32 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid #e2e8f0;
+}
+
+.awn-database-view-add-records-form,
+.awn-database-view-add-files-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.awn-database-view-add-records-form.hidden,
+.awn-database-view-add-files-form.hidden {
+  display: none;
+}
+
+.awn-database-view-add-files-form .awn-database-upload-btn {
+  align-self: flex-start;
+}
+
+.awn-database-view-add-files-form .awn-database-upload-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.awn-database-add-parent-field .awn-database-add-parent-input.hidden,
+.awn-database-add-parent-field .awn-database-add-parent-select.hidden {
+  display: none;
 }
 
 .awn-database-create-checkbox-field {

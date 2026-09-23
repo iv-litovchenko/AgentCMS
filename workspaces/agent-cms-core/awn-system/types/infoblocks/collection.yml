@@ -7,9 +7,31 @@ extends: awn.infoblock.base
 description: manifest + N записей (*.md или main.csv)
 manifest-pattern: manifest.md
 
+kind-ui:
+  for: collection
+  label: Коллекция
+  badge: { background: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" }
+
 fields:
+  awn-collection-kind:
+    type: awn.field.choice.one
+    title: Тип коллекции
+    enum: [records, files]
+    default: records
+    description: records — md/csv записи; files — загрузка файлов заданных типов
   awn-record-storage:
     type: awn.field.choice.one
     title: Драйвер записей
     enum: [md, csv]
     default: md
+    description: Только для коллекций записей (records)
+  awn-record-hierarchy:
+    type: awn.boolean
+    title: Иерархия (разделы)
+    default: false
+    description: Родительская запись как раздел; только MD + records
+  awn-record-file-types:
+    type: awn.string
+    title: Типы файлов
+    default: ""
+    description: "Только для files: image/*,.pdf,.md"

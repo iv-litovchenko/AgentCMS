@@ -11907,9 +11907,23 @@ function formatAwnDataIndexConfigurations(store) {
     return children > 0 ? `${children} влож.` : "—";
   }
   if (kind === "single") return "main.md";
+  const collectionKind = String(store?.collectionKind || store?.schema?.record?.collectionKind || "records")
+    .trim()
+    .toLowerCase();
+  if (collectionKind === "files") {
+    const types = String(store?.recordFileTypes || store?.schema?.record?.fileTypes || "").trim();
+    const recordCount = Number(store?.recordCount) || 0;
+    const base = types ? `FILES · ${types}` : "FILES";
+    return recordCount > 0 ? `${base} · ${recordCount} файл.` : base;
+  }
   const storage = String(store?.recordStorage || "md").toUpperCase();
   const recordCount = Number(store?.recordCount) || 0;
-  return recordCount > 0 ? `${storage} · ${recordCount} зап.` : storage;
+  const hierarchy =
+    store?.recordHierarchy === true ||
+    store?.schema?.record?.hierarchy === true ||
+    String(store?.schema?.record?.hierarchy || "").trim().toLowerCase() === "true";
+  const hierarchySuffix = hierarchy ? " · разд." : "";
+  return recordCount > 0 ? `${storage} · ${recordCount} зап.${hierarchySuffix}` : `${storage}${hierarchySuffix}`;
 }
 
 function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
@@ -22316,7 +22330,10 @@ async function handleApiForAgent(req, res, url) {
         slug: payload?.slug,
         name: payload?.name,
         description: payload?.description,
+        collectionKind: payload?.collectionKind,
         recordStorage: payload?.recordStorage,
+        recordHierarchy: payload?.recordHierarchy,
+        recordFileTypes: payload?.recordFileTypes,
         withSampleRecord: payload?.withSampleRecord,
         indexExclude: parsePayloadIndexExclude(payload)
       });

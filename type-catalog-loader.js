@@ -221,7 +221,10 @@ const BUILTIN_KIND_META = {
   meta: { label: "Мета", badge: { background: "#f0fdf4", border: "#86efac", text: "#15803d" } },
   preset: { label: "Пресет", badge: { background: "#fff7ed", border: "#fb923c", text: "#c2410c" } },
   "data-container": { label: "Store", badge: { background: "#e0f2fe", border: "#7dd3fc", text: "#0369a1" } },
-  "data-element": { label: "Запись", badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" } }
+  "data-element": { label: "Запись", badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" } },
+  collection: { label: "Коллекция", badge: { background: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6" } },
+  single: { label: "Одиночка", badge: { background: "#ecfeff", border: "#a5f3fc", text: "#0e7490" } },
+  group: { label: "Группа", badge: { background: "#ecfdf5", border: "#a7f3d0", text: "#047857" } }
 };
 
 function normalizeKindBadge(raw) {

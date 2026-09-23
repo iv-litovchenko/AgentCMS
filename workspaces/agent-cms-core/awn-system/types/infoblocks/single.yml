@@ -6,3 +6,8 @@ status: active
 extends: awn.infoblock.base
 description: manifest + ровно один main.md
 manifest-pattern: manifest.md
+
+kind-ui:
+  for: single
+  label: Одиночка
+  badge: { background: "#ecfeff", border: "#a5f3fc", text: "#0e7490" }
