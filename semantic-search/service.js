@@ -35,10 +35,14 @@ function matchesSearchPathPrefix(relPath, pathPrefix) {
 }
 
 function createSemanticSearchService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy } = deps;
+  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy, isEntityIndexExcluded } =
+    deps;
   const rebuildLocks = new Map();
 
   async function isPathIndexable(relPath) {
+    if (typeof isEntityIndexExcluded === "function" && await isEntityIndexExcluded(relPath)) {
+      return false;
+    }
     if (typeof getIndexPolicy === "function") {
       const policy = await getIndexPolicy();
       return policy.isIndexable(relPath);

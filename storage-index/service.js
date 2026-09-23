@@ -49,10 +49,14 @@ function recordMatchesFilters(record, filters = []) {
 }
 
 function createStorageIndexService(deps) {
-  const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy } = deps;
+  const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute, getIndexPolicy, isEntityIndexExcluded } =
+    deps;
   const rebuildLocks = new Map();
 
   async function isPathIndexable(relPath) {
+    if (typeof isEntityIndexExcluded === "function" && await isEntityIndexExcluded(relPath)) {
+      return false;
+    }
     if (typeof getIndexPolicy === "function") {
       const policy = await getIndexPolicy();
       return policy.isIndexable(relPath);

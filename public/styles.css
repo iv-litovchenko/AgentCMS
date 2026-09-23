@@ -54677,6 +54677,10 @@ button.node-navigation-memory-title:focus-visible {
   cursor: not-allowed;
 }
 
+.create-form-indexing-option {
+  margin-top: 10px;
+}
+
 .create-node-actions.has-manifest-option {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

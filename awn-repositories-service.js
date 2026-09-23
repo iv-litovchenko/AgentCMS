@@ -633,6 +633,9 @@ function composeRepositoryManifestContent(options = {}) {
   if (group) {
     content = content.replace('awn-repository-group: ""', `awn-repository-group: ${formatYamlScalar(group)}`);
   }
+  if (options.indexExclude) {
+    content = setYamlScalarInFrontmatter(content, "awn-index-exclude", "true");
+  }
   if (options.body) {
     content = content.replace(/Описание для агента[\s\S]*$/, `${String(options.body).trim()}\n`);
   }

@@ -5165,6 +5165,10 @@
             <input id="create-node-container-target" type="checkbox" checked />
             <span id="create-node-container-target-label">Создать в awn-container</span>
           </label>
+          <label class="create-node-vault-option create-form-indexing-option" for="create-node-index-exclude" title="Исключить тему/область и вложенные файлы из поиска и индексов">
+            <input id="create-node-index-exclude" type="checkbox" />
+            <span>Запретить индексирование</span>
+          </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
@@ -5251,6 +5255,10 @@
             <span>Перейти к редактированию</span>
           </label>
         </fieldset>
+        <label class="create-node-vault-option create-form-indexing-option" for="create-section-index-exclude" title="Исключить раздел и вложенные файлы из поиска и индексов">
+          <input id="create-section-index-exclude" type="checkbox" />
+          <span>Запретить индексирование</span>
+        </label>
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-section-ok-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -5366,6 +5374,10 @@
           <p class="create-memory-mask-hint">Имя файла формируется автоматически. Счётчик <code>{id}</code> хранится в <code>main/id-increment.txt</code>.</p>
           <p id="create-memory-mask-preview" class="create-memory-mask-preview-line"></p>
         </fieldset>
+        <label class="create-node-vault-option create-form-indexing-option" for="create-memory-index-exclude" title="Исключить запись из поиска и индексов">
+          <input id="create-memory-index-exclude" type="checkbox" />
+          <span>Запретить индексирование</span>
+        </label>
         <div class="modal-actions">
           <button id="create-memory-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-memory-ok-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -5522,6 +5534,10 @@
           </select>
           <p class="agents-registry-create-footnote">Sidebar-группа из <code>awn-repositories/groups.yml</code></p>
         </label>
+        <label class="awn-data-create-checkbox-field create-form-indexing-option" for="repository-create-index-exclude" title="Исключить репозиторий из поиска и индексов">
+          <input id="repository-create-index-exclude" type="checkbox" />
+          <span class="awn-data-create-checkbox-label">Запретить индексирование</span>
+        </label>
         <div class="modal-actions">
           <button id="repository-create-open-manifest-btn" class="save-btn hidden" type="button">Открыть manifest.md</button>
           <button id="repository-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -5552,6 +5568,10 @@
         <label class="awn-data-create-checkbox-field hidden" id="awn-data-create-sample-wrap">
           <input id="awn-data-create-sample-input" type="checkbox" checked />
           <span class="awn-data-create-checkbox-label">Создать первую запись <code>1.md</code></span>
+        </label>
+        <label class="awn-data-create-checkbox-field create-form-indexing-option" for="awn-data-create-index-exclude" title="Исключить накопитель и записи из поиска и индексов">
+          <input id="awn-data-create-index-exclude" type="checkbox" />
+          <span class="awn-data-create-checkbox-label">Запретить индексирование</span>
         </label>
         <div class="modal-actions">
           <button id="awn-data-create-cancel-btn" class="save-btn" type="button">Отмена</button>

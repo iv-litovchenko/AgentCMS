@@ -77,6 +77,11 @@ const {
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./workspace-importance");
+const {
+  INDEX_EXCLUDE_FIELD_KEY,
+  parseIndexExcludeValue,
+  createWorkspaceIndexExcludeResolver
+} = require("./workspace-index-exclude");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
 const {
   createWorkspaceJournalService,
@@ -1655,7 +1660,8 @@ function getSemanticSearchService() {
       getAgentRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded
     });
   }
   return semanticSearchService;
@@ -1669,7 +1675,8 @@ function getFulltextSearchService() {
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
       isTextSearchableFileName,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded
     });
   }
   return fulltextSearchService;
@@ -1683,7 +1690,8 @@ function getStorageIndexService() {
       getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded
     });
   }
   return storageIndexService;
@@ -1696,7 +1704,8 @@ function getLinkIndexService() {
       getAgentRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded
     });
   }
   return linkIndexService;
@@ -1855,6 +1864,29 @@ function queueWorkspaceIndexFileSync(relPath) {
 
 async function getActiveIndexPolicy() {
   return buildIndexPolicy(await getPlatformSettings(getProjectRoot()));
+}
+
+let workspaceIndexExcludeResolver = null;
+function getWorkspaceIndexExcludeResolver() {
+  if (!workspaceIndexExcludeResolver) {
+    workspaceIndexExcludeResolver = createWorkspaceIndexExcludeResolver({
+      resolvePathAbsolute: normalizeWorkspacePath
+    });
+  }
+  return workspaceIndexExcludeResolver;
+}
+
+async function isEntityIndexExcluded(relPath) {
+  return getWorkspaceIndexExcludeResolver().isPathExcluded(relPath);
+}
+
+function parsePayloadIndexExclude(payload = {}) {
+  return parseIndexExcludeValue(payload.indexExclude ?? payload[INDEX_EXCLUDE_FIELD_KEY]);
+}
+
+function applyIndexExcludeFrontmatter(frontmatter, exclude) {
+  if (!exclude) return frontmatter;
+  return upsertYamlScalarLine(frontmatter, INDEX_EXCLUDE_FIELD_KEY, "true");
 }
 
 async function getSearchDefaultScopes(requestedScopes = null) {
@@ -2189,7 +2221,11 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
       String(typeName).trim() === "awn.page.section" ||
       String(typeName).trim() === "awn.page.topic"
   });
-  return upsertYamlScalarLine(frontmatter, "awn-name", title);
+  frontmatter = upsertYamlScalarLine(frontmatter, "awn-name", title);
+  if (options.indexExclude) {
+    frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+  }
+  return frontmatter;
 }
 
 function normalizeAwnNameForStorage(displayName, slug) {
@@ -7100,11 +7136,14 @@ function resolveStorageCreateParentRel(rawParent, { layer = STORAGE_SUBFOLDER_CO
   return normalizeStorageSlotParentRel(rawParent, { layer, manifestRelPath });
 }
 
-function buildStorageSectionReadmeContent(title, awnType = "awn.content.category", folderSlug = "") {
+function buildStorageSectionReadmeContent(title, awnType = "awn.content.category", folderSlug = "", options = {}) {
   const segment =
     String(folderSlug || "").trim() || String(title || "Раздел").trim() || "Раздел";
   let frontmatter = awnType ? `awn-type: ${awnType}` : "";
   frontmatter = applyAwnNameToFrontmatter(frontmatter, title, segment);
+  if (options.indexExclude) {
+    frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+  }
   if (!frontmatter.trim()) return `\n> Описание раздела.\n`;
   return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
 }
@@ -7130,7 +7169,7 @@ async function buildStorageSectionReadmeContentForManifest(
 ) {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
   const folderSlug = String(options.folderSlug || "").trim();
-  if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null, folderSlug);
+  if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null, folderSlug, options);
 
   const schemaTarget = resolveAwnSchemaTargetForSectionType(awnType, slotKey);
   if (schemaTarget) {
@@ -7158,6 +7197,9 @@ async function buildStorageSectionReadmeContentForManifest(
           typeDef: mergedType
         });
         frontmatter = applyAwnNameToFrontmatter(frontmatter, safeTitle, folderSlug);
+        if (options.indexExclude) {
+          frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+        }
         return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
       }
     } catch {
@@ -7165,7 +7207,7 @@ async function buildStorageSectionReadmeContentForManifest(
     }
   }
 
-  return buildStorageSectionReadmeContent(safeTitle, awnType, folderSlug);
+  return buildStorageSectionReadmeContent(safeTitle, awnType, folderSlug, options);
 }
 
 async function buildSlotContentFileContentForManifest(
@@ -7372,7 +7414,8 @@ async function createStorageRecordFile({
   source = "",
   author = "",
   status = "",
-  fields = null
+  fields = null,
+  indexExclude = false
 }) {
   const canonicalFolder = normalizeStorageSubfolderName(storageFolder);
   if (!canonicalFolder || !isAllowedStorageSubfolderName(canonicalFolder)) {
@@ -7466,6 +7509,12 @@ async function createStorageRecordFile({
       ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
     };
   }
+  if (parseIndexExcludeValue(indexExclude)) {
+    frontmatterOverrides = {
+      ...(frontmatterOverrides || {}),
+      [INDEX_EXCLUDE_FIELD_KEY]: true
+    };
+  }
 
   const parentRel = path.relative(folderAbsolute, targetFolder).replace(/\\/g, "/").replace(/^\/+/, "");
   const relInSlotPreview = parentRel ? `${parentRel}/${fileName}` : fileName;
@@ -7532,7 +7581,7 @@ async function writeStorageSectionReadme(
           ...options,
           folderSlug
         })
-      : buildStorageSectionReadmeContent(title, awnType, folderSlug);
+      : buildStorageSectionReadmeContent(title, awnType, folderSlug, options);
     await fs.writeFile(readmeAbsolute, content, "utf-8");
   }
 }
@@ -22094,7 +22143,8 @@ async function handleApiForAgent(req, res, url) {
         name: payload?.name,
         description: payload?.description,
         hierarchy: payload?.hierarchy,
-        withSampleRecord: payload?.withSampleRecord
+        withSampleRecord: payload?.withSampleRecord,
+        indexExclude: parsePayloadIndexExclude(payload)
       });
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {
@@ -23571,7 +23621,7 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         "memory",
-        { contentWorkspaceRel }
+        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -23640,7 +23690,7 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         slotKey,
-        { contentWorkspaceRel }
+        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -23715,7 +23765,7 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         slotKey,
-        { contentWorkspaceRel }
+        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -24191,7 +24241,8 @@ async function handleApiForAgent(req, res, url) {
         source: payload.source,
         author: payload.author,
         status: payload.status,
-        fields: payload.fields
+        fields: payload.fields,
+        indexExclude: parsePayloadIndexExclude(payload)
       });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -26133,7 +26184,9 @@ async function handleApiForAgent(req, res, url) {
       // continue
     }
 
-    const manifestFrontmatter = buildManifestCreateFrontmatter(nodeKind === "topic" ? "topic" : "area", title, targetFolderName);
+    const manifestFrontmatter = buildManifestCreateFrontmatter(nodeKind === "topic" ? "topic" : "area", title, targetFolderName, {
+      indexExclude: parsePayloadIndexExclude(payload)
+    });
     await fs.writeFile(
       manifestAbsolute,
       joinNodeFrontmatter(manifestFrontmatter, ""),
@@ -26404,6 +26457,8 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 404, { error: "Parent folder not found" });
       }
 
+      const indexExclude = parsePayloadIndexExclude(payload);
+
       if (type === "manifest" || type === "topic-manifest") {
         const adoptResult = await adoptExistingFolderWithManifest({
           parentAbsolute,
@@ -26465,7 +26520,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName);
+        const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName, { indexExclude });
         await fs.writeFile(
           manifestAbsolute,
           joinNodeFrontmatter(areaFrontmatter, ""),
@@ -26502,7 +26557,8 @@ async function handleApiForAgent(req, res, url) {
       const manifestAbsolute = path.join(folderAbsolute, MANIFEST_FILE);
       const awnNodeType = String(payload.awnType || "topic").trim() || "topic";
       const fileFrontmatter = buildManifestCreateFrontmatter("topic", displayName, folderName, {
-        awnType: awnNodeType
+        awnType: awnNodeType,
+        indexExclude
       });
       await fs.writeFile(
         manifestAbsolute,

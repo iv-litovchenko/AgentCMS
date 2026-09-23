@@ -42,6 +42,10 @@ field-groups:
     name: "{A2!} Runtime агента"
     description: Загрузка в контекст, cron, heartbeat
     collapsed: true
+  - id: indexing
+    name: "{A2!} Индексирование"
+    description: Поиск и индексы workspace
+    collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
     description: Категории, теги, приоритет, цвет, владелец
@@ -198,6 +202,17 @@ fields:
     placement: aside-body
     group: runtime
     sort: 5
+
+  awn-index-exclude:
+    type: awn.field.boolean
+    title: "{A2!} Запретить индексирование"
+    description: >
+      Исключить эту сущность и вложенные файлы из semantic, fulltext, storage
+      и link индексов. Наследуется от manifest родительских папок.
+    default: false
+    placement: aside-body
+    group: indexing
+    sort: 1
 
   # --- taxonomy ---
   awn-category:

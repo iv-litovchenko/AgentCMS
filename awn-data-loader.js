@@ -1247,13 +1247,14 @@ function dumpYamlBlock(obj, indent = 0) {
   return lines;
 }
 
-function buildStoreManifestContent(schema, body = "") {
+function buildStoreManifestContent(schema, body = "", options = {}) {
   const kind = String(schema.kind || "collection").trim();
   const lines = ["---"];
   lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || CONTAINER_TYPE_ID.collection || "awn.data.collection"}`);
   if (schema.id) lines.push(`awn-id: ${schema.id}`);
   if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
   if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
+  if (options.indexExclude) lines.push("awn-index-exclude: true");
 
   const record = schema.record && typeof schema.record === "object" ? schema.record : {};
   if (record.storage) lines.push(`awn-record-storage: ${record.storage}`);
@@ -1511,10 +1512,10 @@ function buildGroupSchemaContent({ slug, name, description }) {
   };
 }
 
-function writeStoreManifest(storeAbs, schema, manifestBody = "") {
+function writeStoreManifest(storeAbs, schema, manifestBody = "", options = {}) {
   fs.writeFileSync(
     path.join(storeAbs, COLLECTION_MANIFEST),
-    buildStoreManifestContent(schema, manifestBody),
+    buildStoreManifestContent(schema, manifestBody, options),
     "utf-8"
   );
 }
@@ -1578,12 +1579,13 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   const isTaxonomy = slug.startsWith("taxonomies/");
   const withSample =
     kind === "collection" && !isTaxonomy ? options.withSampleRecord !== false : false;
+  const manifestOptions = options.indexExclude ? { indexExclude: true } : {};
 
   if (kind === "collection") {
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
       : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
       writeStoreSchemeMod(storeAbs, {
         extends: bundle.schemeModExtends || DEFAULT_ELEMENT_SCHEMA_TYPE,
@@ -1602,11 +1604,11 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     }
   } else if (kind === "group") {
     const bundle = buildGroupSchemaContent({ slug, name, description });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
   } else {
     const bundle = buildSingletonSchemaContent({ slug, name, description });
-    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
       writeStoreSchemeMod(storeAbs, {
         extends: bundle.schemeModExtends || DEFAULT_ELEMENT_SCHEMA_TYPE,

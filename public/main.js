@@ -92,6 +92,7 @@ const awnDataCreateSampleWrapNode = document.getElementById("awn-data-create-sam
 const awnDataCreateSampleInputNode = document.getElementById("awn-data-create-sample-input");
 const awnDataCreateCancelBtn = document.getElementById("awn-data-create-cancel-btn");
 const awnDataCreateSubmitBtn = document.getElementById("awn-data-create-submit-btn");
+const awnDataCreateIndexExcludeInput = document.getElementById("awn-data-create-index-exclude");
 const menuRepositoriesListNode = document.getElementById("menu-repositories-list");
 const menuRepositoriesRefreshBtn = document.getElementById("menu-repositories-refresh-btn");
 const menuRepositoriesHelpBtn = document.getElementById("menu-repositories-help-btn");
@@ -106,6 +107,7 @@ const repositoryCreateModalTitleNode = document.getElementById("repository-creat
 const repositoryCreateOpenManifestBtn = document.getElementById("repository-create-open-manifest-btn");
 const repositoryCreateCancelBtn = document.getElementById("repository-create-cancel-btn");
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
+const repositoryCreateIndexExcludeInput = document.getElementById("repository-create-index-exclude");
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
@@ -687,6 +689,7 @@ const CREATE_SECTION_AFTER_KEY = "acms.createSection.after";
 const createSectionAfterFieldsetNode = document.getElementById("create-section-after-fieldset");
 const createSectionAfterListRadio = document.getElementById("create-section-after-list");
 const createSectionAfterEditRadio = document.getElementById("create-section-after-edit");
+const createSectionIndexExcludeInput = document.getElementById("create-section-index-exclude");
 const createSectionAfterRadios = [createSectionAfterListRadio, createSectionAfterEditRadio].filter(Boolean);
 const CREATE_MEMORY_MAX_COUNT = 5;
 const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
@@ -1077,6 +1080,7 @@ const createMemoryFormatOptionsNode = document.getElementById("create-memory-for
 let createMemoryFormatPickerOpen = false;
 const createMemoryCancelBtn = document.getElementById("create-memory-cancel-btn");
 const createMemoryOkBtn = document.getElementById("create-memory-ok-btn");
+const createMemoryIndexExcludeInput = document.getElementById("create-memory-index-exclude");
 let activeCreateMemoryMask = "";
 const editorViewPreviewBtn = document.getElementById("editor-view-preview-btn");
 const editorViewWysiwygBtn = document.getElementById("editor-view-wysiwyg-btn");
@@ -1227,6 +1231,7 @@ const createNodeContainerScaffoldHintNode = document.getElementById("create-node
 const createNodeContainerTargetWrapNode = document.getElementById("create-node-container-target-wrap");
 const createNodeContainerTargetNode = document.getElementById("create-node-container-target");
 const createNodeContainerTargetLabelNode = document.getElementById("create-node-container-target-label");
+const createNodeIndexExcludeInput = document.getElementById("create-node-index-exclude");
 const createNodeManualSectionNode = document.querySelector(".create-node-manual-section");
 const nodeSettingsPathControlsNode = document.getElementById("node-settings-path-controls");
 const nodeSettingsModeSelectNode = document.getElementById("node-settings-mode-select");
@@ -28197,6 +28202,10 @@ function updateCreateNodeModalContext(parentPath) {
   }
 }
 
+function readCreateFormIndexExclude(input) {
+  return Boolean(input?.checked);
+}
+
 function closeCreateNodeModal() {
   createNodeModalNode?.classList.add("hidden");
   createTargetParentPath = ".";
@@ -28205,6 +28214,7 @@ function closeCreateNodeModal() {
   createModalEmptyFolder = false;
   createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
+  if (createNodeIndexExcludeInput) createNodeIndexExcludeInput.checked = false;
   if (createSlugInputNode) createSlugInputNode.value = "";
   syncDisplayNameLengthHint(createNameInputNode);
   setCreateSlugLinked(true);
@@ -58456,6 +58466,7 @@ function closeCreateMemoryModal() {
   closeCreateMemoryFormatPicker();
   createMemoryModalNode.classList.add("hidden");
   resetCreateMemoryNameInputs();
+  if (createMemoryIndexExcludeInput) createMemoryIndexExcludeInput.checked = false;
   activeCreateMemoryMask = "";
   syncCreateMemoryModalMaskUi("");
   setCreateMemoryModalBusy(false);
@@ -58481,6 +58492,9 @@ async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOv
     requestBody.displayName = title;
   }
   if (parentFolder) requestBody.parent = parentFolder;
+  if (readCreateFormIndexExclude(createMemoryIndexExcludeInput)) {
+    requestBody.indexExclude = true;
+  }
   const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -58513,6 +58527,9 @@ async function createSlotRecordFile(displayName, slug, folderOverride = null) {
   if (parentFolder) requestBody.parent = parentFolder;
   const fileExtension = getCreateMemoryFileExtension();
   if (fileExtension) requestBody.fileExtension = fileExtension;
+  if (readCreateFormIndexExclude(createMemoryIndexExcludeInput)) {
+    requestBody.indexExclude = true;
+  }
   const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -58697,6 +58714,7 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
+  if (createSectionIndexExcludeInput) createSectionIndexExcludeInput.checked = false;
   createSectionSlugController?.reset();
   syncDisplayNameLengthHint(createSectionNameInputNode);
   createSectionParentFolder = null;
@@ -58784,6 +58802,9 @@ async function createWorkspaceSection() {
     if (isFlatStorageTarget) {
       requestBody.folder = getFlatStorageSectionFolderName(createSectionTargetMode);
       if (flatStorageParentFolder) requestBody.parent = flatStorageParentFolder;
+    }
+    if (readCreateFormIndexExclude(createSectionIndexExcludeInput)) {
+      requestBody.indexExclude = true;
     }
     const response = await fetch(buildApiUrl(apiPath), {
       method: "POST",
@@ -101656,6 +101677,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
 function closeAwnDataCreateModal() {
   awnDataCreateModalNode?.classList.add("hidden");
   awnDataCreateParentGroup = "";
+  if (awnDataCreateIndexExcludeInput) awnDataCreateIndexExcludeInput.checked = false;
 }
 
 function resolveAwnDataRecordStorage(store) {
@@ -103917,7 +103939,8 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
         name,
         slug,
         description,
-        withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false
+        withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false,
+        ...(readCreateFormIndexExclude(awnDataCreateIndexExcludeInput) ? { indexExclude: true } : {})
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -104297,6 +104320,7 @@ function openRepositoryAdoptModal(entry) {
 function closeRepositoryCreateModal() {
   repositoryCreateModalNode?.classList.add("hidden");
   repositoryModalState = { mode: "create" };
+  if (repositoryCreateIndexExcludeInput) repositoryCreateIndexExcludeInput.checked = false;
 }
 
 async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
@@ -104312,7 +104336,8 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
     ...(payload.name ? { name: payload.name } : {}),
     ...(payload.description ? { description: payload.description } : {}),
     ...(payload.origin ? { origin: payload.origin } : {}),
-    ...(payload.group ? { group: payload.group } : {})
+    ...(payload.group ? { group: payload.group } : {}),
+    ...(payload.indexExclude ? { indexExclude: true } : {})
   };
   const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent), {
     method: "POST",
@@ -104436,7 +104461,8 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
         name: form.name,
         description: form.description,
         origin: form.origin,
-        group: form.group
+        group: form.group,
+        ...(readCreateFormIndexExclude(repositoryCreateIndexExcludeInput) ? { indexExclude: true } : {})
       },
       agentId
     );
@@ -106683,6 +106709,9 @@ async function createNode(type, options = {}) {
     }
     if (options.awnType) {
       payload.awnType = String(options.awnType);
+    }
+    if (readCreateFormIndexExclude(createNodeIndexExcludeInput)) {
+      payload.indexExclude = true;
     }
 
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {

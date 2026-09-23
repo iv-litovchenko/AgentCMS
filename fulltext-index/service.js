@@ -67,11 +67,20 @@ function addPathToIndex(index, relPath, termCounts) {
 }
 
 function createFulltextSearchService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute, isTextSearchableFileName, getIndexPolicy } =
-    deps;
+  const {
+    getAgentRoot,
+    collectSearchableFiles,
+    resolvePathAbsolute,
+    isTextSearchableFileName,
+    getIndexPolicy,
+    isEntityIndexExcluded
+  } = deps;
   const rebuildLocks = new Map();
 
   async function isPathIndexable(relPath) {
+    if (typeof isEntityIndexExcluded === "function" && await isEntityIndexExcluded(relPath)) {
+      return false;
+    }
     if (typeof getIndexPolicy === "function") {
       const policy = await getIndexPolicy();
       return policy.isIndexable(relPath);
