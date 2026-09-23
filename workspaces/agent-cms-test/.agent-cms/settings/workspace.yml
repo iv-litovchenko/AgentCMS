@@ -6,12 +6,12 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T12:29:19.744Z"
+  awn-id-updated-at: "2026-09-23T14:41:31.052Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
   hooks-rules: []
-  voice-route-runtime: claude
+  voice-route-runtime: codex
   voice-route-claude-cli-path: claude
   voice-route-codex-cli-path: codex
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
@@ -65,7 +65,7 @@ awn_settings:
   voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
   voice-tts-elevenlabs-model: eleven_multilingual_v2
   voice-tts-elevenlabs-rate: 1
-  voice-proactive-mode: off
+  voice-proactive-mode: on
   voice-proactive-idle-seconds-min: 500
   voice-proactive-idle-seconds-max: 1000
   voice-proactive-cooldown-seconds: 9000
@@ -78,14 +78,14 @@ awn_settings:
   voice-media-camera-facing: environment
   voice-media-screen-enabled: false
   voice-media-screen-on-speech: false
-  voice-window-character-model: cloud
+  voice-window-character-model: robot
   voice-window-compact-mode: false
-  voice-window-topmost: false
+  voice-window-topmost: true
   voice-window-pet-overlay: false
   voice-window-transparent: false
   voice-window-background: wallpaper
-  voice-window-compact-dialog-qa: false
-  voice-window-keep-awake: false
+  voice-window-compact-dialog-qa: true
+  voice-window-keep-awake: true
   voice-window-processing-sound: off
   voice-window-dialog-auto-scroll: true
   ws-static-example-1: значение 1

@@ -1,9 +1,9 @@
-id: awn.data.element.default
+id: awn.infoblock.element.default
 name: Запись накопителя (default)
 kind: data-element
-domain: data
+domain: infoblock
 status: active
-extends: awn.data.element.base
+extends: awn.infoblock.element.base
 description: Базовая схема полей для записей store (schema.yml extends)
 fields:
   awn-created:

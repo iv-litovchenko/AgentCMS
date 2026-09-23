@@ -1,7 +1,7 @@
-id: awn.data.base
+id: awn.infoblock.base
 name: База накопителя
 kind: data-container
-domain: data
+domain: infoblock
 status: active
 extends: awn.entity
 description: >
@@ -26,4 +26,4 @@ properties:
     description: true — вложенные записи с parent
   elements-schema-extends:
     title: Базовая схема полей записей
-    description: Обычно awn.data.element.default (Фаза B)
+    description: Обычно awn.infoblock.element.default (Фаза B)

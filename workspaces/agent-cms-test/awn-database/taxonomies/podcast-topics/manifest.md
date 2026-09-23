@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-name: Темы эпизодов
 awn-record-id-mode: slug
 awn-record-file: main.csv

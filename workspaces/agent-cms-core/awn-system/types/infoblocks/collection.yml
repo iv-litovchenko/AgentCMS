@@ -1,15 +1,15 @@
-id: awn.data.collection
+id: awn.infoblock.collection
 name: Коллекция
 kind: data-container
-domain: data
+domain: infoblock
 status: active
-extends: awn.data.base
+extends: awn.infoblock.base
 store-kind: collection
 description: manifest + N записей (*.md или main.csv)
 record-id-mode: slug
 record-file: "{id}.md"
 record-hierarchy: false
-elements-schema-extends: awn.data.element.default
+elements-schema-extends: awn.infoblock.element.default
 elements-schema:
   fields:
     awn-title:

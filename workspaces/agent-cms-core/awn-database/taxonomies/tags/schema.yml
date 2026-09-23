@@ -3,7 +3,7 @@ layer: awn-database-store
 
 awn_schema:
   record:
-    extends: awn.data.element.default
+    extends: awn.infoblock.element.default
     fields:
       awn-code:
         type: awn.string

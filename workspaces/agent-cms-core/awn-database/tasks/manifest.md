@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-name: Задачи
 awn-record-id-mode: numeric
 awn-record-file: "{id}.md"
@@ -9,4 +9,4 @@ awn-record-hierarchy: true
 
 Store id = **`awn-database/tasks`**.
 
-Тип: `awn.data.collection`. Поля записей — `schema.yml` (extends `awn.data.element.default`).
+Тип: `awn.infoblock.collection`. Поля записей — `schema.yml` (extends `awn.infoblock.element.default`).

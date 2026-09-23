@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-id: ui-home-titles
 awn-name: Заголовки «Главная»
 awn-record-id-mode: slug

@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-id: agent-registry.groups
 awn-name: Группы агентов
 awn-record-id-mode: slug

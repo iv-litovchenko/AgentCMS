@@ -775,8 +775,8 @@ razdel-1/
 
 Папка `awn-database/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п.
 
-- типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
-- схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
+- типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.collection" })`
+- схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.record" })`
 - список: `iblock_list` → `iblock_get({ store })`
 - оглавление всех инфоблоков: `iblock_read_index` / `iblock_refresh_index` → `awn-database/index.md`
 - **бриф инфоблока** — тело `awn-database/{store}/manifest.md` (markdown после frontmatter): назначение, контекст, инструкции, правила, договорённости, как работать с накопителем; в `iblock_get` → поле `manifestMarkdown`
@@ -1038,13 +1038,13 @@ recall_workspace_facts({
 Примеры:
 - create_page → `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 - контент в слоте → `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
-- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
-- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
+- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.collection" })`
+- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.record" })`
 
 **Не типы** (экземпляр / override): `read_page_schema`, `iblock_read_schema` — локальные schema.yml, не справочник.
 
-- всегда **`id`**, не path: `{ "id": "awn.data.collection" }` ✅
-- алиасы legacy: `awn-database/cms-base/data-containers/collection.md` → `awn.data.collection`
+- всегда **`id`**, не path: `{ "id": "awn.infoblock.collection" }` ✅
+- алиасы legacy: `awn.data.*` → `awn.infoblock.*`; `awn-database/cms-base/data-containers/collection.md` → `awn.infoblock.collection`
 
 ---
 

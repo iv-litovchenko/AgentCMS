@@ -9,7 +9,8 @@ const {
   TYPE_DOMAINS,
   AGENT_TYPE_DOMAINS,
   AGENT_SYSTEM_REL,
-  agentSystemDirExists
+  agentSystemDirExists,
+  getTypeDomainDirName
 } = require("./platform-sources");
 const {
   DOMAIN_TYPE_STORES,
@@ -79,11 +80,21 @@ const TYPE_ID_ALIASES = {
   "awn.slot.thread": "awn.slot.discussion",
   "awn.slot.dialogs": "awn.slot.discussion",
   "awn.slot.quick-notes": "awn.slot.note",
-  "awn.data.singleton": "awn.data.single",
-  "awn-database/cms-base/data-containers/group.md": "awn.data.group",
-  "awn-database/cms-base/data-containers/collection.md": "awn.data.collection",
-  "awn-database/cms-base/data-containers/single.md": "awn.data.single",
-  "awn-database/cms-base/data-elements/default.md": "awn.data.element.default"
+  "awn.data.singleton": "awn.infoblock.single",
+  "awn.data.single": "awn.infoblock.single",
+  "awn.data.group": "awn.infoblock.group",
+  "awn.data.collection": "awn.infoblock.collection",
+  "awn.data.base": "awn.infoblock.base",
+  "awn.data.element.base": "awn.infoblock.element.base",
+  "awn.data.element.default": "awn.infoblock.element.default",
+  "awn.data.element.record": "awn.infoblock.record",
+  "awn.data.record": "awn.infoblock.record",
+  "awn.data.category": "awn.infoblock.category",
+  "awn.data.sidecar": "awn.infoblock.sidecar",
+  "awn-database/cms-base/data-containers/group.md": "awn.infoblock.group",
+  "awn-database/cms-base/data-containers/collection.md": "awn.infoblock.collection",
+  "awn-database/cms-base/data-containers/single.md": "awn.infoblock.single",
+  "awn-database/cms-base/data-elements/default.md": "awn.infoblock.element.default"
 };
 
 function normalizeLegacyCatalogPath(catalogPath) {
@@ -130,7 +141,9 @@ const BUILTIN_DOMAIN_META = {
   "md-blocks": { label: "Markdown blocks", kind: "block" },
   taxonomies: { label: "Taxonomies", kind: "taxonomy" },
   mixins: { label: "Mixins", kind: "mixin" },
-  data: { label: "Накопители информации (инфоблоки)", kind: "data-container" }
+  infoblock: { label: "Инфоблоки (awn-database)", kind: "data-container" },
+  /** @deprecated use infoblock */
+  data: { label: "Инфоблоки (awn-database)", kind: "data-container" }
 };
 
 function normalizeDomainEntry(raw) {
@@ -378,14 +391,26 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-database"];
-  const platformExtraDomains = ["mixins", "settings", "md-blocks", "data", "presets"];
+  const platformExtraDomains = ["mixins", "settings", "md-blocks", "infoblock", "presets"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {
-      ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
+      ingestYamlDomainTypes(
+        path.join(coreSystemRoot, "types", getTypeDomainDirName(domain)),
+        domain,
+        "platform",
+        byId,
+        byDomain
+      );
     }
     for (const domain of platformExtraDomains) {
-      ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
+      ingestYamlDomainTypes(
+        path.join(coreSystemRoot, "types", getTypeDomainDirName(domain)),
+        domain,
+        "platform",
+        byId,
+        byDomain
+      );
     }
     for (const domain of ["fields"]) {
       if ((byDomain[domain] || []).length) continue;
@@ -938,6 +963,7 @@ function getTypeUsage(entry, merged, byId) {
       }
       break;
     }
+    case "infoblock":
     case "data": {
       if (merged["store-kind"]) {
         consumers.push(`iblock_create (${merged["store-kind"]})`);

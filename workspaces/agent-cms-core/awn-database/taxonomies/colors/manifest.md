@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-id: taxonomies.colors
 awn-name: Палитра
 awn-record-storage: csv

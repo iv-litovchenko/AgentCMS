@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.group
+awn-type: awn.infoblock.group
 awn-id: ui
 awn-name: UI (интерфейс)
 ---

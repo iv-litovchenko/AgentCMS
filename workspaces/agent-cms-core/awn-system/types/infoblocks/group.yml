@@ -1,9 +1,9 @@
-id: awn.data.group
+id: awn.infoblock.group
 name: Группа
 kind: data-container
-domain: data
+domain: infoblock
 status: active
-extends: awn.data.base
+extends: awn.infoblock.base
 store-kind: group
 description: manifest + подпапки-накопители, без собственных записей
 record-hierarchy: false

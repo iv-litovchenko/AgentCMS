@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-id: ui-slogans
 awn-name: Слоганы шапки
 awn-record-id-mode: slug

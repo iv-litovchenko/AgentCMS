@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-name: Коллекция-тест
 awn-record-storage: md
 awn-record-id-mode: numeric

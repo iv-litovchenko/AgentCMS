@@ -9,7 +9,7 @@ const listTypesSchema = z.object({
   domain: z
     .string()
     .optional()
-    .describe("Filter by domain: pages | content | data | fields | md-blocks | slots | …"),
+    .describe("Filter by domain: pages | content | infoblock | fields | md-blocks | slots | …"),
   kind: z
     .string()
     .optional()
@@ -18,7 +18,7 @@ const listTypesSchema = z.object({
 });
 
 const getTypeSchema = z.object({
-  id: z.string().optional().describe("Type id, e.g. awn.page.topic or awn.data.collection"),
+  id: z.string().optional().describe("Type id, e.g. awn.page.topic or awn.infoblock.collection"),
   path: z
     .string()
     .optional()

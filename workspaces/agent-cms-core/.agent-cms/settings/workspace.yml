@@ -3,7 +3,7 @@
 awn_settings:
   awn-id-next: 8
   awn-id-issued: 7
-  awn-id-updated-at: "2026-09-23T12:38:40.353Z"
+  awn-id-updated-at: "2026-09-23T14:38:07.280Z"
   awn-id-model: workspace-id-autoincrement-v1
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
@@ -97,7 +97,7 @@ awn_settings:
   voice-media-camera-facing: user
   voice-media-screen-enabled: false
   voice-media-screen-on-speech: true
-  voice-window-character-model: cloud
+  voice-window-character-model: robot
   voice-window-topmost: true
   voice-window-pet-overlay: false
   voice-window-transparent: false

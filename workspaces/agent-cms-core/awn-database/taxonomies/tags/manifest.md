@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.collection
+awn-type: awn.infoblock.collection
 awn-id: taxonomies.tags
 awn-name: Теги
 awn-record-storage: csv

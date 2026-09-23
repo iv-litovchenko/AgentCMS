@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { AGENT_SYSTEM_REL } = require("./platform-sources");
+const { AGENT_SYSTEM_REL, getTypeDomainDirName } = require("./platform-sources");
 
 function agentSystemYamlEnabled(agentSystemRoot) {
   const root = String(agentSystemRoot || "").trim();
@@ -47,7 +47,10 @@ function loadTypeYamlFile(filePath, domain, source, domainDir) {
         relFromDomain = fileName;
       }
     }
-    const catalogFile = `${AGENT_SYSTEM_REL}/types/${domain}/${relFromDomain}.yml`.replace(/\/+/g, "/");
+    const catalogFile = `${AGENT_SYSTEM_REL}/types/${getTypeDomainDirName(domain)}/${relFromDomain}.yml`.replace(
+      /\/+/g,
+      "/"
+    );
     return {
       id: String(parsed.id).trim(),
       domain,
@@ -87,7 +90,7 @@ function ingestYamlDomainTypes(typesDir, domain, source, byId, byDomain) {
 }
 
 function getAgentSystemTypesSectionFolder(domain) {
-  return `${AGENT_SYSTEM_REL}/types/${domain}`;
+  return `${AGENT_SYSTEM_REL}/types/${getTypeDomainDirName(domain)}`;
 }
 
 function isAgentSystemRelPath(relPath) {

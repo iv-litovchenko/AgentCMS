@@ -17,7 +17,17 @@ const CMS_CONFIG_REL = CMS_BASE_REL;
 const AGENT_SYSTEM_FOLDER = "awn-system";
 
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
-const AGENT_TYPE_DOMAINS = [...TYPE_DOMAINS, "mixins", "settings", "md-blocks", "data", "presets"];
+const AGENT_TYPE_DOMAINS = [...TYPE_DOMAINS, "mixins", "settings", "md-blocks", "infoblock", "presets"];
+
+/** domain id → folder name under awn-system/types/ (when they differ) */
+const TYPE_DOMAIN_DIRS = {
+  infoblock: "infoblocks"
+};
+
+function getTypeDomainDirName(domain) {
+  const key = String(domain || "").trim();
+  return TYPE_DOMAIN_DIRS[key] || key;
+}
 
 function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
   const raw = String(agentRoot || "").trim();
@@ -52,13 +62,13 @@ function getAgentSystemAbsolute(agentRoot) {
 }
 
 function getAgentSystemTypesDir(agentRoot, domain) {
-  return path.join(getAgentSystemAbsolute(agentRoot), "types", domain);
+  return path.join(getAgentSystemAbsolute(agentRoot), "types", getTypeDomainDirName(domain));
 }
 
 function getTypeDomainAbsolute(projectRoot, domain) {
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   if (agentSystemDirExists(coreRoot)) {
-    return path.join(coreRoot, AGENT_SYSTEM_FOLDER, "types", domain);
+    return path.join(coreRoot, AGENT_SYSTEM_FOLDER, "types", getTypeDomainDirName(domain));
   }
   return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, AWN_DATA_REL, domain);
 }
@@ -182,6 +192,8 @@ module.exports = {
   TYPE_DOMAINS,
   AGENT_SYSTEM_REL,
   AGENT_TYPE_DOMAINS,
+  TYPE_DOMAIN_DIRS,
+  getTypeDomainDirName,
   getCmsConfigRel,
   agentSystemDirExists,
   resolveAgentRootAbsolute,

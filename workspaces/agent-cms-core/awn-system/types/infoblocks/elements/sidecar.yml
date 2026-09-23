@@ -1,9 +1,9 @@
-id: awn.data.sidecar
+id: awn.infoblock.sidecar
 name: Sidecar накопителя
 kind: data-element
-domain: data
+domain: infoblock
 status: active
-extends: awn.data.element.default
+extends: awn.infoblock.element.default
 description: Метаданные файла в store (*.sidecar.md)
 record-role: sidecar
 fields:

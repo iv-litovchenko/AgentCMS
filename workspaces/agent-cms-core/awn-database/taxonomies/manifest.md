@@ -1,5 +1,5 @@
 ---
-awn-type: awn.data.group
+awn-type: awn.infoblock.group
 awn-id: taxonomies
 awn-name: Таксономии (справочники)
 ---

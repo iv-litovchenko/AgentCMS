@@ -61541,7 +61541,9 @@ function resolveTypeCatalogOverviewContext(nodePath) {
   const domainRules = [
     [/awn-system\/types\/fields(\/|$)/, "fields"],
     [/awn-system\/types\/md-blocks(\/|$)/, "md-blocks"],
-    [/awn-system\/types\/data(\/|$)/, "data"],
+    [/awn-system\/types\/infoblocks(\/|$)/, "infoblock"],
+    [/awn-system\/types\/infoblock(\/|$)/, "infoblock"],
+    [/awn-system\/types\/data(\/|$)/, "infoblock"],
     [/awn-system\/types\/pages(\/|$)/, "pages"],
     [/awn-system\/types\/content(\/|$)/, "content"],
     [/awn-system\/types\/slots(\/|$)/, "slots"],
@@ -97287,7 +97289,7 @@ const AWN_TYPE_NAV_GROUPS = [
   { label: "Блоки редактора", domains: ["md-blocks"] },
   { label: "Настройки", domains: ["settings"] },
   { label: "Пресеты", domains: ["presets"] },
-  { label: "Данные (awn-database)", domains: ["data"] },
+  { label: "Инфоблоки (awn-database)", domains: ["infoblock", "data"] },
   { label: "Миксины", domains: ["mixins"] },
   { label: "Базовые", kinds: ["base", "entity", "meta"] }
 ];

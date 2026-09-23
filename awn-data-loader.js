@@ -57,6 +57,13 @@ function isSystemStoreFile(name) {
 }
 
 const AWN_PROP_TYPE_TO_KIND = {
+  "awn.infoblock.collection": "collection",
+  "awn.infoblock.single": "singleton",
+  "awn.infoblock.singleton": "singleton",
+  "awn.infoblock.group": "group",
+  "awn.infoblock.base": "collection",
+  "awn.infoblock.mixin": "collection",
+  "awn.infoblock.entity": "collection",
   "awn.data.collection": "collection",
   "awn.data.single": "singleton",
   "awn.data.singleton": "singleton",
@@ -72,16 +79,16 @@ const AWN_PROP_TYPE_TO_KIND = {
 };
 
 const KIND_TO_AWN_PROP_TYPE = {
-  collection: "awn.data.collection",
-  singleton: "awn.data.single",
-  group: "awn.data.group"
+  collection: "awn.infoblock.collection",
+  singleton: "awn.infoblock.single",
+  group: "awn.infoblock.group"
 };
 
-/** Canonical data-container type ids (awn-system/types/data/). */
+/** Canonical infoblock-container type ids (awn-system/types/infoblocks/). */
 const CONTAINER_TYPE_ID = {
-  collection: "awn.data.collection",
-  singleton: "awn.data.single",
-  group: "awn.data.group"
+  collection: "awn.infoblock.collection",
+  singleton: "awn.infoblock.single",
+  group: "awn.infoblock.group"
 };
 /** @deprecated legacy MD paths — use CONTAINER_TYPE_ID */
 const DATA_CONTAINERS_PREFIX = `${AWN_DATA_DIR}/cms-base/data-containers/`;
@@ -90,8 +97,8 @@ const CONTAINER_SUPERTYPE = {
   group: `${DATA_CONTAINERS_PREFIX}group.md`,
   singleton: `${DATA_CONTAINERS_PREFIX}single.md`
 };
-const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.data.element.default";
-const DEFAULT_RECORD_ELEMENT_TYPE = "awn.data.element.record";
+const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
+const DEFAULT_RECORD_ELEMENT_TYPE = "awn.infoblock.record";
 /** @deprecated use DEFAULT_ELEMENT_SCHEMA_TYPE */
 const DEFAULT_ELEMENT_SCHEMA = `${AWN_DATA_DIR}/cms-base/data-elements/default.md`;
 
@@ -1206,7 +1213,7 @@ function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "")
 }
 
 const BASE_SCHEMA_TEMPLATE = `---
-awn-type: awn.data.base
+awn-type: awn.infoblock.base
 awn-layer: awn-database-base
 awn-fields:
   awn-id:
@@ -1262,7 +1269,7 @@ function dumpYamlBlock(obj, indent = 0) {
 function buildStoreManifestContent(schema, body = "", options = {}) {
   const kind = String(schema.kind || "collection").trim();
   const lines = ["---"];
-  lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || CONTAINER_TYPE_ID.collection || "awn.data.collection"}`);
+  lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || CONTAINER_TYPE_ID.collection || "awn.infoblock.collection"}`);
   if (schema.id) lines.push(`awn-id: ${schema.id}`);
   if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
   if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);

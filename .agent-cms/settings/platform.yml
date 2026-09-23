@@ -3,7 +3,7 @@
 awn_settings:
   maintenance-mode: false
   default-locale: ru
-  default-workspace-id: agent-cms-core
+  default-workspace-id: agent-cms-test
   ui-theme: system
   ui-density: comfortable
   ui-show-breadcrumbs: true
