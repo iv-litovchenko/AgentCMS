@@ -19486,6 +19486,7 @@ function saveMenuTreeSettings(agentId, patch) {
 }
 
 let platformUiSettings = { maintenanceMode: false, defaultLocale: "ru" };
+let platformMaintenanceViewActive = false;
 
 function applyPlatformDefaultLocale(locale = "ru") {
   const normalized = String(locale || "ru").trim().toLowerCase() === "en" ? "en" : "ru";
@@ -19493,22 +19494,74 @@ function applyPlatformDefaultLocale(locale = "ru") {
   platformUiSettings.defaultLocale = normalized;
 }
 
+function isMaintenanceErrorMessage(message = "") {
+  const text = String(message || "").trim().toLowerCase();
+  return text === "maintenance" || text.includes("режим обслуживания");
+}
+
+function isMaintenanceApiPayload(data) {
+  return window.PlatformStatus?.isMaintenanceApiPayload?.(data) || false;
+}
+
+async function isMaintenanceApiResponse(response) {
+  if (window.PlatformStatus?.isMaintenanceApiResponse) {
+    return window.PlatformStatus.isMaintenanceApiResponse(response);
+  }
+  if (!response || response.status !== 503) return false;
+  try {
+    const data = await response.clone().json();
+    return isMaintenanceApiPayload(data);
+  } catch {
+    return false;
+  }
+}
+
+function showMaintenanceView() {
+  if (platformMaintenanceViewActive) return;
+  platformMaintenanceViewActive = true;
+  platformUiSettings.maintenanceMode = true;
+  hideAppSplash();
+  hideAppLandingView();
+  hideContentLoading({ force: true });
+  leaveProjectSettingsMode();
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  applyNodeWorkspaceViewUi();
+  activePath = null;
+  activeLabel = null;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  setFolderBrowseUploadPanelOpen(false);
+  clearActiveSystemFile();
+  activeExternalFilePath = null;
+  clearMediaSidecarEditor();
+  setMenuLoading(false);
+  appRootNode?.classList.add("maintenance-view");
+  appRootNode?.classList.remove("home-view", "system-file-view", "not-found-view");
+  clearSystemFileViewUi();
+  hideAllAgentCanvasPanes();
+  maintenancePaneNode?.classList.remove("hidden");
+  updateActiveButton();
+  syncAppHomeButton();
+  updateBreadcrumbsForActiveMode();
+  updateWorkspaceShareLinkButton();
+}
+
+function hideMaintenanceView() {
+  if (!platformMaintenanceViewActive) return;
+  platformMaintenanceViewActive = false;
+  platformUiSettings.maintenanceMode = false;
+  appRootNode?.classList.remove("maintenance-view");
+  maintenancePaneNode?.classList.add("hidden");
+}
+
 function syncPlatformMaintenanceUi() {
-  const existing = document.getElementById("platform-maintenance-overlay");
-  if (!platformUiSettings.maintenanceMode) {
-    existing?.remove();
+  if (platformUiSettings.maintenanceMode) {
+    showMaintenanceView();
     return;
   }
-  if (existing) return;
-  const overlay = document.createElement("div");
-  overlay.id = "platform-maintenance-overlay";
-  overlay.className = "platform-maintenance-overlay";
-  overlay.innerHTML = `
-    <div class="platform-maintenance-card">
-      <h2>Режим обслуживания</h2>
-      <p>Платформа временно недоступна. Откройте <strong>Глобальные настройки платформы</strong> и снимите <code>maintenance-mode</code>.</p>
-    </div>`;
-  document.body.appendChild(overlay);
+  hideMaintenanceView();
 }
 
 async function loadPlatformUiSettings() {
@@ -19516,20 +19569,46 @@ async function loadPlatformUiSettings() {
     const response = await fetch("/api/platform/settings-global");
     if (!response.ok) return;
     const data = await response.json();
-    const maintenanceRaw = data.settings?.["maintenance-mode"];
-    const maintenanceMode =
-      maintenanceRaw === true ||
-      String(maintenanceRaw ?? "").trim().toLowerCase() === "true" ||
-      String(maintenanceRaw ?? "").trim() === "1";
+    const maintenanceMode = window.PlatformStatus?.coerceMaintenanceMode
+      ? window.PlatformStatus.coerceMaintenanceMode(data.settings?.["maintenance-mode"])
+      : data.settings?.["maintenance-mode"] === true;
     platformUiSettings = {
       maintenanceMode,
       defaultLocale: data.settings?.["default-locale"] === "en" ? "en" : "ru"
     };
     applyPlatformDefaultLocale(platformUiSettings.defaultLocale);
     syncPlatformMaintenanceUi();
+    return platformUiSettings;
   } catch {
     // ignore
   }
+  return platformUiSettings;
+}
+
+function setupMaintenancePaneUi() {
+  window.PlatformStatus?.bindMaintenancePage?.({
+    retryButtonId: "app-maintenance-retry-btn",
+    adminPanelId: "app-maintenance-admin-panel",
+    adminToggleId: "app-maintenance-admin-toggle",
+    adminSaveId: "app-maintenance-admin-save",
+    adminStatusId: "app-maintenance-admin-status"
+  });
+
+  maintenanceRetryBtn?.addEventListener("click", async () => {
+    const settings = await loadPlatformUiSettings().catch(() => null);
+    if (settings?.maintenanceMode) return;
+    hideMaintenanceView();
+    showHomeView();
+    if (activeAgentId) {
+      void refreshMenu().catch((error) => {
+        if (isMaintenanceErrorMessage(error?.message)) showMaintenanceView();
+      });
+    }
+  });
+
+  maintenanceSettingsBtn?.addEventListener("click", () => {
+    void openHeaderGlobalSettingsModal();
+  });
 }
 
 function applyUserSettingsFromCache(cache = getNodeSettingsCache()) {
@@ -99241,6 +99320,7 @@ function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
   home2PaneNode?.classList.add("hidden");
   notFoundPaneNode?.classList.add("hidden");
+  maintenancePaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
   agentJournalPaneNode?.classList.add("hidden");
   agentProjectSettingsPaneNode?.classList.add("hidden");
