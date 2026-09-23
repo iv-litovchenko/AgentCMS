@@ -3247,6 +3247,256 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
   return readAwnDataStoreSchemaPayload(agentRoot, projectRoot, rel);
 }
 
+function findStoreRecordHit(storeEntry, recordRef) {
+  const ref = String(recordRef || "").trim();
+  if (!ref) return null;
+  const records = storeEntry?.records || [];
+  return (
+    records.find(
+      (item) =>
+        item.id === ref ||
+        item.fileName === ref ||
+        item.fileName === `${ref}.md` ||
+        item.relPath === ref ||
+        item.relPath.endsWith(`/${ref}`) ||
+        item.relPath.endsWith(`/${ref}.md`)
+    ) || null
+  );
+}
+
+function readSortJsonFile(sortPath) {
+  if (!fs.existsSync(sortPath)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(sortPath, "utf-8"));
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSortJsonFile(sortPath, order) {
+  fs.writeFileSync(sortPath, `${JSON.stringify(order, null, 2)}\n`, "utf-8");
+}
+
+function removeStoreSortEntry(dataRoot, storeRel) {
+  const rel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const slash = rel.indexOf("/");
+  if (slash > 0) {
+    const groupRel = rel.slice(0, slash);
+    const childSlug = rel.slice(slash + 1);
+    const sortPath = path.join(dataRoot, groupRel, "sort.json");
+    const order = readSortJsonFile(sortPath).filter((item) => item !== childSlug);
+    writeSortJsonFile(sortPath, order);
+    return;
+  }
+  const sortPath = path.join(dataRoot, "sort.json");
+  const top = rel.split("/")[0];
+  const order = readSortJsonFile(sortPath).filter((item) => item !== top);
+  writeSortJsonFile(sortPath, order);
+}
+
+function renameStoreSortEntry(dataRoot, storeRel, nextStoreRel) {
+  const fromRel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const toRel = String(nextStoreRel || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!fromRel || !toRel || fromRel === toRel) return;
+
+  const fromSlash = fromRel.indexOf("/");
+  const toSlash = toRel.indexOf("/");
+  if (fromSlash > 0 && toSlash > 0 && fromRel.slice(0, fromSlash) === toRel.slice(0, toSlash)) {
+    const groupRel = fromRel.slice(0, fromSlash);
+    const fromSlug = fromRel.slice(fromSlash + 1);
+    const toSlug = toRel.slice(toSlash + 1);
+    const sortPath = path.join(dataRoot, groupRel, "sort.json");
+    const order = readSortJsonFile(sortPath);
+    const next = order.map((item) => (item === fromSlug ? toSlug : item));
+    if (!next.includes(toSlug)) next.push(toSlug);
+    writeSortJsonFile(sortPath, [...new Set(next)]);
+    return;
+  }
+
+  removeStoreSortEntry(dataRoot, fromRel);
+  if (toSlash > 0) {
+    const groupRel = toRel.slice(0, toSlash);
+    const childSlug = toRel.slice(toSlash + 1);
+    appendGroupSortEntry(dataRoot, groupRel, childSlug);
+  } else {
+    appendRootSortEntry(dataRoot, toRel);
+  }
+}
+
+function resolveRecordDeletionTarget(storeEntry, storeAbs, recordRef) {
+  const recordAbs = resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef);
+  const hit = findStoreRecordHit(storeEntry, recordRef);
+  if (hit?.isSection) {
+    const sectionDir = path.dirname(recordAbs);
+    return { targetAbs: sectionDir, kind: "section", recordId: hit.id };
+  }
+  return {
+    targetAbs: recordAbs,
+    kind: "file",
+    recordId: hit?.id || path.basename(recordAbs, path.extname(recordAbs))
+  };
+}
+
+function listAwnDataRecordsPayload(agentRoot, projectRoot, storeRel) {
+  const { store, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const records = (store.records || []).map((record) => ({
+    id: record.id,
+    title: record.title || record.id,
+    parent: record.parent || null,
+    isSection: Boolean(record.isSection),
+    relPath: record.relPath,
+    fileName: record.fileName
+  }));
+  return {
+    store: rel,
+    kind: store.kind,
+    recordCount: records.length,
+    records,
+    tree: store.tree || buildRecordTree(store.records || [])
+  };
+}
+
+function readAwnDataRecordBody(agentRoot, projectRoot, storeRel, recordRef) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support body API yet; use iblock_frame_get");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const parts = splitMarkdownFrontmatterText(raw);
+  const hit = findStoreRecordHit(store, recordRef);
+  const record = String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, ".md");
+  return {
+    store: rel,
+    record,
+    file: path.basename(recordAbs),
+    body: parts.body
+  };
+}
+
+function writeAwnDataRecordBody(agentRoot, projectRoot, storeRel, recordRef, body) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support body API yet; use iblock_frame_get");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const parts = splitMarkdownFrontmatterText(raw);
+  let nextFrontmatter = parts.frontmatter;
+  nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
+  const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, String(body ?? ""));
+  fs.writeFileSync(recordAbs, nextRaw, "utf-8");
+  const hit = findStoreRecordHit(store, recordRef);
+  const record = String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, ".md");
+  return {
+    store: rel,
+    record,
+    file: path.basename(recordAbs),
+    body: String(body ?? "")
+  };
+}
+
+function deleteAwnDataRecord(agentRoot, projectRoot, storeRel, recordRef) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.kind === "single") throw new Error("Cannot delete the only record in a single store");
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support delete API yet; use write_file on main.csv");
+  }
+  const { targetAbs, kind, recordId } = resolveRecordDeletionTarget(store, storeAbs, recordRef);
+  if (!fs.existsSync(targetAbs)) throw new Error("Record not found");
+  if (kind === "section") {
+    fs.rmSync(targetAbs, { recursive: true, force: true });
+  } else {
+    fs.unlinkSync(targetAbs);
+  }
+  const sortPath = path.join(storeAbs, "sort.json");
+  const order = readSortJsonFile(sortPath).filter((item) => item !== recordId);
+  if (fs.existsSync(sortPath)) writeSortJsonFile(sortPath, order);
+  return { ok: true, store: rel, record: recordId, deleted: true };
+}
+
+function renameAwnDataRecord(agentRoot, projectRoot, storeRel, recordRef, options = {}) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.kind === "single") throw new Error("Cannot rename the only record in a single store");
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support rename/move API yet");
+  }
+
+  const hit = findStoreRecordHit(store, recordRef);
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record not found");
+
+  const nextSlug = normalizeStoreSlug(options.slug || options.id || options.to || "");
+  const nextParent =
+    options.parent !== undefined ? String(options.parent || "").trim() : String(hit?.parent || "").trim();
+  const recordRoot = resolveStoreRecordRootAbs(storeAbs);
+  const ext = path.extname(recordAbs) || ".md";
+
+  let targetAbs;
+  if (hit?.isSection) {
+    const sectionDir = path.dirname(recordAbs);
+    const sectionId = nextSlug || path.basename(sectionDir);
+    const parentDir = nextParent ? path.join(recordRoot, nextParent) : recordRoot;
+    targetAbs = path.join(parentDir, sectionId);
+    if (fs.existsSync(targetAbs)) throw new Error(`Target already exists: ${sectionId}`);
+    fs.mkdirSync(parentDir, { recursive: true });
+    fs.renameSync(sectionDir, targetAbs);
+  } else {
+    const nextId = nextSlug || path.basename(recordAbs, ext);
+    const relFile = nextParent ? path.posix.join(nextParent, `${nextId}${ext}`) : `${nextId}${ext}`;
+    targetAbs = path.join(recordRoot, relFile);
+    if (fs.existsSync(targetAbs)) throw new Error(`Target already exists: ${nextId}`);
+    fs.mkdirSync(path.dirname(targetAbs), { recursive: true });
+    fs.renameSync(recordAbs, targetAbs);
+  }
+
+  const sortPath = path.join(storeAbs, "sort.json");
+  const oldId = hit?.id || path.basename(recordAbs, ext);
+  const newId = nextSlug || oldId;
+  const order = readSortJsonFile(sortPath);
+  if (order.includes(oldId)) {
+    writeSortJsonFile(
+      sortPath,
+      order.map((item) => (item === oldId ? newId : item)).filter((item, index, arr) => arr.indexOf(item) === index)
+    );
+  }
+
+  return {
+    ok: true,
+    store: rel,
+    record: newId,
+    from: oldId,
+    file: path.basename(targetAbs)
+  };
+}
+
+function deleteAwnDataStore(agentRoot, projectRoot, storeRel) {
+  const { store, storeAbs, storeRel: rel, dataRoot } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.kind === "group" && Number(store.childCount || 0) > 0) {
+    throw new Error("Group is not empty");
+  }
+  fs.rmSync(storeAbs, { recursive: true, force: true });
+  removeStoreSortEntry(dataRoot, rel);
+  return { ok: true, store: rel, deleted: true };
+}
+
+function renameAwnDataStore(agentRoot, projectRoot, storeRel, nextSlug) {
+  const { storeAbs, storeRel: rel, dataRoot } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const normalized = normalizeStoreSlug(nextSlug);
+  if (!normalized) throw new Error("Invalid store slug");
+  if (storeSchemaExists(dataRoot, normalized)) throw new Error(`Store already exists: ${normalized}`);
+
+  const nextAbs = getStoreAbsolutePath(dataRoot, normalized);
+  if (!nextAbs) throw new Error("Invalid store slug");
+  fs.mkdirSync(path.dirname(nextAbs), { recursive: true });
+  fs.renameSync(storeAbs, nextAbs);
+  renameStoreSortEntry(dataRoot, rel, normalized);
+  return { ok: true, store: rel, nextStore: normalized };
+}
+
 function getContainerTypesPayload(agentRoot, projectRoot) {
   const types = {};
   for (const kind of ["group", "collection", "single"]) {
@@ -3327,6 +3577,13 @@ module.exports = {
   writeAwnDataRecordProperty,
   readAwnDataRecordProperties,
   writeAwnDataRecordProperties,
+  listAwnDataRecordsPayload,
+  readAwnDataRecordBody,
+  writeAwnDataRecordBody,
+  deleteAwnDataRecord,
+  renameAwnDataRecord,
+  deleteAwnDataStore,
+  renameAwnDataStore,
   normalizeExtendsRef,
   resolveKindFromSupertype,
   CONTAINER_SUPERTYPE,

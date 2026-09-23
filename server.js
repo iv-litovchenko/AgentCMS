@@ -312,6 +312,13 @@ const {
   writeAwnDataRecordProperty,
   readAwnDataRecordProperties,
   writeAwnDataRecordProperties,
+  listAwnDataRecordsPayload,
+  readAwnDataRecordBody,
+  writeAwnDataRecordBody,
+  deleteAwnDataRecord,
+  renameAwnDataRecord,
+  deleteAwnDataStore,
+  renameAwnDataStore,
   getContainerTypesPayload
 } = require("./awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./awn-system-presets-loader");
@@ -12058,7 +12065,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-database. Полный → iblock_read_index / iblock_list."
+      hint: "Краткий каталог awn-database. Полный → iblock_frame_read_index / iblock_frame_list."
     };
   }
 
@@ -12075,7 +12082,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-database (path, kind, title, recordCount). " +
-      "Полный оглавление → iblock_read_index; детали store → iblock_get / iblock_list.",
+      "Полный оглавление → iblock_frame_read_index; детали store → iblock_frame_get / iblock_frame_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -22688,6 +22695,139 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to write record property",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-database/records") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      const payload = listAwnDataRecordsPayload(agentRoot, getProjectRoot(), storeRel);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to list awn-database records",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/awn-database/records") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const recordRef = String(url.searchParams.get("record") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      if (!recordRef) return sendJson(res, 400, { error: "Missing record query parameter" });
+      const payload = deleteAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to delete awn-database record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-database/records/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const recordRef = String(payload?.record || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (!recordRef) return sendJson(res, 400, { error: "Missing record path" });
+      const result = renameAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef, {
+        slug: payload?.slug || payload?.id || payload?.to,
+        parent: payload?.parent
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to rename awn-database record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-database/record-body") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const recordRef = String(url.searchParams.get("record") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      const payload = readAwnDataRecordBody(agentRoot, getProjectRoot(), storeRel, recordRef);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read record body",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-database/record-body") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const recordRef = String(payload?.record || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (payload?.body === undefined) return sendJson(res, 400, { error: "Missing body" });
+      const result = writeAwnDataRecordBody(
+        agentRoot,
+        getProjectRoot(),
+        storeRel,
+        recordRef,
+        payload.body
+      );
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to write record body",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/awn-database/stores") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      const payload = deleteAwnDataStore(agentRoot, getProjectRoot(), storeRel);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to delete awn-database store",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-database/stores/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const slug = String(payload?.slug || payload?.to || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = renameAwnDataStore(agentRoot, getProjectRoot(), storeRel, slug);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to rename awn-database store",
         details: String(error.message || error)
       });
     }

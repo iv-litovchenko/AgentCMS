@@ -306,8 +306,8 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 |----------|-------------------|---------------|
 | Страница | `read_page_properties` / `write_page_properties` | `read_page_property` / `write_page_property` |
 | Контент | `read_content_properties` / `write_content_properties` | `read_content_property` / `write_content_property` |
-| Инфоблок (manifest) | `iblock_read_properties` / `iblock_write_properties` | `iblock_read_property` / `iblock_write_property` |
-| Элемент инфоблока | `iblock_content_read_properties` / `iblock_content_write_properties` | `iblock_content_read_property` / `iblock_content_write_property` |
+| Frame (manifest) | `iblock_frame_read_properties` / `iblock_frame_write_properties` | `iblock_frame_read_property` / `iblock_frame_write_property` |
+| Элемент | `iblock_content_read_properties` / `iblock_content_write_properties` | `iblock_content_read_property` / `iblock_content_write_property` |
 
 `write_*_properties` — **merge**: шли только изменённые ключи. Для записей `awn-updated` дописывается автоматически.
 
@@ -338,7 +338,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 **Секреты** — корневой `.env` репо (platform), не в yaml. **Runtime** workspace — `.agent-cms/` (`settings/`, `cache/indexes/`, `cache/`, `state/`, `journal/`).
 
-**Не agent settings:** `schema.yml` / `config.yml` / `.env` у **тем и инфоблоков** — через `read_page_config`, `iblock_*`, не через `write_setting`.
+**Не agent settings:** `schema.yml` / `config.yml` / `.env` у **тем и инфоблоков** — через `read_page_config`, `iblock_frame_*`, не через `write_setting`.
 
 ### MCP — три tool
 
@@ -388,7 +388,7 @@ write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-
 |-----|------|-------|-------|
 | Поля страницы / слотов | `schema.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
-| Поля записей накопителя | `schema.yml` в awn-database | `iblock_read_schema` / `write_file` на schema.yml | Схема awn-database |
+| Поля записей накопителя | `schema.yml` в awn-database | `iblock_frame_read_schema` / `iblock_frame_write_schema` | Схема awn-database |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
@@ -751,7 +751,7 @@ razdel-1/
 | **Где живёт** | Дерево меню WS → Area → Topic; файлы в слотах (`main`, `inbox`, `media`…) или path-based FS в `awn-storage/` | Папка `awn-database/` **вне** дерева Page · Slot · Content |
 | **Форма** | Markdown, медиа, код, произвольные папки; frontmatter по желанию | Коллекции `{id}.md`, CSV-таблицы, **единая схема** (`schema.yml`) на все записи |
 | **Когда выбирать** | Документы, заметки, планы, обсуждения, статьи, черновики, контекст темы, wikilinks | Справочники, реестры, задачи с полями, enum/taxonomies, финансы по строкам, любые **однотипные сущности** с фильтрацией и CRUD |
-| **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `iblock_list`, `iblock_get`, `iblock_content_create`, `iblock_read_schema` |
+| **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `iblock_frame_list`, `iblock_frame_get`, `iblock_content_create`, `iblock_frame_read_schema` |
 | **UI** | Темы, слоты, overview темы | «Накопители информации (инфоблоки)» |
 
 **Примеры → Page · Slot · Content:** протокол встречи, README темы, inbox-заметка, медиафайл, гибкая папка в `awn-storage/` без жёстких колонок.
@@ -766,26 +766,33 @@ razdel-1/
 
 **Терминология:** `awn-database` — **структурированные данные** (таблицы, коллекции со схемой). В UI: **«Накопители информации (инфоблоки)»**. Не путать со слотами темы. См. также раздел «Страницы и контент vs awn-database» выше.
 
-**MCP — два слоя (как page / content):**
+**MCP — два слоя (frame / content):**
 
-| Слой | Префикс | Про что |
-|------|---------|---------|
-| Контейнер | `iblock_*` | manifest, schema, create store |
-| Содержимое | `iblock_content_*` | записи `{id}.md`, CSV-строки |
+| Слой | Префикс | Типы | Про что |
+|------|---------|------|---------|
+| Каркас (frame) | `iblock_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-database/{slug}/` |
+| Элементы | `iblock_content_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
 
-Папка `awn-database/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п.
+Старые `iblock_*` (без `frame`) — deprecated-алиасы на `iblock_frame_*`.
 
-- типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.collection" })`
-- схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.record" })`
-- список: `iblock_list` → `iblock_get({ store })`
-- оглавление всех инфоблоков: `iblock_read_index` / `iblock_refresh_index` → `awn-database/index.md`
-- **бриф инфоблока** — тело `awn-database/{store}/manifest.md` (markdown после frontmatter): назначение, контекст, инструкции, правила, договорённости, как работать с накопителем; в `iblock_get` → поле `manifestMarkdown`
-- схема полей (read): `iblock_read_schema({ store })`
-- свойства инфоблока: `iblock_read_properties` / `iblock_write_properties`, `iblock_read_property` / `iblock_write_property`
-- свойства записи: `iblock_content_read_properties` / `iblock_content_write_properties`, `iblock_content_read_property` / `iblock_content_write_property`
-- новая запись: `iblock_content_create({ store, id?, title? })`
-- create store: `iblock_create({ kind, slug, … })`
-- правка schema: `write_file` на `awn-database/{store}/schema.yml` (полный YAML)
+Папка `awn-database/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `iblock_frame_list` только frames** — не путать с element-записями внутри store.
+
+**Типовой flow (3 шага):**
+1. `iblock_frame_list` → `iblock_frame_get({ store })`
+2. поля записи: `iblock_content_read_properties` / `iblock_content_write_properties`
+3. базовые поля типа: `get_type({ id: "awn.infoblock.element.record" })` (category/sidecar — свои id)
+
+- типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
+- типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`
+- оглавление frames: `iblock_frame_read_index` / `iblock_frame_refresh_index` → `awn-database/index.md`
+- **бриф frame** — тело `manifest.md` (после frontmatter); в `iblock_frame_get` → `manifestMarkdown`
+- **кастомные поля instance** (не весь тип): `iblock_frame_read_schema` / `iblock_frame_write_schema` — только доп. поля в `schema.yml`
+- свойства frame: `iblock_frame_read_properties` / `iblock_frame_write_properties`
+- список элементов (лёгкий): `iblock_content_list({ store })`
+- новый элемент: `iblock_content_create({ store, name, slug, isSection? })` — как в UI
+- раздел = папка с `manifest.md` под `awn-storage/data/{section}/`, тип `awn.infoblock.element.category`
+- тело записи: `iblock_content_read_body` / `iblock_content_write_body`
+- удаление: `iblock_frame_delete`, `iblock_content_delete`; rename: `iblock_frame_rename`, `iblock_content_rename`
 
 ---
 
@@ -1038,13 +1045,13 @@ recall_workspace_facts({
 Примеры:
 - create_page → `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 - контент в слоте → `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
-- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.collection" })`
-- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.record" })`
+- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
+- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`
 
-**Не типы** (экземпляр / override): `read_page_schema`, `iblock_read_schema` — локальные schema.yml, не справочник.
+**Не типы** (экземпляр / override): `read_page_schema`, `iblock_frame_read_schema` — локальные schema.yml, не справочник.
 
-- всегда **`id`**, не path: `{ "id": "awn.infoblock.collection" }` ✅
-- алиасы legacy: `awn.data.*` → `awn.infoblock.*`; `awn-database/cms-base/data-containers/collection.md` → `awn.infoblock.collection`
+- всегда **`id`**, не path: `{ "id": "awn.infoblock.frame.collection" }` ✅
+- алиасы legacy: `awn.data.*` → `awn.infoblock.*`; `awn.infoblock.collection` → `awn.infoblock.frame.collection`
 
 ---
 
@@ -1053,7 +1060,7 @@ recall_workspace_facts({
 1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-flexible: true` (тогда — произвольная структура в `awn-storage/`).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
-4. `awn-database` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `iblock_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-database»).
+4. `awn-database` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `iblock_frame_*` + `iblock_content_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-database»).
 5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `discussion` (не устаревшие `note` / `script` / `thread` / `dialogs`).
 7. Комментарии / дискуссия — свои tools (`list_comments`, `append_comment`, `read_discussion`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-content`, `mark-done`, `set-status`).
