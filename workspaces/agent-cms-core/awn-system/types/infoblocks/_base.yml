@@ -3,7 +3,7 @@ name: База накопителя
 kind: data-container
 domain: infoblock
 status: active
-extends: awn.entity
+extends: awn.base
 description: >
   Общие правила awn-database store: manifest.md (бриф, контекст, инструкция) + структура записей.
   Не узел меню — контейнер в папке awn-database/.

@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T14:41:31.052Z"
+  awn-id-updated-at: "2026-09-23T14:47:29.255Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -18,7 +18,7 @@ awn_settings:
   voice-route-qwenpaw-user-id: default
   voice-route-qwenpaw-agent-id: default
   voice-route-qwenpaw-approval-level: AUTO
-  voice-input-enabled: true
+  voice-input-enabled: false
   voice-input-mode: fn_button
   voice-input-response-enabled: false
   voice-input-capture: microphone
@@ -39,7 +39,7 @@ awn_settings:
   voice-stt-lang: ru-RU
   voice-stt-whisper-model: base
   voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: true
+  voice-tts-enabled: false
   voice-tts-playback-mode: dialog
   voice-tts-prompt: |
     Каждый ответ пользователю используй в формате (строго, в таком порядке):
@@ -65,7 +65,7 @@ awn_settings:
   voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
   voice-tts-elevenlabs-model: eleven_multilingual_v2
   voice-tts-elevenlabs-rate: 1
-  voice-proactive-mode: on
+  voice-proactive-mode: off
   voice-proactive-idle-seconds-min: 500
   voice-proactive-idle-seconds-max: 1000
   voice-proactive-cooldown-seconds: 9000

@@ -3,7 +3,7 @@ name: База записи накопителя
 kind: data-element
 domain: infoblock
 status: active
-extends: awn.entity
+extends: awn.base
 description: Общие поля записи внутри awn-database collection/single (Фаза B — расширение)
 kind-ui:
   label: Запись
