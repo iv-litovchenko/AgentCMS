@@ -116,6 +116,14 @@ function getPolicy() {
   return loadMcpPolicy();
 }
 
+function coerceSettingBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const text = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(text)) return true;
+  if (["false", "0", "no", "off", ""].includes(text)) return false;
+  return Boolean(value);
+}
+
 function flattenAwnSettingsValues(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const flat = {};
@@ -140,7 +148,7 @@ function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
   for (const [key, value] of Object.entries(flat)) {
     if (!(key in defaults)) continue;
     const defaultValue = defaults[key];
-    if (typeof defaultValue === "boolean") normalized[key] = Boolean(value);
+    if (typeof defaultValue === "boolean") normalized[key] = coerceSettingBoolean(value);
     else if (typeof defaultValue === "number") normalized[key] = Number(value) || 0;
     else if (Array.isArray(defaultValue)) {
       const defaultHasObjects = defaultValue.some((item) => item && typeof item === "object");

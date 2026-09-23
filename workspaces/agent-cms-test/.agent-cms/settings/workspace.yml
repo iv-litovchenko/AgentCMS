@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: true
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T09:41:06.441Z"
+  awn-id-updated-at: "2026-09-23T09:53:28.968Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 30
@@ -69,8 +69,8 @@ awn_settings:
   voice-window-pet-overlay: false
   voice-window-transparent: false
   voice-window-background: wallpaper
-  voice-window-compact-dialog-qa: true
-  voice-window-keep-awake: false
+  voice-window-compact-dialog-qa: false
+  voice-window-keep-awake: true
   voice-window-processing-sound: off
   voice-window-dialog-auto-scroll: true
   voice-compose-templates:

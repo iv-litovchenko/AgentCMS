@@ -19513,8 +19513,13 @@ async function loadPlatformUiSettings() {
     const response = await fetch("/api/platform/settings-global");
     if (!response.ok) return;
     const data = await response.json();
+    const maintenanceRaw = data.settings?.["maintenance-mode"];
+    const maintenanceMode =
+      maintenanceRaw === true ||
+      String(maintenanceRaw ?? "").trim().toLowerCase() === "true" ||
+      String(maintenanceRaw ?? "").trim() === "1";
     platformUiSettings = {
-      maintenanceMode: Boolean(data.settings?.["maintenance-mode"]),
+      maintenanceMode,
       defaultLocale: data.settings?.["default-locale"] === "en" ? "en" : "ru"
     };
     applyPlatformDefaultLocale(platformUiSettings.defaultLocale);

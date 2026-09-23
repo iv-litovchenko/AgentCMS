@@ -234,12 +234,20 @@
     return entries;
   }
 
+  function coerceSettingBoolean(value) {
+    if (typeof value === "boolean") return value;
+    const text = String(value ?? "").trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(text)) return true;
+    if (["false", "0", "no", "off", ""].includes(text)) return false;
+    return Boolean(value);
+  }
+
   function settingsEntriesToObject(entries) {
     const result = {};
     for (const entry of entries || []) {
       if (!entry?.key || NODE_CONFIG_SECTION_KEYS.includes(entry.key)) continue;
       if (entry.kind === "null") result[entry.key] = null;
-      else if (entry.kind === "bool") result[entry.key] = Boolean(entry.value);
+      else if (entry.kind === "bool") result[entry.key] = coerceSettingBoolean(entry.value);
       else if (entry.kind === "number") result[entry.key] = Number(entry.value) || 0;
       else if (entry.kind === "array") result[entry.key] = Array.isArray(entry.value) ? [...entry.value] : [];
       else result[entry.key] = String(entry.value ?? "");
