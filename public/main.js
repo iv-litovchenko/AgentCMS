@@ -22977,6 +22977,8 @@ function isNodeSettingsTargetPath(nodePath) {
   const normalized = String(nodePath || "").trim();
   return (
     isNodeMdPath(normalized) ||
+    isAwnDatabaseManifestPath(normalized) ||
+    isAwnDatabaseEditableRecordPath(normalized) ||
     normalized === PROJECT_SETTINGS_GLOBAL_SCOPE ||
     normalized === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE ||
     normalized === PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE ||
@@ -28873,7 +28875,7 @@ function applyContentModeState(mode) {
       nodeMemoryViewActive = false;
     }
   }
-  if (mode !== AWN_DATA_VIEW_MODE) {
+  if (mode !== AWN_DATA_VIEW_MODE && !awnDataManifestEditReturnRel) {
     awnDataViewStoreRel = "";
     awnDataViewStoreCache = null;
     awnDataViewRecordId = "";
@@ -45059,6 +45061,24 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
       return TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(resolvedSlotKey, { contentKind: "sidecar" });
     }
   }
+  if (
+    normalized === "awn.infoblock.element.category" ||
+    typeName === "awn.infoblock.category" ||
+    typeName === "awn.infoblock.content.category"
+  ) {
+    return "category";
+  }
+  if (
+    normalized === "awn.infoblock.element.record" ||
+    typeName === "awn.infoblock.record" ||
+    typeName === "awn.infoblock.content.record"
+  ) {
+    return "record";
+  }
+  if (normalized === "awn.infoblock.element.sidecar" || typeName === "awn.infoblock.content.sidecar") {
+    return "sidecar";
+  }
+  if (String(typeName || "").startsWith("awn.infoblock.frame.")) return "frame";
   return "topic";
 }
 
@@ -45067,6 +45087,11 @@ function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activeP
     nodePath != null && nodePath !== ""
       ? String(nodePath).replace(/\\/g, "/")
       : getResolvedNodePath(activePath);
+  if (isAwnDatabaseSchemaContext(resolvedPath)) {
+    if (isAwnDatabaseManifestPath(resolvedPath)) return "frame";
+    const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
+    return resolveAwnDatabaseSchemaTargetForElementType(declared, resolvedPath);
+  }
   if (isWorkspaceSchemaContext(resolvedPath)) return "workspace";
   if (isAreaSchemaContext(resolvedPath)) return "area";
 
@@ -45158,6 +45183,11 @@ function resolveActiveOverviewSchemaCache(context = activeEntryOverviewContext) 
 function resolveActivePropsSchemaCache(context = activeEntryOverviewContext) {
   const manifestPath = getTopicSchemaManifestPath();
   if (!manifestPath) return null;
+  const propsPath = getPropsContextPath();
+  if (isAwnDatabaseSchemaContext(manifestPath) || isAwnDatabaseSchemaContext(propsPath)) {
+    const contentPath = getSchemaContentPathForContext();
+    return getTopicSchemaCache(manifestPath, contentPath);
+  }
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context?.relPath) {
     const contentPath = resolveOverviewSchemaContentPath(context);
     if (contentPath) {
@@ -45261,6 +45291,27 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   if (isWorkspaceSchemaContext(normalized)) {
     return loadWorkspaceSchemaForAgentRoot(normalized, options);
+  }
+
+  const preliminaryContentPath =
+    options.contentPath !== undefined
+      ? String(options.contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
+      : options.topicOnly === true || activeContentMode === "topic-schema"
+        ? ""
+        : getSchemaContentPathForContext(nodePath);
+  const preliminaryManifest =
+    (isTopicManifestPath(normalized) || isNodeManifestPath(normalized) ? normalized : null) ||
+    getTopicSchemaManifestPath(nodePath) ||
+    resolveTopicManifestFromBundlePath(normalized);
+  if (
+    preliminaryManifest &&
+    (isAwnDatabaseSchemaContext(preliminaryManifest) ||
+      (preliminaryContentPath && isAwnDatabaseEditableRecordPath(preliminaryContentPath)))
+  ) {
+    return loadAwnDatabaseTopicSchemaForManifest(preliminaryManifest, {
+      contentPath: preliminaryContentPath,
+      force: options.force
+    });
   }
 
   const manifestPath =
@@ -48795,6 +48846,13 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return normalizeAwnTypeName("awn.content.record");
   }
 
+  if (/^(?:awn-database|awn-data)\/.+\/awn-storage\/data\//i.test(normalized)) {
+    const declared = getDeclaredManifestTreeType(normalized);
+    if (declared) return normalizeAwnTypeName(declared);
+    if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.infoblock.element.category");
+    return normalizeAwnTypeName("awn.infoblock.element.record");
+  }
+
   if (/^(?:awn-database|awn-data)\/.+\/manifest\.md$/i.test(normalized)) {
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared) return normalizeAwnTypeName(declared);
@@ -50680,6 +50738,7 @@ function isDocAsideOutlineTabAvailable() {
 
 function isDocAsidePropsTabAvailable() {
   if (isGitRepoLooseMdEditing()) return false;
+  if (isAwnDatabaseCsvRecordContentPath(getResolvedNodePath(activePath))) return false;
   return activeContentMode === "description" || isStorageSlotMarkdownRecordEditing();
 }
 
@@ -58065,6 +58124,9 @@ function flushPropsYamlFromFormBeforeSave() {
 }
 
 function buildNodeManifestContent() {
+  if (isAwnDatabaseCsvRecordContentPath(getResolvedNodePath(activePath))) {
+    return fileContentInputNode.value || "";
+  }
   syncDisplayNameIntoAwnNameProp(activePath);
   syncDescriptionIntoAwnDescriptionProp(activePath);
   flushPropsYamlFromFormBeforeSave();
@@ -58078,6 +58140,15 @@ async function ensureTopicSchemaForActiveContext(options = {}) {
       ? String(options.contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
       : getSchemaContentPathForContext();
   if (!manifestPath) return null;
+  if (
+    isAwnDatabaseSchemaContext(manifestPath) ||
+    (contentPath && isAwnDatabaseEditableRecordPath(contentPath))
+  ) {
+    return loadAwnDatabaseTopicSchemaForManifest(manifestPath, {
+      contentPath,
+      force: options.force === true
+    }).catch(() => null);
+  }
   if (!contentPath) {
     const shouldLoadManifestSchema =
       activeContentMode === "topic-schema" ||
@@ -92922,10 +92993,20 @@ async function selectFile(label, filePath) {
   refreshEditorViewContent();
 
   try {
-    const response = await fetch(buildApiUrl("/api/file", { path: getActiveNodeApiPath() }));
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
-    modeContentCache.description = data.content;
+    const apiPath = getResolvedNodePath(filePath);
+    let fileContent = "";
+    if (isAwnDatabaseRecordContentPath(apiPath)) {
+      fileContent = await fetchAwnDatabaseRecordEditorContent(apiPath);
+      if (/\.csv$/i.test(apiPath)) {
+        editorViewMode = "source";
+      }
+    } else {
+      const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      fileContent = data.content;
+    }
+    modeContentCache.description = fileContent;
     navigationManifestCachedPath = getActiveNodeApiPath();
     modeContentCache.internal = "";
     modeContentCache.external = "";
@@ -93652,6 +93733,36 @@ async function saveContent() {
 
   if (!activePath) return;
 
+  if (isAwnDatabaseRecordContentPath(getActiveNodeApiPath())) {
+    if (deferDescriptionContentBuild) {
+      content = buildSaveContentPayload();
+    }
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace/fs/write"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: getActiveNodeApiPath(), content })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      modeContentCache.description = content;
+      saveSucceeded = true;
+      showToast("Сохранено", "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
+
   if (activeContentMode === "configs") {
     setSaveButtonsState(true, "Сохраняю...");
     let saveSucceeded = false;
@@ -94156,6 +94267,10 @@ async function saveContent() {
 
 async function loadPropertiesForActivePath() {
   if (!activePath) {
+    setPropsYamlContent("");
+    return;
+  }
+  if (isAwnDatabaseCsvRecordContentPath(getResolvedNodePath(activePath))) {
     setPropsYamlContent("");
     return;
   }
@@ -101732,6 +101847,16 @@ function resolveAwnDataStoreSchemaActiveTarget(storeKind = "") {
   if (kind === "group" || kind === "single") return "frame";
   return "category";
 }
+
+function applyAwnDataStoreSchemaActiveTarget(cache, preferredTarget = "") {
+  if (!cache) return cache;
+  const target = String(preferredTarget || "").trim();
+  const targets = resolveAwnDataSchemaTargetsForStore(cache);
+  if (target && targets.includes(target)) {
+    cache.activeTarget = target;
+  }
+  return cache;
+}
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout.v2";
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY_LEGACY = "yamlcms.awnDataViewRecordsLayout";
 const AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY = "yamlcms.awnDataViewCardsColumns";
@@ -102632,6 +102757,11 @@ function isAwnDataSingleCsvStore(store) {
   return resolveAwnDataRecordStorage(store) === "csv";
 }
 
+function isAwnDataSingleTableStore(store) {
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  return viewStore?.kind === "single" || isAwnDataSingleCsvStore(viewStore);
+}
+
 function isAwnDataCsvFilesStore(store) {
   return resolveAwnDataRecordStorage(store) === "csv-files";
 }
@@ -102642,6 +102772,12 @@ function formatAwnDataCollectionTypeLabel(type) {
   if (key === "csv-files") return "CSV-файлы";
   if (key === "files") return "Файлы";
   return "md-записи";
+}
+
+function formatAwnDataCollectionStorageBadgeLabel(format) {
+  const key = String(format || "md").trim().toLowerCase();
+  if (key === "csv-files") return "csves";
+  return key;
 }
 
 function resolveAwnDataCollectionKind(store) {
@@ -103034,6 +103170,105 @@ function getAwnDataStoreSchemaCacheKey(storeRel) {
   return `awn-data-store:${String(storeRel || "").trim()}`;
 }
 
+function isAwnDatabaseSchemaContext(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  return isAwnDatabaseManifestPath(normalized) || isAwnDatabaseEditableRecordPath(normalized);
+}
+
+function resolveAwnDatabaseSchemaTargetForElementType(awnType, nodePath = "") {
+  const normalized = normalizeAwnTypeName(String(awnType || "").trim());
+  if (
+    normalized === "awn.infoblock.element.category" ||
+    normalized === "awn.infoblock.category" ||
+    normalized === "awn.infoblock.content.category"
+  ) {
+    return "category";
+  }
+  if (normalized === "awn.infoblock.element.sidecar" || normalized === "awn.infoblock.content.sidecar") {
+    return "sidecar";
+  }
+  if (
+    normalized === "awn.infoblock.element.record" ||
+    normalized === "awn.infoblock.record" ||
+    normalized === "awn.infoblock.content.record"
+  ) {
+    return "record";
+  }
+  const path = String(nodePath || "").replace(/\\/g, "/");
+  if (isAwnDatabaseManifestPath(path)) return "frame";
+  if (/\/awn-storage\/data\/[^/]+\/manifest\.md$/i.test(path)) return "category";
+  if (/\/awn-storage\/data\//i.test(path)) return "record";
+  return "record";
+}
+
+async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {}) {
+  const normalizedManifest = String(manifestPath || "").replace(/\\/g, "/");
+  const contentPath = String(options.contentPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  const cacheKey = getTopicSchemaCacheKey(normalizedManifest, contentPath);
+
+  if (!options.force) {
+    const cached = topicSchemaCacheByManifest.get(cacheKey);
+    if (cached?.isAwnDatabaseSchema) return cached;
+  }
+
+  const inflight = topicSchemaLoadPromises.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const storeRel =
+      resolveAwnDataStoreRelFromManifestPath(normalizedManifest) ||
+      resolveAwnDataStoreRelFromRecordPath(contentPath || getPropsContextPath());
+    if (!storeRel) return null;
+
+    const storeCache = await loadAwnDataStoreSchemaEditor(storeRel, activeAgentId);
+    if (!storeCache) return null;
+
+    const schemaTarget =
+      isAwnDatabaseManifestPath(normalizedManifest) && !contentPath
+        ? "frame"
+        : resolveAwnDatabaseSchemaTargetForElementType(
+            getPropsEntryValueByKey(propsFormEntries, "awn-type"),
+            contentPath || normalizedManifest
+          );
+
+    const payload = {
+      manifestPath: normalizedManifest,
+      contentPath,
+      configPath: storeCache.schemeModRelPath || `${storeRel}/schema.yml`,
+      configExists: true,
+      schemaPath: storeCache.schemeModRelPath || `${storeRel}/schema.yml`,
+      schemaExists: true,
+      isAwnDatabaseSchema: true,
+      awnDatabaseStoreRel: storeRel,
+      awnDatabaseSchemaTarget: schemaTarget,
+      awnSchema: storeCache.awnSchema,
+      effectiveAwnSchema: storeCache.awnSchema,
+      topicAwnSchema: storeCache.awnSchema,
+      areaAwnSchema: emptyTopicSchemaState(),
+      workspaceAwnSchema: emptyTopicSchemaState(),
+      sectionAwnSchema: emptyTopicSchemaState(),
+      sectionChain: [],
+      baseTypes: storeCache.baseTypes || {},
+      merged: storeCache.merged || {},
+      fieldRegistry: storeCache.fieldRegistry || awnTypesCache?.fieldRegistry || {}
+    };
+    topicSchemaCacheByManifest.set(cacheKey, payload);
+    return payload;
+  })();
+
+  topicSchemaLoadPromises.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    if (topicSchemaLoadPromises.get(cacheKey) === promise) {
+      topicSchemaLoadPromises.delete(cacheKey);
+    }
+  }
+}
+
 async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
   const normalizedStoreRel = String(storeRel || "").trim();
   if (!normalizedStoreRel) return null;
@@ -103327,7 +103562,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
       const store = normalizeAwnDataStoreView(reloadData.store);
       if (store) {
         awnDataViewStoreCache = store;
-        renderAwnDataViewHeader(store);
+        renderAwnDataViewHeader(store, { preserveSchemaEditor: true });
         if (store.kind !== "group") renderAwnDataViewStoreContent(store, catalogAgentId);
       }
     }
@@ -103343,6 +103578,7 @@ async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
   const existingCache = getAwnDataStoreSchemaPanelCache(panel);
   const sameStore =
     existingCache && String(existingCache.storeRel || "").trim() === storeRel;
+  const preservedActiveTarget = sameStore ? existingCache.activeTarget : "";
   if (sameStore && panel._awnDataStoreSchemaDirty) {
     renderAwnDataStoreSchemaEditor(panel, existingCache);
     if (awnDataViewSchemaFieldsCountNode) {
@@ -103360,7 +103596,10 @@ async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
   const baseFieldsNode = panel.querySelector(".awn-database-view-element-schema-base-fields");
   if (baseFieldsNode) baseFieldsNode.textContent = "Загрузка…";
   try {
-    const cache = await loadAwnDataStoreSchemaEditor(storeRel, agentId);
+    const cache = applyAwnDataStoreSchemaActiveTarget(
+      await loadAwnDataStoreSchemaEditor(storeRel, agentId),
+      preservedActiveTarget
+    );
     if (loadSeq !== awnDataStoreSchemaLoadSeq) return;
     panel._awnDataStoreSchemaCache = cache;
     panel._awnDataStoreSchemaDirty = false;
@@ -104440,8 +104679,9 @@ function finishAwnDataViewStoreLoading() {
 function syncAwnDataViewGroupPresentation(store) {
   const elementsMain = awnDataViewRoot?.querySelector(".awn-database-view-elements-main");
   const toolbar = rootQueryAwnDataToolbar();
-  const isGroup = store?.kind === "group";
-  const isSingle = store?.kind === "single";
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  const isGroup = viewStore?.kind === "group";
+  const isSingle = isAwnDataSingleTableStore(viewStore);
 
   elementsMain?.classList.toggle("is-group-mode", isGroup);
   elementsMain?.classList.toggle("is-single-mode", isSingle);
@@ -104467,7 +104707,7 @@ function syncAwnDataViewElementsTitle(store) {
     titleNode.textContent = "Справочники";
     return;
   }
-  if (viewStore?.kind === "single") {
+  if (isAwnDataSingleTableStore(viewStore)) {
     titleNode.textContent = "";
     return;
   }
@@ -104720,6 +104960,34 @@ function isAwnDatabaseEditableRecordPath(nodePath) {
   return true;
 }
 
+function isAwnDatabaseRecordContentPath(nodePath) {
+  const normalized = String(nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  return isAwnDatabaseEditableRecordPath(normalized) && !isAwnDatabaseManifestPath(normalized);
+}
+
+function isAwnDatabaseCsvRecordContentPath(nodePath) {
+  const normalized = String(nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .toLowerCase();
+  return isAwnDatabaseRecordContentPath(normalized) && /\.csv$/i.test(normalized);
+}
+
+async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeAgentId) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (/\.md$/i.test(normalized)) {
+    const data = await fetchWorkspaceFolderPage(normalized, agentId);
+    return String(data.content || data.body || "");
+  }
+  if (/\.csv$/i.test(normalized)) {
+    const data = await fetchWorkspaceFolderText(normalized, agentId);
+    return String(data.content || "");
+  }
+  throw new Error("Неподдерживаемый тип файла инфоблока");
+}
+
 function resolveAwnDataStoreRelFromManifestPath(manifestPath) {
   const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const match = normalized.match(/^(?:awn-database|awn-data)\/(.+?)\/manifest\.md$/i);
@@ -104902,7 +105170,7 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
   }
 }
 
-function renderAwnDataViewHeader(store, { loading = false, error = false } = {}) {
+function renderAwnDataViewHeader(store, { loading = false, error = false, preserveSchemaEditor = false } = {}) {
   if (loading && !store && !error) {
     renderAwnDataViewHeaderSkeleton();
     renderAwnDataViewSchema(null, { loading: true });
@@ -104973,7 +105241,9 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
     awnDataViewManifestNode.replaceChildren();
   }
 
-  renderAwnDataViewSchema(store, { loading, error });
+  if (!preserveSchemaEditor) {
+    renderAwnDataViewSchema(store, { loading, error });
+  }
 }
 
 function isAwnDataSystemRecord(record) {
@@ -105458,16 +105728,12 @@ function updateAwnDataViewCount(shown, total) {
 }
 
 function resolveAwnDataRecordFilePath(record, store = awnDataViewStoreCache) {
-  const storeRel = String(store?.relPath || awnDataViewStoreRel || "")
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "");
-  const isSingleCsvStore = isAwnDataSingleCsvStore(store);
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  if (isAwnDataSingleCsvStore(viewStore)) {
+    return resolveAwnDataSingleStoreFileRel(viewStore);
+  }
 
   let relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (isSingleCsvStore && storeRel) {
-    const csvFile = String(store?.recordFile || "main.csv").trim() || "main.csv";
-    relPath = `${storeRel}/${csvFile}`;
-  }
   if (!relPath) return "";
   return relPath.startsWith("awn-database/") ? relPath : `awn-database/${relPath}`;
 }
@@ -106170,6 +106436,101 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
   return wrap;
 }
 
+function parseAwnDataCsvPreviewText(text) {
+  const lines = String(text || "")
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (!lines.length) return { columns: [], rows: [] };
+
+  const splitLine = (line) => {
+    const cells = [];
+    let current = "";
+    let inQuotes = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (inQuotes) {
+        if (char === '"' && line[index + 1] === '"') {
+          current += '"';
+          index += 1;
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          current += char;
+        }
+        continue;
+      }
+      if (char === '"') {
+        inQuotes = true;
+        continue;
+      }
+      if (char === ",") {
+        cells.push(current.trim());
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+    cells.push(current.trim());
+    return cells;
+  };
+
+  const columns = splitLine(lines[0]);
+  const rows = lines.slice(1).map(splitLine);
+  return { columns, rows };
+}
+
+function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
+  if (!targetNode) return;
+  const { columns, rows } = parseAwnDataCsvPreviewText(csvContent);
+  if (!columns.length) {
+    targetNode.replaceChildren();
+    targetNode.appendChild(createAwnDatabaseViewEmptyState("CSV пуст или не найден"));
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "awn-database-view-csv-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "awn-database-view-csv-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const column of columns) {
+    const th = document.createElement("th");
+    th.textContent = column;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  if (!rows.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = Math.max(columns.length, 1);
+    cell.className = "awn-database-view-csv-empty-row";
+    cell.textContent = "Нет строк данных";
+    row.appendChild(cell);
+    tbody.appendChild(row);
+  } else {
+    for (const rowValues of rows) {
+      const row = document.createElement("tr");
+      for (let index = 0; index < columns.length; index += 1) {
+        const cell = document.createElement("td");
+        cell.textContent = rowValues[index] ?? "";
+        row.appendChild(cell);
+      }
+      tbody.appendChild(row);
+    }
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  targetNode.replaceChildren();
+  targetNode.appendChild(wrap);
+}
+
 function createAwnDatabaseViewEmptyState(message) {
   const empty = document.createElement("div");
   empty.className = "awn-database-view-empty";
@@ -106313,7 +106674,7 @@ async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentI
         );
         return;
       }
-      body.textContent = csvContent;
+      renderAwnDataCsvPreviewTable(body, csvContent);
     } catch (error) {
       body.textContent = String(error.message || error);
     }
@@ -106335,7 +106696,7 @@ async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentI
 
 function renderAwnDataViewStoreContent(store, agentId = activeAgentId) {
   const viewStore = normalizeAwnDataStoreView(store || {});
-  if (viewStore?.kind === "single") {
+  if (isAwnDataSingleTableStore(viewStore)) {
     void renderAwnDataSingleStoreMainContent(viewStore, agentId);
     return;
   }
@@ -106345,7 +106706,7 @@ function renderAwnDataViewStoreContent(store, agentId = activeAgentId) {
 function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   const viewStore = normalizeAwnDataStoreView(store || {});
-  if (viewStore?.kind === "single") {
+  if (isAwnDataSingleTableStore(viewStore)) {
     void renderAwnDataSingleStoreMainContent(viewStore, awnDataViewCatalogAgentId || activeAgentId);
     return;
   }
@@ -107725,7 +108086,7 @@ function createAwnDataStoreKindNode(store, { extraClass = "" } = {}) {
     const format = resolveAwnDataCollectionStorageLabel(store);
     const badge = document.createElement("span");
     badge.className = `menu-awn-database-store-kind-letter menu-awn-database-store-kind-letter-${format}`;
-    badge.textContent = format;
+    badge.textContent = formatAwnDataCollectionStorageBadgeLabel(format);
     wrap.appendChild(badge);
   }
 

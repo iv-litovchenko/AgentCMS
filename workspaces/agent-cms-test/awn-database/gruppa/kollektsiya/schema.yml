@@ -5,12 +5,47 @@ awn_schema:
   frame:
     extends: awn.infoblock.frame.collection
     fields:
+      awn-field-1:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 10
   category:
     extends: awn.infoblock.element.category
     fields:
+      awn-field-1:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 10
+      awn-field-2:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 20
   record:
     extends: awn.infoblock.element.record
     fields:
+      awn-field-1:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 10
+      awn-field-2:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 20
+      awn-field-3:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 30
   sidecar:
     extends: awn.infoblock.element.sidecar
     fields:
+      awn-field-1:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 10

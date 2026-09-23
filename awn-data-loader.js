@@ -2498,8 +2498,13 @@ function resolveStoreElementSchemaBlock(storeRel, elementType, agentRoot = "", p
     if (!storeAbs || !fs.existsSync(storeAbs)) return { fields: {}, tabs: {} };
     const overlay = readStoreSchemeModOverlay(storeAbs);
     if (!overlay?.exists) return { fields: {}, tabs: {} };
+    const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
     const kind =
-      String(elementType || "").trim() === ELEMENT_TYPE_CATEGORY ? "category" : "record";
+      typeId === ELEMENT_TYPE_CATEGORY
+        ? "category"
+        : typeId === ELEMENT_TYPE_SIDECAR
+          ? "sidecar"
+          : "record";
     const block = overlay.blocks?.[kind] || overlay.blocks?.record || { fields: {}, tabs: {} };
     return {
       fields: normalizeAwnFieldsMap(block.fields || {}),

@@ -59744,6 +59744,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-color: #bae6fd;
 }
 
+.menu-awn-database-store-kind-letter-csv-files {
+  color: #0e7490;
+  background: #ecfeff;
+  border-color: #a5f3fc;
+}
+
 .menu-awn-database-store-kind-letter-files {
   color: #047857;
   background: #ecfdf5;
@@ -62777,6 +62783,46 @@ body.is-cms-page-picker-active #discuss-aside * {
   height: auto;
   min-height: 0;
   overflow: visible;
+}
+
+.awn-database-view-csv-table-wrap {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.awn-database-view-csv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.awn-database-view-csv-table th,
+.awn-database-view-csv-table td {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.awn-database-view-csv-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+}
+
+.awn-database-view-csv-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.awn-database-view-csv-empty-row {
+  color: #64748b;
+  font-style: italic;
+  white-space: normal;
 }
 
 .menu-awn-database-store.is-active,

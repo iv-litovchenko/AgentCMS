@@ -5,16 +5,6 @@ awn_schema:
   frame:
     extends: awn.infoblock.frame.single
     fields:
-      awn-field-1:
-        type: awn.field.string
-        name: ""
-        placement: editor-body
-        sort: 10
-      awn-field-2:
-        type: awn.field.string
-        name: ""
-        placement: editor-body
-        sort: 20
   category:
     extends: awn.infoblock.element.category
     fields:
