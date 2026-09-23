@@ -21,15 +21,13 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.frame.collection
-awn-create: 2026-09-23T22:05:15.853Z
-awn-update: 2026-09-23T22:05:15.853Z
+awn-create: 2026-09-23T22:27:12.860Z
+awn-update: 2026-09-23T22:27:12.860Z
 awn-version: 1
-awn-collection-type: md
-awn-record-hierarchy: false
-awn-record-file-types: ""
 awn-collection-type: files
 awn-record-storage: md
 awn-record-id-mode: slug
+awn-record-file: "{id}.md"
 awn-record-hierarchy: true
 awn-record-file-types: "image/*"
 ---

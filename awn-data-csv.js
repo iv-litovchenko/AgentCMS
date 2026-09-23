@@ -123,7 +123,9 @@ function serializeCsv(columns, rows, delimiter = DEFAULT_CSV_DELIMITER) {
 
 function getRecordStorage(schema) {
   const storage = String(schema?.record?.storage || "md").trim().toLowerCase();
-  return storage === "csv" ? "csv" : "md";
+  if (storage === "csv") return "csv";
+  if (storage === "csv-files" || storage === "csv_files") return "csv-files";
+  return "md";
 }
 
 function getCsvFileName(schema) {

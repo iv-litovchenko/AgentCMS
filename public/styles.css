@@ -61839,6 +61839,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-color: #bae6fd;
 }
 
+.awn-database-view-collection-type-badge.is-csv-files {
+  color: #0e7490;
+  background: #ecfeff;
+  border-color: #a5f3fc;
+}
+
 .awn-database-view-collection-type-badge.is-files {
   color: #047857;
   background: #ecfdf5;
@@ -62828,6 +62834,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #1d4ed8;
   background: #eff6ff;
   border-color: #bfdbfe;
+}
+
+.awn-database-view-kind-badge.is-storage-csv-files {
+  color: #0e7490;
+  background: #ecfeff;
+  border-color: #a5f3fc;
 }
 
 .awn-database-view-kind-badge.is-storage-md {

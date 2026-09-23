@@ -21,12 +21,14 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.frame.single
-awn-create: 2026-09-23T22:05:04.888Z
-awn-update: 2026-09-23T22:05:04.888Z
+awn-create: 2026-09-23T22:27:13.159Z
+awn-update: 2026-09-23T22:27:13.159Z
 awn-version: 1
 awn-collection-type: md
 awn-record-storage: md
+awn-record-id-mode: slug
 awn-record-file: main.md
+awn-record-hierarchy: false
 ---
 
 # Одиночка

@@ -102341,11 +102341,13 @@ function closeAwnDataCreateModal() {
 
 const AWN_DATA_CREATE_COLLECTION_TYPES = {
   md: { collectionKind: "records", recordStorage: "md" },
+  "csv-files": { collectionKind: "records", recordStorage: "csv-files" },
   csv: { collectionKind: "records", recordStorage: "csv" },
   files: { collectionKind: "files", recordStorage: "md" }
 };
 const AWN_DATA_CREATE_COLLECTION_TYPE_LABELS = {
   md: "Записи на базе md-файлов (файл на каждую запись)",
+  "csv-files": "Записи на базе csv-таблиц (отдельный .csv на каждую запись)",
   csv: "Записи на базе CSV-таблицы (одна таблица main.csv)",
   files: "Файлы с поддержкой загрузки"
 };
@@ -102544,20 +102546,23 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
   }
 
   const type = getAwnDataCreateCollectionType();
-  const isCsv = type === "csv";
+  const isSingleCsv = type === "csv";
   const isFiles = type === "files";
   const isMd = type === "md";
+  const isCsvFiles = type === "csv-files";
 
   setAwnDataCreateFieldEnabled(awnDataCreateKindWrapNode, awnDataCreateKindInputNode, true);
-  setAwnDataCreateFieldEnabled(awnDataCreateHierarchyWrapNode, awnDataCreateHierarchyInputNode, !isCsv);
+  setAwnDataCreateFieldEnabled(awnDataCreateHierarchyWrapNode, awnDataCreateHierarchyInputNode, !isSingleCsv);
   setAwnDataCreateFieldEnabled(awnDataCreateFileTypesWrapNode, awnDataCreateFileTypesInputNode, isFiles);
   setAwnDataCreateFieldEnabled(awnDataCreateIndexExcludeWrapNode, awnDataCreateIndexExcludeInput, true);
-  setAwnDataCreateFieldEnabled(awnDataCreateSampleWrapNode, awnDataCreateSampleInputNode, isMd);
+  setAwnDataCreateFieldEnabled(awnDataCreateSampleWrapNode, awnDataCreateSampleInputNode, isMd || isCsvFiles);
 
   if (awnDataCreateSampleWrapNode) {
     awnDataCreateSampleWrapNode.title = isMd
       ? "Добавить первую md-запись в новую коллекцию"
-      : "Только для коллекций md-файлов";
+      : isCsvFiles
+        ? "Добавить первый .csv-файл в новую коллекцию"
+        : "Только для коллекций md-файлов и csv-таблиц";
   }
 
   if (awnDataCreateFileTypesPresetsNode) {
@@ -102567,7 +102572,7 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
     }
   }
 
-  if (isCsv && awnDataCreateHierarchyInputNode?.checked) {
+  if (isSingleCsv && awnDataCreateHierarchyInputNode?.checked) {
     awnDataCreateHierarchyInputNode.checked = false;
   }
   syncAwnDataCreateFileTypePresetUi();
@@ -102603,17 +102608,32 @@ function resolveAwnDataStoreSlug(store) {
 
 function resolveAwnDataCollectionType(store) {
   const explicit = String(store?.collectionType || "").trim().toLowerCase();
-  if (explicit === "md" || explicit === "csv" || explicit === "files") return explicit;
+  if (explicit === "md" || explicit === "csv" || explicit === "csv-files" || explicit === "files") {
+    return explicit;
+  }
   const fromSchema = String(store?.schema?.record?.collectionType || "").trim().toLowerCase();
-  if (fromSchema === "md" || fromSchema === "csv" || fromSchema === "files") return fromSchema;
+  if (fromSchema === "md" || fromSchema === "csv" || fromSchema === "csv-files" || fromSchema === "files") {
+    return fromSchema;
+  }
   if (resolveAwnDataCollectionKind(store) === "files") return "files";
-  if (resolveAwnDataRecordStorage(store) === "csv") return "csv";
+  const storage = resolveAwnDataRecordStorage(store);
+  if (storage === "csv-files") return "csv-files";
+  if (storage === "csv") return "csv";
   return "md";
+}
+
+function isAwnDataSingleCsvStore(store) {
+  return resolveAwnDataRecordStorage(store) === "csv";
+}
+
+function isAwnDataCsvFilesStore(store) {
+  return resolveAwnDataRecordStorage(store) === "csv-files";
 }
 
 function formatAwnDataCollectionTypeLabel(type) {
   const key = String(type || "md").trim().toLowerCase();
   if (key === "csv") return "CSV-таблица";
+  if (key === "csv-files") return "CSV-файлы";
   if (key === "files") return "Файлы";
   return "md-записи";
 }
@@ -102659,13 +102679,19 @@ function fileTypesToAcceptAttribute(spec) {
 
 function resolveAwnDataRecordStorage(store) {
   const explicit = String(store?.recordStorage || "").trim().toLowerCase();
-  if (explicit === "csv" || explicit === "md") return explicit;
+  if (explicit === "csv" || explicit === "csv-files" || explicit === "md") return explicit;
   const fromSchema = String(store?.schema?.record?.storage || "").trim().toLowerCase();
-  if (fromSchema === "csv" || fromSchema === "md") return fromSchema;
+  if (fromSchema === "csv" || fromSchema === "csv-files" || fromSchema === "md") return fromSchema;
+  const collectionType = String(store?.collectionType || store?.schema?.record?.collectionType || "")
+    .trim()
+    .toLowerCase();
+  if (collectionType === "csv-files") return "csv-files";
+  if (collectionType === "csv") return "csv";
   const recordFile = String(store?.recordFile || store?.schema?.record?.file || "")
     .trim()
     .toLowerCase();
-  if (recordFile === "main.csv" || recordFile.endsWith(".csv")) return "csv";
+  if (recordFile === "main.csv") return "csv";
+  if (recordFile === "{id}.csv") return "csv-files";
   return "md";
 }
 
@@ -102778,6 +102804,7 @@ function applyAwnDataStoreKindBadge(element, viewStore, kind = viewStore?.kind) 
   element.classList.toggle("is-collection", !isSingleton && !isGroup);
   element.classList.toggle("is-group", isGroup);
   element.classList.toggle("is-storage-csv", !isGroup && recordStorage === "csv");
+  element.classList.toggle("is-storage-csv-files", !isGroup && recordStorage === "csv-files");
   element.classList.toggle("is-storage-md", !isGroup && recordStorage === "md");
 
   element.style.backgroundColor = "";
@@ -103749,8 +103776,7 @@ function resolveAwnDataCommentsContext(store, record = null) {
   }
 
   const recordTitle = String(record.title || record.id || "запись").trim();
-  const isCsv = resolveAwnDataRecordStorage(viewStore) === "csv";
-  if (isCsv) {
+  if (isAwnDataSingleCsvStore(viewStore)) {
     const csvFile = String(viewStore.recordFile || "main.csv").trim() || "main.csv";
     return {
       manifestPath,
@@ -103761,7 +103787,9 @@ function resolveAwnDataCommentsContext(store, record = null) {
   }
 
   const recordId = String(record.id || record.ref || "").trim();
-  const file = /\.md$/i.test(recordId) ? recordId : `${recordId}.md`;
+  const recordExt = isAwnDataCsvFilesStore(viewStore) ? "csv" : "md";
+  const fileName = String(record?.fileName || "").trim();
+  const file = fileName || (recordId ? `${recordId}.${recordExt}` : `${recordId}.md`);
   return {
     manifestPath,
     mode: "container",
@@ -104839,6 +104867,7 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
         "is-single",
         "is-group",
         "is-storage-csv",
+        "is-storage-csv-files",
         "is-storage-md"
       );
     } else {
@@ -105128,9 +105157,8 @@ function syncAwnDataViewSectionTree(store) {
   const viewStore = normalizeAwnDataStoreView(store || {});
   const records = Array.isArray(viewStore?.records) ? viewStore.records : [];
   const hierarchyEnabled = resolveAwnDataRecordHierarchy(viewStore);
-  const isCsv = resolveAwnDataRecordStorage(viewStore) === "csv";
 
-  if (viewStore?.kind !== "collection" || !hierarchyEnabled || isCsv) {
+  if (viewStore?.kind !== "collection" || !hierarchyEnabled || isAwnDataSingleCsvStore(viewStore)) {
     awnDataViewSectionWrapNode.classList.add("hidden");
     awnDataViewSectionTreeNode.replaceChildren();
     awnDataViewSectionCreateFormNode?.classList.add("hidden");
@@ -105233,6 +105261,14 @@ function isAwnDataViewTitleFieldKey(key) {
 }
 
 function getAwnDataViewColumns(store) {
+  if (isAwnDataCsvFilesStore(store)) {
+    return [
+      { key: "__id__", label: "ID", kind: "id" },
+      { key: "__title__", label: "Название файла", kind: "title" },
+      { key: "__csv_rows__", label: "Строк", kind: "csvRows" },
+      { key: "__file_size__", label: "Размер файла", kind: "fileSize" }
+    ];
+  }
   const schemaFields = resolveAwnDataViewRecordSchemaFields(store);
   const columns = [{ key: "__id__", label: "ID", kind: "id" }];
 
@@ -105264,6 +105300,17 @@ function getAwnDataViewColumns(store) {
 function formatAwnDataViewCellValue(record, column) {
   if (column.kind === "id") return record.id || "—";
   if (column.kind === "parent") return record.parent || "—";
+  if (column.kind === "title") {
+    return String(record.title || record.fileName || record.id || "—").trim() || "—";
+  }
+  if (column.kind === "csvRows") {
+    const count = Number(record.csvRowCount);
+    return Number.isFinite(count) ? String(count) : "—";
+  }
+  if (column.kind === "fileSize") {
+    const size = Number(record.fileSize);
+    return Number.isFinite(size) && size > 0 ? formatFileSize(size) : "—";
+  }
 
   const frontmatter = record?.frontmatter || {};
   let raw = frontmatter[column.key];
@@ -105307,12 +105354,10 @@ function resolveAwnDataRecordFilePath(record, store = awnDataViewStoreCache) {
   const storeRel = String(store?.relPath || awnDataViewStoreRel || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
-  const isCsvStore =
-    String(store?.recordStorage || "").trim().toLowerCase() === "csv" ||
-    String(record?.fileName || "").trim().toLowerCase() === "main.csv";
+  const isSingleCsvStore = isAwnDataSingleCsvStore(store);
 
   let relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (isCsvStore && storeRel) {
+  if (isSingleCsvStore && storeRel) {
     const csvFile = String(store?.recordFile || "main.csv").trim() || "main.csv";
     relPath = `${storeRel}/${csvFile}`;
   }
@@ -105324,10 +105369,8 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
   const filePath = resolveAwnDataRecordFilePath(record, store);
   if (!filePath) return;
 
-  const isCsvStore =
-    String(store?.recordStorage || "").trim().toLowerCase() === "csv" ||
-    String(record?.fileName || "").trim().toLowerCase() === "main.csv";
-  const label = isCsvStore
+  const isSingleCsvStore = isAwnDataSingleCsvStore(store);
+  const label = isSingleCsvStore
     ? `${store?.name || store?.relPath || ""} · ${store?.recordFile || "main.csv"}`
     : String(record?.title || record?.id || filePath.split("/").pop() || filePath).trim();
 
@@ -105386,15 +105429,29 @@ function syncAwnDataViewAddForm(store) {
   const viewStore = normalizeAwnDataStoreView(store || {});
   const collectionKind = resolveAwnDataCollectionKind(viewStore);
   const isFiles = collectionKind === "files";
-  const isCsv = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const isCsvFiles = isAwnDataCsvFilesStore(viewStore);
+  const isSingleCsv = isAwnDataSingleCsvStore(viewStore);
   const hierarchy = resolveAwnDataRecordHierarchy(viewStore);
   const records = Array.isArray(viewStore?.records) ? viewStore.records : [];
   const hasParentInData = records.some((record) => String(record.parent || "").trim());
 
   awnDataAddRecordsFormNode?.classList.toggle("hidden", isFiles);
-  awnDataAddFilesFormNode?.classList.toggle("hidden", !isFiles);
+  awnDataAddFilesFormNode?.classList.toggle("hidden", !isFiles && !isCsvFiles);
 
-  const showParent = !isFiles && !isCsv && (hierarchy || hasParentInData);
+  const addNameLabel = awnDataAddRecordsFormNode?.querySelector(".awn-database-add-name-field > span");
+  const addSlugLabel = awnDataAddRecordsFormNode?.querySelector(".slug-field-label");
+  const addRecordBtn = awnDataAddRecordBtn;
+  if (isCsvFiles) {
+    if (addNameLabel) addNameLabel.textContent = "Новый CSV-файл";
+    if (addSlugLabel) addSlugLabel.textContent = "Имя файла (slug)";
+    if (addRecordBtn) addRecordBtn.textContent = "Создать CSV-файл";
+  } else {
+    if (addNameLabel) addNameLabel.textContent = "Новый элемент";
+    if (addSlugLabel) addSlugLabel.textContent = "Имя файла (slug)";
+    if (addRecordBtn) addRecordBtn.textContent = "Добавить элемент";
+  }
+
+  const showParent = !isFiles && !isSingleCsv && (hierarchy || hasParentInData);
   awnDataAddParentFieldNode?.classList.toggle("hidden", !showParent);
 
   if (awnDataAddParentLabelNode) {
@@ -105403,14 +105460,14 @@ function syncAwnDataViewAddForm(store) {
       : "Родитель (id, опционально)";
   }
 
-  if (hierarchy && !isCsv && !isFiles) {
+  if (hierarchy && !isSingleCsv && !isFiles) {
     awnDataAddParentInputNode?.classList.add("hidden");
     awnDataAddParentSelectNode?.classList.remove("hidden");
     syncAwnDataParentSectionSelect(viewStore);
   } else {
     awnDataAddParentInputNode?.classList.remove("hidden");
     awnDataAddParentSelectNode?.classList.add("hidden");
-    if (isCsv && awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
+    if (isSingleCsv && awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
   }
 
   const idMode = String(viewStore?.schema?.record?.["id-mode"] || viewStore?.schema?.record?.idMode || "numeric")
@@ -105432,15 +105489,26 @@ function syncAwnDataViewAddForm(store) {
         ? `Допустимые типы: ${fileTypes}`
         : "Любые файлы в папку инфоблока.";
     }
+    if (awnDataUploadBtnNode) {
+      awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label")?.textContent = "Загрузить";
+    }
+  } else if (isCsvFiles) {
+    if (awnDataUploadInputNode) awnDataUploadInputNode.setAttribute("accept", ".csv");
+    if (awnDataUploadHintNode) {
+      awnDataUploadHintNode.textContent = "Загрузить существующий .csv — имя файла станет id записи.";
+    }
+    if (awnDataUploadBtnNode) {
+      awnDataUploadBtnNode.querySelector(".folder-browse-upload-btn-label")?.textContent = "Загрузить CSV";
+    }
   }
 }
 
 function resolveAwnDataAddParentValue() {
   const viewStore = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   const hierarchy = resolveAwnDataRecordHierarchy(viewStore);
-  const isCsv = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const isSingleCsv = isAwnDataSingleCsvStore(viewStore);
   const isFiles = resolveAwnDataCollectionKind(viewStore) === "files";
-  if (isCsv || isFiles) return "";
+  if (isSingleCsv || isFiles) return "";
   if (hierarchy && awnDataAddParentSelectNode && !awnDataAddParentSelectNode.classList.contains("hidden")) {
     return String(awnDataAddParentSelectNode.value || "").trim();
   }
@@ -105657,16 +105725,17 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   awnDataViewRecordBodyNode.textContent = "Загрузка…";
 
   const storeRel = String(viewStore?.relPath || awnDataViewStoreRel || "").replace(/^\/+/, "");
-  const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const isSingleCsvStore = isAwnDataSingleCsvStore(viewStore);
+  const isCsvContent = isSingleCsvStore || isAwnDataCsvFilesStore(viewStore);
   let fileRel = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (isCsvStore && storeRel) {
+  if (isSingleCsvStore && storeRel) {
     fileRel = `${storeRel}/${viewStore.recordFile || "main.csv"}`;
   }
   if (!fileRel.startsWith("awn-database/")) fileRel = `awn-database/${fileRel}`;
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
 
   try {
-    if (isCsvStore) {
+    if (isCsvContent) {
       const data = await fetchWorkspaceFolderText(fileRel, catalogAgentId);
       const csvContent = String(data.content || "").trim();
       if (!csvContent) {
@@ -105690,12 +105759,17 @@ function resolveAwnDataRecordAwnId(record) {
 }
 
 function createAwnDataViewRecordEditIconButton(record, viewStore, labelHint = "") {
-  const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const isSingleCsvStore = isAwnDataSingleCsvStore(viewStore);
+  const isCsvFileRecord = isAwnDataCsvFilesStore(viewStore);
   const recordLabel = String(labelHint || record?.id || "—").trim() || "—";
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "awn-database-view-record-edit-icon-btn awn-database-view-edit-btn";
-  btn.title = isCsvStore ? "Открыть main.csv" : `Редактировать: ${recordLabel}`;
+  btn.title = isSingleCsvStore
+    ? "Открыть main.csv"
+    : isCsvFileRecord
+      ? `Открыть ${record?.fileName || `${recordLabel}.csv`}`
+      : `Редактировать: ${recordLabel}`;
   btn.setAttribute("aria-label", btn.title);
   btn.append(createOverviewEditManifestIcon());
   btn.addEventListener("click", (event) => {
@@ -106119,6 +106193,8 @@ function renderAwnDataViewRecords(store) {
       message = "main.md пуст или не найден";
     } else if (recordStorage === "csv") {
       message = `${viewStore.recordFile || "main.csv"} пуст или не найден`;
+    } else if (recordStorage === "csv-files") {
+      message = "CSV-файлов пока нет";
     }
     awnDataViewRecordsNode.appendChild(createAwnDatabaseViewEmptyState(message));
     return;
@@ -106293,11 +106369,19 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
 
 async function submitAwnDataUploadFiles(fileList, agentId = activeAgentId) {
   if (!awnDataViewStoreRel || !agentId) return;
-  const files = Array.from(fileList || []).filter(Boolean);
+  const store = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
+  const isCsvFiles = isAwnDataCsvFilesStore(store);
+  let files = Array.from(fileList || []).filter(Boolean);
+  if (isCsvFiles) {
+    files = files.filter((file) => String(file?.name || "").toLowerCase().endsWith(".csv"));
+    if (!files.length) {
+      showToast("Выберите CSV-файлы (.csv)", "error");
+      return;
+    }
+  }
   if (!files.length) return;
 
   const storeRel = String(awnDataViewStoreRel || "").replace(/^\/+/, "");
-  const store = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   const recordRoot = String(store.recordRoot || "").replace(/^\/+|\/+$/g, "");
   let folderPath = recordRoot
     ? `awn-database/${storeRel}/${recordRoot}`
@@ -107449,6 +107533,7 @@ function resolveAwnDataStoreKindTitle(store) {
   if (kind === "single") return awnDataStoreKindLabel("single");
   const format = resolveAwnDataCollectionStorageLabel(store);
   if (format === "files") return "Коллекция файлов";
+  if (format === "csv-files") return "Коллекция CSV-файлов";
   if (format === "csv") return "Коллекция CSV";
   return "Коллекция md-записей";
 }
