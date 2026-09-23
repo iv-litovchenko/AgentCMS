@@ -36,16 +36,11 @@ Desktop.ini
 
 # Cache & temp
 .cache/
-# Platform runtime (.agent-cms) — ws-list registry stays in git
-/.agent-cms/*
-!/.agent-cms/ws-list-agents.json
-!/.agent-cms/ws-list-groups.json
 # Workspace runtime
 **/.agent-cms/cache/
 **/.agent-cms/state/
-**/.agent-cms/journal/
-**/.agent-cms/digest/
-**/.agent-cms/settings/
+**/.agent-cms/app-lock-passkey.json
+**/.agent-cms/fingerprint-scanner.sqlite*
 .run/
 tmp/
 temp/
