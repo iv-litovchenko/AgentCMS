@@ -42,6 +42,11 @@
       "id": "test3",
       "path": "workspaces/test3",
       "environment": "local"
+    },
+    {
+      "id": "000",
+      "path": "workspaces/000",
+      "environment": "local"
     }
   ]
 }

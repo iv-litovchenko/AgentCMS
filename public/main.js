@@ -9771,6 +9771,7 @@ function isAgentPathInRegistry(pathValue) {
 }
 
 async function appendCreatedAgentToRegistry(discovered) {
+  await loadAgents();
   const key = normalizeRegistryPathKey(discovered.path);
   const base = getRegistryAgentsForUi();
   if (base.some((agent) => normalizeRegistryPathKey(agent.path) === key)) {
@@ -9819,6 +9820,15 @@ async function submitAppLandingCreate() {
   appLandingCreatePathInputNode.value = workspacePath;
   const agentName = appLandingCreateNameInputNode?.value.trim() || "";
   const agentDescription = appLandingCreateDescriptionInputNode?.value.trim() || "";
+
+  try {
+    await loadAgents();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Не удалось загрузить реестр: ${message}` : "Не удалось загрузить реестр", "error");
+    return;
+  }
+
   const validationError = validateCreateAgentForm({
     name: agentName,
     description: agentDescription,
@@ -9989,6 +9999,7 @@ function createAppLandingPlatformVisual() {
 }
 
 let appLandingPlatformReadmeCache = null;
+let appLandingPlatformRenderToken = 0;
 
 async function loadAppLandingPlatformReadme(options = {}) {
   if (!options.force && appLandingPlatformReadmeCache) return appLandingPlatformReadmeCache;
@@ -10034,13 +10045,14 @@ function createAppLandingPlatformReadmePanel(readme, options = {}) {
 
 async function renderAppLandingPlatformSection() {
   if (!appLandingPlatformNode) return;
-  appLandingPlatformNode.replaceChildren();
+  const renderToken = ++appLandingPlatformRenderToken;
   const platform = getPlatformAgentForLanding();
   if (!platform) {
+    if (renderToken !== appLandingPlatformRenderToken) return;
+    appLandingPlatformNode.replaceChildren();
     appLandingPlatformNode.classList.add("hidden");
     return;
   }
-  appLandingPlatformNode.classList.remove("hidden");
 
   const head = document.createElement("header");
   head.className = "app-landing-platform-head";
@@ -10065,14 +10077,19 @@ async function renderAppLandingPlatformSection() {
 
   let readmePanel = null;
   try {
-    const readme = await loadAppLandingPlatformReadme({ force: true });
+    const readme = await loadAppLandingPlatformReadme();
+    if (renderToken !== appLandingPlatformRenderToken) return;
     readmePanel = createAppLandingPlatformReadmePanel(readme);
   } catch (error) {
+    if (renderToken !== appLandingPlatformRenderToken) return;
     readmePanel = createAppLandingPlatformReadmePanel(null, {
       error: error instanceof Error ? error.message : String(error)
     });
   }
 
+  if (renderToken !== appLandingPlatformRenderToken) return;
+  appLandingPlatformNode.replaceChildren();
+  appLandingPlatformNode.classList.remove("hidden");
   appLandingPlatformNode.append(
     head,
     actions,
@@ -10601,9 +10618,7 @@ async function submitAppLandingGroupCreate() {
   appLandingGroupCreateSubmitBtn.textContent = "Создание…";
 
   try {
-    if (!landingAgentsGroupsCache.length) {
-      await loadLandingAgentsGroups().catch(() => {});
-    }
+    await loadLandingAgentsGroups();
 
     const baseId = slugifyLandingGroupId(trimmed, landingAgentsGroupsCache.length);
     let id = baseId;
