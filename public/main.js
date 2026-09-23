@@ -15,7 +15,10 @@ const workspaceScrollChromeNode = document.querySelector("#workspace-scroll-chro
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
 const menuAgentStatsEnvPopoverNode = document.getElementById("menu-agent-stats-env-popover");
 const menuAgentStatsEnvPopoverTitleNode = document.getElementById("menu-agent-stats-env-popover-title");
+const menuAgentStatsEnvPopoverSubtitleNode = document.getElementById("menu-agent-stats-env-popover-subtitle");
 const menuAgentStatsEnvPopoverGridNode = document.getElementById("menu-agent-stats-env-popover-grid");
+const menuAgentStatsEnvPopoverFooterNode = document.getElementById("menu-agent-stats-env-popover-footer");
+const menuAgentStatsEnvPopoverVersionNode = document.getElementById("menu-agent-stats-env-popover-version");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
@@ -42812,14 +42815,7 @@ function filterWritableSettingsEntries(entries, schemaFields = {}) {
 
 function resolvePlatformMetaFieldValue(key, meta = {}) {
   const map = {
-    "sys-cms-version": meta.cmsVersion,
-    "sys-registry-version": meta.registryVersion,
-    "sys-registry-mode": meta.registryMode,
-    "sys-registry-migration-date": meta.registryMigrationDate,
-    "sys-node-version": meta.nodeVersion,
-    "sys-platform-os": meta.platformOs,
-    "sys-core-path": meta.corePath,
-    "sys-type-catalog-count": meta.typeCatalogCount
+    "sys-core-path": meta.corePath
   };
   const value = map[key];
   if (value === undefined || value === null) return "";
@@ -44164,68 +44160,90 @@ async function saveProjectSettingsFormContent() {
   }
 }
 
+function resolveProjectSettingsResetGroupContext(cache = getNodeSettingsCache()) {
+  const schemaFields = cache?.settingsFields || {};
+  const fieldGroups =
+    Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
+      ? cache.settingsFieldGroups
+      : buildSettingsFieldGroupsFromFields(schemaFields);
+  const groupOrder = mergeSettingsGroupOrder(
+    getSchemaEditorGroupOrder(schemaFields, (cache?.entries || []).map((entry) => entry.key)),
+    fieldGroups
+  );
+  const useSidebarAgentTabs =
+    isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(cache?.manifestPath);
+  const useTabbedGroups =
+    isProjectSettingsMode() && groupOrder.length > 1 && !useSidebarAgentTabs;
+  const groupId =
+    useSidebarAgentTabs || useTabbedGroups
+      ? projectSettingsActiveGroupId || groupOrder[0] || null
+      : null;
+  const groupLabel = groupId ? resolveNodeSettingsGroupLabel(groupId, fieldGroups) : "";
+  return { groupId, groupLabel, fieldGroups };
+}
+
+function collectProjectSettingsGroupResetKeys(cache = getNodeSettingsCache(), groupId = null) {
+  const schemaFields = cache?.settingsFields || {};
+  const keys = [];
+  for (const entry of cache?.entries || []) {
+    const fieldDef = schemaFields[entry.key];
+    if (!fieldDef || isProjectSettingsReadonlyField(fieldDef) || isProjectSettingsLockedField(fieldDef)) {
+      continue;
+    }
+    if (groupId && resolvePropsFieldGroupId(entry.key, fieldDef) !== groupId) continue;
+    keys.push(entry.key);
+  }
+  return keys;
+}
+
+function applyProjectSettingsGroupDefaults(cache = getNodeSettingsCache(), keysToReset = []) {
+  const schemaFields = cache?.settingsFields || {};
+  const keySet = new Set(keysToReset);
+  cache.entries = (cache.entries || []).map((entry) => {
+    if (!keySet.has(entry.key)) return entry;
+    const fieldDef = schemaFields[entry.key];
+    const resetEntry = {
+      key: entry.key,
+      kind: fieldDefToEntryKind(fieldDef),
+      value: fieldDefDefaultValue(fieldDef),
+      fieldDef
+    };
+    return normalizeNodeSettingsEntryValue(resetEntry, fieldDef);
+  });
+}
+
 async function resetProjectSettingsFormContent() {
   const manifestPath = getNodeSettingsManifestPath();
   if (!isProjectSettingsAgentSettingsScope(manifestPath)) return;
-  const scopeLabel =
-    isProjectSettingsGlobalScope(manifestPath)
-      ? "глобальные настройки платформы"
-      : isProjectSettingsLocalScope(manifestPath)
-        ? "локальные настройки хранилища"
-        : isProjectSettingsIntegrationsSettingsScope(manifestPath)
-          ? "интеграции и плагины"
-          : isProjectSettingsUserSettingsScope(manifestPath)
-            ? "пользовательские настройки"
-            : "настройки";
-  if (
-    !window.confirm(
-      `Сбросить ${scopeLabel} к значениям по умолчанию?\n\nПоля только для чтения (счётчики, системные) не изменятся.`
-    )
-  ) {
+  const cache = getNodeSettingsCache();
+  if (!cache) return;
+
+  const { groupId, groupLabel } = resolveProjectSettingsResetGroupContext(cache);
+  const keysToReset = collectProjectSettingsGroupResetKeys(cache, groupId);
+  if (!keysToReset.length) {
+    showToast("В этой секции нет полей для сброса", "error");
     return;
   }
 
-  setProjectSettingsFormButtonsState(true, { reset: "Сбрасываю..." });
-  let resetSucceeded = false;
-  try {
-    const scope = resolveAgentSettingsSchemaScope(manifestPath);
-    const response = await fetch(buildApiUrl("/api/agent/settings/reset"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope })
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const reason = errorData.error || `Request failed with ${response.status}`;
-      const details = errorData.details ? `: ${errorData.details}` : "";
-      throw new Error(`${reason}${details}`);
+  const confirmed = await askConfirm(
+    groupLabel
+      ? `Сбросить секцию «${groupLabel}» к значениям по умолчанию?`
+      : "Сбросить поля этой секции к значениям по умолчанию?",
+    {
+      okLabel: "Сбросить",
+      cancelLabel: "Отмена",
+      title: "Сброс настроек",
+      hint: "Изменятся только поля открытой секции. Поля только для чтения и другие секции не затронуты.",
+      icon: "↺",
+      variant: "warning"
     }
-    const data = await response.json();
-    const cache = await loadNodeSettingsForManifest(manifestPath, { force: true });
-    if (cache && data?.content) {
-      const nextState = parseNodeSettingsState(data.content);
-      cache.headerComment = nextState.headerComment;
-      cache.entries = buildNodeSettingsEntriesFromSchema(nextState.entries, cache.settingsFields || {});
-      cache.defaultLandingMode = nextState.defaultLandingMode;
-      cache.awnSchemaYaml = nextState.awnSchemaYaml;
-      nodeSettingsCacheByManifest.set(manifestPath, cache);
-    }
-    resetSucceeded = true;
-    showToast("Настройки сброшены", "success");
-    renderProjectSettingsPage(cache);
-    if (isProjectSettingsGlobalScope(manifestPath)) {
-      void loadPlatformUiSettings();
-    }
-    if (cache?.settingsScope === "user") {
-      applyUserSettingsFromCache(cache);
-    }
-  } catch (error) {
-    showToast(`Не удалось сбросить: ${error.message}`, "error");
-  } finally {
-    setProjectSettingsFormButtonsState(false);
-    if (resetSucceeded) commitEditorSaveBaseline();
-    syncProjectSettingsSaveButtonState();
-  }
+  );
+  if (!confirmed) return;
+
+  applyProjectSettingsGroupDefaults(cache, keysToReset);
+  renderNodeSettingsEditor(cache);
+  syncProjectSettingsSaveButtonState();
+  await saveProjectSettingsFormContent();
 }
 
 async function saveProjectSettingsEnvFormContent() {
@@ -91120,8 +91138,8 @@ function createMenuAgentStatsSettingsButton() {
   button.id = "menu-agent-stats-settings-btn";
   button.type = "button";
   button.className = "menu-agent-stats-settings-btn";
-  button.title = "Среда и зависимости";
-  button.setAttribute("aria-label", "Среда и зависимости");
+  button.title = "О системе";
+  button.setAttribute("aria-label", "О системе");
   button.setAttribute("aria-expanded", "false");
   button.setAttribute("aria-controls", "menu-agent-stats-env-popover");
   button.innerHTML =
@@ -91258,16 +91276,30 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
   const grid = menuAgentStatsEnvPopoverGridNode;
   if (!grid) return;
 
+  if (menuAgentStatsEnvPopoverTitleNode) {
+    menuAgentStatsEnvPopoverTitleNode.textContent = "О системе";
+  }
   const summaryLine = loading
     ? "Загрузка…"
-    : payload?.summaryLine || payload?.host?.hostname || "Среда и зависимости";
-  if (menuAgentStatsEnvPopoverTitleNode) {
-    menuAgentStatsEnvPopoverTitleNode.textContent = [
-      summaryLine,
-      !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : ""
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    : payload?.summaryLine || payload?.host?.hostname || "";
+  if (menuAgentStatsEnvPopoverSubtitleNode) {
+    if (summaryLine) {
+      menuAgentStatsEnvPopoverSubtitleNode.textContent = summaryLine;
+      menuAgentStatsEnvPopoverSubtitleNode.classList.remove("hidden");
+    } else {
+      menuAgentStatsEnvPopoverSubtitleNode.textContent = "";
+      menuAgentStatsEnvPopoverSubtitleNode.classList.add("hidden");
+    }
+  }
+  const cmsVersion = String(payload?.app?.version || "").trim();
+  if (menuAgentStatsEnvPopoverVersionNode && menuAgentStatsEnvPopoverFooterNode) {
+    if (!loading && cmsVersion) {
+      menuAgentStatsEnvPopoverVersionNode.textContent = `Agent CMS v${cmsVersion}`;
+      menuAgentStatsEnvPopoverFooterNode.classList.remove("hidden");
+    } else {
+      menuAgentStatsEnvPopoverVersionNode.textContent = "";
+      menuAgentStatsEnvPopoverFooterNode.classList.add("hidden");
+    }
   }
   grid.replaceChildren();
 

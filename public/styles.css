@@ -24386,18 +24386,42 @@ a.header-tool-btn {
 
 .menu-agent-stats-env-popover-head {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
 }
 
 .menu-agent-stats-env-popover-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
-  color: #475569;
+  color: #0f172a;
+}
+
+.menu-agent-stats-env-popover-subtitle {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+}
+
+.menu-agent-stats-env-popover-footer {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.menu-agent-stats-env-popover-version {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #475569;
+  text-align: center;
 }
 
 .menu-system-environment-grid.is-popover {

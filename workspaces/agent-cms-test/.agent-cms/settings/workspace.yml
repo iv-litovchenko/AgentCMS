@@ -2,54 +2,26 @@
 
 awn_settings:
   agent-language: ru
-  response-style: brief
-  notify-on-complete: true
+  response-style: agents-md
+  notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T10:23:23.710Z"
+  awn-id-updated-at: "2026-09-23T10:30:34.691Z"
   awn-id-model: workspace-id-autoincrement-v1
+  ws-static-example-1: значение 1
+  ws-static-example-2: значение 2
+  ws-static-example-3: значение 3
   default-slot: main
-  awn-temp-ttl-days: 30
-  hooks-rules: []
-  voice-route-runtime: claude
+  awn-temp-ttl-days: 0
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
-  voice-route-system-prompt: Ты — личный ассистент пользователя в Agent CMS Voice.
   voice-route-claude-cli-path: claude
-  voice-route-claude-session-id: new-session-abc
   voice-route-codex-cli-path: codex
-  voice-route-codex-model: gpt-6-astra
-  voice-route-codex-session-id: 01a08615-e047-74b2-8d13-905c0c82c565
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
   voice-route-qwenpaw-user-id: default
   voice-route-qwenpaw-agent-id: default
   voice-route-qwenpaw-approval-level: AUTO
-  voice-route-qwenpaw-session-id: agent-shell
-  voice-input-enabled: false
-  voice-input-mode: fn_button
-  voice-input-response-enabled: false
-  voice-input-capture: microphone
-  voice-stt-prompt: "В сообщении пользователя может быть смесь обычного текста и голосовых блоков:"
-  voice-stt-engine: browser
-  voice-stt-lang: ru-RU
-  voice-stt-whisper-model: base
-  voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: false
-  voice-tts-playback-mode: dialog
-  voice-tts-prompt: "Каждый ответ пользователю используй в формате (строго, в таком порядке):"
-  voice-tts-include-captions: true
-  voice-tts-engine: browser
-  voice-tts-browser-lang: ru-RU
-  voice-tts-browser-voice: Милена
-  voice-tts-rate: 1
-  voice-tts-pitch: 1
-  voice-tts-edge-voice: ru-RU-SvetlanaNeural
-  voice-tts-edge-rate: 1
-  voice-tts-piper-binary: piper
-  voice-tts-elevenlabs-api-key: sk_4aa9fb58faddf21a3156b9e98175bd0709bf310e6c61b370
-  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
-  voice-tts-elevenlabs-model: eleven_multilingual_v2
-  voice-tts-elevenlabs-rate: 1
+  voice-route-runtime: codex
   voice-proactive-enabled: false
   voice-proactive-idle-seconds-min: 30
   voice-proactive-idle-seconds-max: 60
@@ -57,26 +29,42 @@ awn_settings:
   voice-proactive-quiet-hours-enabled: true
   voice-proactive-quiet-hours-start: "23:00"
   voice-proactive-quiet-hours-end: "07:00"
-  voice-proactive-prompt: "Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек)."
+  voice-input-enabled: false
+  voice-input-mode: fn_button
+  voice-input-capture: microphone
+  voice-input-global-listen: false
+  voice-input-to-compose: false
+  voice-input-response-enabled: false
+  voice-stt-engine: browser
+  voice-stt-lang: ru-RU
+  voice-stt-whisper-model: base
+  voice-stt-elevenlabs-model: scribe_v2
+  voice-tts-enabled: true
+  voice-tts-engine: browser
+  voice-tts-playback-mode: dialog
+  voice-tts-rate: 1
+  voice-tts-pitch: 1
+  voice-tts-include-captions: true
+  voice-tts-browser-lang: ru-RU
+  voice-tts-edge-voice: ru-RU-SvetlanaNeural
+  voice-tts-edge-rate: 1
+  voice-tts-piper-binary: piper
+  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
+  voice-tts-elevenlabs-model: eleven_multilingual_v2
+  voice-tts-elevenlabs-rate: 1
+  voice-compose-templates: []
   voice-media-camera-enabled: false
   voice-media-camera-on-speech: true
   voice-media-camera-facing: environment
   voice-media-screen-enabled: false
   voice-media-screen-on-speech: false
-  voice-window-character-model: kimono
+  voice-window-character-model: robot
   voice-window-compact-mode: false
-  voice-window-topmost: false
+  voice-window-topmost: true
   voice-window-pet-overlay: false
   voice-window-transparent: false
   voice-window-background: wallpaper
-  voice-window-compact-dialog-qa: false
-  voice-window-keep-awake: true
-  voice-window-processing-sound: off
+  voice-window-compact-dialog-qa: true
   voice-window-dialog-auto-scroll: true
-  voice-compose-templates:
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-  ws-static-example-1: значение 1
-  ws-static-example-2: значение 2
-  ws-static-example-3: значение 3
+  voice-window-keep-awake: false
+  voice-window-processing-sound: off

@@ -721,29 +721,10 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
     typeCatalogCount: byId.size,
     settingsScopes: settingsTypes,
     systemInfo: [
-      { key: "cms-version", label: "Версия CMS", value: cmsVersion || "—" },
-      { key: "registry-version", label: "Версия registry.yml", value: String(Number(registryDoc.version) || 1) },
-      {
-        key: "registry-mode",
-        label: "Режим registry",
-        value: String(registryDoc.mode || "—").trim() || "—"
-      },
-      {
-        key: "registry-migration-date",
-        label: "Дата миграции типов",
-        value: String(registryDoc["migration-date"] || registryDoc.migrationDate || "—").trim() || "—"
-      },
-      { key: "node-version", label: "Node.js", value: process.version },
-      { key: "platform-os", label: "ОС сервера", value: process.platform },
       {
         key: "core-path",
         label: "Каталог ядра",
         value: AGENT_CMS_CORE_REL.replace(/\\/g, "/")
-      },
-      {
-        key: "type-catalog-count",
-        label: "Типов в каталоге",
-        value: String(byId.size)
       },
       {
         key: "settings-global-path",
@@ -783,14 +764,7 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
 }
 
 const PLATFORM_SYS_KEY_MAP = {
-  "cms-version": "sys-cms-version",
-  "registry-version": "sys-registry-version",
-  "registry-mode": "sys-registry-mode",
-  "registry-migration-date": "sys-registry-migration-date",
-  "node-version": "sys-node-version",
-  "platform-os": "sys-platform-os",
-  "core-path": "sys-core-path",
-  "type-catalog-count": "sys-type-catalog-count"
+  "core-path": "sys-core-path"
 };
 
 const SETTINGS_SCOPE_ALIASES = {

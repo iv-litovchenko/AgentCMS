@@ -3,32 +3,38 @@
 awn_settings:
   maintenance-mode: false
   default-locale: ru
+  default-workspace-id: agent-cms-core
+  ui-theme: system
+  ui-density: comfortable
+  ui-show-breadcrumbs: true
+  ui-default-sidebar-width: 280
+  always-context-platform-readme: true
+  always-context-global-mcp-doc: true
+  always-context-global-response-style: true
+  always-context-md-files: AGENTS.md
+  always-context-ws-folder: awn-shared/context/awn-storage/
   mcp-mode: standard
   batch-enabled: true
   batch-read-limit: 20
   batch-write-limit: 10
   batch-deny-exec: true
-  confirm-delete: true
   confirm-exec: true
+  confirm-delete: true
   read-text-max-bytes: 120000
   read-binary-max-bytes: 1500000
-  index-semantic-enabled: true
-  index-fulltext-enabled: true
-  index-storage-enabled: true
-  index-links-enabled: true
   indexing-ocr-langs: rus+eng
   index-ocr-enabled: false
+  index-fulltext-enabled: true
+  index-semantic-enabled: true
+  index-storage-enabled: true
+  index-links-enabled: true
   index-workspace-id-enabled: true
   index-storage-mode: quick
-  index-path-prefixes: []
-  index-exclude-patterns: |
-    .git
-    .agent-cms
-    node_modules/
-    awn-repositories/ !manifest.md !README.md
   index-file-extensions:
     - .md
     - .sidecar.md
+  index-path-prefixes: []
+  index-exclude-patterns: "[object Object]"
   search-default-scopes:
     - semantic
     - fulltext
@@ -37,8 +43,3 @@ awn_settings:
   search-hybrid-semantic-weight: 60
   search-hybrid-fulltext-weight: 40
   auto-retain-facts: false
-  always-context-platform-readme: true
-  always-context-global-mcp-doc: true
-  always-context-global-response-style: true
-  always-context-md-files: AGENTS.md
-  always-context-ws-folder: awn-shared/context/awn-storage/

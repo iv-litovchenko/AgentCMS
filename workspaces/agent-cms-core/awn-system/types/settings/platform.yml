@@ -41,62 +41,12 @@ fieldGroups:
 
 fields:
 
-  sys-cms-version:
-    type: awn.field.string
-    title: Версия CMS
-    description: Версия пакета agent-cms (package.json)
-    readonly: true
-    group: main
-    sort: 1
-
-  sys-registry-version:
-    type: awn.field.string
-    title: Версия registry.yml
-    readonly: true
-    group: main
-    sort: 2
-
-  sys-registry-mode:
-    type: awn.field.string
-    title: Режим registry
-    readonly: true
-    group: main
-    sort: 3
-
-  sys-registry-migration-date:
-    type: awn.field.string
-    title: Дата миграции типов
-    readonly: true
-    group: main
-    sort: 4
-
-  sys-node-version:
-    type: awn.field.string
-    title: Node.js
-    readonly: true
-    group: main
-    sort: 5
-
-  sys-platform-os:
-    type: awn.field.string
-    title: ОС сервера
-    readonly: true
-    group: main
-    sort: 6
-
   sys-core-path:
     type: awn.field.string
     title: Каталог ядра
     readonly: true
     group: main
-    sort: 7
-
-  sys-type-catalog-count:
-    type: awn.field.string
-    title: Типов в каталоге
-    readonly: true
-    group: main
-    sort: 8
+    sort: 1
 
   maintenance-mode:
     type: awn.field.boolean

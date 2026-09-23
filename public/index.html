@@ -2496,16 +2496,20 @@
               id="menu-agent-stats-env-popover"
               class="menu-agent-stats-env-popover hidden"
               role="dialog"
-              aria-label="Среда и зависимости"
+              aria-label="О системе"
               aria-modal="false"
             >
               <div class="menu-agent-stats-env-popover-head">
-                <span id="menu-agent-stats-env-popover-title" class="menu-agent-stats-env-popover-title"></span>
+                <span id="menu-agent-stats-env-popover-title" class="menu-agent-stats-env-popover-title">О системе</span>
+                <span id="menu-agent-stats-env-popover-subtitle" class="menu-agent-stats-env-popover-subtitle hidden"></span>
               </div>
               <div
                 id="menu-agent-stats-env-popover-grid"
                 class="menu-system-environment-grid is-popover"
               ></div>
+              <div id="menu-agent-stats-env-popover-footer" class="menu-agent-stats-env-popover-footer hidden">
+                <span id="menu-agent-stats-env-popover-version" class="menu-agent-stats-env-popover-version"></span>
+              </div>
             </div>
           </div>
         </section>
@@ -3486,7 +3490,7 @@
                         type="button"
                         id="project-settings-reset-btn"
                         class="project-settings-btn project-settings-btn--secondary"
-                        title="Сбросить поля этой секции к значениям по умолчанию"
+                        title="Сбросить поля открытой секции к значениям по умолчанию"
                       >
                         Сбросить
                       </button>
