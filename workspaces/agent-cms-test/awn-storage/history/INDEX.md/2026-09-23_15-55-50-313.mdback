@@ -33,7 +33,6 @@
 | 9 | awn.page.topic | типовые | `awn-container/temma-so-slotami/manifest.md` | [Темма со слотами](awn-container/temma-so-slotami/manifest.md) | — | 582 B | 30 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-container/test-1000-soobscheniy/manifest.md` | [Тест 1000 сообщений](awn-container/test-1000-soobscheniy/manifest.md) | — | 557 B | 28 | 2 | 0 | Настройки |
 | — | awn.page.topic | типовые | `awn-container/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-container/test-vseh-svoystvo/manifest.md) | — | 3.9 KB | 132 | 0 | 0 | Схемы, Настройки |
-| — | awn.page.topic | типовые | `awn-shared/inbox/manifest.md` | [Входящие](awn-shared/inbox/manifest.md) | — | 642 B | 34 | 0 | 0 | — |
 | — | awn.page.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
 | 6 | awn.page.area | — | `codex-test/manifest.md` | [codex test](codex-test/manifest.md) | — | 544 B | 29 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `codex-test/test/manifest.md` | [test](codex-test/test/manifest.md) | — | 527 B | 28 | 0 | 0 | Настройки |
@@ -45,7 +44,7 @@
 | — | awn.page.topic | типовые | `crm-studio/mastera/manifest.md` | [Мастера](crm-studio/mastera/manifest.md) | — | 539 B | 28 | 0 | 0 | Схемы |
 | — | awn.page.topic | типовые | `crm-studio/uslugi/manifest.md` | [Услуги](crm-studio/uslugi/manifest.md) | — | 537 B | 28 | 0 | 0 | Схемы |
 | — | awn.page.topic | типовые | `crm-studio/zapisi/manifest.md` | [Записи](crm-studio/zapisi/manifest.md) | — | 537 B | 28 | 0 | 0 | Схемы |
-| — | awn.page.ws | — | `manifest.md` | [\[Agent CMS\] Песочница и тесты](manifest.md) | Описчание | 820 B | 37 | 0 | 0 | — |
+| — | awn.page.ws | — | `manifest.md` | [\[Agent CMS\] Песочница и тесты](manifest.md) | Описчание | 820 B | 37 | 0 | 0 | Схемы, Настройки |
 
 * **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
 * **Строк** — число строк в теле документа (manifest.md). Если больше 0 — есть инструкция/промпт для агента: как работать с этой темой, что важно знать, договорённости. Пустое тело — 0.
