@@ -3,7 +3,7 @@
 awn_settings:
   awn-id-next: 8
   awn-id-issued: 7
-  awn-id-updated-at: "2026-09-23T12:34:35.130Z"
+  awn-id-updated-at: "2026-09-23T12:37:07.097Z"
   awn-id-model: workspace-id-autoincrement-v1
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
