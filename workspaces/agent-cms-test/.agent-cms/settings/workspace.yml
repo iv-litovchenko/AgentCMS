@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 13
   awn-id-issued: 12
-  awn-id-updated-at: "2026-09-23T10:30:34.691Z"
+  awn-id-updated-at: "2026-09-23T11:01:32.264Z"
   awn-id-model: workspace-id-autoincrement-v1
   ws-static-example-1: значение 1
   ws-static-example-2: значение 2
@@ -23,25 +23,25 @@ awn_settings:
   voice-route-qwenpaw-approval-level: AUTO
   voice-route-runtime: codex
   voice-proactive-enabled: false
-  voice-proactive-idle-seconds-min: 30
-  voice-proactive-idle-seconds-max: 60
-  voice-proactive-cooldown-seconds: 180
-  voice-proactive-quiet-hours-enabled: true
-  voice-proactive-quiet-hours-start: "23:00"
-  voice-proactive-quiet-hours-end: "07:00"
-  voice-input-enabled: false
+  voice-proactive-idle-seconds-min: 44
+  voice-proactive-idle-seconds-max: 77
+  voice-proactive-cooldown-seconds: 88
+  voice-proactive-quiet-hours-enabled: false
+  voice-proactive-quiet-hours-start: "22:00"
+  voice-proactive-quiet-hours-end: "05:00"
+  voice-input-enabled: true
   voice-input-mode: fn_button
   voice-input-capture: microphone
   voice-input-global-listen: false
   voice-input-to-compose: false
-  voice-input-response-enabled: false
+  voice-input-response-enabled: true
   voice-stt-engine: browser
   voice-stt-lang: ru-RU
   voice-stt-whisper-model: base
   voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: true
+  voice-tts-enabled: false
   voice-tts-engine: browser
-  voice-tts-playback-mode: dialog
+  voice-tts-playback-mode: reading
   voice-tts-rate: 1
   voice-tts-pitch: 1
   voice-tts-include-captions: true
@@ -68,3 +68,31 @@ awn_settings:
   voice-window-dialog-auto-scroll: true
   voice-window-keep-awake: false
   voice-window-processing-sound: off
+  voice-route-codex-permission-mode: untrusted
+  voice-stt-prompt: |
+    В сообщении пользователя может быть смесь обычного текста и голосовых блоков:
+    
+    [stt]
+    …сырая расшифровка речи…
+    [/stt]
+    
+    Текст вне [stt]…[/stt] — набран вручную, трактуй буквально.
+    Внутри [stt] — сказано голосом: возможны «э-э», «эээ», «мм», «ну», ошибки распознавания и пунктуации.
+    
+    Понимай смысл по всему сообщению целиком; восстанавливай формулировку мысленно, не выдумывая новых фактов.
+    Если смысл голосового блока неясен — спроси уточнение.
+    Не удаляй и не переписывай разметку [stt] в цитатах пользователя.
+  voice-tts-prompt: |
+    Каждый ответ пользователю используй в формате (строго, в таком порядке):
+    
+    1) Текст для озвучки — plain text, без emoji и markdown. Только то, что можно сказать вслух. Без секретов и ключей. Длина не ограничена — озвучь весь смысл ответа.
+    
+    2) Отдельной строкой маркер конца голосовой части:
+    
+    [tts-break]
+    
+    3) Подробный ответ для экрана (markdown, списки, код). Если главное уже сказано голосом — начни с короткой отсылки: «Подробнее ниже» или «Смотри детали ниже».
+    
+    Формат обязателен для любых ответов, включая уточняющие вопросы.
+    Без HTML-комментариев <!-- -->.
+  voice-proactive-prompt: 534
