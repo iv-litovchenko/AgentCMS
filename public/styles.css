@@ -61525,6 +61525,40 @@ body.is-cms-page-picker-active #discuss-aside * {
   align-items: center;
   gap: 0.65rem;
   margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.awn-database-view-toolbar-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.awn-database-view-toolbar .node-navigation-list-sort {
+  margin-left: 0;
+}
+
+.awn-database-view-toolbar .node-navigation-list-sort-toggle {
+  min-height: 26px;
+}
+
+.awn-database-view-toolbar .node-navigation-list-sort-btn.folder-browse-images-cols-btn {
+  height: 26px;
+  min-height: 26px;
+}
+
+.awn-database-view-layout-control {
+  flex-shrink: 0;
+}
+
+.awn-database-view-toolbar .awn-database-view-layout-btn {
+  min-width: 28px;
+  width: auto;
+  height: 26px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .awn-database-view-section-panel {
@@ -62230,44 +62264,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f5f3ff;
 }
 
-.awn-database-view-layout-toggle {
-  display: inline-flex;
-  flex-shrink: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.45rem;
-  overflow: hidden;
-  background: #fff;
-}
-
-.awn-database-view-layout-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: none;
-  border-right: 1px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
-  font-size: 0.875rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.awn-database-view-layout-btn:last-child {
-  border-right: none;
-}
-
-.awn-database-view-layout-btn:hover {
-  background: #f8fafc;
-  color: #334155;
-}
-
-.awn-database-view-layout-btn.is-active {
-  background: #ede9fe;
-  color: #5b21b6;
-}
 
 .awn-database-view-record-row {
   cursor: pointer;
