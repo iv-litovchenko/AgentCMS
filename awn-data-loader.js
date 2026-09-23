@@ -232,6 +232,19 @@ function loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot) {
   }
 }
 
+function extractCustomSchemeModFields(fields, extendsRef, agentRoot, projectRoot) {
+  const ref = resolveElementExtendsRef(extendsRef || DEFAULT_ELEMENT_SCHEMA_TYPE);
+  const inherited = isTypeIdRef(ref)
+    ? loadInheritedFieldsFromTypeId(ref, agentRoot, projectRoot).fields
+    : {};
+  const inheritedKeys = new Set(Object.keys(inherited || {}));
+  const custom = {};
+  for (const [key, def] of Object.entries(normalizeAwnFieldsMap(fields || {}))) {
+    if (!inheritedKeys.has(key)) custom[key] = def;
+  }
+  return custom;
+}
+
 function readTypeFieldDefault(fields, key) {
   const awnKey = toAwnFieldKey(key);
   const def = fields?.[awnKey] || fields?.[key];
@@ -803,17 +816,22 @@ function normalizeRawStoreSchema(raw, body = "") {
 
   const elementExtends = resolveElementExtendsRef(readStoreProp(raw, ["awn-data-elements-schema-extends"], ""));
   const legacyExtends = resolveElementExtendsRef(readStoreProp(raw, ["awn-extends", "extends", "awn-prop-extends"], ""));
+  const record =
+    kind === "group"
+      ? {}
+      : { ...recordFromObject, ...extractFlatRecordProps(raw) };
 
   return {
     version: raw.version || 1,
     kind,
     supertype,
+    typeId: CONTAINER_TYPE_ID[kind] || "",
     id: String(readStoreProp(raw, ["awn-id", "id", "awn-prop-id"], "")).trim(),
     name: String(readStoreProp(raw, ["awn-name", "name", "title", "awn-prop-name"], "")).trim(),
     description: String(extractDescriptionFromBody(body) || readStoreProp(raw, ["description", "awn-description", "awn-prop-description"], "")).trim(),
-    extends: elementExtends || legacyExtends,
+    extends: kind === "group" ? "" : elementExtends || legacyExtends,
     layer: String(readStoreProp(raw, ["awn-layer", "layer", "awn-prop-layer"], "")).trim(),
-    record: { ...recordFromObject, ...extractFlatRecordProps(raw) },
+    record,
     fields: normalizeAwnFieldsMap(rawFields),
     elementSchemaTabs: elementBlock.tabs,
     elementSchemaMixins: Array.isArray(raw["awn-data-elements-schema-mixins"])
@@ -1047,6 +1065,32 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
   const agentRoot = dataRoot ? path.dirname(dataRoot) : findAgentRootFromStoreAbs(storeAbs);
   const projectRoot = resolveProjectRootFromAgentRoot(agentRoot);
   const schemeOverlay = readStoreSchemeModOverlay(storeAbs);
+  const kind = normalizeStoreKind(leaf.schema.kind || "collection");
+
+  if (kind === "group") {
+    const typeMeta = loadContainerTypeMeta("group", agentRoot, projectRoot);
+    const containerFields = normalizeAwnFieldsMap(typeMeta.typeFields || {});
+    const merged = {
+      ...leaf.schema,
+      kind: "group",
+      typeId: typeMeta.typeId || CONTAINER_TYPE_ID.group,
+      fields: containerFields,
+      fieldsLocal: {},
+      fieldsInSchemeMod: false,
+      elementSchemaTabs: {},
+      storeBody: leaf.body || leaf.schema.storeBody || "",
+      schemaFile: leaf.schemaFile,
+      schemeModFile: "",
+      extendsChain: typeMeta.typeId ? [typeMeta.typeId] : [],
+      elementExtends: "",
+      supertype: typeMeta.typeId || CONTAINER_TYPE_ID.group,
+      record: {}
+    };
+    delete merged.storeBody;
+    merged._storeBody = leaf.body || leaf.schema.storeBody || "";
+    return merged;
+  }
+
   const extendsRef = resolveElementExtendsRef(schemeOverlay?.extends || leaf.schema.extends || DEFAULT_ELEMENT_SCHEMA_TYPE);
 
   let fields = {};
@@ -1637,16 +1681,20 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
   if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
   if (options.indexExclude) lines.push("awn-index-exclude: true");
 
-  const record = schema.record && typeof schema.record === "object" ? schema.record : {};
-  const collectionType = collectionTypeFromRecordProps(record);
-  lines.push(`awn-collection-type: ${collectionType}`);
-  if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
-  if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
-  if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
-  if (record.fileTypes) lines.push(`awn-record-file-types: ${yamlQuote(record.fileTypes)}`);
-  if (!record["id-mode"] && !record.file && !record.hierarchy && Object.keys(record).length) {
-    lines.push("awn-record:");
-    lines.push(...dumpYamlBlock(record, 1));
+  if (kind !== "group") {
+    const record = schema.record && typeof schema.record === "object" ? schema.record : {};
+    const collectionType = collectionTypeFromRecordProps(record);
+    lines.push(`awn-collection-type: ${collectionType}`);
+    if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
+    if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
+    if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
+    if (record.fileTypes !== undefined && String(record.fileTypes).trim()) {
+      lines.push(`awn-record-file-types: ${yamlQuote(record.fileTypes)}`);
+    }
+    if (!record["id-mode"] && !record.file && !record.hierarchy && Object.keys(record).length) {
+      lines.push("awn-record:");
+      lines.push(...dumpYamlBlock(record, 1));
+    }
   }
 
   lines.push("---", "");
@@ -1763,10 +1811,112 @@ function appendRootSortEntry(dataRoot, storeRel) {
   fs.writeFileSync(sortPath, `${JSON.stringify(order, null, 2)}\n`, "utf-8");
 }
 
-function buildCollectionManifestBody({ name, description }) {
-  const title = name || "Коллекция";
-  const desc = String(description || title).trim();
-  return `# ${title}\n\n${desc}`;
+function loadContainerTypeMeta(kind, agentRoot, projectRoot) {
+  const normalizedKind = normalizeStoreKind(kind);
+  const typeDefaults = loadContainerTypeDefaults(normalizedKind, agentRoot, projectRoot);
+  const typeId = typeDefaults.typeId || CONTAINER_TYPE_ID[normalizedKind] || "";
+  let typeDescription = "";
+  let typeFields = typeDefaults.fields || {};
+  try {
+    const { getTypeDetailByTypeId } = require("./type-catalog-loader");
+    const detail = getTypeDetailByTypeId(projectRoot, agentRoot, typeId);
+    if (detail) {
+      typeDescription = String(detail.description || "").trim();
+      if (detail.mergedFields && typeof detail.mergedFields === "object") {
+        typeFields = normalizeAwnFieldsMap(detail.mergedFields);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { normalizedKind, typeId, typeDescription, typeFields, typeDefaults };
+}
+
+function buildStoreManifestBody({ name, description, typeDescription, fallbackTitle = "Накопитель" }) {
+  const title = String(name || fallbackTitle).trim() || fallbackTitle;
+  const userDesc = String(description || "").trim();
+  const typeDesc = String(typeDescription || "").trim();
+  const lines = [`# ${title}`, ""];
+  if (userDesc) lines.push(userDesc);
+  else if (typeDesc) lines.push(typeDesc);
+  else lines.push(`${title}.`);
+  return `${lines.join("\n")}\n`;
+}
+
+function buildContainerManifestRecord(kind, { typeDefaults, typeFields, options = {} }) {
+  const normalizedKind = normalizeStoreKind(kind);
+  if (normalizedKind === "group") return {};
+
+  if (normalizedKind === "single") {
+    return {
+      storage: "md",
+      file: "main.md",
+      collectionType: "md",
+      collectionKind: "records"
+    };
+  }
+
+  const collectionKind = normalizeCollectionKind(
+    options.collectionKind ?? typeDefaults.collectionKind,
+    "records"
+  );
+  const recordStorage = normalizeRecordStorage(options.recordStorage ?? typeDefaults.recordStorage, "md");
+  const hierarchy =
+    recordStorage === "csv"
+      ? false
+      : Boolean(options.recordHierarchy ?? typeDefaults.recordHierarchy ?? false);
+  const fileTypes =
+    collectionKind === "files"
+      ? String(options.recordFileTypes ?? typeDefaults.recordFileTypes ?? "").trim()
+      : "";
+  const collectionType = collectionTypeFromRecordProps({ collectionKind, storage: recordStorage });
+  const idMode =
+    String(options.idMode || readTypeFieldDefault(typeFields, "awn-record-id-mode") || "slug").trim() ||
+    "slug";
+
+  const record = {
+    collectionType,
+    collectionKind,
+    storage: recordStorage,
+    "id-mode": idMode,
+    hierarchy,
+    ...(fileTypes ? { fileTypes } : {})
+  };
+
+  if (recordStorage === "csv") record.file = "main.csv";
+  else if (collectionKind !== "files") record.file = "{id}.md";
+
+  return record;
+}
+
+function loadStoreElementScheme(agentRoot, projectRoot, fallbackFields, fallbackTabs = { main: "Основное" }) {
+  const inherited = loadInheritedFieldsFromTypeId(DEFAULT_ELEMENT_SCHEMA_TYPE, agentRoot, projectRoot);
+  const rawFields = inherited.fields || {};
+  if (!Object.keys(rawFields).length) {
+    return { extends: DEFAULT_ELEMENT_SCHEMA_TYPE, fields: fallbackFields, tabs: fallbackTabs };
+  }
+  const fields = {};
+  for (const [key, def] of Object.entries(rawFields)) {
+    if (!def || typeof def !== "object") continue;
+    fields[key] = { ...def, tab: def.tab || "main" };
+  }
+  if (!fields["awn-title"] && !fields["awn-name"]) {
+    fields["awn-title"] = { type: "awn.string", title: "Название", required: true, tab: "main" };
+  }
+  return {
+    extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
+    fields,
+    tabs: inherited.tabs && Object.keys(inherited.tabs).length ? inherited.tabs : { main: "Основное" }
+  };
+}
+
+function buildCollectionManifestBody({ name, description, typeDescription }) {
+  return buildStoreManifestBody({
+    name,
+    description,
+    typeDescription,
+    fallbackTitle: "Коллекция"
+  });
 }
 
 function tableBaseExtendsPath() {
@@ -1793,15 +1943,20 @@ function buildCollectionSchemaContent({
   recordStorage = "md",
   collectionKind = "records",
   recordHierarchy = false,
-  recordFileTypes = ""
+  recordFileTypes = "",
+  agentRoot = "",
+  projectRoot = process.cwd()
 }) {
-  const desc = String(description || name || slug).trim();
-  const kind = normalizeCollectionKind(collectionKind, "records");
-  const storage = normalizeRecordStorage(recordStorage, "md");
-  const collectionType = collectionTypeFromRecordProps({ collectionKind: kind, storage });
-  const hierarchy = storage === "csv" ? false : Boolean(recordHierarchy);
-  const fileTypes = kind === "files" ? String(recordFileTypes || "").trim() : "";
-  const recordFields = {
+  const typeMeta = loadContainerTypeMeta("collection", agentRoot, projectRoot);
+  const userDescription = String(description || "").trim();
+  const displayName = String(name || slug).trim();
+  const desc = userDescription || displayName;
+  const record = buildContainerManifestRecord("collection", {
+    typeDefaults: typeMeta.typeDefaults,
+    typeFields: typeMeta.typeFields,
+    options: { collectionKind, recordStorage, recordHierarchy, recordFileTypes }
+  });
+  const fallbackRecordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
     "awn-parent": {
       type: "awn.string",
@@ -1817,29 +1972,34 @@ function buildCollectionSchemaContent({
       tab: "main"
     }
   };
+  const elementScheme = loadStoreElementScheme(
+    agentRoot,
+    projectRoot,
+    fallbackRecordFields,
+    { main: "Основное" }
+  );
   return {
     schema: {
       kind: "collection",
-      name: name || slug,
+      name: displayName,
       description: desc,
-      extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
+      typeId: typeMeta.typeId || CONTAINER_TYPE_ID.collection,
+      supertype: typeMeta.typeId || CONTAINER_TYPE_ID.collection,
+      extends: elementScheme.extends,
       fieldsInSchemeMod: true,
-      record: {
-        collectionType,
-        collectionKind: kind,
-        storage,
-        "id-mode": "slug",
-        ...(storage === "csv" ? { file: "main.csv" } : {}),
-        hierarchy,
-        ...(fileTypes ? { fileTypes } : {})
-      },
-      fields: recordFields,
-      elementSchemaTabs: { main: "Основное" }
+      record,
+      fields: elementScheme.fields,
+      containerFields: normalizeAwnFieldsMap(typeMeta.typeFields || {}),
+      elementSchemaTabs: elementScheme.tabs
     },
-    schemeModFields: recordFields,
-    schemeModTabs: { main: "Основное" },
-    schemeModExtends: DEFAULT_ELEMENT_SCHEMA_TYPE,
-    manifestBody: buildCollectionManifestBody({ name: name || slug, description: desc })
+    schemeModFields: {},
+    schemeModTabs: elementScheme.tabs,
+    schemeModExtends: elementScheme.extends,
+    manifestBody: buildCollectionManifestBody({
+      name: displayName,
+      description: userDescription,
+      typeDescription: typeMeta.typeDescription
+    })
   };
 }
 
@@ -1876,38 +2036,79 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
   };
 }
 
-function buildSingletonSchemaContent({ slug, name, description }) {
-  const desc = String(description || name || slug).trim();
-  const recordFields = {
+function buildSingletonSchemaContent({
+  slug,
+  name,
+  description,
+  agentRoot = "",
+  projectRoot = process.cwd()
+}) {
+  const typeMeta = loadContainerTypeMeta("single", agentRoot, projectRoot);
+  const userDescription = String(description || "").trim();
+  const displayName = String(name || slug).trim();
+  const desc = userDescription || displayName;
+  const record = buildContainerManifestRecord("single", {
+    typeDefaults: typeMeta.typeDefaults,
+    typeFields: typeMeta.typeFields,
+    options: {}
+  });
+  const fallbackRecordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" }
   };
+  const elementScheme = loadStoreElementScheme(
+    agentRoot,
+    projectRoot,
+    fallbackRecordFields,
+    { main: "Основное" }
+  );
   return {
     schema: {
       kind: "single",
-      name: name || slug,
+      name: displayName,
       description: desc,
-      extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
+      typeId: typeMeta.typeId || CONTAINER_TYPE_ID.single,
+      supertype: typeMeta.typeId || CONTAINER_TYPE_ID.single,
+      extends: elementScheme.extends,
       fieldsInSchemeMod: true,
-      record: { storage: "md", file: "main.md" },
-      fields: recordFields,
-      elementSchemaTabs: { main: "Основное" }
+      record,
+      fields: elementScheme.fields,
+      containerFields: normalizeAwnFieldsMap(typeMeta.typeFields || {}),
+      elementSchemaTabs: elementScheme.tabs
     },
-    schemeModFields: recordFields,
-    schemeModTabs: { main: "Основное" },
-    schemeModExtends: DEFAULT_ELEMENT_SCHEMA_TYPE,
-    manifestBody: `# ${name || slug}\n\n${desc}`
+    schemeModFields: {},
+    schemeModTabs: elementScheme.tabs,
+    schemeModExtends: elementScheme.extends,
+    manifestBody: buildStoreManifestBody({
+      name: displayName,
+      description: userDescription,
+      typeDescription: typeMeta.typeDescription,
+      fallbackTitle: "Одиночка"
+    })
   };
 }
 
-function buildGroupSchemaContent({ slug, name, description }) {
-  const desc = String(description || name || slug).trim();
+function buildGroupSchemaContent({ slug, name, description, agentRoot, projectRoot }) {
+  const typeMeta = loadContainerTypeMeta("group", agentRoot, projectRoot);
+  const userDescription = String(description || "").trim();
+  const displayName = String(name || slug).trim();
+  const desc = userDescription || displayName;
+  const containerFields = normalizeAwnFieldsMap(typeMeta.typeFields || {});
   return {
     schema: {
       kind: "group",
-      name: name || slug,
-      description: desc
+      name: displayName,
+      description: desc,
+      typeId: typeMeta.typeId || CONTAINER_TYPE_ID.group,
+      supertype: typeMeta.typeId || CONTAINER_TYPE_ID.group,
+      fields: containerFields,
+      record: {}
     },
-    manifestBody: `# ${name || slug}\n\n${desc}`
+    manifestBody: buildStoreManifestBody({
+      name: displayName,
+      description: userDescription,
+      typeDescription: typeMeta.typeDescription,
+      fallbackTitle: "Группа"
+    })
   };
 }
 
@@ -1926,6 +2127,7 @@ function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
 
 function buildRecordMarkdown({
   id,
+  name,
   title,
   parent,
   storeRel = "",
@@ -1939,7 +2141,8 @@ function buildRecordMarkdown({
   if (store) lines.push(`awn-store: ${store}`);
   const ts = nowIsoMinute();
   lines.push(`awn-created: "${ts}"`, `awn-updated: "${ts}"`);
-  if (title) lines.push(`awn-title: ${title}`);
+  const displayName = String(name || title || "").trim();
+  if (displayName) lines.push(`awn-name: ${displayName}`);
   if (parent) lines.push(`awn-parent: "${parent}"`);
   for (const [key, value] of Object.entries(extra)) {
     const awnKey = toAwnFieldKey(key);
@@ -1949,6 +2152,7 @@ function buildRecordMarkdown({
         "awn-parent",
         "awn-created",
         "awn-updated",
+        "awn-name",
         "awn-title",
         "awn-type",
         "awn-store",
@@ -1957,7 +2161,8 @@ function buildRecordMarkdown({
         "parent",
         "created",
         "updated",
-        "title"
+        "title",
+        "name"
       ].includes(awnKey)
     ) {
       continue;
@@ -1968,16 +2173,16 @@ function buildRecordMarkdown({
   const bodyText = String(body || "").trim();
   if (bodyText) {
     lines.push(bodyText);
-  } else if (title) {
-    lines.push(`${title}.`);
+  } else if (displayName) {
+    lines.push(`${displayName}.`);
   }
   return `${lines.join("\n")}\n`;
 }
 
-function buildSectionManifestMarkdown({ id, title, parent, storeRel = "" }) {
+function buildSectionManifestMarkdown({ id, name, title, parent, storeRel = "" }) {
   return buildRecordMarkdown({
     id,
-    title,
+    name: name || title,
     parent,
     storeRel,
     elementType: ELEMENT_TYPE_CATEGORY,
@@ -2033,7 +2238,9 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           recordStorage,
           collectionKind,
           recordHierarchy,
-          recordFileTypes
+          recordFileTypes,
+          agentRoot,
+          projectRoot
         });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
@@ -2050,16 +2257,16 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(dataAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
-      const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись", storeRel: slug });
+      const recordContent = buildRecordMarkdown({ id: "1", name: "Первая запись", storeRel: slug });
       fs.writeFileSync(path.join(dataAbs, "1.md"), recordContent, "utf-8");
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
     }
   } else if (kind === "group") {
-    const bundle = buildGroupSchemaContent({ slug, name, description });
+    const bundle = buildGroupSchemaContent({ slug, name, description, agentRoot, projectRoot });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
   } else {
-    const bundle = buildSingletonSchemaContent({ slug, name, description });
+    const bundle = buildSingletonSchemaContent({ slug, name, description, agentRoot, projectRoot });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
       writeStoreSchemeMod(storeAbs, {
@@ -2070,7 +2277,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     }
     const recordContent = buildRecordMarkdown({
       id: slug.replace(/\//g, "."),
-      title: name,
+      name,
       storeRel: slug,
       extra: { note: "" }
     });
@@ -2117,26 +2324,36 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
 
   const recordStorage = getRecordStorage(schema);
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "numeric").trim();
-  let id = String(options.id || "").trim();
+  let id = String(options.id || options.slug || "").trim();
   if (!id) {
     if (options.isSection) {
-      id = slugifyStoreName(options.title || "section");
+      id = slugifyStoreName(options.name || options.title || "section");
+    } else if (idMode === "numeric") {
+      id = resolveNextNumericRecordId(store.records || []);
     } else {
-      id =
-        idMode === "numeric"
-          ? resolveNextNumericRecordId(store.records || [])
-          : slugifyStoreName(options.title || "record");
+      id = slugifyStoreName(options.name || options.title || "record");
     }
+  } else if (options.isSection) {
+    const normalizedSlug = normalizeStoreSlug(id);
+    if (!normalizedSlug) throw new Error("Invalid section slug");
+    id = normalizedSlug;
+  } else if (idMode === "numeric") {
+    if (!/^\d+$/.test(id)) throw new Error("Invalid record id for numeric id-mode");
+  } else {
+    const normalizedSlug = normalizeStoreSlug(id);
+    if (!normalizedSlug) throw new Error("Invalid record slug");
+    id = normalizedSlug;
   }
 
   const parent = String(options.parent || "").trim();
-  const title = String(options.title || id).trim();
+  const name = String(options.name || options.title || id).trim();
+  const title = String(options.title || name || id).trim();
   const hierarchy = schema?.record?.hierarchy !== false;
 
   if (recordStorage === "csv") {
     if (parent) throw new Error("CSV store does not support hierarchy");
     const fields = schema?.fields || {};
-    const row = { "awn-code": id, "awn-label": title };
+    const row = { "awn-code": id, "awn-label": name, "awn-name": name };
     for (const key of Object.keys(fields)) {
       if (options[key] !== undefined) row[key] = options[key];
     }
@@ -2163,6 +2380,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     fs.mkdirSync(sectionDir, { recursive: true });
     const content = buildSectionManifestMarkdown({
       id: sectionId,
+      name,
       title,
       parent: parent || null,
       storeRel
@@ -2170,7 +2388,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     fs.writeFileSync(manifestPath, content, "utf-8");
   } else {
     if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
-    const content = buildRecordMarkdown({ id, title, parent: parent || null, storeRel });
+    const content = buildRecordMarkdown({ id, name, title, parent: parent || null, storeRel });
     fs.writeFileSync(absFile, content, "utf-8");
   }
 
@@ -2484,6 +2702,7 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
     projectRoot,
     storeRel
   );
+  const agentRootResolved = findAgentRootFromStoreAbs(storeAbs);
   const schemeModRelPath = `${rel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
   const schemePath = path.join(storeAbs, SCHEMA_MOD_FILE);
   const overlay = readStoreSchemeModOverlay(storeAbs);
@@ -2496,10 +2715,17 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
   const awnSchema = {};
   for (const kind of AWN_DATA_SCHEMA_TARGETS) {
     const block = overlay?.blocks?.[kind] || (kind === "record" ? overlay : null);
+    const extendsRef = block?.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind];
+    const storedFields = block?.fields || (kind === "record" ? overlay?.fields || {} : {});
     awnSchema[kind] = {
-      fields: block?.fields || (kind === "record" ? overlay?.fields || {} : {}),
+      fields: extractCustomSchemeModFields(
+        storedFields,
+        extendsRef,
+        agentRootResolved,
+        projectRoot
+      ),
       tabs: block?.tabs || (kind === "record" ? overlay?.tabs || {} : {}),
-      extends: block?.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind]
+      extends: extendsRef
     };
   }
 
@@ -2531,12 +2757,19 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
   } else {
     const awnSchema = options.awnSchema && typeof options.awnSchema === "object" ? options.awnSchema : null;
     if (awnSchema && (awnSchema.category || awnSchema.record || awnSchema.sidecar)) {
+      const agentRootResolved = findAgentRootFromStoreAbs(storeAbs);
       const blocks = {};
       for (const kind of AWN_DATA_SCHEMA_TARGETS) {
         const block = awnSchema[kind] || {};
+        const extendsRef = block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind];
         blocks[kind] = {
-          extends: block.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS[kind],
-          fields: normalizeAwnFieldsMap(block.fields || {}),
+          extends: extendsRef,
+          fields: extractCustomSchemeModFields(
+            block.fields || {},
+            extendsRef,
+            agentRootResolved,
+            projectRoot
+          ),
           tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
         };
       }
@@ -2606,6 +2839,7 @@ module.exports = {
   readStoreSchemeModOverlay,
   loadMergedStoreSchema,
   resolveAwnDataStoreContext,
+  extractCustomSchemeModFields,
   readAwnDataStoreSchemaPayload,
   writeAwnDataStoreSchema,
   readAwnDataStoreProperty,

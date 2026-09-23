@@ -5644,22 +5644,24 @@
             Выберите пресеты или укажите свои через запятую. Пусто — любые файлы.
           </p>
         </label>
-        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
-          <input id="awn-database-create-hierarchy-input" type="checkbox" />
-          <span class="awn-database-create-checkbox-label">Включить поддержку разделов (иерархическая структура)</span>
-        </label>
-        <label
-          class="awn-database-create-checkbox-field create-form-indexing-option hidden"
-          id="awn-database-create-index-exclude-wrap"
-          title="Исключить накопитель и записи из поиска и индексов"
-        >
-          <input id="awn-database-create-index-exclude" type="checkbox" />
-          <span class="awn-database-create-checkbox-label">Запретить индексирование</span>
-        </label>
-        <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap" title="Только для коллекций md-файлов">
-          <input id="awn-database-create-sample-input" type="checkbox" checked />
-          <span class="awn-database-create-checkbox-label">Создать первую запись</span>
-        </label>
+        <div class="awn-database-create-checkbox-group hidden" id="awn-database-create-checkbox-group">
+          <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-hierarchy-wrap">
+            <input id="awn-database-create-hierarchy-input" type="checkbox" />
+            <span class="awn-database-create-checkbox-label">Включить поддержку разделов (иерархическая структура)</span>
+          </label>
+          <label
+            class="awn-database-create-checkbox-field hidden"
+            id="awn-database-create-index-exclude-wrap"
+            title="Исключить накопитель и записи из поиска и индексов"
+          >
+            <input id="awn-database-create-index-exclude" type="checkbox" />
+            <span class="awn-database-create-checkbox-label">Запретить индексирование</span>
+          </label>
+          <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap" title="Только для коллекций md-файлов">
+            <input id="awn-database-create-sample-input" type="checkbox" checked />
+            <span class="awn-database-create-checkbox-label">Создать первую запись</span>
+          </label>
+        </div>
         <div class="modal-actions">
           <button id="awn-database-create-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="awn-database-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -5758,13 +5760,13 @@
                     <span class="nav-book-toc-folder-chevron"></span>
                   </span>
                   <span class="awn-database-view-accordion-summary-main">
-                    <span class="awn-database-view-accordion-title">Схема полей элементов</span>
+                    <span class="awn-database-view-accordion-title">Дополнительные поля</span>
                     <span class="awn-database-view-accordion-meta awn-database-view-schema-fields-count" aria-live="polite"></span>
                   </span>
                   <span class="awn-database-view-accordion-actions">
                     <code class="awn-database-view-schema-file awn-database-view-schema-mod-file">schema.yml</code>
                     <button type="button" class="awn-database-view-schema-btn" data-awn-database-action="open-schema-editor">
-                      Редактировать
+                      Настроить
                     </button>
                   </span>
                 </summary>
@@ -5794,10 +5796,11 @@
                     ></div>
                     <section class="topic-schema-base-card" aria-label="Базовые поля типа">
                       <h4 class="topic-schema-base-title awn-database-view-element-schema-base-title">
-                        Базовые поля (read-only)
+                        Поля типа (только просмотр)
                       </h4>
                       <p class="topic-schema-base-fields awn-database-view-element-schema-base-fields"></p>
                     </section>
+                    <h4 class="topic-schema-custom-title awn-database-view-element-schema-custom-title">Пользовательские поля</h4>
                     <div class="topic-schema-fields awn-database-view-element-schema-fields"></div>
                     <div class="topic-schema-add-area">
                       <p class="topic-schema-empty awn-database-view-element-schema-empty hidden">
@@ -5809,7 +5812,7 @@
                         </button>
                         <button type="button" class="topic-schema-add-btn section-schema-add-btn">+ Поле</button>
                         <button type="button" class="section-schema-save-btn awn-database-view-element-schema-save-btn">
-                          Сохранить схему
+                          Сохранить поля
                         </button>
                       </footer>
                     </div>
@@ -5831,13 +5834,37 @@
                   </button>
                 </div>
                 <div class="awn-database-view-section-create-form hidden">
-                  <input
-                    class="awn-database-view-section-create-input"
-                    type="text"
-                    placeholder="Название раздела"
-                    spellcheck="false"
-                    aria-label="Название раздела"
-                  />
+                  <label class="agents-registry-field awn-database-view-section-create-name-field">
+                    <span>Название раздела</span>
+                    <input
+                      class="awn-database-view-section-create-name-input"
+                      type="text"
+                      placeholder="Название раздела"
+                      spellcheck="false"
+                      aria-label="Название раздела"
+                    />
+                  </label>
+                  <div class="slug-field-row awn-database-view-section-create-slug-row">
+                    <label class="slug-field-label" for="awn-database-view-section-create-slug-input">Имя папки (slug)</label>
+                    <div class="slug-input-row">
+                      <input
+                        id="awn-database-view-section-create-slug-input"
+                        class="popover-input slug-input awn-database-view-section-create-slug-input"
+                        type="text"
+                        placeholder="razdel"
+                        spellcheck="false"
+                        autocomplete="off"
+                        readonly
+                      />
+                      <button
+                        type="button"
+                        class="slug-unlink-btn awn-database-view-section-create-slug-unlink-btn is-linked"
+                        title="Редактировать slug вручную"
+                        aria-label="Редактировать slug вручную"
+                      >✎</button>
+                    </div>
+                    <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
+                  </div>
                   <button
                     type="button"
                     class="awn-database-view-section-create-submit-btn"
@@ -5881,10 +5908,31 @@
               </div>
               <div class="awn-database-view-actions hidden">
                 <div class="awn-database-view-add-records-form">
-                  <label class="agents-registry-field awn-database-add-title-field">
+                  <label class="agents-registry-field awn-database-add-name-field">
                     <span>Новый элемент</span>
-                    <input class="awn-database-add-title-input" type="text" placeholder="Название" spellcheck="false" />
+                    <input class="awn-database-add-name-input" type="text" placeholder="Название" spellcheck="false" aria-label="Название элемента" />
                   </label>
+                  <div class="slug-field-row awn-database-add-slug-row">
+                    <label class="slug-field-label" for="awn-database-add-slug-input">Имя файла (slug)</label>
+                    <div class="slug-input-row">
+                      <input
+                        id="awn-database-add-slug-input"
+                        class="popover-input slug-input awn-database-add-slug-input"
+                        type="text"
+                        placeholder="element"
+                        spellcheck="false"
+                        autocomplete="off"
+                        readonly
+                      />
+                      <button
+                        type="button"
+                        class="slug-unlink-btn awn-database-add-slug-unlink-btn is-linked"
+                        title="Редактировать slug вручную"
+                        aria-label="Редактировать slug вручную"
+                      >✎</button>
+                    </div>
+                    <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
+                  </div>
                   <label class="agents-registry-field awn-database-add-parent-field">
                     <span class="awn-database-add-parent-label">Родитель (id, опционально)</span>
                     <input class="awn-database-add-parent-input" type="text" placeholder="1" spellcheck="false" />

@@ -11892,33 +11892,48 @@ async function resolveAwnDataIndexFileOnDisk() {
   return { path: canonical, exists: false };
 }
 
-function formatAwnDataIndexConfigurations(store) {
+function formatAwnDataIndexStorageDriver(store) {
   const kind = normalizeStoreKind(store?.kind || "collection");
-  if (kind === "group") {
-    const childCount = Number(store?.childCount);
-    if (Number.isFinite(childCount) && childCount > 0) return `${childCount} влож.`;
-    const children = Array.isArray(store?.children) ? store.children.length : 0;
-    return children > 0 ? `${children} влож.` : "—";
-  }
-  if (kind === "single") return "main.md";
+  if (kind === "group") return "—";
+  if (kind === "single") return "Markdown-файл";
   const collectionKind = String(store?.collectionKind || store?.schema?.record?.collectionKind || "records")
     .trim()
     .toLowerCase();
-  if (collectionKind === "files") {
-    const types = String(store?.recordFileTypes || store?.schema?.record?.fileTypes || "").trim();
-    const hierarchy =
-      store?.recordHierarchy === true ||
-      store?.schema?.record?.hierarchy === true ||
-      String(store?.schema?.record?.hierarchy || "").trim().toLowerCase() === "true";
-    const base = types ? `FILES · ${types}` : "FILES";
-    return hierarchy ? `${base} · разд.` : base;
-  }
-  const storage = String(store?.recordStorage || "md").toUpperCase();
-  const hierarchy =
-    store?.recordHierarchy === true ||
-    store?.schema?.record?.hierarchy === true ||
-    String(store?.schema?.record?.hierarchy || "").trim().toLowerCase() === "true";
-  return hierarchy ? `${storage} · разд.` : storage;
+  const recordStorage = String(store?.recordStorage || store?.schema?.record?.storage || "md")
+    .trim()
+    .toLowerCase();
+  if (collectionKind === "files") return "Файлы";
+  if (recordStorage === "csv") return "CSV-файл";
+  return "Markdown-файлы";
+}
+
+function formatAwnDataIndexFileTypes(store) {
+  const kind = normalizeStoreKind(store?.kind || "collection");
+  if (kind !== "collection") return "—";
+  const collectionKind = String(store?.collectionKind || store?.schema?.record?.collectionKind || "records")
+    .trim()
+    .toLowerCase();
+  if (collectionKind !== "files") return "—";
+  const types = String(store?.recordFileTypes || store?.schema?.record?.fileTypes || "").trim();
+  return types || "любые";
+}
+
+function formatAwnDataIndexSubsections(store) {
+  const kind = normalizeStoreKind(store?.kind || "collection");
+  if (kind !== "group") return "—";
+  const childCount = Number(store?.childCount);
+  if (Number.isFinite(childCount) && childCount > 0) return String(childCount);
+  const children = Array.isArray(store?.children) ? store.children.length : 0;
+  return children > 0 ? String(children) : "—";
+}
+
+/** @deprecated use storageDriver + fileTypes */
+function formatAwnDataIndexConfigurations(store) {
+  const driver = formatAwnDataIndexStorageDriver(store);
+  const fileTypes = formatAwnDataIndexFileTypes(store);
+  if (driver === "—" && fileTypes === "—") return "—";
+  if (fileTypes === "—" || fileTypes === "любые") return driver;
+  return `${driver} · ${fileTypes}`;
 }
 
 function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
@@ -11939,7 +11954,15 @@ function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
     title: String(store?.name || relPath || "").trim(),
     description: String(store?.description || "").trim(),
     recordCount: Number.isFinite(Number(store?.recordCount)) ? Number(store.recordCount) : 0,
+    childCount: Number.isFinite(Number(store?.childCount))
+      ? Number(store.childCount)
+      : Array.isArray(store?.children)
+        ? store.children.length
+        : 0,
     awnId: parseAwnId(store?.schema?.id ?? store?.awnId) || null,
+    subsections: formatAwnDataIndexSubsections(store),
+    storageDriver: formatAwnDataIndexStorageDriver(store),
+    fileTypes: formatAwnDataIndexFileTypes(store),
     configurations: formatAwnDataIndexConfigurations(store)
   };
 }
@@ -11967,8 +11990,8 @@ function formatContentIndexRecordCount(recordCount) {
 function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
   if (!entries?.length) return emptyHint;
   const lines = [
-    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Конфигурации |",
-    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
+    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Подразделы | Хранение | Типы файлов |",
+    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
   ];
   for (const entry of entries) {
     const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
@@ -11979,10 +12002,14 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
     const idCell = formatContentIndexAwnIdCell(entry.awnId);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
     const recordCountCell = formatContentIndexRecordCount(entry.recordCount);
-    const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
+    const subsectionsCell =
+      escapeContentIndexTableCell(entry.subsections ?? formatAwnDataIndexSubsections(entry)) || "—";
+    const storageDriverCell =
+      escapeContentIndexTableCell(entry.storageDriver || entry.configurations) || "—";
+    const fileTypesCell = escapeContentIndexTableCell(entry.fileTypes) || "—";
     const typeCell = escapeContentIndexTableCell(entry.kind || entry.type) || "—";
     lines.push(
-      `| ${idCell} | ${typeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${configurationsCell} |`
+      `| ${idCell} | ${typeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${subsectionsCell} | ${storageDriverCell} | ${fileTypesCell} |`
     );
   }
   return lines.join("\n");
@@ -12091,12 +12118,12 @@ async function buildAgentAwnDataIndex() {
     version: 1,
     model: "awn-database-index",
     hint:
-      "Оглавление накопителей awn-database (ID, kind, path, title, description, размер, строки, важность, записей, конфигурации) без body и properties. " +
+      "Оглавление накопителей awn-database (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-database.",
     whenToUse: {
       iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
       iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/конфигурации)."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов)."
     },
     path: manifestPath,
     indexFile: {
@@ -22356,8 +22383,10 @@ async function handleApiForAgent(req, res, url) {
       const payload = await readJsonBody(req);
       const store = createAwnDataRecord(agentRoot, getProjectRoot(), {
         store: payload?.store,
-        id: payload?.id,
-        title: payload?.title,
+        id: payload?.id || payload?.slug,
+        slug: payload?.slug,
+        name: payload?.name,
+        title: payload?.title || payload?.name,
         parent: payload?.parent,
         isSection: Boolean(payload?.isSection)
       });
