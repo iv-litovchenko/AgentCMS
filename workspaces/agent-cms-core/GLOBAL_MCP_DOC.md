@@ -171,7 +171,7 @@ search_workspace_links({
 
 ### Глобальный ID записи — `awn-id`
 
-У каждой **новой** записи (manifest, content, sidecar…) в frontmatter появляется **`awn-id`** — целое число из глобального счётчика в **`settings.yml`** (группа **«Автоинкремент»** в настройках workspace: `awn-id-next`, `awn-id-issued`, …). Старые записи без id: UI «Присвоить id» или MCP **`assign_workspace_id({ path })`**. **Один id у нескольких записей допустим** — при необходимости меняют вручную в свойствах.
+У каждой **новой** записи (manifest, content, sidecar…) в frontmatter появляется **`awn-id`** — целое число из глобального счётчика в **`.agent-cms/settings/workspace.yml`** (группа **«Автоинкремент»**: `awn-id-next`, `awn-id-issued`, …). Старые записи без id: UI «Присвоить id» или MCP **`assign_workspace_id({ path })`**. **Один id у нескольких записей допустим** — при необходимости меняют вручную в свойствах.
 
 | Tool | Когда |
 |------|-------|
@@ -221,7 +221,7 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела; опц. **`pathPrefix`** | meta + snippet |
 | `search_workspace_semantic` | Семантический поиск (offline hash-TF-IDF); опц. **`pathPrefix`** | snippet + score |
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
-| `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `settings.yml`) | path |
+| `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `.agent-cms/settings/workspace.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + GLOBAL_RESPONSE_STYLE | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
@@ -323,93 +323,60 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 ---
 
-## Настройки проекта (platform / workspace / user)
+## Настройки (4 scope) — как агенту через MCP
 
-Три **независимые** области — **не merge**, каждая со своим файлом значений и типом в `awn-system/types/settings/`.
+**Три приложения, одно хранилище:** Agent CMS (редактор) · **Voice** (голос) · **Control** (пульт). Настройки Voice — в **workspace** scope; Control — вне MCP workspace-tools.
 
-| Область | В UI / разговоре | MCP `scope` | Тип (id) | Файл значений | Кто потребляет |
-|---------|------------------|-------------|----------|---------------|----------------|
-| **Platform** | **Глобальные** (платформа) | `platform` (alias `global`) | `awn.settings.platform` | `agent-cms-core/settings.global.yml` | MCP policy, сервер, лимиты, индексы |
-| **Workspace** | **Локальные** (хранилище) | `workspace` (alias `local`) | `awn.settings.workspace` | `settings.yml` в корне хранилища | Счётчик **awn-id**, параметры workspace |
-| **User** | **Пользовательские** (UI) | `user` | `awn.settings.user` | `.agent-cms/user-settings.yml` | Дерево меню, сайдбар, pin ветки |
+Четыре **независимые** области — **не merge**, у каждой свой yaml и тип в `awn-system/types/settings/`.
 
-**UI:** раздел «Настройки проекта» — три группы в сайдбаре (**глобальные → локальные → пользовательские**). У узлов тем/областей — `schema.yml` / `config.yml` / `.env` (это **не** agent settings — см. `read_page_config`).
+| Область | В UI | MCP `scope` | Файл значений | Кто потребляет |
+|---------|------|-------------|---------------|----------------|
+| **Platform** | Глобальные | `platform` (alias `global`) | **корень репо** `.agent-cms/settings/platform.yml` | MCP policy, сервер, индексы, автоконтекст |
+| **Workspace** | Локальные (хранилище) | `workspace` (alias `local`) | **workspace** `.agent-cms/settings/workspace.yml` | awn-id, Voice, параметры хранилища |
+| **Integrations** | Интеграции | `integrations` (alias `plugins`) | **workspace** `.agent-cms/settings/integrations.yml` | skills, MCP, плагины (пока stub) |
+| **User** | Пользовательские | `user` | **workspace** `.agent-cms/settings/user.yml` | дерево меню, сайдбар, UI |
 
-**Не путать:** «локальные» = настройки **workspace** (`settings.yml`), не `config.yml` темы.
+**Секреты** — корневой `.env` репо (platform), не в yaml. **Runtime** workspace — `.agent-cms/` (`settings/`, `cache/indexes/`, `cache/`, `state/`, `journal/`).
 
-### Что реально работает в коде сейчас
+**Не agent settings:** `schema.yml` / `config.yml` / `.env` у **тем и инфоблоков** — через `read_page_config`, `iblock_*`, не через `write_setting`.
 
-**Platform** (`settings.global.yml`):
-
-- `maintenance-mode` — API 503 (кроме `/api/platform/settings-global`), UI-оверлей  
-- `default-locale` — `document.lang` (ru/en)  
-- `mcp-mode`, `batch-enabled`, `batch-read-limit`, `batch-write-limit` + `awn_policy`  
-- `read-text-max-bytes`, `read-binary-max-bytes` — лимиты `read_file` / FS read  
-- `index-*-enabled` — вкл/выкл semantic, fulltext, storage, link индексы  
-- **Автоконтекст** (`always-context-*`): `GLOBAL_MCP_DOC.md`, `GLOBAL_RESPONSE_STYLE.md`, `AGENTS.md` (галочки); `always-context-ws-folder` — рекурсивно `.md/.yml/.txt` (по умолчанию `awn-shared/context/awn-storage/`)
-
-**Workspace** (`settings.yml`): группы «Автоинкремент» (счётчик `awn-id`), «Статичные параметры» (заглушка интеграций).
-
-**User** (`.agent-cms/user-settings.yml`):
-
-- `tree-*` — дерево меню  
-- `sidebar-width`, `pinned-branch-path` — UI панели и закреплённая ветка  
-- группа «Статичные параметры» — заглушка для внешних плагинов/skills (пока не в runtime)
-
-Поля с `{NOT WORK}` в заголовке — только схема/UI, runtime ещё не подключён.
-
-### User settings (аналог TYPO3 `BE_USER → uc`)
-
-Персональные prefs UI для текущего пользователя в workspace:
-
-- `tree-show-empty-folders`, `tree-active-topics-only`, `tree-pad-sort-indexes`, `tree-max-depth` — дерево меню  
-- `sidebar-width`, `pinned-branch-path` — ширина сайдбара и закреплённая ветка меню
-
-Файл `.agent-cms/user-settings.yml` лежит в корне workspace, в git обычно не коммитится (локальный UX).
-
-### API (Shell UI)
-
-| Метод | Путь | Scope |
-|-------|------|-------|
-| GET/POST | `/api/platform/settings-global` | platform (глобальные) |
-| GET/POST | `/api/workspace/settings` | workspace (локальные) |
-| GET/POST | `/api/user/settings` | user (пользовательские) |
-| GET | `/api/agent/settings-schema?scope=platform\|workspace\|user` | схема полей |
-| GET | `/api/agent/settings/list?scope=` | list (MCP) |
-| GET | `/api/agent/settings/read?scope=&key=` | read one (MCP) |
-| POST | `/api/agent/settings/write` | write one (MCP) |
-
-Подсказки на вкладках настроек — `description` у `fieldGroups` в `platform.yml` / `workspace.yml` / `user.yml`. Системная информация платформы — поля `sys-*` с `readonly: true` в `platform.yml` (группа «Основные»); значения подставляются из `meta` / runtime, **не** сохраняются в `settings.global.yml`.
-
-### MCP — три tool для настроек
+### MCP — три tool
 
 | Tool | Зачем |
 |------|-------|
-| **`list_settings`** | Все ключи + значения + meta (`title`, `group`, `readonly`, `runtimeEffect`). Параметр `scope`: `all` (default), `platform`, `workspace`, `user` |
+| **`list_settings`** | Все ключи + значения + meta. `scope`: `all` (default), `platform`, `workspace`, `integrations`, `user` |
 | **`read_setting`** | Одна настройка: `scope` + `key` |
-| **`write_setting`** | Запись одной настройки: `scope` + `key` + `value`. Заблокировано при `mcp-mode=readonly` |
+| **`write_setting`** | Запись: `scope` + `key` + `value`. Блок при `mcp-mode=readonly` |
 
-**Примеры:**
+**Быстрый старт:**
 
 ```json
 list_settings({ "agentId": "…", "scope": "all" })
 
-read_setting({ "agentId": "…", "scope": "user", "key": "tree-max-depth" })
+read_setting({ "agentId": "…", "scope": "platform", "key": "mcp-mode" })
 
-write_setting({ "agentId": "…", "scope": "platform", "key": "mcp-mode", "value": "standard" })
+write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-mode", "value": "ping" })
 ```
 
 **Правила:**
 
-- **Политика MCP** (какие tools доступны, batch-лимиты) — только **глобальные** (`platform` / `settings.global.yml`). Workspace/user на denylist не влияют.
+- **MCP policy** (режим, batch, confirm, лимиты read) — только **platform**. Workspace/user/integrations на denylist не влияют.
 - **`readonly`** (`sys-*`, `awn-id-*`) — `read_setting` ✅, `write_setting` ❌.
-- Поля **`{NOT WORK}`** — сохраняются через `write_setting`, но `runtimeEffect: false` (заглушки, группа «Статичные параметры»).
-- При старте чата снимок platform+workspace ещё в **`get_session_context`** → `platformSettings`, `workspaceSettings` (без user).
-- Альтернатива — правка целого yaml через UI или `write_file` (если policy разрешает); предпочтительно **`write_setting`** для одного ключа.
+- **`{NOT WORK}`** — сохраняются, но `runtimeEffect: false` (заглушки, в т.ч. integrations).
+- Снимок при старте: **`get_session_context`** → `platformSettings`, `workspaceSettings` (без user/integrations).
+- Одно поле — **`write_setting`**; целый yaml — UI или `write_file` (если policy разрешает).
 
-Полный реестр полей и статус runtime: **`SETTINGS_CHECK.md`** в корне репозитория.
+### Что где (кратко)
 
-Типы в `awn-system/types/` и `registry.yml` — **справочник схем**, не редактируются через форму настроек.
+**Platform** — `maintenance-mode`, `default-locale`, `default-workspace-id`, `mcp-mode`, `batch-*`, `confirm-*`, `index-*-enabled`, `always-context-*` (README, GLOBAL_MCP_DOC, AGENTS.md, папка ws).
+
+**Workspace** — `awn-id-*`, группа **«Голосовой клиент»** (`voice-*`: маршрут, TTS/STT, окно, проактивность).
+
+**User** — `tree-*`, `sidebar-width`, `pinned-branch-path` (`.agent-cms/settings/user.yml`, локальный UX).
+
+**Integrations** — контейнеры skill/MCP/plugin (схема есть, runtime stub).
+
+Полный реестр полей: **`SETTINGS_CHECK.md`**. Схемы типов в `awn-system/types/` — справочник, не форма настроек.
 
 ---
 
@@ -696,9 +663,9 @@ razdel-1/
 | read / list / search | `read_file`, `list_folder`, `read_content_body`, `search_workspace_content` | да, до 20 |
 | write / create | `write_file`, `create_content`, `write_content_body` | да, до 10 |
 | move / rename / delete | `delete_content`, `delete_page`, `move_content` | да, до 10 |
-| exec | `exec_command`, `exec_shell`, `run_script` | **нет** (если `batch-deny-exec: true` в `settings.global.yml`) |
+| exec | `exec_command`, `exec_shell`, `run_script` | **нет** (если `batch-deny-exec: true` в `.agent-cms/settings/platform.yml`) |
 
-**Platform settings** (`settings.global.yml` → группа MCP):
+**Platform settings** (`.agent-cms/settings/platform.yml` → группа MCP):
 
 | Ключ | Эффект |
 |------|--------|
