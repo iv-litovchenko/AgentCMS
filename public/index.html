@@ -3126,6 +3126,49 @@
         </div>
       </main>
 
+      <main id="maintenance-pane" class="status-page status-page--maintenance maintenance-pane agent-canvas-pane hidden" aria-labelledby="app-maintenance-title">
+        <div class="status-bg" aria-hidden="true"></div>
+        <div class="status-orbit status-orbit--one" aria-hidden="true"></div>
+        <div class="status-orbit status-orbit--two" aria-hidden="true"></div>
+        <div class="status-inner">
+          <div class="status-visual" aria-hidden="true">
+            <div class="status-code">503</div>
+            <div class="status-mascot status-mascot--service">
+              <div class="status-mascot-antenna"></div>
+              <div class="status-mascot-face">
+                <span class="status-mascot-eye"></span>
+                <span class="status-mascot-eye"></span>
+                <span class="status-mascot-mouth"></span>
+              </div>
+              <span class="status-mascot-badge" aria-hidden="true">⚙</span>
+            </div>
+          </div>
+          <p class="status-eyebrow">Режим обслуживания</p>
+          <h2 id="app-maintenance-title" class="status-title">Платформа временно недоступна</h2>
+          <p class="status-lead">
+            Agent CMS на обслуживании: агенты, меню и shell недоступны. Настройки платформы остаются доступны администратору.
+          </p>
+          <div class="status-actions">
+            <button type="button" id="app-maintenance-retry-btn" class="status-btn status-btn--primary">Проверить снова</button>
+            <button type="button" id="app-maintenance-settings-btn" class="status-btn">Глобальные настройки</button>
+          </div>
+          <details class="status-admin-panel" id="app-maintenance-admin-panel">
+            <summary>Администратор</summary>
+            <p class="status-admin-lead">
+              Снимите флаг <code>maintenance-mode</code> в глобальных настройках платформы.
+            </p>
+            <label class="status-admin-toggle">
+              <input type="checkbox" id="app-maintenance-admin-toggle" checked />
+              <span>Платформа доступна (maintenance-mode: false)</span>
+            </label>
+            <div class="status-admin-actions">
+              <button type="button" class="status-btn status-btn--primary" id="app-maintenance-admin-save">Сохранить</button>
+            </div>
+            <p class="status-admin-status" id="app-maintenance-admin-status" aria-live="polite"></p>
+          </details>
+        </div>
+      </main>
+
       <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
@@ -6219,6 +6262,7 @@
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
     <script src="/awn-dashboards.js?v=6"></script>
+    <script src="/platform-status.js"></script>
     <script src="/main.js?v=0.5.797"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>
