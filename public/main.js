@@ -106552,6 +106552,9 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
   const response = await fetch(buildApiUrl("/api/menu", params, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    if (isMaintenanceApiPayload(errorData)) {
+      showMaintenanceView();
+    }
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
   const menu = stripPlatformDataFoldersFromMenu(await response.json());
@@ -107097,8 +107100,13 @@ async function init() {
       await window.agentAppLock.whenUnlocked();
     }
 
-    await loadAgents();
     await loadPlatformUiSettings().catch(() => {});
+    if (platformUiSettings.maintenanceMode) {
+      setupMaintenancePaneUi();
+      return;
+    }
+
+    await loadAgents();
     if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
