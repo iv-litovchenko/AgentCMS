@@ -102673,7 +102673,7 @@ function wireAwnDataViewPageEvents(hub) {
       event.preventDefault();
       event.stopPropagation();
     }
-    const action = actionNode.dataset.awnDataAction;
+    const action = actionNode.dataset.awnDatabaseAction;
     if (action === "edit-store") {
       if (awnDataViewSchemaEditing) {
         cancelAwnDataViewSchemaEdit();
