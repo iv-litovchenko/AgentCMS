@@ -298,6 +298,7 @@ const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
   AWN_DATA_DIR,
+  normalizeStoreKind,
   getAwnDataPayload,
   createAwnDataStore,
   createAwnDataRecord,
@@ -11894,21 +11895,42 @@ async function resolveAwnDataIndexFileOnDisk() {
 const AWN_DATA_KIND_INDEX_LABELS = {
   group: "группа",
   collection: "коллекция",
-  singleton: "одиночка"
+  single: "одиночка"
 };
+
+function formatAwnDataIndexConfigurations(store) {
+  const kind = normalizeStoreKind(store?.kind || "collection");
+  if (kind === "group") {
+    const childCount = Number(store?.childCount);
+    if (Number.isFinite(childCount) && childCount > 0) return `${childCount} влож.`;
+    const children = Array.isArray(store?.children) ? store.children.length : 0;
+    return children > 0 ? `${children} влож.` : "—";
+  }
+  if (kind === "single") return "main.md";
+  const storage = String(store?.recordStorage || "md").toUpperCase();
+  const recordCount = Number(store?.recordCount) || 0;
+  return recordCount > 0 ? `${storage} · ${recordCount} зап.` : storage;
+}
 
 function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
   const relPath = String(store?.relPath || store?.id || "").replace(/\\/g, "/").trim();
-  const kind = String(store?.kind || "collection").trim();
+  const kind = normalizeStoreKind(store?.kind || "collection");
+  const manifestRel = store?.manifestRelPath
+    ? `${AWN_DATA_DIR}/${store.manifestRelPath}`.replace(/\\/g, "/")
+    : relPath
+      ? `${AWN_DATA_DIR}/${relPath}/manifest.md`.replace(/\/+/g, "/")
+      : "";
   return {
     path: relPath,
-    linkPath: store?.manifestRelPath ? `${AWN_DATA_DIR}/${store.manifestRelPath}`.replace(/\\/g, "/") : "",
+    linkPath: manifestRel,
     type: AWN_DATA_KIND_INDEX_LABELS[kind] || kind,
     kind,
     group: parentGroup || "—",
     title: String(store?.name || relPath || "").trim(),
     description: String(store?.description || "").trim(),
-    recordCount: Number.isFinite(Number(store?.recordCount)) ? Number(store.recordCount) : 0
+    recordCount: Number.isFinite(Number(store?.recordCount)) ? Number(store.recordCount) : 0,
+    awnId: parseAwnId(store?.schema?.id ?? store?.awnId) || null,
+    configurations: formatAwnDataIndexConfigurations(store)
   };
 }
 
@@ -11930,27 +11952,47 @@ function flattenAwnDataStoresForIndex(stores, parentGroup = "") {
 function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
   if (!entries?.length) return emptyHint;
   const lines = [
-    "| Тип | Группа | Путь | Название | Описание | Записей |",
-    "| --- | --- | --- | --- | --- | ---: |"
+    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Конфигурации |",
+    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | --- |"
   ];
   for (const entry of entries) {
+    const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
+    const titleCell = formatContentIndexTitleCell(entry, { linkTitle: true });
+    const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
+    const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
+    const linesCell = formatContentIndexLineCount(entry.lineCount);
+    const idCell = formatContentIndexAwnIdCell(entry.awnId);
+    const importanceCell = formatContentIndexImportanceCell(entry.importance);
+    const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
     lines.push(
-      `| ${escapeContentIndexTableCell(entry.type) || "—"} | ${escapeContentIndexTableCell(entry.group) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle: true })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${Number(entry.recordCount) || 0} |`
+      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${configurationsCell} |`
     );
   }
   return lines.join("\n");
 }
 
-async function buildAwnDataIndexMarkdown({ stores }) {
-  const entries = flattenAwnDataStoresForIndex(stores);
-  const lines = ["# Оглавление инфоблоков (awn-database)", ""];
+async function enrichAwnDataIndexEntries(entries = []) {
+  const withStats = await enrichContentIndexEntriesWithFileStats(entries);
+  return Promise.all(
+    withStats.map(async (entry) => {
+      const importance = await resolveContentIndexEntryImportance("", entry);
+      return { ...entry, importance };
+    })
+  );
+}
+
+async function buildAwnDataIndexMarkdown({ stores, entries: prebuiltEntries } = {}) {
+  const entries =
+    prebuiltEntries || (await enrichAwnDataIndexEntries(flattenAwnDataStoresForIndex(stores || [])));
+  const lines = ["# Оглавление инфоблоков", ""];
   lines.push(formatAwnDataIndexEntriesMarkdown(entries));
+  appendContentIndexLegends(lines, { includeLinesLegend: true });
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-function formatDataStoresSummaryLine({ groupCount = 0, collectionCount = 0, singletonCount = 0, recordCount = 0 } = {}) {
+function formatDataStoresSummaryLine({ groupCount = 0, collectionCount = 0, singleCount = 0, recordCount = 0 } = {}) {
   const parts = [];
-  const dataStores = Number(collectionCount) + Number(singletonCount);
+  const dataStores = Number(collectionCount) + Number(singleCount);
   if (dataStores > 0) parts.push(`${dataStores} инфоблок${dataStores === 1 ? "" : dataStores < 5 ? "а" : "ов"}`);
   if (Number(groupCount) > 0) parts.push(`${groupCount} групп${groupCount === 1 ? "а" : ""}`);
   if (Number(recordCount) > 0) parts.push(`${recordCount} запис${recordCount === 1 ? "ь" : recordCount < 5 ? "и" : "ей"}`);
@@ -11967,7 +12009,7 @@ async function buildAgentDataStoresSummary() {
       dataStoreCount: 0,
       groupCount: 0,
       collectionCount: 0,
-      singletonCount: 0,
+      singleCount: 0,
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
@@ -11980,7 +12022,7 @@ async function buildAgentDataStoresSummary() {
   const groups = entries.filter((entry) => entry.kind === "group");
   const dataStores = entries.filter((entry) => entry.kind !== "group");
   const collectionCount = dataStores.filter((entry) => entry.kind === "collection").length;
-  const singletonCount = dataStores.filter((entry) => entry.kind === "singleton").length;
+  const singleCount = dataStores.filter((entry) => normalizeStoreKind(entry.kind) === "single").length;
   const recordCount = dataStores.reduce((sum, entry) => sum + (Number(entry.recordCount) || 0), 0);
 
   return {
@@ -11993,17 +12035,17 @@ async function buildAgentDataStoresSummary() {
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
     collectionCount,
-    singletonCount,
+    singleCount,
     recordCount,
     entries: entries.map((entry) => ({
       path: entry.path,
-      kind: entry.kind,
+      kind: normalizeStoreKind(entry.kind),
       group: entry.group === "—" ? "" : entry.group,
       title: entry.title,
       description: entry.description,
       recordCount: entry.recordCount
     })),
-    summaryLine: formatDataStoresSummaryLine({ groupCount: groups.length, collectionCount, singletonCount, recordCount })
+    summaryLine: formatDataStoresSummaryLine({ groupCount: groups.length, collectionCount, singleCount, recordCount })
   };
 }
 
@@ -12023,19 +12065,21 @@ async function buildAgentAwnDataIndex() {
   const indexPath = getAwnDataIndexRelPath();
   const indexOnDisk = await resolveAwnDataIndexFileOnDisk();
   const indexExists = indexOnDisk.exists;
-  const entries = flattenAwnDataStoresForIndex(payload?.stores || []);
+  const rawEntries = flattenAwnDataStoresForIndex(payload?.stores || []);
+  const entries = await enrichAwnDataIndexEntries(rawEntries);
+  const markdown = await buildAwnDataIndexMarkdown({ entries });
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
 
   return {
     version: 1,
     model: "awn-database-index",
     hint:
-      "Оглавление накопителей awn-database (kind, group, path, title, description, recordCount) без body и properties. " +
+      "Оглавление накопителей awn-database (ID, kind, path, title, description, размер, строки, важность, конфигурации) без body и properties. " +
       "Полный каталог → GET /api/awn-database.",
     whenToUse: {
       iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
       iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица kind/group/path/title/description)."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-database (таблица ID/тип/путь/название/описание/размер/строки/важность/конфигурации)."
     },
     path: manifestPath,
     indexFile: {
@@ -12045,7 +12089,8 @@ async function buildAgentAwnDataIndex() {
     },
     entries,
     entryCount: entries.length,
-    storeCount: Number(payload?.storeCount) || entries.length
+    storeCount: Number(payload?.storeCount) || entries.length,
+    markdown
   };
 }
 
@@ -12065,9 +12110,8 @@ async function writeAgentAwnDataIndex(options = {}) {
   if (!agentRoot) {
     return { error: "Agent not selected", status: 400 };
   }
-  const dataPayload = getAwnDataPayload(agentRoot, getProjectRoot());
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
-  const markdown = await buildAwnDataIndexMarkdown({ stores: dataPayload?.stores || [] });
+  const markdown = payload.markdown || (await buildAwnDataIndexMarkdown({ entries: payload.entries }));
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
   const legacyPath = getAwnDataIndexLegacyRelPath();
   if (legacyPath !== indexPath && (await workspaceRelFileExists(legacyPath))) {
@@ -22272,7 +22316,7 @@ async function handleApiForAgent(req, res, url) {
         slug: payload?.slug,
         name: payload?.name,
         description: payload?.description,
-        hierarchy: payload?.hierarchy,
+        recordStorage: payload?.recordStorage,
         withSampleRecord: payload?.withSampleRecord,
         indexExclude: parsePayloadIndexExclude(payload)
       });

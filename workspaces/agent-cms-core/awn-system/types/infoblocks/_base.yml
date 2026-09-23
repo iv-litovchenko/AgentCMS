@@ -1,29 +1,12 @@
 id: awn.infoblock.base
 name: База накопителя
-kind: data-container
+kind: base
 domain: infoblock
 status: active
 extends: awn.base
 description: >
-  Общие правила awn-database store: manifest.md (бриф, контекст, инструкция) + структура записей.
-  Не узел меню — контейнер в папке awn-database/.
-kind-ui:
-  label: Store
-  badge: { background: "#e0f2fe", border: "#7dd3fc", text: "#0369a1" }
+  Инфоблок в awn-database/: manifest.md (бриф, контекст, инструкция) + записи.
+  Аналог страницы в pages, но без узла меню — контейнер данных.
 
-properties:
-  store-kind:
-    title: Kind runtime
-    description: group | collection | single (runtime alias singleton) — маппинг в awn-database-loader
-  record-id-mode:
-    title: Режим id записи
-    description: slug | uuid
-  record-file:
-    title: Шаблон имени файла
-    description: "{id}.md" для коллекции, main.md для одиночки
-  record-hierarchy:
-    title: Иерархия записей
-    description: true — вложенные записи с parent
-  elements-schema-extends:
-    title: Базовая схема полей записей
-    description: Обычно awn.infoblock.element.default (Фаза B)
+form:
+  panel-title: "{A2!} Свойства инфоблока"

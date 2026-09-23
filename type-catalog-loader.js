@@ -699,7 +699,11 @@ function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", option
   }
 
   if (preset === "data-containers") {
-    types = types.filter((t) => t.kind === "data-container");
+    types = types.filter(
+      (t) =>
+        t.kind === "data-container" ||
+        (t.domain === "infoblock" && t.kind === "type" && String(t.id || "").startsWith("awn.infoblock.") && !String(t.id).includes(".element."))
+    );
     return {
       specVersion: "1.0",
       model: "types-list",
@@ -965,15 +969,19 @@ function getTypeUsage(entry, merged, byId) {
     }
     case "infoblock":
     case "data": {
-      if (merged["store-kind"]) {
-        consumers.push(`iblock_create (${merged["store-kind"]})`);
+      const storeKind =
+        merged["awn-store-kind"] ||
+        merged["store-kind"] ||
+        (String(entry.id || "").match(/^awn\.infoblock\.(group|collection|single)$/) || [])[1];
+      if (storeKind) {
+        consumers.push(`iblock_create (${storeKind})`);
         wired = true;
       }
       if (entry.kind === "data-element") {
         consumers.push("схема записей store (schema.yml)");
         wired = true;
       }
-      if (!consumers.length) note = "data-тип без store-kind / fields";
+      if (!consumers.length) note = "тип контейнера без полей / kind";
       break;
     }
     case "taxonomies": {

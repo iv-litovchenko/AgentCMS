@@ -59539,7 +59539,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-awn-database-stores {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -59617,7 +59617,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c3aed' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2 2 7l10 5 10-5-10-5z'/%3E%3Cpath d='M2 12l10 5 10-5'/%3E%3Cpath d='M2 17l10 5 10-5'/%3E%3C/svg%3E");
 }
 
-.menu-awn-database-store-kind--singleton {
+.menu-awn-database-store-kind--single {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230891b2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3Ccircle cx='12' cy='15' r='1.75' fill='%230891b2' stroke='none'/%3E%3C/svg%3E");
 }
 
@@ -59929,7 +59929,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b21b6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2 2 7l10 5 10-5-10-5z'/%3E%3Cpath d='M2 12l10 5 10-5'/%3E%3Cpath d='M2 17l10 5 10-5'/%3E%3C/svg%3E");
 }
 
-.menu-awn-database-store:hover .menu-awn-database-store-kind--singleton {
+.menu-awn-database-store:hover .menu-awn-database-store-kind--single {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230e7490' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3Ccircle cx='12' cy='15' r='1.75' fill='%230e7490' stroke='none'/%3E%3C/svg%3E");
 }
 
@@ -60001,7 +60001,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  margin: 0 0 0.35rem;
+  margin: 0;
 }
 
 .menu-awn-database-toolbar-row {
@@ -60056,21 +60056,23 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-database-toolbar-row--search {
-  margin-top: 0.1rem;
+  margin: 0;
 }
 
 .menu-awn-database-search-wrap {
   width: 100%;
   min-width: 0;
+  margin: 0;
 }
 
 .menu-awn-database-search-wrap .menu-search-bar {
-  min-height: 30px;
-  height: 30px;
-  padding: 0 8px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
   border-color: rgba(196, 181, 253, 0.85);
   background: rgba(255, 255, 255, 0.92);
   border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .menu-awn-database-search-wrap .menu-search-bar:focus-within {
@@ -60080,7 +60082,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-awn-database-search-wrap .menu-search-input {
   font-size: 12px;
-  padding: 4px 0;
+  line-height: 1.2;
+  padding: 5px 0;
 }
 
 .menu-awn-database-search-wrap .menu-search-icon {
@@ -60892,14 +60895,49 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-iblock-card .awn-database-view-path {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
   font-size: 0.8125rem;
   line-height: 1.35;
   color: #64748b;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.awn-database-view-iblock-card .awn-database-view-path-line {
+  display: block;
+}
+
+.awn-database-view-iblock-card .awn-database-view-id-path {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.awn-database-view-iblock-card .awn-database-view-id-path .node-navigation-hero-path-fix--id {
+  margin-left: 0.35rem;
+}
+
+.menu-awn-database-store-id-badge {
+  flex-shrink: 0;
+}
+
 .awn-database-view-iblock-card .awn-database-view-path.hidden {
   display: none;
+}
+
+.awn-database-view-iblock-card > .awn-database-view-iblock-brief-fold {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  border-top: 1px solid #e2e8f0;
+}
+
+.awn-database-view-iblock-card > .awn-database-view-iblock-brief-fold > .awn-database-view-accordion-summary {
+  border-radius: 0;
 }
 
 .awn-database-view-iblock-brief-fold {
@@ -62267,7 +62305,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   border: 1px solid #ddd6fe;
 }
 
-.awn-database-view-kind-badge.is-singleton {
+.awn-database-view-kind-badge.is-single {
   color: #0e7490;
   background: #ecfeff;
   border: 1px solid #a5f3fc;

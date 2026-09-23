@@ -8,14 +8,14 @@ const storePath = z
 const recordRef = z
   .string()
   .optional()
-  .describe("Record id or rel path (e.g. 1, section/2). Omit for singleton stores (main.md).");
+  .describe("Record id or rel path (e.g. 1, section/2). Omit for single stores (main.md).");
 
 export function registerIblockTools(reg, client) {
   // ── Infoblock container (iblock_*) ─────────────────────────────────────────
 
   reg(
     "iblock_list",
-    "List infoblocks (awn-database): groups, collections, singletons.",
+    "List infoblocks (awn-database): groups, collections, singles.",
     z.object({}),
     () => client.get("/api/awn-database")
   );
@@ -31,9 +31,12 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_create",
-    "Create infoblock: group, collection (MD or CSV for taxonomies/), or singleton.",
+    "Create infoblock: group, collection (MD or CSV for taxonomies/), or single.",
     z.object({
-      kind: z.enum(["group", "collection", "singleton"]).optional(),
+      kind: z
+        .enum(["group", "collection", "single", "singleton"])
+        .optional()
+        .transform((value) => (value === "singleton" ? "single" : value)),
       slug: z.string().min(1).describe("Folder slug under awn-database/, e.g. taxonomies/users"),
       name: z.string().optional(),
       description: z.string().optional(),
@@ -128,7 +131,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_content_read_properties",
-    "Read full YAML frontmatter of infoblock record ({id}.md or singleton main.md).",
+    "Read full YAML frontmatter of infoblock record ({id}.md or single main.md).",
     z.object({
       store: storePath,
       record: recordRef

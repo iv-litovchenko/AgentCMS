@@ -1,8 +1,8 @@
 id: awn.infoblock.group
 name: Группа
-kind: data-container
+kind: type
 domain: infoblock
 status: active
 extends: awn.infoblock.base
-store-kind: group
 description: manifest + подпапки-накопители, без собственных записей
+manifest-pattern: manifest.md

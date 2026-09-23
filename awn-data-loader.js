@@ -58,36 +58,36 @@ function isSystemStoreFile(name) {
 
 const AWN_PROP_TYPE_TO_KIND = {
   "awn.infoblock.collection": "collection",
-  "awn.infoblock.single": "singleton",
-  "awn.infoblock.singleton": "singleton",
+  "awn.infoblock.single": "single",
+  "awn.infoblock.singleton": "single",
   "awn.infoblock.group": "group",
   "awn.infoblock.base": "collection",
   "awn.infoblock.mixin": "collection",
   "awn.infoblock.entity": "collection",
   "awn.data.collection": "collection",
-  "awn.data.single": "singleton",
-  "awn.data.singleton": "singleton",
+  "awn.data.single": "single",
+  "awn.data.singleton": "single",
   "awn.data.group": "group",
   "awn.data.base": "collection",
   "awn.data.mixin": "collection",
   "awn.data.entity": "collection",
   "awn.collection": "collection",
-  "awn.single": "singleton",
-  "awn.singleton": "singleton",
+  "awn.single": "single",
+  "awn.singleton": "single",
   "awn.group": "group",
   "awn.base": "collection"
 };
 
 const KIND_TO_AWN_PROP_TYPE = {
   collection: "awn.infoblock.collection",
-  singleton: "awn.infoblock.single",
+  single: "awn.infoblock.single",
   group: "awn.infoblock.group"
 };
 
 /** Canonical infoblock-container type ids (awn-system/types/infoblocks/). */
 const CONTAINER_TYPE_ID = {
   collection: "awn.infoblock.collection",
-  singleton: "awn.infoblock.single",
+  single: "awn.infoblock.single",
   group: "awn.infoblock.group"
 };
 /** @deprecated legacy MD paths — use CONTAINER_TYPE_ID */
@@ -95,7 +95,7 @@ const DATA_CONTAINERS_PREFIX = `${AWN_DATA_DIR}/cms-base/data-containers/`;
 const CONTAINER_SUPERTYPE = {
   collection: `${DATA_CONTAINERS_PREFIX}collection.md`,
   group: `${DATA_CONTAINERS_PREFIX}group.md`,
-  singleton: `${DATA_CONTAINERS_PREFIX}single.md`
+  single: `${DATA_CONTAINERS_PREFIX}single.md`
 };
 const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
 const DEFAULT_RECORD_ELEMENT_TYPE = "awn.infoblock.record";
@@ -109,8 +109,14 @@ const LEGACY_EXTENDS_TO_TYPE_ID = {
   [`${AWN_DATA_DIR}/cms-base/entities/base.md`]: "awn.entity",
   [`${AWN_DATA_DIR}/cms-base/data-containers/collection.md`]: CONTAINER_TYPE_ID.collection,
   [`${AWN_DATA_DIR}/cms-base/data-containers/group.md`]: CONTAINER_TYPE_ID.group,
-  [`${AWN_DATA_DIR}/cms-base/data-containers/single.md`]: CONTAINER_TYPE_ID.singleton
+  [`${AWN_DATA_DIR}/cms-base/data-containers/single.md`]: CONTAINER_TYPE_ID.single
 };
+
+function normalizeStoreKind(kind) {
+  const value = String(kind || "").trim().toLowerCase();
+  if (value === "singleton") return "single";
+  return value;
+}
 
 function isTypeIdRef(ref) {
   const value = String(ref || "").trim();
@@ -150,6 +156,28 @@ function loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot) {
   }
 }
 
+function readTypeFieldDefault(fields, key) {
+  const awnKey = toAwnFieldKey(key);
+  const def = fields?.[awnKey] || fields?.[key];
+  if (!def || def.default === undefined || def.default === null || String(def.default).trim() === "") {
+    return "";
+  }
+  return def.default;
+}
+
+function normalizeRecordStorage(value, fallback = "md") {
+  const raw = String(value || fallback).trim().toLowerCase();
+  return raw === "csv" ? "csv" : "md";
+}
+
+function loadContainerTypeDefaults(kind, agentRoot, projectRoot) {
+  const normalizedKind = normalizeStoreKind(kind);
+  const typeId = CONTAINER_TYPE_ID[normalizedKind] || "";
+  const { fields } = loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot);
+  const recordStorage = normalizeRecordStorage(readTypeFieldDefault(fields, "awn-record-storage"), "md");
+  return { typeId, fields, recordStorage };
+}
+
 function toAwnFieldKey(key) {
   const name = String(key || "").trim();
   if (!name || name.startsWith("awn-")) return name;
@@ -160,7 +188,7 @@ function normalizeAwnPropTypeToKind(propType, fallback = "collection") {
   const key = String(propType || "").trim().toLowerCase();
   if (AWN_PROP_TYPE_TO_KIND[key]) return AWN_PROP_TYPE_TO_KIND[key];
   if (key.includes("group")) return "group";
-  if (key.includes("single")) return "singleton";
+  if (key.includes("single")) return "single";
   if (key.includes("mixin")) return "collection";
   if (key.includes("base") || key.includes("entity")) return "collection";
   return fallback;
@@ -185,10 +213,10 @@ function readStoreProp(raw, names, fallback = "") {
   return fallback;
 }
 
-const STORE_KINDS = new Set(["collection", "singleton", "group"]);
+const STORE_KINDS = new Set(["collection", "single", "group"]);
 
 /** Порядок в sidebar «Накопители»: группы → коллекции → одиночки. */
-const AWN_DATA_STORE_KIND_ORDER = { group: 0, collection: 1, singleton: 2 };
+const AWN_DATA_STORE_KIND_ORDER = { group: 0, collection: 1, single: 2 };
 
 function awnDataStoreKindRank(kind) {
   return Object.prototype.hasOwnProperty.call(AWN_DATA_STORE_KIND_ORDER, kind)
@@ -419,13 +447,13 @@ function resolveKindFromSupertype(supertype) {
   const ref = resolveElementExtendsRef(supertype);
   if (ref === CONTAINER_TYPE_ID.collection) return "collection";
   if (ref === CONTAINER_TYPE_ID.group) return "group";
-  if (ref === CONTAINER_TYPE_ID.singleton) return "singleton";
+  if (ref === CONTAINER_TYPE_ID.single) return "single";
   const legacy = normalizeExtendsRef(supertype).toLowerCase();
   if (!legacy.startsWith(DATA_CONTAINERS_PREFIX)) return "";
   const base = path.basename(legacy, ".md");
   if (base === "collection") return "collection";
   if (base === "group") return "group";
-  if (base === "single") return "singleton";
+  if (base === "single") return "single";
   return "";
 }
 
@@ -533,7 +561,7 @@ function normalizeRawStoreSchema(raw, body = "") {
   if (!hasAwnKeys && !hasLegacyPropKeys && raw.kind) {
     return {
       version: raw.version || 1,
-      kind: String(raw.kind || "collection").trim(),
+      kind: normalizeStoreKind(raw.kind || "collection"),
       id: String(raw.id || "").trim(),
       name: String(raw.name || raw.id || "").trim(),
       description: String(extractDescriptionFromBody(body) || raw.description || "").trim(),
@@ -548,9 +576,9 @@ function normalizeRawStoreSchema(raw, body = "") {
   const supertype = normalizeExtendsRef(readStoreProp(raw, ["awn-supertype", "awn-super-type"], ""));
   const awnType = readStoreProp(raw, ["awn-type", "awnType", "awn-prop-type"], "");
   const kindFromSuper = resolveKindFromSupertype(supertype || awnType);
-  const kind = raw.kind
-    ? String(raw.kind).trim()
-    : kindFromSuper || normalizeAwnPropTypeToKind(awnType, "collection");
+  const kind = normalizeStoreKind(
+    raw.kind ? raw.kind : kindFromSuper || normalizeAwnPropTypeToKind(awnType, "collection")
+  );
 
   const elementBlock = extractElementSchemaBlock(raw);
   const rawFields =
@@ -845,7 +873,7 @@ function isRecordFile(name, kind) {
   const lower = name.toLowerCase();
   if (!lower.endsWith(".md")) return false;
   if (isSystemStoreFile(name)) return false;
-  if (kind === "singleton" && lower !== SINGLETON_RECORD) return false;
+  if (kind === "single" && lower !== SINGLETON_RECORD) return false;
   if (kind === "collection" && lower === SINGLETON_RECORD) return false;
   return true;
 }
@@ -1003,7 +1031,7 @@ function loadStore(dataRoot, storeEntry) {
   const schema = loadMergedStoreSchema(storeAbs, dataRoot);
   if (!schema) return null;
 
-  const kind = String(schema.kind || "collection").trim();
+  const kind = normalizeStoreKind(schema.kind || "collection");
   if (!STORE_KINDS.has(kind)) return null;
 
   const id = String(schema.id || storeRel).trim();
@@ -1051,7 +1079,7 @@ function loadStore(dataRoot, storeEntry) {
     recordStorage,
     recordCount: kind === "group" ? 0 : records.length,
     recordFile:
-      kind === "singleton"
+      kind === "single"
         ? SINGLETON_RECORD
         : kind === "collection" && recordStorage === "csv"
           ? getCsvFileName(schema)
@@ -1064,7 +1092,7 @@ function loadStore(dataRoot, storeEntry) {
     return payload;
   }
 
-  if (kind === "singleton") {
+  if (kind === "single") {
     const main = records.find((r) => r.fileName === SINGLETON_RECORD) || records[0] || null;
     payload.record = main;
     payload.records = main ? [main] : [];
@@ -1267,7 +1295,7 @@ function dumpYamlBlock(obj, indent = 0) {
 }
 
 function buildStoreManifestContent(schema, body = "", options = {}) {
-  const kind = String(schema.kind || "collection").trim();
+  const kind = normalizeStoreKind(schema.kind || "collection");
   const lines = ["---"];
   lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || CONTAINER_TYPE_ID.collection || "awn.infoblock.collection"}`);
   if (schema.id) lines.push(`awn-id: ${schema.id}`);
@@ -1422,8 +1450,9 @@ function recordBaseExtendsPath(_slug) {
   return rowBaseExtendsPath();
 }
 
-function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
+function buildCollectionSchemaContent({ slug, name, description, recordStorage = "md" }) {
   const desc = String(description || name || slug).trim();
+  const storage = normalizeRecordStorage(recordStorage, "md");
   const recordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
     "awn-parent": {
@@ -1448,10 +1477,10 @@ function buildCollectionSchemaContent({ slug, name, description, hierarchy = tru
       extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
       fieldsInSchemeMod: true,
       record: {
-        storage: "md",
-        "id-mode": hierarchy ? "numeric" : "slug",
-        file: "{id}.md",
-        hierarchy: hierarchy ? true : false
+        storage,
+        "id-mode": "slug",
+        ...(storage === "csv" ? { file: "main.csv" } : {}),
+        hierarchy: false
       },
       fields: recordFields,
       elementSchemaTabs: { main: "Основное" }
@@ -1503,12 +1532,12 @@ function buildSingletonSchemaContent({ slug, name, description }) {
   };
   return {
     schema: {
-      kind: "singleton",
+      kind: "single",
       name: name || slug,
       description: desc,
       extends: DEFAULT_ELEMENT_SCHEMA_TYPE,
       fieldsInSchemeMod: true,
-      record: { file: "main.md" },
+      record: { storage: "md", file: "main.md" },
       fields: recordFields,
       elementSchemaTabs: { main: "Основное" }
     },
@@ -1579,8 +1608,8 @@ function buildRecordMarkdown({ id, title, parent, storeRel = "", extra = {} }) {
 }
 
 function createAwnDataStore(agentRoot, projectRoot, options = {}) {
-  const kind = String(options.kind || "collection").trim();
-  if (!STORE_KINDS.has(kind)) throw new Error("kind must be collection, singleton, or group");
+  const kind = normalizeStoreKind(options.kind || "collection");
+  if (!STORE_KINDS.has(kind)) throw new Error("kind must be collection, single, or group");
 
   const slug = normalizeStoreSlug(options.slug || slugifyStoreName(options.name));
   if (!slug) throw new Error("Invalid store slug (use kebab-case, optional subfolder: taxonomies/tags)");
@@ -1601,9 +1630,13 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   const manifestOptions = options.indexExclude ? { indexExclude: true } : {};
 
   if (kind === "collection") {
+    const typeDefaults = loadContainerTypeDefaults("collection", agentRoot, projectRoot);
+    const recordStorage = isTaxonomy
+      ? "csv"
+      : normalizeRecordStorage(options.recordStorage || typeDefaults.recordStorage, "md");
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
-      : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false });
+      : buildCollectionSchemaContent({ slug, name, description, recordStorage });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody, manifestOptions);
     if (bundle.schemeModFields) {
       writeStoreSchemeMod(storeAbs, {
@@ -1613,7 +1646,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       });
     }
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
-    if (isTaxonomy) {
+    if (recordStorage === "csv") {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
@@ -1675,8 +1708,8 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   }
 
   const schema = loadMergedStoreSchema(storeAbs, dataRoot);
-  const kind = String(schema?.kind || "collection").trim();
-  if (kind === "singleton") throw new Error("Cannot add records to singleton (edit main.md)");
+  const kind = normalizeStoreKind(schema?.kind || "collection");
+  if (kind === "single") throw new Error("Cannot add records to single store (edit main.md)");
 
   const payload = getAwnDataPayload(agentRoot, projectRoot, storeRel);
   const store = payload.store;
@@ -1845,8 +1878,8 @@ function readStoreManifestRaw(storeAbs) {
 }
 
 function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
-  const kind = String(storeEntry?.kind || "").trim();
-  if (kind === "singleton") {
+  const kind = normalizeStoreKind(storeEntry?.kind || "");
+  if (kind === "single") {
     return path.join(storeAbs, SINGLETON_RECORD);
   }
   const ref = String(recordRef || "").trim();
@@ -2098,6 +2131,9 @@ module.exports = {
   getAwnDataPayload,
   resolveAwnDataReadRoot,
   buildRecordTree,
+  normalizeStoreKind,
+  normalizeRecordStorage,
+  loadContainerTypeDefaults,
   normalizeStoreSlug,
   slugifyStoreName,
   ensureAwnDataBase,

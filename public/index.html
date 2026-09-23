@@ -1849,7 +1849,7 @@
                       + Коллекция
                     </button>
                     <button
-                      id="menu-awn-database-create-singleton-btn"
+                      id="menu-awn-database-create-single-btn"
                       type="button"
                       class="menu-static-action-btn menu-awn-database-create-btn"
                       title="Создать одиночку (main.md)"
@@ -1868,7 +1868,7 @@
                       type="button"
                       class="menu-awn-database-index-open node-navigation-workspace-counter-topic-index"
                     >
-                      Индекс (оглавление) инфоблоков
+                      Оглавление инфоблоков
                     </button>
                     <button
                       id="menu-awn-database-index-refresh-btn"
@@ -5583,9 +5583,19 @@
           <span>Описание</span>
           <textarea id="awn-database-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении"></textarea>
         </label>
+        <label class="agents-registry-field agents-registry-create-field hidden" id="awn-database-create-storage-wrap">
+          <span>Драйвер записей</span>
+          <select id="awn-database-create-storage-input" class="agents-registry-select">
+            <option value="md">Markdown — файл на каждую запись</option>
+            <option value="csv">CSV — одна таблица main.csv</option>
+          </select>
+          <p class="agents-registry-create-footnote">
+            MD: отдельные <code>slug.md</code> в папке инфоблока. CSV: строки в <code>main.csv</code>.
+          </p>
+        </label>
         <label class="awn-database-create-checkbox-field hidden" id="awn-database-create-sample-wrap">
           <input id="awn-database-create-sample-input" type="checkbox" checked />
-          <span class="awn-database-create-checkbox-label">Создать первую запись <code>1.md</code></span>
+          <span class="awn-database-create-checkbox-label">Создать запись-пример</span>
         </label>
         <label class="awn-database-create-checkbox-field create-form-indexing-option" for="awn-database-create-index-exclude" title="Исключить накопитель и записи из поиска и индексов">
           <input id="awn-database-create-index-exclude" type="checkbox" />
@@ -5642,6 +5652,7 @@
                   </span>
                   <span class="awn-database-view-accordion-summary-main">
                     <span class="awn-database-view-accordion-title">Настройки инфоблока</span>
+                    <span class="awn-database-view-accordion-meta awn-database-view-schema-settings-meta" aria-live="polite"></span>
                   </span>
                   <span class="awn-database-view-accordion-actions">
                     <code class="awn-database-view-schema-file">manifest.md</code>

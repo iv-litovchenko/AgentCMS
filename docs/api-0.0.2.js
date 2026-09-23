@@ -177,7 +177,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/awn-database",
-          description: "Список накопителей или один store (?store=taxonomies/statuses). MD и CSV коллекции, группы, singleton.",
+          description: "Список накопителей или один store (?store=taxonomies/statuses). MD и CSV коллекции, группы, single.",
           query: ["store?"],
           body: null,
           response: "{ specVersion, model: \"awn-database\", stores[], store? }"
@@ -187,7 +187,7 @@ module.exports = {
           path: "/api/awn-database/stores",
           description: "Создать накопитель. taxonomies/* → CSV main.csv; иначе MD {id}.md.",
           query: [],
-          body: "{ kind?: \"collection\"|\"singleton\", slug, name?, description?, hierarchy?, withSampleRecord? }",
+          body: "{ kind?: \"collection\"|\"single\", slug, name?, description?, hierarchy?, withSampleRecord? }",
           response: "{ ok: true, store }"
         },
         {

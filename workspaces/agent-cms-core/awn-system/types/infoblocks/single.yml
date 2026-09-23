@@ -1,10 +1,8 @@
 id: awn.infoblock.single
 name: Одиночка
-kind: data-container
+kind: type
 domain: infoblock
 status: active
 extends: awn.infoblock.base
-store-kind: singleton
 description: manifest + ровно один main.md
-record-file: main.md
-elements-schema-extends: awn.infoblock.element.default
+manifest-pattern: manifest.md

@@ -38,7 +38,7 @@ function schemaFromFrontmatter(fm) {
       (String(raw["awn-prop-type"] || "").includes("group")
         ? "group"
         : String(raw["awn-prop-type"] || "").includes("single")
-          ? "singleton"
+          ? "single"
           : "collection"),
     id: raw["awn-prop-id"] || raw.id || "",
     layer: raw["awn-prop-layer"] || raw.layer || "",

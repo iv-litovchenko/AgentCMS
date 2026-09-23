@@ -16,7 +16,7 @@ const {
 const LEGACY_CONTAINER = {
   collection: CONTAINER_TYPE_ID.collection,
   group: CONTAINER_TYPE_ID.group,
-  single: CONTAINER_TYPE_ID.singleton,
+  single: CONTAINER_TYPE_ID.single,
   singleton: CONTAINER_TYPE_ID.single
 };
 
@@ -51,7 +51,7 @@ function resolveContainerType(fm) {
 
 function resolveKindFromType(typeId) {
   if (typeId === CONTAINER_TYPE_ID.group) return "group";
-  if (typeId === CONTAINER_TYPE_ID.single) return "singleton";
+  if (typeId === CONTAINER_TYPE_ID.single) return "single";
   return "collection";
 }
 

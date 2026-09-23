@@ -316,7 +316,7 @@ module.exports = {
           parameters: "overwrite?",
           http: "POST /api/agent/awn-database-index"
         },
-        { name: "iblock_create", description: "Создать group/collection/singleton.", parameters: "slug, kind?, …", http: "POST /api/awn-database/stores" },
+        { name: "iblock_create", description: "Создать group/collection/single.", parameters: "slug, kind?, …", http: "POST /api/awn-database/stores" },
         {
           name: "iblock_read_schema",
           description: "schema.yml инфоблока (экземпляр, не каталог типов).",

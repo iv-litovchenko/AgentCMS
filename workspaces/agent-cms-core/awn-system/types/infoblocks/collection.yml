@@ -1,12 +1,15 @@
 id: awn.infoblock.collection
 name: Коллекция
-kind: data-container
+kind: type
 domain: infoblock
 status: active
 extends: awn.infoblock.base
-store-kind: collection
 description: manifest + N записей (*.md или main.csv)
-record-id-mode: slug
-record-file: "{id}.md"
-record-hierarchy: false
-elements-schema-extends: awn.infoblock.element.default
+manifest-pattern: manifest.md
+
+fields:
+  awn-record-storage:
+    type: awn.field.choice.one
+    title: Драйвер записей
+    enum: [md, csv]
+    default: md
