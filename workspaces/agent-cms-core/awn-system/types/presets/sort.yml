@@ -1,5 +1,6 @@
 sortOrder:
   - gitignore
+  - dependencies
   - env
   - skill
   - agents

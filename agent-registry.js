@@ -72,7 +72,6 @@ const AWN_MAP_FILE = "awn-map.json";
 const AWN_AGENTS_REGISTRY_FILE = LEGACY_AGENTS_REGISTRY_FILE;
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
 const AWN_AUTOINCREMENT_ID_FILE = "awn-autoincrement-id.json";
 
 function resolveWorkspaceReginfoAbsoluteSync(workspaceRootAbsolute) {
@@ -737,10 +736,6 @@ function saveAgentsGroups(rawGroups, rawUngrouped) {
   return getAgentsGroupsPublic();
 }
 
-function isAwnDependenciesFileName(fileName) {
-  const base = String(fileName || "").trim().toLowerCase();
-  return base === AWN_DEPENDENCIES_FILE.toLowerCase();
-}
 const DEFAULT_AGENT_KIT_FOLDER = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
 const DEFAULT_AGENT_CONTAINER_FOLDER = "awn-container";
@@ -1939,10 +1934,8 @@ module.exports = {
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
   AGENT_CMS_CORE_REL,
-  AWN_DEPENDENCIES_FILE,
   DEPENDENCIES_CSV_FILE,
   AWN_AUTOINCREMENT_ID_FILE,
-  isAwnDependenciesFileName,
   isDependenciesCsvFileName,
   init,
   getAgentRoot,

@@ -1546,7 +1546,7 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "BOOTSTRAP.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "ONBOARDING.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  { name: "dependencies.csv", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
@@ -5855,6 +5855,18 @@ function getSystemFileHintSpec(name) {
         "Служебный <code>SKILL.md</code> workspace: краткий скилл для Cursor/агента — как работать с этим Agent CMS через MCP. " +
         "Frontmatter <code>name</code> и <code>description</code> — только в режиме «Исходник»; в визуальном редакторе меняется только основной текст.",
       example: RECOMMENDED_SKILL_MD_TEMPLATE
+    };
+  }
+  if (normalized === "dependencies.csv") {
+    return {
+      title: "Зависимости workspace",
+      text:
+        "Корневой <code>dependencies.csv</code>: MCP, skills, runtime, env-ключи. " +
+        "Схема колонок — в настройках проекта → «Зависимости». MCP: read_dependencies / write_dependencies.",
+      example:
+        "host,kind,name,description,path,version,status,required,notes\n" +
+        "any,runtime,node,Сервер CMS и MCP,node,>=22,active,yes,\n" +
+        "any,mcp,agent-cms,MCP workspace,mcp-server/,,active,yes,"
     };
   }
   return null;
@@ -18681,7 +18693,7 @@ let activeMediaSidecarSourcePath = null;
 let activeMediaSidecarPath = null;
 let activeMediaMarkdownPath = null;
 let activeAttachmentSidecarRef = null;
-let systemFilesCache = [];
+let systemFilesCache = SYSTEM_FILE_SCAFFOLD_FALLBACK.map((file) => ({ ...file }));
 let systemFileTemplatesByTarget = {};
 const modeContentCache = {
   description: "",
@@ -88604,13 +88616,13 @@ function classifySystemFileGroup(name) {
     "dockerfile",
     "makefile",
     "procfile",
-    "awn-dependencies.json",
+    "dependencies.csv",
     "docker-compose.yml",
     "docker-compose.yaml"
   ]);
   if (configNames.has(lower)) return "config";
   if (lower.startsWith(".env.") || lower.startsWith("docker-compose.")) return "config";
-  if (/\.(json|ya?ml|toml|ini|cfg|conf|properties|env)$/i.test(lower)) return "config";
+  if (/\.(csv|json|ya?ml|toml|ini|cfg|conf|properties|env)$/i.test(lower)) return "config";
   if (lower.startsWith(".") && !lower.includes(".", 1)) return "config";
   return "other";
 }
@@ -88619,8 +88631,16 @@ function isCoreSystemFileName(name) {
   return CORE_SYSTEM_FILES.has(normalizeSystemFileName(name));
 }
 
+const ROOT_SYSTEM_CONFIG_FILES = new Set([
+  "dependencies.csv",
+  "docker-compose.yml",
+  "docker-compose.yaml"
+]);
+
 function resolveSystemFileOpenMode(name, exists) {
-  if (isCoreSystemFileName(name)) return "system";
+  const base = normalizeSystemFileName(name);
+  if (isCoreSystemFileName(base)) return "system";
+  if (ROOT_SYSTEM_CONFIG_FILES.has(base)) return "system";
   return exists ? "adopt" : "system";
 }
 
@@ -92293,10 +92313,28 @@ function resolveMenuTreeSortContainer(parentSection, folderPath = ".") {
   return parentSection?.querySelector(":scope > .tree-children") || null;
 }
 
+const SYSTEM_FILE_SORT_PRIORITY = new Map(
+  [
+    ".env",
+    ".gitignore",
+    "dependencies.csv",
+    "docker-compose.yml",
+    "docker-compose.yaml"
+  ].map((name, index) => [name.toLowerCase(), index])
+);
+
+function systemFileSortPriority(name) {
+  const key = String(name || "").trim().toLowerCase();
+  return SYSTEM_FILE_SORT_PRIORITY.has(key) ? SYSTEM_FILE_SORT_PRIORITY.get(key) : 1000;
+}
+
 function sortSystemFilesByName(files) {
-  return [...(Array.isArray(files) ? files : [])].sort((a, b) =>
-    String(a?.name || "").localeCompare(String(b?.name || ""), "en")
-  );
+  return [...(Array.isArray(files) ? files : [])].sort((a, b) => {
+    const pa = systemFileSortPriority(a?.name);
+    const pb = systemFileSortPriority(b?.name);
+    if (pa !== pb) return pa - pb;
+    return String(a?.name || "").localeCompare(String(b?.name || ""), "en");
+  });
 }
 
 function clearSystemFileMenuNodes(container) {
@@ -111692,6 +111730,14 @@ async function deleteNode() {
   await deleteNodeByPath(getActiveNodeApiPath(), activeLabel || getLabelFromPath(activePath));
 }
 
+function formatBootLoadErrorMessage(error) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return "Не удалось связаться с сервером. Запустите npm start (или npm run start:https) и обновите страницу.";
+  }
+  return message;
+}
+
 async function init() {
   setupMaintenancePaneUi();
   const splashStartedAt = Date.now();
@@ -111728,13 +111774,16 @@ async function init() {
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 
+    if (activeAgentId) {
+      void loadSystemFiles();
+    }
+
     const bootRoute = parseAppRoute(location.pathname);
     if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
       setMenuLoading(true, "Загрузка дерева…");
       await refreshMenu();
       setMenuLoading(false);
       void Promise.all([
-        loadSystemFiles(),
         loadAwnTypes(activeAgentId),
         loadAgentCatalogs(activeAgentId)
       ]);
@@ -111753,7 +111802,7 @@ async function init() {
 
     syncAppRouteToUrl({ replace: true });
   } catch (error) {
-    showAppLandingView(`Ошибка загрузки: ${error.message}`);
+    showAppLandingView(`Ошибка загрузки: ${formatBootLoadErrorMessage(error)}`);
   } finally {
     window.clearTimeout(splashFailsafe);
     finishSplash();

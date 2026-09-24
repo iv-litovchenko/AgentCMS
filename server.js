@@ -568,10 +568,8 @@ const {
   WORKSPACE_TAXONOMY_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   isSystemReferenceManifestRel,
-  isAwnDependenciesFileName,
   isDependenciesCsvFileName,
   WORKSPACE_AWN_TYPE,
-  AWN_DEPENDENCIES_FILE,
   DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
@@ -609,12 +607,17 @@ const SYSTEM_FILE_NAMES = [
   "ONBOARDING.md",
   "SKILL.md",
   DEPENDENCIES_CSV_FILE,
-  AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
   ROOT_SYSTEM_TODO_FILE
 ];
+
+const ROOT_SYSTEM_CONFIG_FILE_NAMES = new Set([
+  "dependencies.csv",
+  "docker-compose.yml",
+  "docker-compose.yaml"
+]);
 
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
@@ -645,7 +648,6 @@ const SYSTEM_FILE_CONFIG_BASENAMES = new Set([
   "makefile",
   "procfile",
   "dependencies.csv",
-  "awn-dependencies.json",
   "docker-compose.yml",
   "docker-compose.yaml"
 ]);
@@ -676,7 +678,9 @@ function isCoreSystemFileName(name) {
 }
 
 function resolveSystemFileOpenMode(name, exists) {
-  if (isCoreSystemFileName(name)) return "system";
+  const base = String(name || "").trim();
+  if (isCoreSystemFileName(base)) return "system";
+  if (ROOT_SYSTEM_CONFIG_FILE_NAMES.has(base)) return "system";
   return exists ? "adopt" : "system";
 }
 
@@ -696,7 +700,6 @@ function canonicalSystemFileName(name) {
   const normalized = normalizeSystemFileRequestName(name);
   if (!isSafeSystemFileBasename(normalized)) return null;
   if (SYSTEM_FILE_NAMES.includes(normalized)) return normalized;
-  if (isAwnDependenciesFileName(normalized)) return normalized;
   if (isDependenciesCsvFileName(normalized)) return normalized;
   // Any other single-segment root basename (actual root inventory files).
   return normalized;

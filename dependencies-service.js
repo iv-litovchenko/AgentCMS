@@ -3,7 +3,6 @@ const path = require("path");
 const { parseCsvText, serializeCsv } = require("./awn-data-csv");
 
 const DEPENDENCIES_CSV_FILE = "dependencies.csv";
-const LEGACY_DEPENDENCIES_JSON = "awn-dependencies.json";
 
 const DEFAULT_DEPENDENCIES_COLUMNS = [
   {
@@ -239,7 +238,6 @@ function isDependenciesCsvFileName(fileName) {
 
 module.exports = {
   DEPENDENCIES_CSV_FILE,
-  LEGACY_DEPENDENCIES_JSON,
   DEFAULT_DEPENDENCIES_COLUMNS,
   DEFAULT_EXAMPLE_ROWS,
   normalizeColumnDefinitions,

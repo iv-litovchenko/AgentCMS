@@ -33,7 +33,10 @@ const SYSTEM_FILE_CHPU_ALIASES = new Map([
   [".env", ".env"],
   ["env", ".env"],
   [".gitignore", ".gitignore"],
-  ["gitignore", ".gitignore"]
+  ["gitignore", ".gitignore"],
+  ["dependencies", "dependencies.csv"],
+  ["dependencies.csv", "dependencies.csv"],
+  ["awn-dependencies.json", "dependencies.csv"]
 ]);
 
 const SYSTEM_FILE_TO_CHPU_PATH = new Map([
@@ -46,7 +49,8 @@ const SYSTEM_FILE_TO_CHPU_PATH = new Map([
   ["TODO.md", "TODO"],
   ["README.md", "README"],
   [".env", ".env"],
-  [".gitignore", ".gitignore"]
+  [".gitignore", ".gitignore"],
+  ["dependencies.csv", "dependencies.csv"]
 ]);
 
 const CORE_SYSTEM_FILE_NAMES = new Set([
@@ -56,6 +60,12 @@ const CORE_SYSTEM_FILE_NAMES = new Set([
   "TODO.md",
   ".env",
   ".gitignore"
+]);
+
+const ROOT_CONFIG_SYSTEM_FILE_NAMES = new Set([
+  "dependencies.csv",
+  "docker-compose.yml",
+  "docker-compose.yaml"
 ]);
 
 const SLOT_FOLDER_TO_MODE = Object.fromEntries(
@@ -262,7 +272,9 @@ async function resolveSystemFile(agentRoot, chpuPath) {
     }
   }
 
-  if (!canonical || !CORE_SYSTEM_FILE_NAMES.has(canonical)) return null;
+  if (!canonical || (!CORE_SYSTEM_FILE_NAMES.has(canonical) && !ROOT_CONFIG_SYSTEM_FILE_NAMES.has(canonical))) {
+    return null;
+  }
 
   const absolute = path.join(agentRoot, canonical);
   if (!absolute.startsWith(agentRoot)) return null;
