@@ -1,4 +1,5 @@
 import { getActiveAgentIdFromContext } from "./agent-scope.js";
+import { compactMcpResponse } from "./compact-mcp-response.js";
 
 const DEFAULT_BASE_URL = "http://localhost:3000";
 
@@ -128,5 +129,5 @@ export class AgentCmsClient {
 export const YamlCmsClient = AgentCmsClient;
 
 export function jsonText(data) {
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(compactMcpResponse(data), null, 2);
 }
