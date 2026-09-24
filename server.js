@@ -1005,7 +1005,7 @@ function sendJson(res, statusCode, payload) {
 }
 
 const { rel: agentCmsRel } = require("./paths/agent-cms");
-const { migrateAllAgentCmsLayouts } = require("./lib/agent-cms-migrate");
+const { migrateProjectAgentCmsLayout, migrateAllAgentCmsLayouts } = require("./lib/agent-cms-migrate");
 
 const WORKSPACE_ACTIVITY_DIR = agentCmsRel.state.dir;
 const WORKSPACE_ACTIVITY_FILE = "activity.jsonl";
@@ -28216,6 +28216,12 @@ async function startServer(options = {}) {
   });
 
   try {
+    const projectMigrated = await migrateProjectAgentCmsLayout(projectRoot);
+    if (projectMigrated.moved) {
+      console.log(
+        `Migrated platform layout: ${projectMigrated.from} → ${projectMigrated.to}`
+      );
+    }
     const migrated = await migrateAllAgentCmsLayouts(projectRoot, getAgentsPublicList);
     if (migrated.length > 0) {
       console.log(

@@ -40,7 +40,7 @@ const {
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
 const NodeConfigBundle = require("./node-config-bundle");
-const { projectRel, legacy } = require("./paths/agent-cms");
+const { projectRel, projectLegacy, legacy } = require("./paths/agent-cms");
 const {
   loadRegistryEntriesWithMigration,
   saveRegistryEntriesToWsList,
@@ -67,7 +67,7 @@ const WORKSPACE_AWN_TYPES = new Set([WORKSPACE_AWN_TYPE, WORKSPACE_AWN_TYPE_LEGA
 const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
-/** @deprecated legacy root registry; canonical: .agent-cms/ws-list-agents.json */
+/** @deprecated legacy root registry; canonical: .agent-cms-global/ws-list-agents.json */
 const AWN_AGENTS_REGISTRY_FILE = LEGACY_AGENTS_REGISTRY_FILE;
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
@@ -1238,6 +1238,8 @@ function readDefaultWorkspaceIdFromPlatformSettingsSync() {
   if (!projectRoot) return "";
   const candidates = [
     path.join(projectRoot, projectRel.settings.platform),
+    path.join(projectRoot, projectLegacy.platformSettings),
+    path.join(projectRoot, projectLegacy.globalSettings),
     path.join(projectRoot, legacy.platformSettings),
     path.join(getAgentCmsCoreAbsolute(projectRoot), "settings.global.yml")
   ];

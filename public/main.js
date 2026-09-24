@@ -23220,7 +23220,7 @@ function getProjectSettingsValuesFileLabel(scope = null) {
     scope ||
     collectProjectSettingsSidebarScopes().find((item) => item.path === getNodeSettingsManifestPath());
   if (activeScope?.level === "global" || isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
-    return ".agent-cms/settings/platform.yml";
+    return ".agent-cms-global/settings/platform.yml";
   }
   if (
     activeScope?.level === "settings-local" ||
@@ -44341,7 +44341,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = isGlobalScope
-      ? `Глобальная политика платформы в <code>.agent-cms/settings/platform.yml</code>. Не сливается с workspace/user.`
+      ? `Глобальная политика платформы в <code>.agent-cms-global/settings/platform.yml</code>. Не сливается с workspace/user.`
       : isLocalScope
         ? `Параметры хранилища в <code>.agent-cms/settings/workspace.yml</code>. Отдельная область, не перекрывает platform/integrations/user.`
         : isIntegrationsScope

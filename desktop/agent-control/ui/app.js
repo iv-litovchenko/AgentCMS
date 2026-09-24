@@ -791,7 +791,7 @@ function renderGuideStepServer() {
           <strong>Режим обслуживания</strong>
           <span>Заглушка 503 для Editor и Voice · сейчас ${maintenanceStateLabel}</span>
         </div>
-        <label class="toggle-switch" title="maintenance-mode в .agent-cms/settings/platform.yml">
+        <label class="toggle-switch" title="maintenance-mode в .agent-cms-global/settings/platform.yml">
           <input type="checkbox" id="maintenance-mode-toggle"${maintenanceChecked}${maintenanceDisabled ? " disabled" : ""} />
           <span class="toggle-switch-track" aria-hidden="true"></span>
         </label>

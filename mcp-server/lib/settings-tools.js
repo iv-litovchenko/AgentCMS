@@ -20,7 +20,7 @@ const settingValue = z
 export function registerSettingsTools(reg, client) {
   reg(
     "list_settings",
-    "List Agent CMS settings with values and schema metadata (platform .agent-cms/settings/platform.yml, workspace .agent-cms/settings/workspace.yml, integrations .agent-cms/settings/integrations.yml, user .agent-cms/settings/user.yml).",
+    "List Agent CMS settings with values and schema metadata (platform .agent-cms-global/settings/platform.yml, workspace .agent-cms/settings/workspace.yml, integrations .agent-cms/settings/integrations.yml, user .agent-cms/settings/user.yml).",
     z.object({
       scope: settingsScope.describe(
         "Filter scope: all (default), platform, workspace, integrations, or user"

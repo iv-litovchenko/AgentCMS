@@ -20,7 +20,7 @@ domains:
     icon: "⚙"
 
 # Четыре независимые области настроек (не merge):
-#   platform — .agent-cms/settings/platform.yml (корень проекта)
+#   platform — .agent-cms-global/settings/platform.yml (корень проекта)
 #   workspace — .agent-cms/settings/workspace.yml (хранилище)
 #   integrations — .agent-cms/settings/integrations.yml (skills, MCP, плагины)
 #   user — .agent-cms/settings/user.yml (UI пользователя)
@@ -28,7 +28,7 @@ settings:
   description: >
     Platform — политика CMS (MCP, лимиты, индексы). Workspace — параметры хранилища.
     Integrations — контейнеры внешних сервисов (skills, MCP tools, плагины).
-    User — UI/дерево для пользователя. Области не сливаются. MCP policy — .agent-cms/settings/platform.yml → awn_policy.
+    User — UI/дерево для пользователя. Области не сливаются. MCP policy — .agent-cms-global/settings/platform.yml → awn_policy.
   schema:
     platform:
       type: awn.settings.platform
@@ -43,7 +43,7 @@ settings:
       type: awn.settings.user
       path: awn-system/types/settings/user.yml
   values:
-    platform: .agent-cms/settings/platform.yml
+    platform: .agent-cms-global/settings/platform.yml
     workspace: .agent-cms/settings/workspace.yml
     integrations: .agent-cms/settings/integrations.yml
     user: .agent-cms/settings/user.yml

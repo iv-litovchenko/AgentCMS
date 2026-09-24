@@ -17,10 +17,14 @@ const {
 } = require("./workspace-agent-settings");
 const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
 
-const { rel, projectRel, legacy, platformSettingsAbs } = require("./paths/agent-cms");
+const { rel, projectRel, projectLegacy, legacy, platformSettingsAbs } = require("./paths/agent-cms");
 const PLATFORM_SETTINGS_FILE = projectRel.settings.platform;
 const WORKSPACE_SETTINGS_FILE = rel.settings.workspace;
-const PLATFORM_SETTINGS_LEGACY_FILES = [legacy.platformSettings];
+const PLATFORM_SETTINGS_LEGACY_FILES = [
+  projectLegacy.platformSettings,
+  projectLegacy.globalSettings,
+  legacy.platformSettings
+];
 const WORKSPACE_SETTINGS_LEGACY_FILE = legacy.workspaceSettings;
 const USER_SETTINGS_REL_PATH = rel.settings.user;
 const USER_SETTINGS_LEGACY_FILES = [legacy.userSettings, legacy.userSettingsRoot];

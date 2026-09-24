@@ -39,8 +39,8 @@ Desktop.ini
 # Workspace runtime
 **/.agent-cms/cache/
 **/.agent-cms/state/
-**/.agent-cms/app-lock-passkey.json
-**/.agent-cms/fingerprint-scanner.sqlite*
+.agent-cms-global/app-lock-passkey.json
+.agent-cms-global/fingerprint-scanner.sqlite*
 .run/
 tmp/
 temp/

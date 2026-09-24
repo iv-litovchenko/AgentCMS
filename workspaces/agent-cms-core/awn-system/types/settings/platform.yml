@@ -6,16 +6,16 @@ status: active
 extends: awn.settings.base
 description: >
   Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, индексы, память.
-  Значения — .agent-cms/settings/platform.yml. Не перекрываются workspace/user.
+  Значения — .agent-cms-global/settings/platform.yml. Не перекрываются workspace/user.
 scope: platform
 enabled: true
 consumer: [mcp-server, server, ui, context]
-valuesFile: .agent-cms/settings/platform.yml
+valuesFile: .agent-cms-global/settings/platform.yml
 
 fieldGroups:
   - id: main
     name: Основные
-    description: Режим обслуживания, хранилище по умолчанию и язык UI для всей платформы (.agent-cms/settings/platform.yml).
+    description: Режим обслуживания, хранилище по умолчанию и язык UI для всей платформы (.agent-cms-global/settings/platform.yml).
   - id: ui
     name: Интерфейс
     description: Глобальные настройки интерфейса — заглушка. Персональные параметры (дерево, сайдбар) — в «Пользовательские настройки».

@@ -1,12 +1,15 @@
 const path = require("path");
 
+/** Per-workspace runtime: settings, cache, journal, state */
 const ROOT = ".agent-cms";
+
+/** Platform-global runtime at repo root: platform settings, ws-list, passkey */
+const PROJECT_ROOT = ".agent-cms-global";
 
 const rel = {
   root: ROOT,
   settings: {
     dir: `${ROOT}/settings`,
-    platform: `${ROOT}/settings/platform.yml`,
     workspace: `${ROOT}/settings/workspace.yml`,
     user: `${ROOT}/settings/user.yml`,
     integrations: `${ROOT}/settings/integrations.yml`,
@@ -45,10 +48,6 @@ const rel = {
   digest: {
     dir: `${ROOT}/digest`,
     workspaceDigest: `${ROOT}/digest/workspace-digest.md`
-  },
-  wsList: {
-    agents: `${ROOT}/ws-list-agents.json`,
-    groups: `${ROOT}/ws-list-groups.json`
   }
 };
 
@@ -62,10 +61,17 @@ const shellLegacy = {
 };
 
 const projectRel = {
+  root: PROJECT_ROOT,
   settings: {
-    dir: `${ROOT}/settings`,
-    platform: `${ROOT}/settings/platform.yml`
-  }
+    dir: `${PROJECT_ROOT}/settings`,
+    platform: `${PROJECT_ROOT}/settings/platform.yml`
+  },
+  wsList: {
+    agents: `${PROJECT_ROOT}/ws-list-agents.json`,
+    groups: `${PROJECT_ROOT}/ws-list-groups.json`
+  },
+  passkey: `${PROJECT_ROOT}/app-lock-passkey.json`,
+  fingerprintScanner: `${PROJECT_ROOT}/fingerprint-scanner.sqlite`
 };
 
 const legacy = {
@@ -96,6 +102,13 @@ const legacy = {
   indexesDir: `${ROOT}/indexes`
 };
 
+/** Pre-rename project root layout: .agent-cms → .agent-cms-global */
+const projectLegacy = {
+  root: ROOT,
+  platformSettings: `${ROOT}/settings/platform.yml`,
+  globalSettings: `${ROOT}/settings/global.yml`
+};
+
 function abs(agentRoot, relPath) {
   return path.join(agentRoot, relPath);
 }
@@ -113,11 +126,11 @@ function platformSettingsAbs(projectRoot) {
 }
 
 function wsListAgentsAbs(projectRoot) {
-  return abs(projectRoot, rel.wsList.agents);
+  return abs(projectRoot, projectRel.wsList.agents);
 }
 
 function wsListGroupsAbs(projectRoot) {
-  return abs(projectRoot, rel.wsList.groups);
+  return abs(projectRoot, projectRel.wsList.groups);
 }
 
 function integrationsAbs(agentRoot) {
@@ -177,9 +190,11 @@ function rewriteShellSnapshotRelPath(relPath) {
 
 module.exports = {
   ROOT,
+  PROJECT_ROOT,
   rel,
   projectRel,
   legacy,
+  projectLegacy,
   platformSettingsAbs,
   wsListAgentsAbs,
   wsListGroupsAbs,

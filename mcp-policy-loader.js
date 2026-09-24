@@ -7,7 +7,7 @@ const DEFAULT_POLICY_PATH = path.join(
   __dirname,
   "workspaces/agent-cms-core/awn-system/mcp-policy.yml"
 );
-const { projectRel, legacy } = require("./paths/agent-cms");
+const { projectRel, projectLegacy, legacy } = require("./paths/agent-cms");
 const PLATFORM_SETTINGS_FILE = projectRel.settings.platform;
 
 const FALLBACK_POLICY = {
@@ -116,6 +116,8 @@ function resolvePolicyPath(customPath = "") {
 function loadGlobalPolicyFromSettingsFile(projectRoot) {
   const candidates = [
     path.join(projectRoot, PLATFORM_SETTINGS_FILE),
+    path.join(projectRoot, projectLegacy.platformSettings),
+    path.join(projectRoot, projectLegacy.globalSettings),
     path.join(projectRoot, legacy.platformSettings),
     path.join(getAgentCmsCoreAbsolute(projectRoot), "settings.global.yml")
   ];

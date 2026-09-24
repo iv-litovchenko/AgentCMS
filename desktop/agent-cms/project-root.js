@@ -43,12 +43,12 @@ function ensureWritableProject(app) {
 
   fs.mkdirSync(writableRoot, { recursive: true });
 
-  const agentCmsDir = path.join(writableRoot, ".agent-cms");
+  const agentCmsDir = path.join(writableRoot, ".agent-cms-global");
   fs.mkdirSync(agentCmsDir, { recursive: true });
 
   for (const fileName of ["ws-list-agents.json", "ws-list-groups.json"]) {
     const agentCmsTarget = path.join(agentCmsDir, fileName);
-    const agentCmsSource = path.join(bundledRoot, ".agent-cms", fileName);
+    const agentCmsSource = path.join(bundledRoot, ".agent-cms-global", fileName);
     if (fs.existsSync(agentCmsSource)) {
       fs.copyFileSync(agentCmsSource, agentCmsTarget);
     }

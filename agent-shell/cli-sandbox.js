@@ -52,7 +52,7 @@ function sanitizeCliRuntime(runtime) {
 function resolveProjectRootFromPath(hintPath = process.cwd()) {
   let current = path.resolve(String(hintPath || process.cwd()));
   for (let depth = 0; depth < 14; depth += 1) {
-    const wsListAgentsFile = path.join(current, ".agent-cms", "ws-list-agents.json");
+    const wsListAgentsFile = path.join(current, ".agent-cms-global", "ws-list-agents.json");
     const agentsFile = path.join(current, "awn-agents.json");
     const pkgFile = path.join(current, "package.json");
     if (

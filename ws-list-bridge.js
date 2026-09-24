@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { rel } = require("./paths/agent-cms");
+const { PROJECT_ROOT } = require("./paths/agent-cms");
 const {
   loadRegistryEntriesFromAwnData,
   loadGroupsFromAwnData
@@ -11,7 +11,7 @@ const LEGACY_AGENTS_REGISTRY_FILE = "awn-agents.json";
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 
 function getAgentCmsDirAbsolute(projectRoot) {
-  return path.join(projectRoot || process.cwd(), rel.root);
+  return path.join(projectRoot || process.cwd(), PROJECT_ROOT);
 }
 
 function getWsListAgentsAbsolute(projectRoot) {
