@@ -198,7 +198,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_content_list",
-    "Lightweight list of records/sections in a store (no full schema payload).",
+    "Lightweight list of records/sections in a store (includes fileName and fileExtension; no full schema payload).",
     z.object({
       store: storePath
     }),
@@ -207,7 +207,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_content_create",
-    "Add element to infoblock: record (*.md), CSV row, or section folder (isSection=true).",
+    "Add element to infoblock: record (*.md), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
       name: z.string().optional().describe("Display name (awn-name)"),
@@ -215,6 +215,11 @@ export function registerIblockTools(reg, client) {
       id: z.string().optional().describe("Alias for slug"),
       title: z.string().optional().describe("Deprecated alias for name"),
       parent: z.string().optional(),
+      body: z.string().optional().describe("Initial file body for .md or plain-text records"),
+      fileExtension: z
+        .string()
+        .optional()
+        .describe("Plain-text extension for non-markdown records: .py, .html, .json, …"),
       isSection: z.boolean().optional().describe("Create hierarchy section folder with manifest.md")
     }),
     (payload) =>
@@ -225,13 +230,16 @@ export function registerIblockTools(reg, client) {
         id: payload.id || payload.slug,
         title: payload.title || payload.name,
         parent: payload.parent,
+        body: payload.body,
+        fileExtension: payload.fileExtension,
+        extension: payload.fileExtension,
         isSection: Boolean(payload.isSection)
       })
   );
 
   reg(
     "iblock_content_read_body",
-    "Read markdown body of infoblock element (below frontmatter).",
+    "Read infoblock element body. For .md: markdown below frontmatter. For .py/.html/…: full file text.",
     z.object({
       store: storePath,
       record: recordRef
@@ -245,7 +253,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_content_write_body",
-    "Write markdown body of infoblock element. Frontmatter preserved.",
+    "Write infoblock element body. For .md frontmatter is preserved; for .py/.html/… overwrites file text.",
     z.object({
       store: storePath,
       record: recordRef,

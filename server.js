@@ -22472,7 +22472,9 @@ async function handleApiForAgent(req, res, url) {
         name: payload?.name,
         title: payload?.title || payload?.name,
         parent: payload?.parent,
-        isSection: Boolean(payload?.isSection)
+        isSection: Boolean(payload?.isSection),
+        body: payload?.body,
+        fileExtension: payload?.fileExtension || payload?.extension
       });
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {

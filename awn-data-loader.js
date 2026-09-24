@@ -20,6 +20,13 @@ const {
   LEGACY_SHEMAMOD_FILE,
   LEGACY_CONFIGURATION_SCHEMA_FILE
 } = require("./schema-mod-paths");
+const {
+  normalizeStorageRecordExtension,
+  isPlainTextStorageRecordExtension,
+  isMarkdownRecordExtension,
+  buildPlainTextPlaceholderContent,
+  recordFileNameForId
+} = require("./storage-record-extensions");
 
 const AWN_DATABASE_DIR = "awn-databases";
 const LEGACY_AWN_DATABASE_DIR = "awn-database";
@@ -1306,7 +1313,10 @@ function isNestedSectionManifest(name, relPrefix = "") {
 
 function isRecordFile(name, kind, relPrefix = "") {
   const lower = name.toLowerCase();
-  if (!lower.endsWith(".md")) return false;
+  const ext = path.extname(lower);
+  const isMd = lower.endsWith(".md");
+  const isPlain = !isMd && isPlainTextStorageRecordExtension(ext);
+  if (!isMd && !isPlain) return false;
   if (isNestedSectionManifest(name, relPrefix)) return true;
   if (isSystemStoreFile(name)) return false;
   if (kind === "single" && lower !== SINGLETON_RECORD) return false;
@@ -2841,6 +2851,11 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   if (!store) throw new Error("Store not found");
 
   const recordStorage = getRecordStorage(schema);
+  const fileExtension = normalizeStorageRecordExtension(options.fileExtension || options.extension || "");
+  const usePlainTextRecord = Boolean(fileExtension && isPlainTextStorageRecordExtension(fileExtension));
+  if (fileExtension && !usePlainTextRecord) {
+    throw new Error(`Unsupported fileExtension for infoblock record: ${fileExtension}`);
+  }
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "numeric").trim();
   let id = String(options.id || options.slug || "").trim();
   if (!id) {
@@ -2880,12 +2895,17 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   }
 
   const recordRoot = resolveStoreRecordRootAbs(storeAbs);
-  const recordExt = recordStorage === "csv-files" ? "csv" : "md";
-  let relFile = `${id}.${recordExt}`;
+  const recordFileName =
+    recordStorage === "csv-files"
+      ? `${id}.csv`
+      : usePlainTextRecord
+        ? recordFileNameForId(id, fileExtension)
+        : `${id}.md`;
+  let relFile = recordFileName;
   let absFile = path.join(recordRoot, relFile);
   if (parent && hierarchy) {
-    relFile = path.posix.join(parent, `${id}.${recordExt}`);
-    absFile = path.join(recordRoot, parent, `${id}.${recordExt}`);
+    relFile = path.posix.join(parent, recordFileName);
+    absFile = path.join(recordRoot, parent, recordFileName);
     fs.mkdirSync(path.dirname(absFile), { recursive: true });
   }
 
@@ -2911,6 +2931,11 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
     const columns = getCsvColumnsFromSchema(schema);
     fs.writeFileSync(absFile, serializeCsv(columns, []), "utf-8");
+  } else if (usePlainTextRecord) {
+    if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
+    const textBody = String(options.body ?? "").trim();
+    const content = textBody || buildPlainTextPlaceholderContent(fileExtension);
+    fs.writeFileSync(absFile, content, "utf-8");
   } else {
     if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
     const content = buildRecordMarkdown({
@@ -2920,7 +2945,8 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
       parent: parent || null,
       storeRel,
       agentRoot,
-      projectRoot
+      projectRoot,
+      body: String(options.body ?? "").trim()
     });
     fs.writeFileSync(absFile, content, "utf-8");
   }
@@ -3078,14 +3104,17 @@ function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
 
   const storeRel = String(storeEntry?.relPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   const records = storeEntry?.records || [];
+  const refBase = path.basename(ref, path.extname(ref));
   const hit = records.find(
     (item) =>
       item.id === ref ||
+      item.id === refBase ||
       item.fileName === ref ||
       item.fileName === `${ref}.md` ||
       item.relPath === ref ||
       item.relPath.endsWith(`/${ref}`) ||
-      item.relPath.endsWith(`/${ref}.md`)
+      item.relPath.endsWith(`/${ref}.md`) ||
+      (refBase && item.id === refBase)
   );
   if (hit) {
     const relPath = String(hit.relPath || "").replace(/\\/g, "/");
@@ -3098,10 +3127,24 @@ function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
     return resolveStoreRecordAbs(storeAbs, rel);
   }
 
+  if (ref.includes(".")) {
+    const absWithExt = resolveStoreRecordAbs(storeAbs, ref);
+    if (fs.existsSync(absWithExt)) return absWithExt;
+  }
   const direct = ref.endsWith(".md") ? ref : `${ref}.md`;
   const abs = resolveStoreRecordAbs(storeAbs, direct);
   if (fs.existsSync(abs)) return abs;
   throw new Error(`Record not found: ${ref}`);
+}
+
+function isMarkdownRecordAbs(recordAbs) {
+  return isMarkdownRecordExtension(path.extname(recordAbs));
+}
+
+function assertMarkdownRecordAbs(recordAbs) {
+  if (!isMarkdownRecordAbs(recordAbs)) {
+    throw new Error("Record properties API supports .md records only; use record-body for plain-text files");
+  }
 }
 
 function readAwnDataStoreProperty(agentRoot, projectRoot, storeRel, key) {
@@ -3159,10 +3202,12 @@ function readAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef, 
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  assertMarkdownRecordAbs(recordAbs);
   const raw = fs.readFileSync(recordAbs, "utf-8");
   const { frontmatter } = splitMarkdownFrontmatterText(raw);
   const { value, exists } = getYamlScalarFromText(frontmatter, propertyKey);
-  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  const record =
+    String(recordRef || "").trim() || path.basename(recordAbs, path.extname(recordAbs));
   return { store: rel, record, key: propertyKey, value, exists, file: path.basename(recordAbs) };
 }
 
@@ -3173,9 +3218,11 @@ function readAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRef
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  assertMarkdownRecordAbs(recordAbs);
   const raw = fs.readFileSync(recordAbs, "utf-8");
   const { frontmatter } = splitMarkdownFrontmatterText(raw);
-  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  const record =
+    String(recordRef || "").trim() || path.basename(recordAbs, path.extname(recordAbs));
   return {
     store: rel,
     record,
@@ -3194,13 +3241,15 @@ function writeAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRe
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  assertMarkdownRecordAbs(recordAbs);
   const raw = fs.readFileSync(recordAbs, "utf-8");
   const parts = splitMarkdownFrontmatterText(raw);
   let nextFrontmatter = mergeFrontmatterBlocks(parts.frontmatter, patch);
   nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
   const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
   fs.writeFileSync(recordAbs, nextRaw, "utf-8");
-  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  const record =
+    String(recordRef || "").trim() || path.basename(recordAbs, path.extname(recordAbs));
   return { store: rel, record, file: path.basename(recordAbs), content: nextFrontmatter };
 }
 
@@ -3214,13 +3263,15 @@ function writeAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef,
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  assertMarkdownRecordAbs(recordAbs);
   const raw = fs.readFileSync(recordAbs, "utf-8");
   const parts = splitMarkdownFrontmatterText(raw);
   let nextFrontmatter = upsertYamlScalarInText(parts.frontmatter, propertyKey, value);
   nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
   const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
   fs.writeFileSync(recordAbs, nextRaw, "utf-8");
-  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  const record =
+    String(recordRef || "").trim() || path.basename(recordAbs, path.extname(recordAbs));
   return { store: rel, record, key: propertyKey, value: String(value), content: nextFrontmatter, file: path.basename(recordAbs) };
 }
 
@@ -3355,15 +3406,18 @@ function findStoreRecordHit(storeEntry, recordRef) {
   const ref = String(recordRef || "").trim();
   if (!ref) return null;
   const records = storeEntry?.records || [];
+  const refBase = path.basename(ref, path.extname(ref));
   return (
     records.find(
       (item) =>
         item.id === ref ||
+        item.id === refBase ||
         item.fileName === ref ||
         item.fileName === `${ref}.md` ||
         item.relPath === ref ||
         item.relPath.endsWith(`/${ref}`) ||
-        item.relPath.endsWith(`/${ref}.md`)
+        item.relPath.endsWith(`/${ref}.md`) ||
+        (refBase && item.id === refBase)
     ) || null
   );
 }
@@ -3450,7 +3504,8 @@ function listAwnDataRecordsPayload(agentRoot, projectRoot, storeRel) {
     parent: record.parent || null,
     isSection: Boolean(record.isSection),
     relPath: record.relPath,
-    fileName: record.fileName
+    fileName: record.fileName,
+    fileExtension: path.extname(String(record.fileName || "")).toLowerCase() || ".md"
   }));
   return {
     store: rel,
@@ -3469,13 +3524,24 @@ function readAwnDataRecordBody(agentRoot, projectRoot, storeRel, recordRef) {
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
   const raw = fs.readFileSync(recordAbs, "utf-8");
-  const parts = splitMarkdownFrontmatterText(raw);
   const hit = findStoreRecordHit(store, recordRef);
-  const record = String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, ".md");
+  const record =
+    String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, path.extname(recordAbs));
+  if (!isMarkdownRecordAbs(recordAbs)) {
+    return {
+      store: rel,
+      record,
+      file: path.basename(recordAbs),
+      fileExtension: path.extname(recordAbs).toLowerCase(),
+      body: raw
+    };
+  }
+  const parts = splitMarkdownFrontmatterText(raw);
   return {
     store: rel,
     record,
     file: path.basename(recordAbs),
+    fileExtension: ".md",
     body: parts.body
   };
 }
@@ -3487,18 +3553,31 @@ function writeAwnDataRecordBody(agentRoot, projectRoot, storeRel, recordRef, bod
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const hit = findStoreRecordHit(store, recordRef);
+  const record =
+    String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, path.extname(recordAbs));
+  if (!isMarkdownRecordAbs(recordAbs)) {
+    const nextBody = String(body ?? "");
+    fs.writeFileSync(recordAbs, nextBody, "utf-8");
+    return {
+      store: rel,
+      record,
+      file: path.basename(recordAbs),
+      fileExtension: path.extname(recordAbs).toLowerCase(),
+      body: nextBody
+    };
+  }
   const raw = fs.readFileSync(recordAbs, "utf-8");
   const parts = splitMarkdownFrontmatterText(raw);
   let nextFrontmatter = parts.frontmatter;
   nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
   const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, String(body ?? ""));
   fs.writeFileSync(recordAbs, nextRaw, "utf-8");
-  const hit = findStoreRecordHit(store, recordRef);
-  const record = String(recordRef || "").trim() || hit?.id || path.basename(recordAbs, ".md");
   return {
     store: rel,
     record,
     file: path.basename(recordAbs),
+    fileExtension: ".md",
     body: String(body ?? "")
   };
 }
