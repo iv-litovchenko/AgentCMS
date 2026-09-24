@@ -42760,7 +42760,7 @@ button.node-navigation-memory-title:focus-visible {
 .props-form-repeater-item-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.5rem;
   margin-bottom: 0.45rem;
 }
