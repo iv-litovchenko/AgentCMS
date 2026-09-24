@@ -9,7 +9,8 @@ const {
   loadCsvRecords,
   appendCsvRecord,
   serializeCsv,
-  parseCsvText
+  parseCsvText,
+  resolveCsvAbsPath
 } = require("./awn-data-csv");
 const {
   SCHEMA_MOD_FILE,
@@ -1100,7 +1101,6 @@ function readStoreSchemeModOverlay(storeAbs) {
 function composeAwnDataStoreSchemeModYaml(schema = {}) {
   const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:"];
   const blocks = schema.blocks && typeof schema.blocks === "object" ? schema.blocks : null;
-  const frameTypeId = String(schema.frameTypeId || "").trim();
   const includeEmptyBlocks = Boolean(schema.includeEmptyBlocks);
 
   if (blocks) {
@@ -1110,12 +1110,8 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
       if (!block) continue;
       const fields = normalizeAwnFieldsMap(block.fields || {});
       const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
-      if (!hasSchemeModBlockContent(block) && !includeEmptyBlocks) continue;
-      const extendsRef = resolveElementExtendsRef(
-        block.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId) || ELEMENT_TYPE_RECORD
-      );
+      if (!hasSchemeModBlockContent({ fields, tabs }) && !includeEmptyBlocks) continue;
       lines.push(`  ${kind}:`);
-      if (extendsRef) lines.push(`    extends: ${extendsRef}`);
       lines.push("    fields:");
       if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
       if (tabs && Object.keys(tabs).length) {
@@ -1128,9 +1124,8 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
   } else {
     const fields = normalizeAwnFieldsMap(schema.fields || {});
     const tabs = schema.elementSchemaTabs || schema.tabs || {};
-    const extendsRef = resolveElementExtendsRef(schema.extends || ELEMENT_TYPE_RECORD);
+    if (!Object.keys(fields).length && !Object.keys(tabs || {}).length) return "";
     lines.push("  record:");
-    if (extendsRef) lines.push(`    extends: ${extendsRef}`);
     lines.push("    fields:");
     if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
     if (tabs && Object.keys(tabs).length) {
@@ -1145,45 +1140,20 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
 
 function writeStoreSchemeMod(storeAbs, schema = {}) {
   const fields = schema.fields || {};
-  // schema.yml — только пользовательские поля записей; база приходит из type-catalog (extends в runtime).
+  // schema.yml — только пользовательские поля; база приходит из type-catalog в runtime.
   if (!Object.keys(fields).length) return false;
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
-  const extendsRef = schema.extends || ELEMENT_TYPE_RECORD;
   fs.writeFileSync(
     path.join(storeAbs, SCHEMA_MOD_FILE),
-    composeAwnDataStoreSchemeModYaml({ extends: extendsRef, fields, elementSchemaTabs: tabs }),
+    composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs }),
     "utf-8"
   );
   return true;
 }
 
-function writeInitialStoreAwnSchema(storeAbs, kind, frameTypeId = "") {
-  const normalizedKind = normalizeStoreKind(kind);
-  const resolvedFrameTypeId = String(frameTypeId || resolveStoreFrameTypeId(storeAbs, normalizedKind)).trim();
-  const blocks = {
-    frame: {
-      extends: resolvedFrameTypeId,
-      fields: {},
-      tabs: {}
-    }
-  };
-  if (normalizedKind !== "group") {
-    blocks.category = { extends: ELEMENT_TYPE_CATEGORY, fields: {}, tabs: {} };
-    blocks.record = { extends: ELEMENT_TYPE_RECORD, fields: {}, tabs: {} };
-    blocks.sidecar = { extends: ELEMENT_TYPE_SIDECAR, fields: {}, tabs: {} };
-  }
-  const content = composeAwnDataStoreSchemeModYaml({
-    blocks,
-    frameTypeId: resolvedFrameTypeId,
-    includeEmptyBlocks: true
-  });
-  if (!String(content || "").trim()) return false;
-  fs.writeFileSync(
-    path.join(storeAbs, SCHEMA_MOD_FILE),
-    content.endsWith("\n") ? content : `${content}\n`,
-    "utf-8"
-  );
-  return true;
+function writeInitialStoreAwnSchema(_storeAbs, _kind, _frameTypeId = "") {
+  // Пустой schema.yml не создаём — как у страниц: файл появляется только с локальными полями.
+  return false;
 }
 
 function loadMergedStoreSchema(storeAbs, dataRoot = "") {
@@ -1715,10 +1685,20 @@ function loadStore(dataRoot, storeEntry) {
         : kind === "collection" && recordStorage === "csv"
           ? getCsvFileName(schema)
           : null,
-    storageLayout: usesStoreStorageDataLayout(storeAbs) ? "storage-data" : "flat",
-    recordRoot: usesStoreStorageDataLayout(storeAbs)
-      ? `${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}`
-      : "",
+    recordFileExists:
+      recordStorage === "csv" ? fs.existsSync(resolveCsvAbsPath(storeAbs, schema)) : undefined,
+    storageLayout:
+      recordStorage === "csv"
+        ? "flat"
+        : usesStoreStorageDataLayout(storeAbs)
+          ? "storage-data"
+          : "flat",
+    recordRoot:
+      recordStorage === "csv"
+        ? ""
+        : usesStoreStorageDataLayout(storeAbs)
+          ? `${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}`
+          : "",
     assetsRoot: fs.existsSync(path.join(storeAbs, STORE_STORAGE_ROOT, STORE_ASSETS_DIR))
       ? `${STORE_STORAGE_ROOT}/${STORE_ASSETS_DIR}`
       : ""
@@ -2528,6 +2508,28 @@ function resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs) {
   };
 }
 
+function resolveStoreElementMergedFields(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
+  const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
+  const baseFields = resolveElementManifestFields(typeId, agentRoot, projectRoot);
+  const normalizedStoreRel = normalizeStoreSlug(storeRel);
+  if (!normalizedStoreRel || !agentRoot) return baseFields;
+
+  try {
+    const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
+    const storeAbs = getStoreAbsolutePath(dataRoot, normalizedStoreRel);
+    if (!storeAbs || !fs.existsSync(storeAbs)) return baseFields;
+    const overlay = readStoreSchemeModOverlay(storeAbs);
+    if (!overlay?.exists) return baseFields;
+    const kind = resolveStoreElementSchemaKind(typeId);
+    const block = resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs);
+    const localFields = normalizeAwnFieldsMap(block?.fields || {});
+    return { ...baseFields, ...localFields };
+  } catch {
+    return baseFields;
+  }
+}
+
+/** @deprecated use resolveStoreElementMergedFields — kept for callers expecting custom-only fields */
 function resolveStoreElementCreationFields(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
   const normalizedStoreRel = normalizeStoreSlug(storeRel);
   if (!normalizedStoreRel || !agentRoot) return {};
@@ -2548,11 +2550,25 @@ function resolveStoreElementCreationFields(storeRel, elementType, agentRoot = ""
 }
 
 function resolveStoreElementSchemaBlock(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
-  const fields = resolveStoreElementCreationFields(storeRel, elementType, agentRoot, projectRoot);
+  const fields = resolveStoreElementMergedFields(storeRel, elementType, agentRoot, projectRoot);
   return {
     fields: normalizeAwnFieldsMap(fields),
     tabs: {}
   };
+}
+
+function insertStoreElementFrontmatterLine(lines, key, value, afterKey = "") {
+  if (!value) return;
+  const line = `${key}: ${yamlQuote(value)}`;
+  if (lines.some((item) => item.startsWith(`${key}:`))) return;
+  if (afterKey) {
+    const anchorIdx = lines.findIndex((item) => item.startsWith(`${afterKey}:`));
+    if (anchorIdx >= 0) {
+      lines.splice(anchorIdx + 1, 0, line);
+      return;
+    }
+  }
+  lines.push(line);
 }
 
 function buildRecordMarkdown({
@@ -2570,46 +2586,28 @@ function buildRecordMarkdown({
   const displayName = String(name || title || "").trim();
   const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
   const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
-  const customFields = store
-    ? resolveStoreElementCreationFields(store, typeId, agentRoot, projectRoot)
-    : {};
+  const mergedFields = resolveStoreElementMergedFields(store, typeId, agentRoot, projectRoot);
+  const fmLines = buildContainerManifestFrontmatter(typeId, displayName, mergedFields)
+    .split("\n")
+    .filter(Boolean);
 
-  const lines = ["---"];
-  lines.push(`awn-type: ${typeId}`);
-  if (store) lines.push(`awn-store: ${yamlQuote(store)}`);
-  const now = new Date().toISOString();
-  lines.push(`awn-create: ${now}`, `awn-update: ${now}`);
-  if (displayName) lines.push(`awn-name: ${yamlQuote(displayName)}`);
-  if (parent) lines.push(`awn-parent: ${yamlQuote(parent)}`);
+  insertStoreElementFrontmatterLine(fmLines, "awn-store", store, "awn-type:");
+  insertStoreElementFrontmatterLine(fmLines, "awn-parent", parent, "awn-store:");
 
-  const written = new Set([
-    "awn-type",
-    "awn-store",
-    "awn-create",
-    "awn-update",
-    "awn-name",
-    "awn-parent"
-  ]);
-  for (const [key, def] of Object.entries(customFields)) {
-    if (written.has(key)) continue;
-    lines.push(manifestFieldDefaultYaml(key, def));
-    written.add(key);
-  }
+  const written = new Set(
+    fmLines.map((line) => String(line.split(":")[0] || "").trim()).filter(Boolean)
+  );
   for (const [key, value] of Object.entries(extra || {})) {
     if (value === undefined || value === null) continue;
     const awnKey = toAwnFieldKey(key);
     if (written.has(awnKey)) continue;
-    lines.push(`${awnKey}: ${value}`);
+    fmLines.push(`${awnKey}: ${value}`);
     written.add(awnKey);
   }
-  lines.push("---", "");
+
   const bodyText = String(body || "").trim();
-  if (bodyText) {
-    lines.push(bodyText);
-  } else if (displayName) {
-    lines.push(`${displayName}.`);
-  }
-  return `${lines.join("\n")}\n`;
+  const bodyBlock = bodyText || (displayName ? `${displayName}.` : "");
+  return `---\n${fmLines.join("\n")}\n---\n\n${bodyBlock ? `${bodyBlock}\n` : ""}`;
 }
 
 function buildSectionManifestMarkdown({
@@ -2707,7 +2705,8 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       // files-only collection: no sample record
     } else if (recordStorage === "csv") {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
-      fs.writeFileSync(path.join(dataAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
+      const csvFile = getCsvFileName(loadMergedStoreSchema(storeAbs, dataRoot));
+      fs.writeFileSync(path.join(storeAbs, csvFile), serializeCsv(columns, []), "utf-8");
     } else if (recordStorage === "csv-files" && withSample) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(dataAbs, "1.csv"), serializeCsv(columns, []), "utf-8");
@@ -2894,6 +2893,22 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   }
 
   return getAwnDataPayload(agentRoot, projectRoot, storeRel).store;
+}
+
+function ensureAwnDataMainCsvFile(agentRoot, projectRoot, storeRel) {
+  const { storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
+  const schema = loadMergedStoreSchema(storeAbs, dataRoot);
+  if (getRecordStorage(schema) !== "csv") {
+    throw new Error("Store is not a CSV table");
+  }
+  const csvPath = resolveCsvAbsPath(storeAbs, schema);
+  if (!fs.existsSync(csvPath)) {
+    const columns = getCsvColumnsFromSchema(schema);
+    fs.mkdirSync(path.dirname(csvPath), { recursive: true });
+    fs.writeFileSync(csvPath, serializeCsv(columns, []), "utf-8");
+  }
+  return getAwnDataPayload(agentRoot, projectRoot, rel).store;
 }
 
 function resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel) {
@@ -3266,9 +3281,7 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
         };
       }
       const hasAnyCustom = targets.some((kind) => Object.keys(blocks[kind]?.fields || {}).length > 0);
-      nextContent = hasAnyCustom
-        ? composeAwnDataStoreSchemeModYaml({ blocks, frameTypeId, includeEmptyBlocks: true })
-        : "";
+      nextContent = hasAnyCustom ? composeAwnDataStoreSchemeModYaml({ blocks }) : "";
     } else {
       const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
       const fields = normalizeAwnFieldsMap(
@@ -3600,6 +3613,7 @@ module.exports = {
   ensureAwnDataBase,
   createAwnDataStore,
   createAwnDataRecord,
+  ensureAwnDataMainCsvFile,
   buildStoreManifestContent,
   buildStoreMdContent,
   buildPlainManifestContent,

@@ -1,0 +1,7 @@
+version: 1
+layer: awn-database-store
+
+awn_schema:
+  record:
+    extends: awn.infoblock.element.record
+    fields:

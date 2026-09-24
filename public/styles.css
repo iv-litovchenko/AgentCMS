@@ -61597,6 +61597,15 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-left: auto;
 }
 
+.awn-database-view-columns-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.awn-database-view-toolbar .awn-database-view-columns-btn {
+  min-height: 26px;
+}
+
 .awn-database-view-toolbar .node-navigation-list-sort {
   margin-left: 0;
 }

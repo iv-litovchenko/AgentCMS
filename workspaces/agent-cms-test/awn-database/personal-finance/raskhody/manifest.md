@@ -1,5 +1,5 @@
 ---
-awn-name: Расходы
+awn-name: "Расходы"
 awn-preview: ""
 awn-web-url: ""
 awn-status: open

@@ -3,7 +3,6 @@ layer: awn-database-store
 
 awn_schema:
   frame:
-    extends: awn.infoblock.frame.single
     fields:
       awn-field-1:
         type: awn.field.string
@@ -15,12 +14,3 @@ awn_schema:
         name: ""
         placement: editor-body
         sort: 20
-  category:
-    extends: awn.infoblock.element.category
-    fields:
-  record:
-    extends: awn.infoblock.element.record
-    fields:
-  sidecar:
-    extends: awn.infoblock.element.sidecar
-    fields:

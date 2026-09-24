@@ -57,7 +57,12 @@ const {
   getPlatformSearchTuning,
   resolveSearchScopes
 } = require("./index-policy");
-const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
+const {
+  getWorkspaceIndexProgress,
+  startWorkspaceIndexProgress,
+  tickWorkspaceIndexProgress,
+  finishWorkspaceIndexProgress
+} = require("./workspace-index/progress");
 const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
 const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
 const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
@@ -307,6 +312,7 @@ const {
   getAwnDataPayload,
   createAwnDataStore,
   createAwnDataRecord,
+  ensureAwnDataMainCsvFile,
   readAwnDataStoreSchemaPayload,
   writeAwnDataStoreSchema,
   readAwnDataStoreProperty,
@@ -1923,11 +1929,14 @@ async function getWorkspaceIndexMonitorPayload() {
   });
 }
 
-function getIndexRunLogDeps() {
+function getIndexRunLogDeps(agentRoot = getAgentRoot()) {
   return {
-    collectSearchableFiles: (agentRoot) => collectSearchableFiles(agentRoot),
+    collectSearchableFiles: (root) => collectSearchableFiles(root),
     getIndexPolicy: getActiveIndexPolicy,
-    isEntityIndexExcluded
+    isEntityIndexExcluded,
+    startProgress: (layer, total) => startWorkspaceIndexProgress(agentRoot, layer, total),
+    tickProgress: (current, total, path) => tickWorkspaceIndexProgress(agentRoot, current, total, path),
+    finishProgress: () => finishWorkspaceIndexProgress(agentRoot)
   };
 }
 
@@ -21032,7 +21041,7 @@ async function handleApiForAgent(req, res, url) {
       const platformSettings = await getPlatformSettings(getProjectRoot());
       const steps = resolvePipelineSteps(platformSettings, payload);
       const startedAt = new Date().toISOString();
-      const indexedFiles = await collectPolicyIndexableFiles(agentRoot, getIndexRunLogDeps());
+      startWorkspaceIndexProgress(agentRoot, "pipeline", 0);
       const ocr = steps.ocr
         ? await getOcrIndexService().run({
             force: Boolean(payload?.forceOcr),
@@ -21055,6 +21064,7 @@ async function handleApiForAgent(req, res, url) {
       const workspaceId = steps["workspace-id"]
         ? await getWorkspaceIdService().syncCounterWithAssigned()
         : { ok: false, skipped: true, reason: "step_disabled" };
+      const indexedFiles = await collectPolicyIndexableFiles(agentRoot, getIndexRunLogDeps(agentRoot));
       const runLog = await writeIndexRunLog(agentRoot, {
         kind: "pipeline",
         startedAt,
@@ -21063,6 +21073,7 @@ async function handleApiForAgent(req, res, url) {
         enabledSteps: steps,
         steps: { ocr, fulltext, semantic, storage, link, workspaceId }
       });
+      finishWorkspaceIndexProgress(agentRoot);
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
@@ -21077,6 +21088,7 @@ async function handleApiForAgent(req, res, url) {
         runLog
       });
     } catch (error) {
+      finishWorkspaceIndexProgress(getAgentRoot());
       return sendJson(res, 500, {
         error: "Failed to run workspace index pipeline",
         details: String(error.message || error)
@@ -22456,6 +22468,23 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to create awn-database record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-database/main-csv") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      const store = ensureAwnDataMainCsvFile(agentRoot, getProjectRoot(), storeRel);
+      return sendJson(res, 201, { ok: true, store });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to create main.csv",
         details: String(error.message || error)
       });
     }

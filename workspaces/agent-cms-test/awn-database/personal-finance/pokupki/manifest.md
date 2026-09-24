@@ -1,5 +1,5 @@
 ---
-awn-name: Покупки
+awn-name: "Покупки"
 awn-preview: ""
 awn-web-url: ""
 awn-status: open

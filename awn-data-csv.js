@@ -8,16 +8,18 @@ const STORE_DATA_DIR = "data";
 
 function resolveCsvAbsPath(storeAbs, schema) {
   const csvFile = getCsvFileName(schema);
-  const nestedDir = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR);
-  const nested = path.join(nestedDir, csvFile);
   const flat = path.join(storeAbs, csvFile);
-  if (fs.existsSync(nested)) return nested;
   if (fs.existsSync(flat)) return flat;
-  if (fs.existsSync(nestedDir)) return nested;
+  const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR, csvFile);
+  if (fs.existsSync(nested)) return nested;
   return flat;
 }
 
 function formatCsvRecordRelPath(storeRel, csvFile, storeAbs) {
+  const flat = path.join(storeAbs, csvFile);
+  if (fs.existsSync(flat)) {
+    return `${storeRel}/${csvFile}`.replace(/\\/g, "/");
+  }
   const nested = path.join(storeAbs, STORE_STORAGE_ROOT, STORE_DATA_DIR, csvFile);
   if (fs.existsSync(nested)) {
     return `${storeRel}/${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}/${csvFile}`.replace(/\\/g, "/");

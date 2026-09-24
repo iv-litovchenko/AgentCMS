@@ -115,6 +115,60 @@
     return `${baseLabel}…`;
   }
 
+  const statusProgressPollers = new Map();
+
+  const PROGRESS_LAYER_LABELS = {
+    pipeline: "pipeline",
+    fulltext: "слова",
+    semantic: "смысл",
+    storage: "поля",
+    link: "связи",
+    ocr: "OCR",
+    "run-log": "лог"
+  };
+
+  function formatProgressStatusText(baseLabel, progress) {
+    if (!progress?.running) return baseLabel;
+    const layer = String(progress.layer || "").trim();
+    const current = Number(progress.current) || 0;
+    const total = Number(progress.total) || 0;
+    const path = String(progress.path || "").trim();
+    const label = PROGRESS_LAYER_LABELS[layer] || layer || baseLabel;
+    if (total > 0) {
+      const pathBit = path ? ` · ${path.split("/").pop()}` : "";
+      return `${label}: ${current}/${total}${pathBit}`;
+    }
+    return `${label}…`;
+  }
+
+  function startStatusProgressPolling(statusNode, baseLabel) {
+    if (!statusNode) return;
+    stopStatusProgressPolling(statusNode);
+    const poll = async () => {
+      try {
+        const response = await fetch(buildApiUrl("/api/workspace-index/progress"));
+        const progress = await response.json();
+        if (response.ok && progress?.running) {
+          statusNode.textContent = formatProgressStatusText(baseLabel, progress);
+        }
+      } catch {
+        // ignore transient polling errors
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 450);
+    statusProgressPollers.set(statusNode, timer);
+  }
+
+  function stopStatusProgressPolling(statusNode) {
+    if (!statusNode) return;
+    const timer = statusProgressPollers.get(statusNode);
+    if (timer) {
+      clearInterval(timer);
+      statusProgressPollers.delete(statusNode);
+    }
+  }
+
   function applyButtonProgress(button, layer, progress) {
     if (!button) return;
     const baseLabel = rememberButtonLabel(button);
@@ -637,10 +691,16 @@
   async function runRebuild(url, statusNode, okLabel, options = {}) {
     const progressButton = options.progressButton || null;
     const progressLayer = options.progressLayer || null;
+    const loadingLabel = options.loadingLabel || "Сборка…";
+    const useStatusPolling = Boolean(options.pollStatus && statusNode);
+
     if (progressButton && progressLayer) {
       startButtonProgressPolling(progressButton, progressLayer);
-    } else {
-      statusNode.textContent = options.loadingLabel || "Сборка…";
+    } else if (statusNode) {
+      statusNode.textContent = loadingLabel;
+    }
+    if (useStatusPolling) {
+      startStatusProgressPolling(statusNode, loadingLabel);
     }
 
     try {
@@ -651,14 +711,18 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || data.details || response.statusText);
-      statusNode.textContent = okLabel(data);
+      if (statusNode) statusNode.textContent = okLabel(data);
       if (url.includes("/api/storage-index/") && typeof window.invalidateContentSearchFieldCatalog === "function") {
         window.invalidateContentSearchFieldCatalog();
       }
       await refreshStatus();
       return data;
+    } catch (error) {
+      if (statusNode) statusNode.textContent = String(error.message || error);
+      return null;
     } finally {
       if (progressButton) stopButtonProgressPolling(progressButton);
+      if (useStatusPolling) stopStatusProgressPolling(statusNode);
     }
   }
 
@@ -1249,7 +1313,8 @@
         storageMode: getSelectedStorageMode(),
         ocrLimit: 200
       },
-      loadingLabel
+      loadingLabel,
+      pollStatus: true
     });
     if (!data) return;
     const resolvedSteps = data.steps || steps;
@@ -1280,7 +1345,7 @@
     pipelineStatusNode.textContent = runLogHint ? `${summary} · ${runLogHint}` : summary;
   });
 
-  bindActionButton(runLogBtn, async () => {
+  bindActionButton(runLogBtn, () => {
     openRunLogModal();
   });
 

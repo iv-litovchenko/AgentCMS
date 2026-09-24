@@ -1,5 +1,6 @@
 ---
-awn-name: "Доходы"
+awn-name: Тест
+awn-description: ""
 awn-preview: ""
 awn-web-url: ""
 awn-status: open
@@ -20,18 +21,17 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.frame.collection
-awn-create: 2026-09-24T08:26:05.300Z
-awn-update: 2026-09-24T08:26:05.300Z
+awn-create: 2026-09-24T08:49:46.852Z
+awn-update: 2026-09-24T08:49:46.852Z
 awn-version: 1
 awn-record-file-types: ""
-awn-description: "Источники дохода и зарплата"
-awn-collection-type: csv
-awn-record-storage: csv
+awn-collection-type: md
+awn-record-storage: md
 awn-record-id-mode: slug
-awn-record-file: main.csv
-awn-record-hierarchy: false
+awn-record-file: "{id}.md"
+awn-record-hierarchy: true
 ---
 
-# Доходы
+# Тест
 
-Источники дохода и зарплата
+manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/

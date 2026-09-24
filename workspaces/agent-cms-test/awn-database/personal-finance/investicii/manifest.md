@@ -1,5 +1,5 @@
 ---
-awn-name: Инвестиции
+awn-name: "Инвестиции"
 awn-preview: ""
 awn-web-url: ""
 awn-status: open

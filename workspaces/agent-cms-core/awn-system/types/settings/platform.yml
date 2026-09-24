@@ -347,10 +347,10 @@ fields:
         name: Markdown (.md)
       - key: ".sidecar.md"
         name: Markdown Sidecar (.sidecar.md)
-      - key: ".csv"
-        name: CSV (.csv)
       - key: ".html"
         name: HTML (.html)
+      - key: ".csv"
+        name: CSV (.csv)
       - key: ".txt"
         name: Text (.txt)
       - key: ".json"

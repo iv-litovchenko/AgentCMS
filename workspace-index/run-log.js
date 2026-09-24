@@ -16,29 +16,41 @@ async function collectPolicyIndexableFiles(agentRoot, deps = {}) {
     getIndexPolicy,
     isEntityIndexExcluded,
     requireNonEmpty = false,
-    readFileContent
+    readFileContent,
+    startProgress,
+    tickProgress,
+    finishProgress
   } = deps;
 
   if (typeof collectSearchableFiles !== "function") return [];
 
   const relFiles = await collectSearchableFiles(agentRoot);
+  if (typeof startProgress === "function") startProgress("run-log", relFiles.length);
   const policy = typeof getIndexPolicy === "function" ? await getIndexPolicy() : null;
   const eligible = [];
 
-  for (const relPath of relFiles) {
-    const normalized = normalizeRelPath(relPath);
-    if (!normalized) continue;
-    if (typeof isEntityIndexExcluded === "function" && (await isEntityIndexExcluded(normalized))) {
-      continue;
+  try {
+    for (let index = 0; index < relFiles.length; index += 1) {
+      const relPath = relFiles[index];
+      const normalized = normalizeRelPath(relPath);
+      if (typeof tickProgress === "function") {
+        tickProgress(index + 1, relFiles.length, normalized);
+      }
+      if (!normalized) continue;
+      if (typeof isEntityIndexExcluded === "function" && (await isEntityIndexExcluded(normalized))) {
+        continue;
+      }
+      if (policy && typeof policy.isIndexable === "function" && !policy.isIndexable(normalized)) {
+        continue;
+      }
+      if (requireNonEmpty && typeof readFileContent === "function") {
+        const content = await readFileContent(normalized);
+        if (!String(content || "").trim()) continue;
+      }
+      eligible.push(normalized);
     }
-    if (policy && typeof policy.isIndexable === "function" && !policy.isIndexable(normalized)) {
-      continue;
-    }
-    if (requireNonEmpty && typeof readFileContent === "function") {
-      const content = await readFileContent(normalized);
-      if (!String(content || "").trim()) continue;
-    }
-    eligible.push(normalized);
+  } finally {
+    if (typeof finishProgress === "function") finishProgress();
   }
 
   eligible.sort((a, b) => a.localeCompare(b, "ru"));

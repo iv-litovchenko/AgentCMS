@@ -2,6 +2,6 @@ version: 1
 layer: awn-database-store
 
 awn_schema:
-  frame:
-    extends: awn.infoblock.frame.group
+  record:
+    extends: awn.infoblock.element.record
     fields:
