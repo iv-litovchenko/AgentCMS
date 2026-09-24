@@ -4692,6 +4692,19 @@ async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
       }
       return true;
     }
+    if (resolved?.kind === "awnDataStore" || resolved?.kind === "awnDataRoot") {
+      const opened = await openAwnDataRouteFromWorkspacePath(
+        resolved.workspacePath || normalized,
+        activeAgentId,
+        options
+      );
+      if (opened) {
+        if (!options.skipRouteSync) {
+          syncAppRouteToUrl({ push: true });
+        }
+        return true;
+      }
+    }
   } catch {
     // not an adopt path
   }
@@ -4796,6 +4809,16 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
 
   if (isRepositoryWorkspaceRel(normalized)) {
     return openRepositoryWorkspacePath(normalized, options);
+  }
+
+  if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(normalized)) {
+    let routePath = normalized;
+    if (/\/manifest\.md$/i.test(routePath)) {
+      routePath = routePath.replace(/\/manifest\.md$/i, "");
+    } else if (/\.md$/i.test(routePath)) {
+      routePath = routePath.replace(/\.md$/i, "");
+    }
+    return openAwnDataRouteFromWorkspacePath(routePath, activeAgentId, options);
   }
 
   const parsed = parseStorageLayerRef(normalized);
@@ -23066,6 +23089,7 @@ function flattenAwnDataStoresForProjectSettings(stores = []) {
       .replace(/\/+$/, "");
     if (!storeRel || storeRel === "_base" || seen.has(storeRel)) return;
     seen.add(storeRel);
+    const schemaStatus = resolveProjectSettingsIblockSchemaStatus(store);
     scopes.push({
       path: buildProjectSettingsIblockScopePath(storeRel),
       label: String(store.name || store.id || storeRel).trim(),
@@ -23073,6 +23097,10 @@ function flattenAwnDataStoresForProjectSettings(stores = []) {
       storeRel,
       storeKind: store.kind || "collection",
       recordCount: resolveAwnDataRecordCount(store),
+      schemaPath: schemaStatus.schemaPath,
+      schemaExists: schemaStatus.schemaExists,
+      schemaFieldCount: schemaStatus.schemaFieldCount,
+      hasLocalSchema: schemaStatus.hasLocalSchema,
       stub: true
     });
   };
@@ -23096,6 +23124,51 @@ function collectProjectSettingsIblockScopes() {
   const payload = menuAwnDataStoresLastPayload;
   const stores = Array.isArray(payload?.stores) ? payload.stores : [];
   return flattenAwnDataStoresForProjectSettings(stores);
+}
+
+function resolveProjectSettingsIblockSchemaStatus(store) {
+  if (!store || store.kind === "group") {
+    return {
+      schemaPath: "",
+      schemaExists: false,
+      schemaFieldCount: 0,
+      hasLocalSchema: false
+    };
+  }
+  const schema = store.schema || {};
+  const storeRel = String(store.relPath || store.id || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  const schemeModRelPath = String(store.schemeModRelPath || "").replace(/\\/g, "/").trim();
+  const schemeModFile = String(store.schemeModFile || schema.schemeModFile || "").trim();
+  const schemaPath =
+    schemeModRelPath ||
+    (schemeModFile && storeRel ? `${storeRel}/${schemeModFile}`.replace(/\\/g, "/") : "");
+  const schemaExists = Boolean(schema.fieldsInSchemeMod || schemeModFile || schemeModRelPath);
+  const fieldsLocal = schema.fieldsLocal && typeof schema.fieldsLocal === "object" ? schema.fieldsLocal : {};
+  const schemaFieldCount = Object.keys(fieldsLocal).filter(Boolean).length;
+  return {
+    schemaPath,
+    schemaExists,
+    schemaFieldCount,
+    hasLocalSchema: schemaExists
+  };
+}
+
+function syncProjectSettingsIblockScopeStatusFromStores() {
+  for (const scope of collectProjectSettingsIblockScopes()) {
+    if (!scope?.path) continue;
+    mergeProjectSettingsScopeStatus(scope.path, {
+      schemaPath: scope.schemaPath || "",
+      schemaExists: Boolean(scope.schemaExists),
+      schemaFieldCount: Number(scope.schemaFieldCount) || 0,
+      hasLocalSchema: Boolean(scope.hasLocalSchema),
+      hasLocalValues: false,
+      valueCount: 0,
+      configExists: false
+    });
+  }
 }
 
 function collectProjectSettingsSidebarScopes() {
@@ -42802,11 +42875,35 @@ function extractAwnSchemaYamlFromConfig(content) {
 function getNodeSettingsFieldMeta(key, fieldDef) {
   return {
     label: getFieldDefDisplayName(fieldDef, key),
-    hint: String(fieldDef?.hint || fieldDef?.description || "").trim(),
+    hint: coerceSettingsTextValue(fieldDef?.hint || fieldDef?.description || "", ""),
     required: Boolean(fieldDef?.required),
     format: fieldDef?.format || "",
     fieldDef
   };
+}
+
+function coerceSettingsTextValue(value, fallback = "") {
+  const safeFallback = typeof fallback === "string" ? fallback : String(fallback ?? "");
+  if (value === null || value === undefined) return safeFallback;
+  if (typeof value === "string") {
+    const text = value.trim();
+    return !text || text === "[object Object]" ? safeFallback : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean).join("\n") || safeFallback;
+  }
+  if (typeof value === "object") return safeFallback;
+  return String(value);
+}
+
+function isInvalidNodeSettingsStoredValue(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") {
+    const text = value.trim();
+    return !text || text === "[object Object]";
+  }
+  if (typeof value === "object" && !Array.isArray(value)) return true;
+  return false;
 }
 
 function normalizeNodeSettingsEntryValue(entry, fieldDef) {
@@ -42848,14 +42945,19 @@ function buildNodeSettingsEntriesFromSchema(storedEntries, schemaFields) {
   for (const [key, fieldDef] of Object.entries(schemaFields || {})) {
     if (!key || !fieldDef || typeof fieldDef !== "object") continue;
     const existing = map.get(key);
-    const base = existing
-      ? normalizeNodeSettingsEntryValue(existing, fieldDef)
-      : {
-          key,
-          kind: fieldDefToEntryKind(fieldDef),
-          value: fieldDefDefaultValue(fieldDef),
-          fieldDef
-        };
+    const defaultValue = fieldDefDefaultValue(fieldDef);
+    const base =
+      existing && !isInvalidNodeSettingsStoredValue(existing.value)
+        ? normalizeNodeSettingsEntryValue(existing, fieldDef)
+        : {
+            key,
+            kind: fieldDefToEntryKind(fieldDef),
+            value: defaultValue,
+            fieldDef
+          };
+    if (fieldDefToEntryKind(fieldDef) === "string" || fieldTypeIs(fieldDef?.type, "text")) {
+      base.value = coerceSettingsTextValue(base.value, defaultValue);
+    }
     result.push({ ...base, key, fieldDef });
   }
   return result;
@@ -43016,6 +43118,16 @@ function patchProjectSettingsScopeListMarkers() {
     const path = btn.dataset.path;
     if (!path) continue;
     const status = getProjectSettingsScopeStatus(path);
+    if (isProjectSettingsIblockScope(path)) {
+      const hasSchemaFields = Boolean(status?.hasLocalSchema);
+      btn.classList.toggle("has-schema-values", hasSchemaFields);
+      btn.classList.toggle("is-empty-scope", !hasSchemaFields);
+      const markers = btn.querySelector(".project-settings-scope-markers");
+      if (markers) {
+        patchProjectSettingsScopeMarkerElement(markers.querySelector(".is-schema-kind"), "schema", hasSchemaFields);
+      }
+      continue;
+    }
     const hasConfigValues = Boolean(status?.hasLocalValues);
     const hasSchemaFields = Boolean(status?.hasLocalSchema);
     const hasEnvFile = projectSettingsScopeEnvMarkerLit(status);
@@ -43410,28 +43522,20 @@ function renderProjectSettingsScopeFilters(scopePath = getNodeSettingsManifestPa
   wrap.setAttribute("role", "note");
   wrap.setAttribute("aria-label", "Легенда файлов настроек");
 
-  const specs = [
-    { key: "schema", label: "schema.yml", className: "is-schema" },
-    { key: "config", label: "config.yml", className: "is-local" }
-  ];
-  if (projectSettingsScopeSupportsEnvEditor(scopePath)) {
-    specs.push({ key: "env", label: ".env", className: "is-env is-clickable" });
+  const isIblockScope = isProjectSettingsIblockScope(scopePath);
+  const specs = isIblockScope
+    ? [{ key: "schema", label: "schema.yml", className: "is-schema" }]
+    : [
+        { key: "schema", label: "schema.yml", className: "is-schema" },
+        { key: "config", label: "config.yml", className: "is-local" }
+      ];
+  if (!isIblockScope && projectSettingsScopeSupportsEnvEditor(scopePath)) {
+    specs.push({ key: "env", label: ".env", className: "is-env" });
   }
 
   for (const spec of specs) {
-    const item =
-      spec.key === "env"
-        ? document.createElement("button")
-        : document.createElement("span");
+    const item = document.createElement("span");
     item.className = `project-settings-scope-filter ${spec.className}`;
-    if (spec.key === "env") {
-      item.type = "button";
-      item.title = "Открыть редактор .env";
-      item.setAttribute("aria-label", "Открыть .env");
-      item.addEventListener("click", () => {
-        void openProjectSettingsEnvEditor(resolveProjectSettingsEnvEditorScope());
-      });
-    }
     item.append(createProjectSettingsScopeFilterMarker(spec.key), document.createTextNode(spec.label));
     wrap.appendChild(item);
   }
@@ -43448,9 +43552,12 @@ function syncProjectSettingsScopeLegend(scopePath = getNodeSettingsManifestPath(
 
 function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   const isActive = scope.path === activeScopePath;
-  const recordCount = Number(scope.recordCount) || 0;
   const storeRel = String(scope.storeRel || parseProjectSettingsIblockScopeRel(scope.path) || "").trim();
   const kindLabel = awnDataStoreKindLabel(scope.storeKind);
+  const schemaPath = String(scope.schemaPath || "").trim();
+  const schemaFieldCount = Number(scope.schemaFieldCount) || 0;
+  const hasSchemaFields = Boolean(scope.hasLocalSchema);
+  const isEmptyScope = !hasSchemaFields;
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -43459,12 +43566,19 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   btn.setAttribute("role", "tab");
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   btn.classList.toggle("is-active", isActive);
-  btn.classList.toggle("has-iblock-records", recordCount > 0);
+  btn.classList.toggle("has-schema-values", hasSchemaFields);
+  btn.classList.toggle("is-empty-scope", isEmptyScope);
   btn.title = [
     scope.label,
     storeRel ? `awn-database/${storeRel}` : "",
     kindLabel,
-    recordCount > 0 ? `${recordCount} записей` : "записей нет",
+    scope.storeKind === "group"
+      ? null
+      : hasSchemaFields
+        ? `${schemaPath || "schema.yml"}: ${schemaFieldCount > 0 ? `${schemaFieldCount} полей` : "есть schema.yml"}`
+        : scope.schemaExists
+          ? `${schemaPath || "schema.yml"}: файл есть, полей нет`
+          : `${schemaPath || "schema.yml"}: не создан`,
     "заглушка — редактор в разработке"
   ]
     .filter(Boolean)
@@ -43475,21 +43589,16 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   label.textContent = scope.label;
   btn.append(label);
 
-  const badges = document.createElement("span");
-  badges.className = "project-settings-scope-badges";
-  const badge = document.createElement("span");
-  badge.className = "project-settings-scope-badge is-iblock-badge";
-  badge.textContent = String(recordCount);
-  badge.title =
-    scope.storeKind === "group"
-      ? `${recordCount} справочников`
-      : scope.storeKind === "single"
-        ? recordCount > 0
-          ? "main.md заполнен"
-          : "main.md пуст"
-        : `${recordCount} записей`;
-  badges.append(badge);
-  btn.append(badges);
+  if (scope.storeKind !== "group") {
+    const statusWrap = document.createElement("span");
+    statusWrap.className = "project-settings-scope-status";
+
+    const markers = document.createElement("span");
+    markers.className = "project-settings-scope-markers";
+    markers.append(createProjectSettingsScopeMarker("schema", hasSchemaFields));
+    statusWrap.append(markers);
+    btn.append(statusWrap);
+  }
 
   btn.addEventListener("click", (event) => {
     void selectProjectSettingsScope(scope.path, { originButton: event.currentTarget });
@@ -43665,6 +43774,7 @@ function syncProjectSettingsScopeListUi(options = {}) {
 
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  syncProjectSettingsIblockScopeStatusFromStores();
   const focusedInList =
     document.activeElement instanceof HTMLElement &&
     projectSettingsScopeListNode.contains(document.activeElement);
@@ -43816,8 +43926,8 @@ function renderProjectSettingsScopeList() {
         scope.level
       );
       if (showNodeMarkers) {
-        const status = document.createElement("span");
-        status.className = "project-settings-scope-status";
+        const statusWrap = document.createElement("span");
+        statusWrap.className = "project-settings-scope-status";
 
         const markers = document.createElement("span");
         markers.className = "project-settings-scope-markers";
@@ -43826,8 +43936,8 @@ function renderProjectSettingsScopeList() {
           createProjectSettingsScopeMarker("config", hasConfigValues),
           createProjectSettingsScopeMarker("env", hasEnvValues, status)
         );
-        status.append(markers);
-        btn.append(status);
+        statusWrap.append(markers);
+        btn.append(statusWrap);
       }
 
       btn.addEventListener("click", (event) => {
@@ -43837,6 +43947,7 @@ function renderProjectSettingsScopeList() {
     }
     projectSettingsScopeListNode.appendChild(groupNode);
   }
+  patchProjectSettingsScopeListMarkers();
 }
 
 async function selectProjectSettingsAgentSettingsTab(scopePath, groupId, originButton = null) {
@@ -44509,8 +44620,8 @@ async function loadProjectSettingsContent(options = {}) {
       await bootstrapProjectSettingsData({ force: bootstrap || force });
     }
     const cache = await loadProjectSettingsScopeData({ force });
-    applyProjectSettingsPageUi(cache);
     renderProjectSettingsScopeList();
+    applyProjectSettingsPageUi(cache);
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
   } catch (error) {
@@ -44650,7 +44761,7 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     data = await loadNodeConfig(manifestPath, { force: true });
   }
 
-  const state = parseNodeSettingsState(data.content || "");
+  let state = parseNodeSettingsState(data.content || "");
   let settingsFields = {};
   if (isProjectSettingsAgentSettingsScope(manifestPath)) {
     const schemaBundle = await loadAgentSettingsSchemaBundle({
@@ -44660,6 +44771,12 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     });
     settingsFields = schemaBundle.settingsFields;
     settingsFieldGroups = schemaBundle.settingsFieldGroups;
+    if (isProjectSettingsGlobalScope(manifestPath) && data.settings && typeof data.settings === "object") {
+      state = {
+        ...state,
+        entries: NodeConfigBundle.settingsObjectToEntries(data.settings)
+      };
+    }
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
     if (isProjectSettingsGlobalScope(manifestPath) && data.meta) {
       state.entries = applyPlatformMetaToReadonlyEntries(state.entries, settingsFields, data.meta);
@@ -44712,7 +44829,7 @@ function formatNodeSettingsFieldLabel(key, fieldDef) {
 }
 
 function resolveNodeSettingsFieldDescription(fieldDef) {
-  return String(fieldDef?.description || "").trim();
+  return coerceSettingsTextValue(fieldDef?.description || "", "").trim();
 }
 
 function createNodeSettingsFieldDescriptionNode(fieldDef) {
@@ -44742,8 +44859,9 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
   if (readonly) row.classList.add("is-readonly");
   else if (locked) row.classList.add("is-readonly");
   const settingsWidget = resolvePropsFieldWidget(entry.key, fieldDef);
+  const isCompactChoiceWidget = ["enum-checkbox", "select-multiple", "radio"].includes(settingsWidget);
   if (
-    entryKind === "array" ||
+    (entryKind === "array" && !isCompactChoiceWidget) ||
     isFileFieldTypeId(fieldDef?.type) ||
     fieldTypeIs(typeId, "text") ||
     ["textarea", "code", "json", "object", "repeater"].includes(settingsWidget)
@@ -50125,7 +50243,22 @@ function fieldDefToEntryKind(fieldDef) {
 }
 
 function fieldDefDefaultValue(fieldDef) {
-  if (fieldDef?.default !== undefined) return fieldDef.default;
+  if (fieldDef?.default !== undefined) {
+    const kind = fieldDefToEntryKind(fieldDef);
+    if (kind === "array") {
+      return Array.isArray(fieldDef.default) ? [...fieldDef.default] : [];
+    }
+    if (kind === "bool") {
+      return Boolean(fieldDef.default);
+    }
+    if (kind === "number") {
+      return Number(fieldDef.default) || 0;
+    }
+    if (kind === "null") {
+      return null;
+    }
+    return coerceSettingsTextValue(fieldDef.default, "");
+  }
   const kind = fieldDefToEntryKind(fieldDef);
   if (kind === "array") return [];
   if (kind === "bool") return false;
@@ -50676,7 +50809,7 @@ function getPropsEntryDisplayValue(entry) {
   if (entry.kind === "number") {
     return String(entry.value);
   }
-  return String(entry.value ?? "");
+  return coerceSettingsTextValue(entry.value, "");
 }
 
 function applyFormValueToEntry(entry, rawValue) {
@@ -106210,16 +106343,21 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   wrap.className = "awn-database-view-record-id-wrap";
   const recordLabel = String(value || record?.id || "—").trim() || "—";
   const awnId = resolveAwnDataRecordAwnId(record);
+  const awnIdText = normalizeAwnIdDisplayValue(awnId);
+  const recordIdText = normalizeAwnIdDisplayValue(recordLabel);
+  const showRecordLabel = !awnIdText || recordIdText !== awnIdText;
 
   wrap.appendChild(createAwnDataViewRecordEditIconButton(record, viewStore, recordLabel));
-  const idLabel = document.createElement("span");
-  idLabel.className = "awn-database-view-record-id-label";
-  idLabel.textContent = recordLabel;
-  idLabel.title = recordLabel;
-  wrap.appendChild(idLabel);
+  if (showRecordLabel) {
+    const idLabel = document.createElement("span");
+    idLabel.className = "awn-database-view-record-id-label";
+    idLabel.textContent = recordLabel;
+    idLabel.title = recordLabel;
+    wrap.appendChild(idLabel);
+  }
 
-  if (awnId) {
-    const idBadge = createNavBookTocIdBadge(awnId);
+  if (awnIdText) {
+    const idBadge = createNavBookTocIdBadge(awnIdText);
     if (idBadge) {
       idBadge.classList.add("awn-database-view-record-awn-id-badge");
       wrap.appendChild(idBadge);

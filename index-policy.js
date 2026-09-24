@@ -4,10 +4,11 @@ const { normalizePlatformAgentSettings } = require("./workspace-agent-settings")
 const DEFAULT_INDEX_FILE_EXTENSIONS = [".md", ".sidecar.md"];
 
 const DEFAULT_INDEX_EXCLUDE_LINES = [
-  ".git",
-  ".agent-cms",
+  ".git/",
+  ".agent-cms/cache/",
   "node_modules/",
-  "awn-repositories/ !manifest.md !README.md"
+  "awn-temp/",
+  "*.mdback"
 ];
 
 const INDEX_FILE_EXTENSION_OPTIONS = [

@@ -242,6 +242,7 @@
       else if (typeof value === "boolean") entries.push({ key, kind: "bool", value });
       else if (typeof value === "number") entries.push({ key, kind: "number", value });
       else if (Array.isArray(value)) entries.push({ key, kind: "array", value: [...value] });
+      else if (typeof value === "object") continue;
       else entries.push({ key, kind: "string", value: String(value ?? "") });
     }
     return entries;

@@ -965,6 +965,14 @@
                     >
                       Полная цепочка (OCR → слова → смысл → поля → связи → id)
                     </button>
+                    <button
+                      type="button"
+                      id="menu-workspace-index-run-log-btn"
+                      class="menu-static-action-btn menu-static-action-btn--secondary"
+                      title="Список файлов из последнего прогона (.agent-cms/cache/indexes/last-run-files.txt)"
+                    >
+                      Лог индексирования
+                    </button>
                     <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
                     <p id="menu-workspace-index-policy-hint" class="menu-static-description menu-index-policy-hint" aria-live="polite"></p>
                   </div>
@@ -6089,6 +6097,24 @@
           </div>
           <pre id="file-history-preview-content" class="file-history-preview-content"></pre>
         </div>
+      </div>
+    </div>
+
+    <div id="workspace-index-run-log-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="workspace-index-run-log-title">
+      <div class="modal-card workspace-index-run-log-card">
+        <div class="workspace-index-run-log-header">
+          <div>
+            <div class="modal-message" id="workspace-index-run-log-title">Лог индексирования</div>
+            <p id="workspace-index-run-log-subtitle" class="workspace-index-run-log-subtitle"></p>
+          </div>
+          <button id="workspace-index-run-log-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="workspace-index-run-log-toolbar">
+          <input id="workspace-index-run-log-q" class="workspace-index-run-log-input" type="search" placeholder="Поиск по пути…" />
+          <button id="workspace-index-run-log-refresh-btn" class="menu-static-action-btn" type="button">Обновить</button>
+        </div>
+        <div id="workspace-index-run-log-meta" class="workspace-index-run-log-meta"></div>
+        <div id="workspace-index-run-log-list" class="workspace-index-run-log-list"></div>
       </div>
     </div>
 

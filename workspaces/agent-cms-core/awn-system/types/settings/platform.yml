@@ -362,34 +362,18 @@ fields:
     group: indexing
     sort: 27
 
-  index-path-prefixes:
-    type: awn.field.choice.many
-    title: Разделы workspace для индекса
-    description: Пустой список = весь workspace
-    default: []
-    enum:
-      - key: awn-storage/
-        name: awn-storage/
-      - key: awn-container/
-        name: awn-container/
-      - key: awn-shared/
-        name: awn-shared/
-      - key: codex-test/
-        name: codex-test/
-    group: indexing
-    sort: 28
-
   index-exclude-patterns:
     type: awn.field.text
     title: Исключить из индекса
     description: >
-      Одна строка — правило. Префикс пути; исключения файлов через !имя
-      (например awn-repositories/ !manifest.md !README.md).
+      Одна строка — правило. Префикс пути или glob (*.mdback);
+      исключения файлов через !имя (например repo/ !manifest.md).
     default: |
-      .git
-      .agent-cms
+      .git/
+      .agent-cms/cache/
       node_modules/
-      awn-repositories/ !manifest.md !README.md
+      awn-temp/
+      *.mdback
     group: indexing
     sort: 29
 

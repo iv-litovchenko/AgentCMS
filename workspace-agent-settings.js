@@ -27,7 +27,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "index-workspace-id-enabled": true,
   "index-storage-mode": "quick",
   "index-path-prefixes": [],
-  "index-exclude-patterns": ".git\n.agent-cms\nnode_modules/\nawn-repositories/ !manifest.md !README.md",
+  "index-exclude-patterns": ".git/\n.agent-cms/cache/\nnode_modules/\nawn-temp/\n*.mdback",
   "index-file-extensions": [".md", ".sidecar.md"],
   "search-default-scopes": ["semantic", "fulltext"],
   "search-semantic-chunk-size": "900",
@@ -124,6 +124,20 @@ function coerceSettingBoolean(value) {
   return Boolean(value);
 }
 
+function coerceSettingString(value, fallback = "") {
+  const safeFallback = typeof fallback === "string" ? fallback : String(fallback ?? "");
+  if (value === null || value === undefined) return safeFallback;
+  if (typeof value === "string") {
+    const text = value.trim();
+    return !text || text === "[object Object]" ? safeFallback : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean).join("\n") || safeFallback;
+  }
+  if (typeof value === "object") return safeFallback;
+  return String(value);
+}
+
 function flattenAwnSettingsValues(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const flat = {};
@@ -165,6 +179,8 @@ function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
           ? raw.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean)
           : [...defaultValue];
       }
+    } else if (typeof defaultValue === "string") {
+      normalized[key] = coerceSettingString(value, defaultValue);
     } else normalized[key] = String(value ?? defaultValue);
   }
   return normalized;

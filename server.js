@@ -44,6 +44,11 @@ const { allocateNextId, readCounter } = require("./workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const {
+  collectPolicyIndexableFiles,
+  writeIndexRunLog,
+  readIndexRunLog
+} = require("./workspace-index/run-log");
+const {
   buildIndexPolicy,
   resolvePipelineSteps,
   resolveOcrLangs,
@@ -1916,6 +1921,14 @@ async function getWorkspaceIndexMonitorPayload() {
     getOcrIndexStatus: () => getOcrIndexService().getStatus(),
     getWorkspaceIdStatus: () => getWorkspaceIdService().getStatus()
   });
+}
+
+function getIndexRunLogDeps() {
+  return {
+    collectSearchableFiles: (agentRoot) => collectSearchableFiles(agentRoot),
+    getIndexPolicy: getActiveIndexPolicy,
+    isEntityIndexExcluded
+  };
 }
 
 let identityService = null;
@@ -19503,6 +19516,20 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/workspace-index/run-log") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readIndexRunLog(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace index run log",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/workspace-index/progress") {
     try {
       const agentRoot = getAgentRoot();
@@ -21000,8 +21027,12 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/workspace-index/pipeline") {
     try {
       const payload = await readJsonBody(req).catch(() => ({}));
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const platformSettings = await getPlatformSettings(getProjectRoot());
       const steps = resolvePipelineSteps(platformSettings, payload);
+      const startedAt = new Date().toISOString();
+      const indexedFiles = await collectPolicyIndexableFiles(agentRoot, getIndexRunLogDeps());
       const ocr = steps.ocr
         ? await getOcrIndexService().run({
             force: Boolean(payload?.forceOcr),
@@ -21024,6 +21055,14 @@ async function handleApiForAgent(req, res, url) {
       const workspaceId = steps["workspace-id"]
         ? await getWorkspaceIdService().syncCounterWithAssigned()
         : { ok: false, skipped: true, reason: "step_disabled" };
+      const runLog = await writeIndexRunLog(agentRoot, {
+        kind: "pipeline",
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        files: indexedFiles,
+        enabledSteps: steps,
+        steps: { ocr, fulltext, semantic, storage, link, workspaceId }
+      });
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
@@ -21034,7 +21073,8 @@ async function handleApiForAgent(req, res, url) {
         semantic,
         storage,
         link,
-        workspaceId
+        workspaceId,
+        runLog
       });
     } catch (error) {
       return sendJson(res, 500, {

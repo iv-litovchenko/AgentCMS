@@ -11869,22 +11869,22 @@ body.app-locked {
 
 .project-settings-scope-marker.is-config-kind.has-value,
 .project-settings-scope-filter.is-local .project-settings-scope-marker.is-config-kind.has-value {
-  background: rgba(34, 197, 94, 0.95);
-  border-color: rgba(22, 163, 74, 0.95);
+  background: rgb(34, 197, 94);
+  border-color: rgb(22, 163, 74);
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
 }
 
 .project-settings-scope-marker.is-schema-kind.has-value,
 .project-settings-scope-filter.is-schema .project-settings-scope-marker.is-schema-kind.has-value {
-  background: rgba(139, 92, 246, 0.95);
-  border-color: rgba(124, 58, 237, 0.95);
+  background: rgb(139, 92, 246);
+  border-color: rgb(124, 58, 237);
   box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18);
 }
 
 .project-settings-scope-marker.is-env-kind.has-value,
 .project-settings-scope-filter.is-env .project-settings-scope-marker.is-env-kind.has-value {
-  background: rgba(245, 158, 11, 0.95);
-  border-color: rgba(217, 119, 6, 0.95);
+  background: rgb(245, 158, 11);
+  border-color: rgb(217, 119, 6);
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
 }
 
@@ -12180,18 +12180,15 @@ body.app-locked {
 }
 
 .project-settings-scope-item.is-active .project-settings-scope-marker.is-config-kind.has-value {
-  background: rgb(22, 163, 74);
-  border-color: rgb(21, 128, 61);
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 1px rgba(34, 197, 94, 0.18);
 }
 
 .project-settings-scope-item.is-active .project-settings-scope-marker.is-schema-kind.has-value {
-  background: rgb(124, 58, 237);
-  border-color: rgb(109, 40, 217);
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 1px rgba(139, 92, 246, 0.18);
 }
 
 .project-settings-scope-item.is-active .project-settings-scope-marker.is-env-kind.has-value {
-  background: rgb(217, 119, 6);
-  border-color: rgb(180, 83, 9);
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 1px rgba(245, 158, 11, 0.18);
 }
 
 .project-settings-scope-section {
@@ -12440,7 +12437,6 @@ body.app-locked {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
   white-space: normal;
 }
 
@@ -63550,6 +63546,91 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-action-btn--secondary:hover {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+.menu-index-block--pipeline .menu-static-action-btn--secondary {
+  margin-top: 6px;
+}
+
+.workspace-index-run-log-card {
+  width: min(920px, 96vw);
+  max-height: min(86vh, 920px);
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-index-run-log-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-index-run-log-subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.workspace-index-run-log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.workspace-index-run-log-input {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.workspace-index-run-log-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.workspace-index-run-log-list {
+  margin-top: 10px;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: min(62vh, 640px);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workspace-index-run-log-item {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.workspace-index-run-log-item:last-child {
+  border-bottom: none;
+}
+
+.workspace-index-run-log-item code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #0f172a;
+}
+
+.workspace-index-run-log-empty {
+  margin: 0;
+  padding: 16px 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.workspace-index-run-log-empty.is-error {
+  color: #b91c1c;
 }
 
 .menu-link-index-probe {

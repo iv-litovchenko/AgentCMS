@@ -750,7 +750,6 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
       "index-workspace-id-enabled",
       "index-storage-mode",
       "index-file-extensions",
-      "index-path-prefixes",
       "index-exclude-patterns",
       "search-default-scopes",
       "search-semantic-chunk-size",

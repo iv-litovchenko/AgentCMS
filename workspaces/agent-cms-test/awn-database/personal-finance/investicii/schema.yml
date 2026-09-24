@@ -1,0 +1,16 @@
+version: 1
+layer: awn-database-store
+
+awn_schema:
+  frame:
+    extends: awn.infoblock.frame.collection
+    fields:
+  category:
+    extends: awn.infoblock.element.category
+    fields:
+  record:
+    extends: awn.infoblock.element.record
+    fields:
+  sidecar:
+    extends: awn.infoblock.element.sidecar
+    fields:

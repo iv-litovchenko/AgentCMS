@@ -29,6 +29,7 @@
   const workspaceIdProbeBtn = document.getElementById("menu-workspace-id-probe-btn");
   const workspaceIdProbeResultNode = document.getElementById("menu-workspace-id-probe-result");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
+  const runLogBtn = document.getElementById("menu-workspace-index-run-log-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const indexPolicyHintNode = document.getElementById("menu-workspace-index-policy-hint");
   const storageModeSelect = document.getElementById("menu-storage-index-mode-select");
@@ -72,6 +73,20 @@
   const catalogNextBtn = document.getElementById("workspace-index-catalog-next-btn");
   const catalogCloseBtn = document.getElementById("workspace-index-catalog-close-btn");
   const catalogRefreshBtn = document.getElementById("workspace-index-catalog-refresh-btn");
+
+  const runLogModal = document.getElementById("workspace-index-run-log-modal");
+  const runLogSubtitle = document.getElementById("workspace-index-run-log-subtitle");
+  const runLogQ = document.getElementById("workspace-index-run-log-q");
+  const runLogMeta = document.getElementById("workspace-index-run-log-meta");
+  const runLogList = document.getElementById("workspace-index-run-log-list");
+  const runLogCloseBtn = document.getElementById("workspace-index-run-log-close-btn");
+  const runLogRefreshBtn = document.getElementById("workspace-index-run-log-refresh-btn");
+
+  const runLogState = {
+    loading: false,
+    files: [],
+    filter: ""
+  };
 
   const catalogState = {
     mode: "vector",
@@ -941,6 +956,92 @@
     catalogModal?.classList.add("hidden");
   }
 
+  function renderRunLogItems(files) {
+    if (!files.length) {
+      return '<p class="workspace-index-run-log-empty">Нет файлов по текущему фильтру.</p>';
+    }
+    return files
+      .map(
+        (filePath) =>
+          `<div class="workspace-index-run-log-item"><code>${escapeHtml(filePath)}</code></div>`
+      )
+      .join("");
+  }
+
+  function applyRunLogFilter() {
+    const query = String(runLogState.filter || "")
+      .trim()
+      .toLowerCase();
+    const files = query
+      ? runLogState.files.filter((filePath) => String(filePath).toLowerCase().includes(query))
+      : runLogState.files.slice();
+    if (runLogMeta) {
+      runLogMeta.textContent = query
+        ? `Показано ${files.length} из ${runLogState.files.length}`
+        : `Всего ${runLogState.files.length} файлов`;
+    }
+    if (runLogList) {
+      runLogList.innerHTML = renderRunLogItems(files);
+    }
+  }
+
+  async function loadRunLog() {
+    if (!runLogList || runLogState.loading) return;
+    runLogState.loading = true;
+    runLogList.innerHTML = '<p class="workspace-index-run-log-empty">Загрузка…</p>';
+    if (runLogMeta) runLogMeta.textContent = "";
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-index/run-log"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      if (!data.exists) {
+        runLogState.files = [];
+        if (runLogSubtitle) {
+          runLogSubtitle.textContent = data.hint || "Лог ещё не создан";
+        }
+        runLogList.innerHTML = `<p class="workspace-index-run-log-empty">${escapeHtml(
+          data.hint || "Лог ещё не создан — запустите полную цепочку индексирования."
+        )}</p>`;
+        if (runLogMeta && data.path) {
+          runLogMeta.textContent = data.path;
+        }
+        return;
+      }
+      runLogState.files = Array.isArray(data.files) ? data.files : [];
+      if (runLogSubtitle) {
+        const parts = [];
+        if (data.builtAt) parts.push(data.builtAt);
+        if (data.kind) parts.push(data.kind);
+        if (data.durationMs != null) parts.push(`${data.durationMs} ms`);
+        runLogSubtitle.textContent = parts.join(" · ");
+      }
+      if (runLogMeta) {
+        const pathParts = [data.path, data.jsonPath].filter(Boolean);
+        runLogMeta.textContent = pathParts.length ? pathParts.join(" · ") : "";
+      }
+      applyRunLogFilter();
+    } catch (error) {
+      runLogState.files = [];
+      runLogList.innerHTML = `<p class="workspace-index-run-log-empty is-error">${escapeHtml(
+        error.message || error
+      )}</p>`;
+      if (runLogSubtitle) runLogSubtitle.textContent = "";
+      if (runLogMeta) runLogMeta.textContent = "";
+    } finally {
+      runLogState.loading = false;
+    }
+  }
+
+  function openRunLogModal() {
+    if (!runLogModal) return;
+    runLogModal.classList.remove("hidden");
+    void loadRunLog();
+  }
+
+  function closeRunLogModal() {
+    runLogModal?.classList.add("hidden");
+  }
+
   function lockIndexingButton(button, hint = OCR_DISABLED_HINT) {
     if (!button) return;
     button.disabled = true;
@@ -1171,7 +1272,16 @@
     if (resolvedSteps["workspace-id"] && data.workspaceId && !data.workspaceId.skipped) {
       parts.push(`id ${data.workspaceId.assignedCount || 0}`);
     }
-    pipelineStatusNode.textContent = parts.length ? `Готово · ${parts.join(" · ")}` : "Готово";
+    const runLogHint =
+      data.runLog?.fileCount != null
+        ? `лог ${data.runLog.fileCount} файлов → ${data.runLog.logPath || ".agent-cms/cache/indexes/last-run-files.txt"}`
+        : "";
+    const summary = parts.length ? `Готово · ${parts.join(" · ")}` : "Готово";
+    pipelineStatusNode.textContent = runLogHint ? `${summary} · ${runLogHint}` : summary;
+  });
+
+  bindActionButton(runLogBtn, async () => {
+    openRunLogModal();
   });
 
   applyOcrIndexingFeatureGate();
@@ -1316,9 +1426,26 @@
     loadCatalogPage();
   });
 
+  runLogCloseBtn?.addEventListener("click", closeRunLogModal);
+  runLogModal?.addEventListener("click", (event) => {
+    if (event.target === runLogModal) closeRunLogModal();
+  });
+  runLogRefreshBtn?.addEventListener("click", () => {
+    void loadRunLog();
+  });
+  runLogQ?.addEventListener("input", () => {
+    runLogState.filter = runLogQ.value || "";
+    applyRunLogFilter();
+  });
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && catalogModal && !catalogModal.classList.contains("hidden")) {
+    if (event.key !== "Escape") return;
+    if (catalogModal && !catalogModal.classList.contains("hidden")) {
       closeCatalog();
+      return;
+    }
+    if (runLogModal && !runLogModal.classList.contains("hidden")) {
+      closeRunLogModal();
     }
   });
 

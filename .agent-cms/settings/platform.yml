@@ -33,12 +33,12 @@ awn_settings:
   index-file-extensions:
     - .md
     - .sidecar.md
-  index-path-prefixes: []
   index-exclude-patterns: |
-    .git
-    .agent-cms
+    .git/
+    .agent-cms/cache/
     node_modules/
-    awn-repositories/ !manifest.md !README.md
+    awn-temp/
+    *.mdback
   search-default-scopes:
     - semantic
     - fulltext

@@ -211,6 +211,8 @@ function settingsObjectToEntries(settingsObj) {
       entries.push({ key, kind: "number", value });
     } else if (Array.isArray(value)) {
       entries.push({ key, kind: "array", value: [...value] });
+    } else if (typeof value === "object") {
+      continue;
     } else {
       entries.push({ key, kind: "string", value: String(value ?? "") });
     }

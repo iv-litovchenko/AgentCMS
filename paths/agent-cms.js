@@ -18,7 +18,9 @@ const rel = {
     storage: `${ROOT}/cache/indexes/storage`,
     fulltext: `${ROOT}/cache/indexes/fulltext`,
     link: `${ROOT}/cache/indexes/link`,
-    ocr: `${ROOT}/cache/indexes/ocr`
+    ocr: `${ROOT}/cache/indexes/ocr`,
+    lastRunJson: `${ROOT}/cache/indexes/last-run.json`,
+    lastRunFiles: `${ROOT}/cache/indexes/last-run-files.txt`
   },
   cache: {
     dir: `${ROOT}/cache`,
