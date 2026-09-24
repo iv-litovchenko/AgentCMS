@@ -29,7 +29,9 @@ awn-record-storage: md
 awn-record-id-mode: slug
 awn-record-hierarchy: true
 awn-record-file-types: "image/*"
+awn-id: 32
 ---
+
 
 # Файлы
 

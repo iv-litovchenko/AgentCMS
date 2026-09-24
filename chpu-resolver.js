@@ -311,6 +311,22 @@ async function tryMarkdownFile(agentRoot, relPath) {
   return { mdRel, absolute };
 }
 
+function normalizeAwnDataRecordIdFromTail(tailSegments) {
+  if (!Array.isArray(tailSegments) || !tailSegments.length) return null;
+  const tailStr = tailSegments.join("/").replace(/\\/g, "/").replace(/^\/+/, "");
+  const dataPrefix = "awn-storage/data/";
+  const lower = tailStr.toLowerCase();
+  const dataIndex = lower.indexOf(dataPrefix);
+  if (dataIndex >= 0) {
+    return tailStr
+      .slice(dataIndex + dataPrefix.length)
+      .replace(/\/manifest\.md$/i, "")
+      .replace(/\.md$/i, "")
+      .replace(/\.csv$/i, "");
+  }
+  return tailStr.replace(/\.md$/i, "").replace(/\.csv$/i, "");
+}
+
 async function resolveAwnDataPath(agentRoot, chpuPath) {
   const normalized = String(chpuPath || "")
     .replace(/\\/g, "/")
@@ -330,7 +346,7 @@ async function resolveAwnDataPath(agentRoot, chpuPath) {
     if (!hasStore) continue;
 
     const tail = segments.slice(len);
-    const recordId = tail.length ? tail.join("/").replace(/\.md$/i, "") : null;
+    const recordId = tail.length ? normalizeAwnDataRecordIdFromTail(tail) : null;
     const storeRel = dirRel.replace(/^awn-database\/?/i, "");
     const workspacePath = recordId ? `${dirRel}/${recordId}` : dirRel;
     return {

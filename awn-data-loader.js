@@ -10,7 +10,8 @@ const {
   appendCsvRecord,
   serializeCsv,
   parseCsvText,
-  resolveCsvAbsPath
+  resolveCsvAbsPath,
+  formatCsvRecordRelPath
 } = require("./awn-data-csv");
 const {
   SCHEMA_MOD_FILE,
@@ -1659,6 +1660,13 @@ function loadStore(dataRoot, storeEntry) {
     }
   }
 
+  const csvFileName = recordStorage === "csv" ? getCsvFileName(schema) : "";
+  const csvRecordFileRelPath =
+    recordStorage === "csv" ? formatCsvRecordRelPath(storeRel, csvFileName, storeAbs) : "";
+  const csvUsesNestedLayout =
+    Boolean(csvRecordFileRelPath) &&
+    csvRecordFileRelPath.includes(`${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}/`);
+
   const payload = {
     id,
     relPath: storeRel,
@@ -1683,19 +1691,24 @@ function loadStore(dataRoot, storeEntry) {
       kind === "single"
         ? SINGLETON_RECORD
         : kind === "collection" && recordStorage === "csv"
-          ? getCsvFileName(schema)
+          ? csvFileName
           : null,
     recordFileExists:
       recordStorage === "csv" ? fs.existsSync(resolveCsvAbsPath(storeAbs, schema)) : undefined,
+    recordFileRelPath: recordStorage === "csv" ? csvRecordFileRelPath : undefined,
     storageLayout:
       recordStorage === "csv"
-        ? "flat"
+        ? csvUsesNestedLayout
+          ? "storage-data"
+          : "flat"
         : usesStoreStorageDataLayout(storeAbs)
           ? "storage-data"
           : "flat",
     recordRoot:
       recordStorage === "csv"
-        ? ""
+        ? csvUsesNestedLayout
+          ? `${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}`
+          : ""
         : usesStoreStorageDataLayout(storeAbs)
           ? `${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}`
           : "",

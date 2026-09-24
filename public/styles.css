@@ -61602,9 +61602,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   flex-shrink: 0;
 }
 
-.awn-database-view-toolbar .awn-database-view-columns-btn {
-  height: 26px;
-  min-height: 26px;
+.awn-database-view-columns-sort {
+  margin-left: 0;
 }
 
 .awn-database-view-toolbar .node-navigation-list-sort {
@@ -61612,7 +61611,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-toolbar .node-navigation-list-sort-toggle {
-  min-height: 26px;
+  min-height: 30px;
 }
 
 .awn-database-view-toolbar .node-navigation-list-sort-btn.folder-browse-images-cols-btn {
@@ -61628,11 +61627,38 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-toolbar .awn-database-view-layout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 28px;
-  width: auto;
+  width: 28px;
   height: 26px;
+  padding: 0;
   font-size: 12px;
   line-height: 1;
+}
+
+.awn-database-view-layout-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.awn-database-view-layout-btn-icon svg {
+  display: block;
+}
+
+.awn-database-view-records-toc {
+  margin-top: 0.1rem;
+}
+
+.awn-database-view-records-toc .nav-book-toc-link {
+  width: 100%;
+}
+
+.awn-database-view-records-toc .nav-book-toc-entry.is-system .nav-book-toc-link-text {
+  opacity: 0.72;
 }
 
 .awn-database-view-section-panel {
@@ -62100,11 +62126,69 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #fff;
 }
 
+.awn-database-view-section-tree-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.awn-database-view-section-tree-row.is-nested {
+  /* depth handled on item via --tree-depth */
+}
+
+.awn-database-view-section-tree-row .awn-database-view-section-tree-item {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.awn-database-view-section-tree-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  align-self: center;
+  margin-right: 0.15rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.awn-database-view-section-tree-row:hover .awn-database-view-section-tree-actions,
+.awn-database-view-section-tree-row.is-active .awn-database-view-section-tree-actions,
+.awn-database-view-section-tree-row:focus-within .awn-database-view-section-tree-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.awn-database-view-section-tree-id {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.awn-database-view-section-tree-id .awn-database-view-record-id-assign-btn {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  font-size: 0.625rem;
+}
+
+.awn-database-view-section-tree-actions .awn-database-view-edit-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.awn-database-view-section-tree-actions .awn-database-view-edit-btn svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .awn-database-view-section-tree-item {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  width: 100%;
   box-sizing: border-box;
   padding: 0.32rem 0.45rem;
   padding-left: calc(0.45rem + var(--tree-depth, 0) * 0.9rem);
@@ -62124,6 +62208,12 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-section-tree-item.is-active {
+  background: #f5f3ff;
+  color: #5b21b6;
+  font-weight: 600;
+}
+
+.awn-database-view-section-tree-row.is-active .awn-database-view-section-tree-item {
   background: #f5f3ff;
   color: #5b21b6;
   font-weight: 600;
@@ -62558,6 +62648,21 @@ body.is-cms-page-picker-active #discuss-aside * {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+}
+
+.awn-database-view-record-grid-footer-main .folder-browse-image-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.awn-database-view-record-grid-footer-main .folder-browse-image-size {
+  flex-shrink: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .awn-database-view-record-grid-footer-actions {
