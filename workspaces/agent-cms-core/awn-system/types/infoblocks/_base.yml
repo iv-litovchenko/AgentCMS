@@ -10,3 +10,9 @@ description: >
 
 form:
   panel-title: "{A2!} Свойства инфоблока"
+
+field-groups:
+  - id: infoblock
+    name: "{A2!} Накопитель"
+    description: Формат хранения и файлы записей
+    collapsed: false

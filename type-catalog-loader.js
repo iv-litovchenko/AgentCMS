@@ -1111,7 +1111,7 @@ function loadPageTypesFromCatalog(projectRoot, agentRoot = "") {
   const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const types = {};
 
-  for (const domain of ["pages", "content"]) {
+  for (const domain of ["pages", "content", "infoblock"]) {
     for (const entry of byDomain[domain] || []) {
       if (!isTypeActive(entry)) continue;
       const def = toRecordTypeDef(entry, byId);

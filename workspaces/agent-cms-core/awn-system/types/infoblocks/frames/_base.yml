@@ -5,3 +5,31 @@ domain: infoblock
 status: active
 extends: awn.infoblock.base
 description: Каркас инфоблока в awn-database/ — manifest.md, schema.yml, без собственных записей content
+
+fields:
+  awn-collection-type:
+    type: awn.field.choice.one
+    title: "{A2!} Тип коллекции"
+    description: md — md-файлы; csv-files — отдельный .csv на запись; csv — одна таблица main.csv; files — загрузка файлов
+    placement: aside-body
+    group: infoblock
+    sort: 1
+    enum: [md, csv-files, csv, files]
+    default: md
+
+  awn-record-storage:
+    type: awn.field.string
+    title: "{A2!} Хранилище записей"
+    description: Формат хранения данных в awn-storage/data/
+    placement: aside-body
+    group: infoblock
+    sort: 2
+    locked: true
+
+  awn-record-file:
+    type: awn.field.string
+    title: "{A2!} Шаблон файла записи"
+    description: "main.md, main.csv или {id}.md"
+    placement: aside-body
+    group: infoblock
+    sort: 3

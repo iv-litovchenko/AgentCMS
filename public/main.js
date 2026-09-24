@@ -48949,24 +48949,14 @@ function mergeClientTypeDefinition(typeName) {
 
   const types = awnTypesCache.types;
   const cached = types[normalized];
-  if (cached?.fields && Object.keys(cached.fields).length) {
-    return {
-      ...cached,
-      id: normalized,
-      name: cached.name || normalized,
-      fieldGroups: resolveTypeFieldGroups(normalized) || cached.fieldGroups || null,
-      fields: { ...cached.fields }
-    };
-  }
 
-  const visited = new Set();
-  const mergeFields = (name) => {
+  const mergeFields = (name, visited = new Set()) => {
     const key = normalizeAwnTypeName(name);
     if (!key || visited.has(key)) return {};
     visited.add(key);
     const def = types[key];
     if (!def) return {};
-    let fields = def.extends ? mergeFields(def.extends) : {};
+    let fields = def.extends ? mergeFields(def.extends, visited) : {};
     if (def.fields && typeof def.fields === "object") {
       for (const [fieldKey, patch] of Object.entries(def.fields)) {
         fields[fieldKey] = { ...(fields[fieldKey] || {}), ...patch };
@@ -48975,15 +48965,31 @@ function mergeClientTypeDefinition(typeName) {
     return fields;
   };
 
+  const mergeForm = (name, visited = new Set()) => {
+    const key = normalizeAwnTypeName(name);
+    if (!key || visited.has(key)) return null;
+    visited.add(key);
+    const def = types[key];
+    if (!def) return null;
+    let form = def.extends ? mergeForm(def.extends, visited) : null;
+    if (def.form && typeof def.form === "object") {
+      form = { ...(form || {}), ...def.form };
+    }
+    return form;
+  };
+
   const fields = mergeFields(normalized);
-  if (!Object.keys(fields).length) return cached || null;
+  const form = mergeForm(normalized);
+  if (!cached && !Object.keys(fields).length) return null;
+
   return {
     ...(cached || {}),
     id: normalized,
     name: cached?.name || normalized,
     kind: cached?.kind || "type",
+    form: form || cached?.form || null,
     fieldGroups: resolveTypeFieldGroups(normalized) || cached?.fieldGroups || null,
-    fields
+    fields: Object.keys(fields).length ? fields : cached?.fields ? { ...cached.fields } : {}
   };
 }
 
@@ -52813,8 +52819,10 @@ function renderPropsWebUrlBlock() {
 const DEFAULT_PROPS_FIELD_GROUPS = [
   { id: "content", name: "Основное", collapsed: false },
   { id: "work-note", name: "Служебная заметка", collapsed: false },
+  { id: "infoblock", name: "Накопитель", collapsed: false },
   { id: "nav", name: "Дерево и вид", collapsed: true },
   { id: "runtime", name: "Runtime агента", collapsed: true },
+  { id: "indexing", name: "Индексирование", collapsed: true },
   { id: "taxonomy", name: "Таксономия", collapsed: true },
   { id: "system", name: "Системные", collapsed: true }
 ];
@@ -52847,7 +52855,13 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-type": "system",
   "awn-create": "system",
   "awn-update": "system",
-  "awn-version": "system"
+  "awn-version": "system",
+  "awn-collection-type": "infoblock",
+  "awn-record-storage": "infoblock",
+  "awn-record-file": "infoblock",
+  "awn-record-file-types": "infoblock",
+  "awn-record-hierarchy": "infoblock",
+  "awn-index-exclude": "indexing"
 };
 
 const PROPS_GROUP_COLLAPSE_STORAGE_KEY = "agent-cms:props-group-collapsed";
