@@ -60087,6 +60087,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   border: none;
   border-radius: 0;
   background: transparent;
+  padding: 0;
 }
 
 .awn-database-view-elements-main.is-group-mode .awn-database-view-elements-head {
@@ -60101,6 +60102,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   border: none;
   border-radius: 0;
   background: transparent;
+  padding: 0;
 }
 
 .awn-database-view-store-panel.is-loading {
@@ -62295,20 +62297,23 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-table-wrap {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #fff;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   overflow-x: auto;
+  padding: 0;
 }
 
 .awn-database-view-table-wrap:has(.awn-database-view-records-toc) {
   border: none;
   border-radius: 0;
   background: transparent;
+  padding: 0;
 }
 
 .awn-database-view-records {
   overflow: visible;
+  padding-bottom: 0;
 }
 
 .awn-database-view-empty {
@@ -62361,6 +62366,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-record-row:last-child td {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
 .awn-database-view-record-row.is-system td {

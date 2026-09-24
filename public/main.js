@@ -29022,14 +29022,14 @@ function revealAwnDatabaseManifestEditorShell() {
 function applyAwnDatabaseEditorPropertiesFromContent(rawContent, nodePath = getResolvedNodePath(activePath)) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (isAwnDatabaseCsvRecordContentPath(normalized)) {
-    setPropsYamlContent("");
+    setPropsYamlContent("", { skipRender: true });
     return;
   }
   if (!isAwnDatabaseManifestPath(normalized) && !isAwnDatabaseRecordContentPath(normalized)) {
     return;
   }
   const { frontmatter } = splitFrontmatter(String(rawContent || ""));
-  setPropsYamlContent(frontmatter);
+  setPropsYamlContent(frontmatter, { skipRender: true });
 }
 
 function setContentMode(mode) {
@@ -42167,6 +42167,16 @@ function getTopicSchemaTargetLabel(targetId) {
 }
 
 function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
+  if (cache?.isAwnDatabaseSchema) {
+    const storeShape = {
+      awnSchema: getTopicSchemaCustomFieldsSource(cache) || cache.awnSchema || {},
+      frameTypeId:
+        String(cache.frameTypeId || cache.awnSchema?.frame?.extends || "").trim() || "",
+      baseTypes: cache.baseTypes || {}
+    };
+    return resolveAwnDataSchemaBaseType(target, storeShape);
+  }
+
   const typeName = normalizeAwnTypeName(
     getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target]
   );
@@ -42195,6 +42205,13 @@ function getTopicSchemaCustomFieldsForTarget(target, cache) {
 }
 
 function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
+  if (cache?.isAwnDatabaseSchema) {
+    const fromMerged = cache.merged?.[target];
+    if (fromMerged?.fields && Object.keys(fromMerged.fields).length) {
+      return fromMerged;
+    }
+  }
+
   const customFields = getTopicSchemaCustomFieldsForTarget(target, cache);
   const base = resolveTopicSchemaBaseType(target, cache);
   if (base) {
@@ -45207,6 +45224,7 @@ async function saveNodeSettingsContent() {
 
 function getTopicSchemaManifestPath(nodePath = getResolvedNodePath(activePath)) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
+  if (isAwnDatabaseManifestPath(normalized)) return normalized;
   if (isAgentRootIndexPath(normalized)) return normalized;
   if (isAreaNodePath(normalized)) return normalized;
   if (isTopicManifestPath(normalized)) return normalized;
@@ -45342,6 +45360,12 @@ function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath(), conten
   const cacheKey = getTopicSchemaCacheKey(manifestPath, schemaContentPath);
   if (!cacheKey) return null;
   return topicSchemaCacheByManifest.get(cacheKey) || null;
+}
+
+function hasTopicSchemaCacheForContext(manifestPath = getTopicSchemaManifestPath(), contentPath = undefined) {
+  const normalizedManifest = String(manifestPath || "").replace(/\\/g, "/");
+  if (!normalizedManifest) return false;
+  return Boolean(getTopicSchemaCache(normalizedManifest, contentPath));
 }
 
 function resolveOverviewSchemaContentPath(context = activeEntryOverviewContext) {
@@ -48966,8 +48990,12 @@ function mergeClientTypeDefinition(typeName) {
 function buildContentTypeDef(resolvedType, target, cache) {
   const canonicalTypeDef = mergeClientTypeDefinition(resolvedType);
   const customFields = cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
-  const fieldGroups =
+  let fieldGroups =
     resolveTypeFieldGroups(resolvedType) || canonicalTypeDef?.fieldGroups || null;
+  if (cache?.isAwnDatabaseSchema) {
+    const tabGroups = resolveAwnDatabaseSchemaFieldGroups(cache, target);
+    if (tabGroups?.length) fieldGroups = tabGroups;
+  }
 
   if (canonicalTypeDef?.fields) {
     return {
@@ -48985,13 +49013,29 @@ function buildContentTypeDef(resolvedType, target, cache) {
       name: merged.name || resolvedType,
       kind: merged.kind || "type",
       fields: merged.fields,
-      form: merged.form,
+      form: merged.form || canonicalTypeDef?.form,
       fieldGroups: fieldGroups || merged.fieldGroups
     };
   }
 
   if (!canonicalTypeDef) return null;
   return { name: resolvedType, ...canonicalTypeDef, fieldGroups };
+}
+
+function resolveAwnDatabaseSchemaFieldGroups(cache, target) {
+  const tabs = cache?.awnSchema?.[target]?.tabs;
+  if (tabs && typeof tabs === "object" && Object.keys(tabs).length) {
+    return Object.entries(tabs)
+      .map(([id, def]) => ({
+        id: String(id),
+        name: String(def?.title || def?.name || id).trim() || id,
+        collapsed: Boolean(def?.collapsed),
+        sort: Number(def?.sort) || 0
+      }))
+      .sort((left, right) => left.sort - right.sort || left.name.localeCompare(right.name, "ru"))
+      .map(({ id, name, collapsed }) => ({ id, name, collapsed }));
+  }
+  return null;
 }
 
 function inferAwnTypeFromRelPath(relPath, options = {}) {
@@ -53108,7 +53152,7 @@ function renderEditorCustomPropsBar() {
   }
 
   const manifestPath = getTopicSchemaManifestPath();
-  if (manifestPath && !getTopicSchemaCache(manifestPath, "")) {
+  if (manifestPath && !hasTopicSchemaCacheForContext(manifestPath)) {
     void ensureTopicSchemaForActiveContext().then(() => {
       if (shouldShowEditorCustomPropsBar() && !propsRawYamlVisible) renderEditorCustomPropsBar();
     });
@@ -58102,7 +58146,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   return row;
 }
 
-function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
+function setPropsYamlContent(content, { preserveRawMode = false, skipRender = false } = {}) {
   propsInputNode.value = content || "";
   absorbPropsYamlEntries(parsePropsYaml(content || ""));
   if (!preserveRawMode) {
@@ -58110,6 +58154,11 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     propsRawYamlVisible = false;
     propsInputNode.classList.add("hidden");
     setPropsYamlToggleLabel("Показать YAML");
+  }
+  if (skipRender) {
+    syncTitleDescriptionFromNode(getActiveTitleEditorPath());
+    syncTitleIdFromNode(getActiveTitleEditorPath());
+    return;
   }
   if (shouldRenderPropsFormNow()) {
     renderPropsForm();
@@ -87601,6 +87650,9 @@ function appendBreadcrumbCrumb(
   label,
   { className = "", isCurrent = false, onClick = null, title = "", store = null, withIcon = false } = {}
 ) {
+  const normalizedLabel = String(label || "").trim();
+  if (!normalizedLabel) return;
+
   const clickable = Boolean(onClick) && !isCurrent;
   const crumbNode = clickable ? document.createElement("button") : document.createElement("span");
   if (clickable) {
@@ -87627,7 +87679,7 @@ function appendBreadcrumbCrumb(
 
   const labelNode = document.createElement("span");
   labelNode.className = "breadcrumb-crumb-label";
-  labelNode.textContent = label;
+  labelNode.textContent = normalizedLabel;
   crumbNode.appendChild(labelNode);
 
   if (title) crumbNode.title = title;
@@ -103511,6 +103563,7 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
       schemaPath: storeCache.schemeModRelPath || `${storeRel}/schema.yml`,
       schemaExists: true,
       isAwnDatabaseSchema: true,
+      frameTypeId: storeCache.frameTypeId || "",
       awnDatabaseStoreRel: storeRel,
       awnDatabaseSchemaTarget: schemaTarget,
       awnSchema: storeCache.awnSchema,
@@ -105746,13 +105799,15 @@ async function openAwnDatabaseManifestContentEditor({ label, filePath, storeRel,
     }
 
     applyAwnDatabaseEditorPropertiesFromContent(fileContent, nextPath);
+    await ensureTopicSchemaForActiveContext().catch(() => null);
     applyNodeManifestBody(modeContentCache.description || "");
-    void ensureTopicSchemaForActiveContext().catch(() => null);
     syncTitleFieldsFromNode(activePath);
     refreshEditorViewContent();
 
     applyModeUi({ skipAwnDataLoad: true, skipWorkspaceUi: true });
-    applyNodeWorkspaceViewUi();
+    applyNodeWorkspaceViewUi({ skipBreadcrumbs: true });
+    updateBreadcrumbsForActiveMode();
+    if (shouldRenderPropsFormNow()) renderPropsForm();
   } catch (error) {
     awnDataManifestEditReturnRel = "";
     awnDataManifestEditReturnRecordId = "";
