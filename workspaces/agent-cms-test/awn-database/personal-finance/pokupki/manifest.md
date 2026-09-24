@@ -20,15 +20,15 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.frame.collection
-awn-create: 2026-09-24T08:17:41.081Z
-awn-update: 2026-09-24T08:17:41.081Z
+awn-create: 2026-09-24T08:26:06.705Z
+awn-update: 2026-09-24T08:26:06.705Z
 awn-version: 1
 awn-record-file-types: ""
 awn-description: "План и история покупок"
-awn-collection-type: md
-awn-record-storage: md
+awn-collection-type: csv
+awn-record-storage: csv
 awn-record-id-mode: slug
-awn-record-file: "{id}.md"
+awn-record-file: main.csv
 awn-record-hierarchy: false
 ---
 
