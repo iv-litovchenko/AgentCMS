@@ -9,10 +9,10 @@ function parseArcParts(raw) {
 }
 
 function isActiveRecord(frontmatter) {
-  const status = String(frontmatter?.["awn-status"] || frontmatter?.status || "active")
+  const status = String(frontmatter?.["awn-status"] || frontmatter?.status || "open")
     .trim()
     .toLowerCase();
-  return status === "active";
+  return status === "open" || status === "active";
 }
 
 function sortByStoreOrder(records, sortOrder) {
@@ -30,16 +30,25 @@ function mapSloganRecord(record) {
   const frontmatter = record?.frontmatter || {};
   if (!isActiveRecord(frontmatter)) return null;
 
-  const kind = String(frontmatter["awn-slogan-kind"] || "text").trim().toLowerCase();
-  const holdMs = Number(frontmatter["awn-hold-ms"] || 8000) || 8000;
+  const kind = String(
+    frontmatter["slogan-kind"] || frontmatter["awn-slogan-kind"] || "text"
+  ).trim().toLowerCase();
+  const holdMs = Number(frontmatter["hold-ms"] || frontmatter["awn-hold-ms"] || 8000) || 8000;
 
   if (kind === "arc") {
-    const parts = parseArcParts(frontmatter["awn-slogan-arc"]);
+    const parts = parseArcParts(frontmatter["slogan-arc"] || frontmatter["awn-slogan-arc"]);
     if (parts.length < 2) return null;
     return { kind: "arc", parts, holdMs };
   }
 
-  const text = String(frontmatter["awn-slogan-text"] || frontmatter["awn-title"] || record.title || "").trim();
+  const text = String(
+    frontmatter["slogan-text"] ||
+      frontmatter["awn-slogan-text"] ||
+      frontmatter["awn-name"] ||
+      frontmatter["awn-title"] ||
+      record.title ||
+      ""
+  ).trim();
   if (!text) return null;
   return { kind: "text", text, holdMs };
 }
@@ -48,10 +57,12 @@ function mapHomeTitleRecord(record) {
   const frontmatter = record?.frontmatter || {};
   if (!isActiveRecord(frontmatter)) return null;
 
-  const text = String(frontmatter["awn-title"] || record.title || "").trim();
+  const text = String(
+    frontmatter["awn-name"] || frontmatter["awn-title"] || record.title || ""
+  ).trim();
   if (!text) return null;
 
-  const holdMs = Number(frontmatter["awn-hold-ms"] || 6500) || 6500;
+  const holdMs = Number(frontmatter["hold-ms"] || frontmatter["awn-hold-ms"] || 6500) || 6500;
   return { text, holdMs };
 }
 

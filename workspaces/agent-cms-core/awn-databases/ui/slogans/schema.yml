@@ -4,12 +4,7 @@ layer: awn-databases-store
 awn_schema:
   record:
     fields:
-      awn-title:
-        type: awn.string
-        title: Название
-        required: true
-        tab: main
-      awn-slogan-kind:
+      slogan-kind:
         type: awn.field.choice.one
         title: Тип
         enum:
@@ -17,28 +12,19 @@ awn_schema:
           - arc
         default: text
         tab: main
-      awn-slogan-text:
+      slogan-text:
         type: awn.string
         title: Текст
         tab: main
-      awn-slogan-arc:
+      slogan-arc:
         type: awn.string
         title: Дуга (части через |)
         description: Для типа arc — части через вертикальную черту
         tab: main
-      awn-hold-ms:
+      hold-ms:
         type: awn.integer
         title: Пауза (мс)
         default: 8000
-        tab: main
-      awn-status:
-        type: awn.field.choice.one
-        title: Статус
-        enum:
-          - active
-          - draft
-          - inactive
-        default: active
         tab: main
     tabs:
       main: Слоган
