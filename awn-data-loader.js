@@ -282,7 +282,9 @@ function extractCustomSchemeModFields(fields, extendsRef, agentRoot, projectRoot
     : {};
   const inheritedKeys = new Set(Object.keys(inherited || {}));
   const custom = {};
-  for (const [key, def] of Object.entries(normalizeAwnFieldsMap(fields || {}))) {
+  for (const [key, def] of Object.entries(
+    remapLegacyCustomSchemeModFields(fields || {}, inheritedKeys)
+  )) {
     if (!inheritedKeys.has(key)) custom[key] = def;
   }
   return custom;
@@ -413,6 +415,33 @@ function toAwnFieldKey(key) {
   const name = String(key || "").trim();
   if (!name || name.startsWith("awn-")) return name;
   return `awn-${name}`;
+}
+
+/** User fields in store schema.yml — keys as written, without awn- prefix. */
+function normalizeSchemeModFieldsMap(fields) {
+  const src = fields && typeof fields === "object" ? fields : {};
+  const out = {};
+  for (const [key, value] of Object.entries(src)) {
+    const name = String(key || "").trim();
+    if (!name) continue;
+    out[name] = value;
+  }
+  return out;
+}
+
+/** Strip mistaken awn- prefix from custom overlay fields (legacy saves). */
+function remapLegacyCustomSchemeModFields(fields, inheritedKeys) {
+  const inherited = inheritedKeys instanceof Set ? inheritedKeys : new Set(inheritedKeys || []);
+  const out = {};
+  for (const [key, def] of Object.entries(normalizeSchemeModFieldsMap(fields || {}))) {
+    let name = key;
+    if (name.startsWith("awn-") && !inherited.has(name)) {
+      const plain = name.slice(4);
+      if (plain && !inherited.has(plain)) name = plain;
+    }
+    out[name] = def;
+  }
+  return out;
 }
 
 function normalizeAwnPropTypeToKind(propType, fallback = "collection") {
@@ -1054,7 +1083,7 @@ function readStoreSchemeModBlock(awnSchema, kind, frameTypeId = "") {
   if (!block || typeof block !== "object") return null;
   const extendsRef = resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
   return {
-    fields: normalizeAwnFieldsMap(block.fields || {}),
+    fields: normalizeSchemeModFieldsMap(block.fields || {}),
     tabs: block.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {},
     extends: resolveElementExtendsRef(block.extends || extendsRef || "")
   };
@@ -1080,7 +1109,7 @@ function readStoreSchemeModOverlay(storeAbs) {
     const legacyBlock = awnSchema.record || awnSchema.store || awnSchema.element || null;
     if (!blocks.record && legacyBlock && typeof legacyBlock === "object") {
       blocks.record = {
-        fields: normalizeAwnFieldsMap(legacyBlock.fields || awnSchema.fields || {}),
+        fields: normalizeSchemeModFieldsMap(legacyBlock.fields || awnSchema.fields || {}),
         tabs: legacyBlock.tabs && typeof legacyBlock.tabs === "object" ? { ...legacyBlock.tabs } : {},
         extends: resolveElementExtendsRef(
           legacyBlock.extends || awnSchema.extends || AWN_DATA_SCHEMA_TARGET_EXTENDS.record
@@ -1112,7 +1141,7 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
     for (const kind of AWN_DATA_SCHEMA_TARGETS) {
       const block = blocks[kind];
       if (!block) continue;
-      const fields = normalizeAwnFieldsMap(block.fields || {});
+      const fields = normalizeSchemeModFieldsMap(block.fields || {});
       const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
       if (!hasSchemeModBlockContent({ fields, tabs }) && !includeEmptyBlocks) continue;
       lines.push(`  ${kind}:`);
@@ -1126,7 +1155,7 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
     }
     if (!wroteAny) return "";
   } else {
-    const fields = normalizeAwnFieldsMap(schema.fields || {});
+    const fields = normalizeSchemeModFieldsMap(schema.fields || {});
     const tabs = schema.elementSchemaTabs || schema.tabs || {};
     if (!Object.keys(fields).length && !Object.keys(tabs || {}).length) return "";
     lines.push("  record:");
@@ -1231,8 +1260,9 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
 
   let fieldsLocal = { ...(leaf.schema.fields || {}) };
   if (schemeOverlay) {
-    fieldsLocal = { ...schemeOverlay.fields };
-    fields = { ...fields, ...schemeOverlay.fields };
+    const localFields = remapLegacyCustomSchemeModFields(schemeOverlay.fields, Object.keys(fields));
+    fieldsLocal = { ...localFields };
+    fields = { ...fields, ...localFields };
   }
 
   const merged = {
@@ -2538,7 +2568,7 @@ function resolveStoreElementMergedFields(storeRel, elementType, agentRoot = "", 
     if (!overlay?.exists) return baseFields;
     const kind = resolveStoreElementSchemaKind(typeId);
     const block = resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs);
-    const localFields = normalizeAwnFieldsMap(block?.fields || {});
+    const localFields = remapLegacyCustomSchemeModFields(block?.fields || {}, Object.keys(baseFields));
     return { ...baseFields, ...localFields };
   } catch {
     return baseFields;
@@ -2568,7 +2598,7 @@ function resolveStoreElementCreationFields(storeRel, elementType, agentRoot = ""
 function resolveStoreElementSchemaBlock(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
   const fields = resolveStoreElementMergedFields(storeRel, elementType, agentRoot, projectRoot);
   return {
-    fields: normalizeAwnFieldsMap(fields),
+    fields,
     tabs: {}
   };
 }
@@ -2615,10 +2645,10 @@ function buildRecordMarkdown({
   );
   for (const [key, value] of Object.entries(extra || {})) {
     if (value === undefined || value === null) continue;
-    const awnKey = toAwnFieldKey(key);
-    if (written.has(awnKey)) continue;
-    fmLines.push(`${awnKey}: ${value}`);
-    written.add(awnKey);
+    const fieldKey = String(key || "").trim();
+    if (!fieldKey || written.has(fieldKey)) continue;
+    fmLines.push(`${fieldKey}: ${value}`);
+    written.add(fieldKey);
   }
 
   const bodyText = String(body || "").trim();
@@ -3210,7 +3240,7 @@ function extractRecordSchemaFromSchemeModContent(content) {
     (block && typeof block === "object" && block.tabs && typeof block.tabs === "object" ? block.tabs : null) ||
     {};
   return {
-    fields: normalizeAwnFieldsMap(rawFields),
+    fields: normalizeSchemeModFieldsMap(rawFields),
     tabs: { ...tabs }
   };
 }
@@ -3300,7 +3330,7 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
       nextContent = hasAnyCustom ? composeAwnDataStoreSchemeModYaml({ blocks }) : "";
     } else {
       const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
-      const fields = normalizeAwnFieldsMap(
+      const fields = normalizeSchemeModFieldsMap(
         options.fields || (block && block.fields) || awnSchema?.record?.fields || awnSchema?.fields || {}
       );
       const tabs =
@@ -3677,5 +3707,6 @@ module.exports = {
   AWN_DATA_SCHEMA_TARGET_EXTENDS,
   buildSectionManifestMarkdown,
   toAwnFieldKey,
+  normalizeSchemeModFieldsMap,
   KIND_TO_AWN_PROP_TYPE
 };

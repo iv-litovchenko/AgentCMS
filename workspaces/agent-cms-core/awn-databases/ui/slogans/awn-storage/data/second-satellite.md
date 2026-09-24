@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: "Будешь ли ты моим вторым спутником? — Нет: я же модель с цензурой и правилами :)"
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: "Будешь ли ты моим вторым спутником? — Нет: я же модель с цензурой и правилами :)"
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Второй спутник.

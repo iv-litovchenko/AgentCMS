@@ -39,7 +39,7 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-hold-ms: 9000
+hold-ms: 9000
 ---
 
 My Graph ORM.

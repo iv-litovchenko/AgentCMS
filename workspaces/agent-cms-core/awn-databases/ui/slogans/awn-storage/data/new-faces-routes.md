@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: arc
-awn-slogan-text: ""
-awn-slogan-arc: "Новые лица|новые маршруты|новые впечатления"
-awn-hold-ms: 8000
+slogan-kind: arc
+slogan-text: ""
+slogan-arc: "Новые лица|новые маршруты|новые впечатления"
+hold-ms: 8000
 ---
 
 Новые лица.

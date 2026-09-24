@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: Feel the energy inside…
-awn-slogan-arc: ""
-awn-hold-ms: 7000
+slogan-kind: text
+slogan-text: Feel the energy inside…
+slogan-arc: ""
+hold-ms: 7000
 ---
 
 Feel the energy.

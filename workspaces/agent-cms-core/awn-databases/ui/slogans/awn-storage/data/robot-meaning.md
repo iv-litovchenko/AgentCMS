@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: Робот делает задачу. Человек — смысл…
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: Робот делает задачу. Человек — смысл…
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Робот и смысл.

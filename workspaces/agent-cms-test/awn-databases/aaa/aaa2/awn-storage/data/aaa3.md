@@ -1,5 +1,5 @@
 ---
-awn-name: My Tree
+awn-name: ААА3
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
@@ -21,9 +21,8 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.element.record
-awn-store: ui/home-titles
-awn-create: "2026-09-20T12:00:00.000Z"
-awn-update: "2026-09-20T12:00:00.000Z"
+awn-create: 2026-09-24T16:45:08.631Z
+awn-update: 2026-09-24T16:45:08.631Z
 awn-version: 1
 awn-main: false
 awn-focus: false
@@ -39,7 +38,7 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-hold-ms: 6500
+awn-store: aaa/aaa2
 ---
 
-My Tree.
+ААА3.

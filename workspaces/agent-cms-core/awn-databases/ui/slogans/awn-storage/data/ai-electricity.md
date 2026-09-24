@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: ИИ — новое электричество…
-awn-slogan-arc: ""
-awn-hold-ms: 7000
+slogan-kind: text
+slogan-text: ИИ — новое электричество…
+slogan-arc: ""
+hold-ms: 7000
 ---
 
 ИИ — электричество.

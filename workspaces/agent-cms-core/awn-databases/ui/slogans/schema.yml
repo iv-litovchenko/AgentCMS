@@ -3,7 +3,6 @@ layer: awn-databases-store
 
 awn_schema:
   record:
-    extends: awn.infoblock.element.record
     fields:
       slogan-kind:
         type: awn.field.choice.one

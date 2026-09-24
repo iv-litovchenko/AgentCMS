@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: Умная записная книжка — в твоих руках…
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: Умная записная книжка — в твоих руках…
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Записная книжка.

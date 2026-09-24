@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: Куда фокус — туда и усилия…
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: Куда фокус — туда и усилия…
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Куда фокус.

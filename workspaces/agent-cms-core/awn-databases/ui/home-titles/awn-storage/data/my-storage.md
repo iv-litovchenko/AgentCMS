@@ -39,7 +39,7 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-hold-ms: 6500
+hold-ms: 6500
 ---
 
 My Storage.

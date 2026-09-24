@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: "Каждый раз, когда тебе показывают успех в 25 — тебе продают товар или услугу…"
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: "Каждый раз, когда тебе показывают успех в 25 — тебе продают товар или услугу…"
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Успех в 25.

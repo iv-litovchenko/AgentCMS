@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: "Заблуждение коллекционера — вечно складируем, а не используем…"
-awn-slogan-arc: ""
-awn-hold-ms: 8000
+slogan-kind: text
+slogan-text: "Заблуждение коллекционера — вечно складируем, а не используем…"
+slogan-arc: ""
+hold-ms: 8000
 ---
 
 Заблуждение коллекционера.

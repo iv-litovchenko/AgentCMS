@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: text
-awn-slogan-text: Контекст важнее модели…
-awn-slogan-arc: ""
-awn-hold-ms: 7000
+slogan-kind: text
+slogan-text: Контекст важнее модели…
+slogan-arc: ""
+hold-ms: 7000
 ---
 
 Контекст важнее модели.

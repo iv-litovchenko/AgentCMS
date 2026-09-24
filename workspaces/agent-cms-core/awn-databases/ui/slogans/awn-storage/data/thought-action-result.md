@@ -39,10 +39,10 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: ""
 awn-materials: ""
-awn-slogan-kind: arc
-awn-slogan-text: ""
-awn-slogan-arc: "Мысль|действие|результат"
-awn-hold-ms: 8000
+slogan-kind: arc
+slogan-text: ""
+slogan-arc: "Мысль|действие|результат"
+hold-ms: 8000
 ---
 
 Мысль → действие → результат.
