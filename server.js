@@ -81,6 +81,10 @@ const {
   shouldSkipAwnRepositoriesSearch
 } = require("./awn-repositories-service");
 const {
+  readDependencies,
+  writeDependencies
+} = require("./dependencies-service");
+const {
   createSidecarService,
   toSidecarRelativePath,
   resolveSidecarAbsoluteFromSourceAbsolute
@@ -565,8 +569,10 @@ const {
   SYSTEM_REFERENCE_SCAFFOLDS,
   isSystemReferenceManifestRel,
   isAwnDependenciesFileName,
+  isDependenciesCsvFileName,
   WORKSPACE_AWN_TYPE,
-  AWN_DEPENDENCIES_FILE
+  AWN_DEPENDENCIES_FILE,
+  DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
@@ -602,6 +608,7 @@ const SYSTEM_FILE_NAMES = [
   "BOOTSTRAP.md",
   "ONBOARDING.md",
   "SKILL.md",
+  DEPENDENCIES_CSV_FILE,
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
@@ -637,12 +644,14 @@ const SYSTEM_FILE_CONFIG_BASENAMES = new Set([
   "dockerfile",
   "makefile",
   "procfile",
+  "dependencies.csv",
   "awn-dependencies.json",
   "docker-compose.yml",
   "docker-compose.yaml"
 ]);
 
 const SYSTEM_FILE_CONFIG_EXTENSIONS = new Set([
+  ".csv",
   ".json",
   ".yml",
   ".yaml",
@@ -688,6 +697,7 @@ function canonicalSystemFileName(name) {
   if (!isSafeSystemFileBasename(normalized)) return null;
   if (SYSTEM_FILE_NAMES.includes(normalized)) return normalized;
   if (isAwnDependenciesFileName(normalized)) return normalized;
+  if (isDependenciesCsvFileName(normalized)) return normalized;
   // Any other single-segment root basename (actual root inventory files).
   return normalized;
 }
@@ -13247,6 +13257,10 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index",
   repositoryRegister:
     "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
+  dependencies:
+    "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: read_dependencies",
+  dependenciesWrite:
+    "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -20174,6 +20188,41 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/dependencies") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const effective = await getEffectiveWorkspaceSettings(agentRoot, getProjectRoot());
+      const payload = await readDependencies(agentRoot, effective.workspace);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read dependencies",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/dependencies") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const effective = await getEffectiveWorkspaceSettings(agentRoot, getProjectRoot());
+      const payload = await readJsonBody(req);
+      const prepared = await writeDependencies(agentRoot, payload, effective.workspace);
+      if (prepared.error) return sendJson(res, prepared.status || 400, prepared);
+      const parsed = parseAgentRootSystemFilePath(prepared.file);
+      if (!parsed) return sendJson(res, 400, { error: "Invalid dependencies file path" });
+      const written = await writeAgentRootSystemFileViaFs(parsed, prepared.content);
+      return sendJson(res, 200, { ...prepared, ...written });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write dependencies",
         details: String(error.message || error)
       });
     }

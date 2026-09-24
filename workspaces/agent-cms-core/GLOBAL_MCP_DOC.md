@@ -332,7 +332,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 | Область | В UI | MCP `scope` | Файл значений | Кто потребляет |
 |---------|------|-------------|---------------|----------------|
 | **Platform** | Глобальные | `platform` (alias `global`) | **корень репо** `.agent-cms/settings/platform.yml` | MCP policy, сервер, индексы, автоконтекст |
-| **Workspace** | Локальные (хранилище) | `workspace` (alias `local`) | **workspace** `.agent-cms/settings/workspace.yml` | awn-id, Voice, параметры хранилища |
+| **Workspace** | Локальные (хранилище) | `workspace` (alias `local`) | **workspace** `.agent-cms/settings/workspace.yml` | awn-id, Voice, **Зависимости** (`dependencies-columns`), параметры хранилища |
 | **Integrations** | Интеграции | `integrations` (alias `plugins`) | **workspace** `.agent-cms/settings/integrations.yml` | skills, MCP, плагины (пока stub) |
 | **User** | Пользовательские | `user` | **workspace** `.agent-cms/settings/user.yml` | дерево меню, сайдбар, UI |
 
@@ -599,6 +599,7 @@ razdel-1/
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` / `upload_file_from_url` |
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
+| Зависимости workspace (`dependencies.csv`) | `read_dependencies` / `write_dependencies` — колонки из settings «Зависимости» |
 | Обход папки | `list_folder` |
 | Поиск по содержимому workspace | `search_workspace_content` (опц. `pathPrefix`) |
 | Поиск по смыслу в workspace | `search_workspace_semantic` (опц. `pathPrefix`) |

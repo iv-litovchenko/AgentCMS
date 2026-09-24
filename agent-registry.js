@@ -1,6 +1,7 @@
 const { AsyncLocalStorage } = require("async_hooks");
 const fs = require("fs");
 const path = require("path");
+const { DEPENDENCIES_CSV_FILE, isDependenciesCsvFileName } = require("./dependencies-service");
 const {
   AREA_MANIFEST_CANDIDATES,
   AREA_MANIFEST_FILE,
@@ -1939,8 +1940,10 @@ module.exports = {
   AWN_AGENTS_REGISTRY_FILE,
   AGENT_CMS_CORE_REL,
   AWN_DEPENDENCIES_FILE,
+  DEPENDENCIES_CSV_FILE,
   AWN_AUTOINCREMENT_ID_FILE,
   isAwnDependenciesFileName,
+  isDependenciesCsvFileName,
   init,
   getAgentRoot,
   getActiveAgentId,

@@ -147,6 +147,11 @@ fieldGroups:
         name: Шаблоны compose
         description: Быстрые команды для поля сообщения в Voice Shell
         sort: 24
+  - id: dependencies
+    name: Зависимости
+    description: >
+      Файл dependencies.csv в корне workspace и схема колонок для агента.
+      Строки — в CSV; набор колонок — здесь (readonly path + описания полей).
   - id: static
     name: Статичные параметры
     description: >
@@ -1094,6 +1099,50 @@ fields:
     group: static
     subgroup: demo-plugin
     sort: 90
+
+  dependencies-file:
+    type: awn.field.string
+    title: Файл зависимостей
+    description: Корневой CSV workspace — только просмотр пути
+    readonly: true
+    default: dependencies.csv
+    group: dependencies
+    sort: 1
+
+  dependencies-columns-note:
+    type: awn.field.text
+    title: Как это работает
+    description: Концепция раздела (только просмотр)
+    readonly: true
+    group: dependencies
+    sort: 2
+    default: |
+      1. Строки зависимостей — в dependencies.csv (host, kind, name, …).
+      2. Схема колонок — в этом разделе (dependencies-columns).
+      3. MCP: read_dependencies / write_dependencies.
+      4. Менять колонки — здесь; менять строки — в CSV или через write_dependencies.
+
+  dependencies-columns:
+    type: awn.field.repeater
+    title: Колонки CSV
+    description: Ключ, название и описание каждой колонки для агента
+    group: dependencies
+    sort: 3
+    default: []
+    properties:
+      key:
+        type: awn.field.string.slug
+        title: Ключ колонки
+        description: Имя колонки в CSV (host, kind, name, …)
+      title:
+        type: awn.field.string
+        title: Название
+      description:
+        type: awn.field.text
+        title: Описание для агента
+      required:
+        type: awn.field.boolean
+        title: Обязательная колонка
 
   ws-static-example-1:
     type: awn.field.string

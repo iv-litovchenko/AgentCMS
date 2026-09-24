@@ -71,6 +71,64 @@ const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   "ws-static-example-1": "значение 1",
   "ws-static-example-2": "значение 2",
   "ws-static-example-3": "значение 3",
+  "dependencies-file": "dependencies.csv",
+  "dependencies-columns": [
+    {
+      key: "host",
+      title: "Хост",
+      description: "cursor | claude | codex | shell | linux | mac | any",
+      required: true
+    },
+    {
+      key: "kind",
+      title: "Тип",
+      description:
+        "any | runtime | npm | pip | brew | apt | docker | mcp | mcp-tool | skill | plugin | rule | hook | env | repo | doc | cli | self | other",
+      required: true
+    },
+    {
+      key: "name",
+      title: "Название",
+      description: "Короткое имя зависимости",
+      required: true
+    },
+    {
+      key: "description",
+      title: "Описание",
+      description: "Зачем нужно в проекте",
+      required: false
+    },
+    {
+      key: "path",
+      title: "Путь / install",
+      description: "Путь, package, команда установки или env-ключ",
+      required: false
+    },
+    {
+      key: "version",
+      title: "Версия",
+      description: ">=22, 1.2.3, latest",
+      required: false
+    },
+    {
+      key: "status",
+      title: "Статус",
+      description: "active | optional | missing | broken",
+      required: false
+    },
+    {
+      key: "required",
+      title: "Обязательно",
+      description: "yes | no",
+      required: false
+    },
+    {
+      key: "notes",
+      title: "Заметки",
+      description: "Кто ставил, дата, self-view агента",
+      required: false
+    }
+  ],
   "default-slot": "main",
   "awn-temp-ttl-days": 0,
   ...getRouteConfigSettingsDefaults(),
