@@ -24,4 +24,5 @@ awn-version: 1
 awn-main: false
 awn-slots-disabled: false
 awn-name: test
+awn-id: 33
 ---

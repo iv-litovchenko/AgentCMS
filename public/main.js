@@ -2819,7 +2819,6 @@ function getChpuWorkspacePathFromState() {
   if (
     activeContentMode === "description" &&
     awnDataManifestEditReturnRel &&
-    activePath &&
     isAwnDatabaseManifestEditing()
   ) {
     let routePath = `awn-database/${String(awnDataManifestEditReturnRel).replace(/^\/+|\/+$/g, "")}`;
@@ -84186,7 +84185,7 @@ function applyModeUi(options = {}) {
     }
     syncSaveButtonLamp();
     return;
-  } else if (awnDataViewMode) {
+  } else if (awnDataViewMode && !isAwnDatabaseManifestEditing()) {
     syncAwnDataMenuActiveStore();
     ensureAwnDataViewHubMounted();
     syncAwnDataViewScreenMode();
@@ -103459,7 +103458,10 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
       resolveAwnDataStoreRelFromRecordPath(contentPath || getPropsContextPath());
     if (!storeRel) return null;
 
-    const storeCache = await loadAwnDataStoreSchemaEditor(storeRel, activeAgentId);
+    const storeCache = await loadAwnDataStoreSchemaEditor(
+      storeRel,
+      awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId
+    );
     if (!storeCache) return null;
 
     const schemaTarget =
@@ -104852,6 +104854,7 @@ function awnDataViewStoreRelMatches(leftRel, rightRel) {
 
 function scheduleAwnDataViewContentRecovery() {
   queueMicrotask(() => {
+    if (isAwnDatabaseManifestEditing()) return;
     if (!awnDataViewStoreRel || awnDataViewRecordId) return;
     if (activeContentMode !== AWN_DATA_VIEW_MODE) {
       revealAwnDataViewWorkspace();
@@ -105434,13 +105437,14 @@ function isAwnDatabaseCsvRecordContentPath(nodePath) {
 }
 
 async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeAgentId) {
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (/\.md$/i.test(normalized)) {
-    const data = await fetchWorkspaceFolderPage(normalized, agentId);
+    const data = await fetchWorkspaceFolderPage(normalized, catalogAgentId);
     return String(data.content || data.body || "");
   }
   if (/\.csv$/i.test(normalized)) {
-    const data = await fetchWorkspaceFolderText(normalized, agentId);
+    const data = await fetchWorkspaceFolderText(normalized, catalogAgentId);
     return String(data.content || "");
   }
   throw new Error("Неподдерживаемый тип файла инфоблока");
@@ -105665,31 +105669,85 @@ async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeAgentId)
   return true;
 }
 
-async function openAwnDataStoreManifestEdit(store = awnDataViewStoreCache) {
-  const manifestPath = resolveAwnDataStoreManifestPath(store);
-  if (!manifestPath) return;
-  const label = String(store?.name || store?.relPath || "Инфоблок").trim();
-  awnDataManifestEditReturnRel = String(store?.relPath || awnDataViewStoreRel || "")
+async function openAwnDatabaseManifestContentEditor({ label, filePath, storeRel, recordId = "" }) {
+  const normalizedPath = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalizedPath) {
+    showToast("Не удалось определить путь к файлу", "error");
+    return;
+  }
+
+  awnDataManifestEditReturnRel = String(storeRel || awnDataViewStoreRel || "")
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
-  awnDataManifestEditReturnRecordId = "";
+  awnDataManifestEditReturnRecordId = String(recordId || "").trim();
   nodeSettingsViewActive = true;
   nodeMemoryViewActive = false;
+  finishAwnDataViewStoreLoading();
+  hideHomeView();
+  clearActiveSystemFile();
+  nodeOverviewRenderSeq += 1;
+
   try {
     suspendAppRouteSync();
-    await selectNodeManifest(label, manifestPath, "description", { skipRouteSync: true });
+
+    const nextPath = getResolvedNodePath(normalizedPath);
+    activePath = nextPath;
+    activeLabel = label;
+    activeFolderBrowsePath = null;
+    activeFolderBrowseFilePath = null;
+    titleInputNode.value = label;
+    updateActiveButton();
+    fileContentInputNode.value = "";
+    refreshEditorViewContent();
+
+    if (!applyContentModeState("description")) {
+      throw new Error("Не удалось переключить режим редактора");
+    }
+    applyModeUi();
     syncNodeSettingsModeSelect();
     applyNodeWorkspaceViewUi();
     updateBreadcrumbsForActiveMode();
-    syncAppRouteToUrl({ replace: true });
+
+    const fileContent = await fetchAwnDatabaseRecordEditorContent(nextPath);
+    modeContentCache.description = fileContent;
+    navigationManifestCachedPath = getActiveNodeApiPath();
+    if (/\.csv$/i.test(nextPath)) {
+      editorViewMode = "source";
+    }
+
+    await loadPropertiesForActivePath();
+    applyNodeManifestBody(modeContentCache.description || "");
+    await ensureTopicSchemaForActiveContext().catch(() => null);
+    syncTitleFieldsFromNode(activePath);
+    refreshEditorViewContent();
+    applyModeUi();
+    updateBreadcrumbsForActiveMode();
   } catch (error) {
     awnDataManifestEditReturnRel = "";
     awnDataManifestEditReturnRecordId = "";
+    fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
     showToast(String(error.message || error), "error");
   } finally {
     resumeAppRouteSync();
     hideContentLoading({ force: true });
+    syncAppRouteToUrl({ replace: true });
+    scheduleActivePageContextSync();
   }
+}
+
+async function openAwnDataStoreManifestEdit(store = awnDataViewStoreCache) {
+  const manifestPath = resolveAwnDataStoreManifestPath(store);
+  if (!manifestPath) return;
+  const label = String(store?.name || store?.relPath || "Инфоблок").trim();
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  await openAwnDatabaseManifestContentEditor({
+    label,
+    filePath: manifestPath,
+    storeRel,
+    recordId: ""
+  });
 }
 
 async function openAwnDataStoreFile(fileName, labelHint = "") {
@@ -106632,9 +106690,6 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
   const recordId = String(record?.id || awnDataViewRecordId || "").trim();
-  awnDataManifestEditReturnRel = storeRel;
-  awnDataManifestEditReturnRecordId = recordId;
-
   const isSingleCsvStore = isAwnDataSingleCsvStore(viewStore);
   const label = isSingleCsvStore
     ? `${viewStore?.name || storeRel} · ${viewStore?.recordFile || "main.csv"}`
@@ -106645,6 +106700,8 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
     const folderPath = storeRel
       ? `awn-database/${storeRel}/awn-storage/data`
       : getFolderBrowseParentPath(filePath);
+    awnDataManifestEditReturnRel = storeRel;
+    awnDataManifestEditReturnRecordId = recordId;
     try {
       suspendAppRouteSync();
       await openFolderBrowseFile(label, filePath, {
@@ -106653,34 +106710,23 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
         skipRouteSync: true
       });
       updateBreadcrumbsForActiveMode();
-      syncAppRouteToUrl({ replace: true });
     } catch (error) {
       awnDataManifestEditReturnRel = "";
       awnDataManifestEditReturnRecordId = "";
       showToast(String(error.message || error), "error");
     } finally {
       resumeAppRouteSync();
+      syncAppRouteToUrl({ replace: true });
     }
     return;
   }
 
-  nodeSettingsViewActive = true;
-  nodeMemoryViewActive = false;
-  try {
-    suspendAppRouteSync();
-    await selectNodeManifest(label, filePath, "description", { skipRouteSync: true });
-    syncNodeSettingsModeSelect();
-    applyNodeWorkspaceViewUi();
-    updateBreadcrumbsForActiveMode();
-    syncAppRouteToUrl({ replace: true });
-  } catch (error) {
-    awnDataManifestEditReturnRel = "";
-    awnDataManifestEditReturnRecordId = "";
-    showToast(String(error.message || error), "error");
-  } finally {
-    resumeAppRouteSync();
-    hideContentLoading({ force: true });
-  }
+  await openAwnDatabaseManifestContentEditor({
+    label,
+    filePath,
+    storeRel,
+    recordId
+  });
 }
 
 function buildAwnDataRecordViewPropEntries(record) {
@@ -107607,6 +107653,7 @@ function parseAwnDataCsvPreviewText(text) {
 
 function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
   if (!targetNode) return;
+  targetNode.classList.remove("file-content-preview");
   const { columns, rows } = parseAwnDataCsvPreviewText(csvContent);
   if (!columns.length) {
     targetNode.replaceChildren();
@@ -107809,27 +107856,15 @@ async function openAwnDataSingleStoreContentEdit(store = awnDataViewStoreCache) 
     String(viewStore?.recordFile || (isCsvStore ? "main.csv" : "main.md")).trim() ||
     (isCsvStore ? "main.csv" : "main.md");
   const label = `${viewStore?.name || viewStore?.relPath || ""} · ${recordFile}`.trim();
-  awnDataManifestEditReturnRel = String(viewStore?.relPath || awnDataViewStoreRel || "")
+  const storeRel = String(viewStore?.relPath || awnDataViewStoreRel || "")
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
-  awnDataManifestEditReturnRecordId = "";
-  nodeSettingsViewActive = true;
-  nodeMemoryViewActive = false;
-  try {
-    suspendAppRouteSync();
-    await selectNodeManifest(label, filePath, "description", { skipRouteSync: true });
-    syncNodeSettingsModeSelect();
-    applyNodeWorkspaceViewUi();
-    updateBreadcrumbsForActiveMode();
-    syncAppRouteToUrl({ replace: true });
-  } catch (error) {
-    awnDataManifestEditReturnRel = "";
-    awnDataManifestEditReturnRecordId = "";
-    showToast(String(error.message || error), "error");
-  } finally {
-    resumeAppRouteSync();
-    hideContentLoading({ force: true });
-  }
+  await openAwnDatabaseManifestContentEditor({
+    label,
+    filePath,
+    storeRel,
+    recordId: ""
+  });
 }
 
 function createAwnDataSingleStoreContentCard(viewStore) {

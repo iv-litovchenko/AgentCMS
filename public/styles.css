@@ -62293,6 +62293,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   overflow-x: auto;
 }
 
+.awn-database-view-table-wrap:has(.awn-database-view-records-toc) {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
 .awn-database-view-records {
   overflow: visible;
 }
@@ -62912,11 +62918,40 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-single-card-body:has(.awn-database-view-csv-table-wrap) {
   padding: 0;
+  border-top: none;
 }
 
-.awn-database-view-single-card-body:has(.awn-database-view-csv-table-wrap) .awn-database-view-csv-table-wrap {
-  border: none;
+.node-overview-content .awn-database-view-single-content:has(.awn-database-view-csv-table-wrap) {
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table-wrap {
+  overflow: auto;
+  background: transparent;
+}
+
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table th,
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table td {
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.45rem 0.65rem;
+}
+
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table tbody tr:nth-child(even),
+.node-overview-content .awn-database-view-single-content .awn-database-view-csv-table tbody tr:hover {
+  background: transparent;
 }
 
 .awn-database-view-single-content {
@@ -62945,8 +62980,6 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-database-view-csv-table-wrap {
   overflow: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
   background: #fff;
 }
 
