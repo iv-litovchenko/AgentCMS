@@ -64,6 +64,19 @@ const ACTION_LABELS = {
   "setup-desktop-shortcuts": "Ярлыки Desktop"
 };
 
+const BUILD_DURATION_HINTS = {
+  "cms-rebuild": "~8–10 мин",
+  "voice-rebuild": "~3–4 мин",
+  "control-dist": "~3 мин"
+};
+
+function formatActionButtonContent(actionId) {
+  const base = ACTION_LABELS[actionId] || "Запустить";
+  const duration = BUILD_DURATION_HINTS[actionId];
+  if (!duration) return base;
+  return `<span class="run-btn-label">${base}</span><span class="run-btn-duration">${duration}</span>`;
+}
+
 function appendLog(text, stream = "stdout") {
   const span = document.createElement("span");
   if (stream === "stderr") span.className = "stderr";
@@ -481,9 +494,13 @@ function startServerPoll() {
 }
 
 function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
-  const label = labelOverride || ACTION_LABELS[actionId] || "Запустить";
+  const label = labelOverride || formatActionButtonContent(actionId);
   const disabledAttr = disabled ? " disabled" : "";
-  return `<button type="button" class="run-btn ${extraClass}" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>${label}</button>`;
+  const durationClass = BUILD_DURATION_HINTS[actionId] ? " has-duration" : "";
+  const titleAttr = BUILD_DURATION_HINTS[actionId]
+    ? ` title="Примерное время сборки: ${BUILD_DURATION_HINTS[actionId]}. Прогресс — в журнале внизу."`
+    : "";
+  return `<button type="button" class="run-btn ${extraClass}${durationClass}" data-tone="${tone}" data-action="${actionId}"${titleAttr}${disabledAttr}>${label}</button>`;
 }
 
 const SETUP_SHORT_TITLES = {
@@ -1299,10 +1316,14 @@ function updateRunningButtons() {
   actionsRoot.querySelectorAll(".run-btn").forEach((button) => {
     const actionId = button.dataset.action;
     const isRunning = isActionRunning(actionId);
-    const defaultLabel = ACTION_LABELS[actionId] || "Запустить";
+    const defaultLabel = formatActionButtonContent(actionId);
     button.disabled = isRunning;
     button.classList.toggle("is-running", isRunning);
-    button.textContent = isRunning ? ACTION_CARD_BUSY[actionId] || "…" : defaultLabel;
+    if (isRunning) {
+      button.textContent = ACTION_CARD_BUSY[actionId] || "…";
+    } else {
+      button.innerHTML = defaultLabel;
+    }
   });
 
   actionsRoot.querySelectorAll(".action-card").forEach((button) => {

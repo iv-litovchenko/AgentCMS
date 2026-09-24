@@ -2354,6 +2354,27 @@ body.is-booting {
   width: 100%;
 }
 
+.launch-tile-actions .run-btn.has-duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: normal;
+  line-height: 1.2;
+  font-size: 0.72rem;
+  padding: 6px 8px;
+}
+
+.launch-tile-actions .run-btn.has-duration .run-btn-label {
+  font-weight: 600;
+}
+
+.launch-tile-actions .run-btn.has-duration .run-btn-duration {
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.82;
+}
+
 /* ── Кнопки ── */
 .run-btn {
   border: 0;
