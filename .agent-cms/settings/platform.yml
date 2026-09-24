@@ -34,7 +34,11 @@ awn_settings:
     - .md
     - .sidecar.md
   index-path-prefixes: []
-  index-exclude-patterns: "[object Object]"
+  index-exclude-patterns: |
+    .git
+    .agent-cms
+    node_modules/
+    awn-repositories/ !manifest.md !README.md
   search-default-scopes:
     - semantic
     - fulltext
