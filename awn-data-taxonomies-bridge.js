@@ -10,8 +10,7 @@ const AWN_DATA_TAXONOMY_PRESETS = new Set([
   "categories",
   "statuses",
   "priorities",
-  "colors",
-  "users"
+  "colors"
 ]);
 
 const PRESET_TO_STORE_REL = {
@@ -19,8 +18,7 @@ const PRESET_TO_STORE_REL = {
   categories: "taxonomies/categories",
   statuses: "taxonomies/statuses",
   priorities: "taxonomies/priorities",
-  colors: "taxonomies/colors",
-  users: "taxonomies/users"
+  colors: "taxonomies/colors"
 };
 
 const AWN_DATA_MANIFEST_REL_PREFIX = "awn-databases/taxonomies";

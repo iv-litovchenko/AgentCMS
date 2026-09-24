@@ -227,7 +227,8 @@ fields:
     type: awn.field.lookup.one
     source: users
     title: "{A2!} Владелец"
-    placement: aside-body
+    placement: hidden
+    hidden: true
     group: taxonomy
     sort: 2
 

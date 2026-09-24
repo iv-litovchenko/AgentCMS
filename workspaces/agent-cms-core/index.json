@@ -26,7 +26,6 @@
         { "label": "Теги", "path": "awn-databases/taxonomies/tags/manifest.md" },
         { "label": "Категории", "path": "awn-databases/taxonomies/categories/manifest.md" },
         { "label": "Статусы", "path": "awn-databases/taxonomies/statuses/manifest.md" },
-        { "label": "Пользователи", "path": "awn-databases/taxonomies/users/manifest.md" },
         { "label": "Приоритеты", "path": "awn-databases/taxonomies/priorities/manifest.md" },
         { "label": "Палитра", "path": "awn-databases/taxonomies/colors/manifest.md" }
       ]

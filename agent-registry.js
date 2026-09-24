@@ -835,16 +835,6 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\nnone,⚪ Без статуса\n"
   },
   {
-    preset: "users",
-    kind: "catalog",
-    fileName: "users",
-    title: "Пользователи",
-    bundleFile: BUNDLE_TABULAR_FILE,
-    manifest:
-      "# Пользователи\n\nСправочник для `awn-owner`. Данные — в `awn-storage/users/main.csv`.\n",
-    content: "id,label,email\nme,Я,me@local\n"
-  },
-  {
     preset: "priorities",
     kind: "catalog",
     fileName: "priorities",

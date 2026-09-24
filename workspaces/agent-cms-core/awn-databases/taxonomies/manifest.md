@@ -37,4 +37,3 @@ awn-description: "Группировка enum-справочников плат�
 | [statuses/](./statuses/manifest.md) | `awn-status` |
 | [priorities/](./priorities/manifest.md) | `awn-priority` |
 | [colors/](./colors/manifest.md) | `awn-color` |
-| [users/](./users/manifest.md) | `awn-owner` |

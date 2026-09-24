@@ -12,7 +12,6 @@
 | — | collection | `awn-databases/taxonomies/priorities` | [Приоритеты](awn-databases/taxonomies/priorities/manifest.md) | Приоритеты | 304 B | 13 | 0 | 16 | CSV |
 | — | collection | `awn-databases/taxonomies/statuses` | [Статусы](awn-databases/taxonomies/statuses/manifest.md) | Статусы | 305 B | 13 | 0 | 12 | CSV |
 | — | collection | `awn-databases/taxonomies/tags` | [Теги](awn-databases/taxonomies/tags/manifest.md) | Теги | 326 B | 13 | 0 | 205 | CSV |
-| — | collection | `awn-databases/taxonomies/users` | [Пользователи](awn-databases/taxonomies/users/manifest.md) | Пользователи | 304 B | 13 | 0 | 5 | CSV |
 | — | group | `awn-databases/ui` | [UI (интерфейс)](awn-databases/ui/manifest.md) | UI (интерфейс) | 537 B | 14 | 0 | 36 | 2 влож. |
 | — | collection | `awn-databases/ui/home-titles` | [Заголовки «Главная»](awn-databases/ui/home-titles/manifest.md) | Заголовки «Главная» | 310 B | 13 | 0 | 12 | MD |
 | — | collection | `awn-databases/ui/slogans` | [Слоганы шапки](awn-databases/ui/slogans/manifest.md) | Слоганы шапки | 380 B | 13 | 0 | 24 | MD |

@@ -22,8 +22,7 @@ const DATA_STORES = new Set([
   "taxonomies/colors/manifest.md",
   "taxonomies/priorities/manifest.md",
   "taxonomies/statuses/manifest.md",
-  "taxonomies/tags/manifest.md",
-  "taxonomies/users/manifest.md"
+  "taxonomies/tags/manifest.md"
 ]);
 
 const STRIP_FIELDS = new Set([

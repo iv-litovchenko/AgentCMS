@@ -32,8 +32,8 @@ const CATALOG_GROUP_LABELS = {
   global: "Общие",
   agent: "Агент"
 };
-const MERGE_CATALOG_PRESETS = ["categories", "tags", "statuses", "users", "priorities", "colors"];
-const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "users", "priorities", "colors"]);
+const MERGE_CATALOG_PRESETS = ["categories", "tags", "statuses", "priorities", "colors"];
+const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "priorities", "colors"]);
 
 function splitNodeFrontmatter(raw = "") {
   const text = String(raw).replace(/^\uFEFF/, "");

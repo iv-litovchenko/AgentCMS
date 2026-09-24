@@ -52,7 +52,7 @@ export function registerIblockTools(reg, client) {
         .enum(["group", "collection", "single", "singleton"])
         .optional()
         .transform((value) => (value === "singleton" ? "single" : value)),
-      slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/users"),
+      slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
       name: z.string().optional(),
       description: z.string().optional(),
       collectionKind: z.enum(["records", "files"]).optional(),

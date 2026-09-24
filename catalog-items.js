@@ -26,7 +26,7 @@ const {
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { createAwnDataRecord } = require("./awn-data-loader");
 
-const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "users", "priorities", "colors"]);
+const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "priorities", "colors"]);
 
 async function ensureWritableCatalog(serviceAbsolute, preset, projectRoot = null) {
   const scaffold = findCatalogScaffold(preset);
@@ -72,14 +72,11 @@ async function writeCategoryLikeCsv(catalogAbsolute, preset, items, options = {}
     (await resolveCatalogManifestRel(catalogAbsolute, preset, options.projectRoot));
   const csvRel = path.posix.join(getNamedStorageBundleDirRel(manifestRel), BUNDLE_TABULAR_FILE);
   const csvAbs = path.join(catalogAbsolute, csvRel);
-  const header =
-    preset === "colors" ? "id,label,color" : preset === "users" ? "id,label,email" : "id,label";
+  const header = preset === "colors" ? "id,label,color" : "id,label";
   const lines = [header];
   for (const item of items) {
     if (preset === "colors") {
       lines.push(`${item.id},${item.label || item.id},${item.color || ""}`);
-    } else if (preset === "users") {
-      lines.push(`${item.id},${item.label || item.id},${item.email || ""}`);
     } else {
       lines.push(`${item.id},${item.label || item.id}`);
     }
