@@ -58,8 +58,20 @@
   }
 
   let indexPolicyCache = null;
+  let panelCtx = {
+    buildApiUrl: null,
+    getActiveAgentId: null
+  };
 
   const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
+  const CHPU_RESERVED_ROOT_SEGMENTS = new Set([
+    "shell",
+    "vendor",
+    "a",
+    "shared",
+    "cms",
+    "index.html"
+  ]);
   const catalogModal = document.getElementById("workspace-index-catalog-modal");
   const catalogTitle = document.getElementById("workspace-index-catalog-title");
   const catalogSubtitle = document.getElementById("workspace-index-catalog-subtitle");
@@ -208,19 +220,42 @@
     if (baseLabel) button.textContent = baseLabel;
   }
 
-  function getActiveAgentId() {
-    const urlAgent = new URLSearchParams(window.location.search).get("agent");
-    if (urlAgent) return urlAgent;
+  function resolveActiveAgentIdFromLocation() {
     try {
-      return localStorage.getItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("agent");
+      if (fromQuery) return fromQuery;
+      const parts = window.location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (!parts.length) return "";
+      if (parts[0] === "a" && parts[1]) return decodeURIComponent(parts[1]);
+      const first = parts[0];
+      if (first && !CHPU_RESERVED_ROOT_SEGMENTS.has(first.toLowerCase()) && !first.includes(".")) {
+        return decodeURIComponent(first);
+      }
     } catch {
-      return "main";
+      // ignore
+    }
+    try {
+      return localStorage.getItem(ACTIVE_AGENT_STORAGE_KEY) || "";
+    } catch {
+      return "";
     }
   }
 
+  function getActiveAgentId() {
+    const fromCtx = panelCtx.getActiveAgentId?.();
+    if (fromCtx) return fromCtx;
+    return resolveActiveAgentIdFromLocation();
+  }
+
   function buildApiUrl(path, params = {}) {
+    if (typeof panelCtx.buildApiUrl === "function") {
+      return panelCtx.buildApiUrl(path, params);
+    }
+    const agentId = getActiveAgentId();
+    if (!agentId) throw new Error("Агент не выбран");
     const url = new URL(path, window.location.origin);
-    url.searchParams.set("agent", getActiveAgentId());
+    url.searchParams.set("agent", agentId);
     for (const [key, value] of Object.entries(params)) {
       if (value != null && value !== "") url.searchParams.set(key, String(value));
     }
@@ -563,7 +598,12 @@
   }
 
   function restoreIndexButtonPolicyState(button) {
-    if (!button || !indexPolicyCache?.layers) return;
+    if (!button) return;
+    if (!OCR_INDEXING_ENABLED && (button === ocrRunBtn || button === ocrForceBtn)) {
+      lockIndexingButton(button);
+      return;
+    }
+
     const layerByButton = new Map([
       [fulltextRebuildBtn, "fulltext"],
       [semanticRebuildBtn, "semantic"],
@@ -573,8 +613,15 @@
       [workspaceIdSyncBtn, "workspaceId"]
     ]);
     const layerKey = layerByButton.get(button);
-    if (!layerKey) return;
-    applyLayerButtonState(button, indexPolicyCache.layers[layerKey]);
+    if (layerKey && indexPolicyCache?.layers && indexPolicyCache.layers[layerKey] === false) {
+      applyLayerButtonState(button, false);
+      return;
+    }
+
+    button.disabled = false;
+    button.removeAttribute("aria-disabled");
+    button.classList.remove("is-feature-disabled");
+    button.title = rememberButtonLabel(button);
   }
 
   function syncLayerBlockBadges(policy) {
@@ -646,6 +693,17 @@
   }
 
   async function refreshStatus() {
+    const agentId = getActiveAgentId();
+    if (!agentId) {
+      summaryStatsNode.textContent = "агент не выбран";
+      summaryStatsNode.classList.add("is-empty");
+      summaryStatsNode.classList.remove("is-error");
+      if (monitorSummaryNode) {
+        monitorSummaryNode.textContent = "Выберите агента в боковой панели";
+        monitorSummaryNode.className = "menu-index-monitor-summary is-empty";
+      }
+      return;
+    }
     try {
       const [monitorRes, idStatus] = await Promise.all([
         fetch(buildApiUrl("/api/workspace-index/monitor")),
@@ -1531,5 +1589,11 @@
     refreshTimer = setTimeout(() => refreshStatus(), 600);
   });
 
-  refreshStatus();
+  window.WorkspaceIndexPanel = {
+    init(options = {}) {
+      panelCtx = { ...panelCtx, ...options };
+      void refreshStatus();
+    },
+    refreshStatus
+  };
 })();

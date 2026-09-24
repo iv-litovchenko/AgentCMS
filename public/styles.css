@@ -61603,6 +61603,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-database-view-toolbar .awn-database-view-columns-btn {
+  height: 26px;
   min-height: 26px;
 }
 
@@ -62685,6 +62686,22 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.awn-database-view-record-fields .node-navigation-hub {
+  width: 100%;
+}
+
+.awn-database-view-record-fields .node-navigation-hub-main {
+  min-width: 0;
+}
+
+.awn-database-view-record-csv-preview {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
 }
 
 .awn-database-view-record-toolbar {
