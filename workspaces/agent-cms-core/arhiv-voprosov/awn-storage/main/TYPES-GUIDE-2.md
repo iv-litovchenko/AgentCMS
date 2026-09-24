@@ -50,7 +50,7 @@ domains:
 | **md-blocks** | ✅ да | палитра блоков редактора (нужны `template` и `status: active`) |
 | **fields** | ✅ да | форма свойств строится из типа поля (`widget`) |
 | **pages/content** | ✅ да | узлы дерева, форма, меню «создать» |
-| **taxonomies** | ✅ да | `awn-database/taxonomies/*` — CSV-справочники; не page-type |
+| **taxonomies** | ✅ да | `awn-databases/taxonomies/*` — CSV-справочники; не page-type |
 | **slots** | ⚠️ декларация | набор слотов в дереве **фиксирован рантаймом** (скан папок `awn-storage`). `storage-driver` (internal/external/tabular) совпадает с формами памяти в счётчике, но тип слота в дерево не подставляется |
 
 Индикатор «Влияет / Не влияет» в инспекторе типа показывает это для каждого конкретного типа.

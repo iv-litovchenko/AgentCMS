@@ -74,8 +74,8 @@ function loadPlatformUiRotators(projectRoot = process.cwd()) {
     homeTitles,
     source: "agent-cms-core",
     stores: {
-      slogans: "awn-database/ui/slogans",
-      homeTitles: "awn-database/ui/home-titles"
+      slogans: "awn-databases/ui/slogans",
+      homeTitles: "awn-databases/ui/home-titles"
     }
   };
 }

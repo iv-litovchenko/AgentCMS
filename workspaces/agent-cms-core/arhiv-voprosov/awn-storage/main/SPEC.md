@@ -1,7 +1,7 @@
 # YamlCMS / Agent-CMS — Спецификация модели данных v0.1
 
 > Собрано из `Формируем вопросы.md` и `REZ_COPY.md`.  
-> Канон реализации platform: `awn-database/cms-base/`.  
+> Канон реализации platform: `awn-databases/cms-base/`.  
 > **Архив.** Канон для агента: [GLOBAL_MCP_DOC.md](../../../GLOBAL_MCP_DOC.md).  
 > Детали runtime: [IBLOCK-MODEL.md](./IBLOCK-MODEL.md), [TYPES-GUIDE.md](./TYPES-GUIDE.md). Живая шпаргалка YAML-типов: [awn-system/TYPES-GUIDE.md](../../../awn-system/TYPES-GUIDE.md).
 
@@ -29,16 +29,16 @@ Workspace → Section → Area → Topic → Slot → [Container] → Row
 
 | Слой | Где | Роль |
 |------|-----|------|
-| **Platform (Core)** | `agent-cms-core/awn-database/` | Канон типов для всех агентов |
-| **Agent (WS)** | `{agent}/` + `{agent}/awn-database/` | Живое дерево, локальные инфobлоки, override |
+| **Platform (Core)** | `agent-cms-core/awn-databases/` | Канон типов для всех агентов |
+| **Agent (WS)** | `{agent}/` + `{agent}/awn-databases/` | Живое дерево, локальные инфobлоки, override |
 | **Runtime** | `topic/awn-storage/…` | Файлы, записи, вложенные коллекции |
 
 ### 2.1. Platform vs Agent
 
 | Источник | Когда редактируешь |
 |----------|-------------------|
-| `agent-cms-core/awn-database/` | Меняешь **базовую платформу** для всех агентов |
-| `{agent}/awn-database/` | Настраиваешь **конкретного агента** (слот, mixin, kit-страница) |
+| `agent-cms-core/awn-databases/` | Меняешь **базовую платформу** для всех агентов |
+| `{agent}/awn-databases/` | Настраиваешь **конкретного агента** (слот, mixin, kit-страница) |
 | `configuration-schema.yml` на уровне WS / Area / Section | Override схемы **в дереве** |
 
 **Правило:** типы страниц (`awn.page.*`) — в **`awn-system/types/pages/`** (YAML).  
@@ -132,7 +132,7 @@ Type ID **не произвольный slug в файле**, а простра�
 
 ### 5.3. Реестр типов (гибридный)
 
-- **Core registry** — базовые типы (`awn.base.*`) в `awn-database/cms-base/entities/`.
+- **Core registry** — базовые типы (`awn.base.*`) в `awn-databases/cms-base/entities/`.
 - **Auto-discovery** — при загрузке WS сканировать `awn-kind: container`, регистрировать `awn-role` / type path.
 - **Индекс-кэш** (опционально): `/.awn/registry.json` — не source of truth, а ускоритель.
 
@@ -300,14 +300,14 @@ core → ws → area → section → local node (итоговая схема)
 |-------|---------|---------|-----------|
 | **Каталог типов** | `table.base.md` | pages, slots, content | описание типа (`topic.md`) |
 | **Данные** | `row.base.md` | tasks, taxonomies | строка данных (`1.md`) |
-| **Presets** | — | `awn-database/system-presets/` | пресеты (`.env`, `SKILL.md`, …) |
+| **Presets** | — | `awn-databases/system-presets/` | пресеты (`.env`, `SKILL.md`, …) |
 | **Mixins** | `base.md` | cms-base/mixins | примесь полей |
 
 ---
 
 ## 11. Локальные инфobлоки в теме (Structured Data)
 
-Инфobлок **не обязан** жить только в `awn-database/`.  
+Инфobлок **не обязан** жить только в `awn-databases/`.  
 Слот типа «structured-data» — mount point для локального container.
 
 ```
@@ -329,7 +329,7 @@ agent-cms-core/
 ├── arhiv-voprosov/awn-storage/main/  ← архив спецификаций и карт
 │   ├── SPEC.md
 │   └── MAP_2.md
-├── awn-database/                       ← PLATFORM (накопители данных + cms-base)
+├── awn-databases/                       ← PLATFORM (накопители данных + cms-base)
 │   ├── cms-base/
 │   │   ├── entities/               ← awn.base, table.base, row.base
 │   │   └── mixins/
@@ -344,7 +344,7 @@ agent-cms-core/
     │   └── awn-storage/
     │       ├── inbox/…             ← файловые слоты
     │       └── _data_news/         ← локальный container
-    └── awn-database/                   ← agent overrides (опционально)
+    └── awn-databases/                   ← agent overrides (опционально)
 ```
 
 Kit-области (`awn-agent-kit`, `awn-container`, `awn-shared`) — те же **Area**, но с заготовкой структуры.

@@ -251,7 +251,7 @@ fields:
       2. Условие — путь, тип записи, тег (опционально).
       3. Действие — POST на URL, notify_user, run_script, mcp.tool.
 
-      Правила хранятся в settings.yml (или отдельном awn-database). Подписка — в server/MCP.
+      Правила хранятся в settings.yml (или отдельном awn-databases). Подписка — в server/MCP.
 
   hooks-rules:
     type: awn.field.repeater

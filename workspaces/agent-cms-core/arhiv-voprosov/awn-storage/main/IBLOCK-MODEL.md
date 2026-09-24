@@ -14,7 +14,7 @@ awn.base
 └── awn.row.base            ← ЭЛЕМЕНТ (строка)
         awn-id, awn-created, awn-updated
 
-awn-database/
+awn-databases/
 ├── cms-base/entities/      ← канон двух базовых типов
 │   ├── base.md
 │   ├── table.base.md       ← «Инфоблок»

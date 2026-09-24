@@ -69,7 +69,7 @@ Data — **запись вне тем**, в глобальном реестре 
 Исторически и практически:
 
 1. **Разный адрес** — агенту проще `read_page_body(path)`, чем каждый раз помнить slot/ref.
-2. **Разные операции** — `create_page` поднимает папку+manifest+слоты; `create_content` — файл в `main/`; `create_data_store` — store в `awn-database/`.
+2. **Разные операции** — `create_page` поднимает папку+manifest+слоты; `create_content` — файл в `main/`; `create_data_store` — store в `awn-databases/`.
 3. **Разный UI** — редактор страницы vs слот vs store.
 4. **Escape hatch уже есть** — `read_file` / `write_file` для «просто файл».
 

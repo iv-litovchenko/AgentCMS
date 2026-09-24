@@ -6,7 +6,8 @@ const AGENT_CMS_CORE_REL = "workspaces/agent-cms-core";
 
 const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
-const AWN_DATABASE_REL = "awn-database";
+const AWN_DATABASE_REL = "awn-databases";
+const LEGACY_AWN_DATABASE_REL = "awn-database";
 const LEGACY_AWN_DATA_REL = "awn-data";
 /** @deprecated use AWN_DATABASE_REL */
 const AWN_DATA_REL = AWN_DATABASE_REL;
@@ -41,7 +42,7 @@ function agentSystemDirExists(agentRoot) {
   return fs.existsSync(path.join(root, AGENT_SYSTEM_FOLDER, "registry.yml"));
 }
 
-/** Относительный путь CMS-конфига агента: awn-system/ или fallback awn-database/cms-base/ */
+/** Относительный путь CMS-конфига агента: awn-system/ или fallback awn-databases/cms-base/ */
 function getCmsConfigRel(agentRoot) {
   return agentSystemDirExists(agentRoot) ? AGENT_SYSTEM_FOLDER : CMS_BASE_REL;
 }
@@ -184,6 +185,7 @@ module.exports = {
   AGENT_CMS_CORE_REL,
   COMPONENTS_REL,
   AWN_DATABASE_REL,
+  LEGACY_AWN_DATABASE_REL,
   LEGACY_AWN_DATA_REL,
   AWN_DATA_REL,
   CMS_BASE_REL,

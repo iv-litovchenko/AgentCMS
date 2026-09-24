@@ -46,7 +46,7 @@ MCP подключается **без** фиксированного храни�
 
 **Page ≠ Content.** Слот — не файл; контент живёт *в* слоте. У **темы** тело `manifest.md` — бриф, контекст, инструкция и договорённости с агентом (см. раздел «Страницы»).
 
-**Page · Slot · Content ≠ awn-database.** Дерево страниц — для **неструктурированной** и **полуструктурированной** памяти (текст, заметки, медиа). Инфоблоки — для **структурированных** данных со схемой. Выбор — см. раздел «Страницы и контент vs awn-database».
+**Page · Slot · Content ≠ awn-databases.** Дерево страниц — для **неструктурированной** и **полуструктурированной** памяти (текст, заметки, медиа). Инфоблоки — для **структурированных** данных со схемой. Выбор — см. раздел «Страницы и контент vs awn-databases».
 
 ### Ключи (обязательно)
 
@@ -112,7 +112,7 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 |------|-------|------|------|
 | `…/tema/awn-storage/main/readme.md` | `…/tema/manifest.md` | родительская область | `main`, ref=`readme.md` |
 | `…/oblast/manifest.md` | — | `…/oblast/manifest.md` | — |
-| `awn-database/tasks/…` | — (это инфоблоки, не Page) | — | — |
+| `awn-databases/tasks/…` | — (это инфоблоки, не Page) | — | — |
 | папка без manifest | `ancestors` пуст или только ws | свободная память | — |
 
 Альтернативы: `get_page_map` / `get_site_map` (полная карта), `search_workspace_content` (поиск по тексту, опц. `pathPrefix`), `get_user_active_context_now` (фокус UI).
@@ -388,7 +388,7 @@ write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-
 |-----|------|-------|-------|
 | Поля страницы / слотов | `schema.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
-| Поля записей накопителя | `schema.yml` в awn-database | `iblock_frame_read_schema` / `iblock_frame_write_schema` | Схема awn-database |
+| Поля записей накопителя | `schema.yml` в awn-databases | `iblock_frame_read_schema` / `iblock_frame_write_schema` | Схема awn-databases |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
@@ -741,14 +741,14 @@ razdel-1/
 
 ---
 
-## Страницы и контент vs awn-database — когда что
+## Страницы и контент vs awn-databases — когда что
 
 Два слоя памяти workspace. **Не смешивать** без причины: не класть табличный реестр в `main/` темы и не делать «заметку» отдельной записью инфоблока, если ей не нужна общая схема полей.
 
-| | **Page · Slot · Content** | **awn-database (инфоблоки)** |
+| | **Page · Slot · Content** | **awn-databases (инфоблоки)** |
 |---|---------------------------|---------------------------|
 | **Тип информации** | Неструктурированная и полуструктурированная | Структурированная |
-| **Где живёт** | Дерево меню WS → Area → Topic; файлы в слотах (`main`, `inbox`, `media`…) или path-based FS в `awn-storage/` | Папка `awn-database/` **вне** дерева Page · Slot · Content |
+| **Где живёт** | Дерево меню WS → Area → Topic; файлы в слотах (`main`, `inbox`, `media`…) или path-based FS в `awn-storage/` | Папка `awn-databases/` **вне** дерева Page · Slot · Content |
 | **Форма** | Markdown, медиа, код, произвольные папки; frontmatter по желанию | Коллекции `{id}.md`, CSV-таблицы, **единая схема** (`schema.yml`) на все записи |
 | **Когда выбирать** | Документы, заметки, планы, обсуждения, статьи, черновики, контекст темы, wikilinks | Справочники, реестры, задачи с полями, enum/taxonomies, финансы по строкам, любые **однотипные сущности** с фильтрацией и CRUD |
 | **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `iblock_frame_list`, `iblock_frame_get`, `iblock_content_create`, `iblock_frame_read_schema` |
@@ -756,26 +756,26 @@ razdel-1/
 
 **Примеры → Page · Slot · Content:** протокол встречи, README темы, inbox-заметка, медиафайл, гибкая папка в `awn-storage/` без жёстких колонок.
 
-**Примеры → awn-database:** `taxonomies/` (enum-значения), список агентов с полями, коллекция расходов (дата, сумма, категория), одиночка `main.md` с фиксированной схемой.
+**Примеры → awn-databases:** `taxonomies/` (enum-значения), список агентов с полями, коллекция расходов (дата, сумма, категория), одиночка `main.md` с фиксированной схемой.
 
-**Правило выбора:** если у всех элементов **одинаковый набор полей** и нужны запросы «по колонке» / валидация схемы → **awn-database**. Если важнее **свободный текст**, навигация по теме и связи между файлами → **Page · Slot · Content**.
+**Правило выбора:** если у всех элементов **одинаковый набор полей** и нужны запросы «по колонке» / валидация схемы → **awn-databases**. Если важнее **свободный текст**, навигация по теме и связи между файлами → **Page · Slot · Content**.
 
 ---
 
-## Накопители информации / инфоблоки (awn-database)
+## Накопители информации / инфоблоки (awn-databases)
 
-**Терминология:** `awn-database` — **структурированные данные** (таблицы, коллекции со схемой). В UI: **«Накопители информации (инфоблоки)»**. Не путать со слотами темы. См. также раздел «Страницы и контент vs awn-database» выше.
+**Терминология:** `awn-databases` — **структурированные данные** (таблицы, коллекции со схемой). В UI: **«Накопители информации (инфоблоки)»**. Не путать со слотами темы. См. также раздел «Страницы и контент vs awn-databases» выше.
 
 **MCP — два слоя (frame / content):**
 
 | Слой | Префикс | Типы | Про что |
 |------|---------|------|---------|
-| Каркас (frame) | `iblock_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-database/{slug}/` |
+| Каркас (frame) | `iblock_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
 | Элементы | `iblock_content_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
 
 Старые `iblock_*` (без `frame`) — deprecated-алиасы на `iblock_frame_*`.
 
-Папка `awn-database/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `iblock_frame_list` только frames** — не путать с element-записями внутри store.
+Папка `awn-databases/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `iblock_frame_list` только frames** — не путать с element-записями внутри store.
 
 **Типовой flow (3 шага):**
 1. `iblock_frame_list` → `iblock_frame_get({ store })`
@@ -784,7 +784,7 @@ razdel-1/
 
 - типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
 - типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`
-- оглавление frames: `iblock_frame_read_index` / `iblock_frame_refresh_index` → `awn-database/index.md`
+- оглавление frames: `iblock_frame_read_index` / `iblock_frame_refresh_index` → `awn-databases/index.md`
 - **бриф frame** — тело `manifest.md` (после frontmatter); в `iblock_frame_get` → `manifestMarkdown`
 - **кастомные поля instance** (не весь тип): `iblock_frame_read_schema` / `iblock_frame_write_schema` — только доп. поля в `schema.yml`
 - свойства frame: `iblock_frame_read_properties` / `iblock_frame_write_properties`
@@ -1060,7 +1060,7 @@ recall_workspace_facts({
 1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-flexible: true` (тогда — произвольная структура в `awn-storage/`).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
-4. `awn-database` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `iblock_frame_*` + `iblock_content_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-database»).
+4. `awn-databases` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `iblock_frame_*` + `iblock_content_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-databases»).
 5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `discussion` (не устаревшие `note` / `script` / `thread` / `dialogs`).
 7. Комментарии / дискуссия — свои tools (`list_comments`, `append_comment`, `read_discussion`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-content`, `mark-done`, `set-status`).

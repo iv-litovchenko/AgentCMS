@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * Rename workspace folder awn-data → awn-database and update path references in text files.
+ * Rename workspace folder awn-data → awn-databases and update path references in text files.
  *
  * Usage:
- *   node scripts/migrate-awn-data-to-awn-database.js
- *   node scripts/migrate-awn-data-to-awn-database.js workspaces/agent-cms-test
+ *   node scripts/migrate-awn-data-to-awn-databases.js
+ *   node scripts/migrate-awn-data-to-awn-databases.js workspaces/agent-cms-test
  */
 const fs = require("fs/promises");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const LEGACY = "awn-data";
-const TARGET = "awn-database";
+const TARGET = "awn-databases";
 const TEXT_EXT = new Set([
   ".md",
   ".yml",
@@ -25,12 +25,12 @@ const TEXT_EXT = new Set([
 ]);
 
 const REPLACEMENTS = [
-  ["awn-data/", "awn-database/"],
-  ["layer: awn-data-store", "layer: awn-database-store"],
-  ["/api/awn-data", "/api/awn-database"],
-  ["/api/agent/awn-data-index", "/api/agent/awn-database-index"],
-  ["(awn-data)", "(awn-database)"],
-  ["# Оглавление инфоблоков (awn-data)", "# Оглавление инфоблоков (awn-database)"]
+  ["awn-data/", "awn-databases/"],
+  ["layer: awn-data-store", "layer: awn-databases-store"],
+  ["/api/awn-data", "/api/awn-databases"],
+  ["/api/agent/awn-data-index", "/api/agent/awn-databases-index"],
+  ["(awn-data)", "(awn-databases)"],
+  ["# Оглавление инфоблоков (awn-data)", "# Оглавление инфоблоков (awn-databases)"]
 ];
 
 async function exists(p) {

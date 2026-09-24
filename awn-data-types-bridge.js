@@ -11,7 +11,7 @@ const {
 
 const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
-/** domain id → awn-database store folder (legacy MD types; YAML in awn-system/types/) */
+/** domain id → awn-databases store folder (legacy MD types; YAML in awn-system/types/) */
 const DOMAIN_TYPE_STORES = {
   settings: "settings"
 };
@@ -120,7 +120,7 @@ function recordToCatalogEntry(record, domain, source = "platform") {
     domain,
     fileName: path.posix.basename(relWithinStore).replace(/\.md$/i, ""),
     relPath,
-    catalogFile: `awn-database/${storeRel}/${relWithinStore}`.replace(/\\/g, "/"),
+    catalogFile: `awn-databases/${storeRel}/${relWithinStore}`.replace(/\\/g, "/"),
     source,
     schema,
     status: String(schema.status || "active").trim(),
@@ -197,7 +197,7 @@ function cmsConfigExists(agentRoot, projectRoot = process.cwd()) {
   if (!agentRootAbs) return false;
   if (agentSystemDirExists(agentRootAbs)) return true;
   for (const rel of [
-    path.join("awn-database", CMS_CONFIG_STORE),
+    path.join("awn-databases", CMS_CONFIG_STORE),
     path.join("awn-data", CMS_CONFIG_STORE)
   ]) {
     const configRoot = path.join(agentRootAbs, rel);

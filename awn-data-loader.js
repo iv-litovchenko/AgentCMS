@@ -21,7 +21,8 @@ const {
   LEGACY_CONFIGURATION_SCHEMA_FILE
 } = require("./schema-mod-paths");
 
-const AWN_DATABASE_DIR = "awn-database";
+const AWN_DATABASE_DIR = "awn-databases";
+const LEGACY_AWN_DATABASE_DIR = "awn-database";
 const LEGACY_AWN_DATA_DIR = "awn-data";
 /** @deprecated use AWN_DATABASE_DIR */
 const AWN_DATA_DIR = AWN_DATABASE_DIR;
@@ -527,8 +528,10 @@ function getAwnDataRoot(agentRoot, projectRoot = process.cwd()) {
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
   if (!agentRootAbs) return "";
   const databasePath = path.join(agentRootAbs, AWN_DATABASE_DIR);
+  const legacyDatabasePath = path.join(agentRootAbs, LEGACY_AWN_DATABASE_DIR);
   const legacyPath = path.join(agentRootAbs, LEGACY_AWN_DATA_DIR);
   if (fs.existsSync(databasePath)) return databasePath;
+  if (fs.existsSync(legacyDatabasePath)) return legacyDatabasePath;
   if (fs.existsSync(legacyPath)) return legacyPath;
   return databasePath;
 }
@@ -1100,7 +1103,7 @@ function readStoreSchemeModOverlay(storeAbs) {
 }
 
 function composeAwnDataStoreSchemeModYaml(schema = {}) {
-  const lines = ["version: 1", "layer: awn-database-store", "", "awn_schema:"];
+  const lines = ["version: 1", "layer: awn-databases-store", "", "awn_schema:"];
   const blocks = schema.blocks && typeof schema.blocks === "object" ? schema.blocks : null;
   const includeEmptyBlocks = Boolean(schema.includeEmptyBlocks);
 
@@ -1791,7 +1794,7 @@ function loadAwnDataStores(agentRoot, projectRoot = process.cwd()) {
 
   return {
     specVersion: "0.2",
-    model: "awn-database",
+    model: "awn-databases",
     root: dataRoot.replace(/\\/g, "/"),
     storeCount: stores.length,
     stores
@@ -1864,7 +1867,7 @@ function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "")
 
 const BASE_SCHEMA_TEMPLATE = `---
 awn-type: awn.infoblock.base
-awn-layer: awn-database-base
+awn-layer: awn-databases-base
 awn-fields:
   awn-id:
     type: awn.string
@@ -1879,7 +1882,7 @@ awn-fields:
     title: Обновлено
 ---
 
-Базовые поля каждой записи в awn-database (наследуются всеми накопителями).
+Базовые поля каждой записи в awn-databases (наследуются всеми накопителями).
 `;
 
 function yamlQuote(value) {
@@ -3590,6 +3593,7 @@ function getContainerTypesPayload(agentRoot, projectRoot) {
 
 module.exports = {
   AWN_DATABASE_DIR,
+  LEGACY_AWN_DATABASE_DIR,
   LEGACY_AWN_DATA_DIR,
   AWN_DATA_DIR,
   STORE_CONTRACT_FILE,

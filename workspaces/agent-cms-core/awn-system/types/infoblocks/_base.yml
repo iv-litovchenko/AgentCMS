@@ -5,7 +5,7 @@ domain: infoblock
 status: active
 extends: awn.base
 description: >
-  Инфоблок в awn-database/: manifest.md (бриф, контекст, инструкция) + записи.
+  Инфоблок в awn-databases/: manifest.md (бриф, контекст, инструкция) + записи.
   Аналог страницы в pages, но без узла меню — контейнер данных.
 
 form:

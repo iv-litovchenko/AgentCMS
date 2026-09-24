@@ -153,7 +153,7 @@ Workspace-агенты могут дополнять список локальн
 
 ---
 
-**Итог в одной строке:** `store.yml` = схема **накопителя awn-data**; `.md` в awn-data = **экземпляры/типы**; `awn.entity/awn.base` = **онтология CMS** в `awn-database/base/`; **живые страницы** — в workspace, не в awn-data.
+**Итог в одной строке:** `store.yml` = схема **накопителя awn-data**; `.md` в awn-data = **экземпляры/типы**; `awn.entity/awn.base` = **онтология CMS** в `awn-databases/base/`; **живые страницы** — в workspace, не в awn-data.
 
 
 ￼

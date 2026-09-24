@@ -38,8 +38,9 @@ function stripStorageRootPrefix(relPath) {
 }
 /** Служебный слой Neos-like: node-types, fields — не в меню контента */
 const CONFIGURATION_ROOT_FOLDER = "configuration";
-/** Накопители информации (инфоблоки) — sidebar awn-database, не в дереве тем */
-const AWN_DATABASE_ROOT_FOLDER = "awn-database";
+/** Накопители информации (инфоблоки) — sidebar awn-databases, не в дереве тем */
+const AWN_DATABASE_ROOT_FOLDER = "awn-databases";
+const LEGACY_AWN_DATABASE_ROOT_FOLDER = "awn-database";
 const LEGACY_AWN_DATA_ROOT_FOLDER = "awn-data";
 /** @deprecated use AWN_DATABASE_ROOT_FOLDER */
 const AWN_DATA_ROOT_FOLDER = AWN_DATABASE_ROOT_FOLDER;
@@ -67,7 +68,11 @@ const SERVICE_AREA_NAME = "Служебные темы и компоненты";
 
 function isAwnDatabaseFolderName(name) {
   const lower = String(name || "").trim().toLowerCase();
-  return lower === AWN_DATABASE_ROOT_FOLDER || lower === LEGACY_AWN_DATA_ROOT_FOLDER;
+  return (
+    lower === AWN_DATABASE_ROOT_FOLDER ||
+    lower === LEGACY_AWN_DATABASE_ROOT_FOLDER ||
+    lower === LEGACY_AWN_DATA_ROOT_FOLDER
+  );
 }
 
 /** @deprecated use isAwnDatabaseFolderName */
@@ -1426,6 +1431,7 @@ module.exports = {
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
   AWN_DATABASE_ROOT_FOLDER,
+  LEGACY_AWN_DATABASE_ROOT_FOLDER,
   LEGACY_AWN_DATA_ROOT_FOLDER,
   AWN_DATA_ROOT_FOLDER,
   isAwnDatabaseFolderName,

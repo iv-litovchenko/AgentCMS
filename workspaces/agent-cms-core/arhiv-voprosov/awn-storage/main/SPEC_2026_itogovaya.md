@@ -2,10 +2,10 @@
 
 > Канон для агента: [GLOBAL_MCP_DOC.md](../../../GLOBAL_MCP_DOC.md). Полная спецификация: [SPEC.md](./SPEC.md).
 
-> **Фокус этапа:** расположение и определение файлов в `awn-database/` — откуда система подцепляет типы и схемы.  
+> **Фокус этапа:** расположение и определение файлов в `awn-databases/` — откуда система подцепляет типы и схемы.  
 > **ID = путь.** Отдельных `awn-id` / `awn-type-id` нет.
 
-Система, где всё в Markdown, схемы наследуются, co-location, тип в `awn-database/` → экземпляр снаружи.
+Система, где всё в Markdown, схемы наследуются, co-location, тип в `awn-databases/` → экземпляр снаружи.
 
 ---
 
@@ -37,13 +37,13 @@
 ```
 cms-base/
 ├── base
-├── data-containers/              store id: awn-database/cms-base/data-containers
+├── data-containers/              store id: awn-databases/cms-base/data-containers
 │   ├── manifest.md               supertype → collection.md
 │   ├── collection.md             id: …/data-containers/collection.md
 │   ├── group.md
 │   ├── single.md
 │   └── mixin.md
-├── data-elements/                store id: awn-database/cms-base/data-elements
+├── data-elements/                store id: awn-databases/cms-base/data-elements
 │   ├── manifest.md
 │   └── default.md                id: …/data-elements/default.md
 └── mixins/                       каталог примесей
@@ -67,8 +67,8 @@ tasks/manifest.md
   awn-data-elements-schema: { fields задачи }
 
 tasks/1.md
-  awn-supertype: awn-database/tasks
-  id = awn-database/tasks/1.md
+  awn-supertype: awn-databases/tasks
+  id = awn-databases/tasks/1.md
 ```
 
 ---
@@ -82,10 +82,10 @@ awn-container/…/manifest.md                 ← item: живая тема (з�
 
 ---
 
-## 6) `awn-database/` — остальные домены
+## 6) `awn-databases/` — остальные домены
 
 ```
-awn-database/
+awn-databases/
 ├── sort.json
 ├── cms-base/          ← §3
 ├── settings/          collection

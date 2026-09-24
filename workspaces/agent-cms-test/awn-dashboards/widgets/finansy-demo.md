@@ -4,7 +4,7 @@ awn-name: Расходы (bar)
 awn-dashboard-present: chart
 awn-dashboard-chart-type: bar
 awn-dashboard-source-kind: internal
-awn-dashboard-source-tool: awn-database/finansy/rashody.csv
+awn-dashboard-source-tool: awn-databases/finansy/rashody.csv
 awn-dashboard-x: 4
 awn-dashboard-y: 3
 awn-dashboard-w: 8

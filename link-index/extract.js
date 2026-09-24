@@ -7,7 +7,7 @@ const WIKILINK_RE = /\[\[([^\]|#]+)(#[^\]|]+)?(?:\|([^\]]+))?\]\]/g;
 const MARKDOWN_LINK_RE = /(!?\[(?:\\.|[^\]])*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
 const RELATION_KEY_RE = /(?:parent|relation|ref|link|extends|supertype|topic|record)/i;
-const PATH_LIKE_RE = /^(?:\.\.?\/|awn-|awn-database\/|awn-container\/|awn-storage\/|.*\/.*)/i;
+const PATH_LIKE_RE = /^(?:\.\.?\/|awn-|awn-databases\/|awn-container\/|awn-storage\/|.*\/.*)/i;
 const FILE_EXT_RE = /\.(md|yml|yaml|csv|json|png|jpe?g|gif|webp|pdf)$/i;
 
 function normalizePath(relPath) {

@@ -1,0 +1,16 @@
+version: 1
+layer: awn-databases-store
+
+awn_schema:
+  frame:
+    fields:
+      awn-field-1:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 10
+      awn-field-2:
+        type: awn.field.string
+        name: ""
+        placement: editor-body
+        sort: 20

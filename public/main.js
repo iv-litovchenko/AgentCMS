@@ -42,9 +42,9 @@ const appFooterJournalTypeSelectNode = document.getElementById("app-footer-journ
 const appFooterJournalNotifyInputNode = document.getElementById("app-footer-journal-notify-input");
 const appFooterJournalBodyInputNode = document.getElementById("app-footer-journal-body-input");
 const appFooterJournalSubmitBtn = document.getElementById("app-footer-journal-submit-btn");
-const menuAwnDataBandNode = document.getElementById("menu-awn-database-band");
-const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-database-band-toggle");
-const menuAwnDataBandBodyNode = document.getElementById("menu-awn-database-band-body");
+const menuAwnDataBandNode = document.getElementById("menu-awn-databases-band");
+const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-databases-band-toggle");
+const menuAwnDataBandBodyNode = document.getElementById("menu-awn-databases-band-body");
 const menuRepositoriesBandNode = document.getElementById("menu-repositories-band");
 const menuRepositoriesBandToggleBtn = document.getElementById("menu-repositories-band-toggle");
 const menuRepositoriesBandBodyNode = document.getElementById("menu-repositories-band-body");
@@ -72,43 +72,43 @@ const menuAwnRecycleOpenBtn = document.getElementById("menu-awn-recycle-open-btn
 const menuAwnBackupOpenBtn = document.getElementById("menu-awn-backup-open-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
-const menuAwnDataStoresNode = document.getElementById("menu-awn-database-stores");
-const menuAwnDataRefreshBtn = document.getElementById("menu-awn-database-refresh-btn");
-const menuAwnDataHelpBtn = document.getElementById("menu-awn-database-help-btn");
-const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-database-create-collection-btn");
-const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-database-create-single-btn");
-const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-database-create-group-btn");
-const menuAwnDataSearchInputNode = document.getElementById("menu-awn-database-search-input");
-const menuAwnDataIndexRowNode = document.getElementById("menu-awn-database-index-row");
-const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-database-index-open-btn");
-const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-database-index-refresh-btn");
-const AWN_DATA_INDEX_REL_PATH = "awn-database/index.md";
+const menuAwnDataStoresNode = document.getElementById("menu-awn-databases-stores");
+const menuAwnDataRefreshBtn = document.getElementById("menu-awn-databases-refresh-btn");
+const menuAwnDataHelpBtn = document.getElementById("menu-awn-databases-help-btn");
+const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-databases-create-collection-btn");
+const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-databases-create-single-btn");
+const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-databases-create-group-btn");
+const menuAwnDataSearchInputNode = document.getElementById("menu-awn-databases-search-input");
+const menuAwnDataIndexRowNode = document.getElementById("menu-awn-databases-index-row");
+const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-databases-index-open-btn");
+const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-databases-index-refresh-btn");
+const AWN_DATA_INDEX_REL_PATH = "awn-databases/index.md";
 /** false = форма видна, но disabled (без отправки/ответов/реакций) */
 const AWN_DATA_COMMENTS_ENABLED = false;
-const awnDataCreateModalNode = document.getElementById("awn-database-create-modal");
-const awnDataCreateModalTitleNode = document.getElementById("awn-database-create-modal-title");
-const awnDataCreateModalHintNode = document.getElementById("awn-database-create-modal-hint");
-const awnDataCreateNameInputNode = document.getElementById("awn-database-create-name-input");
-const awnDataCreateSlugInputNode = document.getElementById("awn-database-create-slug-input");
-const awnDataCreateSlugUnlinkBtn = document.getElementById("awn-database-create-slug-unlink-btn");
-const awnDataCreateParentHintNode = document.getElementById("awn-database-create-parent-hint");
-const awnDataCreateDescriptionInputNode = document.getElementById("awn-database-create-description-input");
-const awnDataCreateKindWrapNode = document.getElementById("awn-database-create-kind-wrap");
-const awnDataCreateKindInputNode = document.getElementById("awn-database-create-kind-input");
-const awnDataCreateStorageWrapNode = document.getElementById("awn-database-create-storage-wrap");
-const awnDataCreateStorageInputNode = document.getElementById("awn-database-create-storage-input");
-const awnDataCreateCheckboxGroupNode = document.getElementById("awn-database-create-checkbox-group");
-const awnDataCreateHierarchyWrapNode = document.getElementById("awn-database-create-hierarchy-wrap");
-const awnDataCreateHierarchyInputNode = document.getElementById("awn-database-create-hierarchy-input");
-const awnDataCreateFileTypesWrapNode = document.getElementById("awn-database-create-file-types-wrap");
-const awnDataCreateFileTypesPresetsNode = document.getElementById("awn-database-create-file-types-presets");
-const awnDataCreateFileTypesInputNode = document.getElementById("awn-database-create-file-types-input");
-const awnDataCreateSampleWrapNode = document.getElementById("awn-database-create-sample-wrap");
-const awnDataCreateSampleInputNode = document.getElementById("awn-database-create-sample-input");
-const awnDataCreateCancelBtn = document.getElementById("awn-database-create-cancel-btn");
-const awnDataCreateSubmitBtn = document.getElementById("awn-database-create-submit-btn");
-const awnDataCreateIndexExcludeWrapNode = document.getElementById("awn-database-create-index-exclude-wrap");
-const awnDataCreateIndexExcludeInput = document.getElementById("awn-database-create-index-exclude");
+const awnDataCreateModalNode = document.getElementById("awn-databases-create-modal");
+const awnDataCreateModalTitleNode = document.getElementById("awn-databases-create-modal-title");
+const awnDataCreateModalHintNode = document.getElementById("awn-databases-create-modal-hint");
+const awnDataCreateNameInputNode = document.getElementById("awn-databases-create-name-input");
+const awnDataCreateSlugInputNode = document.getElementById("awn-databases-create-slug-input");
+const awnDataCreateSlugUnlinkBtn = document.getElementById("awn-databases-create-slug-unlink-btn");
+const awnDataCreateParentHintNode = document.getElementById("awn-databases-create-parent-hint");
+const awnDataCreateDescriptionInputNode = document.getElementById("awn-databases-create-description-input");
+const awnDataCreateKindWrapNode = document.getElementById("awn-databases-create-kind-wrap");
+const awnDataCreateKindInputNode = document.getElementById("awn-databases-create-kind-input");
+const awnDataCreateStorageWrapNode = document.getElementById("awn-databases-create-storage-wrap");
+const awnDataCreateStorageInputNode = document.getElementById("awn-databases-create-storage-input");
+const awnDataCreateCheckboxGroupNode = document.getElementById("awn-databases-create-checkbox-group");
+const awnDataCreateHierarchyWrapNode = document.getElementById("awn-databases-create-hierarchy-wrap");
+const awnDataCreateHierarchyInputNode = document.getElementById("awn-databases-create-hierarchy-input");
+const awnDataCreateFileTypesWrapNode = document.getElementById("awn-databases-create-file-types-wrap");
+const awnDataCreateFileTypesPresetsNode = document.getElementById("awn-databases-create-file-types-presets");
+const awnDataCreateFileTypesInputNode = document.getElementById("awn-databases-create-file-types-input");
+const awnDataCreateSampleWrapNode = document.getElementById("awn-databases-create-sample-wrap");
+const awnDataCreateSampleInputNode = document.getElementById("awn-databases-create-sample-input");
+const awnDataCreateCancelBtn = document.getElementById("awn-databases-create-cancel-btn");
+const awnDataCreateSubmitBtn = document.getElementById("awn-databases-create-submit-btn");
+const awnDataCreateIndexExcludeWrapNode = document.getElementById("awn-databases-create-index-exclude-wrap");
+const awnDataCreateIndexExcludeInput = document.getElementById("awn-databases-create-index-exclude");
 const menuRepositoriesListNode = document.getElementById("menu-repositories-list");
 const menuRepositoriesRefreshBtn = document.getElementById("menu-repositories-refresh-btn");
 const menuRepositoriesHelpBtn = document.getElementById("menu-repositories-help-btn");
@@ -2470,7 +2470,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openRepositoryWorkspacePath(folderPath, { skipRouteSync: true });
       return;
     }
-    if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(folderPath)) {
+    if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
         resolved.agentId || activeAgentId,
@@ -2493,7 +2493,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openRepositoryWorkspacePath(filePath, { skipRouteSync: true });
       return;
     }
-    if (/^(?:awn-database|awn-data)\//i.test(filePath)) {
+    if (/^(?:awn-databases|awn-data)\//i.test(filePath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         filePath.replace(/\.md$/i, ""),
         resolved.agentId || activeAgentId,
@@ -2519,7 +2519,7 @@ async function applyChpuResolvedRoute(resolved) {
       if (openedEdit) return;
     }
     const opened = await openAwnDataRouteFromWorkspacePath(
-      resolved.workspacePath || "awn-database",
+      resolved.workspacePath || "awn-databases",
       resolved.agentId || activeAgentId,
       { skipRouteSync: true }
     );
@@ -2535,7 +2535,7 @@ async function applyChpuResolvedRoute(resolved) {
       .replace(/\\/g, "/")
       .replace(/\/manifest\.md$/i, "")
       .replace(/^\/+|\/+$/g, "");
-    if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(topicPath)) {
+    if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(topicPath)) {
       hideHomeView();
       const opened = await openAwnDataRouteFromWorkspacePath(
         topicPath,
@@ -2586,7 +2586,7 @@ async function applyChpuResolvedRoute(resolved) {
       await openAwnDataIndexOverview();
       return;
     }
-    if (/^(?:awn-database|awn-data)\//i.test(fileRel)) {
+    if (/^(?:awn-databases|awn-data)\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
         resolved.agentId || activeAgentId,
@@ -2811,7 +2811,7 @@ function getChpuWorkspacePathFromState() {
     return appendChpuViewToWorkspacePath(folderPath, "folder", { force: true });
   }
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
-    let routePath = `awn-database/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
+    let routePath = `awn-databases/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
     const recordId = String(awnDataViewRecordId || "").trim();
     if (recordId) routePath += `/${recordId}`;
     return routePath;
@@ -2821,7 +2821,7 @@ function getChpuWorkspacePathFromState() {
     awnDataManifestEditReturnRel &&
     isAwnDatabaseManifestEditing()
   ) {
-    let routePath = `awn-database/${String(awnDataManifestEditReturnRel).replace(/^\/+|\/+$/g, "")}`;
+    let routePath = `awn-databases/${String(awnDataManifestEditReturnRel).replace(/^\/+|\/+$/g, "")}`;
     const recordId = String(awnDataManifestEditReturnRecordId || "").trim();
     if (recordId) routePath += `/${recordId}`;
     return appendChpuViewToWorkspacePath(routePath, "edit", { force: true });
@@ -3173,7 +3173,7 @@ function buildActiveFocusFromState() {
 
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
     return {
-      entity: "awn-database-store",
+      entity: "awn-databases-store",
       store: { relPath: awnDataViewStoreRel },
       editing: false
     };
@@ -4307,7 +4307,7 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (parseStorageLayerRef(normalizedPart)) {
     return normalizedPart;
   }
-  if (/^(?:awn-container|awn-repositories|awn-database|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
+  if (/^(?:awn-container|awn-repositories|awn-databases|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
     return normalizedPart;
   }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
@@ -4831,7 +4831,7 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
     return openRepositoryWorkspacePath(normalized, options);
   }
 
-  if (/^(?:awn-database|awn-data)(?:\/|$)/i.test(normalized)) {
+  if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(normalized)) {
     let routePath = normalized;
     if (/\/manifest\.md$/i.test(routePath)) {
       routePath = routePath.replace(/\/manifest\.md$/i, "");
@@ -14920,7 +14920,7 @@ const NODE_OVERVIEW_MODE = "overview";
 const NODE_NAVIGATION_MODE = "navigation";
 const FOLDER_BROWSE_MODE = "folder-browse";
 const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
-const AWN_DATA_VIEW_MODE = "awn-database-view";
+const AWN_DATA_VIEW_MODE = "awn-databases-view";
 const FREE_MEMORY_LABEL = "Свободная память";
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_FACTS_FOLDER = "awn-facts";
@@ -20647,7 +20647,7 @@ function isPageNodeManifestPath(nodePath) {
   if (!apiPath || !isNodeManifestPath(apiPath)) return false;
   if (isPartNodePath(apiPath)) return false;
   if (/\/awn-storage\//i.test(apiPath)) return false;
-  if (/\/awn-database\//i.test(apiPath)) return false;
+  if (/\/awn-databases\//i.test(apiPath)) return false;
   if (isAgentRootIndexPath(apiPath)) return false;
   return isTopicManifestPath(apiPath) || isAreaNodePath(apiPath);
 }
@@ -22693,7 +22693,7 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
 }
 
 const PLATFORM_DATA_ROOT_FOLDERS = new Set([
-  "awn-database",
+  "awn-databases",
   "awn-google-drive",
   "awn-repositories",
   "awn-vendor"
@@ -29014,7 +29014,7 @@ function revealAwnDatabaseManifestEditorShell() {
   hideContentLoading({ force: true });
   finishAwnDataViewStoreLoading();
   nodeOverviewBlockNode?.classList.add("hidden");
-  nodeOverviewBlockNode?.classList.remove("is-awn-database-view", "is-folder-browse", "is-entry-overview");
+  nodeOverviewBlockNode?.classList.remove("is-awn-databases-view", "is-folder-browse", "is-entry-overview");
   editorSurfaceNode?.classList.remove("hidden");
   docSlabMainNode?.classList.remove("is-content-loading");
 }
@@ -34876,10 +34876,10 @@ function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
   const memoryMap = buildMemoryContentLabelMap();
   const isLast = segmentIndex === parts.length - 1;
 
-  if ((parts[0] === "awn-database" || parts[0] === "awn-data") && segmentIndex === 0) {
+  if ((parts[0] === "awn-databases" || parts[0] === "awn-data") && segmentIndex === 0) {
     return "Инфоблок";
   }
-  if ((parts[0] === "awn-database" || parts[0] === "awn-data") && segmentIndex > 0) {
+  if ((parts[0] === "awn-databases" || parts[0] === "awn-data") && segmentIndex > 0) {
     const storeRel = parts.slice(1, segmentIndex + 1).join("/");
     const storeName = resolveAwnDataStoreDisplayName(storeRel, segment);
     if (storeName) return storeName;
@@ -40385,7 +40385,7 @@ function getActiveRevealFolderPath() {
     return normalizeCreateParentPath(activeFolderBrowsePath);
   }
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
-    return `awn-database/${String(awnDataViewStoreRel).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")}`;
+    return `awn-databases/${String(awnDataViewStoreRel).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")}`;
   }
   if (activePath && !activeSystemFile) {
     return getResolvedNodePath(activePath);
@@ -43460,11 +43460,11 @@ function projectSettingsScopeSearchHaystack(scope) {
             : scope?.level === "topic"
               ? "тема темы"
               : scope?.level === "iblock-group"
-                ? "инфоблок группа awn-database"
+                ? "инфоблок группа awn-databases"
                 : scope?.level === "iblock-collection"
-                  ? "инфоблок коллекция awn-database"
+                  ? "инфоблок коллекция awn-databases"
                   : scope?.level === "iblock-single"
-                    ? "инфоблок одиночка awn-database"
+                    ? "инфоблок одиночка awn-databases"
                     : "";
   return [scope?.label, path, pathTail, levelLabel]
     .map((value) => String(value || "").trim())
@@ -43656,7 +43656,7 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   btn.classList.toggle("is-empty-scope", isEmptyScope);
   btn.title = [
     scope.label,
-    storeRel ? `awn-database/${storeRel}` : "",
+    storeRel ? `awn-databases/${storeRel}` : "",
     kindLabel,
     scope.storeKind === "group"
       ? null
@@ -44241,7 +44241,7 @@ function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifest
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = storeRel
-      ? `Заглушка для <code>awn-database/${escapeHtml(storeRel)}</code> (${escapeHtml(kindLabel)}). Настройки <code>schema.yml</code> и <code>config.yml</code> инфоблока появятся здесь позже.`
+      ? `Заглушка для <code>awn-databases/${escapeHtml(storeRel)}</code> (${escapeHtml(kindLabel)}). Настройки <code>schema.yml</code> и <code>config.yml</code> инфоблока появятся здесь позже.`
       : "Заглушка: настройки инфоблока в разработке.";
   }
 
@@ -49083,14 +49083,14 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return normalizeAwnTypeName("awn.content.record");
   }
 
-  if (/^(?:awn-database|awn-data)\/.+\/awn-storage\/data\//i.test(normalized)) {
+  if (/^(?:awn-databases|awn-data)\/.+\/awn-storage\/data\//i.test(normalized)) {
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared) return normalizeAwnTypeName(declared);
     if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.infoblock.element.category");
     return normalizeAwnTypeName("awn.infoblock.element.record");
   }
 
-  if (/^(?:awn-database|awn-data)\/.+\/manifest\.md$/i.test(normalized)) {
+  if (/^(?:awn-databases|awn-data)\/.+\/manifest\.md$/i.test(normalized)) {
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared) return normalizeAwnTypeName(declared);
     const fromForm = getPropsEntryValueByKey(propsFormEntries, "awn-type");
@@ -63669,8 +63669,8 @@ function resolveAwnDataIndexTypeKey(entry = {}) {
 function resolveAwnDataIndexWorkspacePath(entry = {}) {
   const raw = String(entry.path || "").trim().replace(/\\/g, "/");
   if (!raw) return "";
-  if (raw === "awn-database" || raw.startsWith("awn-database/")) return raw.replace(/\/+/g, "/");
-  return `awn-database/${raw}`.replace(/\/+/g, "/");
+  if (raw === "awn-databases" || raw.startsWith("awn-databases/")) return raw.replace(/\/+/g, "/");
+  return `awn-databases/${raw}`.replace(/\/+/g, "/");
 }
 
 function resolveWorkspaceTopicSlotsModeLabel(page) {
@@ -63723,7 +63723,7 @@ function formatStorageIndexEntriesMarkdown(
   { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
 ) {
   if (!entries.length) return emptyHint;
-  const includeAwnDatabase = tableVariant === "awn-database";
+  const includeAwnDatabase = tableVariant === "awn-databases";
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeAwnDatabase
@@ -84158,10 +84158,10 @@ function applyModeUi(options = {}) {
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode || awnDataViewMode);
   const workspaceToolModule = isWorkspaceToolModuleView();
   nodeOverviewBlockNode?.classList.toggle("is-folder-browse", folderBrowseMode);
-  nodeOverviewBlockNode?.classList.toggle("is-awn-database-view", awnDataViewMode);
+  nodeOverviewBlockNode?.classList.toggle("is-awn-databases-view", awnDataViewMode);
   nodeOverviewBlockNode?.classList.toggle("is-workspace-tool-module", workspaceToolModule);
   workspacePathHeaderNode?.classList.toggle("is-folder-browse", folderBrowseMode);
-  workspacePathHeaderNode?.classList.toggle("is-awn-database-view", awnDataViewMode);
+  workspacePathHeaderNode?.classList.toggle("is-awn-databases-view", awnDataViewMode);
   workspacePathHeaderNode?.classList.toggle("is-workspace-tool-module", workspaceToolModule);
   appRootNode?.classList.toggle("workspace-tool-module-view", workspaceToolModule || isProjectSettingsMode());
   nodeOverviewBlockNode?.classList.toggle("is-node-media", entryOverviewMediaMode);
@@ -87631,14 +87631,14 @@ function createAwnDataBreadcrumbIcon({ className = "", store = null } = {}) {
   wrap.className = "breadcrumb-crumb-icon";
   wrap.setAttribute("aria-hidden", "true");
 
-  if (className === "is-awn-database-root") {
+  if (className === "is-awn-databases-root") {
     const icon = document.createElement("span");
     icon.className = "breadcrumb-crumb-icon-glyph breadcrumb-crumb-icon-glyph--awn-root";
     wrap.appendChild(icon);
     return wrap;
   }
 
-  if (className === "is-awn-database-record") {
+  if (className === "is-awn-databases-record") {
     const icon = document.createElement("span");
     icon.className = "breadcrumb-crumb-icon-glyph breadcrumb-crumb-icon-glyph--record";
     wrap.appendChild(icon);
@@ -87647,9 +87647,9 @@ function createAwnDataBreadcrumbIcon({ className = "", store = null } = {}) {
 
   const resolvedStore =
     store ||
-    (className === "is-awn-database-group"
+    (className === "is-awn-databases-group"
       ? { kind: "group" }
-      : className === "is-awn-database-store"
+      : className === "is-awn-databases-store"
         ? { kind: "collection" }
         : null);
   if (resolvedStore) {
@@ -88999,7 +88999,7 @@ function buildNewFieldTypeYaml(slug, displayName) {
 function resolveNewTypeFilePath(domain, slug) {
   if (domain === "fields") return `awn-system/types/fields/${slug}.yml`;
   const store = AWN_DATA_TYPE_STORE[domain] || domain;
-  return `awn-database/${store}/${slug}.md`;
+  return `awn-databases/${store}/${slug}.md`;
 }
 
 async function createStarterRenderer(relPath, title) {
@@ -97924,7 +97924,7 @@ const AWN_TYPE_NAV_GROUPS = [
   { label: "Блоки редактора", domains: ["md-blocks"] },
   { label: "Настройки", domains: ["settings"] },
   { label: "Пресеты", domains: ["presets"] },
-  { label: "Инфоблоки (awn-database)", domains: ["infoblock", "data"] },
+  { label: "Инфоблоки (awn-databases)", domains: ["infoblock", "data"] },
   { label: "Миксины", domains: ["mixins"] },
   { label: "Базовые", kinds: ["base", "entity", "meta"] }
 ];
@@ -98618,7 +98618,7 @@ const GRAPH_IBLOCK_KIND_GLYPH = {
 function resolveGraphNodeGlyph(node) {
   if (node?.graphGlyph) return node.graphGlyph;
   if (node?.id === "repositories-root") return "📚";
-  if (node?.id === "awn-database-root") return "🧩";
+  if (node?.id === "awn-databases-root") return "🧩";
   if (node?.type === "repositories") return "📚";
   if (node?.type === "iblock") {
     return GRAPH_IBLOCK_KIND_GLYPH[node?.storeKind] || "🗂️";
@@ -98697,11 +98697,11 @@ function appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, rep
 }
 
 function appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataPayload }) {
-  const awnDataRootId = "awn-database-root";
+  const awnDataRootId = "awn-databases-root";
   nodes.push({
     id: awnDataRootId,
     label: "Инфоблоки",
-    graphSubLabel: "awn-database",
+    graphSubLabel: "awn-databases",
     graphGlyph: "🧩",
     isSatelliteRoot: true,
     type: "iblock",
@@ -98758,7 +98758,7 @@ async function loadAgentGraphAwnDataPayload() {
   const resolvedAgent = String(activeAgentId || "").trim();
   if (!resolvedAgent) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/awn-databases", {}, resolvedAgent));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -101748,7 +101748,7 @@ function getAwnDataIndexRelPath() {
 }
 
 async function probeAwnDataIndexExists() {
-  for (const relPath of [getAwnDataIndexRelPath(), "awn-database/INDEX.md"]) {
+  for (const relPath of [getAwnDataIndexRelPath(), "awn-databases/INDEX.md"]) {
     try {
       const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
       if (response.ok) return true;
@@ -101807,13 +101807,13 @@ function isAwnDataIndexRelPath(relPath) {
 }
 
 function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
-  return formatStorageIndexEntriesMarkdown(entries, { emptyHint, tableVariant: "awn-database" });
+  return formatStorageIndexEntriesMarkdown(entries, { emptyHint, tableVariant: "awn-databases" });
 }
 
 function formatAwnDataIndexPayloadAsMarkdown(payload) {
   const entries = (payload?.entries || []).map((entry) => {
     const workspacePath = resolveAwnDataIndexWorkspacePath(entry);
-    const storeRel = workspacePath.replace(/^awn-database\/?/, "");
+    const storeRel = workspacePath.replace(/^awn-databases\/?/, "");
     return {
     ...entry,
     type: resolveAwnDataIndexTypeKey(entry),
@@ -101822,7 +101822,7 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
     group: entry.group || "—",
     linkPath:
       entry.linkPath ||
-      (storeRel ? `awn-database/${storeRel}/manifest.md`.replace(/\/+/g, "/") : ""),
+      (storeRel ? `awn-databases/${storeRel}/manifest.md`.replace(/\/+/g, "/") : ""),
     recordCount: Number.isFinite(Number(entry.recordCount)) ? Number(entry.recordCount) : 0,
     childCount: Number.isFinite(Number(entry.childCount)) ? Number(entry.childCount) : 0,
     subsections: entry.subsections || formatStorageIndexSubsectionsCell(entry),
@@ -101837,10 +101837,10 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
 }
 
 async function fetchAwnDataIndexMarkdownFromApi() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-database-index"));
+  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index"));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.details || `awn-database-index ${response.status}`);
+    throw new Error(errorData.error || errorData.details || `awn-databases-index ${response.status}`);
   }
   const payload = await response.json();
   if (payload.markdown) {
@@ -101863,19 +101863,19 @@ async function openAwnDataIndexOverview() {
     }
   }
   hideHomeView();
-  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-database" });
+  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-databases" });
   void renderFolderBrowseFileView();
 }
 
 async function refreshAwnDataIndexOverview() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-database-index"), {
+  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ overwrite: true })
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.details || `awn-database-index ${response.status}`);
+    throw new Error(errorData.error || errorData.details || `awn-databases-index ${response.status}`);
   }
   awnDataIndexPreviewOverride = null;
   return true;
@@ -102159,7 +102159,7 @@ const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout.v2";
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY_LEGACY = "yamlcms.awnDataViewRecordsLayout";
 const AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY = "yamlcms.awnDataViewCardsColumns";
 const AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS = [1, 3, 5];
-const AWN_DATA_VIEW_SORT_SCOPE = "awn-database-view";
+const AWN_DATA_VIEW_SORT_SCOPE = "awn-databases-view";
 const AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX = "yamlcms.awnDataViewColumns.v1:";
 const AWN_DATA_VIEW_DEFAULT_COLUMN_KEYS = ["awn-id", "awn-name"];
 let awnDataViewRecordsLayout = "table";
@@ -102683,7 +102683,7 @@ function syncAwnDataCreateParentHint() {
     return;
   }
   awnDataCreateParentHintNode.classList.remove("hidden");
-  awnDataCreateParentHintNode.innerHTML = `Путь: <code>awn-database/${parent}/…</code>`;
+  awnDataCreateParentHintNode.innerHTML = `Путь: <code>awn-databases/${parent}/…</code>`;
 }
 
 function slugifyAwnDataStoreName(name) {
@@ -102724,15 +102724,15 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (awnDataCreateModalHintNode) {
     if (awnDataCreateKind === "group") {
       awnDataCreateModalHintNode.innerHTML =
-        "Папка в <code>awn-database/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
+        "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-database/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
+        "Поднакопитель в <code>awn-databases/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
-          ? "Папка в <code>awn-database/</code> с <code>manifest.md</code>, <code>schema.yml</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-database/</code> с <code>manifest.md</code>, <code>schema.yml</code> и md-записями в папке инфоблока.";
+          ? "Папка в <code>awn-databases/</code> с <code>manifest.md</code>, <code>schema.yml</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-databases/</code> с <code>manifest.md</code>, <code>schema.yml</code> и md-записями в папке инфоблока.";
     }
   }
   const showCollectionOptions = awnDataCreateKind === "collection" && !isTaxonomy;
@@ -102788,7 +102788,7 @@ let awnDataContainerTypesCache = null;
 
 async function loadAwnDataContainerTypes(agentId = activeAgentId) {
   if (awnDataContainerTypesCache) return awnDataContainerTypesCache;
-  const response = await fetch(buildApiUrl("/api/awn-database/container-types", {}, agentId));
+  const response = await fetch(buildApiUrl("/api/awn-databases/container-types", {}, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
@@ -102826,7 +102826,7 @@ function applyAwnDataCreateContainerTypeSchema(kind) {
 
   const hierarchyField = fields["awn-record-hierarchy"];
   if (hierarchyField && awnDataCreateHierarchyWrapNode) {
-    const labelSpan = awnDataCreateHierarchyWrapNode.querySelector(".awn-database-create-checkbox-label");
+    const labelSpan = awnDataCreateHierarchyWrapNode.querySelector(".awn-databases-create-checkbox-label");
     if (labelSpan) {
       labelSpan.textContent =
         hierarchyField.title || hierarchyField.description || AWN_DATA_SECTIONS_SUPPORT_LABEL;
@@ -102916,7 +102916,7 @@ function isAwnDataFileTypePresetActive(presetToken, tokens) {
 function syncAwnDataCreateFileTypePresetUi() {
   if (!awnDataCreateFileTypesPresetsNode) return;
   const tokens = parseAwnDataFileTypesValue(awnDataCreateFileTypesInputNode?.value);
-  for (const chip of awnDataCreateFileTypesPresetsNode.querySelectorAll(".awn-database-create-file-type-chip")) {
+  for (const chip of awnDataCreateFileTypesPresetsNode.querySelectorAll(".awn-databases-create-file-type-chip")) {
     const presetToken = String(chip.dataset.fileType || "").trim();
     chip.classList.toggle("is-active", isAwnDataFileTypePresetActive(presetToken, tokens));
     chip.setAttribute("aria-pressed", chip.classList.contains("is-active") ? "true" : "false");
@@ -102940,7 +102940,7 @@ function ensureAwnDataCreateFileTypePresets() {
   for (const preset of AWN_DATA_CREATE_FILE_TYPE_PRESETS) {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "awn-database-create-file-type-chip";
+    chip.className = "awn-databases-create-file-type-chip";
     chip.dataset.fileType = preset.token;
     chip.textContent = preset.label;
     chip.title = preset.token;
@@ -103000,7 +103000,7 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
 
   if (awnDataCreateFileTypesPresetsNode) {
     awnDataCreateFileTypesPresetsNode.classList.toggle("is-disabled", !isFiles);
-    for (const chip of awnDataCreateFileTypesPresetsNode.querySelectorAll(".awn-database-create-file-type-chip")) {
+    for (const chip of awnDataCreateFileTypesPresetsNode.querySelectorAll(".awn-databases-create-file-type-chip")) {
       chip.disabled = !isFiles;
     }
   }
@@ -103028,7 +103028,7 @@ function resolveAwnDataStoreAwnId(store) {
 function resolveAwnDataStoreManifestPath(store) {
   const relPath = String(store?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!relPath) return "";
-  return `awn-database/${relPath}/manifest.md`.replace(/\/+/g, "/");
+  return `awn-databases/${relPath}/manifest.md`.replace(/\/+/g, "/");
 }
 
 function resolveAwnDataStoreSlug(store) {
@@ -103289,21 +103289,21 @@ function applyAwnDataStoreKindBadge(element, viewStore, kind = viewStore?.kind) 
 
 function createAwnDataSchemaKindBadge(kind, viewStore) {
   const badge = document.createElement("span");
-  badge.className = "awn-database-view-kind-badge";
+  badge.className = "awn-databases-view-kind-badge";
   applyAwnDataStoreKindBadge(badge, viewStore, kind);
   return badge;
 }
 
 function fillAwnDataSchemaMetaValueCell(cell, key, value, { kind, viewStore } = {}) {
   cell.replaceChildren();
-  cell.className = "awn-database-view-schema-meta-value";
+  cell.className = "awn-databases-view-schema-meta-value";
   if (key === "kind") {
     cell.appendChild(createAwnDataSchemaKindBadge(String(value || kind || "collection"), viewStore));
     return;
   }
   if (key === "collectionType") {
     const badge = document.createElement("span");
-    badge.className = `awn-database-view-collection-type-badge is-${String(value || "md").trim().toLowerCase()}`;
+    badge.className = `awn-databases-view-collection-type-badge is-${String(value || "md").trim().toLowerCase()}`;
     badge.textContent = formatAwnDataCollectionTypeLabel(value);
     cell.appendChild(badge);
     return;
@@ -103341,7 +103341,7 @@ function fillAwnDataSchemaMetaValueCell(cell, key, value, { kind, viewStore } = 
   }
   if (key === "id") {
     const code = document.createElement("code");
-    code.className = "awn-database-view-schema-meta-id";
+    code.className = "awn-databases-view-schema-meta-id";
     code.textContent = String(value ?? "—");
     cell.appendChild(code);
     return;
@@ -103353,7 +103353,7 @@ function appendAwnDataSchemaMetaRow(tbody, key, value, context) {
   if (!tbody) return;
   const row = document.createElement("tr");
   const labelCell = document.createElement("td");
-  labelCell.className = "awn-database-view-schema-meta-label";
+  labelCell.className = "awn-databases-view-schema-meta-label";
   labelCell.textContent = formatAwnDataSchemaMetaLabel(key);
   const valueCell = document.createElement("td");
   fillAwnDataSchemaMetaValueCell(valueCell, key, value, context);
@@ -103389,7 +103389,7 @@ function resolveAwnDataStoreSchemeModRel() {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return "";
-  return `awn-database/${storeRel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
+  return `awn-databases/${storeRel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
 }
 
 function setAwnDataViewSettingsAccordionOpen(open) {
@@ -103609,7 +103609,7 @@ async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
   const normalizedStoreRel = String(storeRel || "").trim();
   if (!normalizedStoreRel) return null;
   const response = await fetch(
-    buildApiUrl("/api/awn-database/store-schema", { store: normalizedStoreRel }, agentId)
+    buildApiUrl("/api/awn-databases/store-schema", { store: normalizedStoreRel }, agentId)
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
@@ -103632,19 +103632,19 @@ async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
 
 function markAwnDataStoreSchemaPanelDirty(panel) {
   panel._awnDataStoreSchemaDirty = true;
-  panel.querySelector(".awn-database-view-element-schema-save-btn")?.classList.add("is-dirty");
+  panel.querySelector(".awn-databases-view-element-schema-save-btn")?.classList.add("is-dirty");
 }
 
 function resetAwnDataStoreSchemaPanel(panel) {
   if (!panel) return;
   panel._awnDataStoreSchemaCache = null;
   panel._awnDataStoreSchemaDirty = false;
-  panel.querySelector(".awn-database-view-element-schema-save-btn")?.classList.remove("is-dirty");
+  panel.querySelector(".awn-databases-view-element-schema-save-btn")?.classList.remove("is-dirty");
   awnDataStoreSchemaLoadSeq += 1;
 }
 
 function renderAwnDataStoreSchemaTargetTabs(panel, cache) {
-  const tabsNode = panel.querySelector(".awn-database-view-element-schema-tabs");
+  const tabsNode = panel.querySelector(".awn-databases-view-element-schema-tabs");
   if (!tabsNode) return;
   tabsNode.replaceChildren();
   const row = document.createElement("div");
@@ -103690,8 +103690,8 @@ function renderAwnDataStoreSchemaTargetTabs(panel, cache) {
 }
 
 function renderAwnDataStoreSchemaBaseFields(panel, cache) {
-  const baseNode = panel.querySelector(".awn-database-view-element-schema-base-fields");
-  const titleNode = panel.querySelector(".awn-database-view-element-schema-base-title");
+  const baseNode = panel.querySelector(".awn-databases-view-element-schema-base-fields");
+  const titleNode = panel.querySelector(".awn-databases-view-element-schema-base-title");
   if (!baseNode) return;
   const target = cache.activeTarget;
   const base = resolveAwnDataSchemaBaseType(target, cache);
@@ -103719,10 +103719,10 @@ function renderAwnDataStoreSchemaEditor(panel, cache) {
   renderAwnDataStoreSchemaTargetTabs(panel, cache);
   renderAwnDataStoreSchemaBaseFields(panel, cache);
   renderSectionSchemaCustomFields(panel, cache);
-  const pathNode = panel.querySelector(".awn-database-view-element-schema-path");
+  const pathNode = panel.querySelector(".awn-databases-view-element-schema-path");
   if (pathNode) {
     const rel = cache.schemeModRelPath || resolveAwnDataStoreSchemeModRel() || SCHEMA_MOD_FILE;
-    pathNode.textContent = rel.replace(/^awn-database\//, "");
+    pathNode.textContent = rel.replace(/^awn-databases\//, "");
   }
 }
 
@@ -103843,8 +103843,8 @@ function bindAwnDataStoreSchemaPanelEvents(panel) {
     panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] [data-schema-field="key"]`)?.focus();
   });
 
-  panel.querySelector(".awn-database-view-element-schema-save-btn")?.addEventListener("click", () => {
-    const saveBtn = panel.querySelector(".awn-database-view-element-schema-save-btn");
+  panel.querySelector(".awn-databases-view-element-schema-save-btn")?.addEventListener("click", () => {
+    const saveBtn = panel.querySelector(".awn-databases-view-element-schema-save-btn");
     if (saveBtn?.disabled) return;
     saveBtn.disabled = true;
     saveBtn.textContent = "Сохраняю…";
@@ -103869,7 +103869,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   stripInheritedAwnDataSchemaFields(cache);
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
   const storeRel = cache.storeRel || awnDataViewStoreRel;
-  const response = await fetch(buildApiUrl("/api/awn-database/store-schema", {}, catalogAgentId), {
+  const response = await fetch(buildApiUrl("/api/awn-databases/store-schema", {}, catalogAgentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -103882,7 +103882,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   cache.awnSchema = normalizeAwnDataStoreSchemaState(data.awnSchema || cache.awnSchema);
   enrichAwnDataStoreSchemaCacheFromTypes(cache);
   panel._awnDataStoreSchemaDirty = false;
-  panel.querySelector(".awn-database-view-element-schema-save-btn")?.classList.remove("is-dirty");
+  panel.querySelector(".awn-databases-view-element-schema-save-btn")?.classList.remove("is-dirty");
   renderAwnDataStoreSchemaEditor(panel, cache);
   if (awnDataViewSchemaFieldsCountNode) {
     awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(
@@ -103892,7 +103892,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   invalidateTypeCatalogCache(catalogAgentId);
   await refreshMenuAwnDataStores(catalogAgentId);
   if (storeRel) {
-    const reloadResponse = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId));
+    const reloadResponse = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, catalogAgentId));
     if (reloadResponse.ok) {
       const reloadData = await reloadResponse.json();
       const store = normalizeAwnDataStoreView(reloadData.store);
@@ -103929,7 +103929,7 @@ async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
   }
 
   const loadSeq = ++awnDataStoreSchemaLoadSeq;
-  const baseFieldsNode = panel.querySelector(".awn-database-view-element-schema-base-fields");
+  const baseFieldsNode = panel.querySelector(".awn-databases-view-element-schema-base-fields");
   if (baseFieldsNode) baseFieldsNode.textContent = "Загрузка…";
   try {
     const cache = applyAwnDataStoreSchemaActiveTarget(
@@ -104030,69 +104030,69 @@ function syncAwnDataViewDomRefs(root) {
 }
 
   ensureAwnDataViewLoadingOverlay(root);
-  awnDataViewModalTitleNode = root.querySelector(".awn-database-view-title");
-  awnDataViewIblockLayoutNode = root.querySelector(".awn-database-view-iblock-layout");
-  awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-database-view-iblock-description-block");
-  awnDataViewIblockBriefFoldNode = root.querySelector(".awn-database-view-iblock-brief-fold");
-  awnDataViewIblockDescriptionBodyNode = root.querySelector(".awn-database-view-iblock-description-body");
-  awnDataViewIblockDescriptionNode = root.querySelector(".awn-database-view-iblock-description");
-  awnDataViewIblockDescriptionEmptyNode = root.querySelector(".awn-database-view-iblock-description-empty");
-  const iblockBriefTitleNode = root.querySelector(".awn-database-view-iblock-brief-title");
+  awnDataViewModalTitleNode = root.querySelector(".awn-databases-view-title");
+  awnDataViewIblockLayoutNode = root.querySelector(".awn-databases-view-iblock-layout");
+  awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-databases-view-iblock-description-block");
+  awnDataViewIblockBriefFoldNode = root.querySelector(".awn-databases-view-iblock-brief-fold");
+  awnDataViewIblockDescriptionBodyNode = root.querySelector(".awn-databases-view-iblock-description-body");
+  awnDataViewIblockDescriptionNode = root.querySelector(".awn-databases-view-iblock-description");
+  awnDataViewIblockDescriptionEmptyNode = root.querySelector(".awn-databases-view-iblock-description-empty");
+  const iblockBriefTitleNode = root.querySelector(".awn-databases-view-iblock-brief-title");
   if (iblockBriefTitleNode) iblockBriefTitleNode.textContent = IBLOCK_INSTRUCTION_ACCORDION_TITLE;
-  awnDataViewModalKindNode = root.querySelector(".awn-database-view-kind-badge");
-  awnDataViewModalPathNode = root.querySelector(".awn-database-view-path");
-  awnDataViewIblockCardHeadActionsNode = root.querySelector(".awn-database-view-iblock-card-head-actions");
-  awnDataViewManifestNode = root.querySelector(".awn-database-view-manifest");
-  awnDataViewSchemaWrapNode = root.querySelector(".awn-database-view-schema-panel");
-  awnDataViewSchemaReadNode = root.querySelector(".awn-database-view-schema-read");
-  awnDataViewSchemaEditNode = root.querySelector(".awn-database-view-schema-edit");
-  awnDataViewSchemaTextareaNode = root.querySelector(".awn-database-view-schema-textarea");
-  awnDataViewSchemaMetaTbodyNode = root.querySelector(".awn-database-view-schema-meta-tbody");
-  awnDataViewSchemaFieldsSectionNode = root.querySelector(".awn-database-view-schema-fields-accordion");
-  awnDataViewSchemaSettingsAccordionNode = root.querySelector(".awn-database-view-schema-settings-accordion");
-  awnDataViewSchemaFieldsAccordionNode = root.querySelector(".awn-database-view-schema-fields-accordion");
-  awnDataViewSchemaFieldsWrapNode = root.querySelector(".awn-database-view-schema-fields-wrap");
-  awnDataViewSchemaTbodyNode = root.querySelector(".awn-database-view-schema-tbody");
-  awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-database-view-schema-fields-count");
-  awnDataViewEditStoreBtn = root.querySelector('[data-awn-database-action="edit-store"]');
-  awnDataViewElementSchemaPanelNode = root.querySelector(".awn-database-view-element-schema-panel");
-  awnDataViewOpenSchemaEditorBtn = root.querySelector('[data-awn-database-action="open-schema-editor"]');
-  awnDataViewRecordsNode = root.querySelector(".awn-database-view-records");
-  awnDataViewSearchInputNode = root.querySelector(".awn-database-view-search-input");
-  awnDataViewCountNode = root.querySelector(".awn-database-view-count");
-  awnDataViewSectionWrapNode = root.querySelector(".awn-database-view-section-panel");
-  awnDataViewSectionTreeNode = root.querySelector(".awn-database-view-section-tree");
-  awnDataViewSectionCreateFormNode = root.querySelector(".awn-database-view-section-create-form");
-  awnDataViewSectionCreateNameInputNode = root.querySelector(".awn-database-view-section-create-name-input");
-  awnDataViewSectionCreateSlugInputNode = root.querySelector(".awn-database-view-section-create-slug-input");
-  awnDataViewSectionCreateSlugUnlinkBtn = root.querySelector(".awn-database-view-section-create-slug-unlink-btn");
-  awnDataViewSectionCreateBtnNode = root.querySelector(".awn-database-view-section-create-btn");
-  awnDataViewSectionCreateSubmitBtnNode = root.querySelector(".awn-database-view-section-create-submit-btn");
-  awnDataViewSectionSearchInputNode = root.querySelector(".awn-database-view-section-search-input");
-  awnDataViewAddWrapNode = root.querySelector(".awn-database-view-actions");
-  awnDataAddRecordsFormNode = root.querySelector(".awn-database-view-add-records-form");
-  awnDataAddFilesFormNode = root.querySelector(".awn-database-view-add-files-form");
-  awnDataAddNameInputNode = root.querySelector(".awn-database-add-name-input");
-  awnDataAddSlugInputNode = root.querySelector(".awn-database-add-slug-input");
-  awnDataAddSlugUnlinkBtn = root.querySelector(".awn-database-add-slug-unlink-btn");
+  awnDataViewModalKindNode = root.querySelector(".awn-databases-view-kind-badge");
+  awnDataViewModalPathNode = root.querySelector(".awn-databases-view-path");
+  awnDataViewIblockCardHeadActionsNode = root.querySelector(".awn-databases-view-iblock-card-head-actions");
+  awnDataViewManifestNode = root.querySelector(".awn-databases-view-manifest");
+  awnDataViewSchemaWrapNode = root.querySelector(".awn-databases-view-schema-panel");
+  awnDataViewSchemaReadNode = root.querySelector(".awn-databases-view-schema-read");
+  awnDataViewSchemaEditNode = root.querySelector(".awn-databases-view-schema-edit");
+  awnDataViewSchemaTextareaNode = root.querySelector(".awn-databases-view-schema-textarea");
+  awnDataViewSchemaMetaTbodyNode = root.querySelector(".awn-databases-view-schema-meta-tbody");
+  awnDataViewSchemaFieldsSectionNode = root.querySelector(".awn-databases-view-schema-fields-accordion");
+  awnDataViewSchemaSettingsAccordionNode = root.querySelector(".awn-databases-view-schema-settings-accordion");
+  awnDataViewSchemaFieldsAccordionNode = root.querySelector(".awn-databases-view-schema-fields-accordion");
+  awnDataViewSchemaFieldsWrapNode = root.querySelector(".awn-databases-view-schema-fields-wrap");
+  awnDataViewSchemaTbodyNode = root.querySelector(".awn-databases-view-schema-tbody");
+  awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-databases-view-schema-fields-count");
+  awnDataViewEditStoreBtn = root.querySelector('[data-awn-databases-action="edit-store"]');
+  awnDataViewElementSchemaPanelNode = root.querySelector(".awn-databases-view-element-schema-panel");
+  awnDataViewOpenSchemaEditorBtn = root.querySelector('[data-awn-databases-action="open-schema-editor"]');
+  awnDataViewRecordsNode = root.querySelector(".awn-databases-view-records");
+  awnDataViewSearchInputNode = root.querySelector(".awn-databases-view-search-input");
+  awnDataViewCountNode = root.querySelector(".awn-databases-view-count");
+  awnDataViewSectionWrapNode = root.querySelector(".awn-databases-view-section-panel");
+  awnDataViewSectionTreeNode = root.querySelector(".awn-databases-view-section-tree");
+  awnDataViewSectionCreateFormNode = root.querySelector(".awn-databases-view-section-create-form");
+  awnDataViewSectionCreateNameInputNode = root.querySelector(".awn-databases-view-section-create-name-input");
+  awnDataViewSectionCreateSlugInputNode = root.querySelector(".awn-databases-view-section-create-slug-input");
+  awnDataViewSectionCreateSlugUnlinkBtn = root.querySelector(".awn-databases-view-section-create-slug-unlink-btn");
+  awnDataViewSectionCreateBtnNode = root.querySelector(".awn-databases-view-section-create-btn");
+  awnDataViewSectionCreateSubmitBtnNode = root.querySelector(".awn-databases-view-section-create-submit-btn");
+  awnDataViewSectionSearchInputNode = root.querySelector(".awn-databases-view-section-search-input");
+  awnDataViewAddWrapNode = root.querySelector(".awn-databases-view-actions");
+  awnDataAddRecordsFormNode = root.querySelector(".awn-databases-view-add-records-form");
+  awnDataAddFilesFormNode = root.querySelector(".awn-databases-view-add-files-form");
+  awnDataAddNameInputNode = root.querySelector(".awn-databases-add-name-input");
+  awnDataAddSlugInputNode = root.querySelector(".awn-databases-add-slug-input");
+  awnDataAddSlugUnlinkBtn = root.querySelector(".awn-databases-add-slug-unlink-btn");
   initAwnDataViewSlugControllers();
-  awnDataAddParentFieldNode = root.querySelector(".awn-database-add-parent-field");
-  awnDataAddParentLabelNode = root.querySelector(".awn-database-add-parent-label");
-  awnDataAddParentInputNode = root.querySelector(".awn-database-add-parent-input");
-  awnDataAddParentSelectNode = root.querySelector(".awn-database-add-parent-select");
-  awnDataUploadInputNode = root.querySelector(".awn-database-upload-input");
-  awnDataUploadBtnNode = root.querySelector(".awn-database-upload-btn");
-  awnDataUploadHintNode = root.querySelector(".awn-database-upload-hint");
-  awnDataAddRecordBtn = root.querySelector(".awn-database-add-record-btn");
-  awnDataCreateMainCsvFormNode = root.querySelector(".awn-database-view-create-main-csv-form");
-  awnDataCreateMainCsvBtn = root.querySelector(".awn-database-create-main-csv-btn");
-  awnDataViewStorePanelNode = root.querySelector(".awn-database-view-store-panel");
-  awnDataViewLoadingOverlayNode = root.querySelector(".awn-database-view-loading-overlay");
-  awnDataViewRecordPanelNode = root.querySelector(".awn-database-view-record-panel");
-  awnDataViewRecordFieldsNode = root.querySelector(".awn-database-view-record-fields");
-  awnDataViewRecordBodyNode = root.querySelector(".awn-database-view-record-body");
-  awnDataViewIblockCommentsMountNode = root.querySelector(".awn-database-view-iblock-comments-mount");
-  awnDataViewRecordCommentsMountNode = root.querySelector(".awn-database-view-record-comments-mount");
+  awnDataAddParentFieldNode = root.querySelector(".awn-databases-add-parent-field");
+  awnDataAddParentLabelNode = root.querySelector(".awn-databases-add-parent-label");
+  awnDataAddParentInputNode = root.querySelector(".awn-databases-add-parent-input");
+  awnDataAddParentSelectNode = root.querySelector(".awn-databases-add-parent-select");
+  awnDataUploadInputNode = root.querySelector(".awn-databases-upload-input");
+  awnDataUploadBtnNode = root.querySelector(".awn-databases-upload-btn");
+  awnDataUploadHintNode = root.querySelector(".awn-databases-upload-hint");
+  awnDataAddRecordBtn = root.querySelector(".awn-databases-add-record-btn");
+  awnDataCreateMainCsvFormNode = root.querySelector(".awn-databases-view-create-main-csv-form");
+  awnDataCreateMainCsvBtn = root.querySelector(".awn-databases-create-main-csv-btn");
+  awnDataViewStorePanelNode = root.querySelector(".awn-databases-view-store-panel");
+  awnDataViewLoadingOverlayNode = root.querySelector(".awn-databases-view-loading-overlay");
+  awnDataViewRecordPanelNode = root.querySelector(".awn-databases-view-record-panel");
+  awnDataViewRecordFieldsNode = root.querySelector(".awn-databases-view-record-fields");
+  awnDataViewRecordBodyNode = root.querySelector(".awn-databases-view-record-body");
+  awnDataViewIblockCommentsMountNode = root.querySelector(".awn-databases-view-iblock-comments-mount");
+  awnDataViewRecordCommentsMountNode = root.querySelector(".awn-databases-view-record-comments-mount");
   setupAwnDataViewToolbarControls(root);
 }
 
@@ -104109,12 +104109,12 @@ function createAwnDataViewColumnsButton() {
   const columnsBtn = document.createElement("button");
   columnsBtn.type = "button";
   columnsBtn.className =
-    "node-navigation-list-sort-btn folder-browse-images-cols-btn awn-database-view-columns-btn";
+    "node-navigation-list-sort-btn folder-browse-images-cols-btn awn-databases-view-columns-btn";
   columnsBtn.title = "Видимые колонки таблицы";
   columnsBtn.setAttribute("aria-haspopup", "true");
   columnsBtn.append(createAwnDataViewColumnsIcon());
   const label = document.createElement("span");
-  label.className = "node-navigation-list-sort-label awn-database-view-columns-label";
+  label.className = "node-navigation-list-sort-label awn-databases-view-columns-label";
   label.textContent = "Колонки";
   columnsBtn.appendChild(label);
   return columnsBtn;
@@ -104123,11 +104123,11 @@ function createAwnDataViewColumnsButton() {
 function wrapAwnDataViewColumnsButton(columnsBtn) {
   if (!columnsBtn) return null;
   if (columnsBtn.closest(".node-navigation-list-sort-toggle")) {
-    return columnsBtn.closest(".awn-database-view-columns-sort");
+    return columnsBtn.closest(".awn-databases-view-columns-sort");
   }
 
   const sortWrap = document.createElement("div");
-  sortWrap.className = "node-navigation-list-sort awn-database-view-columns-sort";
+  sortWrap.className = "node-navigation-list-sort awn-databases-view-columns-sort";
   const toggle = document.createElement("div");
   toggle.className = "node-navigation-list-sort-toggle folder-browse-images-cols-toggle";
   toggle.setAttribute("role", "group");
@@ -104151,7 +104151,7 @@ function createAwnDataViewColumnsControl() {
 function syncAwnDataViewColumnsButtonLabel(columnsBtn, store = awnDataViewStoreCache) {
   if (!columnsBtn) return;
   const label =
-    columnsBtn.querySelector(".awn-database-view-columns-label") ||
+    columnsBtn.querySelector(".awn-databases-view-columns-label") ||
     columnsBtn.querySelector(".node-navigation-list-sort-label");
   if (!label) return;
   const visibleCount = getAwnDataViewVisibleColumnKeys(store).length;
@@ -104160,13 +104160,13 @@ function syncAwnDataViewColumnsButtonLabel(columnsBtn, store = awnDataViewStoreC
 }
 
 function setupAwnDataViewToolbarControls(root) {
-  const toolbar = root?.querySelector(".awn-database-view-toolbar");
-  const controls = toolbar?.querySelector(".awn-database-view-toolbar-controls");
+  const toolbar = root?.querySelector(".awn-databases-view-toolbar");
+  const controls = toolbar?.querySelector(".awn-databases-view-toolbar-controls");
   if (!controls) return;
 
-  if (!controls.querySelector(".awn-database-view-sort-mount")) {
+  if (!controls.querySelector(".awn-databases-view-sort-mount")) {
     const sortMount = document.createElement("div");
-    sortMount.className = "awn-database-view-sort-mount";
+    sortMount.className = "awn-databases-view-sort-mount";
     sortMount.appendChild(
       createNavigationListSortSelect(AWN_DATA_VIEW_SORT_SCOPE, {
         onChange: () => {
@@ -104179,35 +104179,35 @@ function setupAwnDataViewToolbarControls(root) {
     controls.appendChild(sortMount);
   }
 
-  if (!controls.querySelector(".awn-database-view-columns-wrap")) {
+  if (!controls.querySelector(".awn-databases-view-columns-wrap")) {
     const columnsWrap = document.createElement("div");
-    columnsWrap.className = "external-list-columns-wrap awn-database-view-columns-wrap";
+    columnsWrap.className = "external-list-columns-wrap awn-databases-view-columns-wrap";
     const columnsBtn = createAwnDataViewColumnsControl();
     const columnsPanel = document.createElement("div");
-    columnsPanel.className = "external-list-columns-panel awn-database-view-columns-panel hidden";
+    columnsPanel.className = "external-list-columns-panel awn-databases-view-columns-panel hidden";
     columnsPanel.setAttribute("role", "menu");
-    columnsWrap.append(columnsBtn.closest(".awn-database-view-columns-sort") || columnsBtn, columnsPanel);
+    columnsWrap.append(columnsBtn.closest(".awn-databases-view-columns-sort") || columnsBtn, columnsPanel);
     bindAwnDataViewColumnsPicker(columnsWrap, columnsBtn, columnsPanel);
     awnDataViewColumnsWrapNode = columnsWrap;
     controls.appendChild(columnsWrap);
   } else {
-    awnDataViewColumnsWrapNode = controls.querySelector(".awn-database-view-columns-wrap");
-    const columnsBtn = awnDataViewColumnsWrapNode?.querySelector(".awn-database-view-columns-btn");
+    awnDataViewColumnsWrapNode = controls.querySelector(".awn-databases-view-columns-wrap");
+    const columnsBtn = awnDataViewColumnsWrapNode?.querySelector(".awn-databases-view-columns-btn");
     if (columnsBtn && !columnsBtn.querySelector(".node-navigation-list-sort-icon")) {
       const labelText = columnsBtn.textContent.trim() || "Колонки";
       columnsBtn.replaceChildren();
       columnsBtn.className =
-        "node-navigation-list-sort-btn folder-browse-images-cols-btn awn-database-view-columns-btn";
+        "node-navigation-list-sort-btn folder-browse-images-cols-btn awn-databases-view-columns-btn";
       columnsBtn.append(createAwnDataViewColumnsIcon());
       const label = document.createElement("span");
-      label.className = "node-navigation-list-sort-label awn-database-view-columns-label";
+      label.className = "node-navigation-list-sort-label awn-databases-view-columns-label";
       label.textContent = labelText;
       columnsBtn.appendChild(label);
     }
     if (columnsBtn) {
       wrapAwnDataViewColumnsButton(columnsBtn);
       const columnsPanel =
-        awnDataViewColumnsWrapNode.querySelector(".awn-database-view-columns-panel") ||
+        awnDataViewColumnsWrapNode.querySelector(".awn-databases-view-columns-panel") ||
         awnDataViewColumnsWrapNode.querySelector(".external-list-columns-panel");
       if (columnsPanel && columnsBtn.dataset.bound !== "1") {
         bindAwnDataViewColumnsPicker(awnDataViewColumnsWrapNode, columnsBtn, columnsPanel);
@@ -104215,14 +104215,14 @@ function setupAwnDataViewToolbarControls(root) {
     }
   }
 
-  if (!controls.querySelector(".awn-database-view-layout-mount")) {
+  if (!controls.querySelector(".awn-databases-view-layout-mount")) {
     const layoutMount = document.createElement("div");
-    layoutMount.className = "awn-database-view-layout-mount";
+    layoutMount.className = "awn-databases-view-layout-mount";
     layoutMount.appendChild(createAwnDataViewRecordsLayoutToggle());
     controls.appendChild(layoutMount);
   }
 
-  awnDataViewLayoutToggleNode = controls.querySelector(".awn-database-view-layout-control");
+  awnDataViewLayoutToggleNode = controls.querySelector(".awn-databases-view-layout-control");
   syncAwnDataViewLayoutToggleUi();
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
 }
@@ -104248,7 +104248,7 @@ function saveAwnDataViewCardsColumns(columns) {
 
 function createAwnDataViewLayoutBtnIcon(svgMarkup) {
   const icon = document.createElement("span");
-  icon.className = "awn-database-view-layout-btn-icon";
+  icon.className = "awn-databases-view-layout-btn-icon";
   icon.setAttribute("aria-hidden", "true");
   icon.innerHTML = svgMarkup;
   return icon;
@@ -104274,10 +104274,10 @@ function createAwnDataViewLayoutFieldsIcon() {
 
 function createAwnDataViewRecordsLayoutToggle() {
   const control = document.createElement("div");
-  control.className = "folder-browse-images-cols-control awn-database-view-layout-control";
+  control.className = "folder-browse-images-cols-control awn-databases-view-layout-control";
 
   const listToggle = document.createElement("div");
-  listToggle.className = "folder-browse-images-cols-toggle awn-database-view-layout-toggle awn-database-view-layout-toggle--list";
+  listToggle.className = "folder-browse-images-cols-toggle awn-databases-view-layout-toggle awn-databases-view-layout-toggle--list";
   listToggle.setAttribute("role", "group");
   listToggle.setAttribute("aria-label", "Вид списка");
 
@@ -104288,7 +104288,7 @@ function createAwnDataViewRecordsLayoutToggle() {
   ]) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "folder-browse-images-cols-btn awn-database-view-layout-btn";
+    btn.className = "folder-browse-images-cols-btn awn-databases-view-layout-btn";
     btn.dataset.awnDatabaseLayout = spec.value;
     btn.appendChild(spec.icon());
     btn.title = spec.title;
@@ -104303,14 +104303,14 @@ function createAwnDataViewRecordsLayoutToggle() {
 
   const cardsToggle = document.createElement("div");
   cardsToggle.className =
-    "folder-browse-images-cols-toggle awn-database-view-layout-toggle awn-database-view-layout-toggle--cards";
+    "folder-browse-images-cols-toggle awn-databases-view-layout-toggle awn-databases-view-layout-toggle--cards";
   cardsToggle.setAttribute("role", "group");
   cardsToggle.setAttribute("aria-label", "Вид карточек");
 
   for (const cols of AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "folder-browse-images-cols-btn awn-database-view-layout-btn awn-database-view-cards-cols-btn";
+    btn.className = "folder-browse-images-cols-btn awn-databases-view-layout-btn awn-databases-view-cards-cols-btn";
     btn.dataset.awnDatabaseCardsCols = String(cols);
     btn.textContent = String(cols);
     btn.title = cols === 1 ? "1 колонка" : `${cols} колонки`;
@@ -104383,12 +104383,12 @@ function saveAwnDataViewCardsLayout(columns) {
 
 function syncAwnDataViewLayoutToggleUi() {
   if (!awnDataViewLayoutToggleNode) return;
-  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-database-layout]")) {
+  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-databases-layout]")) {
     const active = btn.dataset.awnDatabaseLayout === awnDataViewRecordsLayout;
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   }
-  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-database-cards-cols]")) {
+  for (const btn of awnDataViewLayoutToggleNode.querySelectorAll("[data-awn-databases-cards-cols]")) {
     const cols = Number(btn.dataset.awnDatabaseCardsCols);
     const active = awnDataViewRecordsLayout === "cards" && cols === awnDataViewCardsColumns;
     btn.classList.toggle("is-active", active);
@@ -104505,8 +104505,8 @@ function resolveAwnDataStoreManifestRelPath(store) {
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
   if (!rel) return "";
-  if (/\/manifest\.md$/i.test(rel)) return rel.startsWith("awn-database/") ? rel : `awn-database/${rel}`;
-  return `awn-database/${rel}/manifest.md`;
+  if (/\/manifest\.md$/i.test(rel)) return rel.startsWith("awn-databases/") ? rel : `awn-databases/${rel}`;
+  return `awn-databases/${rel}/manifest.md`;
 }
 
 function resolveAwnDataCommentsContext(store, record = null) {
@@ -104607,7 +104607,7 @@ function renderAwnDataIblockDescription(store) {
   emptyNode?.classList.add("hidden");
   briefFold?.classList.toggle("is-empty", false);
   const manifestPath =
-    store?.manifestRelPath || (store?.relPath ? `awn-database/${store.relPath}/manifest.md` : "");
+    store?.manifestRelPath || (store?.relPath ? `awn-databases/${store.relPath}/manifest.md` : "");
   if (typeof renderMarkdownToHtml === "function") {
     descNode.innerHTML = renderMarkdownToHtml(markdown, { nodePath: manifestPath });
   } else {
@@ -104616,17 +104616,17 @@ function renderAwnDataIblockDescription(store) {
 }
 
 function rootQueryAwnDataToolbar() {
-  return awnDataViewRoot?.querySelector(".awn-database-view-toolbar");
+  return awnDataViewRoot?.querySelector(".awn-databases-view-toolbar");
 }
 
 async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeAgentId, options = {}) {
   const normalized = String(workspacePath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
-  if (!/^(?:awn-database|awn-data)(?:\/|$)/i.test(normalized)) return false;
+  if (!/^(?:awn-databases|awn-data)(?:\/|$)/i.test(normalized)) return false;
   if (isAwnDataIndexRelPath(`${normalized}.md`) || isAwnDataIndexRelPath(normalized)) {
     await openAwnDataIndexOverview();
     return true;
   }
-  const tail = normalized.replace(/^(?:awn-database|awn-data)\/?/i, "");
+  const tail = normalized.replace(/^(?:awn-databases|awn-data)\/?/i, "");
   if (!tail) {
     showHomeView();
     return true;
@@ -104637,7 +104637,7 @@ async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = active
     const storeRel = parts.slice(0, len).join("/");
     const recordPart = parts.slice(len).join("/");
     try {
-      const response = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, agentId));
+      const response = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, agentId));
       if (!response.ok) continue;
       if (recordPart) {
         const recordId = recordPart.replace(/\.md$/i, "");
@@ -104654,7 +104654,7 @@ async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = active
 }
 
 function mountAwnDataViewHub() {
-  const template = document.getElementById("awn-database-view-template");
+  const template = document.getElementById("awn-databases-view-template");
   if (!template?.content?.firstElementChild || !nodeOverviewContentNode) return null;
   const hub = template.content.firstElementChild.cloneNode(true);
   nodeOverviewContentNode.replaceChildren(hub);
@@ -104664,7 +104664,7 @@ function mountAwnDataViewHub() {
 }
 
 function ensureAwnDataViewHubMounted() {
-  let hub = nodeOverviewContentNode?.querySelector(".awn-database-view-hub");
+  let hub = nodeOverviewContentNode?.querySelector(".awn-databases-view-hub");
   if (!hub) {
     hub = mountAwnDataViewHub();
   } else {
@@ -104679,7 +104679,7 @@ function wireAwnDataViewPageEvents(hub) {
 
   hub.addEventListener("click", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
-    const actionNode = event.target.closest("[data-awn-database-action]");
+    const actionNode = event.target.closest("[data-awn-databases-action]");
     if (!actionNode) return;
     if (actionNode.closest("summary")) {
       event.preventDefault();
@@ -104719,19 +104719,19 @@ function wireAwnDataViewPageEvents(hub) {
 
   hub.addEventListener("input", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
-    if (event.target.matches(".awn-database-view-search-input") && awnDataViewStoreCache) {
+    if (event.target.matches(".awn-databases-view-search-input") && awnDataViewStoreCache) {
       renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
       return;
     }
-    if (event.target.matches(".awn-database-view-section-search-input") && awnDataViewStoreCache) {
+    if (event.target.matches(".awn-databases-view-section-search-input") && awnDataViewStoreCache) {
       syncAwnDataViewSectionTree(awnDataViewStoreCache);
     }
   });
 
   hub.addEventListener("click", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
-    if (event.target.closest(".awn-database-view-section-tree-actions")) return;
-    const item = event.target.closest(".awn-database-view-section-tree-item");
+    if (event.target.closest(".awn-databases-view-section-tree-actions")) return;
+    const item = event.target.closest(".awn-databases-view-section-tree-item");
     if (!item?.dataset.sectionId) return;
     event.preventDefault();
     awnDataViewSectionId = item.dataset.sectionId;
@@ -104744,7 +104744,7 @@ function wireAwnDataViewPageEvents(hub) {
 
   hub.addEventListener("click", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
-    const action = event.target.closest("[data-awn-database-action]")?.dataset.awnDatabaseAction;
+    const action = event.target.closest("[data-awn-databases-action]")?.dataset.awnDatabaseAction;
     if (action === "toggle-create-section") {
       event.preventDefault();
       toggleAwnDataCreateSectionForm(true);
@@ -104756,37 +104756,37 @@ function wireAwnDataViewPageEvents(hub) {
     }
   });
 
-  hub.querySelector(".awn-database-view-section-create-name-input")?.addEventListener("keydown", (event) => {
+  hub.querySelector(".awn-databases-view-section-create-name-input")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     void submitAwnDataCreateSection();
   });
-  hub.querySelector(".awn-database-view-section-create-slug-input")?.addEventListener("keydown", (event) => {
+  hub.querySelector(".awn-databases-view-section-create-slug-input")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     void submitAwnDataCreateSection();
   });
-  hub.querySelector(".awn-database-add-name-input")?.addEventListener("keydown", (event) => {
+  hub.querySelector(".awn-databases-add-name-input")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     void submitAwnDataAddRecord();
   });
-  hub.querySelector(".awn-database-add-slug-input")?.addEventListener("keydown", (event) => {
+  hub.querySelector(".awn-databases-add-slug-input")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     void submitAwnDataAddRecord();
   });
 
-  hub.querySelector(".awn-database-add-record-btn")?.addEventListener("click", () => {
+  hub.querySelector(".awn-databases-add-record-btn")?.addEventListener("click", () => {
     void submitAwnDataAddRecord();
   });
-  hub.querySelector(".awn-database-create-main-csv-btn")?.addEventListener("click", () => {
+  hub.querySelector(".awn-databases-create-main-csv-btn")?.addEventListener("click", () => {
     void submitAwnDataCreateMainCsv();
   });
-  hub.querySelector(".awn-database-upload-btn")?.addEventListener("click", () => {
+  hub.querySelector(".awn-databases-upload-btn")?.addEventListener("click", () => {
     awnDataUploadInputNode?.click();
   });
-  hub.querySelector(".awn-database-upload-input")?.addEventListener("change", (event) => {
+  hub.querySelector(".awn-databases-upload-input")?.addEventListener("change", (event) => {
     const files = event.target?.files ? [...event.target.files] : [];
     if (files.length) void submitAwnDataUploadFiles(files);
     if (event.target) event.target.value = "";
@@ -104802,7 +104802,7 @@ function renderAwnDataBreadcrumbs() {
 
   appendBreadcrumbCrumb("Накопители информации (инфоблоки)", {
     onClick: () => showHomeView(),
-    className: "is-awn-database-root",
+    className: "is-awn-databases-root",
     withIcon: true
   });
   appendBreadcrumbSeparator();
@@ -104817,10 +104817,10 @@ function renderAwnDataBreadcrumbs() {
     const storeKind = store?.kind || (index < parts.length - 1 ? "group" : "collection");
     const crumbClass =
       storeKind === "group"
-        ? "is-awn-database-group"
+        ? "is-awn-databases-group"
         : storeKind === "single"
-          ? "is-awn-database-single"
-          : "is-awn-database-store";
+          ? "is-awn-databases-single"
+          : "is-awn-databases-store";
     appendBreadcrumbCrumb(label, {
       isCurrent,
       className: crumbClass,
@@ -104839,7 +104839,7 @@ function renderAwnDataBreadcrumbs() {
   if (awnDataViewRecordId && awnDataViewRecordCache) {
     appendBreadcrumbCrumb(String(awnDataViewRecordCache.title || awnDataViewRecordId).trim(), {
       isCurrent: true,
-      className: "is-awn-database-record",
+      className: "is-awn-databases-record",
       withIcon: true
     });
   }
@@ -104884,7 +104884,7 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   revealAwnDataViewWorkspace();
   updateActiveButton();
   syncAwnDataMenuActiveStore(normalizedStoreRel);
-  if (storeChanged || !nodeOverviewContentNode?.querySelector(".awn-database-view-hub")) {
+  if (storeChanged || !nodeOverviewContentNode?.querySelector(".awn-databases-view-hub")) {
     mountAwnDataViewHub();
   } else {
     ensureAwnDataViewHubMounted();
@@ -104894,7 +104894,7 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   try {
     applyModeUi({ skipAwnDataLoad: true });
   } catch (error) {
-    console.error("applyModeUi failed for awn-database view", error);
+    console.error("applyModeUi failed for awn-databases view", error);
   }
   updateBreadcrumbsForActiveMode();
   if (!options.skipRouteSync) {
@@ -104930,7 +104930,7 @@ async function openAwnDataRecordViewPage(storeRel, recordId, agentId = activeAge
   try {
     applyModeUi({ skipAwnDataLoad: true });
   } catch (error) {
-    console.error("applyModeUi failed for awn-database record view", error);
+    console.error("applyModeUi failed for awn-databases record view", error);
   }
   updateBreadcrumbsForActiveMode();
   if (!options.skipRouteSync) {
@@ -104970,14 +104970,14 @@ function revealAwnDataViewWorkspace() {
   clearSystemFileViewUi();
   activeContentMode = AWN_DATA_VIEW_MODE;
   nodeOverviewBlockNode?.classList.remove("hidden");
-  nodeOverviewBlockNode?.classList.add("is-node-navigation", "is-awn-database-view");
+  nodeOverviewBlockNode?.classList.add("is-node-navigation", "is-awn-databases-view");
   nodeOverviewBlockNode?.classList.remove(
     "is-folder-browse",
     "is-entry-overview",
     "is-workspace-tool-module",
     "is-container-node"
   );
-  workspacePathHeaderNode?.classList.add("is-awn-database-view");
+  workspacePathHeaderNode?.classList.add("is-awn-databases-view");
   workspacePathHeaderNode?.classList.remove("is-folder-browse", "is-workspace-tool-module");
 }
 
@@ -105035,7 +105035,7 @@ async function loadAwnDataViewStore(agentId = activeAgentId) {
 
   let loadingStarted = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, agentId));
+    const response = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, agentId));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (isStale()) return;
@@ -105116,14 +105116,14 @@ function resolveAwnDataViewCachedStore(storeRel) {
 
 function ensureAwnDataViewLoadingOverlay(root = awnDataViewRoot) {
   if (!root) return null;
-  let overlay = root.querySelector(".awn-database-view-loading-overlay");
+  let overlay = root.querySelector(".awn-databases-view-loading-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
-    overlay.className = "awn-database-view-loading-overlay hidden";
+    overlay.className = "awn-databases-view-loading-overlay hidden";
     overlay.setAttribute("aria-live", "polite");
     overlay.setAttribute("aria-busy", "false");
     const spinner = document.createElement("span");
-    spinner.className = "awn-database-view-loading-spinner";
+    spinner.className = "awn-databases-view-loading-spinner";
     spinner.setAttribute("aria-hidden", "true");
     overlay.appendChild(spinner);
     root.insertBefore(overlay, root.firstChild);
@@ -105176,7 +105176,7 @@ function renderAwnDataViewRecordsTableSkeleton(rowCount = 8) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
   const table = document.createElement("table");
-  table.className = "awn-database-view-table awn-database-view-table--skeleton";
+  table.className = "awn-databases-view-table awn-databases-view-table--skeleton";
   table.setAttribute("aria-hidden", "true");
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
@@ -105195,7 +105195,7 @@ function renderAwnDataViewRecordsTableSkeleton(rowCount = 8) {
     for (let cellIndex = 0; cellIndex < 3; cellIndex += 1) {
       const cell = document.createElement("td");
       const line = document.createElement("span");
-      line.className = "awn-database-view-table-skeleton-line";
+      line.className = "awn-databases-view-table-skeleton-line";
       cell.appendChild(line);
       row.appendChild(cell);
     }
@@ -105239,7 +105239,7 @@ function finishAwnDataViewStoreLoading() {
 }
 
 function syncAwnDataViewGroupPresentation(store) {
-  const elementsMain = awnDataViewRoot?.querySelector(".awn-database-view-elements-main");
+  const elementsMain = awnDataViewRoot?.querySelector(".awn-databases-view-elements-main");
   const toolbar = rootQueryAwnDataToolbar();
   const viewStore = normalizeAwnDataStoreView(store || {});
   const isGroup = viewStore?.kind === "group";
@@ -105260,7 +105260,7 @@ function resolveAwnDataViewSectionFilterLabel(store, sectionId) {
 }
 
 function syncAwnDataViewElementsTitle(store) {
-  const titleNode = awnDataViewRoot?.querySelector(".awn-database-view-elements-title");
+  const titleNode = awnDataViewRoot?.querySelector(".awn-databases-view-elements-title");
   if (!titleNode) return;
   const viewStore = normalizeAwnDataStoreView(store || awnDataViewStoreCache || {});
   if (viewStore?.kind === "group") {
@@ -105280,7 +105280,7 @@ function syncAwnDataViewElementsTitle(store) {
 
 function createAwnDataViewGroupChildCountBadge(count, kind = "collection") {
   const badge = document.createElement("span");
-  badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
+  badge.className = "menu-awn-databases-store-badge menu-awn-databases-store-badge--count";
   const safeCount = Number(count) || 0;
   if (safeCount <= 0) badge.classList.add("is-zero");
   badge.textContent = String(safeCount);
@@ -105294,22 +105294,22 @@ function createAwnDataViewGroupChildCountBadge(count, kind = "collection") {
 
 function createAwnDataViewGroupChildRow(child) {
   const item = document.createElement("li");
-  item.className = "awn-database-view-group-child";
+  item.className = "awn-databases-view-group-child";
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "awn-database-view-group-child-btn";
+  btn.className = "awn-databases-view-group-child-btn";
   const relPath = String(child?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   btn.title = child?.description || relPath || "";
 
-  const kindNode = createAwnDataStoreKindNode(child, { extraClass: "awn-database-view-group-child-kind" });
+  const kindNode = createAwnDataStoreKindNode(child, { extraClass: "awn-databases-view-group-child-kind" });
 
   const nameNode = document.createElement("span");
-  nameNode.className = "awn-database-view-group-child-name";
+  nameNode.className = "awn-databases-view-group-child-name";
   nameNode.textContent = String(child?.name || child?.relPath || "—").trim();
 
   const metaNode = document.createElement("span");
-  metaNode.className = "awn-database-view-group-child-meta menu-awn-database-store-meta";
+  metaNode.className = "awn-databases-view-group-child-meta menu-awn-databases-store-meta";
   metaNode.appendChild(
     createAwnDataViewGroupChildCountBadge(child?.recordCount, child?.kind || "collection")
   );
@@ -105326,13 +105326,13 @@ function renderAwnDataViewGroupChildrenSkeleton(rowCount = 6) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
   const list = document.createElement("ul");
-  list.className = "awn-database-view-group-children is-skeleton";
+  list.className = "awn-databases-view-group-children is-skeleton";
   list.setAttribute("aria-hidden", "true");
   for (let index = 0; index < rowCount; index += 1) {
     const item = document.createElement("li");
-    item.className = "awn-database-view-group-child is-skeleton";
+    item.className = "awn-databases-view-group-child is-skeleton";
     const line = document.createElement("span");
-    line.className = "awn-database-view-group-child-skeleton-line";
+    line.className = "awn-databases-view-group-child-skeleton-line";
     item.appendChild(line);
     list.appendChild(item);
   }
@@ -105370,7 +105370,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
         appendAwnDataSchemaMetaRow(awnDataViewSchemaMetaTbodyNode, key, value, metaContext);
       }
     }
-    const schemaModFileNode = awnDataViewRoot?.querySelector(".awn-database-view-schema-mod-file");
+    const schemaModFileNode = awnDataViewRoot?.querySelector(".awn-databases-view-schema-mod-file");
     if (schemaModFileNode) {
       schemaModFileNode.textContent = SCHEMA_MOD_FILE;
     }
@@ -105392,11 +105392,11 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     }
   }
 
-  const schemaFileNodes = awnDataViewRoot?.querySelectorAll(".awn-database-view-schema-settings-accordion .awn-database-view-schema-file");
+  const schemaFileNodes = awnDataViewRoot?.querySelectorAll(".awn-databases-view-schema-settings-accordion .awn-databases-view-schema-file");
   for (const schemaFileNode of schemaFileNodes || []) {
     schemaFileNode.textContent = resolveAwnDataStoreSchemaFileName();
   }
-  const schemaModFileNode = awnDataViewRoot?.querySelector(".awn-database-view-schema-mod-file");
+  const schemaModFileNode = awnDataViewRoot?.querySelector(".awn-databases-view-schema-mod-file");
   if (schemaModFileNode) {
     schemaModFileNode.textContent = SCHEMA_MOD_FILE;
   }
@@ -105417,7 +105417,7 @@ function resolveAwnDataStoreFileRel(fileName = "") {
     .replace(/^\/+/, "");
   if (!storeRel) return "";
   const resolvedName = String(fileName || resolveAwnDataStoreSchemaFileName()).trim() || "manifest.md";
-  return `awn-database/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
+  return `awn-databases/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
 }
 
 function setAwnDataViewSchemaEditMode(enabled) {
@@ -105463,7 +105463,7 @@ async function saveAwnDataViewSchemaEdit() {
   const content = awnDataViewSchemaTextareaNode.value;
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
   const storeRel = awnDataViewStoreRel;
-  const saveBtn = awnDataViewRoot?.querySelector('[data-awn-database-action="save-schema"]');
+  const saveBtn = awnDataViewRoot?.querySelector('[data-awn-databases-action="save-schema"]');
   try {
     if (saveBtn) saveBtn.disabled = true;
     const response = await fetch(buildApiUrl("/api/agent-system/file", {}, catalogAgentId), {
@@ -105480,7 +105480,7 @@ async function saveAwnDataViewSchemaEdit() {
     await refreshMenuAwnDataStores(catalogAgentId);
     if (storeRel) {
       const reloadResponse = await fetch(
-        buildApiUrl("/api/awn-database", { store: storeRel }, catalogAgentId)
+        buildApiUrl("/api/awn-databases", { store: storeRel }, catalogAgentId)
       );
       if (reloadResponse.ok) {
         const reloadData = await reloadResponse.json();
@@ -105505,7 +105505,7 @@ function isAwnDatabaseManifestPath(nodePath) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .toLowerCase();
-  return /^(?:awn-database|awn-data)\/.+\/manifest\.md$/i.test(normalized);
+  return /^(?:awn-databases|awn-data)\/.+\/manifest\.md$/i.test(normalized);
 }
 
 function isAwnDatabaseEditableRecordPath(nodePath) {
@@ -105513,10 +105513,10 @@ function isAwnDatabaseEditableRecordPath(nodePath) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .toLowerCase();
-  if (!/^(?:awn-database|awn-data)\/.+/i.test(normalized)) return false;
+  if (!/^(?:awn-databases|awn-data)\/.+/i.test(normalized)) return false;
   if (/\/manifest\.md$/i.test(normalized)) return false;
   if (/\/(schema\.yml|sort\.json|config\.yml)$/i.test(normalized)) return false;
-  if (normalized === "awn-database/index.md") return false;
+  if (normalized === "awn-databases/index.md") return false;
   return true;
 }
 
@@ -105551,13 +105551,13 @@ async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeAge
 
 function resolveAwnDataStoreRelFromManifestPath(manifestPath) {
   const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  const match = normalized.match(/^(?:awn-database|awn-data)\/(.+?)\/manifest\.md$/i);
+  const match = normalized.match(/^(?:awn-databases|awn-data)\/(.+?)\/manifest\.md$/i);
   return match ? match[1].replace(/\/+$/g, "") : "";
 }
 
 function resolveAwnDataStoreRelFromRecordPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  const match = normalized.match(/^(?:awn-database|awn-data)\/(.+)$/i);
+  const match = normalized.match(/^(?:awn-databases|awn-data)\/(.+)$/i);
   if (!match) return "";
   const filePart = match[1];
   const cachedStoreRel = String(awnDataViewStoreCache?.relPath || "")
@@ -105576,7 +105576,7 @@ function resolveAwnDataRecordBreadcrumbLabel(nodePath) {
   const records = Array.isArray(awnDataViewStoreCache?.records) ? awnDataViewStoreCache.records : [];
   const record = records.find((item) => {
     const rel = String(item?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-    const full = rel.startsWith("awn-database/") ? rel : `awn-database/${rel}`;
+    const full = rel.startsWith("awn-databases/") ? rel : `awn-databases/${rel}`;
     return full.toLowerCase() === normalized.toLowerCase();
   });
   if (record) return String(record.title || record.id || "").trim() || record.id;
@@ -105632,7 +105632,7 @@ function renderAwnDatabaseManifestEditBreadcrumbs() {
 
   appendBreadcrumbCrumb("Инфоблок", {
     onClick: () => showHomeView(),
-    className: "is-awn-database-root",
+    className: "is-awn-databases-root",
     withIcon: true
   });
   appendBreadcrumbSeparator();
@@ -105653,10 +105653,10 @@ function renderAwnDatabaseManifestEditBreadcrumbs() {
     const storeKind = store?.kind || (index < parts.length - 1 ? "group" : "collection");
     const crumbClass =
       storeKind === "group"
-        ? "is-awn-database-group"
+        ? "is-awn-databases-group"
         : storeKind === "single"
-          ? "is-awn-database-single"
-          : "is-awn-database-store";
+          ? "is-awn-databases-single"
+          : "is-awn-databases-store";
     appendBreadcrumbCrumb(label, {
       isCurrent,
       className: crumbClass,
@@ -105718,7 +105718,7 @@ async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeAgentId)
     store = normalizeAwnDataStoreView(awnDataViewStoreCache);
   } else {
     try {
-      const response = await fetch(buildApiUrl("/api/awn-database", { store: storeRel }, agentId));
+      const response = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, agentId));
       if (!response.ok) return false;
       const data = await response.json();
       store = normalizeAwnDataStoreView(data.store);
@@ -105856,7 +105856,7 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return;
-  const fileRel = `awn-database/${storeRel}/${fileName}`.replace(/\\/g, "/");
+  const fileRel = `awn-databases/${storeRel}/${fileName}`.replace(/\\/g, "/");
   const label =
     labelHint ||
     `${awnDataViewStoreCache?.name || storeRel} · ${fileName}`;
@@ -105913,7 +105913,7 @@ function renderAwnDataViewHeader(store, { loading = false, error = false, preser
         slug: resolveAwnDataStoreSlug(viewStore),
         pathLabel: formatNodeHeroSlugLabel(manifestAssignPath)
       });
-      metaPathRow.classList.add("awn-database-view-id-path");
+      metaPathRow.classList.add("awn-databases-view-id-path");
       awnDataViewModalPathNode.appendChild(metaPathRow);
       awnDataViewModalPathNode.classList.remove("hidden");
     }
@@ -106206,8 +106206,8 @@ function collectAwnDataSectionTreeIds(store) {
 
 function syncAwnDataViewSectionTreeActiveStates() {
   if (!awnDataViewSectionTreeNode) return;
-  for (const row of awnDataViewSectionTreeNode.querySelectorAll(".awn-database-view-section-tree-row")) {
-    const btn = row.querySelector(".awn-database-view-section-tree-item");
+  for (const row of awnDataViewSectionTreeNode.querySelectorAll(".awn-databases-view-section-tree-row")) {
+    const btn = row.querySelector(".awn-databases-view-section-tree-item");
     if (!btn?.dataset.sectionId) continue;
     const active = btn.dataset.sectionId === awnDataViewSectionId;
     row.classList.toggle("is-active", active);
@@ -106218,12 +106218,12 @@ function syncAwnDataViewSectionTreeActiveStates() {
 
 function createAwnDataViewSectionTreeIdControl(record, store) {
   const wrap = document.createElement("div");
-  wrap.className = "awn-database-view-section-tree-id";
+  wrap.className = "awn-databases-view-section-tree-id";
   const awnId = resolveAwnDataRecordAwnId(record);
   if (awnId) {
     const badge = createNavBookTocIdBadge(awnId);
     if (badge) {
-      badge.classList.add("awn-database-view-section-tree-id-badge");
+      badge.classList.add("awn-databases-view-section-tree-id-badge");
       wrap.appendChild(badge);
     }
   } else {
@@ -106234,7 +106234,7 @@ function createAwnDataViewSectionTreeIdControl(record, store) {
 
 function createAwnDataViewSectionTreeActions(record, store) {
   const actions = document.createElement("div");
-  actions.className = "awn-database-view-section-tree-actions";
+  actions.className = "awn-databases-view-section-tree-actions";
   actions.append(
     createAwnDataViewSectionTreeIdControl(record, store),
     createAwnDataViewRecordEditIconButton(record, store, resolveAwnDataRecordDisplayName(record))
@@ -106244,12 +106244,12 @@ function createAwnDataViewSectionTreeActions(record, store) {
 
 function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, record = null, store = null }) {
   const row = document.createElement("div");
-  row.className = "awn-database-view-section-tree-row";
+  row.className = "awn-databases-view-section-tree-row";
   if (depth > 0) row.classList.add("is-nested");
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "awn-database-view-section-tree-item";
+  btn.className = "awn-databases-view-section-tree-item";
   btn.dataset.sectionId = id;
   btn.style.setProperty("--tree-depth", String(depth));
   btn.setAttribute("role", "treeitem");
@@ -106260,11 +106260,11 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
   }
 
   const icon = document.createElement("span");
-  icon.className = "awn-database-view-section-tree-icon";
+  icon.className = "awn-databases-view-section-tree-icon";
   icon.setAttribute("aria-hidden", "true");
 
   const text = document.createElement("span");
-  text.className = "awn-database-view-section-tree-label";
+  text.className = "awn-databases-view-section-tree-label";
   text.textContent = label;
 
   btn.append(icon, text);
@@ -106368,7 +106368,7 @@ function syncAwnDataViewSectionTree(store) {
 
   if (queryLower && !visibleCount) {
     const empty = document.createElement("p");
-    empty.className = "awn-database-view-section-tree-empty";
+    empty.className = "awn-databases-view-section-tree-empty";
     empty.textContent = "Разделы не найдены";
     awnDataViewSectionTreeNode.appendChild(empty);
   }
@@ -106532,7 +106532,7 @@ function syncAwnDataViewColumnsPickerUi(store = awnDataViewStoreCache) {
   awnDataViewColumnsWrapNode.classList.toggle("hidden", hidePicker);
   if (hidePicker) return;
 
-  const columnsBtn = awnDataViewColumnsWrapNode.querySelector(".awn-database-view-columns-btn");
+  const columnsBtn = awnDataViewColumnsWrapNode.querySelector(".awn-databases-view-columns-btn");
   if (!columnsBtn) return;
   syncAwnDataViewColumnsButtonLabel(columnsBtn, viewStore);
 }
@@ -106618,7 +106618,7 @@ function bindAwnDataViewColumnsPicker(wrap, columnsBtn, columnsPanel) {
     event.stopPropagation();
     const willOpen = columnsPanel.classList.contains("hidden");
     document
-      .querySelectorAll(".awn-database-view-columns-panel, .external-list-columns-panel")
+      .querySelectorAll(".awn-databases-view-columns-panel, .external-list-columns-panel")
       .forEach((node) => {
         if (node !== columnsPanel) node.classList.add("hidden");
       });
@@ -106766,7 +106766,7 @@ function resolveAwnDataRecordFilePath(record, store = awnDataViewStoreCache) {
 
   let relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relPath) return "";
-  return relPath.startsWith("awn-database/") ? relPath : `awn-database/${relPath}`;
+  return relPath.startsWith("awn-databases/") ? relPath : `awn-databases/${relPath}`;
 }
 
 function isAwnDataBinaryFileRecord(record, store = awnDataViewStoreCache) {
@@ -106799,7 +106799,7 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
   if (isAwnDataBinaryFileRecord(record, viewStore)) {
     const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
     const folderPath = storeRel
-      ? `awn-database/${storeRel}/awn-storage/data`
+      ? `awn-databases/${storeRel}/awn-storage/data`
       : getFolderBrowseParentPath(filePath);
     awnDataManifestEditReturnRel = storeRel;
     awnDataManifestEditReturnRecordId = recordId;
@@ -106891,7 +106891,7 @@ function syncAwnDataViewAddForm(store) {
   awnDataCreateMainCsvFormNode?.classList.toggle("hidden", !showCreateMainCsv);
   awnDataAddFilesFormNode?.classList.toggle("hidden", !isFiles && !isCsvFiles);
 
-  const addNameLabel = awnDataAddRecordsFormNode?.querySelector(".awn-database-add-name-field > span");
+  const addNameLabel = awnDataAddRecordsFormNode?.querySelector(".awn-databases-add-name-field > span");
   const addSlugLabel = awnDataAddRecordsFormNode?.querySelector(".slug-field-label");
   const addRecordBtn = awnDataAddRecordBtn;
   if (isCsvFiles) {
@@ -106932,7 +106932,7 @@ function syncAwnDataViewAddForm(store) {
     .trim()
     .toLowerCase();
   awnDataAddRecordsFormNode
-    ?.querySelector(".awn-database-add-slug-row")
+    ?.querySelector(".awn-databases-add-slug-row")
     ?.classList.toggle("hidden", idMode === "numeric");
 
   if (isFiles) {
@@ -106996,9 +106996,9 @@ function resolveAwnDataViewRecordGridPreview(record, viewStore) {
     if (!raw) continue;
     const previewName = raw.split("/").pop() || raw;
     if (!ATTACHMENTS_IMAGE_EXT_RE.test(previewName)) continue;
-    const rel = raw.startsWith("awn-database/")
+    const rel = raw.startsWith("awn-databases/")
       ? raw
-      : resolveWorkspaceBrowseRelPath(storeRel ? `awn-database/${storeRel}` : "awn-database", raw);
+      : resolveWorkspaceBrowseRelPath(storeRel ? `awn-databases/${storeRel}` : "awn-databases", raw);
     return {
       isImage: true,
       src: buildWorkspaceFolderBrowseFileUrl(rel, {
@@ -107032,7 +107032,7 @@ function awnDataRecordToNavTocItem(record) {
 
 function renderAwnDataViewTocRecords(records, viewStore) {
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide awn-database-view-records-toc";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide awn-databases-view-records-toc";
   nav.setAttribute("aria-label", "Элементы инфоблока");
 
   const list = document.createElement("ul");
@@ -107132,7 +107132,7 @@ function resolveAwnDataViewRecordGridFooterLabels(record, viewStore, columns) {
 
 function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   const card = document.createElement("article");
-  card.className = "folder-browse-image-card awn-database-view-record-grid-card";
+  card.className = "folder-browse-image-card awn-databases-view-record-grid-card";
   if (isAwnDataSystemRecord(record)) card.classList.add("is-system");
   card.title = "Открыть запись";
 
@@ -107155,9 +107155,9 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
     attachFolderBrowseImageFallback(img);
     imgWrap.appendChild(img);
   } else {
-    imgWrap.classList.add("awn-database-view-record-grid-thumb-placeholder");
+    imgWrap.classList.add("awn-databases-view-record-grid-thumb-placeholder");
     const label = document.createElement("span");
-    label.className = "awn-database-view-record-grid-thumb-label";
+    label.className = "awn-databases-view-record-grid-thumb-label";
     label.textContent = preview.label || record.id || "—";
     imgWrap.appendChild(label);
   }
@@ -107172,9 +107172,9 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   const fullTitle = String(record?.title || record?.fileName || footerName || "").trim();
 
   const footer = document.createElement("div");
-  footer.className = "folder-browse-image-footer awn-database-view-record-grid-footer";
+  footer.className = "folder-browse-image-footer awn-databases-view-record-grid-footer";
   const footerMain = document.createElement("div");
-  footerMain.className = "awn-database-view-record-grid-footer-main";
+  footerMain.className = "awn-databases-view-record-grid-footer-main";
   const nameNode = document.createElement("span");
   nameNode.className = "folder-browse-image-name";
   nameNode.textContent = footerName;
@@ -107189,7 +107189,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   footer.appendChild(footerMain);
 
   const footerActions = document.createElement("div");
-  footerActions.className = "awn-database-view-record-grid-footer-actions";
+  footerActions.className = "awn-databases-view-record-grid-footer-actions";
   if (awnDataViewCardsColumns === 1) {
     footerActions.appendChild(
       createNodeOverviewEditButton(() => openAwnDataRecordEditor(record, viewStore), "Редактировать")
@@ -107209,7 +107209,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   card.addEventListener("click", (event) => {
     if (
       event.target.closest(
-        ".awn-database-view-edit-btn, .node-overview-edit-btn, .awn-database-view-record-id-assign-btn"
+        ".awn-databases-view-edit-btn, .node-overview-edit-btn, .awn-databases-view-record-id-assign-btn"
       )
     ) {
       return;
@@ -107220,7 +107220,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
     if (event.key !== "Enter" && event.key !== " ") return;
     if (
       event.target.closest(
-        ".awn-database-view-edit-btn, .node-overview-edit-btn, .awn-database-view-record-id-assign-btn"
+        ".awn-databases-view-edit-btn, .node-overview-edit-btn, .awn-databases-view-record-id-assign-btn"
       )
     ) {
       return;
@@ -107241,7 +107241,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
 
   awnDataViewRecordPanelNode
-    ?.querySelector(".awn-database-view-record-edit-btn")
+    ?.querySelector(".awn-databases-view-record-edit-btn")
     ?.classList.add("hidden");
 
   if (isAwnDataEntityTypesStore(viewStore)) {
@@ -107250,7 +107250,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
     awnDataViewRecordBodyNode.replaceChildren();
 
     const fieldsList = document.createElement("dl");
-    fieldsList.className = "awn-database-view-record-fields-list";
+    fieldsList.className = "awn-databases-view-record-fields-list";
 
     const fm = record?.frontmatter || {};
     for (const [label, value] of [
@@ -107261,7 +107261,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
       ["Status", fm["awn-status"]]
     ]) {
       const row = document.createElement("div");
-      row.className = "awn-database-view-record-field-row";
+      row.className = "awn-databases-view-record-field-row";
       const dt = document.createElement("dt");
       dt.textContent = label;
       const dd = document.createElement("dd");
@@ -107274,13 +107274,13 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
     const fieldKeys = Object.keys(bodyFields).sort((a, b) => a.localeCompare(b, "ru"));
     if (fieldKeys.length) {
       const subTitle = document.createElement("div");
-      subTitle.className = "awn-database-view-record-fields-subtitle";
+      subTitle.className = "awn-databases-view-record-fields-subtitle";
       subTitle.textContent = "Свойства типа (body awn-fields)";
       fieldsList.appendChild(subTitle);
       for (const key of fieldKeys) {
         const field = bodyFields[key] || {};
         const row = document.createElement("div");
-        row.className = "awn-database-view-record-field-row is-body-field";
+        row.className = "awn-databases-view-record-field-row is-body-field";
         const dt = document.createElement("dt");
         dt.textContent = key;
         const dd = document.createElement("dd");
@@ -107297,7 +107297,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
 
     const storeRel = String(viewStore?.relPath || awnDataViewStoreRel || "").replace(/^\/+/, "");
     let fileRel = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-    if (!fileRel.startsWith("awn-database/")) fileRel = `awn-database/${fileRel}`;
+    if (!fileRel.startsWith("awn-databases/")) fileRel = `awn-databases/${fileRel}`;
 
     try {
       await renderAwnDataMarkdownPreview(awnDataViewRecordBodyNode, fileRel, storeRel, catalogAgentId);
@@ -107328,7 +107328,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   if (isSingleCsvStore && storeRel) {
     fileRel = `${storeRel}/${viewStore.recordFile || "main.csv"}`;
   }
-  if (!fileRel.startsWith("awn-database/")) fileRel = `awn-database/${fileRel}`;
+  if (!fileRel.startsWith("awn-databases/")) fileRel = `awn-databases/${fileRel}`;
 
   if (isCsvContent) {
     try {
@@ -107375,7 +107375,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
       const csvWrap = document.createElement("div");
       csvWrap.className = "node-navigation-manifest node-entry-overview-manifest";
       const csvPreview = document.createElement("pre");
-      csvPreview.className = "node-navigation-preview file-content-preview awn-database-view-record-csv-preview";
+      csvPreview.className = "node-navigation-preview file-content-preview awn-databases-view-record-csv-preview";
       csvPreview.textContent = rawBody;
       csvWrap.appendChild(csvPreview);
       hubMain.appendChild(csvWrap);
@@ -107401,7 +107401,7 @@ function createAwnDataViewRecordEditIconButton(record, viewStore, labelHint = ""
   const recordLabel = String(labelHint || record?.id || "—").trim() || "—";
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "awn-database-view-record-edit-icon-btn awn-database-view-edit-btn";
+  btn.className = "awn-databases-view-record-edit-icon-btn awn-databases-view-edit-btn";
   btn.title = isSingleCsvStore
     ? "Открыть main.csv"
     : isCsvFileRecord
@@ -107420,7 +107420,7 @@ function createAwnDataViewRecordIdAssignButton(record, viewStore) {
   const assignPath = resolveAwnDataRecordFilePath(record, viewStore);
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "awn-database-view-record-id-assign-btn";
+  btn.className = "awn-databases-view-record-id-assign-btn";
   btn.textContent = "id";
   btn.title = "Выдать следующий глобальный awn-id";
   btn.setAttribute("aria-label", "Присвоить id");
@@ -107433,7 +107433,7 @@ function createAwnDataViewRecordIdAssignButton(record, viewStore) {
 
 function createAwnDataViewRecordIdCell(record, viewStore, value) {
   const wrap = document.createElement("div");
-  wrap.className = "awn-database-view-record-id-wrap";
+  wrap.className = "awn-databases-view-record-id-wrap";
   const recordLabel = String(value || record?.id || "—").trim() || "—";
   const awnId = resolveAwnDataRecordAwnId(record);
   const awnIdText = normalizeAwnIdDisplayValue(awnId);
@@ -107445,7 +107445,7 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   wrap.appendChild(createAwnDataViewRecordEditIconButton(record, viewStore, recordLabel));
   if (showRecordLabel) {
     const idLabel = document.createElement("span");
-    idLabel.className = "awn-database-view-record-id-label";
+    idLabel.className = "awn-databases-view-record-id-label";
     idLabel.textContent = recordLabel;
     idLabel.title = recordLabel;
     wrap.appendChild(idLabel);
@@ -107454,7 +107454,7 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   if (awnIdText) {
     const idBadge = createNavBookTocIdBadge(awnIdText);
     if (idBadge) {
-      idBadge.classList.add("awn-database-view-record-awn-id-badge");
+      idBadge.classList.add("awn-databases-view-record-awn-id-badge");
       wrap.appendChild(idBadge);
     }
   } else {
@@ -107481,12 +107481,12 @@ function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
     );
   };
   rowOrCell.addEventListener("click", (event) => {
-    if (event.target.closest(".awn-database-view-edit-btn, .awn-database-view-record-id-assign-btn")) return;
+    if (event.target.closest(".awn-databases-view-edit-btn, .awn-databases-view-record-id-assign-btn")) return;
     void open();
   });
   rowOrCell.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.target.closest(".awn-database-view-edit-btn, .awn-database-view-record-id-assign-btn")) return;
+    if (event.target.closest(".awn-databases-view-edit-btn, .awn-databases-view-record-id-assign-btn")) return;
     event.preventDefault();
     void open();
   });
@@ -107494,21 +107494,21 @@ function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
 
 function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
   const table = document.createElement("table");
-  table.className = "awn-database-view-table awn-database-view-table--transposed";
+  table.className = "awn-databases-view-table awn-databases-view-table--transposed";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
 
   const cornerHead = document.createElement("th");
   cornerHead.scope = "col";
-  cornerHead.className = "awn-database-view-transposed-corner";
+  cornerHead.className = "awn-databases-view-transposed-corner";
   cornerHead.textContent = "Поле";
   headRow.appendChild(cornerHead);
 
   for (const record of records) {
     const th = document.createElement("th");
     th.scope = "col";
-    th.className = "awn-database-view-transposed-record-head";
+    th.className = "awn-databases-view-transposed-record-head";
     if (isAwnDataSystemRecord(record)) th.classList.add("is-system");
     const idLabel = formatAwnDataViewCellValue(record, { kind: "id", key: "__id__" });
     const titleLabel = formatAwnDataViewCellValue(record, { key: "title" });
@@ -107525,20 +107525,20 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
 
   for (const column of columns) {
     const row = document.createElement("tr");
-    row.className = "awn-database-view-transposed-field-row";
+    row.className = "awn-databases-view-transposed-field-row";
 
     const labelCell = document.createElement("th");
     labelCell.scope = "row";
-    labelCell.className = "awn-database-view-transposed-field-label";
+    labelCell.className = "awn-databases-view-transposed-field-label";
     labelCell.textContent = column.label;
     row.appendChild(labelCell);
 
     for (const record of records) {
       const cell = document.createElement("td");
       const value = formatAwnDataViewCellValue(record, column);
-      cell.className = "awn-database-view-transposed-field-value";
+      cell.className = "awn-databases-view-transposed-field-value";
       if (column.kind === "id") {
-        cell.classList.add("awn-database-view-record-id");
+        cell.classList.add("awn-databases-view-record-id");
         cell.append(createAwnDataViewRecordIdCell(record, viewStore, value));
       } else {
         cell.textContent = value;
@@ -107600,7 +107600,7 @@ function formatAwnDataBodyFieldType(field) {
 
 function renderAwnDataEntityTypeRecords(records, viewStore) {
   const wrap = document.createElement("div");
-  wrap.className = "awn-database-view-entity-types";
+  wrap.className = "awn-databases-view-entity-types";
 
   for (const record of records) {
     const fm = record?.frontmatter || {};
@@ -107608,27 +107608,27 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
     const fieldKeys = Object.keys(bodyFields).sort((a, b) => a.localeCompare(b, "ru"));
 
     const section = document.createElement("section");
-    section.className = "awn-database-view-entity-type";
+    section.className = "awn-databases-view-entity-type";
 
     const head = document.createElement("div");
-    head.className = "awn-database-view-entity-type-head";
+    head.className = "awn-databases-view-entity-type-head";
 
     const titleWrap = document.createElement("div");
-    titleWrap.className = "awn-database-view-entity-type-title-wrap";
+    titleWrap.className = "awn-databases-view-entity-type-title-wrap";
     const title = document.createElement("h3");
-    title.className = "awn-database-view-entity-type-title";
+    title.className = "awn-databases-view-entity-type-title";
     title.textContent = String(fm["awn-title"] || record.title || record.id).trim();
     titleWrap.appendChild(title);
 
     const typeId = document.createElement("code");
-    typeId.className = "awn-database-view-entity-type-id";
+    typeId.className = "awn-databases-view-entity-type-id";
     typeId.textContent = String(fm["awn-typeId"] || `awn.${record.id}`).trim();
     titleWrap.appendChild(typeId);
     head.appendChild(titleWrap);
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
-    editBtn.className = "awn-database-view-edit-btn";
+    editBtn.className = "awn-databases-view-edit-btn";
     editBtn.title = "Редактировать тип";
     editBtn.append(createOverviewEditManifestIcon());
     editBtn.addEventListener("click", () => void openAwnDataRecordEditor(record, viewStore));
@@ -107642,19 +107642,19 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
       .trim();
     if (desc) {
       const descNode = document.createElement("p");
-      descNode.className = "awn-database-view-entity-type-desc";
+      descNode.className = "awn-databases-view-entity-type-desc";
       descNode.textContent = desc;
       section.appendChild(descNode);
     }
 
     if (!fieldKeys.length) {
       const empty = document.createElement("p");
-      empty.className = "awn-database-view-entity-type-empty";
+      empty.className = "awn-databases-view-entity-type-empty";
       empty.textContent = "Нет полей в body awn-fields";
       section.appendChild(empty);
     } else {
       const table = document.createElement("table");
-      table.className = "awn-database-view-table awn-database-view-property-table";
+      table.className = "awn-databases-view-table awn-databases-view-property-table";
       const thead = document.createElement("thead");
       const headRow = document.createElement("tr");
       for (const label of ["Ключ", "Название", "Тип", "Описание"]) {
@@ -107670,10 +107670,10 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
       for (const key of fieldKeys) {
         const field = bodyFields[key] || {};
         const row = document.createElement("tr");
-        row.className = "awn-database-view-property-row";
+        row.className = "awn-databases-view-property-row";
 
         const keyCell = document.createElement("td");
-        keyCell.className = "awn-database-view-schema-key";
+        keyCell.className = "awn-databases-view-schema-key";
         keyCell.textContent = key;
         row.appendChild(keyCell);
 
@@ -107682,12 +107682,12 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
         row.appendChild(titleCell);
 
         const typeCell = document.createElement("td");
-        typeCell.className = "awn-database-view-schema-type";
+        typeCell.className = "awn-databases-view-schema-type";
         typeCell.textContent = formatAwnDataBodyFieldType(field);
         row.appendChild(typeCell);
 
         const descCell = document.createElement("td");
-        descCell.className = "awn-database-view-property-desc";
+        descCell.className = "awn-databases-view-property-desc";
         descCell.textContent = String(field.description || "—").trim() || "—";
         row.appendChild(descCell);
 
@@ -107698,7 +107698,7 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
     }
 
     section.addEventListener("click", (event) => {
-      if (event.target.closest(".awn-database-view-edit-btn")) return;
+      if (event.target.closest(".awn-databases-view-edit-btn")) return;
       void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
     });
 
@@ -107763,10 +107763,10 @@ function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
   }
 
   const wrap = document.createElement("div");
-  wrap.className = "awn-database-view-csv-table-wrap";
+  wrap.className = "awn-databases-view-csv-table-wrap";
 
   const table = document.createElement("table");
-  table.className = "awn-database-view-csv-table";
+  table.className = "awn-databases-view-csv-table";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
@@ -107783,7 +107783,7 @@ function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = Math.max(columns.length, 1);
-    cell.className = "awn-database-view-csv-empty-row";
+    cell.className = "awn-databases-view-csv-empty-row";
     cell.textContent = "Нет строк данных";
     row.appendChild(cell);
     tbody.appendChild(row);
@@ -107806,14 +107806,14 @@ function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
 
 function createAwnDatabaseViewEmptyState(message) {
   const empty = document.createElement("div");
-  empty.className = "awn-database-view-empty";
+  empty.className = "awn-databases-view-empty";
   const state = document.createElement("div");
-  state.className = "awn-database-view-empty-state";
+  state.className = "awn-databases-view-empty-state";
   const icon = document.createElement("span");
-  icon.className = "awn-database-empty-folder-icon";
+  icon.className = "awn-databases-empty-folder-icon";
   icon.setAttribute("aria-hidden", "true");
   const text = document.createElement("span");
-  text.className = "awn-database-view-empty-text";
+  text.className = "awn-databases-view-empty-text";
   text.textContent = message;
   state.append(icon, text);
   empty.appendChild(state);
@@ -107825,7 +107825,7 @@ function buildAwnDatabasePrefixedRel(relPath) {
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
   if (!normalized) return "";
-  return normalized.startsWith("awn-database/") ? normalized : `awn-database/${normalized}`;
+  return normalized.startsWith("awn-databases/") ? normalized : `awn-databases/${normalized}`;
 }
 
 function buildAwnDataSingleStoreCsvFallbackRel(viewStore, primaryRel, recordFile = "main.csv") {
@@ -107860,7 +107860,7 @@ function resolveAwnDataSingleStoreInnerFilePath(viewStore, recordFile, { isCsvSt
   const recordFileRelPath = String(viewStore?.recordFileRelPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
-    .replace(/^awn-database\//, "");
+    .replace(/^awn-databases\//, "");
   if (recordFileRelPath) {
     if (storeRel && recordFileRelPath.startsWith(`${storeRel}/`)) {
       return recordFileRelPath.slice(storeRel.length + 1);
@@ -107970,14 +107970,14 @@ async function openAwnDataSingleStoreContentEdit(store = awnDataViewStoreCache) 
 
 function createAwnDataSingleStoreContentCard(viewStore) {
   const card = document.createElement("article");
-  card.className = "awn-database-view-description-card awn-database-view-single-card";
+  card.className = "awn-databases-view-description-card awn-databases-view-single-card";
 
   const head = document.createElement("div");
   head.className =
-    "awn-database-view-description-card-head awn-database-view-iblock-card-head awn-database-view-single-card-head";
+    "awn-databases-view-description-card-head awn-databases-view-iblock-card-head awn-databases-view-single-card-head";
 
   const headActions = document.createElement("div");
-  headActions.className = "awn-database-view-iblock-card-head-actions";
+  headActions.className = "awn-databases-view-iblock-card-head-actions";
   headActions.appendChild(
     createNodeOverviewHeroActions(resolveAwnDataSingleStoreFileRel(viewStore), {
       editOnly: true,
@@ -107988,10 +107988,10 @@ function createAwnDataSingleStoreContentCard(viewStore) {
   head.appendChild(headActions);
 
   const bodyWrap = document.createElement("div");
-  bodyWrap.className = "awn-database-view-single-card-body";
+  bodyWrap.className = "awn-databases-view-single-card-body";
 
   const body = document.createElement("div");
-  body.className = "awn-database-view-single-content file-content-preview";
+  body.className = "awn-databases-view-single-content file-content-preview";
   bodyWrap.appendChild(body);
 
   card.appendChild(head);
@@ -108129,7 +108129,7 @@ function renderAwnDataViewRecords(store) {
 
   if (awnDataViewRecordsLayout === "cards") {
     const wrap = document.createElement("div");
-    wrap.className = "awn-database-view-cards-grid-wrap navigation-media-images-grid-wrap";
+    wrap.className = "awn-databases-view-cards-grid-wrap navigation-media-images-grid-wrap";
     const grid = document.createElement("div");
     grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${awnDataViewCardsColumns}`;
     grid.setAttribute("role", "list");
@@ -108143,7 +108143,7 @@ function renderAwnDataViewRecords(store) {
   }
 
   const table = document.createElement("table");
-  table.className = "awn-database-view-table";
+  table.className = "awn-databases-view-table";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
@@ -108159,18 +108159,18 @@ function renderAwnDataViewRecords(store) {
   const tbody = document.createElement("tbody");
   for (const record of records) {
     const row = document.createElement("tr");
-    row.className = "awn-database-view-record-row";
+    row.className = "awn-databases-view-record-row";
     if (isAwnDataSystemRecord(record)) row.classList.add("is-system");
     row.title = record.relPath || "";
     row.tabIndex = 0;
     row.setAttribute("role", "link");
     row.addEventListener("click", (event) => {
-      if (event.target.closest(".awn-database-view-edit-btn")) return;
+      if (event.target.closest(".awn-databases-view-edit-btn")) return;
       void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
     });
     row.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
-      if (event.target.closest(".awn-database-view-edit-btn")) return;
+      if (event.target.closest(".awn-databases-view-edit-btn")) return;
       event.preventDefault();
       void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
     });
@@ -108180,24 +108180,24 @@ function renderAwnDataViewRecords(store) {
       const value = formatAwnDataViewCellValue(record, column, viewStore);
 
       if (column.kind === "id") {
-        cell.className = "awn-database-view-record-id";
+        cell.className = "awn-databases-view-record-id";
         cell.appendChild(createAwnDataViewRecordIdCell(record, viewStore, value));
       } else if (isAwnDataViewTitleFieldKey(column.key)) {
-        cell.className = "awn-database-view-record-title";
+        cell.className = "awn-databases-view-record-title";
         const titleText = document.createElement("span");
         titleText.textContent = value;
         cell.appendChild(titleText);
         if (isAwnDataSystemRecord(record)) {
           const badge = document.createElement("span");
-          badge.className = "awn-database-view-record-badge";
+          badge.className = "awn-databases-view-record-badge";
           badge.textContent = "системная";
           cell.appendChild(badge);
         }
       } else if (column.kind === "parent" || column.key === "parent") {
-        cell.className = "awn-database-view-record-parent";
+        cell.className = "awn-databases-view-record-parent";
         cell.textContent = value;
       } else {
-        cell.className = "awn-database-view-record-field";
+        cell.className = "awn-databases-view-record-field";
         cell.textContent = value;
         if (value !== "—") cell.title = value;
       }
@@ -108223,7 +108223,7 @@ function renderAwnDataViewGroupChildren(store) {
     return;
   }
   const list = document.createElement("ul");
-  list.className = "awn-database-view-group-children";
+  list.className = "awn-databases-view-group-children";
   for (const child of children) {
     list.appendChild(createAwnDataViewGroupChildRow(child));
   }
@@ -108250,7 +108250,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
 
   awnDataCreateSubmitBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database/stores", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/stores", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -108294,8 +108294,8 @@ async function submitAwnDataUploadFiles(fileList, agentId = activeAgentId) {
   const storeRel = String(awnDataViewStoreRel || "").replace(/^\/+/, "");
   const recordRoot = String(store.recordRoot || "").replace(/^\/+|\/+$/g, "");
   let folderPath = recordRoot
-    ? `awn-database/${storeRel}/${recordRoot}`
-    : `awn-database/${storeRel}`;
+    ? `awn-databases/${storeRel}/${recordRoot}`
+    : `awn-databases/${storeRel}`;
   if (resolveAwnDataRecordHierarchy(store)) {
     const sectionPath = resolveAwnDataViewActiveSectionPath(store);
     if (sectionPath) folderPath = `${folderPath}/${sectionPath}`;
@@ -108346,7 +108346,7 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
   awnDataViewSectionCreateSubmitBtnNode?.setAttribute("disabled", "disabled");
   awnDataViewSectionCreateBtnNode?.setAttribute("disabled", "disabled");
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database/records", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -108406,7 +108406,7 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
 
   awnDataAddRecordBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database/records", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -108439,7 +108439,7 @@ async function submitAwnDataCreateMainCsv(agentId = activeAgentId) {
 
   awnDataCreateMainCsvBtn?.setAttribute("disabled", "disabled");
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database/main-csv", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/main-csv", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ store: awnDataViewStoreRel })
@@ -109448,9 +109448,9 @@ function setupAwnDataStoresUi() {
 }
 
 function awnDataStoreKindClass(kind) {
-  if (kind === "single") return "menu-awn-database-store-kind--single";
-  if (kind === "group") return "menu-awn-database-store-kind--group";
-  return "menu-awn-database-store-kind--collection";
+  if (kind === "single") return "menu-awn-databases-store-kind--single";
+  if (kind === "group") return "menu-awn-databases-store-kind--group";
+  return "menu-awn-databases-store-kind--collection";
 }
 
 function awnDataStoreKindLabel(kind) {
@@ -109476,18 +109476,18 @@ function resolveAwnDataStoreKindTitle(store) {
 function createAwnDataStoreKindNode(store, { extraClass = "" } = {}) {
   const kind = store?.kind || "collection";
   const wrap = document.createElement("span");
-  wrap.className = `menu-awn-database-store-kind-wrap${extraClass ? ` ${extraClass}` : ""}`;
+  wrap.className = `menu-awn-databases-store-kind-wrap${extraClass ? ` ${extraClass}` : ""}`;
   wrap.title = resolveAwnDataStoreKindTitle(store);
   wrap.setAttribute("aria-hidden", "true");
 
   const icon = document.createElement("span");
-  icon.className = `menu-awn-database-store-kind ${awnDataStoreKindClass(kind)}`;
+  icon.className = `menu-awn-databases-store-kind ${awnDataStoreKindClass(kind)}`;
   wrap.appendChild(icon);
 
   if (kind === "collection") {
     const format = resolveAwnDataCollectionStorageLabel(store);
     const badge = document.createElement("span");
-    badge.className = `menu-awn-database-store-kind-letter menu-awn-database-store-kind-letter-${format}`;
+    badge.className = `menu-awn-databases-store-kind-letter menu-awn-databases-store-kind-letter-${format}`;
     badge.textContent = formatAwnDataCollectionStorageBadgeLabel(format);
     wrap.appendChild(badge);
   }
@@ -109513,13 +109513,13 @@ let awnDataGroupCreatePopoverAnchor = null;
 function ensureAwnDataGroupCreatePopover() {
   if (awnDataGroupCreatePopoverNode) return;
   const popover = document.createElement("div");
-  popover.id = "menu-awn-database-group-create-popover";
-  popover.className = "menu-awn-database-group-create-popover menu-context-menu hidden";
+  popover.id = "menu-awn-databases-group-create-popover";
+  popover.className = "menu-awn-databases-group-create-popover menu-context-menu hidden";
   popover.setAttribute("role", "menu");
   popover.setAttribute("aria-label", "Создать в группе");
   const list = document.createElement("ul");
   list.className = "menu-context-menu-list";
-  list.id = "menu-awn-database-group-create-popover-list";
+  list.id = "menu-awn-databases-group-create-popover-list";
   list.setAttribute("role", "none");
   popover.appendChild(list);
   document.body.appendChild(popover);
@@ -109626,13 +109626,13 @@ function openAwnDataGroupCreatePopover(event, parentGroupRel) {
 function createAwnDataGroupCreateBtn(store) {
   const createBtn = document.createElement("button");
   createBtn.type = "button";
-  createBtn.className = "menu-awn-database-group-create-btn";
+  createBtn.className = "menu-awn-databases-group-create-btn";
   createBtn.title = `Новый инфоблок в ${store.relPath}/`;
   createBtn.setAttribute("aria-label", "Создать в группе");
   createBtn.setAttribute("aria-haspopup", "menu");
   createBtn.setAttribute("aria-expanded", "false");
   createBtn.innerHTML =
-    '<svg class="menu-awn-database-group-create-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+    '<svg class="menu-awn-databases-group-create-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
   createBtn.addEventListener("click", (event) => {
     openAwnDataGroupCreatePopover(event, store.relPath);
   });
@@ -109641,12 +109641,12 @@ function createAwnDataGroupCreateBtn(store) {
 
 function createAwnDataStoreMetaNode(store) {
   const metaNode = document.createElement("span");
-  metaNode.className = "menu-awn-database-store-meta";
+  metaNode.className = "menu-awn-databases-store-meta";
 
   if (store?.kind === "group") {
     const childCount = resolveAwnDataRecordCount(store);
     const badge = document.createElement("span");
-    badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
+    badge.className = "menu-awn-databases-store-badge menu-awn-databases-store-badge--count";
     if (childCount <= 0) badge.classList.add("is-zero");
     badge.textContent = String(childCount);
     badge.title =
@@ -109661,7 +109661,7 @@ function createAwnDataStoreMetaNode(store) {
 
   const count = resolveAwnDataRecordCount(store);
   const badge = document.createElement("span");
-  badge.className = "menu-awn-database-store-badge menu-awn-database-store-badge--count";
+  badge.className = "menu-awn-databases-store-badge menu-awn-databases-store-badge--count";
   if (count <= 0) badge.classList.add("is-zero");
   badge.textContent = String(count);
 
@@ -109681,21 +109681,21 @@ function syncAwnDataMenuActiveStore(storeRel = awnDataViewStoreRel) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
-  for (const row of menuAwnDataStoresNode.querySelectorAll(".menu-awn-database-store[role='button']")) {
+  for (const row of menuAwnDataStoresNode.querySelectorAll(".menu-awn-databases-store[role='button']")) {
     const rel = String(row.dataset.storeRel || "")
       .replace(/\\/g, "/")
       .replace(/^\/+/, "")
       .replace(/\/+$/, "");
     row.classList.toggle("is-active", Boolean(normalized) && rel === normalized);
   }
-  for (const openBtn of menuAwnDataStoresNode.querySelectorAll(".menu-awn-database-store-group-open-btn")) {
+  for (const openBtn of menuAwnDataStoresNode.querySelectorAll(".menu-awn-databases-store-group-open-btn")) {
     const rel = String(openBtn.dataset.storeRel || "")
       .replace(/\\/g, "/")
       .replace(/^\/+/, "")
       .replace(/\/+$/, "");
     const active = Boolean(normalized) && rel === normalized;
     openBtn.classList.toggle("is-active", active);
-    openBtn.closest(".menu-awn-database-store-group")?.classList.toggle("is-active", active);
+    openBtn.closest(".menu-awn-databases-store-group")?.classList.toggle("is-active", active);
   }
 }
 
@@ -109717,8 +109717,8 @@ function wireAwnDataStoreRow(row, store) {
 
 function createAwnDataStoreRow(store, { nested = false } = {}) {
   const row = document.createElement("li");
-  row.className = "menu-awn-database-store";
-  if (nested) row.classList.add("menu-awn-database-store--nested");
+  row.className = "menu-awn-databases-store";
+  if (nested) row.classList.add("menu-awn-databases-store--nested");
   const displayName = String(store.name || store.id || store.relPath || "").trim();
   const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
   row.title = store.description || (pathHint ? `${displayName} · ${pathHint}` : displayName);
@@ -109726,10 +109726,10 @@ function createAwnDataStoreRow(store, { nested = false } = {}) {
   const kindNode = createAwnDataStoreKindNode(store);
 
   const nameNode = document.createElement("span");
-  nameNode.className = "menu-awn-database-store-name";
+  nameNode.className = "menu-awn-databases-store-name";
   nameNode.textContent = displayName;
   const idBadge = createNavBookTocIdBadge(resolveAwnDataStoreAwnId(store));
-  if (idBadge) idBadge.classList.add("menu-awn-database-store-id-badge");
+  if (idBadge) idBadge.classList.add("menu-awn-databases-store-id-badge");
   row.append(kindNode, ...(idBadge ? [idBadge] : []), nameNode, createAwnDataStoreMetaNode(store));
 
   wireAwnDataStoreRow(row, store);
@@ -109794,7 +109794,7 @@ function filterAwnDataStoresPayload(payload, query = menuAwnDataSearchQuery) {
 
 function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   const item = document.createElement("li");
-  item.className = "menu-awn-database-store-group";
+  item.className = "menu-awn-databases-store-group";
 
   const children = Array.isArray(store.children) ? store.children : [];
   const hasChildren = children.length > 0;
@@ -109802,10 +109802,10 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   if (!hasChildren) item.classList.add("is-empty");
 
   const headRow = document.createElement("div");
-  headRow.className = "menu-awn-database-store-group-head";
+  headRow.className = "menu-awn-databases-store-group-head";
 
   const body = document.createElement("div");
-  body.className = "menu-awn-database-store-group-body";
+  body.className = "menu-awn-databases-store-group-body";
 
   const syncCollapsedUi = () => {
     item.classList.toggle("is-collapsed", isCollapsed);
@@ -109829,7 +109829,7 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
 
   const openBtn = document.createElement("button");
   openBtn.type = "button";
-  openBtn.className = "menu-awn-database-store-group-open-btn";
+  openBtn.className = "menu-awn-databases-store-group-open-btn";
   openBtn.dataset.storeRel = String(store.relPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
@@ -109838,11 +109838,11 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
 
   const idBadge = createNavBookTocIdBadge(resolveAwnDataStoreAwnId(store));
   if (idBadge) {
-    idBadge.classList.add("menu-awn-database-store-id-badge");
+    idBadge.classList.add("menu-awn-databases-store-id-badge");
   }
 
   const nameNode = document.createElement("span");
-  nameNode.className = "menu-awn-database-store-name";
+  nameNode.className = "menu-awn-databases-store-name";
   nameNode.textContent = displayName;
   openBtn.appendChild(nameNode);
 
@@ -109855,22 +109855,22 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   });
 
   const actionsNode = document.createElement("span");
-  actionsNode.className = "menu-awn-database-store-group-actions";
+  actionsNode.className = "menu-awn-databases-store-group-actions";
   actionsNode.append(createAwnDataGroupCreateBtn(store), createAwnDataStoreMetaNode(store));
 
   headRow.append(toggleBtn, kindNode, ...(idBadge ? [idBadge] : []), openBtn, actionsNode);
 
   const childList = document.createElement("ul");
-  childList.className = "menu-awn-database-store-group-children";
+  childList.className = "menu-awn-databases-store-group-children";
   if (!hasChildren) {
     const empty = document.createElement("li");
-    empty.className = "menu-awn-database-store-group-empty-hint";
+    empty.className = "menu-awn-databases-store-group-empty-hint";
     empty.title = "В группе пока нет накопителей";
     empty.setAttribute("aria-label", "В группе пока нет накопителей");
     const emptyState = document.createElement("div");
-    emptyState.className = "menu-awn-database-store-group-empty-state";
+    emptyState.className = "menu-awn-databases-store-group-empty-state";
     const emptyIcon = document.createElement("span");
-    emptyIcon.className = "menu-awn-database-store-group-empty-icon";
+    emptyIcon.className = "menu-awn-databases-store-group-empty-icon";
     emptyIcon.setAttribute("aria-hidden", "true");
     emptyState.appendChild(emptyIcon);
     empty.appendChild(emptyState);
@@ -109896,7 +109896,7 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
 
   if (loading) {
     const item = document.createElement("li");
-    item.className = "menu-awn-database-store menu-awn-database-store--empty";
+    item.className = "menu-awn-databases-store menu-awn-databases-store--empty";
     item.textContent = "Загрузка…";
     menuAwnDataStoresNode.appendChild(item);
     return;
@@ -109905,7 +109905,7 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
   if (error) {
     menuAwnDataStoresLastPayload = null;
     const item = document.createElement("li");
-    item.className = "menu-awn-database-store menu-awn-database-store--empty is-error";
+    item.className = "menu-awn-databases-store menu-awn-databases-store--empty is-error";
     item.textContent = "Не удалось прочитать";
     menuAwnDataStoresNode.appendChild(item);
     return;
@@ -109913,7 +109913,7 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
 
   if (!payload) {
     const item = document.createElement("li");
-    item.className = "menu-awn-database-store menu-awn-database-store--empty is-error";
+    item.className = "menu-awn-databases-store menu-awn-databases-store--empty is-error";
     item.textContent = "Не удалось прочитать";
     menuAwnDataStoresNode.appendChild(item);
     return;
@@ -109924,7 +109924,7 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
   const stores = Array.isArray(viewPayload.stores) ? viewPayload.stores : [];
   if (!stores.length) {
     const item = document.createElement("li");
-    item.className = "menu-awn-database-store menu-awn-database-store--empty";
+    item.className = "menu-awn-databases-store menu-awn-databases-store--empty";
     item.textContent = viewPayload._searchActive
       ? "Ничего не найдено"
       : payload.emptyHint === "select-agent"
@@ -109936,7 +109936,7 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
 
   if (viewPayload.source === "platform" && viewPayload.sourceAgentId) {
     const note = document.createElement("li");
-    note.className = "menu-awn-database-store menu-awn-database-store--platform-note";
+    note.className = "menu-awn-databases-store menu-awn-databases-store--platform-note";
     note.textContent = `Модели платформы (${viewPayload.sourceAgentId})`;
     menuAwnDataStoresNode.appendChild(note);
   }
@@ -109985,7 +109985,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
   }
 
   try {
-    const response = await fetch(buildApiUrl("/api/awn-database", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/awn-databases", {}, resolvedAgent));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuAwnDataStoresLoadSeq) return;
@@ -113273,8 +113273,8 @@ document.addEventListener("click", (event) => {
   }
   if (awnDataGroupCreatePopoverNode?.classList.contains("hidden") === false) {
     if (
-      !event.target.closest("#menu-awn-database-group-create-popover") &&
-      !event.target.closest(".menu-awn-database-group-create-btn")
+      !event.target.closest("#menu-awn-databases-group-create-popover") &&
+      !event.target.closest(".menu-awn-databases-group-create-btn")
     ) {
       closeAwnDataGroupCreatePopover();
     }

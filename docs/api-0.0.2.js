@@ -172,19 +172,19 @@ module.exports = {
     },
     {
       id: "data",
-      title: "Накопители (awn-database)",
+      title: "Накопители (awn-databases)",
       endpoints: [
         {
           method: "GET",
-          path: "/api/awn-database",
+          path: "/api/awn-databases",
           description: "Список накопителей или один store (?store=taxonomies/statuses). MD и CSV коллекции, группы, single.",
           query: ["store?"],
           body: null,
-          response: "{ specVersion, model: \"awn-database\", stores[], store? }"
+          response: "{ specVersion, model: \"awn-databases\", stores[], store? }"
         },
         {
           method: "POST",
-          path: "/api/awn-database/stores",
+          path: "/api/awn-databases/stores",
           description: "Создать накопитель. taxonomies/* → CSV main.csv; иначе MD {id}.md.",
           query: [],
           body: "{ kind?: \"collection\"|\"single\", slug, name?, description?, hierarchy?, withSampleRecord? }",
@@ -192,7 +192,7 @@ module.exports = {
         },
         {
           method: "POST",
-          path: "/api/awn-database/records",
+          path: "/api/awn-databases/records",
           description: "Добавить запись в коллекцию (CSV row или .md файл).",
           query: [],
           body: "{ store, id?, title?, parent? }",

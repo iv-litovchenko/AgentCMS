@@ -120,7 +120,7 @@ async function writeAwnDataTaxonomyItems(projectRoot, preset, items) {
   const storeRel = getTaxonomyStoreRel(preset);
   if (!storeRel) throw new Error(`Unsupported preset: ${preset}`);
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
-  const storeAbs = path.join(coreRoot, "awn-database", ...storeRel.split("/"));
+  const storeAbs = path.join(coreRoot, "awn-databases", ...storeRel.split("/"));
   const schema = loadMergedStoreSchema(storeAbs);
   if (!schema) throw new Error(`Store schema not found: ${storeRel}`);
   const records = items.map((item, index) => ({
@@ -141,7 +141,7 @@ async function migrateDiscoveredPresetToGlobal(projectRoot, preset) {
     throw new Error(`Unsupported preset: ${preset}`);
   }
   if (!AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
-    throw new Error(`Preset not in awn-database: ${preset}`);
+    throw new Error(`Preset not in awn-databases: ${preset}`);
   }
 
   agentRegistry.init(projectRoot);
@@ -177,7 +177,7 @@ async function migrateDiscoveredPresetToGlobal(projectRoot, preset) {
     total: byId.size,
     addedCount: added.length,
     added,
-    source: "awn-database"
+    source: "awn-databases"
   };
 }
 

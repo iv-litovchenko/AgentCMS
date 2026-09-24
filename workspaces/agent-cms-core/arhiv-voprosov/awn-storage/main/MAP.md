@@ -27,7 +27,7 @@ workspaces/agent-cms-test/
 ├── awn-agent-kit/              ← runtime агента
 │   ├── agent/                  ← persona + thread/
 │   ├── user/
-│   └── awn-database/taxonomies/{tags,categories,statuses,…}/
+│   └── awn-databases/taxonomies/{tags,categories,statuses,…}/
 │
 └── awn-storage/                ← assets workspace-уровня
 ```
@@ -49,7 +49,7 @@ workspaces/agent-cms-test/
 
 **Markdown-блоки** — `awn-system/types/md-blocks/` (редактировать YAML напрямую).
 
-**Справочники** — `awn-database/taxonomies/*/main.csv` (не YAML-типы в `awn-system/types/`).
+**Справочники** — `awn-databases/taxonomies/*/main.csv` (не YAML-типы в `awn-system/types/`).
 
 ### Pages (меню)
 
@@ -160,7 +160,7 @@ awn_schema:
 | Диалог | `awn.content.dialog` |
 | Комментарий | `awn.content.comment` |
 | Служебный док (agent-kit) | `awn.page.topic.agent-kit.*` |
-| Справочники (tags, statuses) | `awn-database/taxonomies/*` (не page-type) |
+| Справочники (tags, statuses) | `awn-databases/taxonomies/*` (не page-type) |
 
 Старые `awn.topic`, `awn.record`, `service-doc`, `catalog`, `taxonomy`, … в этом агенте **больше не используются**.
 

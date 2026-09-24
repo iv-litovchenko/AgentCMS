@@ -4,7 +4,7 @@ kind: frame-base
 domain: infoblock
 status: active
 extends: awn.infoblock.base
-description: Каркас инфоблока в awn-database/ — manifest.md, schema.yml, без собственных записей content
+description: Каркас инфоблока в awn-databases/ — manifest.md, schema.yml, без собственных записей content
 
 fields:
   awn-collection-type:

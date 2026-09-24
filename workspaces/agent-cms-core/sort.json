@@ -1,7 +1,7 @@
 {
   "order": [
     "types",
-    "awn-database",
+    "awn-databases",
     "components",
     "settings",
     "workflows",

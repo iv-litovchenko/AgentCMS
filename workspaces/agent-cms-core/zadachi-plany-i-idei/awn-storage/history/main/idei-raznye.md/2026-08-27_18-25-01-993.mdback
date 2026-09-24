@@ -57,7 +57,7 @@ User → Chat → AI → Node Graph → Actions → Render
 awn-type: awn.data.collection
 awn-id: tasks
 awn-name: Задачи
-awn-extends: awn-database/cms-base/entities/row.base.md
+awn-extends: awn-databases/cms-base/entities/row.base.md
 awn-record:
   id-mode: numeric
   file: "{id}.md"
