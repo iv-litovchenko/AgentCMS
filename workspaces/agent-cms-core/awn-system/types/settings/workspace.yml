@@ -1125,15 +1125,16 @@ fields:
   dependencies-columns:
     type: awn.field.repeater
     title: Колонки CSV
-    description: Ключ, название и описание каждой колонки для агента
+    description: >
+      Схема колонок dependencies.csv. Строки зависимостей — в CSV (MCP: read_dependencies / write_dependencies).
+      Колонку host меняют только здесь; это среда/агент (cursor, claude, any), не имя LLM-модели.
     group: dependencies
     sort: 3
-    default: []
     properties:
       key:
         type: awn.field.string.slug
         title: Ключ колонки
-        description: Имя колонки в CSV (host, kind, name, …)
+        description: Имя колонки в CSV (host, kind, name, …). Не путать с LLM-моделью — модель задаётся отдельно (env, runtime).
       title:
         type: awn.field.string
         title: Название

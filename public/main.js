@@ -44879,11 +44879,18 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     });
     settingsFields = schemaBundle.settingsFields;
     settingsFieldGroups = schemaBundle.settingsFieldGroups;
-    if (isProjectSettingsGlobalScope(manifestPath) && data.settings && typeof data.settings === "object") {
-      state = {
-        ...state,
-        entries: NodeConfigBundle.settingsObjectToEntries(data.settings)
-      };
+    if (data.settings && typeof data.settings === "object") {
+      const mergeNormalizedSettings =
+        isProjectSettingsGlobalScope(manifestPath) ||
+        isProjectSettingsLocalScope(manifestPath) ||
+        isProjectSettingsIntegrationsSettingsScope(manifestPath) ||
+        isProjectSettingsUserSettingsScope(manifestPath);
+      if (mergeNormalizedSettings) {
+        state = {
+          ...state,
+          entries: NodeConfigBundle.settingsObjectToEntries(data.settings)
+        };
+      }
     }
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
     if (isProjectSettingsGlobalScope(manifestPath) && data.meta) {
@@ -54142,12 +54149,29 @@ function readPropsFormRepeaterValue(valueWrap) {
   return items;
 }
 
-function updateRepeaterItemMarker(row) {
+function resolveRepeaterUiOptions(fieldKey = "") {
+  const key = String(fieldKey || "").trim();
+  if (key === "voice-compose-templates") {
+    return { markerMode: "tpl", addLabel: "+ Шаблон" };
+  }
+  if (key === "dependencies-columns") {
+    return { markerMode: "column", addLabel: "+ Колонка" };
+  }
+  return { markerMode: "column", addLabel: "+ Строка" };
+}
+
+function formatRepeaterItemMarker(itemKey, mode = "column", index = 0) {
+  const trimmed = String(itemKey || "").trim();
+  if (mode === "tpl") return trimmed ? `{{tpl:${trimmed}}}` : "{{tpl:…}}";
+  return trimmed || `#${index + 1}`;
+}
+
+function updateRepeaterItemMarker(row, mode = "column", index = 0) {
   const marker = row?.querySelector(".props-form-repeater-marker");
   const keyInput = row?.querySelector('[data-repeater-field="key"] .props-form-value');
   if (!marker || !keyInput) return;
   const key = String(keyInput.value || "").trim();
-  marker.textContent = key ? `{{tpl:${key}}}` : "{{tpl:…}}";
+  marker.textContent = formatRepeaterItemMarker(key, mode, index);
 }
 
 function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = false } = {}) {
@@ -54173,14 +54197,18 @@ function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = fal
   control.classList.add("props-form-repeater-subfield-value");
   if (propKey === "key") {
     control.querySelector(".props-form-value")?.addEventListener("input", () => {
-      updateRepeaterItemMarker(subfield.closest(".props-form-repeater-item"));
+      const itemRow = subfield.closest(".props-form-repeater-item");
+      const list = itemRow?.parentElement;
+      const markerMode = String(list?.dataset?.repeaterMarkerMode || "column");
+      const index = itemRow && list ? Array.from(list.children).indexOf(itemRow) : 0;
+      updateRepeaterItemMarker(itemRow, markerMode, index);
     });
   }
   subfield.append(label, control);
   return subfield;
 }
 
-function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false, onChange } = {}) {
+function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false, onChange, markerMode = "column", index = 0 } = {}) {
   const row = document.createElement("div");
   row.className = "props-form-repeater-item";
   if (item?.id) row.dataset.repeaterItemId = String(item.id);
@@ -54189,7 +54217,7 @@ function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false, on
   head.className = "props-form-repeater-item-head";
   const marker = document.createElement("code");
   marker.className = "props-form-repeater-marker";
-  marker.textContent = item?.key ? `{{tpl:${item.key}}}` : "{{tpl:…}}";
+  marker.textContent = formatRepeaterItemMarker(item?.key, markerMode, index);
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
   removeBtn.className = "props-form-repeater-remove";
@@ -54220,27 +54248,33 @@ function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
     return createPropsFormCodeControl(entry, meta, "repeater", { locked });
   }
 
+  const repeaterUi = resolveRepeaterUiOptions(entry?.key);
   const wrap = createPropsFormValueWrap("repeater");
   wrap.classList.add("props-form-value-wrap--repeater");
   const shell = document.createElement("div");
   shell.className = "props-form-repeater";
   const list = document.createElement("div");
   list.className = "props-form-repeater-items";
+  list.dataset.repeaterMarkerMode = repeaterUi.markerMode;
 
   const items = Array.isArray(entry?.value) ? entry.value : [];
   const syncMarkers = () => {
-    list.querySelectorAll(".props-form-repeater-item").forEach((row) => updateRepeaterItemMarker(row));
+    list.querySelectorAll(".props-form-repeater-item").forEach((row, index) => {
+      updateRepeaterItemMarker(row, repeaterUi.markerMode, index);
+    });
   };
   const renderItems = (nextItems) => {
     list.replaceChildren();
-    for (const item of nextItems) {
+    nextItems.forEach((item, index) => {
       list.appendChild(
         createPropsFormRepeaterItemRow(item, propertyDefs, {
           locked,
-          onChange: syncMarkers
+          onChange: syncMarkers,
+          markerMode: repeaterUi.markerMode,
+          index
         })
       );
-    }
+    });
     syncMarkers();
   };
   renderItems(items.length ? items : []);
@@ -54248,17 +54282,20 @@ function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "props-form-repeater-add";
-  addBtn.textContent = "+ Шаблон";
+  addBtn.textContent = repeaterUi.addLabel;
   addBtn.disabled = locked;
   addBtn.addEventListener("click", () => {
     const next = createRepeaterItemDefault(propertyDefs, list.children.length, readPropsFormRepeaterValue(wrap));
+    const index = list.children.length;
     list.appendChild(
       createPropsFormRepeaterItemRow(next, propertyDefs, {
         locked,
-        onChange: syncMarkers
+        onChange: syncMarkers,
+        markerMode: repeaterUi.markerMode,
+        index
       })
     );
-    updateRepeaterItemMarker(list.lastElementChild);
+    updateRepeaterItemMarker(list.lastElementChild, repeaterUi.markerMode, index);
   });
 
   shell.append(list, addBtn);
