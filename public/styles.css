@@ -62910,6 +62910,15 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-top: 1px solid #e2e8f0;
 }
 
+.awn-database-view-single-card-body:has(.awn-database-view-csv-table-wrap) {
+  padding: 0;
+}
+
+.awn-database-view-single-card-body:has(.awn-database-view-csv-table-wrap) .awn-database-view-csv-table-wrap {
+  border: none;
+  border-radius: 0;
+}
+
 .awn-database-view-single-content {
   border: none;
   border-radius: 0;
