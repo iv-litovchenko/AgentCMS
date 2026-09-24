@@ -38522,6 +38522,7 @@ img.is-svg-media,
 .node-comment-body.file-content-preview {
   white-space: normal;
   min-height: 0;
+  height: auto;
   margin: 0;
   padding: 0;
   border: 0;
@@ -38529,6 +38530,13 @@ img.is-svg-media,
   background: transparent;
   box-shadow: none;
   overflow: visible;
+}
+
+.doc-stack .node-comment-body.file-content-preview,
+.doc-slab-main .node-comment-body.file-content-preview,
+.node-overview-content .node-comment-body.file-content-preview {
+  min-height: 0;
+  height: auto;
 }
 
 .node-comment-body.file-content-preview .node-comment-md-chunk {
