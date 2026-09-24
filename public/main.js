@@ -107029,8 +107029,8 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
 
-    const created = (data.store?.records || []).find(
-      (record) => isAwnDataSectionRecord(record) && String(record.id || "").trim() === slug
+    const created = getAwnDataStoreSections(data.store).find(
+      (record) => String(record.id || "").trim() === slug
     );
     if (created?.id) awnDataViewSectionId = String(created.id);
 

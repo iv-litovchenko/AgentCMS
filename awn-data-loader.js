@@ -2501,30 +2501,58 @@ function resolveElementManifestFields(elementType, agentRoot = "", projectRoot =
   );
 }
 
-function resolveStoreElementSchemaBlock(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
+function resolveStoreElementSchemaKind(elementType) {
+  const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
+  if (typeId === ELEMENT_TYPE_CATEGORY) return "category";
+  if (typeId === ELEMENT_TYPE_SIDECAR) return "sidecar";
+  return "record";
+}
+
+function resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs) {
+  const frameTypeId = resolveStoreFrameTypeId(storeAbs);
+  if (overlay?.blocks?.[kind]) return overlay.blocks[kind];
+  if (kind === "record") {
+    if (overlay?.blocks?.record) return overlay.blocks.record;
+    if (overlay?.fields && Object.keys(overlay.fields).length) {
+      return {
+        fields: overlay.fields,
+        tabs: overlay.tabs || {},
+        extends: overlay.extends || resolveAwnDataSchemaTargetExtends("record", frameTypeId)
+      };
+    }
+  }
+  return {
+    fields: {},
+    tabs: {},
+    extends: resolveAwnDataSchemaTargetExtends(kind, frameTypeId)
+  };
+}
+
+function resolveStoreElementCreationFields(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
   const normalizedStoreRel = normalizeStoreSlug(storeRel);
-  if (!normalizedStoreRel || !agentRoot) return { fields: {}, tabs: {} };
+  if (!normalizedStoreRel || !agentRoot) return {};
   try {
     const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
     const storeAbs = getStoreAbsolutePath(dataRoot, normalizedStoreRel);
-    if (!storeAbs || !fs.existsSync(storeAbs)) return { fields: {}, tabs: {} };
+    if (!storeAbs || !fs.existsSync(storeAbs)) return {};
     const overlay = readStoreSchemeModOverlay(storeAbs);
-    if (!overlay?.exists) return { fields: {}, tabs: {} };
+    if (!overlay?.exists) return {};
     const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
-    const kind =
-      typeId === ELEMENT_TYPE_CATEGORY
-        ? "category"
-        : typeId === ELEMENT_TYPE_SIDECAR
-          ? "sidecar"
-          : "record";
-    const block = overlay.blocks?.[kind] || overlay.blocks?.record || { fields: {}, tabs: {} };
-    return {
-      fields: normalizeAwnFieldsMap(block.fields || {}),
-      tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
-    };
+    const kind = resolveStoreElementSchemaKind(typeId);
+    const block = resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs);
+    const extendsRef = resolveElementExtendsRef(block.extends || typeId);
+    return extractCustomSchemeModFields(block.fields || {}, extendsRef, agentRoot, projectRoot);
   } catch {
-    return { fields: {}, tabs: {} };
+    return {};
   }
+}
+
+function resolveStoreElementSchemaBlock(storeRel, elementType, agentRoot = "", projectRoot = process.cwd()) {
+  const fields = resolveStoreElementCreationFields(storeRel, elementType, agentRoot, projectRoot);
+  return {
+    fields: normalizeAwnFieldsMap(fields),
+    tabs: {}
+  };
 }
 
 function buildRecordMarkdown({
@@ -2543,7 +2571,7 @@ function buildRecordMarkdown({
   const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
   const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
   const customFields = store
-    ? resolveStoreElementSchemaBlock(store, typeId, agentRoot, projectRoot).fields || {}
+    ? resolveStoreElementCreationFields(store, typeId, agentRoot, projectRoot)
     : {};
 
   const lines = ["---"];
