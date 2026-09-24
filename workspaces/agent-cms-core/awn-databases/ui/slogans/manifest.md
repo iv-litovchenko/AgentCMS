@@ -36,4 +36,4 @@ awn-record-hierarchy: false
 
 Store id = **`awn-databases/ui/slogans`**.
 
-Ротация в `#header-slogan-rotator`. Тип `text` — одна строка; тип `arc` — части через `|` в поле `awn-slogan-arc`.
+Ротация в `#header-slogan-rotator`. Тип `text` — одна строка; тип `arc` — части через `|` в поле `slogan-arc`.
