@@ -400,6 +400,37 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
     };
   }
 
+  if (options.agentOnly) {
+    if (preset === "statuses") {
+      const globalPayload = await loadGlobalCatalogPreset(projectRoot, preset);
+      const items = (globalPayload?.items || []).map((item) => ({ ...item, scope: "global" }));
+      return {
+        preset,
+        exists: Boolean(globalPayload?.exists || items.length),
+        title: scaffold?.title || preset,
+        manifestRel: null,
+        globalManifestRel: globalPayload?.manifestRel || null,
+        items,
+        groups: buildCatalogGroups(items),
+        source: globalPayload?.source
+      };
+    }
+
+    const agentPayload = agentCatalogAbsolute
+      ? await loadCatalogPreset(agentCatalogAbsolute, preset, { projectRoot })
+      : { preset, exists: false, title: scaffold?.title || preset, items: [] };
+    const items = (agentPayload?.items || []).map((item) => ({ ...item, scope: "agent" }));
+    return {
+      preset,
+      exists: Boolean(agentPayload?.exists || items.length),
+      title: scaffold?.title || preset,
+      manifestRel: agentPayload?.exists ? agentPayload.manifestRel : null,
+      globalManifestRel: null,
+      items,
+      groups: buildCatalogGroups(items)
+    };
+  }
+
   const [globalPayload, agentPayload] = await Promise.all([
     loadGlobalCatalogPreset(projectRoot, preset),
     agentCatalogAbsolute
@@ -426,7 +457,11 @@ function getGlobalCatalogAbsolute(projectRoot) {
 }
 
 async function getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, options = {}) {
-  const loadOptions = options.globalOnly ? { globalOnly: true } : {};
+  const loadOptions = options.globalOnly
+    ? { globalOnly: true }
+    : options.agentOnly
+      ? { agentOnly: true }
+      : {};
   const entries = await Promise.all(
     MERGE_CATALOG_PRESETS.map(async (preset) => [
       preset,

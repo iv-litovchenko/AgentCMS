@@ -102330,10 +102330,12 @@ function getAwnDataIndexRelPath() {
   return AWN_DATA_INDEX_REL_PATH;
 }
 
-async function probeAwnDataIndexExists() {
+async function probeAwnDataIndexExists(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) return false;
   for (const relPath of [getAwnDataIndexRelPath(), "awn-databases/INDEX.md"]) {
     try {
-      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+      const response = await fetch(buildApiUrl("/api/file", { path: relPath }, resolvedAgent));
       if (response.ok) return true;
     } catch {
       // ignore
@@ -102419,8 +102421,9 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
   return lines.join("\n").trimEnd();
 }
 
-async function fetchAwnDataIndexMarkdownFromApi() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index"));
+async function fetchAwnDataIndexMarkdownFromApi(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index", {}, resolvedAgent));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || errorData.details || `awn-databases-index ${response.status}`);
@@ -102434,24 +102437,33 @@ async function fetchAwnDataIndexMarkdownFromApi() {
 
 let awnDataIndexPreviewOverride = null;
 
-async function openAwnDataIndexOverview() {
+async function openAwnDataIndexOverview(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return;
+  }
   const relPath = getAwnDataIndexRelPath();
   awnDataIndexPreviewOverride = null;
-  if (!(await probeAwnDataIndexExists())) {
+  if (!(await probeAwnDataIndexExists(resolvedAgent))) {
     try {
-      awnDataIndexPreviewOverride = await fetchAwnDataIndexMarkdownFromApi();
+      awnDataIndexPreviewOverride = await fetchAwnDataIndexMarkdownFromApi(resolvedAgent);
     } catch (error) {
       showToast(`Не удалось сформировать оглавление: ${error.message}`, "error");
       return;
     }
   }
   hideHomeView();
-  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-databases" });
+  await openFolderBrowseFile("Оглавление инфоблоков", relPath, {
+    folderPath: "awn-databases",
+    agentId: resolvedAgent
+  });
   void renderFolderBrowseFileView();
 }
 
-async function refreshAwnDataIndexOverview() {
-  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index"), {
+async function refreshAwnDataIndexOverview(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const response = await fetch(buildApiUrl("/api/agent/awn-databases-index", {}, resolvedAgent), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ overwrite: true })
@@ -110153,8 +110165,8 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   const grid = document.createElement("div");
   grid.className = "repository-workspace-stat-grid";
   grid.append(
-    createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount, { icon: "📄", tone: "files" }),
     createRepositoryWorkspaceStatCard("Папок", scanStats.folderCount, { icon: "📁", tone: "folders" }),
+    createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount, { icon: "📄", tone: "files" }),
     createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—", { icon: "📌", tone: "root" }),
     createRepositoryWorkspaceStatCard("Размер", formatFileSize(scanStats.totalSize) || "0 B", {
       icon: "💾",
@@ -110987,7 +110999,12 @@ async function refreshRepositoryIndex(agentId = activeAgentId) {
   }
 }
 
-async function openRepositoryIndexOverview() {
+async function openRepositoryIndexOverview(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return;
+  }
   const indexPath =
     String(menuRepositoriesLastPayload?.indexFile?.path || REPOSITORY_INDEX_REL).trim() ||
     REPOSITORY_INDEX_REL;
@@ -110995,6 +111012,7 @@ async function openRepositoryIndexOverview() {
   const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(indexPath));
   await openFolderBrowseFile("Индекс репозиториев", indexPath, {
     folderPath,
+    agentId: resolvedAgent,
     skipRouteSync: true
   });
   syncAppRouteToUrl({ push: true });
@@ -111668,6 +111686,9 @@ function isLegacyOnlyAwnDataPayload(payload) {
 
 async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading = false } = {}) {
   if (!menuAwnDataStoresNode) return;
+  if (menuAwnDataIndexRowNode) {
+    menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = "0";
+  }
   syncMenuAwnDataIndexRowState();
 
   const seq = ++menuAwnDataStoresLoadSeq;
@@ -111690,7 +111711,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
     renderMenuAwnDataStores(data);
-    void probeAwnDataIndexExists().then((exists) => {
+    void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
       if (!menuAwnDataIndexRowNode?.isConnected) return;
       menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
       syncMenuAwnDataIndexRowState();

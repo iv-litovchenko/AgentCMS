@@ -15279,7 +15279,7 @@ async function enrichFocusItems(items) {
       lookupCache.set(agentId, null);
       return null;
     }
-    const lookup = await getCatalogLookupMaps(getProjectRoot(), serviceAbsolute);
+    const lookup = await getCatalogLookupMaps(getProjectRoot(), serviceAbsolute, { agentOnly: true });
     lookupCache.set(agentId, lookup);
     return lookup;
   }
@@ -15631,14 +15631,32 @@ function extractPriorityFromProps(content) {
 }
 
 async function getAgentCatalogLookupMaps() {
+  const catalogOptions = isPlatformAgentId(getActiveAgentId()) ? {} : { agentOnly: true };
+  const agentRoot = getAgentRoot();
+  const sharedFolder = getAgentSharedFolder();
   const serviceFolder = getAgentKitFolder();
-  if (!serviceFolder) return null;
-  try {
-    const serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
-    return getCatalogLookupMaps(getProjectRoot(), serviceAbsolute);
-  } catch {
-    return null;
+  let catalogAbsolute = null;
+
+  if (sharedFolder) {
+    const sharedTaxonomiesAbsolute = path.join(agentRoot, sharedFolder, WORKSPACE_TAXONOMY_FOLDER);
+    try {
+      await fs.access(sharedTaxonomiesAbsolute);
+      catalogAbsolute = sharedTaxonomiesAbsolute;
+    } catch {
+      // fall through to agent-kit
+    }
   }
+
+  if (!catalogAbsolute && serviceFolder) {
+    try {
+      catalogAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, serviceFolder);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!catalogAbsolute) return null;
+  return getCatalogLookupMaps(getProjectRoot(), catalogAbsolute, catalogOptions);
 }
 
 async function getAgentCatalogsPayload() {
@@ -15664,7 +15682,7 @@ async function getAgentCatalogsPayload() {
     catalogAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, serviceFolder);
   }
 
-  return getMergedCatalogsPayload(getProjectRoot(), catalogAbsolute);
+  return getMergedCatalogsPayload(getProjectRoot(), catalogAbsolute, { agentOnly: true });
 }
 
 async function readNodeDisplayLabelForManifestRel(manifestRel) {

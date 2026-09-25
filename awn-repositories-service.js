@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
+const { parseImportanceValue } = require("./workspace-importance");
 
 const AWN_REPOSITORIES_DIR = "awn-repositories";
 const AWN_REPOSITORIES_INDEX_FILE = "index.md";
@@ -590,15 +591,83 @@ async function getRepository(agentRoot, inputPath) {
   };
 }
 
-function repositoryToIndexEntry(repo) {
+function countRepositoryBodyLines(body) {
+  const normalized = String(body || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!normalized.trim()) return 0;
+  return normalized.split("\n").length;
+}
+
+function formatRepositoryIndexFileSize(sizeBytes) {
+  if (sizeBytes == null || !Number.isFinite(sizeBytes) || sizeBytes < 0) return "—";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) {
+    const kb = sizeBytes / 1024;
+    return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
+  }
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatRepositoryIndexLineCount(lineCount) {
+  if (lineCount == null || !Number.isFinite(lineCount) || lineCount < 0) return "—";
+  return String(lineCount);
+}
+
+function formatRepositoryIndexImportanceCell(importance) {
+  return String(parseImportanceValue(importance));
+}
+
+async function readRepositoryManifestIndexStats(agentRoot, repo) {
+  const manifestRel = String(repo?.manifestPath || "").replace(/\\/g, "/").trim();
+  const manifestAbs = manifestRel ? path.join(agentRoot, manifestRel) : "";
+  let sizeBytes = null;
+  let lineCount = null;
+  let importance = 0;
+
+  if (manifestAbs) {
+    try {
+      const content = await fs.readFile(manifestAbs, "utf-8");
+      const stat = await fs.stat(manifestAbs);
+      sizeBytes = stat.size;
+      const { frontmatter, body } = splitFrontmatter(content);
+      lineCount = countRepositoryBodyLines(body);
+      importance = parseImportanceValue(getYamlScalar(frontmatter, "awn-importance"));
+    } catch {
+      sizeBytes = null;
+      lineCount = null;
+      importance = 0;
+    }
+  }
+
+  const readmePath = repo?.readmePath || (await resolveRepositoryReadmeRel(agentRoot, repo?.folderPath));
+  const readmeExists = Boolean(repo?.readmeExists || readmePath);
+  const readmeCell = readmeExists && readmePath
+    ? `[README](${encodeContentIndexLinkTarget(readmePath)})`
+    : "—";
+
   return {
-    path: repo.folderPath,
-    linkPath: repo.manifestPath,
-    type: "repository",
-    title: repo.name,
-    description: [repo.description, repo.status !== "study" ? repo.status : ""].filter(Boolean).join(" · ")
+    id: repo?.slug || repo?.id || "",
+    group: repo?.groupTitle || repo?.group || "—",
+    path: repo?.folderPath || "",
+    linkPath: manifestRel,
+    title: repo?.name || repo?.slug || "",
+    description: String(repo?.description || "").trim(),
+    sizeBytes,
+    lineCount,
+    importance,
+    readmeCell,
+    fileCount: Number.isFinite(Number(repo?.entryCount)) ? Number(repo.entryCount) : null
   };
 }
+
+async function buildRepositoryIndexEntries(agentRoot, repositories = []) {
+  return Promise.all((repositories || []).map((repo) => readRepositoryManifestIndexStats(agentRoot, repo)));
+}
+
+const REPOSITORY_INDEX_IMPORTANCE_LEGEND =
+  "* **Важность** — личная важность репозитория для пользователя (`awn-importance` в manifest.md, шкала 0–10).";
+
+const REPOSITORY_INDEX_LINES_LEGEND =
+  "* **Строк** — число строк в теле manifest.md (после frontmatter). Если больше 0 — есть инструкция для агента: entry point, ветка, что смотреть в клоне.";
 
 function escapeContentIndexTableCell(value) {
   return String(value || "")
@@ -631,25 +700,38 @@ function formatContentIndexTitleCell(entry, { linkTitle = true } = {}) {
   return `[${linkText}](${encodeContentIndexLinkTarget(linkPath)})`;
 }
 
-function formatRepositoryIndexMarkdown(repositories) {
-  const entries = repositories.map(repositoryToIndexEntry);
+function formatRepositoryIndexEntriesMarkdown(entries) {
+  if (!entries.length) {
+    return "_Пока нет репозиториев. Создайте `awn-repositories/{slug}/manifest.md`._";
+  }
+
+  const lines = [
+    "| ID | Группа | Путь | Название | Описание | Размер | Строк | Важность | README.md | Кол-во файлов |",
+    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- | ---: |"
+  ];
+
+  for (const entry of entries) {
+    const titleCell = formatContentIndexTitleCell(entry);
+    lines.push(
+      `| ${escapeContentIndexTableCell(entry.id) || "—"} | ${escapeContentIndexTableCell(entry.group) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${titleCell} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${formatRepositoryIndexFileSize(entry.sizeBytes)} | ${formatRepositoryIndexLineCount(entry.lineCount)} | ${formatRepositoryIndexImportanceCell(entry.importance)} | ${entry.readmeCell || "—"} | ${entry.fileCount == null ? "—" : String(entry.fileCount)} |`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+async function formatRepositoryIndexMarkdown(agentRoot, repositories) {
+  const entries = await buildRepositoryIndexEntries(agentRoot, repositories);
   const lines = [
     "# Каталог репозиториев",
     "",
     "_Исходники проектов workspace. В поиске: эта таблица, manifest.md и readme.md каждого репозитория (регистр readme не важен)._",
-    ""
+    "",
+    formatRepositoryIndexEntriesMarkdown(entries),
+    "",
+    REPOSITORY_INDEX_IMPORTANCE_LEGEND,
+    REPOSITORY_INDEX_LINES_LEGEND
   ];
-  if (!entries.length) {
-    lines.push("_Пока нет репозиториев. Создайте `awn-repositories/{slug}/manifest.md`._");
-  } else {
-    lines.push("| Статус | Путь | Название | Описание |", "| --- | --- | --- | --- |");
-    for (const repo of repositories) {
-      const entry = repositoryToIndexEntry(repo);
-      lines.push(
-        `| ${escapeContentIndexTableCell(repo.status) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry)} | ${escapeContentIndexTableCell(entry.description) || "—"} |`
-      );
-    }
-  }
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -674,7 +756,7 @@ async function writeRepositoryIndex(agentRoot, options = {}) {
   }
 
   await ensureRepositoriesRoot(agentRoot);
-  const markdown = formatRepositoryIndexMarkdown(payload.repositories);
+  const markdown = await formatRepositoryIndexMarkdown(agentRoot, payload.repositories);
   const indexAbs = path.join(agentRoot, indexRel);
   await fs.writeFile(indexAbs, markdown, "utf-8");
   const legacyRel = getRepositoryIndexLegacyRelPath();
@@ -951,5 +1033,7 @@ module.exports = {
   writeRepositoryIndex,
   registerRepository,
   updateRepository,
-  formatRepositoryIndexMarkdown
+  formatRepositoryIndexMarkdown,
+  formatRepositoryIndexEntriesMarkdown,
+  buildRepositoryIndexEntries
 };
