@@ -15596,16 +15596,6 @@ const DATA_STORAGE_SLOT_SPECS = [
     disabled: true
   },
   {
-    key: "roadmap-single",
-    label: "Дорожная карта",
-    icon: "🗺️",
-    modes: new Set(["roadmap"]),
-    defaultMode: "roadmap",
-    sectionKind: "bundle",
-    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
-    bundleFile: BUNDLE_ROADMAP_FILE
-  },
-  {
     key: "main-single",
     label: "Память (однофайловая)",
     icon: "📄",
