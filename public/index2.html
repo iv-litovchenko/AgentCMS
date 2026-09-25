@@ -22,7 +22,7 @@
       }
 
       main {
-        max-width: 1200px;
+        max-width: 1240px;
         margin: 0 auto;
         padding: 24px 16px 40px;
       }
@@ -32,78 +32,847 @@
         font-size: 1.25rem;
       }
 
-      p {
-        margin: 0 0 20px;
+      .lead {
+        margin: 0 0 16px;
         color: #94a3b8;
         font-size: 0.92rem;
       }
 
-      .panel {
-        padding: 16px;
-        border-radius: 12px;
-        border: 1px solid rgba(96, 165, 250, 0.28);
-        background: #0f172a;
-        overflow: auto;
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
       }
 
-      .mermaid {
+      .legend-item {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.55);
+        font-size: 10px;
+        line-height: 1.35;
+        color: #94a3b8;
+      }
+
+      .legend-item strong {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 11px;
+        color: #e2e8f0;
+      }
+
+      .legend-item.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.35);
+      }
+
+      .legend-item.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.35);
+      }
+
+      .legend-item.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.35);
+      }
+
+      .legend-item.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.35);
+      }
+
+      .panel {
+        position: relative;
+        min-height: clamp(480px, 56vw, 620px);
+        border-radius: 12px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: #0b1220;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .panel-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+        background-size: 42px 42px;
+        opacity: 0.45;
+      }
+
+      .system-map {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+
+      .system-map-badge {
+        position: absolute;
+        top: 12px;
+        left: 14px;
+        z-index: 4;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(15, 23, 42, 0.82);
+        color: rgba(224, 242, 254, 0.82);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .system-map-diagram {
+        position: absolute;
+        inset: 34px 10px 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        min-height: 0;
+      }
+
+      .system-map-svg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .system-map-link {
+        fill: none;
+        stroke: rgba(125, 211, 252, 0.42);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .system-map-root,
+      .system-map-groups,
+      .system-map-branch,
+      .system-map-chain,
+      .system-map-section,
+      .system-map-row,
+      .system-map-fork,
+      .system-map-fork-main,
+      .system-map-fork-side,
+      .system-map-group,
+      .system-map-stack {
+        position: relative;
+        z-index: 1;
+      }
+
+      .system-map-root {
         display: flex;
         justify-content: center;
-        min-height: 480px;
+        flex: 0 0 auto;
+      }
+
+      .system-map-groups {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        flex: 1 1 auto;
+        min-height: 0;
+        align-items: start;
+      }
+
+      .system-map-branch {
+        min-width: 0;
+        padding: 10px 8px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .system-map-branch.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.32);
+        background: linear-gradient(180deg, rgba(30, 58, 138, 0.18), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.32);
+        background: linear-gradient(180deg, rgba(76, 29, 149, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.32);
+        background: linear-gradient(180deg, rgba(6, 78, 59, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.32);
+        background: linear-gradient(180deg, rgba(120, 53, 15, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch-head {
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .system-map-branch-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #f1f5f9;
+      }
+
+      .system-map-branch-caption {
+        margin-top: 3px;
+        font-size: 9px;
+        line-height: 1.3;
+        color: #94a3b8;
+      }
+
+      .system-map-chain {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .system-map-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 4px 4px;
+        border-radius: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.28);
+      }
+
+      .system-map-section-label {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.9);
+      }
+
+      .system-map-section-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .system-map-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+      }
+
+      .system-map-fork {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+      }
+
+      .system-map-fork-side {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-left: 8px;
+        border-left: 1px dashed rgba(167, 139, 250, 0.35);
+      }
+
+      .system-map-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .system-map-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding-top: 4px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.25);
+      }
+
+      .system-map-node {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        max-width: 100%;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        background: rgba(15, 23, 42, 0.82);
+        box-shadow:
+          0 8px 20px rgba(2, 6, 23, 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        text-align: center;
+      }
+
+      .system-map-node.is-hub {
+        padding: 10px 14px;
+        border-radius: 14px;
+        border-color: rgba(250, 204, 21, 0.62);
+      }
+
+      .system-map-node.is-pillar {
+        border-width: 1.5px;
+        font-weight: 700;
+      }
+
+      .system-map-node.is-leaf {
+        padding: 5px 8px;
+        border-radius: 8px;
+        font-size: 10px;
+      }
+
+      .system-map-node.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.45);
+        background: linear-gradient(180deg, rgba(30, 58, 138, 0.55), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.45);
+        background: linear-gradient(180deg, rgba(76, 29, 149, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.45);
+        background: linear-gradient(180deg, rgba(6, 78, 59, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.45);
+        background: linear-gradient(180deg, rgba(120, 53, 15, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-gold {
+        border-color: rgba(250, 204, 21, 0.55);
+        background:
+          radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.12), transparent 55%),
+          linear-gradient(180deg, rgba(49, 46, 129, 0.72), rgba(15, 23, 42, 0.9));
+      }
+
+      .system-map-node-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .system-map-node.is-hub .system-map-node-icon {
+        font-size: 18px;
+      }
+
+      .system-map-node-label {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.25;
+        color: #e2e8f0;
+      }
+
+      .system-map-node.is-hub .system-map-node-label {
+        font-size: 12px;
+        color: #fef9c3;
+      }
+
+      .system-map-node.is-leaf .system-map-node-label {
+        font-size: 10px;
+        color: #cbd5e1;
+      }
+
+      .system-map-node-meta {
+        padding: 1px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(2, 6, 23, 0.45);
+        color: #94a3b8;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      @media (max-width: 980px) {
+        .legend,
+        .system-map-groups {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .panel {
+          min-height: clamp(640px, 80vw, 820px);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .legend,
+        .system-map-groups {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
     <main>
       <h1>Элементы системы</h1>
-      <p>Черновик схемы Agent CMS. Редактируйте блок <code>&lt;pre class="mermaid"&gt;</code> в этом файле.</p>
-
-      <div class="panel">
-        <pre class="mermaid">flowchart TD
-    WS["🏠 Workspace (agentId)"]
-
-    WS --> TREE["📁 Дерево Page"]
-    WS --> DATA["🗄️ Структурированные данные"]
-    WS --> MEM["🧠 Память и коммуникация"]
-    WS --> AUX["⚙️ Вспомогательное"]
-
-    TREE --> AREA["Область (Area)"]
-    AREA --> SHARED_AREA["Общие"]
-    AREA --> AGENT_AREA["Агент"]
-    SHARED_AREA --> TOPIC["Тема (Topic / manifest.md)"]
-    AGENT_AREA --> TOPIC
-    TOPIC --> SLOT["Слот (main, inbox, media, notes…)"]
-    SLOT --> SECTION["Раздел"]
-    SECTION --> PAGE_ENTRY["Запись"]
-    PAGE_ENTRY --> SIDECAR["Sidecar"]
-
-    DATA --> IBLOCK["Инфоблок"]
-    IBLOCK --> TAX["Таксономии / справочники"]
-    IBLOCK --> GROUP["Группа"]
-    IBLOCK --> COLLECTION["Коллекция"]
-    IBLOCK --> SINGLE["Одиночка"]
-    GROUP --> DATA_SECTION["Раздел"]
-    COLLECTION --> DATA_SECTION
-    SINGLE --> DATA_SECTION
-    DATA_SECTION --> RECORD["Запись"]
-
-    MEM --> FACTS["Facts"]
-    MEM --> JOURNAL["Journal"]
-    MEM --> COMM["Коммуникация"]
-    COMM --> DIALOGS["Dialogs"]
-    COMM --> DISCUSS["Discussion / Comments"]
-    MEM --> INBOX["Inbox (входящие)"]
-
-    AUX --> SETTINGS["Settings (workspace / platform)"]
-    AUX --> SEARCH["Search / Index"]
-    AUX --> REPO["Repository"]
-    AUX --> BOARD["NOTE.md / TODO.md"]</pre>
+      <p class="lead">Черновик. Редактируйте массив <code>GROUPS</code> внизу файла.</p>
+      <div class="legend" id="legend"></div>
+      <div class="panel" id="panel">
+        <div class="panel-bg" aria-hidden="true"></div>
+        <div id="map-root"></div>
       </div>
     </main>
 
-    <script src="/vendor/mermaid.min.js"></script>
     <script>
-      mermaid.initialize({ startOnLoad: true, theme: "dark" });
+      const GROUPS = [
+        {
+          id: "page",
+          icon: "📁",
+          title: "Дерево Page",
+          caption: "Контент на диске: области → темы → файлы",
+          tone: "blue",
+          sections: [
+            {
+              label: "Навигация",
+              nodes: [
+                { type: "group", label: "Область", layout: "row", items: ["Общие", "Агент"] },
+                "Тема",
+                "Слот"
+              ]
+            },
+            {
+              label: "Контент",
+              nodes: ["Раздел", "Запись", "Sidecar"]
+            }
+          ]
+        },
+        {
+          id: "data",
+          icon: "🗄️",
+          title: "Структурированные данные",
+          caption: "awn-database · инфоблоки и записи",
+          tone: "violet",
+          sections: [
+            {
+              label: "Накопители",
+              nodes: [
+                { label: "Инфоблок", side: ["Таксономии"] },
+                { type: "row", items: ["Группа", "Коллекция", "Одиночка"] },
+                "Раздел",
+                "Запись"
+              ]
+            }
+          ]
+        },
+        {
+          id: "memory",
+          icon: "🧠",
+          title: "Память и коммуникация",
+          caption: "Долгий контекст агента и обсуждения",
+          tone: "emerald",
+          sections: [
+            {
+              label: "Память",
+              nodes: ["Facts", "Journal"]
+            },
+            {
+              label: "Коммуникация",
+              nodes: ["Dialogs", "Discussion / Comments", "Inbox"]
+            }
+          ]
+        },
+        {
+          id: "aux",
+          icon: "⚙️",
+          title: "Вспомогательное",
+          caption: "Настройки, поиск, репозитории",
+          tone: "amber",
+          sections: [
+            {
+              label: "Служебное",
+              nodes: ["Settings", "Search / Index", "Repository", "NOTE.md / TODO.md"]
+            }
+          ]
+        }
+      ];
+
+      function createNode({ id, label, icon = "", variant = "leaf", tone = "blue", meta = "" }) {
+        const node = document.createElement("div");
+        node.className = `system-map-node is-${variant} is-tone-${tone}`;
+        node.dataset.nodeId = id;
+
+        if (icon) {
+          const iconNode = document.createElement("span");
+          iconNode.className = "system-map-node-icon";
+          iconNode.setAttribute("aria-hidden", "true");
+          iconNode.textContent = icon;
+          node.appendChild(iconNode);
+        }
+
+        const labelNode = document.createElement("span");
+        labelNode.className = "system-map-node-label";
+        labelNode.textContent = label;
+        node.appendChild(labelNode);
+
+        if (meta) {
+          const metaNode = document.createElement("span");
+          metaNode.className = "system-map-node-meta";
+          metaNode.textContent = meta;
+          node.appendChild(metaNode);
+        }
+
+        return node;
+      }
+
+      function appendEntry(chain, group, entry) {
+        if (entry && typeof entry === "object" && entry.type === "row") {
+          const row = document.createElement("div");
+          row.className = "system-map-row";
+          row.dataset.nodeId = `${group.id}-row`;
+          for (const label of entry.items || []) {
+            row.appendChild(
+              createNode({
+                id: `${group.id}-${label}`,
+                label: String(label),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          chain.appendChild(row);
+          return;
+        }
+
+        if (entry && typeof entry === "object" && entry.type === "group") {
+          const wrap = document.createElement("div");
+          wrap.className = "system-map-group";
+          wrap.appendChild(
+            createNode({
+              id: `${group.id}-${entry.label}`,
+              label: String(entry.label),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+
+          const children = document.createElement("div");
+          children.className = entry.layout === "row" ? "system-map-row" : "system-map-stack";
+          if (entry.layout === "row") children.dataset.nodeId = `${group.id}-${entry.label}-row`;
+
+          for (const itemLabel of entry.items || []) {
+            children.appendChild(
+              createNode({
+                id: `${group.id}-${itemLabel}`,
+                label: String(itemLabel),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          wrap.appendChild(children);
+          chain.appendChild(wrap);
+          return;
+        }
+
+        if (entry && typeof entry === "object" && entry.label && Array.isArray(entry.side)) {
+          const fork = document.createElement("div");
+          fork.className = "system-map-fork";
+
+          const main = document.createElement("div");
+          main.className = "system-map-fork-main";
+          main.appendChild(
+            createNode({
+              id: `${group.id}-${entry.label}`,
+              label: String(entry.label),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+          fork.appendChild(main);
+
+          const side = document.createElement("div");
+          side.className = "system-map-fork-side";
+          for (const sideLabel of entry.side) {
+            side.appendChild(
+              createNode({
+                id: `${group.id}-${sideLabel}`,
+                label: String(sideLabel),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          fork.appendChild(side);
+          chain.appendChild(fork);
+          return;
+        }
+
+        chain.appendChild(
+          createNode({
+            id: `${group.id}-${entry}`,
+            label: String(entry),
+            variant: "leaf",
+            tone: group.tone
+          })
+        );
+      }
+
+      function getGroupNodes(group) {
+        if (Array.isArray(group.sections)) {
+          return group.sections.flatMap((section) => section.nodes || []);
+        }
+        return group.nodes || [];
+      }
+
+      function buildEdges() {
+        const edges = [];
+        for (const group of GROUPS) {
+          const rootId = `${group.id}-root`;
+          edges.push(["workspace", rootId]);
+
+          let prevId = rootId;
+          const allNodes = getGroupNodes(group);
+
+          for (const entry of allNodes) {
+            if (entry && typeof entry === "object" && entry.type === "row") {
+              const restNodes = allNodes.slice(allNodes.indexOf(entry) + 1);
+              const nextLabel = restNodes.find((item) => typeof item === "string");
+              const nextId = nextLabel ? `${group.id}-${nextLabel}` : `${group.id}-${entry.tail || "Запись"}`;
+              edges.push([prevId, `${group.id}-row`]);
+              for (const label of entry.items || []) {
+                const rowNodeId = `${group.id}-${label}`;
+                edges.push([`${group.id}-row`, rowNodeId]);
+                edges.push([rowNodeId, nextId]);
+              }
+              prevId = nextId;
+              continue;
+            }
+
+            if (entry && typeof entry === "object" && entry.type === "group") {
+              const groupId = `${group.id}-${entry.label}`;
+              if (groupId !== prevId) edges.push([prevId, groupId]);
+
+              if (entry.layout === "row") {
+                const rowId = `${group.id}-${entry.label}-row`;
+                const restNodes = allNodes.slice(allNodes.indexOf(entry) + 1);
+                const nextLabel = restNodes.find((item) => typeof item === "string");
+                const nextId = nextLabel ? `${group.id}-${nextLabel}` : groupId;
+                edges.push([groupId, rowId]);
+                for (const itemLabel of entry.items || []) {
+                  const itemId = `${group.id}-${itemLabel}`;
+                  edges.push([rowId, itemId]);
+                  if (nextId !== itemId) edges.push([itemId, nextId]);
+                }
+                prevId = nextId;
+              } else {
+                for (const itemLabel of entry.items || []) {
+                  edges.push([groupId, `${group.id}-${itemLabel}`]);
+                }
+                prevId = groupId;
+              }
+              continue;
+            }
+
+            if (entry && typeof entry === "object" && entry.label && Array.isArray(entry.side)) {
+              const nodeId = `${group.id}-${entry.label}`;
+              if (nodeId !== prevId) edges.push([prevId, nodeId]);
+              for (const sideLabel of entry.side) {
+                edges.push([nodeId, `${group.id}-${sideLabel}`]);
+              }
+              prevId = nodeId;
+              continue;
+            }
+
+            const nodeId = `${group.id}-${entry}`;
+            if (nodeId !== prevId) edges.push([prevId, nodeId]);
+            prevId = nodeId;
+          }
+        }
+        return edges;
+      }
+
+      function getAnchor(nodeEl, diagramEl, side = "center") {
+        if (!nodeEl || !diagramEl) return null;
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const diagramRect = diagramEl.getBoundingClientRect();
+        let x = nodeRect.left + nodeRect.width / 2 - diagramRect.left;
+        let y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        if (side === "bottom") y = nodeRect.bottom - diagramRect.top;
+        if (side === "top") y = nodeRect.top - diagramRect.top;
+        if (side === "right") {
+          x = nodeRect.right - diagramRect.left;
+          y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        }
+        if (side === "left") {
+          x = nodeRect.left - diagramRect.left;
+          y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        }
+        return { x, y };
+      }
+
+      function drawEdge(svg, from, to, straight = false) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const d = straight
+          ? `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`
+          : (() => {
+              const midY = from.y + (to.y - from.y) * 0.45;
+              return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${from.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+            })();
+        path.setAttribute("d", d);
+        path.setAttribute("class", "system-map-link");
+        svg.appendChild(path);
+      }
+
+      function syncLinks(diagramEl) {
+        const svg = diagramEl.querySelector(".system-map-svg");
+        if (!svg) return;
+
+        const width = diagramEl.clientWidth;
+        const height = diagramEl.clientHeight;
+        if (!width || !height) return;
+
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
+        svg.replaceChildren();
+
+        const nodeById = new Map(
+          [...diagramEl.querySelectorAll(".system-map-node[data-node-id]")].map((node) => [
+            node.dataset.nodeId,
+            node
+          ])
+        );
+
+        for (const rowEl of diagramEl.querySelectorAll(".system-map-row[data-node-id]")) {
+          nodeById.set(rowEl.dataset.nodeId, rowEl);
+        }
+
+        for (const [fromId, toId] of buildEdges()) {
+          const fromNode = nodeById.get(fromId);
+          const toNode = nodeById.get(toId);
+          if (!fromNode || !toNode) continue;
+          const isSideBranch = Boolean(toNode.closest(".system-map-fork-side"));
+          const from = getAnchor(fromNode, diagramEl, isSideBranch ? "right" : "bottom");
+          const to = getAnchor(toNode, diagramEl, isSideBranch ? "left" : "top");
+          if (!from || !to) continue;
+          drawEdge(svg, from, to, isSideBranch);
+        }
+      }
+
+      function createBranch(group) {
+        const branch = document.createElement("div");
+        branch.className = `system-map-branch is-tone-${group.tone}`;
+
+        const head = document.createElement("div");
+        head.className = "system-map-branch-head";
+        head.innerHTML = `<div class="system-map-branch-title">${group.icon} ${group.title}</div><div class="system-map-branch-caption">${group.caption}</div>`;
+        branch.appendChild(head);
+
+        const chain = document.createElement("div");
+        chain.className = "system-map-chain";
+
+        chain.appendChild(
+          createNode({
+            id: `${group.id}-root`,
+            label: group.title,
+            icon: group.icon,
+            variant: "pillar",
+            tone: group.tone
+          })
+        );
+
+        const sections = group.sections || [{ label: "", nodes: group.nodes || [] }];
+        for (const section of sections) {
+          const sectionEl = document.createElement("div");
+          sectionEl.className = "system-map-section";
+
+          if (section.label) {
+            const label = document.createElement("div");
+            label.className = "system-map-section-label";
+            label.textContent = section.label;
+            sectionEl.appendChild(label);
+          }
+
+          const body = document.createElement("div");
+          body.className = "system-map-section-body";
+          for (const entry of section.nodes || []) {
+            appendEntry(body, group, entry);
+          }
+          sectionEl.appendChild(body);
+          chain.appendChild(sectionEl);
+        }
+
+        branch.appendChild(chain);
+        return branch;
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById("legend");
+        legend.replaceChildren();
+        for (const group of GROUPS) {
+          const item = document.createElement("div");
+          item.className = `legend-item is-tone-${group.tone}`;
+          const sectionLabels = (group.sections || [])
+            .map((section) => section.label)
+            .filter(Boolean)
+            .join(" · ");
+          item.innerHTML = `<strong>${group.icon} ${group.title}</strong>${group.caption}${sectionLabels ? `<br>${sectionLabels}` : ""}`;
+          legend.appendChild(item);
+        }
+      }
+
+      function renderMap() {
+        renderLegend();
+
+        const mount = document.getElementById("map-root");
+        mount.replaceChildren();
+
+        const map = document.createElement("div");
+        map.className = "system-map";
+
+        const badge = document.createElement("div");
+        badge.className = "system-map-badge";
+        badge.textContent = "Элементы системы";
+
+        const diagram = document.createElement("div");
+        diagram.className = "system-map-diagram";
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("system-map-svg");
+        svg.setAttribute("aria-hidden", "true");
+
+        const root = document.createElement("div");
+        root.className = "system-map-root";
+        root.appendChild(
+          createNode({
+            id: "workspace",
+            label: "Workspace",
+            icon: "🏠",
+            variant: "hub",
+            tone: "gold",
+            meta: "agentId"
+          })
+        );
+
+        const groups = document.createElement("div");
+        groups.className = "system-map-groups";
+        for (const group of GROUPS) {
+          groups.appendChild(createBranch(group));
+        }
+
+        diagram.append(svg, root, groups);
+        map.append(badge, diagram);
+        mount.appendChild(map);
+
+        const sync = () => syncLinks(diagram);
+        requestAnimationFrame(() => requestAnimationFrame(sync));
+        new ResizeObserver(sync).observe(diagram);
+      }
+
+      renderMap();
     </script>
   </body>
 </html>
