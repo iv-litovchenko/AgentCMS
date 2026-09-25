@@ -13,12 +13,11 @@ const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { writeCsvFromRecords } = require("./awn-data-csv");
 const { loadMergedStoreSchema } = require("./awn-data-loader");
 
-const MIGRATABLE_PRESETS = ["tags", "categories", "statuses", "priorities"];
+const MIGRATABLE_PRESETS = ["tags", "categories", "priorities"];
 
 const PRESET_CONFIG = {
   tags: { field: "awn-tags", kind: "array" },
   categories: { field: "awn-category", kind: "scalar" },
-  statuses: { field: "awn-status", kind: "scalar" },
   priorities: { field: "awn-priority", kind: "scalar" }
 };
 

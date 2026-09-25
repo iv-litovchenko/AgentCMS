@@ -1450,15 +1450,6 @@
                       <span class="agents-picker-tool-label">Реестр типов, модулей, компонентов и расширений</span>
                     </button>
                     <button
-                      id="agent-git-btn"
-                      class="header-profile-menu-item agents-picker-tool-btn agent-git-btn"
-                      type="button"
-                      role="menuitem"
-                      title="Git-репозиторий — изменения в workspace"
-                    >
-                      <span class="agents-picker-tool-label">Git-репозиторий</span>
-                    </button>
-                    <button
                       id="agent-registry-btn"
                       class="header-profile-menu-item agents-picker-tool-btn agent-registry-btn"
                       type="button"
@@ -1502,6 +1493,15 @@
                       title="Список задач — TODO.md корня и todo.md тем"
                     >
                       <span class="agents-picker-tool-label">Список задач <span class="stub-static-mark">(static)</span></span>
+                    </button>
+                    <button
+                      id="agent-git-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-git-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Git-репозиторий — изменения в workspace"
+                    >
+                      <span class="agents-picker-tool-label">Git-репозиторий</span>
                     </button>
                     <button
                       id="agent-mcp-methods-btn"
@@ -3240,6 +3240,13 @@
                 <span class="agent-runtime-registry-filter-label">Большой контекст</span>
               </span>
               <span class="agent-runtime-registry-filter-hint">≥ 10 000 токенов</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="index-exclude" role="tab" aria-selected="false" title="Темы, инфоблоки и записи с флагами исключения из индексов">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">🚫</span>
+                <span class="agent-runtime-registry-filter-label">Исключить из индексации</span>
+              </span>
+              <span class="agent-runtime-registry-filter-hint">awn-index-exclude-*</span>
             </button>
           </div>
         </div>
@@ -5191,9 +5198,9 @@
             <input id="create-node-container-target" type="checkbox" checked />
             <span id="create-node-container-target-label">Создать в awn-container</span>
           </label>
-          <label class="create-node-vault-option create-form-indexing-option" for="create-node-index-exclude" title="Исключить тему/область и вложенные файлы из поиска и индексов">
-            <input id="create-node-index-exclude" type="checkbox" />
-            <span>Запретить индексирование</span>
+          <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
+            <input type="checkbox" disabled aria-disabled="true" />
+            <span>Запретить индексирование <span class="stub-static-mark">(static)</span></span>
           </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
@@ -5281,9 +5288,9 @@
             <span>Перейти к редактированию</span>
           </label>
         </fieldset>
-        <label class="create-node-vault-option create-form-indexing-option" for="create-section-index-exclude" title="Исключить раздел и вложенные файлы из поиска и индексов">
-          <input id="create-section-index-exclude" type="checkbox" />
-          <span>Запретить индексирование</span>
+        <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
+          <input type="checkbox" disabled aria-disabled="true" />
+          <span>Запретить индексирование <span class="stub-static-mark">(static)</span></span>
         </label>
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -5400,9 +5407,9 @@
           <p class="create-memory-mask-hint">Имя файла формируется автоматически. Счётчик <code>{id}</code> хранится в <code>main/id-increment.txt</code>.</p>
           <p id="create-memory-mask-preview" class="create-memory-mask-preview-line"></p>
         </fieldset>
-        <label class="create-node-vault-option create-form-indexing-option" for="create-memory-index-exclude" title="Исключить запись из поиска и индексов">
-          <input id="create-memory-index-exclude" type="checkbox" />
-          <span>Запретить индексирование</span>
+        <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
+          <input type="checkbox" disabled aria-disabled="true" />
+          <span>Запретить индексирование <span class="stub-static-mark">(static)</span></span>
         </label>
         <div class="modal-actions">
           <button id="create-memory-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -5554,15 +5561,24 @@
           <input id="repository-create-origin-input" type="url" placeholder="https://github.com/org/repo" spellcheck="false" autocomplete="off" />
         </label>
         <label class="agents-registry-field agents-registry-create-field">
+          <span>Стек / теги</span>
+          <input id="repository-create-tech-input" type="text" placeholder="react, typescript, fork" spellcheck="false" autocomplete="off" />
+          <p class="agents-registry-create-footnote">Через запятую — попадёт в <code>awn-repo-tech</code></p>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field">
           <span>Группа</span>
           <select id="repository-create-group-input">
             <option value="study">Изучение</option>
           </select>
           <p class="agents-registry-create-footnote">Sidebar-группа из <code>awn-repositories/groups.yml</code></p>
         </label>
-        <label class="awn-databases-create-checkbox-field create-form-indexing-option" for="repository-create-index-exclude" title="Исключить репозиторий из поиска и индексов">
-          <input id="repository-create-index-exclude" type="checkbox" />
-          <span class="awn-databases-create-checkbox-label">Запретить индексирование</span>
+        <label
+          class="awn-databases-create-checkbox-field create-form-indexing-option"
+          for="repository-create-index-exclude-subtree"
+          title="Не индексировать код и файлы внутри репозитория (только manifest остаётся в индексе)"
+        >
+          <input id="repository-create-index-exclude-subtree" type="checkbox" checked />
+          <span class="awn-databases-create-checkbox-label">Запретить индексирование содержимого</span>
         </label>
         <div class="modal-actions">
           <button id="repository-create-open-manifest-btn" class="save-btn hidden" type="button">Открыть manifest.md</button>
@@ -5658,19 +5674,19 @@
             <input id="awn-databases-create-hierarchy-input" type="checkbox" />
             <span class="awn-databases-create-checkbox-label">Поддержка разделов</span>
           </label>
-          <label
-            class="awn-databases-create-checkbox-field hidden"
-            id="awn-databases-create-index-exclude-wrap"
-            title="Исключить накопитель и записи из поиска и индексов"
-          >
-            <input id="awn-databases-create-index-exclude" type="checkbox" />
-            <span class="awn-databases-create-checkbox-label">Запретить индексирование</span>
-          </label>
           <label class="awn-databases-create-checkbox-field hidden" id="awn-databases-create-sample-wrap" title="Только для коллекций md-файлов">
             <input id="awn-databases-create-sample-input" type="checkbox" checked />
             <span class="awn-databases-create-checkbox-label">Создать первую запись</span>
           </label>
         </div>
+        <label
+          class="awn-databases-create-checkbox-field create-form-indexing-option is-disabled"
+          id="awn-databases-create-index-exclude-wrap"
+          title="Заготовка — настройка при создании пока недоступна"
+        >
+          <input type="checkbox" disabled aria-disabled="true" />
+          <span class="awn-databases-create-checkbox-label">Запретить индексирование <span class="stub-static-mark">(static)</span></span>
+        </label>
         <div class="modal-actions">
           <button id="awn-databases-create-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="awn-databases-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>

@@ -29,6 +29,7 @@ awn-repo-status: study
 awn-repo-tech: []
 awn-repository-group: ""
 awn-runtime-index: manifest-only
+awn-index-exclude-subtree: true
 ---
 
 Описание для агента и человека: entry point, ветка, связь с темами CMS.
@@ -239,12 +240,33 @@ function applyGroupsCatalogToRepositories(repositories, groupsCatalog) {
   return repositories;
 }
 
+function isRepositoryRecordCatalogBasename(baseName) {
+  const lower = String(baseName || "").trim().toLowerCase();
+  return lower === "manifest.md" || lower === "readme.md";
+}
+
 function isRepositoryCatalogPath(relPath) {
   const normalized = normalizeRelPath(relPath);
   if (normalized === getRepositoryIndexRelPath() || normalized === getRepositoryIndexLegacyRelPath()) return true;
   if (normalized === getRepositoryGroupsRelPath()) return true;
-  if (/^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized)) return true;
+  const repoFileMatch = normalized.match(/^awn-repositories\/[^/]+\/([^/]+)$/i);
+  if (repoFileMatch && isRepositoryRecordCatalogBasename(repoFileMatch[1])) return true;
   return false;
+}
+
+async function resolveRepositoryReadmeRel(agentRoot, folderRel) {
+  const normalizedFolder = normalizeRelPath(folderRel);
+  if (!normalizedFolder.startsWith(AWN_REPOSITORIES_DIR)) return null;
+  const folderAbs = path.join(agentRoot, normalizedFolder);
+  let entries = [];
+  try {
+    entries = await fs.readdir(folderAbs);
+  } catch {
+    return null;
+  }
+  const match = entries.find((name) => String(name).toLowerCase() === "readme.md");
+  if (!match) return null;
+  return `${normalizedFolder}/${match}`;
 }
 
 function shouldSkipAwnRepositoriesSearch(relPrefix, entryName, isDirectory) {
@@ -338,9 +360,18 @@ async function readRepositoryManifest(manifestAbs, manifestRel) {
     relatedTopic: getYamlScalar(frontmatter, "awn-repo-related-topic") || "",
     group: getYamlScalar(frontmatter, "awn-repository-group") || "",
     runtimeIndex: getYamlScalar(frontmatter, "awn-runtime-index") || "manifest-only",
+    indexExcludeSubtree: parseIndexExcludeSubtreeFromFrontmatter(frontmatter),
     awnType: getYamlScalar(frontmatter, "awn-type") || REPOSITORY_TYPE_ID,
     body: String(body || "").trim()
   };
+}
+
+function parseIndexExcludeSubtreeFromFrontmatter(frontmatter) {
+  const legacy = getYamlScalar(frontmatter, "awn-index-exclude");
+  const subtree = getYamlScalar(frontmatter, "awn-index-exclude-subtree");
+  const text = String(subtree || legacy || "").trim().toLowerCase();
+  if (!text) return true;
+  return text === "true" || text === "1" || text === "yes";
 }
 
 async function listRepositoryFolderSlugs(agentRoot) {
@@ -406,6 +437,9 @@ async function readRepositoryEntry(agentRoot, manifestRel) {
 
   let hasGit = false;
   let entryCount = null;
+  let readmePath = null;
+  let readmeBody = "";
+  let readmeExists = false;
   const repoAbs = path.dirname(manifestAbs);
   hasGit = await pathExists(path.join(repoAbs, ".git"));
   try {
@@ -414,12 +448,25 @@ async function readRepositoryEntry(agentRoot, manifestRel) {
   } catch {
     entryCount = null;
   }
+  readmePath = await resolveRepositoryReadmeRel(agentRoot, parsed.folderPath);
+  if (readmePath) {
+    try {
+      readmeBody = await fs.readFile(path.join(agentRoot, readmePath), "utf-8");
+      readmeExists = true;
+    } catch {
+      readmeExists = false;
+      readmeBody = "";
+    }
+  }
 
   return {
     ...parsed,
     exists: true,
     hasGit,
-    entryCount
+    entryCount,
+    readmePath,
+    readmeExists,
+    readmeBody
   };
 }
 
@@ -544,7 +591,7 @@ function formatRepositoryIndexMarkdown(repositories) {
   const lines = [
     "# Каталог репозиториев",
     "",
-    "_Исходники проектов workspace. Индексируются только эта таблица и manifest.md каждого репозитория._",
+    "_Исходники проектов workspace. В поиске: эта таблица, manifest.md и readme.md каждого репозитория (регистр readme не важен)._",
     ""
   ];
   if (!entries.length) {
@@ -633,8 +680,31 @@ function composeRepositoryManifestContent(options = {}) {
   if (group) {
     content = content.replace('awn-repository-group: ""', `awn-repository-group: ${formatYamlScalar(group)}`);
   }
-  if (options.indexExclude) {
-    content = setYamlScalarInFrontmatter(content, "awn-index-exclude", "true");
+  const tech = Array.isArray(options.tech)
+    ? options.tech
+    : parseYamlScalarList(String(options.tech || "").trim());
+  if (tech.length) {
+    content = setYamlScalarInFrontmatter(content, "awn-repo-tech", tech.join(", "));
+  }
+  if (options.relatedTopic) {
+    content = setYamlScalarInFrontmatter(content, "awn-repo-related-topic", options.relatedTopic);
+  }
+  const indexFlags = options.indexExcludeFlags || {
+    record: Boolean(options.indexExcludeRecord),
+    subtree:
+      options.indexExcludeSubtree !== undefined
+        ? Boolean(options.indexExcludeSubtree)
+        : options.indexExclude
+          ? true
+          : true
+  };
+  if (indexFlags?.record) {
+    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-record", "true");
+  }
+  if (indexFlags?.subtree !== false) {
+    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-subtree", "true");
+  } else {
+    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-subtree", "false");
   }
   if (options.body) {
     content = content.replace(/Описание для агента[\s\S]*$/, `${String(options.body).trim()}\n`);
@@ -695,7 +765,8 @@ async function updateRepository(agentRoot, inputPath, options = {}) {
     ["awn-name", options.name],
     ["awn-description", options.description],
     ["awn-repo-origin", options.origin ?? options.repoOrigin],
-    ["awn-repository-group", options.group]
+    ["awn-repository-group", options.group],
+    ["awn-repo-related-topic", options.relatedTopic]
   ];
   for (const [key, value] of patchKeys) {
     if (value === undefined) continue;
@@ -714,6 +785,21 @@ async function updateRepository(agentRoot, inputPath, options = {}) {
       return { error: "Invalid repository status", status: 400 };
     }
     content = setYamlScalarInFrontmatter(content, "awn-repo-status", status || "study");
+  }
+
+  if (options.tech !== undefined) {
+    const tech = Array.isArray(options.tech)
+      ? options.tech
+      : parseYamlScalarList(String(options.tech || "").trim());
+    content = setYamlScalarInFrontmatter(content, "awn-repo-tech", tech.join(", "));
+  }
+
+  if (options.indexExcludeSubtree !== undefined) {
+    content = setYamlScalarInFrontmatter(
+      content,
+      "awn-index-exclude-subtree",
+      options.indexExcludeSubtree ? "true" : "false"
+    );
   }
 
   if (options.body !== undefined) {
@@ -802,6 +888,8 @@ module.exports = {
   getRepositoryIndexRelPath,
   getRepositoryGroupsRelPath,
   isRepositoryCatalogPath,
+  isRepositoryRecordCatalogBasename,
+  resolveRepositoryReadmeRel,
   shouldSkipAwnRepositoriesSearch,
   listRepositoryFolderSlugs,
   listRepositories,

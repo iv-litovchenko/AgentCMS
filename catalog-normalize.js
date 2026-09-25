@@ -1,9 +1,13 @@
 const STATUS_CANONICAL = [
-  { id: "open", label: "🟢 Открыта", aliases: ["open", "🟢 открыта", "открыта"] },
+  { id: "new", label: "🔵 Новая", aliases: ["new", "🔵 новая", "новая"] },
+  { id: "planned", label: "🟣 Запланирована", aliases: ["planned", "🟣 запланирована", "запланирована"] },
   { id: "draft", label: "🟡 Черновик", aliases: ["draft", "🟡 черновик", "черновик"] },
+  { id: "open", label: "🟢 Открыта", aliases: ["open", "🟢 открыта", "открыта"] },
+  { id: "in-progress", label: "🟠 В работе", aliases: ["in-progress", "in progress", "🟠 в работе", "в работе"] },
+  { id: "done", label: "✅ Готова", aliases: ["done", "✅ готова", "готова"] },
   { id: "closed", label: "🔴 Закрыта", aliases: ["closed", "🔴 закрыта", "закрыта"] },
-  { id: "none", label: "⚪ Без статуса", aliases: ["none", "⚪ без статуса", "без статуса"] },
-  { id: "archived", label: "⚫ Архив", aliases: ["archived", "archive", "⚫ архив", "архив"] }
+  { id: "archived", label: "⚫ Архив", aliases: ["archived", "archive", "⚫ архив", "архив"] },
+  { id: "none", label: "⚪ Без статуса", aliases: ["none", "⚪ без статуса", "без статуса"] }
 ];
 
 function normalizeLookupKey(raw) {

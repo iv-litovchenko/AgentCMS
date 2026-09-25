@@ -5,6 +5,8 @@ domain: pages
 status: active
 extends: awn.base
 description: Узел дерева (ws / section / area / topic) — навигация и runtime
+mixins:
+  - awn.mixin.indexing-container
 
 form:
   panel-title: "{A2!} Свойства страницы"

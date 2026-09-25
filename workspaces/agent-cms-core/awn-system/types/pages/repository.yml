@@ -4,5 +4,108 @@ kind: type
 domain: pages
 status: active
 extends: awn.page.base
-description: Карточка исходников в awn-repositories/{slug}/ — manifest индексируется, код рядом нет
+description: >
+  Карточка исходников в awn-repositories/{slug}/ — в индексе manifest.md и readme.md
+  (регистр не важен); код клона по умолчанию не индексируется.
 manifest-pattern: "awn-repositories/{slug}/manifest.md"
+
+form:
+  panel-title: "{A2!} Репозиторий"
+
+field-groups:
+  - id: repository
+    name: "{A2!} Репозиторий"
+    description: Git-источник, статус и группа в sidebar
+    collapsed: false
+  - id: indexing
+    name: "{A2!} Индексирование"
+    description: Что попадает в поиск workspace
+    collapsed: true
+
+fields:
+  awn-slots-flexible:
+    hidden: true
+
+  awn-main:
+    hidden: true
+
+  awn-focus:
+    hidden: true
+
+  awn-index-exclude-record:
+    hidden: true
+
+  awn-repo-origin:
+    type: awn.field.string.url
+    title: "{A2!} Git origin"
+    description: URL удалённого репозитория (https://github.com/…)
+    placeholder: "https://github.com/org/repo"
+    placement: aside-body
+    group: repository
+    sort: 1
+
+  awn-repo-status:
+    type: awn.field.choice.one
+    title: "{A2!} Статус"
+    description: Стадия работы с клоном
+    placement: aside-body
+    group: repository
+    sort: 2
+    default: study
+    enum:
+      - key: study
+        name: 📚 Изучение
+      - key: active
+        name: 🟢 Активный
+      - key: archived
+        name: 📦 Архив
+      - key: vendored
+        name: 📌 Вендор
+
+  awn-repository-group:
+    type: awn.field.string
+    title: "{A2!} Группа sidebar"
+    description: Логическая группа из awn-repositories/groups.yml (без подпапок)
+    placement: aside-body
+    group: repository
+    sort: 3
+
+  awn-repo-tech:
+    type: awn.field.lookup.many
+    source: tags
+    title: "{A2!} Стек / теги"
+    description: Технологии и метки (React, Python, fork…)
+    placement: aside-body
+    group: repository
+    sort: 4
+
+  awn-repo-related-topic:
+    type: awn.field.string
+    title: "{A2!} Связанная тема"
+    description: Путь manifest.md темы CMS, к которой привязан репозиторий
+    placeholder: "awn-container/moya-tema/manifest.md"
+    placement: aside-body
+    group: repository
+    sort: 5
+
+  awn-runtime-index:
+    type: awn.field.string
+    title: "{A2!} Режим индекса"
+    description: Служебный маркер — manifest-only для репозиториев
+    default: manifest-only
+    placement: aside-body
+    group: indexing
+    sort: 1
+    locked: true
+    hidden: true
+
+  awn-index-exclude-subtree:
+    type: awn.field.boolean
+    title: "{A2!} Запретить индексирование содержимого"
+    description: >
+      Не индексировать файлы внутри папки репозитория.
+      manifest.md и readme.md (любой регистр) остаются в индексе.
+    default: true
+    placement: aside-body
+    group: indexing
+    sort: 2

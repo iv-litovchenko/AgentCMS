@@ -26,6 +26,7 @@ const {
 } = require("./awn-data-taxonomies-bridge");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { createAwnDataRecord } = require("./awn-data-loader");
+const { STATUS_CANONICAL } = require("./catalog-normalize");
 
 const GLOBAL_CATALOG_DIR = AGENT_CMS_CORE_REL;
 const CATALOG_GROUP_LABELS = {
@@ -279,8 +280,12 @@ async function listTagsCatalogItems(catalogAbsolute, manifestRel) {
     .map((id) => ({ id, label: `#${id}` }));
 }
 
-async function listStatusesCatalogItems(catalogAbsolute, manifestRel) {
-  return listCategoryCatalogItems(catalogAbsolute, manifestRel);
+function listCanonicalStatusCatalogItems() {
+  return STATUS_CANONICAL.map((entry) => ({ id: entry.id, label: entry.label }));
+}
+
+async function listStatusesCatalogItems(_catalogAbsolute, _manifestRel) {
+  return listCanonicalStatusCatalogItems();
 }
 
 async function loadSchemasCatalogPreset(_catalogAbsolute, _projectRoot = null) {
@@ -288,6 +293,18 @@ async function loadSchemasCatalogPreset(_catalogAbsolute, _projectRoot = null) {
 }
 
 async function loadGlobalCatalogPreset(projectRoot, preset) {
+  if (preset === "statuses") {
+    const scaffold = findCatalogScaffold(preset);
+    const items = listCanonicalStatusCatalogItems();
+    return {
+      preset,
+      exists: true,
+      title: scaffold?.title || preset,
+      manifestRel: null,
+      items,
+      source: "awn-system/types/base/base.yml"
+    };
+  }
   if (AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
     return loadPlatformTaxonomyPreset(projectRoot, preset);
   }

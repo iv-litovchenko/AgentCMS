@@ -3,7 +3,7 @@ import { z } from "zod";
 const storePath = z
   .string()
   .min(1)
-  .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/statuses, agent-registry/agents");
+  .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
 const recordRef = z
   .string()
@@ -37,7 +37,7 @@ export function registerIblockTools(reg, client) {
     name: "get",
     description: "One infoblock frame with schema, records and tree (MD or CSV).",
     schema: z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/statuses, tasks")
+      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),
     handler: ({ store }) => client.get("/api/awn-databases", { store })
   });
@@ -61,7 +61,9 @@ export function registerIblockTools(reg, client) {
       recordFileTypes: z.string().optional(),
       hierarchy: z.boolean().optional().describe("Alias for recordHierarchy"),
       withSampleRecord: z.boolean().optional(),
-      indexExclude: z.boolean().optional()
+      indexExclude: z.boolean().optional(),
+      indexExcludeRecord: z.boolean().optional(),
+      indexExcludeSubtree: z.boolean().optional()
     }),
     handler: (payload) =>
       client.post("/api/awn-databases/stores", {
@@ -102,7 +104,7 @@ export function registerIblockTools(reg, client) {
     description:
       "Read custom field overrides from store schema.yml (instance layer only). Base element fields: get_type({ id: \"awn.infoblock.element.record\" }) (or category/sidecar).",
     schema: z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
+      store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/tags")
     }),
     handler: ({ store }) => client.get("/api/awn-databases/store-schema", { store })
   });

@@ -1994,7 +1994,8 @@ function buildContainerManifestFrontmatter(typeId, displayName, fields) {
     "awn-runtime-cron",
     "awn-runtime-cron-schedule",
     "awn-runtime-commands",
-    "awn-index-exclude",
+    "awn-index-exclude-record",
+    "awn-index-exclude-subtree",
     "awn-category",
     "awn-owner",
     "awn-priority",
@@ -2087,7 +2088,11 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
   if (schema.id) overrides["awn-id"] = schema.id;
   if (schema.layer) overrides["awn-layer"] = schema.layer;
   if (userDescription && userDescription !== displayName) overrides["awn-description"] = userDescription;
-  if (options.indexExclude) overrides["awn-index-exclude"] = true;
+  const indexFlags =
+    options.indexExcludeFlags ||
+    (options.indexExclude ? { record: true, subtree: true } : null);
+  if (indexFlags?.record) overrides["awn-index-exclude-record"] = true;
+  if (indexFlags?.subtree) overrides["awn-index-exclude-subtree"] = true;
 
   if (kind !== "group") {
     const record = schema.record && typeof schema.record === "object" ? schema.record : {};
@@ -2708,10 +2713,19 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   const isTaxonomy = slug.startsWith("taxonomies/");
   const withSample =
     kind === "collection" && !isTaxonomy ? options.withSampleRecord !== false : false;
+  const indexExcludeFlags =
+    options.indexExcludeFlags ||
+    (options.indexExcludeRecord || options.indexExcludeSubtree
+      ? {
+          record: Boolean(options.indexExcludeRecord),
+          subtree: Boolean(options.indexExcludeSubtree)
+        }
+      : null) ||
+    (options.indexExclude ? { record: true, subtree: true } : null);
   const manifestOptions = {
     agentRoot,
     projectRoot,
-    ...(options.indexExclude ? { indexExclude: true } : {})
+    ...(indexExcludeFlags ? { indexExcludeFlags } : {})
   };
 
   if (kind === "collection") {

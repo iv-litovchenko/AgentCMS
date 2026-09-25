@@ -98,12 +98,22 @@ fields:
     group: content
     sort: 2
     enum:
-      - key: open
-        name: 🟢 Открыта
+      - key: new
+        name: 🔵 Новая
+      - key: planned
+        name: 🟣 Запланирована
       - key: draft
         name: 🟡 Черновик
+      - key: open
+        name: 🟢 Открыта
+      - key: in-progress
+        name: 🟠 В работе
+      - key: done
+        name: ✅ Готова
       - key: closed
         name: 🔴 Закрыта
+      - key: archived
+        name: ⚫ Архив
       - key: none
         name: ⚪ Без статуса
     default: open
@@ -202,17 +212,6 @@ fields:
     placement: aside-body
     group: runtime
     sort: 5
-
-  awn-index-exclude:
-    type: awn.field.boolean
-    title: "{A2!} Запретить индексирование"
-    description: >
-      Исключить эту сущность и вложенные файлы из semantic, fulltext, storage
-      и link индексов. Наследуется от manifest родительских папок.
-    default: false
-    placement: aside-body
-    group: indexing
-    sort: 1
 
   # --- taxonomy ---
   awn-category:

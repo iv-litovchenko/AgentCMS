@@ -93,7 +93,11 @@ const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./workspace-importance");
 const {
   INDEX_EXCLUDE_FIELD_KEY,
+  INDEX_EXCLUDE_RECORD_FIELD_KEY,
+  INDEX_EXCLUDE_SUBTREE_FIELD_KEY,
   parseIndexExcludeValue,
+  resolveIndexExcludeFlags,
+  parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
 } = require("./workspace-index-exclude");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
@@ -1927,12 +1931,35 @@ async function isEntityIndexExcluded(relPath) {
 }
 
 function parsePayloadIndexExclude(payload = {}) {
-  return parseIndexExcludeValue(payload.indexExclude ?? payload[INDEX_EXCLUDE_FIELD_KEY]);
+  const flags = parsePayloadIndexExcludeFlags(payload);
+  return flags.record || flags.subtree;
 }
 
-function applyIndexExcludeFrontmatter(frontmatter, exclude) {
-  if (!exclude) return frontmatter;
-  return upsertYamlScalarLine(frontmatter, INDEX_EXCLUDE_FIELD_KEY, "true");
+function applyIndexExcludeFrontmatter(frontmatter, flags = {}) {
+  const normalized =
+    typeof flags === "boolean"
+      ? { record: flags, subtree: flags }
+      : flags && typeof flags === "object"
+        ? flags
+        : {};
+  if (normalized.record) {
+    frontmatter = upsertYamlScalarLine(frontmatter, INDEX_EXCLUDE_RECORD_FIELD_KEY, "true");
+  }
+  if (normalized.subtree) {
+    frontmatter = upsertYamlScalarLine(frontmatter, INDEX_EXCLUDE_SUBTREE_FIELD_KEY, "true");
+  }
+  return frontmatter;
+}
+
+function resolveIndexExcludeOptions(options = {}) {
+  if (options.indexExcludeFlags) return options.indexExcludeFlags;
+  if (options.indexExclude) return { record: true, subtree: true };
+  return { record: false, subtree: false };
+}
+
+function resolveRecordIndexExcludeOptions(options = {}) {
+  const flags = resolveIndexExcludeOptions(options);
+  return { record: Boolean(flags.record), subtree: false };
 }
 
 async function getSearchDefaultScopes(requestedScopes = null) {
@@ -2279,8 +2306,11 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
       String(typeName).trim() === "awn.page.topic"
   });
   frontmatter = upsertYamlScalarLine(frontmatter, "awn-name", title);
-  if (options.indexExclude) {
-    frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+  const indexFlags =
+    options.indexExcludeFlags ||
+    (options.indexExclude ? { record: true, subtree: true } : null);
+  if (indexFlags && (indexFlags.record || indexFlags.subtree)) {
+    frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
   }
   return frontmatter;
 }
@@ -7250,8 +7280,9 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.content.category
     String(folderSlug || "").trim() || String(title || "Раздел").trim() || "Раздел";
   let frontmatter = awnType ? `awn-type: ${awnType}` : "";
   frontmatter = applyAwnNameToFrontmatter(frontmatter, title, segment);
-  if (options.indexExclude) {
-    frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+  const indexFlags = resolveRecordIndexExcludeOptions(options);
+  if (indexFlags.record) {
+    frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
   }
   if (!frontmatter.trim()) return `\n> Описание раздела.\n`;
   return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
@@ -7306,8 +7337,9 @@ async function buildStorageSectionReadmeContentForManifest(
           typeDef: mergedType
         });
         frontmatter = applyAwnNameToFrontmatter(frontmatter, safeTitle, folderSlug);
-        if (options.indexExclude) {
-          frontmatter = applyIndexExcludeFrontmatter(frontmatter, true);
+        const indexFlags = resolveRecordIndexExcludeOptions(options);
+        if (indexFlags.record) {
+          frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
         }
         return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
       }
@@ -7524,7 +7556,8 @@ async function createStorageRecordFile({
   author = "",
   status = "",
   fields = null,
-  indexExclude = false
+  indexExclude = false,
+  indexExcludeFlags = null
 }) {
   const canonicalFolder = normalizeStorageSubfolderName(storageFolder);
   if (!canonicalFolder || !isAllowedStorageSubfolderName(canonicalFolder)) {
@@ -7618,10 +7651,14 @@ async function createStorageRecordFile({
       ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
     };
   }
-  if (parseIndexExcludeValue(indexExclude)) {
+  const indexFlags = resolveRecordIndexExcludeOptions(
+    indexExcludeFlags ? { indexExcludeFlags } : { indexExclude }
+  );
+  if (indexFlags.record) {
     frontmatterOverrides = {
       ...(frontmatterOverrides || {}),
-      [INDEX_EXCLUDE_FIELD_KEY]: true
+      ...(indexFlags.record ? { [INDEX_EXCLUDE_RECORD_FIELD_KEY]: true } : {}),
+      ...(indexFlags.subtree ? { [INDEX_EXCLUDE_SUBTREE_FIELD_KEY]: true } : {})
     };
   }
 
@@ -11342,6 +11379,244 @@ async function buildAgentHeartbeatRegistry() {
   };
 }
 
+function extractIndexExcludePropsFromFrontmatter(frontmatter) {
+  const flags = resolveIndexExcludeFlags(frontmatter);
+  return {
+    indexExcludeRecord: flags.record,
+    indexExcludeSubtree: flags.subtree
+  };
+}
+
+function indexExcludeEntityHasAnyFlag(entity) {
+  return Boolean(entity?.indexExcludeRecord || entity?.indexExcludeSubtree);
+}
+
+function buildIndexExcludeEntityDisplayPath(entity) {
+  if (entity.entityKind === "content" && entity.ref) {
+    const base = entity.displayPath || entity.label || entity.manifestPath;
+    const slotPrefix = entity.slot ? `${entity.slot}/` : "";
+    return `${base} → ${slotPrefix}${entity.ref}`;
+  }
+  if (entity.entityKind === "infoblock-record" && entity.ref) {
+    const base = entity.displayPath || entity.label || entity.manifestPath;
+    return `${base} → ${entity.ref}`;
+  }
+  return entity.displayPath || entity.label || entity.manifestPath;
+}
+
+async function walkWorkspaceManifestFiles(dirAbsolute, dirRel, acc) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  for (const entry of entries) {
+    const lower = entry.name.toLowerCase();
+    if (lower === "node_modules" || lower === ".git" || lower === "history" || entry.name.startsWith(".")) {
+      continue;
+    }
+    const abs = path.join(dirAbsolute, entry.name);
+    const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      await walkWorkspaceManifestFiles(abs, rel, acc);
+      continue;
+    }
+    if (entry.isFile() && lower === "manifest.md") {
+      acc.push(rel.replace(/\\/g, "/"));
+    }
+  }
+}
+
+async function collectIndexExcludeEntitiesFromManifest(manifestRel, entityKind, entities) {
+  const manifestPath = String(manifestRel || "").replace(/\\/g, "/");
+  if (!manifestPath) return;
+
+  let frontmatter = "";
+  try {
+    ({ frontmatter } = await readNodeFrontmatterContent(manifestPath));
+  } catch {
+    frontmatter = "";
+  }
+
+  const indexFlags = extractIndexExcludePropsFromFrontmatter(frontmatter);
+  if (!indexExcludeEntityHasAnyFlag(indexFlags)) return;
+
+  const awnName = getYamlScalar(frontmatter, "awn-name");
+  const label =
+    String(awnName || "").trim() ||
+    path.posix.basename(path.posix.dirname(manifestPath)) ||
+    manifestPath;
+  entities.push({
+    entityKind,
+    manifestPath,
+    slot: null,
+    ref: null,
+    label,
+    displayPath: manifestPath,
+    description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+    awnType: String(getYamlScalar(frontmatter, "awn-type") || "").trim(),
+    ...indexFlags
+  });
+}
+
+async function collectAllIndexExcludeEntities() {
+  const entities = [];
+  const menu = await buildAgentMenu(getAgentRoot());
+  const topicEntries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
+
+  for (const entry of topicEntries) {
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    if (!manifestPath) continue;
+
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(manifestPath));
+    } catch {
+      frontmatter = "";
+    }
+
+    const indexFlags = extractIndexExcludePropsFromFrontmatter(frontmatter);
+    const awnName = getYamlScalar(frontmatter, "awn-name");
+    const slotKey = getManifestNamedSlotKey(manifestPath);
+    const label = String(entry.label || awnName || slotKey || "").trim() || slotKey;
+
+    if (indexExcludeEntityHasAnyFlag(indexFlags)) {
+      entities.push({
+        entityKind: "topic",
+        manifestPath,
+        slot: null,
+        ref: null,
+        label,
+        displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
+        description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+        awnType: String(getYamlScalar(frontmatter, "awn-type") || "").trim(),
+        ...indexFlags
+      });
+    }
+
+    const nodeAbsolute = normalizeWorkspacePath(manifestPath);
+    if (!nodeAbsolute) continue;
+
+    const scannedFolders = new Set();
+    for (const { folder, slot } of RUNTIME_CONTENT_SCAN_SLOTS) {
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folder);
+      if (!folderAbsolute || scannedFolders.has(folderAbsolute)) continue;
+      scannedFolders.add(folderAbsolute);
+
+      let mdFiles = [];
+      try {
+        const stat = await fs.stat(folderAbsolute);
+        if (!stat.isDirectory()) continue;
+        mdFiles = await collectMarkdownFiles(folderAbsolute);
+      } catch {
+        continue;
+      }
+
+      for (const file of mdFiles) {
+        const ref = String(file.relativePath || "").replace(/\\/g, "/");
+        if (!ref || ref.endsWith(".sidecar.md")) continue;
+
+        let recordFrontmatter = "";
+        try {
+          const absolute = path.join(folderAbsolute, ref);
+          const raw = await fs.readFile(absolute, "utf-8");
+          const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          recordFrontmatter = split ? split[1] : "";
+        } catch {
+          recordFrontmatter = "";
+        }
+
+        const recordFlags = extractIndexExcludePropsFromFrontmatter(recordFrontmatter);
+        if (!recordFlags.indexExcludeRecord) continue;
+
+        const recordName = getYamlScalar(recordFrontmatter, "awn-name") || file.name.replace(/\.md$/i, "");
+        entities.push({
+          entityKind: "content",
+          manifestPath,
+          slot,
+          ref,
+          storageFolder: folder,
+          label: String(recordName || ref).trim(),
+          displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
+          description: String(getYamlScalar(recordFrontmatter, "awn-description") || "").trim(),
+          awnType: String(getYamlScalar(recordFrontmatter, "awn-type") || "").trim(),
+          ...recordFlags
+        });
+      }
+    }
+  }
+
+  const agentRoot = getAgentRoot();
+  const databasesRoot = path.join(agentRoot, "awn-databases");
+  const manifestRels = [];
+  await walkWorkspaceManifestFiles(databasesRoot, "awn-databases", manifestRels);
+  for (const manifestRel of manifestRels) {
+    await collectIndexExcludeEntitiesFromManifest(manifestRel, "infoblock", entities);
+
+    const manifestAbsolute = normalizeWorkspacePath(manifestRel);
+    if (!manifestAbsolute) continue;
+    const dataDir = path.join(path.dirname(manifestAbsolute), "awn-storage", "data");
+    let mdFiles = [];
+    try {
+      const stat = await fs.stat(dataDir);
+      if (!stat.isDirectory()) continue;
+      mdFiles = await collectMarkdownFiles(dataDir);
+    } catch {
+      continue;
+    }
+
+    const iblockLabel = path.posix.basename(path.posix.dirname(manifestRel));
+    for (const file of mdFiles) {
+      const ref = `awn-storage/data/${String(file.relativePath || "").replace(/\\/g, "/")}`;
+      let recordFrontmatter = "";
+      try {
+        const raw = await fs.readFile(path.join(dataDir, file.relativePath), "utf-8");
+        const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        recordFrontmatter = split ? split[1] : "";
+      } catch {
+        recordFrontmatter = "";
+      }
+      const recordFlags = extractIndexExcludePropsFromFrontmatter(recordFrontmatter);
+      if (!recordFlags.indexExcludeRecord) continue;
+      const recordName = getYamlScalar(recordFrontmatter, "awn-name") || file.name.replace(/\.md$/i, "");
+      entities.push({
+        entityKind: "infoblock-record",
+        manifestPath: manifestRel,
+        slot: null,
+        ref,
+        label: String(recordName || file.name).trim(),
+        displayPath: manifestRel,
+        description: String(getYamlScalar(recordFrontmatter, "awn-description") || "").trim(),
+        awnType: String(getYamlScalar(recordFrontmatter, "awn-type") || "").trim(),
+        indexExcludeRecord: recordFlags.indexExcludeRecord,
+        indexExcludeSubtree: false
+      });
+    }
+  }
+
+  entities.sort((a, b) =>
+    buildIndexExcludeEntityDisplayPath(a).localeCompare(buildIndexExcludeEntityDisplayPath(b), "ru")
+  );
+  return entities;
+}
+
+async function buildAgentIndexExcludeRegistry() {
+  const items = await collectAllIndexExcludeEntities();
+  return {
+    version: 1,
+    model: "index-exclude-registry",
+    hint:
+      "Реестр исключений из индексации: awn-index-exclude-record и awn-index-exclude-subtree " +
+      "на темах, инфоблоках и записях.",
+    items,
+    itemCount: items.length,
+    recordCount: items.filter((item) => item.indexExcludeRecord).length,
+    subtreeCount: items.filter((item) => item.indexExcludeSubtree).length
+  };
+}
+
 const LARGE_CONTEXT_DEFAULT_MIN_TOKENS = 10000;
 const LARGE_CONTEXT_REFERENCE_WINDOW_TOKENS = 128000;
 
@@ -13331,6 +13606,8 @@ const SESSION_CONTEXT_API_MAP = {
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
+  indexExcludeRegistry:
+    "GET /api/agent/index-exclude-registry — реестр исключений из индексации (темы, инфоблоки, записи)",
   largeContextRegistry:
     "GET /api/agent/large-context?minTokens=10000 — файлы с большой оценкой токенов (рекомендация разбить)",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
@@ -20472,6 +20749,17 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/index-exclude-registry") {
+    try {
+      return sendJson(res, 200, await buildAgentIndexExcludeRegistry());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read index-exclude registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/large-context") {
     try {
       const minTokensRaw = Number(url.searchParams.get("minTokens") || LARGE_CONTEXT_DEFAULT_MIN_TOKENS);
@@ -22582,7 +22870,7 @@ async function handleApiForAgent(req, res, url) {
         recordHierarchy: payload?.recordHierarchy,
         recordFileTypes: payload?.recordFileTypes,
         withSampleRecord: payload?.withSampleRecord,
-        indexExclude: parsePayloadIndexExclude(payload)
+        indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
       });
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {
@@ -24214,7 +24502,12 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         "memory",
-        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
+        {
+          contentWorkspaceRel,
+          indexExcludeFlags: resolveRecordIndexExcludeOptions({
+            indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
+          })
+        }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -24283,7 +24576,12 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         slotKey,
-        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
+        {
+          contentWorkspaceRel,
+          indexExcludeFlags: resolveRecordIndexExcludeOptions({
+            indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
+          })
+        }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -24358,7 +24656,12 @@ async function handleApiForAgent(req, res, url) {
         "awn.content.category",
         relPath,
         slotKey,
-        { contentWorkspaceRel, indexExclude: parsePayloadIndexExclude(payload) }
+        {
+          contentWorkspaceRel,
+          indexExcludeFlags: resolveRecordIndexExcludeOptions({
+            indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
+          })
+        }
       );
       return sendJson(res, 200, {
         section: sectionName,
@@ -24835,7 +25138,9 @@ async function handleApiForAgent(req, res, url) {
         author: payload.author,
         status: payload.status,
         fields: payload.fields,
-        indexExclude: parsePayloadIndexExclude(payload)
+        indexExcludeFlags: resolveRecordIndexExcludeOptions({
+          indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
+        })
       });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -26823,7 +27128,7 @@ async function handleApiForAgent(req, res, url) {
     }
 
     const manifestFrontmatter = buildManifestCreateFrontmatter(nodeKind === "topic" ? "topic" : "area", title, targetFolderName, {
-      indexExclude: parsePayloadIndexExclude(payload)
+      indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
     });
     await fs.writeFile(
       manifestAbsolute,
@@ -27095,7 +27400,7 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 404, { error: "Parent folder not found" });
       }
 
-      const indexExclude = parsePayloadIndexExclude(payload);
+      const indexExcludeFlags = parsePayloadIndexExcludeFlags(payload);
 
       if (type === "manifest" || type === "topic-manifest") {
         const adoptResult = await adoptExistingFolderWithManifest({
@@ -27158,7 +27463,9 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName, { indexExclude });
+        const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName, {
+          indexExcludeFlags
+        });
         await fs.writeFile(
           manifestAbsolute,
           joinNodeFrontmatter(areaFrontmatter, ""),
@@ -27196,7 +27503,7 @@ async function handleApiForAgent(req, res, url) {
       const awnNodeType = String(payload.awnType || "topic").trim() || "topic";
       const fileFrontmatter = buildManifestCreateFrontmatter("topic", displayName, folderName, {
         awnType: awnNodeType,
-        indexExclude
+        indexExcludeFlags
       });
       await fs.writeFile(
         manifestAbsolute,

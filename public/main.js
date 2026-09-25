@@ -107,8 +107,6 @@ const awnDataCreateSampleWrapNode = document.getElementById("awn-databases-creat
 const awnDataCreateSampleInputNode = document.getElementById("awn-databases-create-sample-input");
 const awnDataCreateCancelBtn = document.getElementById("awn-databases-create-cancel-btn");
 const awnDataCreateSubmitBtn = document.getElementById("awn-databases-create-submit-btn");
-const awnDataCreateIndexExcludeWrapNode = document.getElementById("awn-databases-create-index-exclude-wrap");
-const awnDataCreateIndexExcludeInput = document.getElementById("awn-databases-create-index-exclude");
 const menuRepositoriesListNode = document.getElementById("menu-repositories-list");
 const menuRepositoriesRefreshBtn = document.getElementById("menu-repositories-refresh-btn");
 const menuRepositoriesHelpBtn = document.getElementById("menu-repositories-help-btn");
@@ -118,12 +116,13 @@ const repositoryCreateNameInputNode = document.getElementById("repository-create
 const repositoryCreateSlugInputNode = document.getElementById("repository-create-slug-input");
 const repositoryCreateDescriptionInputNode = document.getElementById("repository-create-description-input");
 const repositoryCreateOriginInputNode = document.getElementById("repository-create-origin-input");
+const repositoryCreateTechInputNode = document.getElementById("repository-create-tech-input");
 const repositoryCreateGroupInputNode = document.getElementById("repository-create-group-input");
 const repositoryCreateModalTitleNode = document.getElementById("repository-create-modal-title");
 const repositoryCreateOpenManifestBtn = document.getElementById("repository-create-open-manifest-btn");
 const repositoryCreateCancelBtn = document.getElementById("repository-create-cancel-btn");
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
-const repositoryCreateIndexExcludeInput = document.getElementById("repository-create-index-exclude");
+const repositoryCreateIndexExcludeSubtreeInput = document.getElementById("repository-create-index-exclude-subtree");
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
@@ -730,7 +729,6 @@ const CREATE_SECTION_AFTER_KEY = "acms.createSection.after";
 const createSectionAfterFieldsetNode = document.getElementById("create-section-after-fieldset");
 const createSectionAfterListRadio = document.getElementById("create-section-after-list");
 const createSectionAfterEditRadio = document.getElementById("create-section-after-edit");
-const createSectionIndexExcludeInput = document.getElementById("create-section-index-exclude");
 const createSectionAfterRadios = [createSectionAfterListRadio, createSectionAfterEditRadio].filter(Boolean);
 const CREATE_MEMORY_MAX_COUNT = 5;
 const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
@@ -1121,7 +1119,6 @@ const createMemoryFormatOptionsNode = document.getElementById("create-memory-for
 let createMemoryFormatPickerOpen = false;
 const createMemoryCancelBtn = document.getElementById("create-memory-cancel-btn");
 const createMemoryOkBtn = document.getElementById("create-memory-ok-btn");
-const createMemoryIndexExcludeInput = document.getElementById("create-memory-index-exclude");
 let activeCreateMemoryMask = "";
 const editorViewPreviewBtn = document.getElementById("editor-view-preview-btn");
 const editorViewWysiwygBtn = document.getElementById("editor-view-wysiwyg-btn");
@@ -1272,7 +1269,6 @@ const createNodeContainerScaffoldHintNode = document.getElementById("create-node
 const createNodeContainerTargetWrapNode = document.getElementById("create-node-container-target-wrap");
 const createNodeContainerTargetNode = document.getElementById("create-node-container-target");
 const createNodeContainerTargetLabelNode = document.getElementById("create-node-container-target-label");
-const createNodeIndexExcludeInput = document.getElementById("create-node-index-exclude");
 const createNodeManualSectionNode = document.querySelector(".create-node-manual-section");
 const nodeSettingsPathControlsNode = document.getElementById("node-settings-path-controls");
 const nodeSettingsModeSelectNode = document.getElementById("node-settings-mode-select");
@@ -3923,6 +3919,7 @@ function isTopicManifestFileName(fileName, options = {}) {
 function isTopicManifestPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   if (!isNodeManifestPath(normalized)) return false;
+  if (/^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized.replace(/^\/+/, ""))) return false;
   if (isAgentRootIndexPath(normalized)) return false;
   if (isAgentContainerRootIndexPath(normalized)) return false;
   if (isAgentSystemRootIndexPath(normalized)) return false;
@@ -4667,11 +4664,28 @@ function isRepositoryWorkspaceRel(workspaceRel) {
   return /^awn-repositories(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
 
+function isRepositoryManifestPath(path = getResolvedNodePath(activePath)) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return /^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized);
+}
+
+function getRepositoryFolderPathFromManifest(manifestPath) {
+  return normalizeCreateParentPath(getFolderBrowseParentPath(manifestPath));
+}
+
 async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
   const normalized = normalizeLinkFilePath(workspaceRel);
   if (!normalized || !isRepositoryWorkspaceRel(normalized)) return false;
 
-  if (/\/manifest\.md$/i.test(normalized) || /^awn-repositories\/INDEX\.md$/i.test(normalized)) {
+  if (/\/manifest\.md$/i.test(normalized)) {
+    await openRepositoryOverview(resolveRepositoryEntryForManifestPath(normalized), options);
+    return true;
+  }
+
+  if (/^awn-repositories\/index\.md$/i.test(normalized)) {
     const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(normalized));
     const label =
       normalized.split("/").filter(Boolean).pop()?.replace(/\.md$/i, "") ||
@@ -17089,7 +17103,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
 }
 
 function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
-  if (!activePath || activeSystemFile || isGraphModeActive()) {
+  if (!activePath || activeSystemFile || isGraphModeActive() || isRepositoryManifestPath()) {
     return false;
   }
   const domain = getNodeWorkspaceDomain(mode);
@@ -19469,6 +19483,7 @@ function getNodeDefaultLandingDomainLabel(mode) {
 function syncNodeDefaultLandingBtn() {
   const btn = nodeDefaultLandingBtn;
   if (!btn) return;
+  btn.classList.toggle("hidden", isRepositoryManifestPath());
 
   const saved = getNodeDefaultView(activePath);
   const currentMode = activeContentMode;
@@ -20499,9 +20514,14 @@ function bindFolderBrowsePasteContextMenu(hub) {
 }
 
 const MENU_AWN_STATUS_OPTIONS = [
-  { key: "open", name: "🟢 Открыта" },
+  { key: "new", name: "🔵 Новая" },
+  { key: "planned", name: "🟣 Запланирована" },
   { key: "draft", name: "🟡 Черновик" },
+  { key: "open", name: "🟢 Открыта" },
+  { key: "in-progress", name: "🟠 В работе" },
+  { key: "done", name: "✅ Готова" },
   { key: "closed", name: "🔴 Закрыта" },
+  { key: "archived", name: "⚫ Архив" },
   { key: "none", name: "⚪ Без статуса" }
 ];
 
@@ -20706,6 +20726,7 @@ function isPageNodeManifestPath(nodePath) {
     .trim()
     .replace(/\\/g, "/");
   if (!apiPath || !isNodeManifestPath(apiPath)) return false;
+  if (isRepositoryManifestPath(apiPath)) return false;
   if (isPartNodePath(apiPath)) return false;
   if (/\/awn-storage\//i.test(apiPath)) return false;
   if (/\/awn-databases\//i.test(apiPath)) return false;
@@ -23080,6 +23101,7 @@ async function shouldHideTopicStorageSlots(nodePath, entries = null) {
 }
 
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
+  if (isRepositoryManifestPath(nodePath)) return false;
   return !usesNavigationHubInlineSubsections(nodePath);
 }
 
@@ -23399,6 +23421,16 @@ async function selectNodeManifest(label, filePath, contentMode, options = {}) {
   if (contentMode !== PROJECT_SETTINGS_MODE) {
     leaveProjectSettingsMode();
   }
+  if (
+    contentMode &&
+    isRepositoryManifestPath(filePath) &&
+    contentMode !== NODE_OVERVIEW_MODE &&
+    contentMode !== "description" &&
+    contentMode !== FOLDER_BROWSE_MODE &&
+    contentMode !== FOLDER_BROWSE_FILE_MODE
+  ) {
+    contentMode = NODE_OVERVIEW_MODE;
+  }
   if (contentMode) {
     applyContentModeState(contentMode);
   }
@@ -23408,10 +23440,12 @@ async function selectNodeManifest(label, filePath, contentMode, options = {}) {
   }
 }
 
-async function openNodeOverview(label, filePath) {
+async function openNodeOverview(label, filePath, options = {}) {
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
-  await selectNodeManifest(label, filePath, NODE_OVERVIEW_MODE);
+  await selectNodeManifest(label, filePath, NODE_OVERVIEW_MODE, {
+    skipRouteSync: Boolean(options.skipRouteSync)
+  });
   applyNodeWorkspaceViewUi();
   void markNodePageRead(resolveManifestPathForNodeApi(filePath));
 }
@@ -23428,6 +23462,15 @@ async function openNodeFromMenu(label, filePath, options = {}) {
   const nextPath = normalizeMenuNodePath(filePath);
   if (nextPath !== normalizeMenuNodePath(activePath)) {
     clearActiveThreadScope();
+  }
+  if (isRepositoryManifestPath(filePath)) {
+    await openRepositoryOverview(resolveRepositoryEntryForManifestPath(filePath), {
+      skipRouteSync: Boolean(options.skipRouteSync)
+    });
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ push: true });
+    }
+    return;
   }
   if (isGitRepoLooseFilePath(filePath)) {
     await selectRepoLooseFile(label, filePath, { skipRouteSync: true });
@@ -23630,6 +23673,12 @@ function syncNodeWorkspaceDomainSelect() {
 }
 
 async function applyNodeWorkspaceDomainChange(domain) {
+  if (isRepositoryManifestPath()) {
+    if (activeContentMode !== NODE_OVERVIEW_MODE && activeContentMode !== "description") {
+      setContentMode(NODE_OVERVIEW_MODE);
+    }
+    return;
+  }
   const leavingTodo =
     getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO && activeContentMode === "todo";
   if (leavingTodo && isEditorSaveTrackingActive()) {
@@ -23780,9 +23829,10 @@ function applyNodeWorkspaceViewUi(options = {}) {
   workspacePathHeaderNode?.classList.toggle("is-node-journal", journalDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
+  workspacePathHeaderNode?.classList.toggle("is-repository-workspace", isRepositoryManifestPath());
   nodeWorkspaceNavControlsNode?.classList.toggle(
     "hidden",
-    !showWorkspaceDomainControls || awnDatabaseManifestEditing
+    !showWorkspaceDomainControls || awnDatabaseManifestEditing || isRepositoryManifestPath()
   );
   nodeSettingsPathControlsNode?.classList.toggle(
     "hidden",
@@ -28576,7 +28626,6 @@ function closeCreateNodeModal() {
   createModalEmptyFolder = false;
   createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
-  if (createNodeIndexExcludeInput) createNodeIndexExcludeInput.checked = false;
   if (createSlugInputNode) createSlugInputNode.value = "";
   syncDisplayNameLengthHint(createNameInputNode);
   setCreateSlugLinked(true);
@@ -28994,6 +29043,15 @@ function isNodeCanvasViewMode() {
 function applyContentModeState(mode, options = {}) {
   if (mode === "quick-notes") mode = "note";
   if (mode === "graph") return false;
+  if (
+    isRepositoryManifestPath(activePath) &&
+    mode !== NODE_OVERVIEW_MODE &&
+    mode !== "description" &&
+    mode !== FOLDER_BROWSE_MODE &&
+    mode !== FOLDER_BROWSE_FILE_MODE
+  ) {
+    mode = NODE_OVERVIEW_MODE;
+  }
   const group = findModeGroup(mode);
   const modeDef = group?.modes.find((item) => item.id === mode);
   if (modeDef?.disabled) return false;
@@ -42073,7 +42131,6 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
 const PROPS_FIELD_CATALOG_PRESET = {
   "awn-category": "categories",
   "awn-tags": "tags",
-  "awn-status": "statuses",
   "awn-priority": "priorities",
   "awn-color": "colors"
 };
@@ -53042,7 +53099,8 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-record-file": "infoblock",
   "awn-record-file-types": "infoblock",
   "awn-record-hierarchy": "infoblock",
-  "awn-index-exclude": "indexing"
+  "awn-index-exclude-record": "indexing",
+  "awn-index-exclude-subtree": "indexing"
 };
 
 const PROPS_GROUP_COLLAPSE_STORAGE_KEY = "agent-cms:props-group-collapsed";
@@ -59372,7 +59430,6 @@ function closeCreateMemoryModal() {
   closeCreateMemoryFormatPicker();
   createMemoryModalNode.classList.add("hidden");
   resetCreateMemoryNameInputs();
-  if (createMemoryIndexExcludeInput) createMemoryIndexExcludeInput.checked = false;
   activeCreateMemoryMask = "";
   syncCreateMemoryModalMaskUi("");
   setCreateMemoryModalBusy(false);
@@ -59398,9 +59455,6 @@ async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOv
     requestBody.displayName = title;
   }
   if (parentFolder) requestBody.parent = parentFolder;
-  if (readCreateFormIndexExclude(createMemoryIndexExcludeInput)) {
-    requestBody.indexExclude = true;
-  }
   const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59433,9 +59487,6 @@ async function createSlotRecordFile(displayName, slug, folderOverride = null) {
   if (parentFolder) requestBody.parent = parentFolder;
   const fileExtension = getCreateMemoryFileExtension();
   if (fileExtension) requestBody.fileExtension = fileExtension;
-  if (readCreateFormIndexExclude(createMemoryIndexExcludeInput)) {
-    requestBody.indexExclude = true;
-  }
   const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59620,7 +59671,6 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
-  if (createSectionIndexExcludeInput) createSectionIndexExcludeInput.checked = false;
   createSectionSlugController?.reset();
   syncDisplayNameLengthHint(createSectionNameInputNode);
   createSectionParentFolder = null;
@@ -59708,9 +59758,6 @@ async function createWorkspaceSection() {
     if (isFlatStorageTarget) {
       requestBody.folder = getFlatStorageSectionFolderName(createSectionTargetMode);
       if (flatStorageParentFolder) requestBody.parent = flatStorageParentFolder;
-    }
-    if (readCreateFormIndexExclude(createSectionIndexExcludeInput)) {
-      requestBody.indexExclude = true;
     }
     const response = await fetch(buildApiUrl(apiPath), {
       method: "POST",
@@ -83418,6 +83465,14 @@ async function appendNodeNavigationSplitRail(
 async function renderNodeNavigation() {
   if (!nodeOverviewContentNode || !activePath) return;
 
+  if (isRepositoryManifestPath()) {
+    if (activeContentMode !== NODE_OVERVIEW_MODE) {
+      applyContentModeState(NODE_OVERVIEW_MODE, { skipWorkspaceUi: true });
+    }
+    await renderNodeOverview();
+    return;
+  }
+
   syncEntryOverviewKindClass(null);
   syncEntryOverviewMediaAssetKindClass(null);
 
@@ -83547,7 +83602,9 @@ async function renderNodeNavigation() {
     typeLabel: topicTypeLabel,
     showHeroInstruction: true,
     onEditClick: openDescriptionFromOverview,
-    settingsSlots: slotStripGroups.settings || [],
+    settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
+    hideSharedSlot: isRepositoryManifestPath(nodePath),
+    showWorkspaceMarkers: !isRepositoryManifestPath(nodePath),
     slugIssue: getNodeManifestSlugIssue(nodePath),
     recordPath: getOverviewNodeApiPath(nodePath),
     pageManifestPath: getOverviewNodeApiPath(nodePath),
@@ -83880,12 +83937,25 @@ async function renderNodeOverview() {
   const title = getOverviewTitleFromProps(entries);
   const desc = getOverviewDescription(manifestRaw, entries);
   const typeLabel = getPropsEntryValueByKey(entries, "awn-type");
+  const nodePathResolved = getResolvedNodePath(activePath);
+
+  if (typeLabel === "awn.repository" || isRepositoryManifestPath(nodePathResolved)) {
+    await renderRepositoryWorkspacePage({
+      nodePath: nodePathResolved,
+      entries,
+      title,
+      desc,
+      manifestRaw,
+      isStale
+    });
+    return;
+  }
+
   const excerpt = stripLeadingDuplicateMarkdownHeading(
     getOverviewMarkdownBeforeDivider(manifestRaw),
     title
   ).trim();
   const isOverviewArea = isAreaNodePath(activePath);
-  const nodePathResolved = getResolvedNodePath(activePath);
   const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots, nodeConfigPayload] =
     await Promise.all([
       fetchNodeOverviewPreview(),
@@ -84323,6 +84393,8 @@ function applyModeUi(options = {}) {
   mindmapViewBarNode?.classList.toggle("hidden", !mindmapMode);
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode || attachmentSidecarEditing);
+  const repositoryWorkspaceMode = isRepositoryManifestPath() && overviewMode;
+  nodeOverviewBlockNode?.classList.toggle("is-repository-workspace", repositoryWorkspaceMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode || awnDataViewMode);
   const workspaceToolModule = isWorkspaceToolModuleView();
   nodeOverviewBlockNode?.classList.toggle("is-folder-browse", folderBrowseMode);
@@ -91415,6 +91487,9 @@ function setupVoiceChatContextDrag() {
       ) {
         return;
       }
+      if (repositoryItem && event.target.closest(".menu-repository-group-drag-handle")) {
+        return;
+      }
       if (repositoryItem && event.target.closest(".menu-repository-adopt-btn")) {
         event.preventDefault();
         return;
@@ -96196,6 +96271,20 @@ const RUNTIME_REGISTRY_MODES = {
       "Если файл всё же разросся — разбейте по заголовкам и обновите index.md темы."
     ],
     exampleYaml: "# Вместо одного гигантского файла\nmain/overview.md\nmain/details-part-1.md\nmain/details-part-2.md"
+  },
+  "index-exclude": {
+    title: "Исключить из индексации",
+    description:
+      "Темы, инфоблоки и записи с awn-index-exclude-record или awn-index-exclude-subtree — они не попадают в semantic, fulltext, storage и link индексы.",
+    mcp: "GET /api/agent/index-exclude-registry",
+    emptyTitle: "Исключений из индексации нет",
+    emptyLead: "Ни одна тема, инфоблок или запись не помечена флагами awn-index-exclude-*.",
+    emptySteps: [
+      "На теме или инфоблоке включите «Исключить запись» (только manifest/readme) или «Исключить контент» (всё внутри).",
+      "На записи включите «Исключить запись из индексации» — исключается только её содержимое.",
+      "Старый awn-index-exclude: true по-прежнему работает как оба флага."
+    ],
+    exampleYaml: "awn-index-exclude-record: true\nawn-index-exclude-subtree: true"
   }
 };
 
@@ -96243,6 +96332,7 @@ function runtimeRegistryEndpointForMode(filterMode = agentRuntimeRegistryFilterM
   if (filterMode === "large-context") {
     return `/api/agent/large-context?minTokens=${RUNTIME_REGISTRY_LARGE_CONTEXT_MIN_TOKENS}`;
   }
+  if (filterMode === "index-exclude") return "/api/agent/index-exclude-registry";
   return null;
 }
 
@@ -96263,16 +96353,26 @@ function normalizeRuntimeRegistryPayload(data, filterMode = agentRuntimeRegistry
       referenceWindowTokens: data.referenceWindowTokens ?? 128000
     };
   }
-  if (filterMode === "always" || filterMode === "cron" || filterMode === "heartbeat") {
+  if (
+    filterMode === "always" ||
+    filterMode === "cron" ||
+    filterMode === "heartbeat" ||
+    filterMode === "index-exclude"
+  ) {
     const items = Array.isArray(data.items) ? data.items : [];
     return {
       rows: items,
       itemCount: data.itemCount ?? items.length,
-      topicCount: items.filter((item) => item.entityKind === "topic").length,
-      contentCount: items.filter((item) => item.entityKind === "content").length,
+      topicCount: items.filter((item) => item.entityKind === "topic" || item.entityKind === "infoblock")
+        .length,
+      contentCount: items.filter(
+        (item) => item.entityKind === "content" || item.entityKind === "infoblock-record"
+      ).length,
       sessionStartCount: filterMode === "always" ? items.length : 0,
       cronCount: filterMode === "cron" ? items.length : 0,
       heartbeatCount: filterMode === "heartbeat" ? items.length : 0,
+      recordCount: filterMode === "index-exclude" ? data.recordCount ?? 0 : 0,
+      subtreeCount: filterMode === "index-exclude" ? data.subtreeCount ?? 0 : 0,
       scheduleCount: data.scheduleCount ?? 0
     };
   }
@@ -96307,6 +96407,8 @@ async function fetchAgentRuntimeRegistry(filterMode = agentRuntimeRegistryFilter
 
 function formatRuntimeRegistryEntityKind(entityKind) {
   if (entityKind === "content") return "Запись";
+  if (entityKind === "infoblock") return "Инфоблок";
+  if (entityKind === "infoblock-record") return "Запись ИБ";
   if (entityKind === "system") return "Системный";
   return "Тема";
 }
@@ -96377,6 +96479,23 @@ function renderRuntimeRegistryStats(data, filterMode, rows) {
     agentRuntimeRegistryStatsNode.append(
       createAgentWorkspaceStatElement(count, count === 1 ? "элемент" : "элементов", "ok")
     );
+    return;
+  }
+
+  if (filterMode === "index-exclude") {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(count, count === 1 ? "элемент" : "элементов", count ? "warn" : "ok")
+    );
+    if (data.recordCount > 0) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(data.recordCount, "запись", "muted")
+      );
+    }
+    if (data.subtreeCount > 0) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(data.subtreeCount, "контент", "warn")
+      );
+    }
     return;
   }
 
@@ -96515,7 +96634,9 @@ async function renderAgentRuntimeRegistryView() {
             ? ["Элемент", "Тип", "Режим"]
             : filterMode === "large-context"
               ? ["Файл", "Тип", "Токены", "Рекомендация"]
-              : ["Элемент", "Тип", "Always", "Cron", "Heartbeat"];
+              : filterMode === "index-exclude"
+                ? ["Элемент", "Тип", "Запись", "Контент"]
+                : ["Элемент", "Тип", "Always", "Cron", "Heartbeat"];
     for (const label of columns) {
       const th = document.createElement("th");
       th.scope = "col";
@@ -96609,6 +96730,24 @@ async function renderAgentRuntimeRegistryView() {
         adviceCell.appendChild(adviceBadge);
 
         tr.append(titleCell, kindCell, tokensCell, adviceCell);
+      } else if (filterMode === "index-exclude") {
+        const recordCell = document.createElement("td");
+        recordCell.className = "agent-table-cell";
+        const recordInfo = formatRuntimeRegistryBoolCell(row.indexExcludeRecord);
+        const recordBadge = document.createElement("span");
+        recordBadge.className = `agent-runtime-registry-badge is-bool is-${recordInfo.tone}`;
+        recordBadge.textContent = recordInfo.text;
+        recordCell.appendChild(recordBadge);
+
+        const subtreeCell = document.createElement("td");
+        subtreeCell.className = "agent-table-cell";
+        const subtreeInfo = formatRuntimeRegistryBoolCell(row.indexExcludeSubtree);
+        const subtreeBadge = document.createElement("span");
+        subtreeBadge.className = `agent-runtime-registry-badge is-bool is-${subtreeInfo.tone}`;
+        subtreeBadge.textContent = subtreeInfo.text;
+        subtreeCell.appendChild(subtreeBadge);
+
+        tr.append(titleCell, kindCell, recordCell, subtreeCell);
       } else {
         const loadCell = document.createElement("td");
         loadCell.className = "agent-table-cell";
@@ -102992,7 +103131,6 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
 function closeAwnDataCreateModal() {
   awnDataCreateModalNode?.classList.add("hidden");
   awnDataCreateParentGroup = "";
-  if (awnDataCreateIndexExcludeInput) awnDataCreateIndexExcludeInput.checked = false;
 }
 
 const AWN_DATA_CREATE_COLLECTION_TYPES = {
@@ -103182,7 +103320,6 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
     awnDataCreateKindWrapNode,
     awnDataCreateFileTypesWrapNode,
     awnDataCreateHierarchyWrapNode,
-    awnDataCreateIndexExcludeWrapNode,
     awnDataCreateSampleWrapNode
   ];
 
@@ -103210,7 +103347,6 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
   setAwnDataCreateFieldEnabled(awnDataCreateKindWrapNode, awnDataCreateKindInputNode, true);
   setAwnDataCreateFieldEnabled(awnDataCreateHierarchyWrapNode, awnDataCreateHierarchyInputNode, !isSingleCsv);
   setAwnDataCreateFieldEnabled(awnDataCreateFileTypesWrapNode, awnDataCreateFileTypesInputNode, isFiles);
-  setAwnDataCreateFieldEnabled(awnDataCreateIndexExcludeWrapNode, awnDataCreateIndexExcludeInput, true);
   setAwnDataCreateFieldEnabled(awnDataCreateSampleWrapNode, awnDataCreateSampleInputNode, isMd || isCsvFiles);
 
   if (awnDataCreateSampleWrapNode) {
@@ -108548,7 +108684,6 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
         description,
         withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false,
         ...(awnDataCreateKind === "collection" ? resolveAwnDataCreateCollectionPayload() : {}),
-        ...(readCreateFormIndexExclude(awnDataCreateIndexExcludeInput) ? { indexExclude: true } : {})
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -108809,6 +108944,12 @@ const DEFAULT_REPOSITORY_GROUPS = [
   { id: "vendored", title: "Вендор" }
 ];
 const DEFAULT_REPOSITORY_GROUP_IDS = new Set(DEFAULT_REPOSITORY_GROUPS.map((group) => group.id));
+const REPOSITORY_STATUS_LABELS = {
+  study: "📚 Изучение",
+  active: "🟢 Активный",
+  archived: "📦 Архив",
+  vendored: "📌 Вендор"
+};
 
 function resolveRepositoryGroupsCatalog(groupsCatalog) {
   const defs = Array.isArray(groupsCatalog?.groups) ? groupsCatalog.groups : [];
@@ -108875,13 +109016,32 @@ function normalizeRepositoryGroupId(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function sortRepositoryGroupsForEditor(groups = []) {
+  return [...groups].sort((a, b) => {
+    const aId = normalizeRepositoryGroupId(a.id);
+    const bId = normalizeRepositoryGroupId(b.id);
+    const aDefault = DEFAULT_REPOSITORY_GROUP_IDS.has(aId);
+    const bDefault = DEFAULT_REPOSITORY_GROUP_IDS.has(bId);
+    if (aDefault && bDefault) {
+      const aIdx = DEFAULT_REPOSITORY_GROUPS.findIndex((group) => group.id === aId);
+      const bIdx = DEFAULT_REPOSITORY_GROUPS.findIndex((group) => group.id === bId);
+      return aIdx - bIdx;
+    }
+    if (aDefault) return -1;
+    if (bDefault) return 1;
+    const titleA = String(a.title || a.id || "").trim();
+    const titleB = String(b.title || b.id || "").trim();
+    return titleA.localeCompare(titleB, "ru", { sensitivity: "base", numeric: true });
+  });
+}
+
 function renderRepositoryGroupsEditor() {
   if (!repositoryGroupsListNode) return;
   repositoryGroupsListNode.replaceChildren();
   const groups = Array.isArray(repositoryGroupsDraft.groups) ? repositoryGroupsDraft.groups : [];
-  const visibleGroups = groups.length
-    ? groups
-    : DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }));
+  const visibleGroups = sortRepositoryGroupsForEditor(
+    groups.length ? groups : DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }))
+  );
 
   for (const group of visibleGroups) {
     const groupId = normalizeRepositoryGroupId(group.id);
@@ -109024,6 +109184,8 @@ function openRepositoryCreateModal() {
   }
   if (repositoryCreateDescriptionInputNode) repositoryCreateDescriptionInputNode.value = "";
   if (repositoryCreateOriginInputNode) repositoryCreateOriginInputNode.value = "";
+  if (repositoryCreateTechInputNode) repositoryCreateTechInputNode.value = "";
+  if (repositoryCreateIndexExcludeSubtreeInput) repositoryCreateIndexExcludeSubtreeInput.checked = true;
   populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, "study");
   syncRepositoryModalUi();
   repositoryCreateModalNode.classList.remove("hidden");
@@ -109049,6 +109211,12 @@ function openRepositoryEditModal(repo) {
   }
   if (repositoryCreateOriginInputNode) {
     repositoryCreateOriginInputNode.value = String(repo.origin || "").trim();
+  }
+  if (repositoryCreateTechInputNode) {
+    repositoryCreateTechInputNode.value = Array.isArray(repo.tech) ? repo.tech.join(", ") : "";
+  }
+  if (repositoryCreateIndexExcludeSubtreeInput) {
+    repositoryCreateIndexExcludeSubtreeInput.checked = repo.indexExcludeSubtree !== false;
   }
   populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, repo.group || "study");
   syncRepositoryModalUi();
@@ -109076,7 +109244,7 @@ function openRepositoryAdoptModal(entry) {
 function closeRepositoryCreateModal() {
   repositoryCreateModalNode?.classList.add("hidden");
   repositoryModalState = { mode: "create" };
-  if (repositoryCreateIndexExcludeInput) repositoryCreateIndexExcludeInput.checked = false;
+  if (repositoryCreateIndexExcludeSubtreeInput) repositoryCreateIndexExcludeSubtreeInput.checked = true;
 }
 
 async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
@@ -109092,8 +109260,10 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
     ...(payload.name ? { name: payload.name } : {}),
     ...(payload.description ? { description: payload.description } : {}),
     ...(payload.origin ? { origin: payload.origin } : {}),
+    ...(Array.isArray(payload.tech) && payload.tech.length ? { tech: payload.tech } : {}),
     ...(payload.group ? { group: payload.group } : {}),
-    ...(payload.indexExclude ? { indexExclude: true } : {})
+    indexExcludeSubtree: payload.indexExcludeSubtree !== false,
+    ...(payload.indexExclude ? { indexExcludeSubtree: true } : {})
   };
   const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent), {
     method: "POST",
@@ -109132,6 +109302,379 @@ async function updateMenuRepository(manifestPath, payload = {}, agentId = active
   return data;
 }
 
+function resolveRepositoryGroupTitle(groupId, groupsCatalog = menuRepositoriesLastPayload?.groupsCatalog) {
+  const id = String(groupId || "").trim();
+  if (!id) return "—";
+  const match = resolveRepositoryGroupsCatalog(groupsCatalog).find((group) => group.id === id);
+  return match?.title || id;
+}
+
+function formatRepositoryStatusLabel(status) {
+  const key = String(status || "study").trim().toLowerCase();
+  return REPOSITORY_STATUS_LABELS[key] || key || "—";
+}
+
+async function fetchRepositoryOverviewData(manifestPath, agentId = activeAgentId) {
+  const path = String(manifestPath || "").trim();
+  if (!path) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/repository", { path }, agentId));
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return null;
+    return data.repository || data;
+  } catch {
+    return null;
+  }
+}
+
+function aggregateRepositoryFolderScan(scanData = {}) {
+  const items = Array.isArray(scanData.items) ? scanData.items : [];
+  let fileCount = 0;
+  let folderCount = 0;
+  let totalSize = 0;
+  const extCounts = new Map();
+  const kindCounts = new Map();
+
+  for (const item of items) {
+    if (item.kind === "folder") {
+      folderCount += 1;
+      continue;
+    }
+    fileCount += 1;
+    const size = Number(item.size);
+    if (Number.isFinite(size) && size > 0) totalSize += size;
+    const ext = String(item.ext || "").trim().toLowerCase() || "без расширения";
+    extCounts.set(ext, (extCounts.get(ext) || 0) + 1);
+    const kind = String(item.kind || "file").trim() || "file";
+    kindCounts.set(kind, (kindCounts.get(kind) || 0) + 1);
+  }
+
+  const topExtensions = [...extCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  return {
+    fileCount,
+    folderCount,
+    totalSize,
+    topExtensions,
+    kindCounts,
+    truncated: Boolean(scanData.truncated)
+  };
+}
+
+function createRepositoryWorkspaceStatCard(label, value, hint = "") {
+  const card = document.createElement("article");
+  card.className = "repository-workspace-stat-card";
+  const valueNode = document.createElement("div");
+  valueNode.className = "repository-workspace-stat-value";
+  valueNode.textContent = String(value ?? "—");
+  const labelNode = document.createElement("div");
+  labelNode.className = "repository-workspace-stat-label";
+  labelNode.textContent = label;
+  card.append(valueNode, labelNode);
+  if (hint) {
+    const hintNode = document.createElement("div");
+    hintNode.className = "repository-workspace-stat-hint";
+    hintNode.textContent = hint;
+    card.appendChild(hintNode);
+  }
+  return card;
+}
+
+function renderRepositoryWorkspaceExtensionBars(topExtensions, totalFiles) {
+  if (!topExtensions.length) return null;
+  const wrap = document.createElement("div");
+  wrap.className = "repository-workspace-ext-bars";
+  const title = document.createElement("h3");
+  title.className = "repository-workspace-ext-bars-title";
+  title.textContent = "Типы файлов";
+  wrap.appendChild(title);
+
+  const max = Math.max(...topExtensions.map(([, count]) => count), 1);
+  for (const [ext, count] of topExtensions) {
+    const row = document.createElement("div");
+    row.className = "repository-workspace-ext-row";
+
+    const label = document.createElement("span");
+    label.className = "repository-workspace-ext-label";
+    label.textContent = ext;
+
+    const track = document.createElement("div");
+    track.className = "repository-workspace-ext-track";
+    const fill = document.createElement("span");
+    fill.className = "repository-workspace-ext-fill";
+    fill.style.width = `${Math.max(8, Math.round((count / max) * 100))}%`;
+    track.appendChild(fill);
+
+    const countNode = document.createElement("span");
+    countNode.className = "repository-workspace-ext-count";
+    const pct = totalFiles ? Math.round((count / totalFiles) * 100) : 0;
+    countNode.textContent = `${count} · ${pct}%`;
+
+    row.append(label, track, countNode);
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+function renderRepositoryWorkspaceReadme(repo, nodePath) {
+  if (!repo?.readmeExists || !String(repo.readmeBody || "").trim()) return null;
+
+  const section = document.createElement("section");
+  section.className = "repository-workspace-readme node-overview-excerpt";
+
+  const head = document.createElement("div");
+  head.className = "node-overview-excerpt-head";
+  const label = document.createElement("span");
+  label.className = "node-overview-excerpt-label";
+  label.textContent = `📄 ${repo.readmePath || "readme.md"}`;
+  head.appendChild(label);
+
+  const body = document.createElement("div");
+  body.className = "node-overview-excerpt-body";
+  const text = document.createElement("div");
+  text.className = "node-overview-excerpt-text file-content-preview";
+  let readmeMarkdown = String(repo.readmeBody || "").trim();
+  if (readmeMarkdown.startsWith("---")) {
+    const end = readmeMarkdown.indexOf("\n---", 3);
+    if (end !== -1) readmeMarkdown = readmeMarkdown.slice(end + 4).replace(/^\s+/, "");
+  }
+  setMarkdownPreviewHtml(text, readmeMarkdown, { nodePath });
+  body.appendChild(text);
+  section.append(head, body);
+  return section;
+}
+
+function renderRepositoryWorkspaceDashboard(repo, scanStats) {
+  const dashboard = document.createElement("section");
+  dashboard.className = "repository-workspace-dashboard";
+  dashboard.setAttribute("aria-label", "Статистика репозитория");
+
+  const head = document.createElement("div");
+  head.className = "repository-workspace-dashboard-head";
+  const title = document.createElement("h2");
+  title.className = "repository-workspace-dashboard-title";
+  title.textContent = "Статистика";
+  const meta = document.createElement("p");
+  meta.className = "repository-workspace-dashboard-meta";
+  const metaBits = [
+    formatRepositoryStatusLabel(repo.status),
+    resolveRepositoryGroupTitle(repo.group),
+    repo.hasGit ? "Git" : "без .git"
+  ].filter(Boolean);
+  meta.textContent = metaBits.join(" · ");
+  head.append(title, meta);
+  dashboard.appendChild(head);
+
+  const grid = document.createElement("div");
+  grid.className = "repository-workspace-stat-grid";
+  grid.append(
+    createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount),
+    createRepositoryWorkspaceStatCard("Папок", scanStats.folderCount),
+    createRepositoryWorkspaceStatCard("Размер", formatFileSize(scanStats.totalSize) || "0 B"),
+    createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—"),
+    createRepositoryWorkspaceStatCard(
+      "Индекс",
+      repo.indexExcludeSubtree !== false ? "manifest + readme" : "полный"
+    ),
+    createRepositoryWorkspaceStatCard("Slug", repo.slug || "—")
+  );
+  dashboard.appendChild(grid);
+
+  const extBars = renderRepositoryWorkspaceExtensionBars(scanStats.topExtensions, scanStats.fileCount);
+  if (extBars) dashboard.appendChild(extBars);
+
+  if (scanStats.truncated) {
+    const note = document.createElement("p");
+    note.className = "repository-workspace-dashboard-note";
+    note.textContent = "Показана часть инвентаря — в репозитории больше файлов, чем в лимите сканирования.";
+    dashboard.appendChild(note);
+  }
+
+  const chips = document.createElement("div");
+  chips.className = "repository-workspace-meta-chips";
+  if (repo.origin) {
+    const origin = document.createElement("a");
+    origin.href = repo.origin;
+    origin.target = "_blank";
+    origin.rel = "noopener noreferrer";
+    origin.className = "repository-workspace-meta-chip";
+    origin.textContent = repo.origin;
+    chips.appendChild(origin);
+  }
+  if (Array.isArray(repo.tech)) {
+    for (const tag of repo.tech) {
+      const chip = document.createElement("span");
+      chip.className = "repository-workspace-meta-chip";
+      chip.textContent = tag;
+      chips.appendChild(chip);
+    }
+  }
+  if (repo.relatedTopic) {
+    const topic = document.createElement("span");
+    topic.className = "repository-workspace-meta-chip";
+    topic.textContent = `тема: ${repo.relatedTopic}`;
+    chips.appendChild(topic);
+  }
+  if (chips.childElementCount) dashboard.appendChild(chips);
+
+  const actions = document.createElement("div");
+  actions.className = "repository-workspace-actions";
+  const browseBtn = document.createElement("button");
+  browseBtn.type = "button";
+  browseBtn.className = "node-overview-action-btn repository-workspace-action-btn";
+  browseBtn.textContent = "Открыть папку";
+  browseBtn.addEventListener("click", () => void openRepositoryFolderOverview(repo));
+  const metaBtn = document.createElement("button");
+  metaBtn.type = "button";
+  metaBtn.className = "node-overview-action-btn repository-workspace-action-btn";
+  metaBtn.textContent = "Свойства";
+  metaBtn.addEventListener("click", () => openRepositoryEditModal(repo));
+  actions.append(browseBtn, metaBtn);
+  dashboard.appendChild(actions);
+
+  return dashboard;
+}
+
+async function renderRepositoryWorkspacePage({
+  nodePath,
+  entries = [],
+  title = "",
+  desc = "",
+  manifestRaw = "",
+  isStale = () => false
+} = {}) {
+  if (!nodeOverviewContentNode) return;
+  syncNodeOverviewNavigationSplitClass(false);
+
+  const manifestPath = String(nodePath || getResolvedNodePath(activePath)).trim();
+  const folderPath = getRepositoryFolderPathFromManifest(manifestPath);
+  const page = document.createElement("div");
+  page.className = "repository-workspace-page";
+
+  const heroHost = nodeOverviewContentNode.querySelector(".node-overview-hero");
+  if (heroHost) {
+    page.appendChild(heroHost);
+  } else {
+    const hero = document.createElement("div");
+    hero.className = "node-overview-hero repository-workspace-hero";
+    const heroMain = document.createElement("div");
+    heroMain.className = "node-overview-hero-main";
+    const head = document.createElement("div");
+    head.className = "node-overview-head";
+    const headTop = document.createElement("div");
+    headTop.className = "node-overview-head-top";
+    const titleRow = createHeroTitleRow(title || getOverviewTitleFromProps(entries), null, {
+      rowClass: "node-navigation-hero-title-row node-overview-title-row",
+      titleClass: "node-overview-title",
+      statusClass: "node-navigation-hero-status",
+      propEntries: entries
+    });
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "node-overview-action-btn node-overview-edit-btn";
+    editBtn.append(createOverviewEditManifestIcon(), document.createTextNode("Редактировать"));
+    editBtn.addEventListener("click", openDescriptionFromOverview);
+    const actions = document.createElement("div");
+    actions.className = "node-overview-head-actions";
+    actions.appendChild(editBtn);
+    headTop.append(titleRow, actions);
+    head.appendChild(headTop);
+    if (desc) {
+      const descNode = document.createElement("p");
+      descNode.className = "node-overview-desc";
+      descNode.textContent = desc;
+      head.appendChild(descNode);
+    }
+    heroMain.appendChild(head);
+    hero.appendChild(heroMain);
+    page.appendChild(hero);
+  }
+
+  const loading = document.createElement("div");
+  loading.className = "repository-workspace-loading";
+  loading.textContent = "Сканирование репозитория…";
+  page.appendChild(loading);
+  nodeOverviewContentNode.replaceChildren(page);
+
+  const [repo, scanData] = await Promise.all([
+    fetchRepositoryOverviewData(manifestPath),
+    fetchWorkspaceFolderScan(folderPath, { depth: "all" }).catch(() => null)
+  ]);
+  if (isStale()) return;
+
+  loading.remove();
+  const scanStats = aggregateRepositoryFolderScan(scanData || {});
+  if (repo) {
+    page.appendChild(renderRepositoryWorkspaceDashboard(repo, scanStats));
+    const readme = renderRepositoryWorkspaceReadme(repo, manifestPath);
+    if (readme) page.appendChild(readme);
+  } else {
+    const error = document.createElement("p");
+    error.className = "repository-workspace-error";
+    error.textContent = "Не удалось загрузить данные репозитория.";
+    page.appendChild(error);
+  }
+
+  const excerpt = stripLeadingDuplicateMarkdownHeading(
+    getOverviewMarkdownBeforeDivider(manifestRaw),
+    title
+  ).trim();
+  if (excerpt && !repo?.readmeExists) {
+    const excerptBlock = document.createElement("section");
+    excerptBlock.className = "node-overview-excerpt repository-workspace-manifest-excerpt";
+    const excerptHead = document.createElement("div");
+    excerptHead.className = "node-overview-excerpt-head";
+    const excerptLabel = document.createElement("span");
+    excerptLabel.className = "node-overview-excerpt-label";
+    excerptLabel.textContent = "📖 Описание из manifest";
+    const excerptBody = document.createElement("div");
+    excerptBody.className = "node-overview-excerpt-body";
+    const excerptText = document.createElement("div");
+    excerptText.className = "node-overview-excerpt-text file-content-preview";
+    setMarkdownPreviewHtml(excerptText, excerpt, { nodePath: manifestPath });
+    excerptHead.appendChild(excerptLabel);
+    excerptBody.appendChild(excerptText);
+    excerptBlock.append(excerptHead, excerptBody);
+    page.appendChild(excerptBlock);
+  }
+
+  hideContentLoading({ force: true });
+  scheduleWorkspaceScrollChromeSync();
+}
+
+function resolveRepositoryEntryForManifestPath(manifestPath) {
+  const normalized = String(manifestPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)\/manifest\.md$/i);
+  const slug = slugMatch?.[1] || "";
+  const cached = menuRepositoriesLastPayload?.repositories?.find(
+    (repo) =>
+      String(repo.slug || "").toLowerCase() === slug.toLowerCase() ||
+      String(repo.manifestPath || "").toLowerCase() === normalized.toLowerCase()
+  );
+  if (cached) return cached;
+  return {
+    slug,
+    manifestPath: normalized,
+    name: slug || getLabelFromPath(normalized)
+  };
+}
+
+async function openRepositoryOverview(repo, options = {}) {
+  if (!repo) return;
+  const manifestPath = String(repo.manifestPath || `awn-repositories/${repo.slug || ""}/manifest.md`)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!manifestPath) return;
+  const label = String(repo.name || repo.slug || "Репозиторий").trim();
+  await openNodeOverview(label, manifestPath, options);
+}
+
 async function openRepositoryFolderOverview(entry) {
   if (!entry) return;
   const folderPath = String(entry.folderPath || `awn-repositories/${entry.slug || ""}`)
@@ -109166,12 +109709,18 @@ function readRepositoryModalForm() {
   let slug = String(repositoryCreateSlugInputNode?.value || "").trim() || slugifyRepositorySlug(name);
   slug = slug.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/").pop() || "";
   slug = slugifyRepositorySlug(slug);
+  const tech = String(repositoryCreateTechInputNode?.value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   return {
     name,
     slug,
     description: String(repositoryCreateDescriptionInputNode?.value || "").trim(),
     origin: String(repositoryCreateOriginInputNode?.value || "").trim(),
-    group: String(repositoryCreateGroupInputNode?.value || "study").trim() || "study"
+    tech,
+    group: String(repositoryCreateGroupInputNode?.value || "study").trim() || "study",
+    indexExcludeSubtree: Boolean(repositoryCreateIndexExcludeSubtreeInput?.checked)
   };
 }
 
@@ -109202,7 +109751,9 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
           name: form.name,
           description: form.description,
           origin: form.origin,
-          group: form.group
+          tech: form.tech,
+          group: form.group,
+          indexExcludeSubtree: form.indexExcludeSubtree
         },
         agentId
       );
@@ -109218,7 +109769,8 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
         description: form.description,
         origin: form.origin,
         group: form.group,
-        ...(readCreateFormIndexExclude(repositoryCreateIndexExcludeInput) ? { indexExclude: true } : {})
+        tech: form.tech,
+        indexExcludeSubtree: form.indexExcludeSubtree
       },
       agentId
     );
@@ -109295,8 +109847,111 @@ function attachRepositoryRowDragMetadata(row, entry, { registered = true } = {})
     .trim();
   row.dataset.repositoryFolderPath = folderPath;
   row.dataset.repositoryManifestPath = registered ? manifestPath : folderPath;
+  row.dataset.repositorySlug = slug;
   row.dataset.repositoryLabel = String(entry.name || entry.slug || slug).trim();
+  if (entry.group) row.dataset.repositoryGroupId = String(entry.group).trim();
   row.draggable = true;
+}
+
+function createMenuRepositoryGroupDragHandle() {
+  const handle = document.createElement("span");
+  handle.className = "menu-repository-group-drag-handle menu-sort-handle";
+  handle.draggable = true;
+  handle.setAttribute("role", "button");
+  handle.tabIndex = -1;
+  handle.title = "Перетащите в другую группу";
+  handle.setAttribute("aria-label", "Перетащите в другую группу");
+  handle.textContent = "⠿";
+  handle.addEventListener("mousedown", (event) => event.stopPropagation());
+  handle.addEventListener("click", (event) => event.stopPropagation());
+  return handle;
+}
+
+let menuRepositoryGroupDragRow = null;
+let menuRepositoryGroupDropTarget = null;
+
+function clearMenuRepositoryGroupDropTarget() {
+  menuRepositoryGroupDropTarget?.classList.remove("is-repository-group-drop-target");
+  menuRepositoryGroupDropTarget = null;
+}
+
+async function moveMenuRepositoryToGroup(manifestPath, groupId, meta = {}) {
+  const path = String(manifestPath || "").trim();
+  const targetGroup = String(groupId || "").trim();
+  if (!path || !targetGroup) return;
+  try {
+    await updateMenuRepository(path, { group: targetGroup });
+    const label = String(meta.name || meta.slug || "Репозиторий").trim();
+    showToast(`«${label}» → ${resolveRepositoryGroupTitle(targetGroup)}`, "success");
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+    await refreshMenuRepositories();
+  }
+}
+
+function setupMenuRepositoryGroupDragDrop() {
+  const container = menuRepositoriesListNode;
+  if (!container || container.dataset.groupDragBound === "1") return;
+  container.dataset.groupDragBound = "1";
+
+  container.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".menu-repository-group-drag-handle");
+    if (!handle) return;
+    const row = handle.closest(".menu-repository-item:not(.menu-repository-item--unregistered)");
+    if (!row) {
+      event.preventDefault();
+      return;
+    }
+    menuRepositoryGroupDragRow = row;
+    row.classList.add("is-repository-group-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", row.dataset.repositoryManifestPath || "");
+  });
+
+  container.addEventListener("dragover", (event) => {
+    if (!menuRepositoryGroupDragRow) return;
+    const dropZone = event.target.closest("[data-repository-group-drop-zone]");
+    if (!dropZone) return;
+    const groupNode = dropZone.closest(".menu-repository-group");
+    const targetGroupId = groupNode?.dataset.repositoryGroupId;
+    if (!targetGroupId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (menuRepositoryGroupDropTarget !== groupNode) {
+      clearMenuRepositoryGroupDropTarget();
+      menuRepositoryGroupDropTarget = groupNode;
+      groupNode.classList.add("is-repository-group-drop-target");
+      const details = groupNode.querySelector(".menu-repository-group-details");
+      if (details && !details.open) details.open = true;
+    }
+  });
+
+  container.addEventListener("drop", (event) => {
+    if (!menuRepositoryGroupDragRow) return;
+    const dropZone = event.target.closest("[data-repository-group-drop-zone]");
+    const groupNode = dropZone?.closest(".menu-repository-group");
+    const targetGroupId = groupNode?.dataset.repositoryGroupId;
+    event.preventDefault();
+    clearMenuRepositoryGroupDropTarget();
+
+    const row = menuRepositoryGroupDragRow;
+    const sourceGroupId = row.closest(".menu-repository-group")?.dataset.repositoryGroupId || "";
+    const manifestPath = row.dataset.repositoryManifestPath || "";
+    const slug = row.dataset.repositorySlug || "";
+    const name = row.dataset.repositoryLabel || slug;
+
+    row.classList.remove("is-repository-group-dragging");
+    menuRepositoryGroupDragRow = null;
+
+    if (!targetGroupId || !manifestPath || targetGroupId === sourceGroupId) return;
+    void moveMenuRepositoryToGroup(manifestPath, targetGroupId, { slug, name });
+  });
+
+  container.addEventListener("dragend", () => {
+    menuRepositoryGroupDragRow?.classList.remove("is-repository-group-dragging");
+    menuRepositoryGroupDragRow = null;
+    clearMenuRepositoryGroupDropTarget();
+  });
 }
 
 function createMenuRepositoryGitIcon({ hasGit = false } = {}) {
@@ -109362,10 +110017,10 @@ function createMenuRepositoryRow(repo) {
   leading.className = "menu-repository-leading";
   leading.appendChild(createMenuRepositoryGitIcon({ hasGit: Boolean(repo.hasGit) }));
 
-  row.append(leading, createMenuRepositoryRowBody(repo));
+  row.append(createMenuRepositoryGroupDragHandle(), leading, createMenuRepositoryRowBody(repo));
   attachRepositoryRowDragMetadata(row, repo, { registered: true });
 
-  const openRepository = () => openRepositoryEditModal(repo);
+  const openRepository = () => void openRepositoryOverview(repo);
   row.addEventListener("click", openRepository);
   row.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -109419,20 +110074,23 @@ function groupMenuRepositories(repositories = [], unregistered = [], groupsCatal
   });
 }
 
-function createMenuRepositoryGroupNode(title, items, { highlightUnregistered = false } = {}) {
+function createMenuRepositoryGroupNode(groupId, title, items, { highlightUnregistered = false } = {}) {
   const item = document.createElement("li");
   item.className = highlightUnregistered
     ? "menu-repository-group menu-repository-group--unregistered"
     : "menu-repository-group";
+  item.dataset.repositoryGroupId = String(groupId || "").trim();
 
   const details = document.createElement("details");
   details.className = "menu-repository-group-details";
+  details.dataset.repositoryGroupDropZone = "1";
   details.open = items.length > 0;
 
   const summary = document.createElement("summary");
   summary.className = highlightUnregistered
     ? "menu-repository-group-summary menu-repository-group-summary--unregistered"
     : "menu-repository-group-summary";
+  summary.dataset.repositoryGroupDropZone = "1";
   summary.textContent = title;
 
   const count = document.createElement("span");
@@ -109442,15 +110100,24 @@ function createMenuRepositoryGroupNode(title, items, { highlightUnregistered = f
 
   const body = document.createElement("div");
   body.className = "menu-repository-group-body";
+  body.dataset.repositoryGroupDropZone = "1";
 
   const list = document.createElement("ul");
   list.className = "menu-repository-group-children";
+  list.dataset.repositoryGroupDropZone = "1";
   for (const row of items) {
     if (row.kind === "unregistered") {
       list.appendChild(createMenuRepositoryUnregisteredRow(row.entry));
     } else {
       list.appendChild(createMenuRepositoryRow(row.entry));
     }
+  }
+  if (!items.length) {
+    const empty = document.createElement("li");
+    empty.className = "menu-repository-group-drop-empty";
+    empty.textContent = "Перетащите репозиторий";
+    empty.dataset.repositoryGroupDropZone = "1";
+    list.appendChild(empty);
   }
 
   body.appendChild(list);
@@ -109496,7 +110163,7 @@ function renderMenuRepositories(payload = null, { loading = false, error = false
   const sections = groupMenuRepositories(repositories, unregistered, data.groupsCatalog);
   for (const section of sections) {
     menuRepositoriesListNode.appendChild(
-      createMenuRepositoryGroupNode(section.title, section.items, {
+      createMenuRepositoryGroupNode(section.id, section.title, section.items, {
         highlightUnregistered: section.highlightUnregistered
       })
     );
@@ -111641,9 +112308,6 @@ async function createNode(type, options = {}) {
     if (options.awnType) {
       payload.awnType = String(options.awnType);
     }
-    if (readCreateFormIndexExclude(createNodeIndexExcludeInput)) {
-      payload.indexExclude = true;
-    }
 
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
       method: "POST",
@@ -112716,6 +113380,7 @@ setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
 setupProjectSettingsScopeSearch();
 setupMenuRepositoriesBandGroup();
+setupMenuRepositoryGroupDragDrop();
 setupMenuStaticFooterGroup();
 setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();

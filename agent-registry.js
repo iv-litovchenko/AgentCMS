@@ -826,9 +826,9 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — `awn-databases/taxonomies/statuses/main.csv`.\n",
+      "# Статусы\n\nСтатусы для `awn-status` заданы enum в `awn-system/types/base/base.yml`.\n",
     content:
-      "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\nnone,⚪ Без статуса\n"
+      "id,label\nnew,🔵 Новая\nplanned,🟣 Запланирована\ndraft,🟡 Черновик\nopen,🟢 Открыта\nin-progress,🟠 В работе\ndone,✅ Готова\nclosed,🔴 Закрыта\narchived,⚫ Архив\nnone,⚪ Без статуса\n"
   },
   {
     preset: "priorities",

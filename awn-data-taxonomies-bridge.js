@@ -8,7 +8,6 @@ const { AWN_DATA_DIR, getAwnDataPayload } = require("./awn-data-loader");
 const AWN_DATA_TAXONOMY_PRESETS = new Set([
   "tags",
   "categories",
-  "statuses",
   "priorities",
   "colors"
 ]);
@@ -16,7 +15,6 @@ const AWN_DATA_TAXONOMY_PRESETS = new Set([
 const PRESET_TO_STORE_REL = {
   tags: "taxonomies/tags",
   categories: "taxonomies/categories",
-  statuses: "taxonomies/statuses",
   priorities: "taxonomies/priorities",
   colors: "taxonomies/colors"
 };

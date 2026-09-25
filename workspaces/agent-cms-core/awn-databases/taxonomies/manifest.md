@@ -34,6 +34,7 @@ awn-description: "Группировка enum-справочников плат�
 |------------|------|
 | [tags/](./tags/manifest.md) | `awn-tags` |
 | [categories/](./categories/manifest.md) | `awn-category` |
-| [statuses/](./statuses/manifest.md) | `awn-status` |
 | [priorities/](./priorities/manifest.md) | `awn-priority` |
 | [colors/](./colors/manifest.md) | `awn-color` |
+
+`awn-status` — enum в `awn-system/types/base/base.yml`, не CSV-справочник.

@@ -34,6 +34,10 @@ field-groups:
     name: "{A2!} Runtime агента"
     description: Загрузка в контекст, cron, heartbeat
     collapsed: true
+  - id: indexing
+    name: "{A2!} Индексирование"
+    description: Поиск и индексы workspace
+    collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
     description: Категории, теги, приоритет, цвет, владелец

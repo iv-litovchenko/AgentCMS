@@ -175,6 +175,12 @@ async function addCatalogItemForAgentContext({
     throw error;
   }
 
+  if (preset === "statuses") {
+    const error = new Error("awn-status is defined in awn-system/types/base/base.yml");
+    error.code = "EINVAL";
+    throw error;
+  }
+
   if (isPlatform && AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
     const result = await addCatalogItemToAwnData(projectRoot, preset, item);
     return { ...result, scope: "global" };

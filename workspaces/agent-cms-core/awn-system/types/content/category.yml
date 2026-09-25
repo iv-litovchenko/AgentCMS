@@ -8,3 +8,4 @@ description: Папка-категория для группировки кон�
 allow-children: true
 mixins:
   - awn.mixin.runtime
+  - awn.mixin.indexing-record

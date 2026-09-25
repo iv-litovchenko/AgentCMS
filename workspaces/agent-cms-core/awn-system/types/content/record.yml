@@ -7,6 +7,7 @@ extends: awn.content.base
 description: Запись в слоте памяти (main, inbox, references, artefacts…)
 mixins:
   - awn.mixin.runtime
+  - awn.mixin.indexing-record
 
 fields:
 
