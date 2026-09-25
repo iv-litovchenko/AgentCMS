@@ -8,7 +8,7 @@ slot-category: single-file
 storage-driver: tabular
 description: Табличная память топика — main.csv
 path: main.csv
-slot-order: 3
+slot-order: 4
 allowed-content:
   - awn.content.record
   - awn.content.category

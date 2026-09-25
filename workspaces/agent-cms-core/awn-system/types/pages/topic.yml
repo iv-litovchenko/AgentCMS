@@ -9,6 +9,7 @@ manifest-pattern: "{slug}/manifest.md"
 
 storage-slots:
   - main
+  - roadmap-single
   - main-single
   - main-single-csv
   - inbox
@@ -24,4 +25,3 @@ storage-slots:
   - notebooklm
   - agent-queue
   - todo-single
-  - roadmap-single

@@ -10,7 +10,7 @@ description: >
   Дорожная карта топика — roadmap.md. Этапы, статусы, параллельные группы.
   Формат: ## Этап + строка «статус: не начато|в процессе|завершено».
 path: roadmap.md
-slot-order: 16
+slot-order: 2
 allowed-content:
   - awn.content.record
   - awn.content.category

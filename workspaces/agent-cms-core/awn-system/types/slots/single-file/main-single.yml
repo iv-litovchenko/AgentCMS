@@ -8,7 +8,7 @@ slot-category: single-file
 storage-driver: internal
 description: Однофайловая память топика — main.md рядом с manifest
 path: main.md
-slot-order: 2
+slot-order: 3
 allowed-content:
   - awn.content.record
   - awn.content.category

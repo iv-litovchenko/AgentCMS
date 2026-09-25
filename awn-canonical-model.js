@@ -17,6 +17,7 @@ const CANONICAL_SLOT_CONTENT_TYPES = [
 /** Основные слоты топика — порядок отображения и storage-slots у awn.page.topic */
 const CANONICAL_PRIMARY_SLOT_TYPES = [
   "awn.slot.main",
+  "awn.slot.roadmap-single",
   "awn.slot.main-single",
   "awn.slot.main-single-csv",
   "awn.slot.inbox",
@@ -31,8 +32,7 @@ const CANONICAL_PRIMARY_SLOT_TYPES = [
   "awn.slot.base",
   "awn.slot.notebooklm",
   "awn.slot.agent-queue",
-  "awn.slot.todo-single",
-  "awn.slot.roadmap-single"
+  "awn.slot.todo-single"
 ];
 
 const PRIMARY_SLOT_ORDER = new Map(CANONICAL_PRIMARY_SLOT_TYPES.map((id, index) => [id, index + 1]));
