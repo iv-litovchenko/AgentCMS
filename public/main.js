@@ -113087,9 +113087,12 @@ let workspaceScrollBinding = null;
 let workspaceScrollHostTarget = null;
 
 function getOverviewNodeInDocSlabContent(docSlabContent) {
-  return docSlabContent?.querySelector(
-    ":scope > .doc-slab-main > #node-overview-block.node-overview:not(.hidden), :scope > .doc-slab-overview-scroll-host > .doc-slab-main > #node-overview-block.node-overview:not(.hidden), :scope > .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
-  );
+  return docSlabContent?.querySelector("#node-overview-block.node-overview:not(.hidden)");
+}
+
+function getOverviewDocSlabChromeHost(docSlabContent) {
+  const docBodyMain = docSlabContent?.parentElement;
+  return docBodyMain?.classList.contains("doc-body-main") ? docBodyMain : docSlabContent;
 }
 
 function teardownOverviewDocSlabScrollHost() {
@@ -113105,37 +113108,6 @@ function teardownOverviewDocSlabScrollHost() {
   scrollHost.remove();
 }
 
-function getOverviewDocSlabScrollHost(docSlabContent) {
-  return docSlabContent?.querySelector(":scope > .doc-slab-overview-scroll-host") || null;
-}
-
-function getOverviewDocSlabMain(docSlabContent) {
-  if (!docSlabContent) return null;
-  const scrollHost = getOverviewDocSlabScrollHost(docSlabContent);
-  return (
-    scrollHost?.querySelector(":scope > .doc-slab-main") ||
-    docSlabContent.querySelector(":scope > .doc-slab-main")
-  );
-}
-
-function ensureOverviewDocSlabScrollHost(docSlabContent) {
-  if (!docSlabContent) return null;
-
-  let scrollHost = getOverviewDocSlabScrollHost(docSlabContent);
-  const docSlabMain = getOverviewDocSlabMain(docSlabContent);
-  if (!docSlabMain) return scrollHost;
-
-  if (!scrollHost) {
-    scrollHost = document.createElement("div");
-    scrollHost.className = "doc-slab-overview-scroll-host";
-    docSlabContent.insertBefore(scrollHost, docSlabMain);
-    scrollHost.appendChild(docSlabMain);
-  } else if (docSlabMain.parentElement !== scrollHost) {
-    scrollHost.appendChild(docSlabMain);
-  }
-  return scrollHost;
-}
-
 function getWorkspaceOverviewScrollTargets() {
   const docSlabContent = getDocSlabContentNode();
   const overview = docSlabContent
@@ -113145,15 +113117,21 @@ function getWorkspaceOverviewScrollTargets() {
       );
   if (!overview) return null;
   if (docSlabContent) {
-    const scrollHost = ensureOverviewDocSlabScrollHost(docSlabContent);
-    if (!scrollHost) return null;
-    return { scrollElement: scrollHost, hostTarget: docSlabContent };
+    teardownOverviewDocSlabScrollHost();
+    return {
+      scrollElement: docSlabContent,
+      hostTarget: getOverviewDocSlabChromeHost(docSlabContent)
+    };
   }
   return { scrollElement: overview, hostTarget: overview };
 }
 
-function isOverviewDocSlabContentScrollHost(hostTarget) {
-  return Boolean(hostTarget?.classList?.contains("doc-slab-content") && getOverviewNodeInDocSlabContent(hostTarget));
+function isOverviewDocSlabScrollChromeHost(hostTarget) {
+  if (!hostTarget) return false;
+  if (hostTarget.classList.contains("doc-body-main")) {
+    return Boolean(getOverviewNodeInDocSlabContent(hostTarget.querySelector(":scope > .doc-slab-content")));
+  }
+  return Boolean(hostTarget.classList.contains("doc-slab-content") && getOverviewNodeInDocSlabContent(hostTarget));
 }
 
 function getWorkspaceScrollContext() {
@@ -113265,9 +113243,13 @@ function ensureWorkspaceScrollHost(hostTarget) {
 function syncWorkspaceScrollChrome() {
   let { scrollElement, hostTarget } = getWorkspaceScrollContext();
   if (hostTarget) {
-    if (isOverviewDocSlabContentScrollHost(hostTarget)) {
+    if (isOverviewDocSlabScrollChromeHost(hostTarget)) {
       teardownLegacyWorkspaceScrollHosts();
-      scrollElement = ensureOverviewDocSlabScrollHost(hostTarget) || scrollElement;
+      teardownOverviewDocSlabScrollHost();
+      const docSlabContent = hostTarget.classList.contains("doc-slab-content")
+        ? hostTarget
+        : hostTarget.querySelector(":scope > .doc-slab-content");
+      scrollElement = docSlabContent || scrollElement;
       mountWorkspaceScrollChrome(hostTarget);
       workspaceScrollHostTarget = hostTarget;
     } else {

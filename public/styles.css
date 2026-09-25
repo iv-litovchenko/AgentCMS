@@ -932,7 +932,6 @@ body.app-locked {
 .agent-canvas-pane,
 .workspace-pane,
 .workspace-pane .doc-slab-content,
-.workspace-pane .doc-slab-overview-scroll-host,
 .workspace-pane .node-overview,
 .workspace-pane .workspace-scroll-host,
 .workspace-pane .file-content-preview,
@@ -950,7 +949,6 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar,
 .workspace-pane::-webkit-scrollbar,
 .workspace-pane .doc-slab-content::-webkit-scrollbar,
-.workspace-pane .doc-slab-overview-scroll-host::-webkit-scrollbar,
 .workspace-pane .node-overview::-webkit-scrollbar,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar,
 .workspace-pane .file-content-preview::-webkit-scrollbar,
@@ -968,7 +966,6 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar-thumb,
 .workspace-pane::-webkit-scrollbar-thumb,
 .workspace-pane .doc-slab-content::-webkit-scrollbar-thumb,
-.workspace-pane .doc-slab-overview-scroll-host::-webkit-scrollbar-thumb,
 .workspace-pane .node-overview::-webkit-scrollbar-thumb,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar-thumb,
 .workspace-pane .file-content-preview::-webkit-scrollbar-thumb,
@@ -988,7 +985,6 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar-thumb:hover,
 .workspace-pane::-webkit-scrollbar-thumb:hover,
 .workspace-pane .doc-slab-content::-webkit-scrollbar-thumb:hover,
-.workspace-pane .doc-slab-overview-scroll-host::-webkit-scrollbar-thumb:hover,
 .workspace-pane .node-overview::-webkit-scrollbar-thumb:hover,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar-thumb:hover,
 .workspace-pane .file-content-preview::-webkit-scrollbar-thumb:hover,
@@ -29620,18 +29616,14 @@ a.header-tool-btn {
   --doc-editor-inline-gutter: 0px;
 }
 
-/* Overview / navigation: chrome фиксирован на doc-slab-content, скролл во внутреннем host */
-.doc-body-main .doc-slab-content:has(> .doc-slab-overview-scroll-host),
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)),
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) {
+/* Overview / navigation: скролл на doc-slab-content, chrome фиксирован на doc-body-main */
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .node-overview:not(.hidden)),
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
 }
 
-.doc-slab-overview-scroll-host {
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)),
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -29642,32 +29634,28 @@ a.header-tool-btn {
   scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
 }
 
-.doc-body-main .doc-slab-content:has(> .doc-slab-overview-scroll-host) > .workspace-scroll-chrome,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome {
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome,
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome {
   position: absolute;
-  inset: 0 0 auto 0;
+  inset: 0;
   z-index: 40;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-.doc-body-main .doc-slab-content:has(> .doc-slab-overview-scroll-host) > .workspace-scroll-chrome.is-active,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome.is-active,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome.is-active {
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome.is-active,
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome.is-active {
   opacity: 1;
 }
 
-.doc-body-main .doc-slab-content:has(> .doc-slab-overview-scroll-host) > .workspace-scroll-chrome .scroll-depth-indicator,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome .scroll-depth-indicator,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome .scroll-depth-indicator {
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .node-overview:not(.hidden)) > .workspace-scroll-chrome .scroll-depth-indicator,
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .workspace-scroll-chrome .scroll-depth-indicator {
   z-index: 2;
 }
 
-.doc-body-main .doc-slab-content:has(> .doc-slab-overview-scroll-host) > .scroll-top-btn--docked,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) > .scroll-top-btn--docked,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .scroll-top-btn--docked {
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .node-overview:not(.hidden)) > .scroll-top-btn--docked,
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) > .scroll-top-btn--docked {
   position: absolute;
   right: calc(14px + var(--scroll-top-shift-x, 0px));
   bottom: calc(14px + var(--scroll-top-shift-y, 0px));
@@ -29679,13 +29667,11 @@ a.header-tool-btn {
   flex: none;
 }
 
-.doc-slab-overview-scroll-host::-webkit-scrollbar,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden))::-webkit-scrollbar,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden))::-webkit-scrollbar {
   width: 10px;
 }
 
-.doc-slab-overview-scroll-host::-webkit-scrollbar-thumb,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden))::-webkit-scrollbar-thumb,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden))::-webkit-scrollbar-thumb {
   background: rgba(71, 85, 105, 0.62);
@@ -29694,7 +29680,6 @@ a.header-tool-btn {
   background-clip: padding-box;
 }
 
-.doc-slab-overview-scroll-host::-webkit-scrollbar-thumb:hover,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden))::-webkit-scrollbar-thumb:hover,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden))::-webkit-scrollbar-thumb:hover {
   background: rgba(51, 65, 85, 0.82);
@@ -29707,7 +29692,6 @@ a.header-tool-btn {
   --doc-slab-content-inline-inset: 0px;
 }
 
-.doc-slab-content:has(> .doc-slab-overview-scroll-host),
 .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)),
 .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) {
   padding: 12px var(--doc-content-gutter, 16px);
@@ -43965,7 +43949,6 @@ button.node-navigation-memory-title:focus-visible {
   box-sizing: border-box;
 }
 
-.doc-slab-content:has(> .doc-slab-overview-scroll-host) .doc-slab-main,
 .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) .doc-slab-main,
 .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) .doc-slab-main {
   flex: 0 0 auto;
@@ -47057,12 +47040,6 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .app.editor-autoheight:has(#node-overview-block:not(.hidden)) .doc-slab-content {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.app.editor-autoheight:has(#node-overview-block:not(.hidden)) .doc-slab-overview-scroll-host {
   flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
