@@ -95,6 +95,14 @@ const awnDataCreateSlugInputNode = document.getElementById("awn-databases-create
 const awnDataCreateSlugUnlinkBtn = document.getElementById("awn-databases-create-slug-unlink-btn");
 const awnDataCreateParentHintNode = document.getElementById("awn-databases-create-parent-hint");
 const awnDataCreateDescriptionInputNode = document.getElementById("awn-databases-create-description-input");
+const awnDataCreateTaxonomyWrapNode = document.getElementById("awn-databases-create-taxonomy-wrap");
+const awnDataCreateTaxonomyKeyInputNode = document.getElementById("awn-databases-create-taxonomy-key-input");
+const awnDataCreateTaxonomyCardinalityInputNode = document.getElementById(
+  "awn-databases-create-taxonomy-cardinality-input"
+);
+const awnDataCreateTaxonomyHierarchyInputNode = document.getElementById(
+  "awn-databases-create-taxonomy-hierarchy-input"
+);
 const awnDataCreateKindWrapNode = document.getElementById("awn-databases-create-kind-wrap");
 const awnDataCreateKindInputNode = document.getElementById("awn-databases-create-kind-input");
 const awnDataCreateStorageWrapNode = document.getElementById("awn-databases-create-storage-wrap");
@@ -1607,6 +1615,28 @@ function isBuiltinAwnDataGroupRel(relPath) {
     .replace(/^\/+|\/+$/g, "")
     .split("/")[0];
   return top.startsWith("awn-");
+}
+
+function isAwnTaxonomiesParentGroup(parentGroup = awnDataCreateParentGroup) {
+  const normalized = String(parentGroup || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  return normalized === SHARED_TAXONOMIES_SLUG;
+}
+
+function inferAwnTaxonomyKeyFromSlug(slug) {
+  const name = String(slug || "").split("/").pop() || "";
+  if (name === "categories") return "category";
+  if (name === "colors") return "color";
+  return name;
+}
+
+function inferAwnTaxonomyCardinalityFromKey(key) {
+  const normalized = String(key || "").trim().toLowerCase();
+  if (normalized === "tags" || normalized === "color" || normalized === "colors") return "many";
+  if (normalized === "category" || normalized === "categories") return "one";
+  return "one";
 }
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
@@ -42968,37 +42998,70 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
   return agentCatalogsLoadPromise;
 }
 
-let agentTaxonomiesCache = null;
-let agentTaxonomiesLoadPromise = null;
+const agentTaxonomiesCacheByAgent = new Map();
+const agentTaxonomiesLoadPromiseByAgent = new Map();
 
-async function loadAgentTaxonomies(agentId = activeAgentId) {
-  if (!agentId) {
-    agentTaxonomiesCache = null;
-    agentTaxonomiesLoadPromise = null;
+function invalidateAgentTaxonomiesCache(agentId = activeAgentId) {
+  const key = String(agentId || "").trim();
+  if (!key) {
+    agentTaxonomiesCacheByAgent.clear();
+    agentTaxonomiesLoadPromiseByAgent.clear();
+    return;
+  }
+  agentTaxonomiesCacheByAgent.delete(key);
+  agentTaxonomiesLoadPromiseByAgent.delete(key);
+}
+
+function getAgentTaxonomiesCache(agentId = activeAgentId) {
+  const key = String(agentId || "").trim();
+  return key ? agentTaxonomiesCacheByAgent.get(key) || null : null;
+}
+
+async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = {}) {
+  const key = String(agentId || "").trim();
+  if (!key) {
+    invalidateAgentTaxonomiesCache();
     return null;
   }
-  if (agentTaxonomiesLoadPromise) return agentTaxonomiesLoadPromise;
+  if (!force && agentTaxonomiesCacheByAgent.has(key)) {
+    return agentTaxonomiesCacheByAgent.get(key);
+  }
+  if (agentTaxonomiesLoadPromiseByAgent.has(key)) {
+    return agentTaxonomiesLoadPromiseByAgent.get(key);
+  }
 
-  agentTaxonomiesLoadPromise = (async () => {
+  const promise = (async () => {
     try {
-      const response = await fetch(buildApiUrl("/api/agent/taxonomies", {}, agentId));
+      const response = await fetch(buildApiUrl("/api/agent/taxonomies", {}, key));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      agentTaxonomiesCache = await response.json();
-      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
-      return agentTaxonomiesCache;
+      const payload = await response.json();
+      agentTaxonomiesCacheByAgent.set(key, payload);
+      if (key === activeAgentId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
+        renderPropsForm();
+      }
+      return payload;
     } catch {
-      agentTaxonomiesCache = null;
+      agentTaxonomiesCacheByAgent.delete(key);
       return null;
     } finally {
-      agentTaxonomiesLoadPromise = null;
+      agentTaxonomiesLoadPromiseByAgent.delete(key);
     }
   })();
 
-  return agentTaxonomiesLoadPromise;
+  agentTaxonomiesLoadPromiseByAgent.set(key, promise);
+  return promise;
 }
 
-function getAgentTaxonomyDefinitions() {
-  return agentTaxonomiesCache?.taxonomies || [];
+function getAgentTaxonomyDefinitions(agentId = activeAgentId) {
+  return getAgentTaxonomiesCache(agentId)?.taxonomies || [];
+}
+
+function getAgentTaxonomiesEmptyMessage(agentId = activeAgentId) {
+  const cache = getAgentTaxonomiesCache(agentId);
+  if (cache?.groupExists) {
+    return "В awn-databases/awn-taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
+  }
+  return "Создайте группу awn-databases/awn-taxonomies/ через + Группа → Таксономии";
 }
 
 function getAgentTaxonomyDefinition(key) {
@@ -56121,11 +56184,7 @@ function createPropsFormTaxonomyControl(entry, meta, { locked = false } = {}) {
       : {};
 
   if (!definitions.length) {
-    wrap.appendChild(
-      createPropsFormCatalogMissingNote(
-        "Справочники таксономий не найдены — создайте их в awn-databases/awn-taxonomies/"
-      )
-    );
+    wrap.appendChild(createPropsFormCatalogMissingNote(getAgentTaxonomiesEmptyMessage()));
     return wrap;
   }
 
@@ -59579,8 +59638,8 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   if (needsLookup && !agentCatalogsCache && activeAgentId) {
     loadAgentCatalogs(activeAgentId);
   }
-  if (fieldWidget === "taxonomy" && !agentTaxonomiesCache && activeAgentId) {
-    loadAgentTaxonomies(activeAgentId);
+  if (fieldWidget === "taxonomy" && activeAgentId) {
+    void loadAgentTaxonomies(activeAgentId);
   }
 
   return row;
@@ -104406,6 +104465,26 @@ function slugifyAwnDataStoreName(name) {
     .replace(/-+/g, "-");
 }
 
+function syncAwnDataCreateTaxonomyKeyFromSlug() {
+  if (!awnDataCreateTaxonomyKeyInputNode || !isAwnTaxonomiesParentGroup()) return;
+  const tail = getAwnDataCreateSlugInputValue() || slugifyAwnDataStoreName(awnDataCreateNameInputNode?.value || "");
+  const key = inferAwnTaxonomyKeyFromSlug(tail);
+  awnDataCreateTaxonomyKeyInputNode.value = key;
+  if (awnDataCreateTaxonomyCardinalityInputNode) {
+    awnDataCreateTaxonomyCardinalityInputNode.value = inferAwnTaxonomyCardinalityFromKey(key);
+  }
+}
+
+function syncAwnDataCreateTaxonomyUi() {
+  const showTaxonomy = isAwnTaxonomiesParentGroup() && awnDataCreateKind === "collection";
+  awnDataCreateTaxonomyWrapNode?.classList.toggle("hidden", !showTaxonomy);
+  if (!showTaxonomy) return;
+  if (awnDataCreateTaxonomyHierarchyInputNode) {
+    awnDataCreateTaxonomyHierarchyInputNode.checked = false;
+  }
+  syncAwnDataCreateTaxonomyKeyFromSlug();
+}
+
 function syncAwnDataCreateGroupPresetsUi() {
   const showPresets =
     awnDataCreateKind === "group" && !String(awnDataCreateParentGroup || "").trim();
@@ -104429,7 +104508,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   awnDataCreateKind =
     kind === "single" ? "single" : kind === "group" ? "group" : "collection";
   awnDataCreateParentGroup = String(options.parentGroup || "").trim().replace(/\/+$/, "");
-  const isTaxonomy = awnDataCreateParentGroup === "awn-taxonomies";
+  const isTaxonomy = isAwnTaxonomiesParentGroup();
   if (awnDataCreateModalTitleNode) {
     if (awnDataCreateKind === "group") {
       awnDataCreateModalTitleNode.textContent = "Новая группа";
@@ -104482,6 +104561,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (awnDataCreateDescriptionInputNode) awnDataCreateDescriptionInputNode.value = "";
   if (awnDataCreateSampleInputNode) awnDataCreateSampleInputNode.checked = true;
   syncAwnDataCreateGroupPresetsUi();
+  syncAwnDataCreateTaxonomyUi();
   awnDataCreateModalNode.classList.remove("hidden");
   awnDataCreateNameInputNode?.focus();
 }
@@ -104677,7 +104757,7 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
   const showOptions =
     showCollectionOptions ??
     (awnDataCreateKind === "collection" &&
-      String(awnDataCreateParentGroup || "").trim() !== "awn-taxonomies");
+      !isAwnTaxonomiesParentGroup());
   const collectionOnlyFields = [
     awnDataCreateKindWrapNode,
     awnDataCreateFileTypesWrapNode,
@@ -110205,6 +110285,11 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     showToast("Укажите название и папку (slug)", "error");
     return;
   }
+  const taxonomyKey = String(awnDataCreateTaxonomyKeyInputNode?.value || "").trim();
+  if (isAwnTaxonomiesParentGroup(parentGroup) && awnDataCreateKind === "collection" && !taxonomyKey) {
+    showToast("Укажите ключ для awn-taxonomy", "error");
+    return;
+  }
 
   awnDataCreateSubmitBtn.disabled = true;
   try {
@@ -110218,12 +110303,22 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
         description,
         withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false,
         ...(awnDataCreateKind === "collection" ? resolveAwnDataCreateCollectionPayload() : {}),
+        ...(isAwnTaxonomiesParentGroup(parentGroup) && awnDataCreateKind === "collection"
+          ? {
+              taxonomyKey,
+              taxonomyCardinality: String(awnDataCreateTaxonomyCardinalityInputNode?.value || "one").trim(),
+              taxonomyHierarchy: Boolean(awnDataCreateTaxonomyHierarchyInputNode?.checked)
+            }
+          : {})
       })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
     closeAwnDataCreateModal();
     showToast(`Накопитель «${name}» создан`, "success");
+    if (String(slug || "").replace(/\\/g, "/").startsWith("awn-taxonomies/")) {
+      invalidateAgentTaxonomiesCache(agentId);
+    }
     await refreshMenuAwnDataStores(agentId);
     if (!awnTypesCache?.types) await loadAwnTypes(agentId).catch(() => null);
     if (data.store?.relPath) void openAwnDataViewPage(data.store.relPath, agentId);
@@ -112575,8 +112670,9 @@ async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId, { withDe
     } else {
       showToast("Группа «Таксономии» уже существует", "success");
     }
+    invalidateAgentTaxonomiesCache(agentId);
     await refreshMenuAwnDataStores(agentId);
-    await loadAgentTaxonomies(agentId).catch(() => null);
+    await loadAgentTaxonomies(agentId, { force: true }).catch(() => null);
     if (data.store?.relPath) void openAwnDataViewPage(data.store.relPath, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
@@ -112612,10 +112708,18 @@ function setupAwnDataStoresUi() {
 
   awnDataCreateNameInputNode?.addEventListener("input", () => {
     syncAwnDataCreateSlugFromName();
+    syncAwnDataCreateTaxonomyKeyFromSlug();
   });
   awnDataCreateSlugInputNode?.addEventListener("input", () => {
     if (!awnDataCreateSlugLinked && awnDataCreateSlugInputNode) {
       awnDataCreateSlugInputNode.value = sanitizeSlugValue(awnDataCreateSlugInputNode.value);
+    }
+    syncAwnDataCreateTaxonomyKeyFromSlug();
+  });
+  awnDataCreateTaxonomyKeyInputNode?.addEventListener("input", () => {
+    const key = String(awnDataCreateTaxonomyKeyInputNode.value || "").trim();
+    if (awnDataCreateTaxonomyCardinalityInputNode && key) {
+      awnDataCreateTaxonomyCardinalityInputNode.value = inferAwnTaxonomyCardinalityFromKey(key);
     }
   });
   awnDataCreateSlugUnlinkBtn?.addEventListener("click", () => {
@@ -112758,10 +112862,16 @@ function populateAwnDataGroupCreatePopover(parentGroupRel) {
   if (!list || !awnDataGroupCreatePopoverNode) return false;
   list.replaceChildren();
 
+  const parentGroup = String(parentGroupRel || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  const isTaxonomyGroup = parentGroup === SHARED_TAXONOMIES_SLUG;
   for (const item of [
     { action: "collection", label: "Коллекция" },
-    { action: "single", label: "Одиночка" }
+    { action: "single", label: "Одиночка", hiddenForTaxonomy: true }
   ]) {
+    if (isTaxonomyGroup && item.hiddenForTaxonomy) continue;
     const row = document.createElement("li");
     row.className = "menu-context-menu-item";
     row.setAttribute("role", "none");
@@ -113189,6 +113299,10 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     const data = await response.json();
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
+    invalidateAgentTaxonomiesCache(resolvedAgent);
+    if (resolvedAgent === activeAgentId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
+      void loadAgentTaxonomies(resolvedAgent);
+    }
     renderMenuAwnDataStores(data);
     void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
       if (!menuAwnDataIndexRowNode?.isConnected) return;

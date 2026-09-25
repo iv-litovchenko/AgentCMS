@@ -49,7 +49,8 @@ function readTaxonomyManifestMeta(storeAbs) {
   const cardinality = cardinalityRaw === "many" || cardinalityRaw === "one"
     ? cardinalityRaw
     : inferTaxonomyCardinality(key, storeRelHint);
-  const hierarchyRaw = fm["awn-record-hierarchy"];
+  const hierarchyRaw =
+    fm["awn-taxonomy-hierarchy"] !== undefined ? fm["awn-taxonomy-hierarchy"] : fm["awn-record-hierarchy"];
   const hierarchy =
     hierarchyRaw === true ||
     hierarchyRaw === "true" ||
@@ -204,6 +205,12 @@ function listWorkspaceTaxonomies(agentRoot, projectRoot = process.cwd()) {
 }
 
 function getWorkspaceTaxonomiesPayload(agentRoot, projectRoot = process.cwd()) {
+  const payload = loadAwnDataStores(agentRoot, projectRoot);
+  const stores = payload?.stores || [];
+  const groupExists = Boolean(
+    findAwnDataStore(stores, TAXONOMIES_GROUP_REL) ||
+      findAwnDataStore(stores, LEGACY_TAXONOMIES_GROUP_REL)
+  );
   const taxonomies = listWorkspaceTaxonomies(agentRoot, projectRoot);
   const byKey = {};
   for (const def of taxonomies) {
@@ -220,6 +227,7 @@ function getWorkspaceTaxonomiesPayload(agentRoot, projectRoot = process.cwd()) {
   }
   return {
     group: TAXONOMIES_GROUP_REL,
+    groupExists,
     taxonomies,
     byKey
   };

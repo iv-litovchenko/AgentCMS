@@ -5648,6 +5648,30 @@
           <span>Описание</span>
           <textarea id="awn-databases-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении"></textarea>
         </label>
+        <div id="awn-databases-create-taxonomy-wrap" class="awn-databases-create-taxonomy-wrap hidden">
+          <label class="agents-registry-field agents-registry-create-field" for="awn-databases-create-taxonomy-key-input">
+            <span>Ключ в <code>awn-taxonomy</code></span>
+            <input
+              id="awn-databases-create-taxonomy-key-input"
+              class="popover-input"
+              type="text"
+              placeholder="tags"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </label>
+          <label class="agents-registry-field agents-registry-create-field" for="awn-databases-create-taxonomy-cardinality-input">
+            <span>Кардинальность</span>
+            <select id="awn-databases-create-taxonomy-cardinality-input" class="agents-registry-select">
+              <option value="one">one — одно значение</option>
+              <option value="many">many — несколько значений</option>
+            </select>
+          </label>
+          <label class="awn-databases-create-checkbox-field" id="awn-databases-create-taxonomy-hierarchy-wrap">
+            <input id="awn-databases-create-taxonomy-hierarchy-input" type="checkbox" />
+            <span class="awn-databases-create-checkbox-label">Иерархия значений (<code>awn-taxonomy-hierarchy</code>)</span>
+          </label>
+        </div>
         <label class="agents-registry-field agents-registry-create-field hidden" id="awn-databases-create-kind-wrap">
           <span>Типы коллекции</span>
           <select id="awn-databases-create-kind-input" class="agents-registry-select">

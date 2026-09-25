@@ -22987,6 +22987,7 @@ async function handleApiForAgent(req, res, url) {
         recordFileTypes: payload?.recordFileTypes,
         taxonomyKey: payload?.taxonomyKey,
         taxonomyCardinality: payload?.taxonomyCardinality,
+        taxonomyHierarchy: payload?.taxonomyHierarchy,
         withSampleRecord: payload?.withSampleRecord,
         indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
       });

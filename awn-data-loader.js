@@ -855,7 +855,12 @@ function extractFlatRecordProps(raw) {
   const record = {};
   const idMode = readStoreProp(raw, ["awn-record-id-mode"], "");
   const file = readStoreProp(raw, ["awn-record-file"], "");
-  const hierarchy = raw["awn-record-hierarchy"];
+  const taxonomyKey = readStoreProp(raw, ["awn-taxonomy-key"], "");
+  const hierarchy = taxonomyKey
+    ? raw["awn-taxonomy-hierarchy"] !== undefined
+      ? raw["awn-taxonomy-hierarchy"]
+      : raw["awn-record-hierarchy"]
+    : raw["awn-record-hierarchy"];
   const fileTypes = readStoreProp(raw, ["awn-record-file-types"], "");
   const collectionTypeRaw = readStoreProp(raw, ["awn-collection-type"], "");
   if (collectionTypeRaw) {
@@ -2269,23 +2274,28 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
   if (indexFlags?.record) overrides["awn-index-exclude-record"] = true;
   if (indexFlags?.subtree) overrides["awn-index-exclude-subtree"] = true;
 
+  const taxonomy = schema.taxonomy && typeof schema.taxonomy === "object" ? schema.taxonomy : null;
+
   if (kind !== "group") {
     const record = schema.record && typeof schema.record === "object" ? schema.record : {};
     overrides["awn-collection-type"] = collectionTypeFromRecordProps(record);
     if (record.storage) overrides["awn-record-storage"] = record.storage;
     if (record["id-mode"]) overrides["awn-record-id-mode"] = record["id-mode"];
     if (record.file) overrides["awn-record-file"] = record.file;
-    if (record.hierarchy !== undefined) overrides["awn-record-hierarchy"] = Boolean(record.hierarchy);
+    if (!taxonomy && record.hierarchy !== undefined) {
+      overrides["awn-record-hierarchy"] = Boolean(record.hierarchy);
+    }
     if (record.fileTypes !== undefined && String(record.fileTypes).trim()) {
       overrides["awn-record-file-types"] = String(record.fileTypes).trim();
     }
   }
-
-  const taxonomy = schema.taxonomy && typeof schema.taxonomy === "object" ? schema.taxonomy : null;
   if (taxonomy?.key) overrides["awn-taxonomy-key"] = String(taxonomy.key).trim();
   if (taxonomy?.cardinality) {
     overrides["awn-taxonomy-cardinality"] =
       String(taxonomy.cardinality).trim().toLowerCase() === "many" ? "many" : "one";
+  }
+  if (taxonomy?.hierarchy !== undefined) {
+    overrides["awn-taxonomy-hierarchy"] = Boolean(taxonomy.hierarchy);
   }
 
   frontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
@@ -2652,12 +2662,21 @@ function inferTaxonomyCardinality(key, slug = "") {
   return "one";
 }
 
-function buildTaxonomyCollectionSchemaContent({ slug, name, description, taxonomyKey, taxonomyCardinality, hierarchy }) {
+function buildTaxonomyCollectionSchemaContent({
+  slug,
+  name,
+  description,
+  taxonomyKey,
+  taxonomyCardinality,
+  taxonomyHierarchy,
+  hierarchy
+}) {
   const id = slug.replace(/\//g, ".");
   const shortName = name || slug.split("/").pop();
   const desc = String(description || shortName).trim();
   const key = String(taxonomyKey || inferTaxonomyKeyFromSlug(slug)).trim();
   const cardinality = String(taxonomyCardinality || inferTaxonomyCardinality(key, slug)).trim().toLowerCase();
+  const hierarchyEnabled = Boolean(taxonomyHierarchy ?? hierarchy);
   const recordFields = {
     "awn-code": { type: "awn.string", title: "Код", required: true },
     "awn-label": { type: "awn.string", title: "Подпись", required: true },
@@ -2676,20 +2695,20 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description, taxonom
       taxonomy: {
         key,
         cardinality: cardinality === "many" ? "many" : "one",
-        hierarchy: Boolean(hierarchy)
+        hierarchy: hierarchyEnabled
       },
       record: {
         storage: "csv",
         file: "main.csv",
         "id-mode": "slug",
-        hierarchy: Boolean(hierarchy),
+        hierarchy: hierarchyEnabled,
         collectionType: "csv"
       },
       fields: recordFields
     },
     schemeModFields: recordFields,
     schemeModExtends: ELEMENT_TYPE_RECORD_CSV,
-    manifestBody: `# ${shortName}\n\n${desc}\n\nКлюч в \`awn-taxonomy.${key}\`. Кардинальность: ${cardinality}.`
+    manifestBody: `# ${shortName}\n\n${desc}\n\nКлюч в \`awn-taxonomy.${key}\`. Кардинальность: ${cardinality}. Иерархия: ${hierarchyEnabled ? "да" : "нет"}.`
   };
 }
 
@@ -3028,8 +3047,10 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           options.recordStorage || mappedFromType.recordStorage || typeDefaults.recordStorage,
           "md"
         );
-    const recordHierarchy =
-      recordStorage === "csv"
+    const taxonomyHierarchy = Boolean(options.taxonomyHierarchy);
+    const recordHierarchy = isTaxonomy
+      ? taxonomyHierarchy
+      : recordStorage === "csv"
         ? false
         : options.recordHierarchy ?? typeDefaults.recordHierarchy ?? false;
     const recordFileTypes =
@@ -3043,7 +3064,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           description,
           taxonomyKey: options.taxonomyKey,
           taxonomyCardinality: options.taxonomyCardinality,
-          hierarchy: options.recordHierarchy
+          taxonomyHierarchy
         })
       : buildCollectionSchemaContent({
           slug,

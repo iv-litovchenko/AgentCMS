@@ -30,7 +30,7 @@ awn-collection-type: csv
 awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
-awn-record-hierarchy: false
+awn-taxonomy-hierarchy: false
 awn-taxonomy-key: color
 awn-taxonomy-cardinality: many
 ---

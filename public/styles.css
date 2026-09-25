@@ -46379,6 +46379,21 @@ button.node-navigation-memory-title:focus-visible {
   background: #fff;
 }
 
+.awn-databases-create-taxonomy-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 6px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  background: rgba(245, 243, 255, 0.65);
+}
+
+.awn-databases-create-taxonomy-wrap.hidden {
+  display: none;
+}
+
 .awn-databases-create-group-presets-wrap {
   display: flex;
   flex-direction: column;

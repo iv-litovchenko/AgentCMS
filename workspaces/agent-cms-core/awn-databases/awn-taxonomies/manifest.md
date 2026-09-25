@@ -45,6 +45,6 @@ awn-taxonomy:
 | [categories/](./categories/manifest.md) | `category` | one |
 | [colors/](./colors/manifest.md) | `color` | many |
 
-Метаданные словаря: `awn-taxonomy-key`, `awn-taxonomy-cardinality` (`one`/`many`), `awn-record-hierarchy`.
+Метаданные словаря: `awn-taxonomy-key`, `awn-taxonomy-cardinality` (`one`/`many`), `awn-taxonomy-hierarchy`.
 
 `awn-status` — отдельное поле (не часть `awn-taxonomy`).
