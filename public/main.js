@@ -15775,7 +15775,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   scripts: `Скрипты и текстовые файлы; запрещены исполняемые (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
   templates: "Markdown (.md) — шаблоны записей и manifest",
   base: "Markdown (.md) — строки структурированных данных",
-  notebooklm: "Markdown (.md) — материалы NotebookLM",
+  notebooklm: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
   "agent-queue": "Markdown (.md) — задачи агента",
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",

@@ -28,7 +28,9 @@ awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-web-url: ""
 awn-update: 2026-08-10T16:32:31.177Z
 awn-version: 13
+awn-id: 34
 ---
+
 
 **Назначение темы** — учебный workspace по PHP 8.x: от синтаксиса до практики с БД и фреймворками.
 

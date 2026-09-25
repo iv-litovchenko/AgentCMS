@@ -6,7 +6,7 @@ status: active
 extends: awn.slot
 slot-category: files
 storage-driver: external
-description: Материалы и заметки из NotebookLM
+description: Материалы для NotebookLM — любые файлы (PDF, аудио, markdown и др.)
 path: notebooklm/
 slot-order: 14
 allowed-content:
