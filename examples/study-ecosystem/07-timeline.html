@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7. Таймлайн</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .tl-filters { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    #timeline { position: relative; padding-left: 2rem; }
+    #timeline::before {
+      content: ""; position: absolute; left: 0.55rem; top: 0; bottom: 0;
+      width: 2px; background: linear-gradient(var(--accent), var(--layer-me));
+    }
+    .tl-item { position: relative; margin-bottom: 1.25rem; }
+    .tl-dot {
+      position: absolute; left: -1.55rem; top: 0.85rem;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--border); border: 2px solid var(--bg);
+    }
+    .kind-release .tl-dot { background: var(--layer-road); }
+    .kind-personal .tl-dot, .kind-now .tl-dot { background: var(--layer-me); }
+    .kind-now .tl-dot { box-shadow: 0 0 0 4px rgba(167,139,250,0.3); }
+    .tl-card {
+      padding: 0.85rem 1rem; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .tl-item.is-highlight .tl-card { border-color: #f59e0b; }
+    .tl-card time { font-size: 0.72rem; color: var(--muted); }
+    .tl-card h3 { margin: 0.2rem 0; font-size: 0.95rem; }
+    .tl-card p { margin: 0; font-size: 0.82rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-road">Слой 2 · маршрут</span>
+        <h1>Таймлайн — история темы и ваш путь</h1>
+        <p>Релизы Java + личные вехи обучения</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Формат markdown</h2>
+        <pre>@timeline
+1995-05 | Java 1.0 | Публичный релиз
+2026-01 | Вы начали | Первый конспект</pre>
+      </aside>
+      <div class="content">
+        <div class="tl-filters">
+          <button type="button" data-tl-filter="all" class="is-active">Все</button>
+          <button type="button" data-tl-filter="releases">Релизы Java</button>
+          <button type="button" data-tl-filter="personal">Мой путь</button>
+        </div>
+        <div id="timeline"></div>
+      </div>
+    </main>
+  </div>
+  <script src="07-timeline.js"></script>
+</body>
+</html>

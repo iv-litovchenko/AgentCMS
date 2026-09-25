@@ -109,7 +109,7 @@ const ACTIONS = [
     category: "control",
     title: "Пересобрать Control",
     command: "npm",
-    args: ["run", "control:dist"],
+    args: ["run", "control:pack"],
     tone: "default",
     controlRole: "dist"
   }
@@ -124,7 +124,7 @@ const APP_PRODUCTS = [
     accent: "cms",
     icon: "cms.svg",
     appBundle: "Agent CMS.app",
-    npmRebuild: "npm run cms:dist",
+    npmRebuild: "npm run cms:pack",
     openActionId: "cms-open",
     rebuildActionId: "cms-rebuild",
     needsServer: false
@@ -137,7 +137,7 @@ const APP_PRODUCTS = [
     accent: "voice",
     icon: "voice.svg",
     appBundle: "Agent Shell.app",
-    npmRebuild: "npm run shell:dist",
+    npmRebuild: "npm run shell:pack",
     openActionId: "voice-open",
     rebuildActionId: "voice-rebuild",
     needsServer: true
@@ -152,7 +152,7 @@ const CONTROL_SELF = {
   icon: "favicon.svg",
   appBundle: "Agent CMS Control.app",
   distActionId: "control-dist",
-  npmDist: "npm run control:dist"
+  npmDist: "npm run control:pack"
 };
 
 const SETUP_ACTIONS = ["install-deps", "setup-certs", "setup-desktop-shortcuts"];

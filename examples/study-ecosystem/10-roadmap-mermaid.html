@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>10. Roadmap v2 — Mermaid</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .mermaid-wrap { overflow: auto; padding: 1rem; }
+    svg#mermaid-roadmap { min-width: 800px; height: 280px; }
+    .rm-link { fill: none; stroke: #475569; stroke-width: 2; }
+    .rm-node rect { stroke-width: 2; }
+    .rm-node.status-done rect { fill: #14532d; stroke: #22c55e; }
+    .rm-node.status-progress rect { fill: #422006; stroke: #f59e0b; }
+    .rm-node.status-todo rect { fill: #1e293b; stroke: #475569; }
+    .rm-label { fill: #e8edf4; font-size: 13px; font-weight: 600; }
+    .rm-status { fill: #94a3b8; font-size: 10px; text-transform: uppercase; }
+    .split-view { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .code-pane pre { margin: 0; font-size: 0.72rem; max-height: 200px; overflow: auto; }
+    @media (max-width: 900px) { .split-view { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-road">Слой 2 · маршрут</span>
+        <h1>Roadmap v2 — структура из Mermaid, статусы из YAML</h1>
+        <p>Диаграмма = источник истины для связей; прогресс — отдельный файл</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Источники</h2>
+        <div class="split-view">
+          <div class="code-pane card"><h3 style="margin:0 0 0.5rem;font-size:0.8rem">.mmd</h3><pre>flowchart LR
+  syntax --> jdbc
+  syntax --> oop
+  jdbc --> spring
+  oop --> spring</pre></div>
+          <div class="code-pane card"><h3 style="margin:0 0 0.5rem;font-size:0.8rem">.yaml</h3><pre>Основы синтаксиса: завершено
+Базы данных: в процессе
+ООП: в процессе</pre></div>
+        </div>
+      </aside>
+      <div class="content mermaid-wrap">
+        <svg id="mermaid-roadmap" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </main>
+  </div>
+  <script src="10-roadmap-mermaid.js"></script>
+</body>
+</html>

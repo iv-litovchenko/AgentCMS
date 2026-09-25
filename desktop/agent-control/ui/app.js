@@ -65,9 +65,9 @@ const ACTION_LABELS = {
 };
 
 const BUILD_DURATION_HINTS = {
-  "cms-rebuild": "~8–10 мин",
-  "voice-rebuild": "~3–4 мин",
-  "control-dist": "~3 мин"
+  "cms-rebuild": "~1–2 мин",
+  "voice-rebuild": "~1 мин",
+  "control-dist": "~1 мин"
 };
 
 function formatActionButtonContent(actionId) {

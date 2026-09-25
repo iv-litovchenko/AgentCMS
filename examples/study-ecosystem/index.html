@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Экосистема изучения — три слоя</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .hero { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 1rem; }
+    .hero h1 { margin: 0; font-size: 1.6rem; }
+    .hero p { color: var(--muted); line-height: 1.55; }
+    .layers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .layer {
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .layer h2 { margin: 0.5rem 0 0.35rem; font-size: 0.95rem; }
+    .layer p { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
+    .layer-arrow { text-align: center; color: var(--muted); font-size: 1.2rem; margin: 0.5rem 0; }
+    .section-title { margin: 2rem 0 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .tool-link {
+      display: block;
+      padding: 0.9rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .tool-link:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .tool-link strong { display: block; margin-bottom: 0.2rem; }
+    .tool-link span { font-size: 0.82rem; color: var(--muted); }
+    .grid-tools { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    @media (max-width: 800px) { .layers { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Экосистема конспектов</h1>
+    <p>Три слоя работают вместе: карта знаний показывает <em>что</em> входит в тему, дорожная карта — <em>в каком порядке</em> идти, личные пометки — <em>что происходит с вами</em> при изучении.</p>
+
+    <div class="layers">
+      <div class="layer" style="border-color:#166534">
+        <span class="badge layer-map">Слой 1</span>
+        <h2>Mindmap — пространство знаний</h2>
+        <p>H1→H2→H3, связи между файлами. «Что вообще входит в Java?»</p>
+      </div>
+      <div class="layer" style="border-color:#0369a1">
+        <span class="badge layer-road">Слой 2</span>
+        <h2>Roadmap — маршрут</h2>
+        <p>Этапы, статусы, параллельные ветки. «В каком порядке учить?»</p>
+      </div>
+      <div class="layer" style="border-color:#6d28d9">
+        <span class="badge layer-me">Слой 3</span>
+        <h2>Пометки [мое *]</h2>
+        <p>Повторить, вопрос, ошибка, идея… «Что со мной лично?»</p>
+      </div>
+    </div>
+    <div class="layer-arrow">↓ инструменты вокруг трёх слоёв ↓</div>
+
+    <p class="section-title">Ядро (примеры 1–4)</p>
+    <div class="grid-tools">
+      <a class="tool-link" href="../mindmap/01-single-file.html"><strong>1. Mindmap — один файл</strong><span>Иерархия заголовков → карта</span></a>
+      <a class="tool-link" href="../mindmap/02-folder-with-links.html"><strong>2. Mindmap — папка + ссылки</strong><span>Перекрёстные связи между конспектами</span></a>
+      <a class="tool-link" href="../study-markers/03-study-markers.html"><strong>3. Пометки [мое *]</strong><span>6 типов личных маркеров</span></a>
+      <a class="tool-link" href="../roadmap/04-roadmap.html"><strong>4. Roadmap из markdown</strong><span>Этапы и статусы</span></a>
+    </div>
+
+    <p class="section-title">Расширения экосистемы</p>
+    <div class="grid-tools">
+      <a class="tool-link" href="05-glossary.html"><strong>5. Глоссарий</strong><span>Термины из конспектов → алфавитный справочник</span></a>
+      <a class="tool-link" href="06-version-tracker.html"><strong>6. Версионный трекер</strong><span>История конспекта, устаревшие разделы</span></a>
+      <a class="tool-link" href="07-timeline.html"><strong>7. Таймлайн</strong><span>События и вехи на шкале времени</span></a>
+      <a class="tool-link" href="08-comparison-tables.html"><strong>8. Сравнительные таблицы</strong><span>X vs Y из markdown-таблиц</span></a>
+      <a class="tool-link" href="09-note-templates.html"><strong>9. Шаблоны конспекта</strong><span>Java / English / History</span></a>
+      <a class="tool-link" href="10-roadmap-mermaid.html"><strong>10. Roadmap v2 — Mermaid</strong><span>Граф из диаграммы + статусы из YAML</span></a>
+      <a class="tool-link" href="11-mindmap-markers.html"><strong>11. Mindmap + пометки</strong><span>Клик по узлу → все [мое *] раздела</span></a>
+      <a class="tool-link" href="12-spaced-repetition.html"><strong>12. Spaced repetition</strong><span>Экспорт [мое повторить] с датами</span></a>
+    </div>
+  </div>
+</body>
+</html>

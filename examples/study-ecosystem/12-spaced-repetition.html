@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>12. Spaced repetition</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .sr-stats { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    .sr-stats .stat { flex: 1; padding: 0.75rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+    .sr-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .sr-table th, .sr-table td { padding: 0.6rem 0.75rem; border: 1px solid var(--border); text-align: left; }
+    .sr-table th { background: var(--surface2); font-size: 0.72rem; text-transform: uppercase; color: var(--muted); }
+    .sr-table tr.is-due td { background: rgba(245,158,11,0.08); }
+    .sr-table tr.is-due td:last-child { color: #fcd34d; }
+    code { font-size: 0.78rem; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-me">Слой 3 · повторение</span>
+        <h1>Spaced repetition — экспорт [мое повторить]</h1>
+        <p>Интервалы, даты следующего повторения, CSV / Anki</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Экосистема</a>
+        <button type="button" id="export-csv">CSV</button>
+        <button type="button" id="export-anki">Anki</button>
+      </div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Алгоритм (упрощённо)</h2>
+        <pre>сегодня ≥ next_review → в очередь
+ответил хорошо → interval × ease
+плохо → interval = 1</pre>
+        <h2>Источник</h2>
+        <pre>все [мое повторить]: из конспектов
++ дата last_review в sidecar</pre>
+      </aside>
+      <div class="content">
+        <div class="sr-stats">
+          <div class="stat">Сегодня к повтору: <strong id="stat-due">0</strong></div>
+          <div class="stat">Всего в очереди: <strong id="stat-total">0</strong></div>
+        </div>
+        <div class="toolbar" style="margin-bottom:1rem">
+          <button type="button" data-sr-filter="all" class="is-active">Все</button>
+          <button type="button" data-sr-filter="due">Сегодня</button>
+          <button type="button" data-sr-filter="week">На неделе</button>
+        </div>
+        <table class="sr-table">
+          <thead><tr>
+            <th>Текст</th><th>Раздел</th><th>Файл</th><th>Последнее</th><th>Интервал</th><th>Следующее</th>
+          </tr></thead>
+          <tbody id="sr-list"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script src="12-spaced-repetition.js"></script>
+</body>
+</html>

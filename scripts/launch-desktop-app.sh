@@ -15,13 +15,14 @@ launch_check_deps
 
 case "$APP" in
   cms)
-    DIST_SCRIPT="cms:dist"
+    # pack (--dir): только .app для локального запуска; dist (DMG/ZIP) — npm run cms:dist вручную
+    DIST_SCRIPT="cms:pack"
     OPEN_SCRIPT="cms:open"
     APP_PATH="$CMS_APP"
     LABEL="Agent CMS"
     ;;
   shell)
-    DIST_SCRIPT="shell:dist"
+    DIST_SCRIPT="shell:pack"
     OPEN_SCRIPT="shell:open"
     APP_PATH="$SHELL_APP"
     LABEL="Agent CMS Voice"

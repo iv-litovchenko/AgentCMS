@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>11. Mindmap + пометки</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    main.combo { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+    .map-pane {
+      overflow: auto; background: #0d1219;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    svg#mindmap { width: 100%; min-height: 420px; }
+    .mm-link { stroke: #334155; stroke-width: 2; }
+    .mm-node circle { stroke-width: 2; }
+    .mm-node.center circle { fill: #ef4444; stroke: #fca5a5; }
+    .mm-node.branch circle { fill: #22c55e; stroke: #86efac; }
+    .mm-node.leaf circle { fill: #a78bfa; stroke: #c4b5fd; }
+    .mm-node.is-active circle { filter: drop-shadow(0 0 8px #3b82f6); stroke-width: 3; }
+    .mm-text { fill: #e8edf4; font-size: 12px; }
+    .mm-count { fill: #a78bfa; font-size: 10px; }
+    .panel {
+      border-left: 1px solid var(--border); padding: 1rem; overflow: auto; background: var(--surface);
+    }
+    .panel h2 { margin: 0 0 0.75rem; font-size: 0.95rem; }
+    .panel .hint { font-size: 0.75rem; color: var(--muted); margin-bottom: 1rem; }
+    .marker-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+    .marker-item {
+      display: flex; gap: 0.6rem; padding: 0.65rem; border-radius: 8px;
+      background: var(--bg); border: 1px solid var(--border); font-size: 0.82rem;
+    }
+    .m-icon { font-weight: 700; width: 1.2rem; text-align: center; }
+    .m-type { font-size: 0.7rem; color: var(--muted); }
+    .marker-item p { margin: 0.2rem 0 0; }
+    @media (max-width: 900px) { main.combo { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-map">Слой 1</span> + <span class="badge layer-me">Слой 3</span>
+        <h1>Mindmap + пометки — три слоя в действии</h1>
+        <p>Клик по узлу → все [мое *] этого раздела</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="combo">
+      <div class="map-pane">
+        <svg id="mindmap" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="panel">
+        <h2 id="panel-title">Синтаксис</h2>
+        <p class="hint">Пометки из конспектов, привязанные к заголовкам H1→H2→H3</p>
+        <div id="markers-panel"></div>
+      </div>
+    </main>
+  </div>
+  <script src="11-mindmap-markers.js"></script>
+</body>
+</html>

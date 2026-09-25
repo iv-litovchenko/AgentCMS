@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6. Версионный трекер</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .version {
+      padding: 1rem; margin-bottom: 0.75rem; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .version:hover, .version.is-selected { border-color: var(--accent); }
+    .version.is-current { border-color: #22c55e; }
+    .version-head { display: flex; justify-content: space-between; margin-bottom: 0.35rem; }
+    .version-id { font-size: 0.75rem; color: var(--muted); font-family: monospace; }
+    .version-summary { margin: 0 0 0.5rem; font-size: 0.88rem; }
+    .diff { margin: 0; padding: 0; list-style: none; font-family: monospace; font-size: 0.78rem; }
+    .diff-add { color: #86efac; }
+    .diff-edit { color: #fcd34d; }
+    .diff-warn { color: #f87171; }
+    .stale { margin-top: 0.5rem; padding: 0.5rem; border-radius: 6px; background: #422006; font-size: 0.78rem; color: #fcd34d; }
+    .pill-green { background: #14532d; color: #86efac; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge tool">Мета-слой</span>
+        <h1>Версионный трекер конспекта</h1>
+        <p>java-oop.md — 4 версии, устаревшие разделы подсвечены</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Маркер в конспекте</h2>
+        <pre>устарело: после Java 21
+причина: заменён на java.time</pre>
+        <h2>Что отслеживает</h2>
+        <pre>• дата изменения
+• что добавлено / изменено
+• разделы «протухли»
+• diff между версиями</pre>
+      </aside>
+      <div class="content" id="version-list"></div>
+    </main>
+  </div>
+  <script src="06-version-tracker.js"></script>
+</body>
+</html>

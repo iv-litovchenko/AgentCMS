@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>9. Шаблоны конспекта</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .tpl-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tpl-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .tpl-header h2 { margin: 0; font-size: 1rem; }
+    #template-preview {
+      padding: 1rem; border-radius: 10px; background: #0d1219;
+      border: 1px solid var(--border); font-family: monospace;
+      font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap;
+      min-height: 320px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge tool">Мета-слой</span>
+        <h1>Шаблоны конспекта</h1>
+        <p>Одна экосистема — разная структура под предмет</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Экосистема</a>
+        <button type="button" id="copy-tpl">Копировать</button>
+      </div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Идея</h2>
+        <pre>templates/
+  java.md
+  english.md
+  history.md
+
+new-note --template java</pre>
+        <p style="font-size:0.8rem;color:var(--muted)">Маркеры [мое *] одинаковы во всех шаблонах — слой 3 универсален.</p>
+      </aside>
+      <div class="content">
+        <div class="tpl-tabs">
+          <button type="button" data-tpl="java" class="is-active">Java</button>
+          <button type="button" data-tpl="english">English</button>
+          <button type="button" data-tpl="history">History</button>
+        </div>
+        <div class="tpl-header">
+          <span class="badge layer-map" id="template-badge">java</span>
+          <h2 id="template-name">Java</h2>
+        </div>
+        <pre id="template-preview"></pre>
+      </div>
+    </main>
+  </div>
+  <script src="09-note-templates.js"></script>
+</body>
+</html>
