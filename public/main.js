@@ -120,11 +120,12 @@ const repositoryCreateCancelBtn = document.getElementById("repository-create-can
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
 const REPOSITORY_CREATE_TYPE_ID = "awn.repository";
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
+const menuRepositoriesShortcutsRow = document.getElementById("menu-repositories-shortcuts-row");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
 const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
-const menuRepositoriesDependenciesRow = document.getElementById("menu-repositories-dependencies-row");
 const menuRepositoriesDependenciesOpenBtn = document.getElementById("menu-repositories-dependencies-open-btn");
+const menuRepositoriesSearchInputNode = document.getElementById("menu-repositories-search-input");
 const REPOSITORY_INDEX_REL = "awn-repositories/index.md";
 const REPOSITORY_STATS_THEME_STORAGE_KEY = "agentcms.repositoryStatsTheme.v1";
 const repositoryGroupsModalNode = document.getElementById("repository-groups-modal");
@@ -102700,6 +102701,7 @@ const MENU_AWN_DATA_REFRESH_SPIN_MIN_MS = 320;
 let menuRepositoriesLoadSeq = 0;
 let menuRepositoriesLastPayload = null;
 let menuRepositoriesCachedAgentId = "";
+let menuRepositoriesSearchQuery = "";
 /** @type {{ mode: "create"|"edit"|"adopt", manifestPath?: string, slug?: string }} */
 let repositoryModalState = { mode: "create" };
 let repositoryGroupsDraft = { groups: [], assignments: {} };
@@ -110862,11 +110864,54 @@ function readMenuRepositoryGroupOpenState() {
   return state;
 }
 
+function menuRepositoryEntrySearchHaystack(entry) {
+  return [
+    entry?.name,
+    entry?.slug,
+    entry?.description,
+    entry?.origin,
+    entry?.folderPath,
+    entry?.manifestPath,
+    entry?.group,
+    entry?.status,
+    entry?.hint
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function menuRepositoryEntryMatchesSearchQuery(entry, queryLower) {
+  if (!queryLower) return true;
+  const haystack = menuRepositoryEntrySearchHaystack(entry);
+  if (!haystack) return false;
+  return haystack.includes(queryLower);
+}
+
+function filterMenuRepositoriesPayload(payload, query = menuRepositoriesSearchQuery) {
+  const queryLower = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!queryLower || !payload) return payload;
+  const repositories = (Array.isArray(payload.repositories) ? payload.repositories : []).filter((entry) =>
+    menuRepositoryEntryMatchesSearchQuery(entry, queryLower)
+  );
+  const unregistered = (Array.isArray(payload.unregistered) ? payload.unregistered : []).filter((entry) =>
+    menuRepositoryEntryMatchesSearchQuery(entry, queryLower)
+  );
+  return {
+    ...payload,
+    repositories,
+    unregistered,
+    _searchActive: true
+  };
+}
+
 function createMenuRepositoryGroupNode(
   groupId,
   title,
   items,
-  { highlightUnregistered = false, openState = null } = {}
+  { highlightUnregistered = false, openState = null, forceExpanded = false } = {}
 ) {
   const item = document.createElement("li");
   item.className = highlightUnregistered
@@ -110880,7 +110925,12 @@ function createMenuRepositoryGroupNode(
   const resolvedGroupId = String(groupId || "").trim();
   const hasPreservedOpenState =
     openState && Object.prototype.hasOwnProperty.call(openState, resolvedGroupId);
-  details.open = hasPreservedOpenState ? Boolean(openState[resolvedGroupId]) : items.length > 0;
+  details.open =
+    forceExpanded && items.length > 0
+      ? true
+      : hasPreservedOpenState
+        ? Boolean(openState[resolvedGroupId])
+        : items.length > 0;
 
   const summary = document.createElement("summary");
   summary.className = highlightUnregistered
@@ -110955,14 +111005,25 @@ function renderMenuRepositories(payload = null, { loading = false, error = false
     return;
   }
 
-  const repositories = Array.isArray(data.repositories) ? data.repositories : [];
-  const unregistered = Array.isArray(data.unregistered) ? data.unregistered : [];
-  const sections = groupMenuRepositories(repositories, unregistered, data.groupsCatalog);
+  const viewData = filterMenuRepositoriesPayload(data, menuRepositoriesSearchQuery);
+  const repositories = Array.isArray(viewData.repositories) ? viewData.repositories : [];
+  const unregistered = Array.isArray(viewData.unregistered) ? viewData.unregistered : [];
+  const sections = groupMenuRepositories(repositories, unregistered, viewData.groupsCatalog).filter(
+    (section) => !viewData._searchActive || section.items.length > 0
+  );
+  if (!sections.length) {
+    const item = document.createElement("li");
+    item.className = "menu-repository-item menu-repository-item--empty";
+    item.textContent = viewData._searchActive ? "Ничего не найдено" : "Нет репозиториев";
+    menuRepositoriesListNode.appendChild(item);
+    return;
+  }
   for (const section of sections) {
     menuRepositoriesListNode.appendChild(
       createMenuRepositoryGroupNode(section.id, section.title, section.items, {
         highlightUnregistered: section.highlightUnregistered,
-        openState
+        openState,
+        forceExpanded: Boolean(viewData._searchActive)
       })
     );
   }
@@ -110987,8 +111048,7 @@ function syncRepositoriesDependenciesButtonState() {
 function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
   if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
   const hasAgent = Boolean(String(activeAgentId || "").trim());
-  menuRepositoriesIndexRow?.classList.toggle("hidden", !hasAgent);
-  menuRepositoriesDependenciesRow?.classList.toggle("hidden", !hasAgent);
+  menuRepositoriesShortcutsRow?.classList.toggle("hidden", !hasAgent);
   const indexFile = payload?.indexFile;
   const hasIndex = Boolean(indexFile?.exists);
   const indexPath = String(indexFile?.path || REPOSITORY_INDEX_REL).trim() || REPOSITORY_INDEX_REL;
@@ -111175,6 +111235,12 @@ function setupRepositoriesUi() {
         openMode: "system"
       }
     );
+  });
+  menuRepositoriesSearchInputNode?.addEventListener("input", (event) => {
+    menuRepositoriesSearchQuery = String(event.target.value || "");
+    if (menuRepositoriesLastPayload) {
+      renderMenuRepositories(menuRepositoriesLastPayload);
+    }
   });
   setupRepositoryGroupsSortDragDrop();
   repositoryGroupsAddBtn?.addEventListener("click", () => {

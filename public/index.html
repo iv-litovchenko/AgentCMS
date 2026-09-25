@@ -2000,40 +2000,58 @@
                     + Репозиторий
                   </button>
                 </div>
-                <div
-                  id="menu-repositories-index-row"
-                  class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row hidden"
-                >
-                  <button
-                    id="menu-repositories-index-open-btn"
-                    type="button"
-                    class="menu-repositories-index-open node-navigation-workspace-counter-topic-index is-generated"
-                    title="Открыть awn-repositories/index.md"
-                  >
-                    Индекс репозиториев
-                  </button>
-                  <button
-                    id="menu-repositories-index-refresh-btn"
-                    type="button"
-                    class="menu-repositories-index-refresh node-navigation-workspace-counter-topic-index-refresh"
-                    aria-label="Обновить index.md репозиториев"
-                    title="Обновить и сохранить awn-repositories/index.md"
-                  >
-                    ⟲
-                  </button>
-                </div>
-                <div
-                  id="menu-repositories-dependencies-row"
-                  class="menu-repositories-dependencies-row node-navigation-workspace-counter-topic-index-row hidden"
-                >
+                <div id="menu-repositories-shortcuts-row" class="menu-repositories-shortcuts-row hidden">
                   <button
                     id="menu-repositories-dependencies-open-btn"
                     type="button"
                     class="menu-repositories-dependencies-open node-navigation-workspace-counter-topic-index is-generated"
                     title="Открыть dependencies.csv"
                   >
-                    Зависимости и инструменты
+                    Зависимости
                   </button>
+                  <div
+                    id="menu-repositories-index-row"
+                    class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row"
+                  >
+                    <button
+                      id="menu-repositories-index-open-btn"
+                      type="button"
+                      class="menu-repositories-index-open node-navigation-workspace-counter-topic-index is-generated"
+                      title="Открыть awn-repositories/index.md"
+                    >
+                      Индекс репозиториев
+                    </button>
+                    <button
+                      id="menu-repositories-index-refresh-btn"
+                      type="button"
+                      class="menu-repositories-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                      aria-label="Обновить index.md репозиториев"
+                      title="Обновить и сохранить awn-repositories/index.md"
+                    >
+                      ⟲
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-repositories-toolbar-row menu-repositories-toolbar-row--search">
+                  <div class="menu-search-wrap menu-repositories-search-wrap">
+                    <label class="menu-search-bar" for="menu-repositories-search-input">
+                      <span class="menu-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="7"></circle>
+                          <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                      </span>
+                      <input
+                        id="menu-repositories-search-input"
+                        class="menu-search-input"
+                        type="search"
+                        placeholder="Поиск репозиториев..."
+                        autocomplete="off"
+                        spellcheck="false"
+                        aria-label="Поиск репозиториев"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <ul
                   id="menu-repositories-list"
