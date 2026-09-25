@@ -4,7 +4,7 @@ const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { findCatalogScaffold } = require("./agent-registry");
 const { AWN_DATA_DIR, getAwnDataPayload } = require("./awn-data-loader");
 
-/** Presets backed by awn-databases/taxonomies/{preset}/ */
+/** Presets backed by awn-databases/awn-taxonomies/{preset}/ */
 const AWN_DATA_TAXONOMY_PRESETS = new Set([
   "tags",
   "categories",
@@ -13,13 +13,13 @@ const AWN_DATA_TAXONOMY_PRESETS = new Set([
 ]);
 
 const PRESET_TO_STORE_REL = {
-  tags: "taxonomies/tags",
-  categories: "taxonomies/categories",
-  priorities: "taxonomies/priorities",
-  colors: "taxonomies/colors"
+  tags: "awn-taxonomies/tags",
+  categories: "awn-taxonomies/categories",
+  priorities: "awn-taxonomies/priorities",
+  colors: "awn-taxonomies/colors"
 };
 
-const AWN_DATA_MANIFEST_REL_PREFIX = "awn-databases/taxonomies";
+const AWN_DATA_MANIFEST_REL_PREFIX = "awn-databases/awn-taxonomies";
 
 function getAwnDataTaxonomyManifestRel(preset) {
   return `${AWN_DATA_MANIFEST_REL_PREFIX}/${preset}/manifest.md`;

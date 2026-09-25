@@ -2174,11 +2174,8 @@ function buildContainerManifestFrontmatter(typeId, displayName, fields) {
     "awn-runtime-commands",
     "awn-index-exclude-record",
     "awn-index-exclude-subtree",
-    "awn-category",
+    "awn-taxonomy",
     "awn-owner",
-    "awn-priority",
-    "awn-color",
-    "awn-tags",
     "awn-type",
     "awn-create",
     "awn-update",
@@ -2977,7 +2974,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   if (!STORE_KINDS.has(kind)) throw new Error("kind must be collection, single, or group");
 
   const slug = normalizeStoreSlug(options.slug || slugifyStoreName(options.name));
-  if (!slug) throw new Error("Invalid store slug (use kebab-case, optional subfolder: taxonomies/tags)");
+  if (!slug) throw new Error("Invalid store slug (use kebab-case, optional subfolder: awn-taxonomies/tags)");
 
   const dataRoot = ensureAwnDataBase(agentRoot, projectRoot);
   if (storeSchemaExists(dataRoot, slug)) {
@@ -2990,7 +2987,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   const name = String(options.name || slug).trim();
   const description = String(options.description || "").trim();
-  const isTaxonomy = slug.startsWith("taxonomies/");
+  const isTaxonomy = slug.startsWith("awn-taxonomies/") || slug.startsWith("taxonomies/");
   const withSample =
     kind === "collection" && !isTaxonomy ? options.withSampleRecord !== false : false;
   const indexExcludeFlags =
@@ -3142,6 +3139,140 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   const payload = getAwnDataPayload(agentRoot, projectRoot, slug);
   return payload.store || { id: slug, relPath: slug, kind };
+}
+
+const TAXONOMIES_GROUP_REL = "awn-taxonomies";
+const LEGACY_TAXONOMIES_GROUP_REL = "taxonomies";
+const TAXONOMIES_GROUP_NAME = "Таксономии (справочники)";
+const TAXONOMIES_GROUP_DESCRIPTION =
+  "Встроенная группа CSV-справочников workspace для поля awn-taxonomy.";
+const DEFAULT_TAXONOMY_VOCABULARIES = [
+  {
+    slug: "tags",
+    name: "Теги",
+    description: "Список тегов workspace — как #tag в Obsidian",
+    taxonomyKey: "tags",
+    taxonomyCardinality: "many"
+  },
+  {
+    slug: "categories",
+    name: "Категории",
+    description: "Справочник категорий. Ключ в awn-taxonomy.category",
+    taxonomyKey: "category",
+    taxonomyCardinality: "one"
+  },
+  {
+    slug: "colors",
+    name: "Палитра",
+    description: "Справочник цветов-меток. Ключ в awn-taxonomy.color",
+    taxonomyKey: "color",
+    taxonomyCardinality: "many"
+  }
+];
+
+function pinTaxonomiesGroupInRootSort(dataRoot) {
+  const sortPath = path.join(dataRoot, "sort.json");
+  let order = [];
+  if (fs.existsSync(sortPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(sortPath, "utf-8"));
+      if (Array.isArray(parsed)) order = parsed.map(String);
+    } catch {
+      order = [];
+    }
+  }
+  order = order.filter((item) => item !== TAXONOMIES_GROUP_REL && item !== LEGACY_TAXONOMIES_GROUP_REL);
+  order.unshift(TAXONOMIES_GROUP_REL);
+  fs.writeFileSync(sortPath, `${JSON.stringify(order, null, 2)}\n`, "utf-8");
+}
+
+function ensureTaxonomiesGroupSort(dataRoot) {
+  const groupAbs = getStoreAbsolutePath(dataRoot, TAXONOMIES_GROUP_REL);
+  if (!groupAbs || !fs.existsSync(path.join(groupAbs, COLLECTION_MANIFEST))) return;
+  const preferred = DEFAULT_TAXONOMY_VOCABULARIES.map((item) => item.slug);
+  const sortPath = path.join(groupAbs, "sort.json");
+  let order = [];
+  if (fs.existsSync(sortPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(sortPath, "utf-8"));
+      if (Array.isArray(parsed)) order = parsed.map(String);
+    } catch {
+      order = [];
+    }
+  }
+  const finalOrder = [...preferred, ...order.filter((slug) => !preferred.includes(slug))];
+  fs.writeFileSync(sortPath, `${JSON.stringify(finalOrder, null, 2)}\n`, "utf-8");
+}
+
+function ensureTaxonomiesGroupScaffold(agentRoot, projectRoot = process.cwd(), options = {}) {
+  const dataRoot = ensureAwnDataBase(agentRoot, projectRoot);
+  const withDefaults = options.withDefaults !== false;
+  const result = {
+    groupRel: TAXONOMIES_GROUP_REL,
+    groupCreated: false,
+    storesCreated: [],
+    storesSkipped: [],
+    alreadyExists: false
+  };
+
+  if (!storeSchemaExists(dataRoot, TAXONOMIES_GROUP_REL)) {
+    const manifestBody = `# ${TAXONOMIES_GROUP_NAME}
+
+${TAXONOMIES_GROUP_DESCRIPTION}
+
+Каждый поднакопитель — CSV-коллекция \`main.csv\` в \`awn-databases/awn-taxonomies/\`.
+
+Значения подключаются к записям через единое поле \`awn-taxonomy\`.
+`;
+    createAwnDataStore(agentRoot, projectRoot, {
+      kind: "group",
+      slug: TAXONOMIES_GROUP_REL,
+      name: TAXONOMIES_GROUP_NAME,
+      description: TAXONOMIES_GROUP_DESCRIPTION
+    });
+    const groupAbs = getStoreAbsolutePath(dataRoot, TAXONOMIES_GROUP_REL);
+    if (groupAbs) {
+      const bundle = buildGroupSchemaContent({
+        slug: TAXONOMIES_GROUP_REL,
+        name: TAXONOMIES_GROUP_NAME,
+        description: TAXONOMIES_GROUP_DESCRIPTION,
+        agentRoot,
+        projectRoot
+      });
+      writeStoreManifest(groupAbs, bundle.schema, manifestBody, {
+        agentRoot,
+        projectRoot
+      });
+    }
+    result.groupCreated = true;
+  } else {
+    result.alreadyExists = true;
+  }
+
+  if (withDefaults) {
+    for (const vocabulary of DEFAULT_TAXONOMY_VOCABULARIES) {
+      const storeRel = `${TAXONOMIES_GROUP_REL}/${vocabulary.slug}`;
+      if (storeSchemaExists(dataRoot, storeRel)) {
+        result.storesSkipped.push(vocabulary.slug);
+        continue;
+      }
+      createAwnDataStore(agentRoot, projectRoot, {
+        kind: "collection",
+        slug: storeRel,
+        name: vocabulary.name,
+        description: vocabulary.description,
+        taxonomyKey: vocabulary.taxonomyKey,
+        taxonomyCardinality: vocabulary.taxonomyCardinality,
+        withSampleRecord: false
+      });
+      result.storesCreated.push(vocabulary.slug);
+    }
+  }
+
+  pinTaxonomiesGroupInRootSort(dataRoot);
+  ensureTaxonomiesGroupSort(dataRoot);
+  result.store = findAwnDataStore(loadAwnDataStores(agentRoot, projectRoot).stores, TAXONOMIES_GROUP_REL);
+  return result;
 }
 
 function resolveNextNumericRecordId(records) {
@@ -4119,6 +4250,8 @@ module.exports = {
   normalizeStoreSlug,
   slugifyStoreName,
   ensureAwnDataBase,
+  TAXONOMIES_GROUP_REL,
+  ensureTaxonomiesGroupScaffold,
   createAwnDataStore,
   createAwnDataRecord,
   ensureAwnDataSectionManifest,

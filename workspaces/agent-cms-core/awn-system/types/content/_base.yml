@@ -40,7 +40,7 @@ field-groups:
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
-    description: awn-taxonomy, приоритет, владелец
+    description: Справочники из awn-databases/awn-taxonomies/
     collapsed: true
   - id: physical-location
     name: "{A2!} Физическая локация"

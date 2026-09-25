@@ -28,7 +28,7 @@ awn-description: "Группировка enum-справочников плат�
 ---
 # Таксономии (справочники)
 
-Встроенная группа CSV-справочников workspace. Каждый поднакопитель — коллекция `main.csv` в `awn-databases/taxonomies/`.
+Встроенная группа CSV-справочников workspace. Каждый поднакопитель — коллекция `main.csv` в `awn-databases/awn-taxonomies/`.
 
 Значения подключаются к записям через единое поле `awn-taxonomy`:
 
@@ -47,4 +47,4 @@ awn-taxonomy:
 
 Метаданные словаря: `awn-taxonomy-key`, `awn-taxonomy-cardinality` (`one`/`many`), `awn-record-hierarchy`.
 
-`awn-priority` и `awn-status` — отдельные поля (не часть `awn-taxonomy`).
+`awn-status` — отдельное поле (не часть `awn-taxonomy`).

@@ -341,7 +341,9 @@ const {
   renameAwnDataRecord,
   deleteAwnDataStore,
   renameAwnDataStore,
-  getContainerTypesPayload
+  getContainerTypesPayload,
+  ensureTaxonomiesGroupScaffold,
+  TAXONOMIES_GROUP_REL
 } = require("./awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./awn-system-presets-loader");
 const {
@@ -22942,6 +22944,27 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load awn-databases container types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-taxonomies") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = ensureTaxonomiesGroupScaffold(agentRoot, getProjectRoot(), {
+        withDefaults: payload?.withDefaults !== false
+      });
+      return sendJson(res, 201, {
+        ok: true,
+        groupRel: TAXONOMIES_GROUP_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold taxonomies group",
         details: String(error.message || error)
       });
     }

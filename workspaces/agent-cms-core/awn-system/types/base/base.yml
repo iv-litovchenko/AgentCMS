@@ -48,7 +48,7 @@ field-groups:
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
-    description: awn-taxonomy, приоритет, владелец
+    description: Справочники из awn-databases/awn-taxonomies/
     collapsed: true
   - id: system
     name: "{A2!} Системные"
@@ -217,27 +217,10 @@ fields:
   awn-taxonomy:
     type: awn.field.taxonomy
     title: "{A2!} Таксономия"
-    description: Теги, категория, цвет и другие справочники из awn-databases/taxonomies/
+    description: Теги, категория, цвет и другие справочники из awn-databases/awn-taxonomies/
     placement: aside-body
     group: taxonomy
     sort: 1
-
-  awn-owner:
-    type: awn.field.lookup.one
-    source: users
-    title: "{A2!} Владелец"
-    placement: hidden
-    hidden: true
-    group: taxonomy
-    sort: 2
-
-  awn-priority:
-    type: awn.field.lookup.one
-    source: priorities
-    title: "{A2!} Приоритет"
-    placement: aside-body
-    group: taxonomy
-    sort: 3
 
   # --- system ---
   awn-id:
@@ -281,3 +264,12 @@ fields:
     placement: aside-body
     group: system
     sort: 4
+
+  awn-owner:
+    type: awn.field.string
+    title: "{A2!} Владелец"
+    description: Владелец записи (позже — связь с users)
+    locked: true
+    placement: aside-body
+    group: system
+    sort: 5

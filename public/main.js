@@ -78,6 +78,7 @@ const menuAwnDataHelpBtn = document.getElementById("menu-awn-databases-help-btn"
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-databases-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-databases-create-single-btn");
 const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-databases-create-group-btn");
+const menuAwnDataScaffoldTaxonomiesBtn = document.getElementById("menu-awn-databases-scaffold-taxonomies-btn");
 const menuAwnDataSearchInputNode = document.getElementById("menu-awn-databases-search-input");
 const menuAwnDataIndexRowNode = document.getElementById("menu-awn-databases-index-row");
 const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-databases-index-open-btn");
@@ -1596,7 +1597,7 @@ const SHARED_THEME_PRESETS = [
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
   SHARED_THEME_PRESETS.map((item) => [item.slug, item.label])
 );
-const SHARED_TAXONOMIES_SLUG = "taxonomies";
+const SHARED_TAXONOMIES_SLUG = "awn-taxonomies";
 const SHARED_TAXONOMIES_LABEL = "Таксономии";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
@@ -50307,7 +50308,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     }
     if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
     if (isSystemReferenceManifestPath(normalized)) {
-      return /\/taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
+      return /\/(?:awn-)?taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
         /\/catalog\/[^/]+\/manifest\.md$/i.test(normalized)
         ? "catalog"
         : "service-doc";
@@ -56103,6 +56104,7 @@ function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked =
 
 function createPropsFormTaxonomyControl(entry, meta, { locked = false } = {}) {
   const wrap = createPropsFormValueWrap("taxonomy");
+  wrap.classList.add("props-form-value-wrap--taxonomy");
   const definitions = getAgentTaxonomyDefinitions();
   const current =
     entry?.kind === "taxonomy" && entry.value && typeof entry.value === "object" && !Array.isArray(entry.value)
@@ -56112,7 +56114,7 @@ function createPropsFormTaxonomyControl(entry, meta, { locked = false } = {}) {
   if (!definitions.length) {
     wrap.appendChild(
       createPropsFormCatalogMissingNote(
-        "Справочники таксономий не найдены — создайте их в awn-databases/taxonomies/"
+        "Справочники таксономий не найдены — создайте их в awn-databases/awn-taxonomies/"
       )
     );
     return wrap;
@@ -59520,11 +59522,13 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   const normalizedKey = normalizePropsKey(entry.key);
   const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
   const isPreviewField = fieldWidget === "preview";
+  const isTaxonomyField = fieldWidget === "taxonomy";
   const isAttachmentsField = normalizedKey === "awn-attachments";
   const isCronScheduleField = normalizedKey === "awn-runtime-cron-schedule";
   const row = document.createElement("div");
   row.className = "props-form-row props-form-field props-form-field--compact";
   if (isPreviewField) row.classList.add("props-form-field--preview");
+  if (isTaxonomyField) row.classList.add("props-form-field--taxonomy");
   if (isAttachmentsField) row.classList.add("props-form-field--attachments");
   if (isCronScheduleField) row.classList.add("props-form-field--cron-schedule");
   row.dataset.index = String(index);
@@ -59533,7 +59537,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   const head = document.createElement("div");
   head.className = "props-form-field-head";
 
-  if (entry.key && !isPreviewField && !isCronScheduleField) {
+  if (entry.key && !isPreviewField && !isCronScheduleField && !isTaxonomyField) {
     const label = showFieldKey
       ? buildPropsFieldKeyLabelElement(entry.key, meta, { required: meta.required })
       : buildFieldLabelElement(meta.label || entry.key, {
@@ -59556,7 +59560,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   }
 
   const valueControl = createPropsFormValueControl(entry, meta, { editorCompact });
-  if (isPreviewField || isCronScheduleField) {
+  if (isPreviewField || isCronScheduleField || isTaxonomyField) {
     row.append(valueControl);
   } else {
     row.append(head, valueControl);
@@ -104398,7 +104402,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   awnDataCreateKind =
     kind === "single" ? "single" : kind === "group" ? "group" : "collection";
   awnDataCreateParentGroup = String(options.parentGroup || "").trim().replace(/\/+$/, "");
-  const isTaxonomy = awnDataCreateParentGroup === "taxonomies";
+  const isTaxonomy = awnDataCreateParentGroup === "awn-taxonomies";
   if (awnDataCreateModalTitleNode) {
     if (awnDataCreateKind === "group") {
       awnDataCreateModalTitleNode.textContent = "Новая группа";
@@ -104415,7 +104419,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
         "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-databases/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
+        "Поднакопитель в <code>awn-databases/awn-taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
@@ -104644,7 +104648,7 @@ function syncAwnDataCreateCollectionOptions({ showCollectionOptions } = {}) {
   const showOptions =
     showCollectionOptions ??
     (awnDataCreateKind === "collection" &&
-      String(awnDataCreateParentGroup || "").trim() !== "taxonomies");
+      String(awnDataCreateParentGroup || "").trim() !== "awn-taxonomies");
   const collectionOnlyFields = [
     awnDataCreateKindWrapNode,
     awnDataCreateFileTypesWrapNode,
@@ -112519,10 +112523,45 @@ function setupRepositoriesUi() {
   });
 }
 
+async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId) {
+  if (!agentId) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  if (menuAwnDataScaffoldTaxonomiesBtn) menuAwnDataScaffoldTaxonomiesBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-taxonomies", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ withDefaults: true })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    const created = [
+      data.groupCreated ? "группа" : null,
+      ...(Array.isArray(data.storesCreated) ? data.storesCreated : [])
+    ].filter(Boolean);
+    showToast(
+      created.length
+        ? `Таксономии: создано ${created.join(", ")}`
+        : "Группа «Таксономии» уже существует",
+      "success"
+    );
+    await refreshMenuAwnDataStores(agentId);
+    await loadAgentTaxonomies(agentId).catch(() => null);
+    if (data.store?.relPath) void openAwnDataViewPage(data.store.relPath, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    if (menuAwnDataScaffoldTaxonomiesBtn) menuAwnDataScaffoldTaxonomiesBtn.disabled = false;
+  }
+}
+
 function setupAwnDataStoresUi() {
   if (setupAwnDataStoresUi.initialized) return;
   setupAwnDataStoresUi.initialized = true;
 
+  menuAwnDataScaffoldTaxonomiesBtn?.addEventListener("click", () => void submitAwnDataScaffoldTaxonomies());
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));
   menuAwnDataCreateGroupBtn?.addEventListener("click", () => openAwnDataCreateModal("group"));
@@ -112904,6 +112943,13 @@ function filterAwnDataStoresPayload(payload, query = menuAwnDataSearchQuery) {
 function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   const item = document.createElement("li");
   item.className = "menu-awn-databases-store-group";
+  const relPath = String(store?.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (relPath === SHARED_TAXONOMIES_SLUG) {
+    item.classList.add("menu-awn-databases-store-group--builtin");
+  }
 
   const children = Array.isArray(store.children) ? store.children : [];
   const hasChildren = children.length > 0;

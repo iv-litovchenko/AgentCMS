@@ -19,7 +19,7 @@
 | — | collection | `awn-databases/personal-finance/investicii` | [Инвестиции](awn-databases/personal-finance/investicii/manifest.md) | Инвестиции | 870 B | 38 | 0 | 0 | — | CSV-файл | — |
 | — | collection | `awn-databases/personal-finance/pokupki` | [Покупки](awn-databases/personal-finance/pokupki/manifest.md) | Покупки | 818 B | 38 | 0 | 0 | — | CSV-файл | — |
 | — | collection | `awn-databases/personal-finance/raskhody` | [Расходы](awn-databases/personal-finance/raskhody/manifest.md) | Расходы | 834 B | 38 | 0 | 0 | — | CSV-файл | — |
-| 21 | collection | `awn-databases/taxonomies/podcast-topics` | [Темы эпизодов](awn-databases/taxonomies/podcast-topics/manifest.md) | Темы эпизодов | 291 B | 13 | 0 | 6 | — | Markdown-файлы | — |
+| 21 | collection | `awn-databases/awn-taxonomies/podcast-topics` | [Темы эпизодов](awn-databases/awn-taxonomies/podcast-topics/manifest.md) | Темы эпизодов | 291 B | 13 | 0 | 6 | — | Markdown-файлы | — |
 | — | group | `awn-databases/test-infobloka` | [Тест инфоблока](awn-databases/test-infobloka/manifest.md) | Тест инфоблока | 731 B | 32 | 0 | 18 | 3 | — | — |
 | — | collection | `awn-databases/test-infobloka/test-1` | [Тест 1](awn-databases/test-infobloka/test-1/manifest.md) | Тест 1 | 821 B | 38 | 0 | 6 | — | Markdown-файлы | — |
 | — | collection | `awn-databases/test-infobloka/test-2` | [Тест 2](awn-databases/test-infobloka/test-2/manifest.md) | Тест 2 | 902 B | 38 | 0 | 11 | — | Markdown-файлы | — |

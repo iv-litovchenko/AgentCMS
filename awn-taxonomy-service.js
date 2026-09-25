@@ -9,7 +9,8 @@ const {
 } = require("./awn-data-loader");
 const { recordToCatalogItem } = require("./awn-data-taxonomies-bridge");
 
-const TAXONOMIES_GROUP_REL = "taxonomies";
+const TAXONOMIES_GROUP_REL = "awn-taxonomies";
+const LEGACY_TAXONOMIES_GROUP_REL = "taxonomies";
 const LEGACY_TAXONOMY_FIELD_MAP = {
   "awn-tags": "tags",
   "awn-category": "category",
@@ -141,14 +142,20 @@ function migrateLegacyTaxonomyFields(frontmatter = {}, definitions = []) {
 function listTaxonomyStores(agentRoot, projectRoot = process.cwd()) {
   const payload = loadAwnDataStores(agentRoot, projectRoot);
   const stores = payload?.stores || [];
-  const group = findAwnDataStore(stores, TAXONOMIES_GROUP_REL);
+  const group =
+    findAwnDataStore(stores, TAXONOMIES_GROUP_REL) ||
+    findAwnDataStore(stores, LEGACY_TAXONOMIES_GROUP_REL);
   const children = Array.isArray(group?.children) ? group.children : [];
   if (children.length) {
     return children.filter((store) => store.kind === "collection");
   }
   return stores.filter((store) => {
     const rel = String(store?.relPath || "");
-    return rel.startsWith(`${TAXONOMIES_GROUP_REL}/`) && store.kind === "collection";
+    return (
+      (rel.startsWith(`${TAXONOMIES_GROUP_REL}/`) ||
+        rel.startsWith(`${LEGACY_TAXONOMIES_GROUP_REL}/`)) &&
+      store.kind === "collection"
+    );
   });
 }
 
