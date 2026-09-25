@@ -181,6 +181,7 @@ const {
   BUNDLE_CONFIG_FILE,
   LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_ROADMAP_FILE,
   BUNDLE_LOG_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
@@ -1529,6 +1530,7 @@ function inferWorkspaceActivityFileKind(relPath) {
   if (normalized.endsWith("/manifest.md") || normalized.endsWith("_registration.md")) return "manifest";
   if (normalized.endsWith("/main.md") || normalized.includes("/main/")) return "memory";
   if (normalized.endsWith("/todo.md")) return "todo";
+  if (normalized.endsWith("/roadmap.md")) return "roadmap";
   if (normalized.endsWith("/log.md")) return "log";
   if (normalized.endsWith("/schema.yml") || normalized.endsWith("schema.yml")) return "schema";
   if (normalized.endsWith("/config.yml") || normalized.endsWith("configuration.yml")) return "schema";
@@ -2655,6 +2657,12 @@ function toTodoFilePath(relNodePath) {
   return namedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
 }
 
+function toRoadmapFilePath(relNodePath) {
+  const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
+  if (partBase) return `${partBase}.roadmap.md`;
+  return namedStorageBundleRel(relNodePath, BUNDLE_ROADMAP_FILE);
+}
+
 function toLogFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.log.md`;
@@ -2664,6 +2672,13 @@ function toLogFilePath(relNodePath) {
 async function writeTodoFiles(relNodePath, content) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
   const bundleRelPath = toTodoFilePath(resolvedRelPath);
+  await writeWorkspaceTextFileWithHistory(resolvedRelPath, bundleRelPath, content);
+  return bundleRelPath;
+}
+
+async function writeRoadmapFiles(relNodePath, content) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const bundleRelPath = toRoadmapFilePath(resolvedRelPath);
   await writeWorkspaceTextFileWithHistory(resolvedRelPath, bundleRelPath, content);
   return bundleRelPath;
 }
@@ -2832,6 +2847,7 @@ async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, system
   if (mode === "internal") return normalizeHistoryTargetRelPath(toContentFilePath(resolvedManifest));
   if (mode === "tabular") return normalizeHistoryTargetRelPath(toTabularFilePath(resolvedManifest));
   if (mode === "todo") return normalizeHistoryTargetRelPath(toTodoFilePath(resolvedManifest));
+  if (mode === "roadmap") return normalizeHistoryTargetRelPath(toRoadmapFilePath(resolvedManifest));
   if (mode === "configs") return normalizeHistoryTargetRelPath(toNodeConfigFilePath(resolvedManifest));
   if (mode === "env") return normalizeHistoryTargetRelPath(toEnvFilePath(resolvedManifest));
   if (mode === "external" && file) {
@@ -4445,6 +4461,22 @@ async function readTodoContent(relPath) {
   return { path: todoRelPath, content: "", exists: false };
 }
 
+async function readRoadmapContent(relPath) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const roadmapRelPath = toRoadmapFilePath(resolvedRelPath);
+  const roadmapAbsolute = normalizeWorkspacePath(roadmapRelPath);
+  if (!roadmapAbsolute) return { path: roadmapRelPath, content: "", exists: false };
+
+  try {
+    const content = await fs.readFile(roadmapAbsolute, "utf-8");
+    return { path: roadmapRelPath, content, exists: true };
+  } catch (error) {
+    if (!error || error.code !== "ENOENT") throw error;
+  }
+
+  return { path: roadmapRelPath, content: "", exists: false };
+}
+
 async function readLogContent(relPath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
   const logRelPath = toLogFilePath(resolvedRelPath);
@@ -4868,6 +4900,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   }
   if (mode === "todo") {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, toTodoFilePath);
+  }
+  if (mode === "roadmap") {
+    return resolveObsidianSidecarAbsolute(nodeAbsolute, toRoadmapFilePath);
   }
   if (mode === "scripts") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_SCRIPTS);
@@ -5957,10 +5992,11 @@ function assertWorkspaceFsWriteAllowed(relPath) {
     return { error: "Use write_page_body / write_page_properties for manifest.md", status: 400 };
   }
 
-  const bundleMatch = normalized.match(/^(.*)\/awn-storage\/(main|todo|log|content)\.(md|csv)$/i);
+  const bundleMatch = normalized.match(/^(.*)\/awn-storage\/(main|todo|roadmap|log|content)\.(md|csv)$/i);
   if (bundleMatch) {
     return {
-      error: "Use write_content_body for internal single-file slots (main-single, todo-single, main-single-csv)",
+      error:
+        "Use write_content_body for internal single-file slots (main-single, todo-single, roadmap-single, main-single-csv)",
       status: 400
     };
   }
@@ -10328,6 +10364,7 @@ const STORAGE_SLOT_LAYER_FILES = [
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_ROADMAP_FILE,
   BUNDLE_LOG_FILE,
   ".env",
   ...PREVIEW_FILE_NAMES
@@ -10471,6 +10508,7 @@ function isStorageRootBundleLooseFile(fileName) {
       ...listBundleFileNameCandidates(BUNDLE_CONTENT_FILE),
       ...listBundleFileNameCandidates(BUNDLE_TABULAR_FILE),
       ...listBundleFileNameCandidates(BUNDLE_TODO_FILE),
+      ...listBundleFileNameCandidates(BUNDLE_ROADMAP_FILE),
       ...listBundleFileNameCandidates(BUNDLE_LOG_FILE),
       ...listBundleFileNameCandidates(BUNDLE_CONFIG_FILE),
       ...listBundleFileNameCandidates(ROOT_SYSTEM_TODO_FILE),
@@ -10485,7 +10523,8 @@ async function scanStorageRootBundleSlots(storageRootAbs) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
+    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
   ];
   const bundleSlots = {};
   if (!storageRootAbs) {
@@ -11641,13 +11680,15 @@ const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundle
 const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
-  "todo-single": "TODO"
+  "todo-single": "TODO",
+  "roadmap-single": "Дорожная карта"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {
   "main-single": BUNDLE_CONTENT_FILE,
   "main-single-csv": BUNDLE_TABULAR_FILE,
-  "todo-single": BUNDLE_TODO_FILE
+  "todo-single": BUNDLE_TODO_FILE,
+  "roadmap-single": BUNDLE_ROADMAP_FILE
 };
 
 function isMarkdownBundleBodyFilled(content) {
@@ -11697,6 +11738,20 @@ async function resolveBundleSlotIndexRow(manifestRelPath, slotKey) {
       label,
       fileName,
       linkPath: hit.path || toTodoFilePath(manifestRelPath),
+      filled,
+      status: filled ? "заполнено" : "не заполнено"
+    };
+  }
+
+  if (normalizedSlot === "roadmap-single") {
+    const hit = await readRoadmapContent(manifestRelPath);
+    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
+    const filled = hit.exists && isMarkdownBundleBodyFilled(hit.content);
+    return {
+      slot: normalizedSlot,
+      label,
+      fileName,
+      linkPath: hit.path || toRoadmapFilePath(manifestRelPath),
       filled,
       status: filled ? "заполнено" : "не заполнено"
     };
@@ -12915,7 +12970,8 @@ async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
+    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
   ];
   const spec = specs.find((row) => row.slotKey === slotKey);
   if (!spec) return [];
@@ -13372,7 +13428,8 @@ const SESSION_PATH_HINTS = {
   topicManifest:
     "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
-  internalSlot: "Internal-слот: read_content_body без ref (main-single, todo-single, main-single-csv)",
+  internalSlot:
+    "Internal-слот: read_content_body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
@@ -13787,6 +13844,11 @@ async function buildAgentTimeline(limit = 150) {
       { fileKind: "tabular", fileLabel: BUNDLE_TABULAR_FILE, rel: toTabularFilePath(manifestPath) },
       { fileKind: "config", fileLabel: BUNDLE_CONFIG_FILE, rel: toNodeConfigFilePath(manifestPath) },
       { fileKind: "todo", fileLabel: path.posix.basename(toTodoFilePath(manifestPath)), rel: toTodoFilePath(manifestPath) },
+      {
+        fileKind: "roadmap",
+        fileLabel: path.posix.basename(toRoadmapFilePath(manifestPath)),
+        rel: toRoadmapFilePath(manifestPath)
+      },
       { fileKind: "env", fileLabel: ".env", rel: toEnvFilePath(manifestPath) }
     ];
 
@@ -17398,6 +17460,17 @@ async function classifySearchResult(relPath) {
     return { nodePath, mode: "todo", source: "TODO", canonicalPath: toTodoFilePath(nodePath) };
   }
 
+  if (base.toLowerCase() === BUNDLE_ROADMAP_FILE.toLowerCase() && dirAbsolute) {
+    const nodePath = await findNodePathInDirectory(dirAbsolute);
+    if (!nodePath) return null;
+    return {
+      nodePath,
+      mode: "roadmap",
+      source: "Дорожная карта",
+      canonicalPath: toRoadmapFilePath(nodePath)
+    };
+  }
+
   if (base.toLowerCase() === BUNDLE_LOG_FILE.toLowerCase() && dirAbsolute) {
     const nodePath = await findNodePathInDirectory(dirAbsolute);
     if (!nodePath) return null;
@@ -17537,7 +17610,7 @@ async function resolveMarkdownLinkAwnType(relPath, meta) {
 
   if (
     meta?.mode &&
-    ["internal", "tabular", "todo", "configs", "env", "node-preview"].includes(meta.mode)
+    ["internal", "tabular", "todo", "roadmap", "configs", "env", "node-preview"].includes(meta.mode)
   ) {
     return "awn.memory";
   }
@@ -17729,7 +17802,7 @@ function classifyMarkdownLinkGroup(relPath, meta) {
 
   if (
     meta?.mode &&
-    ["internal", "tabular", "todo", "configs", "env", "node-preview"].includes(meta.mode)
+    ["internal", "tabular", "todo", "roadmap", "configs", "env", "node-preview"].includes(meta.mode)
   ) {
     return "memory";
   }
@@ -19067,6 +19140,7 @@ function getExistsApi() {
       resolveApiManifestAbsolute,
       readInternalMemoryContent,
       readTodoContent,
+      readRoadmapContent,
       readLogContent,
       readTabularMemoryContent,
       resolveExternalFileOpContext,
@@ -25346,6 +25420,51 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { path: todoRelPath, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save TODO", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/roadmap") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+    if (!manifestRel) {
+      return sendJson(res, 400, {
+        error: "Invalid file path",
+        details: "Нужен манифест (*.md, _registration.md) или файл roadmap (awn-storage/*/roadmap.md)"
+      });
+    }
+
+    try {
+      const roadmap = await readRoadmapContent(manifestRel);
+      return sendJson(res, 200, roadmap);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to read roadmap", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/roadmap") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+      if (!manifestRel) {
+        return sendJson(res, 400, {
+          error: "Invalid file path",
+          details: "Нужен манифест (*.md, _registration.md) или файл roadmap (awn-storage/*/roadmap.md)"
+        });
+      }
+
+      const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRel);
+      const roadmapRelPath = await writeRoadmapFiles(resolvedManifest, content);
+
+      return sendJson(res, 200, { path: roadmapRelPath, content, exists: true });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save roadmap", details: String(error.message || error) });
     }
   }
 

@@ -24,3 +24,4 @@ storage-slots:
   - notebooklm
   - agent-queue
   - todo-single
+  - roadmap-single

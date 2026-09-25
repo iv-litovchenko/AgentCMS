@@ -1492,7 +1492,7 @@ function findStorageRootMarkerIndex(relPath) {
 }
 const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "schema.yml", "schema.yml", "scheme-mod.yml", "STRUCTURE.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "roadmap.md", "main.md", "main.csv", "config.yml", "configuration.yml", "schema.yml", "schema.yml", "scheme-mod.yml", "STRUCTURE.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
@@ -1502,6 +1502,7 @@ const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const SCHEMA_MOD_FILE = "schema.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BUNDLE_ROADMAP_FILE = "roadmap.md";
 const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS = 3500;
@@ -1714,6 +1715,7 @@ const CHPU_UI_VIEW_IDS = new Set([
   "env",
   "chat",
   "todo",
+  "roadmap",
   "list",
   "preview"
 ]);
@@ -1737,6 +1739,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   chat: "chat",
   todo: "todo",
   tasks: "todo",
+  roadmap: "roadmap",
+  plan: "roadmap",
   list: "list",
   browse: "list",
   "show-list": "list",
@@ -1949,6 +1953,8 @@ function chpuUiViewToContentMode(uiView) {
       return NODE_DISCUSSION_MODE;
     case "todo":
       return "todo";
+    case "roadmap":
+      return "roadmap";
     case "folder":
       return "folder-browse";
     default:
@@ -1976,6 +1982,8 @@ function contentModeToChpuUiView(mode) {
       return "chat";
     case "todo":
       return "todo";
+    case "roadmap":
+      return "roadmap";
     case "folder-browse":
       return "folder";
     default:
@@ -3003,6 +3011,7 @@ function resolveActivePageSlotFromState() {
   if (activeContentMode === "internal") return "main-single";
   if (activeContentMode === "tabular") return "main-single-csv";
   if (activeContentMode === "todo") return "todo-single";
+  if (activeContentMode === "roadmap") return "roadmap-single";
   const dataSlot = getDataStorageSlotForMode(activeContentMode);
   if (dataSlot) return dataSlot;
   if (isMediaLibraryContentMode()) {
@@ -3433,6 +3442,7 @@ function isWorkspaceEditorLinkInsertionContext() {
   if (activeContentMode === "description") return true;
   if (activeContentMode === "internal") return true;
   if (activeContentMode === "todo") return true;
+  if (activeContentMode === "roadmap") return true;
   if (activeContentMode === "external" && activeExternalFilePath) return true;
   if (activeContentMode === "tabular" && isTabularSourceEditing()) return true;
   return false;
@@ -3479,6 +3489,10 @@ function getWorkspaceEditorLinkTargetRel() {
 
   if (manifestBase && activeContentMode === "todo") {
     return resolveNodeSidecarRelPath(manifestBase, "todo");
+  }
+
+  if (manifestBase && activeContentMode === "roadmap") {
+    return resolveNodeSidecarRelPath(manifestBase, "roadmap");
   }
 
   return manifestPath || manifestBase;
@@ -4530,6 +4544,9 @@ function resolveVoiceChatSlotSpec({ slotId = "", modeId = "", memoryKind = "" } 
   }
   if (mode === "todo") {
     return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "todo-single") || null;
+  }
+  if (mode === "roadmap") {
+    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "roadmap-single") || null;
   }
 
   return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === mode && !item.disabled) || null;
@@ -5768,7 +5785,8 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "templates", label: "Шаблоны", modeId: "templates" },
   { id: "base", label: "База", modeId: "base" },
   { id: "notebooklm", label: "NotebookLM", modeId: "notebooklm" },
-  { id: "todo-single", label: "TODO", modeId: "todo" }
+  { id: "todo-single", label: "TODO", modeId: "todo" },
+  { id: "roadmap-single", label: "Дорожная карта", modeId: "roadmap" }
 ];
 
 function isFullWorkspaceRelPath(relPath) {
@@ -15608,6 +15626,16 @@ const DATA_STORAGE_SLOT_SPECS = [
     bundleFile: BUNDLE_TODO_FILE
   },
   {
+    key: "roadmap-single",
+    label: "Дорожная карта",
+    icon: "🗺️",
+    modes: new Set(["roadmap"]),
+    defaultMode: "roadmap",
+    sectionKind: "bundle",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+    bundleFile: BUNDLE_ROADMAP_FILE
+  },
+  {
     key: "quick-notes",
     label: "Quick notes",
     icon: "📝",
@@ -15754,6 +15782,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   "main-single": "Markdown (.md) — main.md",
   "main-single-csv": "CSV (.csv) — main.csv",
   "todo-single": "Markdown (.md) — todo.md",
+  "roadmap-single": "Markdown (.md) — roadmap.md",
   discussion: "Markdown (.md)"
 };
 
@@ -16983,6 +17012,7 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
     if (memoryKind === "internal") return "main-single";
     if (memoryKind === "tabular") return "main-single-csv";
     if (memoryKind === "todo") return "todo-single";
+    if (memoryKind === "roadmap") return "roadmap-single";
     if (memoryKind === "media") return "media";
     if (memoryKind === "assets") return "assets";
     if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
@@ -16999,6 +17029,7 @@ function getEntryOverviewMemoryKindForSlot(spec) {
   if (spec.key === "media") return "media";
   if (spec.key === "assets") return "assets";
   if (spec.key === "todo-single") return "todo";
+  if (spec.key === "roadmap-single") return "roadmap";
   if (spec.defaultMode && isFlatEntryOverviewMemoryKind(spec.defaultMode)) return spec.defaultMode;
   return null;
 }
@@ -17750,7 +17781,7 @@ function setActiveDataStorageAllItems() {
 function shouldUseDataHubListShell(mode = activeContentMode) {
   if (!getDataStorageSlotForMode(mode)) return false;
   if (mode === NODE_DISCUSSION_MODE) return false;
-  if (mode === "internal" || mode === "todo") return true;
+  if (mode === "internal" || mode === "todo" || mode === "roadmap") return true;
   if (mode === "external" && isExternalFileEditing()) return false;
   if (mode === "media" && isMediaAssetEditing()) return false;
   if (mode === "assets" && isMediaAssetEditing()) return false;
@@ -17806,6 +17837,15 @@ async function ensureDataHubBundleEditorContent(mode = activeContentMode) {
     const data = await response.json();
     modeContentCache.todo = data.content || "";
     fileContentInputNode.value = modeContentCache.todo;
+    return;
+  }
+
+  if (mode === "roadmap") {
+    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    modeContentCache.roadmap = data.content || "";
+    fileContentInputNode.value = modeContentCache.roadmap;
     return;
   }
 
@@ -17951,7 +17991,7 @@ async function renderDataHubBundleSlotPanel(container, mode = activeContentMode)
 
     container.replaceChildren();
     const meaningful =
-      memoryKind === "todo"
+      memoryKind === "todo" || memoryKind === "roadmap"
         ? getBundleMemoryMeaningfulBody(text)
         : stripAwnDescCallouts(splitFrontmatter(String(text)).body).trim();
 
@@ -17974,7 +18014,7 @@ async function renderDataHubBundleSlotPanel(container, mode = activeContentMode)
     preview.className =
       "data-hub-bundle-preview-body file-content-preview node-navigation-preview";
     const nodePath = getResolvedNodePath(activePath);
-    if (memoryKind === "todo") {
+    if (memoryKind === "todo" || memoryKind === "roadmap") {
       setMarkdownPreviewHtml(preview, text, { nodePath });
     } else {
       setMarkdownPreviewHtml(preview, meaningful, { nodePath });
@@ -19232,6 +19272,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "notebooklm" ||
     mode === "agent-queue" ||
     mode === "todo" ||
+    mode === "roadmap" ||
     mode === NODE_DISCUSSION_MODE
   ) {
     return true;
@@ -19388,6 +19429,7 @@ function getContentModeLabel(mode) {
   if (mode === "notebooklm") return "NotebookLM";
   if (mode === "agent-queue") return "Очередь задач для агента";
   if (mode === "todo") return "TODO";
+  if (mode === "roadmap") return "Дорожная карта";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
   if (mode === "assets") return "Активы";
@@ -23628,7 +23670,8 @@ async function applyNodeWorkspaceDomainChange(domain) {
           isDataStorageSlotActive("repository") ||
           isDataStorageSlotActive("main-single") ||
           isDataStorageSlotActive("main-single-csv") ||
-          isDataStorageSlotActive("todo-single")
+          isDataStorageSlotActive("todo-single") ||
+          isDataStorageSlotActive("roadmap-single")
       );
       applyNodeWorkspaceViewUi();
       renderListViewContent();
@@ -23698,6 +23741,7 @@ function applyNodeWorkspaceViewUi(options = {}) {
   const mainSingleSlotActive = isDataStorageSlotActive("main-single");
   const tabularSlotActive = isDataStorageSlotActive("main-single-csv");
   const todoSingleSlotActive = isDataStorageSlotActive("todo-single");
+  const roadmapSingleSlotActive = isDataStorageSlotActive("roadmap-single");
   const quickNotesSlotActive = noteSlotActive;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   const awnDatabaseManifestEditing = isAwnDatabaseManifestEditing();
@@ -23712,7 +23756,8 @@ function applyNodeWorkspaceViewUi(options = {}) {
     noteSlotActive ||
     mainSingleSlotActive ||
     tabularSlotActive ||
-    todoSingleSlotActive;
+    todoSingleSlotActive ||
+    roadmapSingleSlotActive;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle(
     "is-node-memory",
@@ -25057,7 +25102,8 @@ function contentLoadingVariantForMode(mode = activeContentMode) {
     mode === "configs" ||
     mode === "env" ||
     mode === "scripts" ||
-    mode === "todo"
+    mode === "todo" ||
+    mode === "roadmap"
   ) {
     return "editor";
   }
@@ -26801,7 +26847,7 @@ async function openWorkspaceSearchResultByMeta(result = {}) {
     return true;
   }
 
-  const sidecarModes = new Set(["internal", "todo", "tabular", "configs", "env", "log", "node-preview"]);
+  const sidecarModes = new Set(["internal", "todo", "roadmap", "tabular", "configs", "env", "log", "node-preview"]);
   if (mode && sidecarModes.has(mode)) {
     await selectNodeManifest(label, nodePath, mode, { skipRouteSync: true });
     return true;
@@ -28987,7 +29033,7 @@ function applyContentModeState(mode, options = {}) {
   if (isFlatStorageListMode(mode) || mode === "tabular") {
     editorViewMode = "preview";
   }
-  if (mode === "todo" && WYSIWYG_EDITOR_ENABLED) {
+  if ((mode === "todo" || mode === "roadmap") && WYSIWYG_EDITOR_ENABLED) {
     editorViewMode = "wysiwyg";
   }
   if (
@@ -29185,6 +29231,7 @@ function isCurrentModeListTemplate() {
   return (
     activeContentMode === "internal" ||
     activeContentMode === "todo" ||
+    activeContentMode === "roadmap" ||
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     (isFlatStorageListMode() && !flatStorageEditing) ||
@@ -29761,6 +29808,7 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
     content: ".main.md",
     tabular: ".main.csv",
     todo: ".todo.md",
+    roadmap: ".roadmap.md",
     preview: ".preview",
     config: ".configuration.yml"
   };
@@ -29772,6 +29820,7 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
     content: BUNDLE_CONTENT_FILE,
     tabular: BUNDLE_TABULAR_FILE,
     todo: BUNDLE_TODO_FILE,
+    roadmap: BUNDLE_ROADMAP_FILE,
     config: BUNDLE_CONFIG_FILE
   };
   return getNamedStorageBundleRel(resolved, bundleByKind[kind]);
@@ -47494,6 +47543,7 @@ function getSectionSchemaSlotKeyForContext(context) {
   if (memoryKind === "internal") return "main-single";
   if (memoryKind === "tabular") return "main-single-csv";
   if (memoryKind === "todo") return "todo-single";
+  if (memoryKind === "roadmap") return "roadmap-single";
   if (memoryKind === "media") return "media";
   if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
   return "memory";
@@ -60286,6 +60336,10 @@ function openTodoFromOverview() {
   setContentMode("todo");
 }
 
+function openRoadmapFromOverview() {
+  setContentMode("roadmap");
+}
+
 function openDescriptionFromOverview() {
   openSettingsModeFromOverview("description");
 }
@@ -64110,6 +64164,10 @@ function openWorkspaceModeFromNavigation(modeId) {
     openTodoFromOverview();
     return;
   }
+  if (modeId === "roadmap") {
+    openRoadmapFromOverview();
+    return;
+  }
   if (NODE_MEMORY_SUB_MODE_IDS.has(modeId)) {
     openMemoryModeFromOverview(modeId);
     return;
@@ -67419,7 +67477,7 @@ function isFlatEntryOverviewMemoryKind(kind) {
 }
 
 function isBundleEntryOverviewMemoryKind(kind) {
-  return kind === "internal" || kind === "tabular" || kind === "todo";
+  return kind === "internal" || kind === "tabular" || kind === "todo" || kind === "roadmap";
 }
 
 function isDataEntryOverviewMemoryKind(kind) {
@@ -67446,6 +67504,7 @@ function getEntryOverviewTocTitle(memoryKind) {
   if (memoryKind === "internal") return "Память (однофайловая)";
   if (memoryKind === "tabular") return "Память (табличная)";
   if (memoryKind === "todo") return "TODO";
+  if (memoryKind === "roadmap") return "Дорожная карта";
   const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === memoryKind);
   return spec ? `Оглавление: ${spec.label}` : "Оглавление";
 }
@@ -67917,7 +67976,8 @@ function getEntryOverviewKindLabel(entryKind) {
 const BUNDLE_OVERVIEW_SIDECAR_KIND = {
   internal: "content",
   tabular: "tabular",
-  todo: "todo"
+  todo: "todo",
+  roadmap: "roadmap"
 };
 
 function openEntryOverviewBundleSlotFromNavigation(memoryKind) {
@@ -67934,7 +67994,14 @@ function openEntryOverviewBundleSlotFromNavigation(memoryKind) {
     relativePath: bundleFile,
     title: spec?.label || bundleFile.replace(/\.(md|csv)$/i, ""),
     entryKind: inferAwnTypeFromRelPath(relPath, {
-      contentMode: memoryKind === "tabular" ? "tabular" : memoryKind === "todo" ? "todo" : "internal"
+      contentMode:
+        memoryKind === "tabular"
+          ? "tabular"
+          : memoryKind === "todo"
+            ? "todo"
+            : memoryKind === "roadmap"
+              ? "roadmap"
+              : "internal"
     })
   });
 }
@@ -68969,7 +69036,8 @@ async function ensureRecordPartsWorkspaceFolder(folderPath) {
 function getEntryOverviewStorageSlotFolderApiName(context) {
   const memoryKind = context?.memoryKind;
   if (!memoryKind) return null;
-  if (memoryKind === "internal" || memoryKind === "tabular" || memoryKind === "todo") return null;
+  if (memoryKind === "internal" || memoryKind === "tabular" || memoryKind === "todo" || memoryKind === "roadmap")
+    return null;
   if (isBundleEntryOverviewMemoryKind(memoryKind)) return null;
   if (memoryKind === "external") return STORAGE_SUBFOLDER_CONTENT;
   return getFlatStorageSectionFolderName(memoryKind);
@@ -72197,6 +72265,12 @@ async function fetchBundleMemoryTextContent(memoryKind, nodePath = activePath) {
   }
   if (memoryKind === "todo") {
     const response = await fetch(buildApiUrl("/api/todo", { path: apiPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return String(data.content ?? "");
+  }
+  if (memoryKind === "roadmap") {
+    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     return String(data.content ?? "");
@@ -93895,6 +93969,24 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
+  if (activeContentMode === "roadmap") {
+    try {
+      const response = await fetch(buildApiUrl("/api/roadmap", { path: getActiveNodeApiPath() }));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      modeContentCache.roadmap = data.content || "";
+      fileContentInputNode.value = modeContentCache.roadmap;
+      applyModeUi();
+      refreshEditorViewContent();
+      if (isDataHubBundleEditorMode("roadmap")) activateDataHubBundleEditorUi("roadmap");
+    } catch (error) {
+      fileContentInputNode.value = `Ошибка чтения дорожной карты: ${error.message}`;
+      fileContentInputNode.readOnly = true;
+    }
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
   if (activeContentMode === "artefacts") {
     try {
       await loadFlatStorageSectionContent(
@@ -94455,6 +94547,8 @@ async function saveContent() {
             ? "/api/memory/tabular"
           : activeContentMode === "todo"
             ? "/api/todo"
+            : activeContentMode === "roadmap"
+              ? "/api/roadmap"
             : isNodeConfigEditorMode()
               ? "/api/file/node-config"
               : activeContentMode === "env"
@@ -94629,6 +94723,14 @@ async function saveContent() {
       fileContentInputNode.value = modeContentCache.todo;
       saveSucceeded = true;
       showToast("TODO сохранён", "success");
+      refreshEditorViewContent();
+      return;
+    }
+    if (activeContentMode === "roadmap") {
+      modeContentCache.roadmap = data.content || "";
+      fileContentInputNode.value = modeContentCache.roadmap;
+      saveSucceeded = true;
+      showToast("Дорожная карта сохранена", "success");
       refreshEditorViewContent();
       return;
     }

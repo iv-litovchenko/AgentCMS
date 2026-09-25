@@ -34,6 +34,8 @@ const STORAGE_SLOT_ROUTING = [
   { slotKey: "main-single-csv", storageFolder: STORAGE_SUBFOLDER_MAIN, sectionKind: "bundle" },
   { slotKey: "todo-single", storageFolder: "todo", sectionKind: "bundle" },
   { slotKey: "todo", storageFolder: "todo", sectionKind: "bundle" },
+  { slotKey: "roadmap-single", storageFolder: "roadmap", sectionKind: "bundle" },
+  { slotKey: "roadmap", storageFolder: "roadmap", sectionKind: "bundle" },
   { slotKey: "discussion", aliases: ["thread", "dialogs"], storageFolder: "discussion", sectionKind: null },
   { slotKey: "history", storageFolder: "history", sectionKind: null },
   { slotKey: "comments", storageFolder: "comments", sectionKind: null }

@@ -38,7 +38,8 @@
       memory: "Память",
       workspace: "Папки",
       files: "Файлы",
-      todo: "Задачи"
+      todo: "Задачи",
+      planning: "Планы"
     };
 
     /** @type {Array<{ slotKey: string, label: string, tabGroup: string, defaultKind: string, targets: Record<string, { id: string, legacyIds?: string[], labelSuffix?: string }> }>} */
@@ -221,10 +222,21 @@
           category: { id: "slot_todo_single_category" },
           sidecar: { id: "slot_todo_single_sidecar" }
         }
+      },
+      {
+        slotKey: "roadmap-single",
+        label: "Дорожная карта",
+        tabGroup: "planning",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_roadmap_single" },
+          category: { id: "slot_roadmap_single_category" },
+          sidecar: { id: "slot_roadmap_single_sidecar" }
+        }
       }
     ];
 
-    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo"];
+    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo", "planning"];
 
     function getTopicSchemaSlotSchemaLabel(slot) {
       return slot.schemaLabel || slot.label;

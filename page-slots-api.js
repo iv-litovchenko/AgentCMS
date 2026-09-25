@@ -2,7 +2,14 @@ const { getSlotTypesFromCatalog, slotTypeIdToKey } = require("./awn-canonical-mo
 const { loadTypeCatalog, mergeTypeSchema, resolveCanonicalTypeId } = require("./type-catalog-loader");
 const { normalizeStorageSlotKey } = require("./storage-slot-routing");
 
-const INTERNAL_SLOT_KEYS = new Set(["main-single", "main-single-csv", "todo-single", "todo"]);
+const INTERNAL_SLOT_KEYS = new Set([
+  "main-single",
+  "main-single-csv",
+  "todo-single",
+  "todo",
+  "roadmap-single",
+  "roadmap"
+]);
 
 const SLOT_KEY_TYPE_IDS = {
   notes: ["awn.slot.note"],

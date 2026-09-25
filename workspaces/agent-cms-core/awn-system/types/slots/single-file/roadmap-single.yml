@@ -1,0 +1,19 @@
+id: awn.slot.roadmap-single
+name: Дорожная карта
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: single-file
+storage-driver: internal
+description: >
+  Дорожная карта топика — roadmap.md. Этапы, статусы, параллельные группы.
+  Формат: ## Этап + строка «статус: не начато|в процессе|завершено».
+path: roadmap.md
+slot-order: 16
+allowed-content:
+  - awn.content.record
+  - awn.content.category
+  - awn.content.sidecar
+accept-files:
+  - ".md"

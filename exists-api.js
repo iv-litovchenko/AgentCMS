@@ -31,6 +31,7 @@ function createExistsApi(deps) {
     resolveApiManifestAbsolute,
     readInternalMemoryContent,
     readTodoContent,
+    readRoadmapContent,
     readLogContent,
     readTabularMemoryContent,
     resolveExternalFileOpContext,
@@ -68,6 +69,8 @@ function createExistsApi(deps) {
         payload = await readTabularMemoryContent(relPath);
       } else if (slotKey === "todo-single" || slotKey === "todo") {
         payload = await readTodoContent(relPath);
+      } else if (slotKey === "roadmap-single" || slotKey === "roadmap") {
+        payload = await readRoadmapContent(relPath);
       } else {
         payload = await readInternalMemoryContent(relPath);
       }
@@ -110,6 +113,8 @@ function createExistsApi(deps) {
         payload = await readTabularMemoryContent(relPath);
       } else if (slotKey === "todo-single" || slotKey === "todo") {
         payload = await readTodoContent(relPath);
+      } else if (slotKey === "roadmap-single" || slotKey === "roadmap") {
+        payload = await readRoadmapContent(relPath);
       } else {
         payload = await readInternalMemoryContent(relPath);
       }

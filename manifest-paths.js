@@ -111,6 +111,7 @@ const BUNDLE_CONTENT_FILE = BUNDLE_MAIN_FILE;
 const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BUNDLE_ROADMAP_FILE = "roadmap.md";
 const BUNDLE_LOG_FILE = "log.md";
 const BUNDLE_ENV_FILE = ".env";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
@@ -125,6 +126,7 @@ const WORKSPACE_MENU_EXCLUDED_MD = new Set([
   "note.md",
   "notes.md",
   "todo.md",
+  "roadmap.md",
   "log.md",
   "main.md",
   "main.csv",
@@ -383,6 +385,9 @@ function listBundleFileNameCandidates(bundleFileName) {
     lower === ROOT_SYSTEM_TODO_FILE.toLowerCase()
   ) {
     return [BUNDLE_TODO_FILE, ROOT_SYSTEM_TODO_FILE];
+  }
+  if (lower === BUNDLE_ROADMAP_FILE.toLowerCase()) {
+    return [BUNDLE_ROADMAP_FILE];
   }
   if (lower === BUNDLE_LOG_FILE.toLowerCase()) {
     return [BUNDLE_LOG_FILE];
@@ -774,6 +779,7 @@ function resolveBundleFileMode(fileNameLower) {
   if (fileNameLower === LEGACY_BUNDLE_CONFIG_FILE.toLowerCase()) return "configs";
   if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
   if (fileNameLower === ROOT_SYSTEM_TODO_FILE.toLowerCase()) return "todo";
+  if (fileNameLower === BUNDLE_ROADMAP_FILE.toLowerCase()) return "roadmap";
   if (fileNameLower === BUNDLE_LOG_FILE.toLowerCase()) return "log";
   if (fileNameLower === BUNDLE_ENV_FILE.toLowerCase()) return "env";
   if (fileNameLower.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) return "node-preview";
@@ -1465,6 +1471,7 @@ module.exports = {
   BUNDLE_CONFIG_FILE,
   LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_ROADMAP_FILE,
   BUNDLE_LOG_FILE,
   BUNDLE_ENV_FILE,
   ROOT_SYSTEM_TODO_FILE,

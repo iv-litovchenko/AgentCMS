@@ -16,7 +16,7 @@ const contentSlot = z
   .string()
   .min(1)
   .describe(
-    `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, repository, main-single, main-single-csv, todo-single`
+    `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, repository, main-single, main-single-csv, todo-single, roadmap-single`
   );
 
 const contentRef = z
@@ -67,12 +67,14 @@ function mergeMarkdownFrontmatter(properties, description) {
 async function readInternalContent(client, pagePath, slot, file) {
   if (slot === "main-single-csv") return client.get("/api/memory/tabular", { path: pagePath, file });
   if (slot === "todo-single" || slot === "todo") return client.get("/api/todo", { path: pagePath });
+  if (slot === "roadmap-single" || slot === "roadmap") return client.get("/api/roadmap", { path: pagePath });
   return client.get("/api/memory/internal", { path: pagePath });
 }
 
 async function writeInternalContent(client, pagePath, slot, content, file) {
   if (slot === "main-single-csv") return client.post("/api/memory/tabular", { path: pagePath, content, file });
   if (slot === "todo-single" || slot === "todo") return client.post("/api/todo", { path: pagePath, content });
+  if (slot === "roadmap-single" || slot === "roadmap") return client.post("/api/roadmap", { path: pagePath, content });
   return client.post("/api/memory/internal", { path: pagePath, content });
 }
 

@@ -107,6 +107,7 @@ function buildSlotInfo(normalized) {
     internal: "main-single",
     tabular: "main-single-csv",
     todo: "todo-single",
+    roadmap: "roadmap-single",
     configs: "configs",
     env: "env",
     "node-preview": "preview"
@@ -144,6 +145,7 @@ const SLOT_CRUMB_LABELS = {
   "main-single": "Память (main.md)",
   "main-single-csv": "Память (main.csv)",
   "todo-single": "TODO",
+  "roadmap-single": "Дорожная карта",
   configs: "Конфигурации",
   env: ".env",
   preview: "Превью"
