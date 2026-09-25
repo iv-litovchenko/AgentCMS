@@ -17301,7 +17301,12 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       const renameResponse = await fetch(buildApiUrl("/api/file/title"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: nodePath, title: issue.suggested })
+        body: JSON.stringify({
+          path: nodePath,
+          displayName: issue.label || issue.displayName || issue.current,
+          slug: issue.suggested,
+          awnNameIfEmpty: true
+        })
       });
       if (!renameResponse.ok) {
         const errorData = await renameResponse.json().catch(() => ({}));
@@ -17342,7 +17347,11 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
     if (issue.kind === "memory-section") {
       const data = await renameMemorySectionApi(
         issue.sectionFolder,
-        { title: issue.label || issue.displayName, slug: issue.suggested },
+        {
+          title: issue.label || issue.displayName,
+          slug: issue.suggested,
+          awnNameIfEmpty: true
+        },
         issue.state
       );
       if (issue.state?.externalMode && data.sectionPath) {
@@ -22179,7 +22188,11 @@ async function fetchMemorySectionStatus(sectionFolder, state) {
   return "";
 }
 
-async function renameMemorySectionApi(sectionFolder, { title, slug }, state = resourceContextMenuState) {
+async function renameMemorySectionApi(
+  sectionFolder,
+  { title, slug, awnNameIfEmpty = false },
+  state = resourceContextMenuState
+) {
   const scope = getMemorySectionScope(state);
   const apiBase = getMemorySectionApiBase(scope);
   if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
@@ -22191,6 +22204,7 @@ async function renameMemorySectionApi(sectionFolder, { title, slug }, state = re
     slug,
     displayName: title
   };
+  if (awnNameIfEmpty) body.awnNameIfEmpty = true;
   if (scope.type === "storage" || (scope.type === "media" && scope.folder)) body.folder = scope.folder;
 
   const response = await fetch(buildApiUrl(`${apiBase}/rename`), {

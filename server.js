@@ -2345,6 +2345,12 @@ function applyAwnNameToFrontmatter(frontmatter, displayName, slug) {
   return upsertYamlScalarLine(frontmatter, "awn-name", awnName);
 }
 
+function applyAwnNameToFrontmatterIfEmpty(frontmatter, displayName, slug) {
+  const existing = String(getYamlScalar(frontmatter, "awn-name") || "").trim();
+  if (existing) return frontmatter;
+  return applyAwnNameToFrontmatter(frontmatter, displayName, slug);
+}
+
 function formatYamlScalarForFrontmatter(value) {
   const text = String(value ?? "");
   if (!text || /[:#\[\]{}&,*?"']|^\s|\s$/.test(text)) {
@@ -7853,7 +7859,10 @@ async function renameMemorySectionRecord(manifestRelPath, scopeType, storageFold
     (await readMemorySectionReadmeContent(readmeAbsolute)) ||
     buildStorageSectionReadmeContent(display, "awn.content.category", nextSlug);
   const { frontmatter, body } = splitNodeFrontmatter(raw);
-  const nextFrontmatter = applyAwnNameToFrontmatter(frontmatter, display, nextSlug);
+  const applyAwnName = payload.awnNameIfEmpty
+    ? applyAwnNameToFrontmatterIfEmpty
+    : applyAwnNameToFrontmatter;
+  const nextFrontmatter = applyAwnName(frontmatter, display, nextSlug);
   await writeMemorySectionReadmeContent(readmeAbsolute, joinNodeFrontmatter(nextFrontmatter, body));
 
   const sectionPath = path.relative(ctx.rootAbsolute, sectionAbsolute).replace(/\\/g, "/");
@@ -22207,7 +22216,10 @@ async function handleApiForAgent(req, res, url) {
 
       if (shouldSyncAwnNameOnTitleRename(payload, display, resolvedSlug)) {
         const { frontmatter, body } = splitNodeFrontmatter(content);
-        const nextFrontmatter = applyAwnNameToFrontmatter(frontmatter, display, resolvedSlug);
+        const applyAwnName = payload.awnNameIfEmpty
+          ? applyAwnNameToFrontmatterIfEmpty
+          : applyAwnNameToFrontmatter;
+        const nextFrontmatter = applyAwnName(frontmatter, display, resolvedSlug);
         const nextContent = joinNodeFrontmatter(nextFrontmatter, body);
         if (nextContent !== content) {
           await fs.writeFile(nextAbsolute, nextContent, "utf-8");

@@ -9,6 +9,7 @@
     "main/Безопасность/manifest.md",
     "main/Безопасность/SQL Injection.md",
     "main/Безопасность/XSS.md",
+    "main/Безопасность/xss.md",
     "main/Веб/Роутинг.md",
     "main/Веб/HTTP и формы.md",
     "main/Объекты.md",
@@ -26,6 +27,7 @@
     "main/baza-dannyh/manifest.md",
     "main/baza-dannyh/migratsii.md",
     "main/baza-dannyh/PDO.md",
+    "main/bezopasnost/xss.md",
     "main/oop/%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%8B",
     "main/oop/Интерфейсы.md",
     "main/oop/Enums.md",
@@ -42,5 +44,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-09-25T18:22:44.696Z"
+  "updatedAt": "2026-09-25T18:30:27.693Z"
 }
