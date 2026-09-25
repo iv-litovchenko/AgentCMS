@@ -47749,6 +47749,12 @@ function restoreTopicSchemaFieldRowUiAfterRerender(activeKey, target = topicSche
 
 function getTopicSchemaScrollRoot(root = topicSchemaPanelNode) {
   const panel = root?.closest(".topic-schema-panel") || root || topicSchemaPanelNode;
+  if (panel && !panel.classList.contains("hidden")) {
+    const docSlab = panel.closest(".doc-slab-content");
+    if (docSlab?.querySelector(":scope > .doc-slab-main > .topic-schema-panel:not(.hidden)")) {
+      return docSlab;
+    }
+  }
   const fieldsNode = panel?.querySelector?.(":scope > .topic-schema-fields");
   return fieldsNode || panel;
 }
@@ -113540,6 +113546,10 @@ function getOverviewNodeInDocSlabContent(docSlabContent) {
   return docSlabContent?.querySelector("#node-overview-block.node-overview:not(.hidden)");
 }
 
+function getTopicSchemaNodeInDocSlabContent(docSlabContent) {
+  return docSlabContent?.querySelector(":scope > .doc-slab-main > .topic-schema-panel:not(.hidden)");
+}
+
 function getOverviewDocSlabChromeHost(docSlabContent) {
   const docBodyMain = docSlabContent?.parentElement;
   return docBodyMain?.classList.contains("doc-body-main") ? docBodyMain : docSlabContent;
@@ -113661,15 +113671,34 @@ function getWorkspaceOverviewScrollTargets() {
   return { scrollElement: overview, hostTarget: overview };
 }
 
+function getWorkspaceTopicSchemaScrollTargets() {
+  const docSlabContent = getDocSlabContentNode();
+  const panel = docSlabContent
+    ? getTopicSchemaNodeInDocSlabContent(docSlabContent)
+    : workspacePaneNode?.querySelector(".doc-slab-main > .topic-schema-panel:not(.hidden)");
+  if (!panel) return null;
+  if (docSlabContent) {
+    return {
+      scrollElement: docSlabContent,
+      hostTarget: getOverviewDocSlabChromeHost(docSlabContent)
+    };
+  }
+  return { scrollElement: panel, hostTarget: panel };
+}
+
 function isDocBodyMainScrollChromeHost(hostTarget) {
   if (!hostTarget) return false;
   if (hostTarget.classList.contains("doc-body-main")) {
     const docSlabContent = hostTarget.querySelector(":scope > .doc-slab-content");
     if (!docSlabContent) return false;
     if (getOverviewNodeInDocSlabContent(docSlabContent)) return true;
+    if (getTopicSchemaNodeInDocSlabContent(docSlabContent)) return true;
     return Boolean(getDocBodyMainEditorScrollTargets());
   }
-  return Boolean(hostTarget.classList.contains("doc-slab-content") && getOverviewNodeInDocSlabContent(hostTarget));
+  return Boolean(
+    hostTarget.classList.contains("doc-slab-content") &&
+      (getOverviewNodeInDocSlabContent(hostTarget) || getTopicSchemaNodeInDocSlabContent(hostTarget))
+  );
 }
 
 function isOverviewDocSlabScrollChromeHost(hostTarget) {
@@ -113681,6 +113710,9 @@ function getWorkspaceScrollContext() {
 
   const overviewTargets = getWorkspaceOverviewScrollTargets();
   if (overviewTargets) return overviewTargets;
+
+  const topicSchemaTargets = getWorkspaceTopicSchemaScrollTargets();
+  if (topicSchemaTargets) return topicSchemaTargets;
 
   const docBodyMainEditorTargets = getDocBodyMainEditorScrollTargets();
   if (docBodyMainEditorTargets) return docBodyMainEditorTargets;
