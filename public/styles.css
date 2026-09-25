@@ -33226,7 +33226,7 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-overview.is-folder-browse,
 .node-overview.is-awn-databases-view {
-  overflow-x: clip;
+  overflow: hidden;
   --folder-browse-bg: #ffffff;
   --folder-browse-bg-soft: #ffffff;
   --folder-browse-panel: #ffffff;
@@ -33239,7 +33239,7 @@ button.node-navigation-hub-rail-slot-summary {
 .node-overview.is-folder-browse .node-overview-content,
 .node-overview.is-awn-databases-view .node-overview-content {
   background: #ffffff;
-  border-radius: 0;
+  border-radius: 10px;
   min-height: 100%;
 }
 
@@ -62874,6 +62874,10 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-databases-view-records-toc {
   margin-top: 0.1rem;
+}
+
+.awn-databases-view-records-toc.nav-book-toc-tree--guide .nav-book-toc-list--root {
+  padding-top: 8px;
 }
 
 .awn-databases-view-records-toc .nav-book-toc-link {

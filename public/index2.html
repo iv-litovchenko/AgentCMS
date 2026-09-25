@@ -22,7 +22,7 @@
       }
 
       main {
-        max-width: 1240px;
+        max-width: 1420px;
         margin: 0 auto;
         padding: 24px 16px 40px;
       }
@@ -40,7 +40,7 @@
 
       .legend {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 8px;
         margin-bottom: 12px;
       }
@@ -76,6 +76,14 @@
 
       .legend-item.is-tone-amber {
         border-color: rgba(251, 191, 36, 0.35);
+      }
+
+      .legend-item.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.35);
+      }
+
+      .legend-item.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.35);
       }
 
       .panel {
@@ -170,7 +178,7 @@
 
       .system-map-groups {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 10px;
         flex: 1 1 auto;
         min-height: 0;
@@ -203,6 +211,16 @@
       .system-map-branch.is-tone-amber {
         border-color: rgba(251, 191, 36, 0.32);
         background: linear-gradient(180deg, rgba(120, 53, 15, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.32);
+        background: linear-gradient(180deg, rgba(14, 116, 144, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.32);
+        background: linear-gradient(180deg, rgba(49, 46, 129, 0.16), rgba(15, 23, 42, 0.5));
       }
 
       .system-map-branch-head {
@@ -279,7 +297,23 @@
         flex-direction: column;
         gap: 6px;
         padding-left: 8px;
-        border-left: 1px dashed rgba(167, 139, 250, 0.35);
+        border-left: 1px dashed rgba(148, 163, 184, 0.35);
+      }
+
+      .system-map-branch.is-tone-blue .system-map-fork-side {
+        border-left-color: rgba(96, 165, 250, 0.42);
+      }
+
+      .system-map-branch.is-tone-violet .system-map-fork-side {
+        border-left-color: rgba(167, 139, 250, 0.42);
+      }
+
+      .system-map-branch.is-tone-cyan .system-map-fork-side {
+        border-left-color: rgba(34, 211, 238, 0.42);
+      }
+
+      .system-map-branch.is-tone-indigo .system-map-fork-side {
+        border-left-color: rgba(129, 140, 248, 0.42);
       }
 
       .system-map-group {
@@ -331,6 +365,8 @@
         padding: 5px 8px;
         border-radius: 8px;
         font-size: 10px;
+        flex-wrap: wrap;
+        gap: 4px;
       }
 
       .system-map-node.is-tone-blue {
@@ -346,6 +382,16 @@
       .system-map-node.is-tone-emerald {
         border-color: rgba(52, 211, 153, 0.45);
         background: linear-gradient(180deg, rgba(6, 78, 59, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.45);
+        background: linear-gradient(180deg, rgba(14, 116, 144, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.45);
+        background: linear-gradient(180deg, rgba(49, 46, 129, 0.5), rgba(15, 23, 42, 0.88));
       }
 
       .system-map-node.is-tone-amber {
@@ -431,21 +477,65 @@
         {
           id: "page",
           icon: "📁",
-          title: "Дерево Page",
+          title: "Дерево",
           caption: "Контент на диске: области → темы → файлы",
           tone: "blue",
           sections: [
             {
               label: "Навигация",
               nodes: [
-                { type: "group", label: "Область", layout: "row", items: ["Общие", "Агент"] },
-                "Тема",
-                "Слот"
+                { label: "Область", side: ["Общие", "Агент"] },
+                "Тема"
               ]
             },
             {
               label: "Контент",
               nodes: ["Раздел", "Запись", "Sidecar"]
+            }
+          ]
+        },
+        {
+          id: "slots",
+          icon: "📦",
+          title: "Слоты",
+          caption: "Места хранения на странице · list_page_slots",
+          tone: "indigo",
+          sections: [
+            {
+              label: "Многофайловые · external",
+              nodes: [
+                { label: "main", meta: "основная память · main/" },
+                { label: "inbox", meta: "входящие · inbox/" },
+                { label: "notes", meta: "заметки · notes/" },
+                { label: "references", meta: "источники · references/" },
+                { label: "artefacts", meta: "черновики · artefacts/" },
+                { label: "media", meta: "медиатека темы · media/" },
+                { label: "assets", meta: "вложения записей · assets/" },
+                { label: "repository", meta: "код · repository/" },
+                { label: "scripts", meta: "скрипты · scripts/" }
+              ]
+            },
+            {
+              label: "Однофайловые · internal",
+              nodes: [
+                { label: "main-single", meta: "одна страница · main.md" },
+                { label: "main-single-csv", meta: "таблица · main.csv" },
+                { label: "todo-single", meta: "TODO · todo.md" }
+              ]
+            },
+            {
+              label: "Обсуждения",
+              nodes: [
+                { label: "discussion", meta: "append_discussion" },
+                { label: "comments", meta: "append_comment" }
+              ]
+            },
+            {
+              label: "Режимы",
+              nodes: [
+                { label: "Гибкий слот", meta: "slotsFlexible · FS в awn-storage" },
+                { label: "history", meta: "системный · history/" }
+              ]
             }
           ]
         },
@@ -470,16 +560,25 @@
         {
           id: "memory",
           icon: "🧠",
-          title: "Память и коммуникация",
-          caption: "Долгий контекст агента и обсуждения",
+          title: "Память",
+          caption: "Долгий контекст агента",
           tone: "emerald",
           sections: [
             {
-              label: "Память",
+              label: "Контекст",
               nodes: ["Facts", "Journal"]
-            },
+            }
+          ]
+        },
+        {
+          id: "communication",
+          icon: "💬",
+          title: "Коммуникация",
+          caption: "Диалоги, обсуждения, входящие",
+          tone: "cyan",
+          sections: [
             {
-              label: "Коммуникация",
+              label: "Каналы",
               nodes: ["Dialogs", "Discussion / Comments", "Inbox"]
             }
           ]
@@ -498,6 +597,16 @@
           ]
         }
       ];
+
+      function nodeLabel(entry) {
+        if (entry && typeof entry === "object" && entry.label) return String(entry.label);
+        return String(entry);
+      }
+
+      function nodeMeta(entry) {
+        if (entry && typeof entry === "object" && entry.meta) return String(entry.meta);
+        return "";
+      }
 
       function createNode({ id, label, icon = "", variant = "leaf", tone = "blue", meta = "" }) {
         const node = document.createElement("div");
@@ -532,11 +641,13 @@
           const row = document.createElement("div");
           row.className = "system-map-row";
           row.dataset.nodeId = `${group.id}-row`;
-          for (const label of entry.items || []) {
+          for (const item of entry.items || []) {
+            const label = nodeLabel(item);
             row.appendChild(
               createNode({
                 id: `${group.id}-${label}`,
-                label: String(label),
+                label,
+                meta: nodeMeta(item),
                 variant: "leaf",
                 tone: group.tone
               })
@@ -562,11 +673,13 @@
           children.className = entry.layout === "row" ? "system-map-row" : "system-map-stack";
           if (entry.layout === "row") children.dataset.nodeId = `${group.id}-${entry.label}-row`;
 
-          for (const itemLabel of entry.items || []) {
+          for (const item of entry.items || []) {
+            const label = nodeLabel(item);
             children.appendChild(
               createNode({
-                id: `${group.id}-${itemLabel}`,
-                label: String(itemLabel),
+                id: `${group.id}-${label}`,
+                label,
+                meta: nodeMeta(item),
                 variant: "leaf",
                 tone: group.tone
               })
@@ -610,6 +723,20 @@
           return;
         }
 
+        if (entry && typeof entry === "object" && entry.label && !entry.side && !entry.type) {
+          const label = nodeLabel(entry);
+          chain.appendChild(
+            createNode({
+              id: `${group.id}-${label}`,
+              label,
+              meta: nodeMeta(entry),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+          return;
+        }
+
         chain.appendChild(
           createNode({
             id: `${group.id}-${entry}`,
@@ -642,8 +769,8 @@
               const nextLabel = restNodes.find((item) => typeof item === "string");
               const nextId = nextLabel ? `${group.id}-${nextLabel}` : `${group.id}-${entry.tail || "Запись"}`;
               edges.push([prevId, `${group.id}-row`]);
-              for (const label of entry.items || []) {
-                const rowNodeId = `${group.id}-${label}`;
+              for (const item of entry.items || []) {
+                const rowNodeId = `${group.id}-${nodeLabel(item)}`;
                 edges.push([`${group.id}-row`, rowNodeId]);
                 edges.push([rowNodeId, nextId]);
               }
@@ -661,15 +788,15 @@
                 const nextLabel = restNodes.find((item) => typeof item === "string");
                 const nextId = nextLabel ? `${group.id}-${nextLabel}` : groupId;
                 edges.push([groupId, rowId]);
-                for (const itemLabel of entry.items || []) {
-                  const itemId = `${group.id}-${itemLabel}`;
+                for (const item of entry.items || []) {
+                  const itemId = `${group.id}-${nodeLabel(item)}`;
                   edges.push([rowId, itemId]);
                   if (nextId !== itemId) edges.push([itemId, nextId]);
                 }
                 prevId = nextId;
               } else {
-                for (const itemLabel of entry.items || []) {
-                  edges.push([groupId, `${group.id}-${itemLabel}`]);
+                for (const item of entry.items || []) {
+                  edges.push([groupId, `${group.id}-${nodeLabel(item)}`]);
                 }
                 prevId = groupId;
               }
@@ -682,6 +809,13 @@
               for (const sideLabel of entry.side) {
                 edges.push([nodeId, `${group.id}-${sideLabel}`]);
               }
+              prevId = nodeId;
+              continue;
+            }
+
+            if (entry && typeof entry === "object" && entry.label && !entry.side && !entry.type) {
+              const nodeId = `${group.id}-${nodeLabel(entry)}`;
+              if (nodeId !== prevId) edges.push([prevId, nodeId]);
               prevId = nodeId;
               continue;
             }
