@@ -5768,27 +5768,52 @@ async function scanWorkspaceFolder(folderRelPath, options = {}) {
     20_000
   );
   const items = [];
+  const counts = {
+    folders: 0,
+    images: 0,
+    pages: 0,
+    videos: 0,
+    audio: 0,
+    files: 0,
+    total: 0,
+    totalBytes: 0
+  };
   let truncated = false;
 
+  const bumpScanCount = (kind, size = null) => {
+    counts.total += 1;
+    if (kind === "folder") counts.folders += 1;
+    else if (kind === "image") counts.images += 1;
+    else if (kind === "page") counts.pages += 1;
+    else if (kind === "video") counts.videos += 1;
+    else if (kind === "audio") counts.audio += 1;
+    else counts.files += 1;
+    const numericSize = Number(size);
+    if (kind !== "folder" && Number.isFinite(numericSize) && numericSize > 0) {
+      counts.totalBytes += numericSize;
+    }
+  };
+
   async function walk(currentRel, depth) {
-    if (truncated || depth > maxDepth) return;
+    if (depth > maxDepth) return;
     const browse = await browseWorkspaceFolderImmediate(currentRel);
     if (!browse.exists) return;
 
     for (const folder of browse.folders || []) {
-      if (items.length >= WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+      bumpScanCount("folder");
+      if (items.length < WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+        items.push({
+          kind: "folder",
+          name: folder.name,
+          path: folder.folderPath,
+          folderPath: folder.folderPath,
+          parentFolder: currentRel,
+          depth,
+          itemCount: folder.itemCount || 0
+        });
+      } else {
         truncated = true;
-        return;
       }
-      items.push({
-        kind: "folder",
-        name: folder.name,
-        path: folder.folderPath,
-        folderPath: folder.folderPath,
-        parentFolder: currentRel,
-        depth,
-        itemCount: folder.itemCount || 0
-      });
       if (depth < maxDepth) {
         await walk(folder.folderPath, depth + 1);
       }
@@ -5796,25 +5821,26 @@ async function scanWorkspaceFolder(folderRelPath, options = {}) {
 
     const appendItems = (entries, kind) => {
       for (const entry of entries || []) {
-        if (items.length >= WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+        bumpScanCount(kind, entry.size ?? null);
+        if (items.length < WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+          items.push({
+            kind,
+            name: entry.name,
+            path: entry.path,
+            parentFolder: currentRel,
+            depth,
+            size: entry.size ?? null,
+            updatedAt: entry.updatedAt ?? null,
+            title: entry.title ?? null,
+            excerpt: entry.excerpt ?? null,
+            tags: entry.tags ?? null,
+            status: entry.status ?? null,
+            manifestPath: entry.manifestPath ?? null,
+            ext: entry.ext ?? null
+          });
+        } else {
           truncated = true;
-          return;
         }
-        items.push({
-          kind,
-          name: entry.name,
-          path: entry.path,
-          parentFolder: currentRel,
-          depth,
-          size: entry.size ?? null,
-          updatedAt: entry.updatedAt ?? null,
-          title: entry.title ?? null,
-          excerpt: entry.excerpt ?? null,
-          tags: entry.tags ?? null,
-          status: entry.status ?? null,
-          manifestPath: entry.manifestPath ?? null,
-          ext: entry.ext ?? null
-        });
       }
     };
 
@@ -5856,7 +5882,7 @@ async function scanWorkspaceFolder(folderRelPath, options = {}) {
     folderPath: normalizedFolder,
     depth: Number.isFinite(maxDepth) ? maxDepth : "all",
     truncated,
-    counts: summarizeWorkspaceFolderScanItems(items),
+    counts,
     items
   };
 }

@@ -512,6 +512,23 @@ function mergeFieldGroupDefinitions(parentGroups, childGroups) {
   return order.length ? order.map((id) => byId.get(id)) : null;
 }
 
+function applyCatalogMixinFields(merged, byId) {
+  const mixinIds = Array.isArray(merged.mixins) ? merged.mixins : [];
+  if (!mixinIds.length) return;
+  merged.fields = { ...(merged.fields || {}) };
+  for (const mixinId of mixinIds) {
+    const mixinEntry = byId.get(mixinId);
+    const mixinFields =
+      mixinEntry?.schema?.fields && typeof mixinEntry.schema.fields === "object"
+        ? mixinEntry.schema.fields
+        : null;
+    if (!mixinFields) continue;
+    for (const [fieldKey, patch] of Object.entries(mixinFields)) {
+      merged.fields[fieldKey] = { ...(merged.fields[fieldKey] || {}), ...patch };
+    }
+  }
+}
+
 function mergeTypeSchema(entry, byId, visited = new Set()) {
   if (!entry || visited.has(entry.id)) return {};
   visited.add(entry.id);
@@ -526,12 +543,6 @@ function mergeTypeSchema(entry, byId, visited = new Set()) {
   const schemaFields =
     (schema.fields && typeof schema.fields === "object" ? schema.fields : null) ||
     (schema["awn-fields"] && typeof schema["awn-fields"] === "object" ? schema["awn-fields"] : null);
-  if (schemaFields) {
-    merged.fields = { ...(merged.fields || {}) };
-    for (const [fieldKey, patch] of Object.entries(schemaFields)) {
-      merged.fields[fieldKey] = { ...(merged.fields[fieldKey] || {}), ...patch };
-    }
-  }
   if (schema.properties && typeof schema.properties === "object") {
     merged.properties = { ...(merged.properties || {}), ...schema.properties };
     if (!merged.fields || !Object.keys(merged.fields).length) {
@@ -540,6 +551,13 @@ function mergeTypeSchema(entry, byId, visited = new Set()) {
   }
   if (Array.isArray(schema.mixins)) {
     merged.mixins = [...new Set([...(merged.mixins || []), ...schema.mixins])];
+  }
+  applyCatalogMixinFields(merged, byId);
+  if (schemaFields) {
+    merged.fields = { ...(merged.fields || {}) };
+    for (const [fieldKey, patch] of Object.entries(schemaFields)) {
+      merged.fields[fieldKey] = { ...(merged.fields[fieldKey] || {}), ...patch };
+    }
   }
   for (const [key, value] of Object.entries(schema)) {
     if (["fields", "awn-fields", "properties", "mixins", "extends", "status"].includes(key)) continue;

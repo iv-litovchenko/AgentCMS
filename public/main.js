@@ -109230,7 +109230,6 @@ function getRepositoryCreateFormConfig(detail) {
     "awn-name",
     "awn-description",
     "awn-repo-origin",
-    "awn-repo-status",
     "awn-repository-group",
     "awn-repo-tech",
     "awn-repo-related-topic",
@@ -109416,31 +109415,12 @@ function createRepositoryCreateSchemaFieldRow(key, fieldDef, value, groupsCatalo
     return createRepositoryCreateCheckboxRow(key, meta.label, checked, { title: meta.hint });
   }
 
-  if (key === "awn-repo-status" && Array.isArray(fieldDef?.enum) && fieldDef.enum.length) {
-    const options = fieldDef.enum.map((item) => ({
-      value: item?.key ?? item?.value ?? item,
-      label: item?.name ?? item?.label ?? item?.key ?? item
-    }));
-    const row = createRepositoryCreateSelectFieldRow(key, meta.label, value ?? fieldDef?.default ?? "study", options, {
-      footnote
-    });
-    return row;
-  }
-
   if (key === "awn-description" || fieldDefToEntryKind(fieldDef) === "text") {
     return createRepositoryCreateTextFieldRow(key, meta.label, value, {
       placeholder,
       footnote,
       rows: 2,
       required: meta.required
-    });
-  }
-
-  if (key === "awn-repo-tech") {
-    const techValue = Array.isArray(value) ? value.join(", ") : String(value || "");
-    return createRepositoryCreateTextFieldRow(key, meta.label, techValue, {
-      placeholder: "react, typescript, fork",
-      footnote: footnote || "Через запятую — попадёт в awn-repo-tech"
     });
   }
 
@@ -109462,9 +109442,8 @@ function getRepositoryCreateDefaultValues() {
     "awn-name": "",
     "awn-description": "",
     "awn-repo-origin": "",
-    "awn-repo-status": "study",
     "awn-repository-group": "study",
-    "awn-repo-tech": [],
+    "awn-repo-tech": "",
     "awn-repo-related-topic": "",
     "awn-index-exclude-subtree": true
   };
@@ -109476,9 +109455,8 @@ function mapRepositoryToCreateFormValues(repo = {}) {
     "awn-name": String(repo.name || repo.slug || "").trim(),
     "awn-description": String(repo.description || "").trim(),
     "awn-repo-origin": String(repo.origin || "").trim(),
-    "awn-repo-status": String(repo.status || "study").trim() || "study",
     "awn-repository-group": String(repo.group || "study").trim() || "study",
-    "awn-repo-tech": Array.isArray(repo.tech) ? repo.tech : [],
+    "awn-repo-tech": Array.isArray(repo.tech) ? repo.tech.join(", ") : String(repo.tech || "").trim(),
     "awn-repo-related-topic": String(repo.relatedTopic || "").trim(),
     "awn-index-exclude-subtree": repo.indexExcludeSubtree !== false
   };
@@ -109874,7 +109852,6 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
     ...(payload.name ? { name: payload.name } : {}),
     ...(payload.description ? { description: payload.description } : {}),
     ...(payload.origin ? { origin: payload.origin } : {}),
-    ...(payload.status ? { status: payload.status } : {}),
     ...(Array.isArray(payload.tech) && payload.tech.length ? { tech: payload.tech } : {}),
     ...(payload.group ? { group: payload.group } : {}),
     ...(payload.relatedTopic ? { relatedTopic: payload.relatedTopic } : {}),
@@ -110469,7 +110446,6 @@ function readRepositoryModalForm() {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-  const status = String(readRepositoryCreateFieldValue("awn-repo-status") || "study").trim() || "study";
   const group =
     String(readRepositoryCreateFieldValue("awn-repository-group") || "study").trim() || "study";
   return {
@@ -110477,7 +110453,6 @@ function readRepositoryModalForm() {
     slug,
     description: String(readRepositoryCreateFieldValue("awn-description") || "").trim(),
     origin: String(readRepositoryCreateFieldValue("awn-repo-origin") || "").trim(),
-    status,
     tech,
     group,
     relatedTopic: String(readRepositoryCreateFieldValue("awn-repo-related-topic") || "").trim(),
@@ -110512,7 +110487,6 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
           name: form.name,
           description: form.description,
           origin: form.origin,
-          status: form.status,
           tech: form.tech,
           group: form.group,
           relatedTopic: form.relatedTopic,
@@ -110531,7 +110505,6 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
         name: form.name,
         description: form.description,
         origin: form.origin,
-        status: form.status,
         group: form.group,
         tech: form.tech,
         relatedTopic: form.relatedTopic,
