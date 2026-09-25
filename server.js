@@ -22933,6 +22933,7 @@ async function handleApiForAgent(req, res, url) {
         slug: payload?.slug,
         name: payload?.name,
         description: payload?.description,
+        collectionType: payload?.collectionType,
         collectionKind: payload?.collectionKind,
         recordStorage: payload?.recordStorage,
         recordHierarchy: payload?.recordHierarchy,

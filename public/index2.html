@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — Элементы системы (черновик)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: #94a3b8;
+        font-size: 0.92rem;
+      }
+
+      .panel {
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: #0f172a;
+        overflow: auto;
+      }
+
+      .mermaid {
+        display: flex;
+        justify-content: center;
+        min-height: 480px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Элементы системы</h1>
+      <p>Черновик схемы Agent CMS. Редактируйте блок <code>&lt;pre class="mermaid"&gt;</code> в этом файле.</p>
+
+      <div class="panel">
+        <pre class="mermaid">flowchart TD
+    WS["🏠 Workspace (agentId)"]
+
+    WS --> TREE["📁 Дерево Page"]
+    WS --> DATA["🗄️ Структурированные данные"]
+    WS --> MEM["🧠 Память и коммуникация"]
+    WS --> AUX["⚙️ Вспомогательное"]
+
+    TREE --> AREA["Область (Area)"]
+    AREA --> SHARED_AREA["Общие"]
+    AREA --> AGENT_AREA["Агент"]
+    SHARED_AREA --> TOPIC["Тема (Topic / manifest.md)"]
+    AGENT_AREA --> TOPIC
+    TOPIC --> SLOT["Слот (main, inbox, media, notes…)"]
+    SLOT --> SECTION["Раздел"]
+    SECTION --> PAGE_ENTRY["Запись"]
+    PAGE_ENTRY --> SIDECAR["Sidecar"]
+
+    DATA --> IBLOCK["Инфоблок"]
+    IBLOCK --> TAX["Таксономии / справочники"]
+    IBLOCK --> GROUP["Группа"]
+    IBLOCK --> COLLECTION["Коллекция"]
+    IBLOCK --> SINGLE["Одиночка"]
+    GROUP --> DATA_SECTION["Раздел"]
+    COLLECTION --> DATA_SECTION
+    SINGLE --> DATA_SECTION
+    DATA_SECTION --> RECORD["Запись"]
+
+    MEM --> FACTS["Facts"]
+    MEM --> JOURNAL["Journal"]
+    MEM --> COMM["Коммуникация"]
+    COMM --> DIALOGS["Dialogs"]
+    COMM --> DISCUSS["Discussion / Comments"]
+    MEM --> INBOX["Inbox (входящие)"]
+
+    AUX --> SETTINGS["Settings (workspace / platform)"]
+    AUX --> SEARCH["Search / Index"]
+    AUX --> REPO["Repository"]
+    AUX --> BOARD["NOTE.md / TODO.md"]</pre>
+      </div>
+    </main>
+
+    <script src="/vendor/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({ startOnLoad: true, theme: "dark" });
+    </script>
+  </body>
+</html>

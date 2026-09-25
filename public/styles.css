@@ -4474,267 +4474,6 @@ body.app-locked {
   isolation: isolate;
 }
 
-.app-landing-platform-system-map-visual {
-  min-height: clamp(420px, 48vw, 520px);
-}
-
-.app-landing-platform-catalog-visual {
-  min-height: clamp(200px, 26vw, 280px);
-}
-
-.app-landing-system-map {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.app-landing-system-map-badge {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  z-index: 4;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(125, 211, 252, 0.28);
-  background: rgba(15, 23, 42, 0.82);
-  color: rgba(224, 242, 254, 0.82);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  backdrop-filter: blur(4px);
-}
-
-.app-landing-system-map-diagram {
-  position: absolute;
-  inset: 34px 10px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  min-height: 0;
-}
-
-.app-landing-system-map-svg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.app-landing-system-map-link {
-  fill: none;
-  stroke: rgba(125, 211, 252, 0.42);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.app-landing-system-map-root,
-.app-landing-system-map-columns,
-.app-landing-system-map-column,
-.app-landing-system-map-chain,
-.app-landing-system-map-row,
-.app-landing-system-map-fork,
-.app-landing-system-map-fork-main,
-.app-landing-system-map-fork-side,
-.app-landing-system-map-group,
-.app-landing-system-map-stack {
-  position: relative;
-  z-index: 1;
-}
-
-.app-landing-system-map-root {
-  display: flex;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-
-.app-landing-system-map-columns {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  flex: 1 1 auto;
-  min-height: 0;
-  align-items: start;
-}
-
-.app-landing-system-map-column {
-  min-width: 0;
-}
-
-.app-landing-system-map-chain {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.app-landing-system-map-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.app-landing-system-map-fork {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.app-landing-system-map-fork-main {
-  flex: 0 0 auto;
-}
-
-.app-landing-system-map-fork-side {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 0 0 auto;
-  padding-left: 8px;
-  border-left: 1px dashed rgba(167, 139, 250, 0.35);
-}
-
-.app-landing-system-map-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.app-landing-system-map-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding-top: 4px;
-  border-top: 1px dashed rgba(52, 211, 153, 0.32);
-}
-
-.app-landing-system-map-node {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  max-width: 100%;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  background: rgba(15, 23, 42, 0.82);
-  box-shadow:
-    0 8px 20px rgba(2, 6, 23, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  text-align: center;
-}
-
-.app-landing-system-map-node.is-hub {
-  padding: 10px 14px;
-  border-radius: 14px;
-  border-color: rgba(250, 204, 21, 0.62);
-  box-shadow:
-    0 0 0 3px rgba(250, 204, 21, 0.12),
-    0 10px 28px rgba(2, 6, 23, 0.35);
-}
-
-.app-landing-system-map-node.is-pillar {
-  border-width: 1.5px;
-  font-weight: 700;
-}
-
-.app-landing-system-map-node.is-leaf {
-  padding: 5px 8px;
-  border-radius: 8px;
-  font-size: 10px;
-}
-
-.app-landing-system-map-node.is-tone-blue {
-  border-color: rgba(96, 165, 250, 0.45);
-  background: linear-gradient(180deg, rgba(30, 58, 138, 0.55), rgba(15, 23, 42, 0.88));
-}
-
-.app-landing-system-map-node.is-tone-violet {
-  border-color: rgba(167, 139, 250, 0.45);
-  background: linear-gradient(180deg, rgba(76, 29, 149, 0.5), rgba(15, 23, 42, 0.88));
-}
-
-.app-landing-system-map-node.is-tone-emerald {
-  border-color: rgba(52, 211, 153, 0.45);
-  background: linear-gradient(180deg, rgba(6, 78, 59, 0.5), rgba(15, 23, 42, 0.88));
-}
-
-.app-landing-system-map-node.is-tone-amber {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: linear-gradient(180deg, rgba(120, 53, 15, 0.5), rgba(15, 23, 42, 0.88));
-}
-
-.app-landing-system-map-node.is-tone-gold {
-  border-color: rgba(250, 204, 21, 0.55);
-  background:
-    radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(49, 46, 129, 0.72), rgba(15, 23, 42, 0.9));
-}
-
-.app-landing-system-map-node-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-.app-landing-system-map-node.is-hub .app-landing-system-map-node-icon {
-  font-size: 18px;
-}
-
-.app-landing-system-map-node-label {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
-  color: #e2e8f0;
-}
-
-.app-landing-system-map-node.is-hub .app-landing-system-map-node-label {
-  font-size: 12px;
-  color: #fef9c3;
-}
-
-.app-landing-system-map-node.is-leaf .app-landing-system-map-node-label {
-  font-size: 10px;
-  color: #cbd5e1;
-}
-
-.app-landing-system-map-node-meta {
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(2, 6, 23, 0.45);
-  color: #94a3b8;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-@media (max-width: 980px) {
-  .app-landing-system-map-columns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 10px;
-  }
-
-  .app-landing-platform-system-map-visual {
-    min-height: clamp(560px, 72vw, 720px);
-  }
-}
-
-@media (max-width: 560px) {
-  .app-landing-system-map-columns {
-    grid-template-columns: 1fr;
-  }
-}
-
 .app-landing-platform-visual-bg {
   position: absolute;
   inset: 0;
@@ -17350,76 +17089,14 @@ ol .live-diff-preview-removed {
 
 .header-global-settings-group-tabs {
   flex: 0 0 auto;
-  margin: 0;
-}
-
-.header-global-settings-modal-card .header-global-settings-group-lead {
-  margin: 0;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.header-global-settings-modal-card .header-global-settings-group-lead.project-settings-group-description-lead {
-  margin: 0;
 }
 
 .header-global-settings-fields {
   flex: 1 1 auto;
   min-height: 180px;
   max-height: min(52vh, 560px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: auto;
   padding-right: 4px;
-}
-
-.header-global-settings-fields.node-config-fields {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.header-global-settings-fields .node-config-field-row--compact {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  flex: 0 0 auto;
-  gap: 8px;
-  min-height: 0;
-  height: auto;
-  padding: 10px 12px;
-  overflow: visible;
-}
-
-.header-global-settings-fields .node-config-field-row--compact.has-field-description {
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-.header-global-settings-fields .node-config-field-row--compact .node-config-field-description {
-  grid-column: auto;
-  width: 100%;
-  margin: 0;
-  box-sizing: border-box;
-}
-
-.header-global-settings-fields .node-config-field-row--compact .node-config-field-head,
-.header-global-settings-fields .node-config-field-row--compact .node-config-field-value {
-  width: 100%;
-  min-width: 0;
-}
-
-.header-global-settings-fields .node-config-field-row--compact:not(.is-tall) .node-config-field-label-wrap {
-  align-items: flex-start;
-  gap: 4px 8px;
-}
-
-.header-global-settings-fields .node-config-field-row--compact:not(.is-tall) .node-config-field-key {
-  flex-basis: 100%;
-  margin-top: 1px;
-}
-
-.header-global-settings-fields .node-config-field-row--compact:not(.is-tall) .node-config-field-value .props-form-value-wrap--boolean {
-  padding: 2px 0 0;
 }
 
 .header-global-settings-loading {
@@ -60566,6 +60243,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-color: #ddd6fe;
 }
 
+.menu-awn-databases-store-kind-letter-md-lite {
+  color: #7e22ce;
+  background: #faf5ff;
+  border-color: #e9d5ff;
+}
+
 .menu-awn-databases-store-kind-letter-csv {
   color: #0369a1;
   background: #f0f9ff;
@@ -62865,6 +62548,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #6d28d9;
   background: #f5f3ff;
   border-color: #ddd6fe;
+}
+
+.awn-databases-view-collection-type-badge.is-md-lite {
+  color: #7e22ce;
+  background: #faf5ff;
+  border-color: #e9d5ff;
 }
 
 .awn-databases-view-collection-type-badge.is-csv {

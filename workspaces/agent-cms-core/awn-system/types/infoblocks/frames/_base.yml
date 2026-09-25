@@ -10,11 +10,11 @@ fields:
   awn-collection-type:
     type: awn.field.choice.one
     title: "{A2!} Тип коллекции"
-    description: md — md-файлы; csv-files — отдельный .csv на запись; csv — одна таблица main.csv; files — загрузка файлов
+    description: md — полные md-записи; md-lite — лёгкие md-записи (списки); csv-files — отдельный .csv на запись; csv — одна таблица main.csv; files — загрузка файлов
     placement: aside-body
     group: infoblock
     sort: 1
-    enum: [md, csv-files, csv, files]
+    enum: [md, md-lite, csv-files, csv, files]
     default: md
 
   awn-record-storage:

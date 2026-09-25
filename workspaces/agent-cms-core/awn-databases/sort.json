@@ -2,5 +2,6 @@
   "agent-registry",
   "taxonomies",
   "tasks",
-  "ui"
+  "ui",
+  "tmp-md-lite-test"
 ]

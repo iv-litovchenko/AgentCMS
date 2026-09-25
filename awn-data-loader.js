@@ -182,6 +182,7 @@ const CONTAINER_SUPERTYPE = {
 };
 const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
 const ELEMENT_TYPE_RECORD = "awn.infoblock.element.record";
+const ELEMENT_TYPE_RECORD_LITE = "awn.infoblock.element.record-lite";
 const ELEMENT_TYPE_CATEGORY = "awn.infoblock.element.category";
 const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
 const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
@@ -320,23 +321,68 @@ function normalizeCollectionKind(value, fallback = "records") {
 
 function normalizeCollectionType(value, fallback = "md") {
   const raw = String(value || fallback).trim().toLowerCase();
+  if (raw === "md-lite") return "md-lite";
   if (raw === "csv" || raw === "csv-files" || raw === "files") return raw;
   return "md";
 }
 
+function elementTypeFromCollectionType(collectionType) {
+  const type = normalizeCollectionType(collectionType);
+  if (type === "md-lite") return ELEMENT_TYPE_RECORD_LITE;
+  return ELEMENT_TYPE_RECORD;
+}
+
 function recordPropsFromCollectionType(collectionType) {
   const type = normalizeCollectionType(collectionType);
-  if (type === "files") return { collectionType: type, collectionKind: "files", recordStorage: "md" };
-  if (type === "csv") return { collectionType: type, collectionKind: "records", recordStorage: "csv" };
-  if (type === "csv-files") {
-    return { collectionType: type, collectionKind: "records", recordStorage: "csv-files" };
+  if (type === "files") {
+    return {
+      collectionType: type,
+      collectionKind: "files",
+      recordStorage: "md",
+      elementType: ELEMENT_TYPE_RECORD
+    };
   }
-  return { collectionType: type, collectionKind: "records", recordStorage: "md" };
+  if (type === "csv") {
+    return {
+      collectionType: type,
+      collectionKind: "records",
+      recordStorage: "csv",
+      elementType: ELEMENT_TYPE_RECORD
+    };
+  }
+  if (type === "csv-files") {
+    return {
+      collectionType: type,
+      collectionKind: "records",
+      recordStorage: "csv-files",
+      elementType: ELEMENT_TYPE_RECORD
+    };
+  }
+  if (type === "md-lite") {
+    return {
+      collectionType: type,
+      collectionKind: "records",
+      recordStorage: "md",
+      elementType: ELEMENT_TYPE_RECORD_LITE
+    };
+  }
+  return {
+    collectionType: type,
+    collectionKind: "records",
+    recordStorage: "md",
+    elementType: ELEMENT_TYPE_RECORD
+  };
 }
 
 function collectionTypeFromRecordProps(record = {}) {
   const explicit = String(record?.collectionType || "").trim().toLowerCase();
-  if (explicit === "md" || explicit === "csv" || explicit === "csv-files" || explicit === "files") {
+  if (
+    explicit === "md" ||
+    explicit === "md-lite" ||
+    explicit === "csv" ||
+    explicit === "csv-files" ||
+    explicit === "files"
+  ) {
     return explicit;
   }
   if (normalizeCollectionKind(record?.collectionKind) === "files") return "files";
@@ -413,6 +459,7 @@ function loadContainerTypeDefaults(kind, agentRoot, projectRoot) {
     collectionType: mapped.collectionType,
     recordStorage: mapped.recordStorage,
     collectionKind: mapped.collectionKind,
+    recordElementType: mapped.elementType || ELEMENT_TYPE_RECORD,
     recordHierarchy,
     recordFileTypes
   };
@@ -1150,10 +1197,14 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
       if (!block) continue;
       const fields = normalizeSchemeModFieldsMap(block.fields || {});
       const tabs = block.tabs && typeof block.tabs === "object" ? block.tabs : {};
-      if (!hasSchemeModBlockContent({ fields, tabs }) && !includeEmptyBlocks) continue;
+      const extendsRef = String(block.extends || "").trim();
+      if (!hasSchemeModBlockContent({ fields, tabs }) && !includeEmptyBlocks && !extendsRef) continue;
       lines.push(`  ${kind}:`);
-      lines.push("    fields:");
-      if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
+      if (extendsRef) lines.push(`    extends: ${extendsRef}`);
+      if (Object.keys(fields).length) {
+        lines.push("    fields:");
+        lines.push(...dumpYamlBlock(fields, 3));
+      }
       if (tabs && Object.keys(tabs).length) {
         lines.push("    tabs:");
         lines.push(...dumpYamlBlock(tabs, 3));
@@ -1164,10 +1215,14 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
   } else {
     const fields = normalizeSchemeModFieldsMap(schema.fields || {});
     const tabs = schema.elementSchemaTabs || schema.tabs || {};
-    if (!Object.keys(fields).length && !Object.keys(tabs || {}).length) return "";
+    const extendsRef = String(schema.extends || "").trim();
+    if (!Object.keys(fields).length && !Object.keys(tabs || {}).length && !extendsRef) return "";
     lines.push("  record:");
-    lines.push("    fields:");
-    if (Object.keys(fields).length) lines.push(...dumpYamlBlock(fields, 3));
+    if (extendsRef) lines.push(`    extends: ${extendsRef}`);
+    if (Object.keys(fields).length) {
+      lines.push("    fields:");
+      lines.push(...dumpYamlBlock(fields, 3));
+    }
     if (tabs && Object.keys(tabs).length) {
       lines.push("    tabs:");
       lines.push(...dumpYamlBlock(tabs, 3));
@@ -1180,14 +1235,13 @@ function composeAwnDataStoreSchemeModYaml(schema = {}) {
 
 function writeStoreSchemeMod(storeAbs, schema = {}) {
   const fields = schema.fields || {};
+  const extendsRef = String(schema.extends || "").trim();
   // schema.yml — только пользовательские поля; база приходит из type-catalog в runtime.
-  if (!Object.keys(fields).length) return false;
+  if (!Object.keys(fields).length && !extendsRef) return false;
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
-  fs.writeFileSync(
-    path.join(storeAbs, SCHEMA_MOD_FILE),
-    composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs }),
-    "utf-8"
-  );
+  const content = composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs, extends: extendsRef });
+  if (!String(content || "").trim()) return false;
+  fs.writeFileSync(path.join(storeAbs, SCHEMA_MOD_FILE), content, "utf-8");
   return true;
 }
 
@@ -2279,7 +2333,9 @@ function buildContainerManifestRecord(kind, { typeDefaults, typeFields, options 
     collectionKind === "files"
       ? String(options.recordFileTypes ?? typeDefaults.recordFileTypes ?? "").trim()
       : "";
-  const collectionType = collectionTypeFromRecordProps({ collectionKind, storage: recordStorage });
+  const collectionType =
+    String(options.collectionType || "").trim().toLowerCase() ||
+    collectionTypeFromRecordProps({ collectionKind, storage: recordStorage });
   const idMode =
     String(options.idMode || readTypeFieldDefault(typeFields, "awn-record-id-mode") || "slug").trim() ||
     "slug";
@@ -2300,11 +2356,18 @@ function buildContainerManifestRecord(kind, { typeDefaults, typeFields, options 
   return record;
 }
 
-function loadStoreElementScheme(agentRoot, projectRoot, fallbackFields, fallbackTabs = { main: "Основное" }) {
-  const inherited = loadInheritedFieldsFromTypeId(ELEMENT_TYPE_RECORD, agentRoot, projectRoot);
+function loadStoreElementScheme(
+  agentRoot,
+  projectRoot,
+  fallbackFields,
+  fallbackTabs = { main: "Основное" },
+  elementType = ELEMENT_TYPE_RECORD
+) {
+  const typeId = String(elementType || ELEMENT_TYPE_RECORD).trim() || ELEMENT_TYPE_RECORD;
+  const inherited = loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot);
   const rawFields = inherited.fields || {};
   if (!Object.keys(rawFields).length) {
-    return { extends: ELEMENT_TYPE_RECORD, fields: fallbackFields, tabs: fallbackTabs };
+    return { extends: typeId, fields: fallbackFields, tabs: fallbackTabs };
   }
   const fields = {};
   for (const [key, def] of Object.entries(rawFields)) {
@@ -2315,10 +2378,25 @@ function loadStoreElementScheme(agentRoot, projectRoot, fallbackFields, fallback
     fields["awn-title"] = { type: "awn.string", title: "Название", required: true, tab: "main" };
   }
   return {
-    extends: ELEMENT_TYPE_RECORD,
+    extends: typeId,
     fields,
     tabs: inherited.tabs && Object.keys(inherited.tabs).length ? inherited.tabs : { main: "Основное" }
   };
+}
+
+function resolveStoreRecordElementType(storeAbs, agentRoot = "", projectRoot = process.cwd(), dataRoot = "") {
+  const overlay = readStoreSchemeModOverlay(storeAbs);
+  const overlayExtends = resolveElementExtendsRef(
+    overlay?.extends || overlay?.blocks?.record?.extends || ""
+  );
+  if (overlayExtends && overlayExtends !== ELEMENT_TYPE_RECORD) return overlayExtends;
+
+  const merged = loadMergedStoreSchema(storeAbs, dataRoot || "");
+  const mergedExtends = resolveElementExtendsRef(merged?.elementExtends || merged?.extends || "");
+  if (mergedExtends && mergedExtends !== ELEMENT_TYPE_RECORD) return mergedExtends;
+
+  const collectionType = getCollectionType(merged);
+  return elementTypeFromCollectionType(collectionType);
 }
 
 function buildCollectionManifestBody({ name, description, typeDescription }) {
@@ -2353,6 +2431,7 @@ function buildCollectionSchemaContent({
   description,
   recordStorage = "md",
   collectionKind = "records",
+  collectionType = "",
   recordHierarchy = false,
   recordFileTypes = "",
   agentRoot = "",
@@ -2362,10 +2441,23 @@ function buildCollectionSchemaContent({
   const userDescription = String(description || "").trim();
   const displayName = String(name || slug).trim();
   const desc = userDescription || displayName;
+  const resolvedCollectionType =
+    normalizeCollectionType(
+      collectionType ||
+        collectionTypeFromRecordProps({ collectionKind, storage: recordStorage }),
+      "md"
+    );
+  const recordElementType = elementTypeFromCollectionType(resolvedCollectionType);
   const record = buildContainerManifestRecord("collection", {
     typeDefaults: typeMeta.typeDefaults,
     typeFields: typeMeta.typeFields,
-    options: { collectionKind, recordStorage, recordHierarchy, recordFileTypes }
+    options: {
+      collectionKind,
+      recordStorage,
+      collectionType: resolvedCollectionType,
+      recordHierarchy,
+      recordFileTypes
+    }
   });
   const fallbackRecordFields = {
     "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
@@ -2387,7 +2479,8 @@ function buildCollectionSchemaContent({
     agentRoot,
     projectRoot,
     fallbackRecordFields,
-    { main: "Основное" }
+    { main: "Основное" },
+    recordElementType
   );
   return {
     schema: {
@@ -2646,7 +2739,19 @@ function buildRecordMarkdown({
 } = {}) {
   const displayName = String(name || title || "").trim();
   const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
-  const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
+  let typeId = String(elementType || "").trim();
+  if (!typeId && store && agentRoot) {
+    try {
+      const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
+      const storeAbs = getStoreAbsolutePath(dataRoot, store);
+      if (storeAbs && fs.existsSync(resolveStoreSchemaPath(storeAbs))) {
+        typeId = resolveStoreRecordElementType(storeAbs, agentRoot, projectRoot, dataRoot);
+      }
+    } catch {
+      // ignore and fall back to default element type
+    }
+  }
+  typeId = typeId || DEFAULT_RECORD_ELEMENT_TYPE;
   const mergedFields = resolveStoreElementMergedFields(store, typeId, agentRoot, projectRoot);
   const fmLines = buildContainerManifestFrontmatter(typeId, displayName, mergedFields)
     .split("\n")
@@ -2744,6 +2849,11 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       collectionKind === "files"
         ? String(options.recordFileTypes || typeDefaults.recordFileTypes || "").trim()
         : "";
+    const collectionType = normalizeCollectionType(
+      options.collectionType ||
+        collectionTypeFromRecordProps({ collectionKind, storage: recordStorage }),
+      "md"
+    );
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
       : buildCollectionSchemaContent({
@@ -2752,6 +2862,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           description,
           recordStorage,
           collectionKind,
+          collectionType,
           recordHierarchy,
           recordFileTypes,
           agentRoot,
@@ -2761,11 +2872,14 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       ...manifestOptions,
       typeFields: bundle.schema.containerFields || {}
     });
-    if (bundle.schemeModFields && Object.keys(bundle.schemeModFields).length) {
+    const schemeModExtends = bundle.schemeModExtends || ELEMENT_TYPE_RECORD;
+    const hasCustomSchemeFields =
+      bundle.schemeModFields && Object.keys(bundle.schemeModFields).length > 0;
+    if (hasCustomSchemeFields || schemeModExtends !== ELEMENT_TYPE_RECORD) {
       writeStoreSchemeMod(storeAbs, {
-        extends: bundle.schemeModExtends || ELEMENT_TYPE_RECORD,
-        fields: bundle.schemeModFields,
-        elementSchemaTabs: bundle.schemeModTabs || {}
+        extends: schemeModExtends,
+        fields: bundle.schemeModFields || {},
+        ...(hasCustomSchemeFields ? { elementSchemaTabs: bundle.schemeModTabs || {} } : {})
       });
     } else if (!isTaxonomy) {
       writeInitialStoreAwnSchema(storeAbs, "collection", bundle.schema.typeId);
@@ -2786,6 +2900,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
         id: "1",
         name: "Первая запись",
         storeRel: slug,
+        elementType: elementTypeFromCollectionType(collectionType),
         agentRoot,
         projectRoot
       });
@@ -2958,6 +3073,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
       title,
       parent: parent || null,
       storeRel,
+      elementType: resolveStoreRecordElementType(storeAbs, agentRoot, projectRoot, dataRoot),
       agentRoot,
       projectRoot,
       body: String(options.body ?? "").trim()
@@ -3706,6 +3822,7 @@ function getContainerTypesPayload(agentRoot, projectRoot) {
         collectionType: meta.typeDefaults?.collectionType || "md",
         collectionKind: meta.typeDefaults?.collectionKind || "records",
         recordStorage: meta.typeDefaults?.recordStorage || "md",
+        recordElementType: meta.typeDefaults?.recordElementType || ELEMENT_TYPE_RECORD,
         recordHierarchy: Boolean(meta.typeDefaults?.recordHierarchy),
         recordFileTypes: String(meta.typeDefaults?.recordFileTypes || "")
       }
@@ -3793,7 +3910,10 @@ module.exports = {
   DEFAULT_ELEMENT_SCHEMA_TYPE,
   DEFAULT_RECORD_ELEMENT_TYPE,
   ELEMENT_TYPE_RECORD,
+  ELEMENT_TYPE_RECORD_LITE,
   ELEMENT_TYPE_CATEGORY,
+  elementTypeFromCollectionType,
+  resolveStoreRecordElementType,
   ELEMENT_TYPE_SIDECAR,
   ELEMENT_TYPE_COMMENT,
   AWN_DATA_SCHEMA_TARGETS,
