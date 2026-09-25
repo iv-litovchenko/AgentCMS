@@ -60855,6 +60855,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
+.menu-repositories-dependencies-row {
+  margin: 0 0 0.35rem;
+}
+
+.menu-repositories-dependencies-row.hidden {
+  display: none;
+}
+
+.menu-repositories-dependencies-row .node-navigation-workspace-counter-topic-index {
+  width: 100%;
+}
+
 .menu-repositories-groups-btn,
 .menu-repositories-create-btn {
   flex: 1 1 0;

@@ -123,6 +123,8 @@ const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-gro
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
 const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
+const menuRepositoriesDependenciesRow = document.getElementById("menu-repositories-dependencies-row");
+const menuRepositoriesDependenciesOpenBtn = document.getElementById("menu-repositories-dependencies-open-btn");
 const REPOSITORY_INDEX_REL = "awn-repositories/index.md";
 const REPOSITORY_STATS_THEME_STORAGE_KEY = "agentcms.repositoryStatsTheme.v1";
 const repositoryGroupsModalNode = document.getElementById("repository-groups-modal");
@@ -10283,6 +10285,9 @@ function createAppLandingPlatformReadmePanel(readme, options = {}) {
   body.className = "app-landing-platform-readme-body markdown-body";
   if (readme?.exists && readme.content && typeof renderMarkdownToHtml === "function") {
     body.innerHTML = renderMarkdownToHtml(readme.content, { hideFrontmatter: true });
+    if (typeof hydrateMarkdownPreviewElement === "function") {
+      hydrateMarkdownPreviewElement(body, "README.md");
+    }
     for (const link of body.querySelectorAll("a[href]")) {
       const href = String(link.getAttribute("href") || "").trim();
       if (/^https?:\/\//i.test(href)) {
@@ -92847,6 +92852,7 @@ async function loadSystemFiles(options = {}) {
   } else {
     renderSystemFiles(systemFilesCache);
   }
+  syncRepositoriesDependenciesButtonState();
   void syncAgentTodoPreview();
 }
 
@@ -110843,7 +110849,25 @@ function groupMenuRepositories(repositories = [], unregistered = [], groupsCatal
   });
 }
 
-function createMenuRepositoryGroupNode(groupId, title, items, { highlightUnregistered = false } = {}) {
+function readMenuRepositoryGroupOpenState() {
+  if (!menuRepositoriesListNode) return {};
+  const state = {};
+  menuRepositoriesListNode.querySelectorAll(".menu-repository-group").forEach((groupNode) => {
+    const groupId = String(groupNode.dataset.repositoryGroupId || "").trim();
+    if (!groupId) return;
+    const details = groupNode.querySelector(".menu-repository-group-details");
+    if (!details) return;
+    state[groupId] = details.open;
+  });
+  return state;
+}
+
+function createMenuRepositoryGroupNode(
+  groupId,
+  title,
+  items,
+  { highlightUnregistered = false, openState = null } = {}
+) {
   const item = document.createElement("li");
   item.className = highlightUnregistered
     ? "menu-repository-group menu-repository-group--unregistered"
@@ -110853,7 +110877,10 @@ function createMenuRepositoryGroupNode(groupId, title, items, { highlightUnregis
   const details = document.createElement("details");
   details.className = "menu-repository-group-details";
   details.dataset.repositoryGroupDropZone = "1";
-  details.open = items.length > 0;
+  const resolvedGroupId = String(groupId || "").trim();
+  const hasPreservedOpenState =
+    openState && Object.prototype.hasOwnProperty.call(openState, resolvedGroupId);
+  details.open = hasPreservedOpenState ? Boolean(openState[resolvedGroupId]) : items.length > 0;
 
   const summary = document.createElement("summary");
   summary.className = highlightUnregistered
@@ -110898,6 +110925,7 @@ function createMenuRepositoryGroupNode(groupId, title, items, { highlightUnregis
 function renderMenuRepositories(payload = null, { loading = false, error = false } = {}) {
   if (!menuRepositoriesListNode) return;
   menuRepositoriesListNode.classList.remove("is-loading");
+  const openState = readMenuRepositoryGroupOpenState();
   menuRepositoriesListNode.replaceChildren();
 
   if (loading && !menuRepositoriesLastPayload) {
@@ -110933,17 +110961,34 @@ function renderMenuRepositories(payload = null, { loading = false, error = false
   for (const section of sections) {
     menuRepositoriesListNode.appendChild(
       createMenuRepositoryGroupNode(section.id, section.title, section.items, {
-        highlightUnregistered: section.highlightUnregistered
+        highlightUnregistered: section.highlightUnregistered,
+        openState
       })
     );
   }
   enableVoiceChatDragSources(menuRepositoriesListNode);
 }
 
+function syncRepositoriesDependenciesButtonState() {
+  if (!menuRepositoriesDependenciesOpenBtn) return;
+  const entry = getSystemFileCacheEntry("dependencies.csv");
+  const exists = Boolean(entry?.exists);
+  const empty = Boolean(entry?.empty ?? !exists);
+  menuRepositoriesDependenciesOpenBtn.classList.toggle("is-available", exists && !empty);
+  menuRepositoriesDependenciesOpenBtn.classList.toggle("is-generated", !exists || empty);
+  menuRepositoriesDependenciesOpenBtn.title =
+    exists && !empty
+      ? "Открыть dependencies.csv"
+      : exists
+        ? "Открыть для редактирования"
+        : "Создать и заполнить dependencies.csv";
+}
+
 function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
   if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
   const hasAgent = Boolean(String(activeAgentId || "").trim());
   menuRepositoriesIndexRow?.classList.toggle("hidden", !hasAgent);
+  menuRepositoriesDependenciesRow?.classList.toggle("hidden", !hasAgent);
   const indexFile = payload?.indexFile;
   const hasIndex = Boolean(indexFile?.exists);
   const indexPath = String(indexFile?.path || REPOSITORY_INDEX_REL).trim() || REPOSITORY_INDEX_REL;
@@ -110954,6 +110999,7 @@ function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
     ? `Открыть ${indexPath}`
     : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${indexPath})`;
   menuRepositoriesIndexRefreshBtn.title = `Обновить и сохранить ${indexPath}`;
+  syncRepositoriesDependenciesButtonState();
 }
 
 function setRepositoryIndexRefreshLoading(loading) {
@@ -111039,7 +111085,6 @@ async function handleRepositoryIndexRefreshClick() {
     const ok = await refreshRepositoryIndex();
     if (ok) {
       showToast("Индекс репозиториев обновлён", "success");
-      await refreshMenuRepositories();
     }
   } finally {
     setRepositoryIndexRefreshLoading(false);
@@ -111116,6 +111161,20 @@ function setupRepositoriesUi() {
     event.preventDefault();
     event.stopPropagation();
     void handleRepositoryIndexRefreshClick();
+  });
+  menuRepositoriesDependenciesOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const entry = getSystemFileCacheEntry("dependencies.csv");
+    void openRootSystemMenuFile(
+      entry || {
+        name: "dependencies.csv",
+        systemFile: "dependencies.csv",
+        exists: false,
+        empty: true,
+        openMode: "system"
+      }
+    );
   });
   setupRepositoryGroupsSortDragDrop();
   repositoryGroupsAddBtn?.addEventListener("click", () => {

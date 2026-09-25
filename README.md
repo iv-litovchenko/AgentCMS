@@ -1,6 +1,42 @@
 # AGENT CMS
 **Agent CMS** — хранилище контекста и контента для LLM-агентов. Не «система для агентов», а **общий ящик**: заметки, документы, медиа, мысли и секреты — по одним правилам, на диске в markdown и YAML, без базы данных. Человек — веб или desktop, агент — MCP; один язык, одна структура, без перевода между вами и ИИ. **CMS** — Content Management System · **Context** Management System.
 
+```mermaid
+flowchart TD
+    WS["🏠 Workspace (agentId)"]
+
+    WS --> TREE["📁 Дерево Page"]
+    WS --> DATA["🗄️ Структурированные данные"]
+    WS --> MEM["🧠 Память и коммуникация"]
+    WS --> AUX["⚙️ Вспомогательное"]
+
+    TREE --> AREA["Область (Area)"]
+    AREA --> TOPIC["Тема (Topic / manifest.md)"]
+    TOPIC --> SLOT["Слот (main, inbox, media, notes…)"]
+    SLOT --> CONTENT["Content (файл: .md, медиа, код)"]
+    CONTENT --> SIDECAR["Sidecar"]
+
+    DATA --> IBLOCK["Инфоблок"]
+    IBLOCK --> GROUP["Группа"]
+    IBLOCK --> COLLECTION["Коллекция"]
+    IBLOCK --> SINGLE["Одиночка"]
+    GROUP --> RECORD["Запись"]
+    COLLECTION --> RECORD
+    SINGLE --> RECORD
+    DATA --> TAX["Таксономии / справочники"]
+
+    MEM --> FACTS["Facts"]
+    MEM --> JOURNAL["Journal"]
+    MEM --> DIALOGS["Dialogs"]
+    MEM --> DISCUSS["Discussion / Comments"]
+    MEM --> INBOX["Inbox (входящие)"]
+
+    AUX --> SETTINGS["Settings (workspace / platform)"]
+    AUX --> SEARCH["Search / Index"]
+    AUX --> REPO["Repository"]
+    AUX --> BOARD["NOTE.md / TODO.md"]
+```
+
 ## Три приложения
 | Название | Назначение |
 |----------|------------|
