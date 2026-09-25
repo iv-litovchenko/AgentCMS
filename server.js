@@ -322,6 +322,7 @@ const {
   getAwnDataPayload,
   createAwnDataStore,
   createAwnDataRecord,
+  ensureAwnDataSectionManifest,
   ensureAwnDataMainCsvFile,
   readAwnDataStoreSchemaPayload,
   writeAwnDataStoreSchema,
@@ -22992,6 +22993,28 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to create awn-databases record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/sections/manifest") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const sectionRef = String(payload?.section || payload?.record || payload?.id || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (!sectionRef) return sendJson(res, 400, { error: "Missing section id" });
+      const store = ensureAwnDataSectionManifest(agentRoot, getProjectRoot(), storeRel, sectionRef, {
+        name: payload?.name,
+        title: payload?.title || payload?.name
+      });
+      return sendJson(res, 201, { ok: true, store });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to create section manifest",
         details: String(error.message || error)
       });
     }

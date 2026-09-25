@@ -163,6 +163,7 @@ let awnDataViewSearchInputNode = null;
 let awnDataViewCountNode = null;
 let awnDataViewSectionWrapNode = null;
 let awnDataViewSectionTreeNode = null;
+let awnDataViewSectionNoticesNode = null;
 let awnDataViewSectionCreateFormNode = null;
 let awnDataViewSectionCreateBtnNode = null;
 let awnDataViewSectionCreateSubmitBtnNode = null;
@@ -17071,7 +17072,12 @@ function getMemoryKindForSlugIssue(issue) {
 
 function canApplyDataHubSlugFix(issue) {
   if (!issue) return false;
-  if (issue.kind === "node-manifest" || issue.kind === "external-file" || issue.kind === "storage-file") {
+  if (
+    issue.kind === "node-manifest" ||
+    issue.kind === "external-file" ||
+    issue.kind === "storage-file" ||
+    issue.kind === "awn-data-section"
+  ) {
     return true;
   }
   if (issue.kind !== "memory-section") return false;
@@ -17494,6 +17500,35 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       return;
     }
 
+    if (issue.kind === "awn-data-section") {
+      const storeRel = String(issue.storeRel || awnDataViewStoreRel || "").trim();
+      const sectionId = String(issue.sectionId || "").trim();
+      if (!storeRel || !sectionId) throw new Error("Раздел не найден");
+      const response = await fetch(
+        buildApiUrl("/api/awn-databases/records/rename", {}, awnDataViewCatalogAgentId || activeAgentId),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            store: storeRel,
+            record: sectionId,
+            slug: issue.suggested,
+            title: issue.label || issue.displayName || issue.suggested
+          })
+        }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.details || data.error || `HTTP ${response.status}`);
+      }
+      const nextId = String(data.record || issue.suggested || sectionId).trim();
+      if (nextId) awnDataViewSectionId = nextId;
+      await refreshMenuAwnDataStores(awnDataViewCatalogAgentId || activeAgentId);
+      await loadAwnDataViewStore(awnDataViewCatalogAgentId || activeAgentId);
+      showToast(`Раздел переименован в «${issue.suggested}»`, "success");
+      return;
+    }
+
     if (issue.kind === "memory-section") {
       const data = await renameMemorySectionApi(
         issue.sectionFolder,
@@ -17607,7 +17642,12 @@ function entryOverviewSectionReadmeExists(context, { navigationIndex, manifestBo
   return false;
 }
 
-function openSectionReadmeForMemoryKind(readmePath, sectionFolder, memoryKind) {
+function openSectionReadmeForMemoryKind(
+  readmePath,
+  sectionFolder,
+  memoryKind,
+  categoryType = "awn.record.category"
+) {
   if (memoryKind === "external") {
     void openExternalSectionReadme(readmePath, sectionFolder);
     return;
@@ -17617,7 +17657,7 @@ function openSectionReadmeForMemoryKind(readmePath, sectionFolder, memoryKind) {
     return;
   }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
-    void openFlatStorageSectionReadme(memoryKind, readmePath, sectionFolder);
+    void openFlatStorageSectionReadme(memoryKind, readmePath, sectionFolder, categoryType);
   }
 }
 
@@ -17643,7 +17683,7 @@ function appendEntryOverviewSectionReadmeOffer(
   appendSectionReadmeOffer(host, sectionFolder, {
     categoryType,
     onCreate: (readmePath) =>
-      openSectionReadmeForMemoryKind(readmePath, sectionFolder, context.memoryKind)
+      openSectionReadmeForMemoryKind(readmePath, sectionFolder, context.memoryKind, categoryType)
   });
   hub.appendChild(host);
 }
@@ -35852,10 +35892,16 @@ function resolveSectionReadmeSeedNames(sectionFolder) {
   return { folderSlug, displayLabel };
 }
 
+function resolveSectionReadmeAwnName(displayName, folderSlug) {
+  const name = String(displayName || "").trim();
+  const slug = String(folderSlug || "").trim();
+  return name || slug;
+}
+
 function buildSectionReadmeFrontmatterLines(displayName, awnType, folderSlug) {
   const segment =
     String(folderSlug || "").trim() || String(displayName || "Раздел").trim() || "Раздел";
-  const awnName = normalizeAwnNameForStorage(displayName, segment);
+  const awnName = resolveSectionReadmeAwnName(displayName, segment);
   const lines = [];
   if (awnType) lines.push(`awn-type: ${awnType}`);
   if (awnName) lines.push(`awn-name: ${formatYamlScalar(awnName)}`);
@@ -35897,7 +35943,7 @@ async function buildSectionReadmeContentWithSchema(
       [{ key: "awn-type", kind: "string", value: awnType }],
       awnType
     );
-    const storedAwnName = normalizeAwnNameForStorage(
+    const storedAwnName = resolveSectionReadmeAwnName(
       safeTitle,
       String(folderSlug || "").trim() || safeTitle
     );
@@ -46782,6 +46828,8 @@ function schemaEditorTargetSupportsFieldGroups(targetId) {
 }
 
 function resolveSchemaEditorContextTarget(root = topicSchemaPanelNode) {
+  const storeTarget = String(root?._awnDataStoreSchemaCache?.activeTarget || "").trim();
+  if (storeTarget) return storeTarget;
   if (root?.classList?.contains("node-entry-overview-section-schema")) {
     return String(root._sectionSchemaCache?.activeTarget || "").trim();
   }
@@ -47700,7 +47748,9 @@ function restoreTopicSchemaFieldRowUiAfterRerender(activeKey, target = topicSche
 }
 
 function getTopicSchemaScrollRoot(root = topicSchemaPanelNode) {
-  return root?.closest(".topic-schema-panel") || root || topicSchemaPanelNode;
+  const panel = root?.closest(".topic-schema-panel") || root || topicSchemaPanelNode;
+  const fieldsNode = panel?.querySelector?.(":scope > .topic-schema-fields");
+  return fieldsNode || panel;
 }
 
 function preserveTopicSchemaScrollDuring(callback, root = topicSchemaPanelNode) {
@@ -59669,8 +59719,34 @@ async function reloadFlatStorageFolderMode(mode) {
   applyFlatStorageFolderLoadState(mode, data);
 }
 
-async function ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
+function getFlatStorageSectionReadmeContextPath(mode, readmePath, nodePath = activePath) {
+  const rel = String(readmePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return "";
+  const manifestBase = getResolvedNodePath(nodePath);
+  const storageFolder = getFlatStorageSectionFolderName(mode);
+  if (!manifestBase || !storageFolder) return "";
+  return `${getNodeStorageSubfolderPath(manifestBase, storageFolder)}/${rel}`.replace(/\/+/g, "/");
+}
+
+function resolveFlatStorageSectionReadmeContextPath(mode, readmePath, sectionFolder) {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    const fromOverview = resolveOverviewSchemaContentPath(activeEntryOverviewContext);
+    if (fromOverview) return fromOverview;
+  }
+  const readmeRel = String(readmePath || getSectionReadmeRelPath(sectionFolder) || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  return getFlatStorageSectionReadmeContextPath(mode, readmeRel);
+}
+
+async function ensureFlatStorageSectionReadme(
+  mode,
+  readmePath,
+  sectionFolder,
+  categoryType = "awn.record.category"
+) {
   const { folderSlug, displayLabel } = resolveSectionReadmeSeedNames(sectionFolder);
+  const contentPath = resolveFlatStorageSectionReadmeContextPath(mode, readmePath, sectionFolder);
   const response = await fetch(buildApiUrl("/api/storage/markdown"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59678,7 +59754,13 @@ async function ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
       path: getActiveNodeApiPath(),
       folder: getFlatStorageSectionFolderName(mode),
       file: readmePath,
-      content: buildSectionReadmeContent(displayLabel, null, folderSlug)
+      content: await buildSectionReadmeContentWithSchema(
+        displayLabel,
+        categoryType,
+        activePath,
+        contentPath,
+        folderSlug
+      )
     })
   });
   if (!response.ok) {
@@ -59688,10 +59770,15 @@ async function ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
   await reloadFlatStorageFolderMode(mode);
 }
 
-async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
+async function openFlatStorageSectionReadme(
+  mode,
+  readmePath,
+  sectionFolder,
+  categoryType = "awn.record.category"
+) {
   if (!flatStorageSectionReadmeExists(mode, sectionFolder)) {
     try {
-      await ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder);
+      await ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder, categoryType);
     } catch (error) {
       showToast(`Не удалось создать ${AREA_MANIFEST_FILE}: ${error.message}`, "error");
       return;
@@ -105325,6 +105412,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewCountNode = root.querySelector(".awn-databases-view-count");
   awnDataViewSectionWrapNode = root.querySelector(".awn-databases-view-section-panel");
   awnDataViewSectionTreeNode = root.querySelector(".awn-databases-view-section-tree");
+  awnDataViewSectionNoticesNode = root.querySelector(".awn-databases-view-section-notices");
   awnDataViewSectionCreateFormNode = root.querySelector(".awn-databases-view-section-create-form");
   awnDataViewSectionCreateNameInputNode = root.querySelector(".awn-databases-view-section-create-name-input");
   awnDataViewSectionCreateSlugInputNode = root.querySelector(".awn-databases-view-section-create-slug-input");
@@ -106036,6 +106124,7 @@ function wireAwnDataViewPageEvents(hub) {
     awnDataViewSectionId = item.dataset.sectionId;
     syncAwnDataViewSectionTreeActiveStates();
     applyAwnDataActiveSectionToAddParentSelect();
+    syncAwnDataViewSectionPanelNotices(awnDataViewStoreCache);
     if (awnDataViewStoreCache) {
       renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
     }
@@ -107524,6 +107613,96 @@ function collectAwnDataSectionTreeIds(store) {
   return ids;
 }
 
+function awnDataSectionMissingManifest(record) {
+  return Boolean(record?.isSection && record?.missingManifest);
+}
+
+function getAwnDataViewActiveSectionRecord(store = awnDataViewStoreCache) {
+  const sid = String(awnDataViewSectionId || "");
+  if (!sid || sid === "__all__" || sid === "__root__") return null;
+  return (
+    getAwnDataStoreSections(store).find((record) => String(record.id || "").trim() === sid) || null
+  );
+}
+
+function resolveAwnDataSectionReadmeFolder(record) {
+  return resolveAwnDataSectionDataRelPath(record) || String(record?.id || "").trim();
+}
+
+function getAwnDataSectionUnregisteredTitle(record) {
+  const segment = String(record?.id || "раздел").trim() || "раздел";
+  return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — создайте описание раздела`;
+}
+
+function getAwnDataViewSectionSlugIssue(store = awnDataViewStoreCache) {
+  const record = getAwnDataViewActiveSectionRecord(store);
+  if (!record || !awnDataSectionMissingManifest(record)) return null;
+  const sectionPath = resolveAwnDataSectionReadmeFolder(record);
+  const segment = sectionPath.split("/").filter(Boolean).pop() || String(record.id || "");
+  const displayName = resolveAwnDataRecordDisplayName(record) || segment;
+  const issue = getSlugIssueForSegment(segment, displayName);
+  if (!issue) return null;
+  return {
+    kind: "awn-data-section",
+    storeRel: String(store?.relPath || awnDataViewStoreRel || "").trim(),
+    sectionId: String(record.id || "").trim(),
+    sectionPath,
+    sectionFolder: sectionPath,
+    label: displayName,
+    ...issue
+  };
+}
+
+async function ensureAwnDataSectionReadme(record, store = awnDataViewStoreCache) {
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "").trim();
+  const sectionId = String(record?.id || "").trim();
+  if (!storeRel || !sectionId) throw new Error("Раздел не найден");
+  const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
+  const { displayLabel } = resolveSectionReadmeSeedNames(sectionFolder);
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const response = await fetch(buildApiUrl("/api/awn-databases/sections/manifest", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      store: storeRel,
+      section: sectionId,
+      name: displayLabel,
+      title: displayLabel
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  }
+  await refreshMenuAwnDataStores(agentId);
+  await loadAwnDataViewStore(agentId);
+  const updated = getAwnDataViewActiveSectionRecord(awnDataViewStoreCache);
+  if (updated && !awnDataSectionMissingManifest(updated)) {
+    void openAwnDataRecordEditor(updated, awnDataViewStoreCache);
+  }
+}
+
+function syncAwnDataViewSectionPanelNotices(store = awnDataViewStoreCache) {
+  const host = awnDataViewSectionNoticesNode;
+  if (!host) return;
+  host.replaceChildren();
+  const record = getAwnDataViewActiveSectionRecord(store);
+  if (!record || !awnDataSectionMissingManifest(record)) {
+    host.classList.add("hidden");
+    return;
+  }
+  host.classList.remove("hidden");
+  const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
+  appendSectionReadmeOffer(host, sectionFolder, {
+    categoryType: "awn.infoblock.element.category",
+    onCreate: () => void ensureAwnDataSectionReadme(record, store)
+  });
+  const issue = getAwnDataViewSectionSlugIssue(store);
+  if (issue) {
+    host.appendChild(buildDataHubSlugWarningElement(issue));
+  }
+}
+
 function syncAwnDataViewSectionTreeActiveStates() {
   if (!awnDataViewSectionTreeNode) return;
   for (const row of awnDataViewSectionTreeNode.querySelectorAll(".awn-databases-view-section-tree-row")) {
@@ -107566,6 +107745,8 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
   const row = document.createElement("div");
   row.className = "awn-databases-view-section-tree-row";
   if (depth > 0) row.classList.add("is-nested");
+  const isUnregistered = Boolean(record && awnDataSectionMissingManifest(record));
+  if (isUnregistered) row.classList.add("awn-databases-view-section-tree-row--unregistered");
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -107574,6 +107755,10 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
   btn.style.setProperty("--tree-depth", String(depth));
   btn.setAttribute("role", "treeitem");
   btn.setAttribute("aria-selected", id === awnDataViewSectionId ? "true" : "false");
+  if (isUnregistered) {
+    btn.classList.add("awn-databases-view-section-tree-item--unregistered");
+    btn.title = getAwnDataSectionUnregisteredTitle(record);
+  }
   if (id === awnDataViewSectionId) {
     row.classList.add("is-active");
     btn.classList.add("is-active");
@@ -107585,6 +107770,7 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
 
   const text = document.createElement("span");
   text.className = "awn-databases-view-section-tree-label";
+  if (isUnregistered) text.classList.add("awn-databases-view-section-tree-label--unregistered");
   text.textContent = label;
 
   btn.append(icon, text);
@@ -107647,6 +107833,8 @@ function syncAwnDataViewSectionTree(store) {
   if (viewStore?.kind !== "collection" || !hierarchyEnabled || isAwnDataSingleCsvStore(viewStore)) {
     awnDataViewSectionWrapNode.classList.add("hidden");
     awnDataViewSectionTreeNode.replaceChildren();
+    awnDataViewSectionNoticesNode?.replaceChildren();
+    awnDataViewSectionNoticesNode?.classList.add("hidden");
     awnDataViewSectionCreateFormNode?.classList.add("hidden");
     awnDataViewSectionId = "__all__";
     return;
@@ -107694,6 +107882,7 @@ function syncAwnDataViewSectionTree(store) {
   }
 
   applyAwnDataActiveSectionToAddParentSelect();
+  syncAwnDataViewSectionPanelNotices(viewStore);
 }
 
 function filterAwnDataViewRecordsBySection(contentRecords, sectionId, sectionCatalog) {

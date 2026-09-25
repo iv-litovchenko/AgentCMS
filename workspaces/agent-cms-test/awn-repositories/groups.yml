@@ -13,6 +13,7 @@ groups:
   - id: clients
     title: "Клиентские сайты"
 assignments:
+  4444: new
   9999: study
   g8787777: study
   schema-test-1790343174710: study

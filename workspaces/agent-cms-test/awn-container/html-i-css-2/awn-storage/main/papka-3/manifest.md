@@ -1,31 +1,29 @@
 ---
-awn-name: Первая запись
+awn-name: manifest
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
+awn-runtime-load-always: false
+awn-runtime-heartbeat: ""
+awn-runtime-cron: ""
+awn-runtime-cron-schedule: ""
+awn-runtime-commands: false
+awn-attachments: []
+awn-materials: ""
+field-1: ""
+awn-id: 37
 awn-status: open
 awn-quality: 4
 awn-importance: 0
-awn-note-todo-sticker: ""
 awn-emoji: ""
-awn-sort: ""
-awn-runtime-load-always: false
-awn-runtime-heartbeat: false
-awn-runtime-cron: false
-awn-runtime-cron-schedule: ""
-awn-runtime-commands: false
-awn-index-exclude-record: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: ""
-awn-tags: ""
-awn-type: awn.infoblock.element.record
-awn-create: 2026-09-25T20:11:39.153Z
-awn-update: 2026-09-25T20:11:39.153Z
-awn-version: 1
+awn-note-todo-sticker: ""
 awn-main: false
 awn-focus: false
+awn-index-exclude-record: false
+awn-category: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
 awn-location-label: ""
 awn-location-coordinates: ""
 awn-is-real-world-object: false
@@ -36,9 +34,10 @@ awn-mindmap-color: slate
 awn-mindmap-size: auto
 awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
-awn-attachments: ""
-awn-materials: ""
-awn-store: store
+awn-type: awn.content.category
+awn-create: 2026-09-25T20:30:24.431Z
+awn-update: 2026-09-25T20:30:24.431Z
+awn-version: 2
 ---
 
-Первая запись.
+> Описание раздела.

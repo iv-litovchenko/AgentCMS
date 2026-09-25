@@ -1645,6 +1645,108 @@ function partitionStoreRecords(records) {
   return { sections, contentRecords };
 }
 
+function normalizeSectionInnerRel(relPath) {
+  return String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\/manifest\.md$/i, "");
+}
+
+function resolveSectionInnerPathFromHit(hit) {
+  const explicit = normalizeSectionInnerRel(hit?.sectionPath);
+  if (explicit) return explicit;
+  const relPath = String(hit?.relPath || "").replace(/\\/g, "/");
+  const marker = `/${STORE_STORAGE_ROOT}/${STORE_DATA_DIR}/`;
+  const markerIndex = relPath.indexOf(marker);
+  if (markerIndex >= 0) {
+    const inner = relPath.slice(markerIndex + marker.length);
+    return normalizeSectionInnerRel(inner);
+  }
+  const legacyMarker = "/awn-storage/data/";
+  const legacyIndex = relPath.indexOf(legacyMarker);
+  if (legacyIndex >= 0) {
+    const inner = relPath.slice(legacyIndex + legacyMarker.length);
+    return normalizeSectionInnerRel(inner);
+  }
+  return normalizeSectionInnerRel(hit?.id);
+}
+
+function resolveSectionDirectoryAbs(storeAbs, innerPath) {
+  const normalized = normalizeSectionInnerRel(innerPath);
+  if (!normalized) return null;
+  const recordRoot = resolveStoreRecordRootAbs(storeAbs);
+  const abs = path.join(recordRoot, normalized);
+  const recordRootResolved = path.resolve(recordRoot);
+  const absResolved = path.resolve(abs);
+  if (absResolved !== recordRootResolved && !absResolved.startsWith(`${recordRootResolved}${path.sep}`)) {
+    return null;
+  }
+  return abs;
+}
+
+function listImplicitSectionDirs(recordRootAbs, explicitSectionPaths = new Set()) {
+  const implicit = new Map();
+
+  const walk = (dirAbs, relPrefix = "") => {
+    if (!fs.existsSync(dirAbs)) return;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dirAbs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      if (RECORD_WALK_SKIP_DIRS.has(entry.name)) continue;
+      if (!entry.isDirectory()) continue;
+      const innerRel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+      const manifestAbs = path.join(dirAbs, entry.name, COLLECTION_MANIFEST);
+      if (!fs.existsSync(manifestAbs) && !explicitSectionPaths.has(innerRel)) {
+        implicit.set(innerRel, innerRel);
+      }
+      walk(path.join(dirAbs, entry.name), innerRel);
+    }
+  };
+
+  walk(recordRootAbs, "");
+  return [...implicit.values()];
+}
+
+function buildImplicitSectionRecord(innerRel, storeRel, storeAbs) {
+  const normalized = normalizeSectionInnerRel(innerRel);
+  const segments = normalized.split("/").filter(Boolean);
+  const id = segments[segments.length - 1] || normalized;
+  const parent = segments.length > 1 ? segments[segments.length - 2] : null;
+  return {
+    id,
+    parent,
+    relPath: formatStoreRecordRelPath(storeRel, `${normalized}/${COLLECTION_MANIFEST}`, storeAbs),
+    fileName: COLLECTION_MANIFEST,
+    frontmatter: {},
+    body: "",
+    isSection: true,
+    missingManifest: true,
+    sectionPath: normalized,
+    title: id
+  };
+}
+
+function mergeImplicitStoreSections(storeAbs, storeRel, sections, recordHierarchy) {
+  if (!recordHierarchy) return sections;
+  const explicitPaths = new Set(
+    sections
+      .map((record) => resolveSectionInnerPathFromHit(record))
+      .filter(Boolean)
+  );
+  const implicitDirs = listImplicitSectionDirs(resolveStoreRecordRootAbs(storeAbs), explicitPaths);
+  if (!implicitDirs.length) return sections;
+  const knownIds = new Set(sections.map((record) => String(record.id || "").trim()).filter(Boolean));
+  const implicitRecords = implicitDirs
+    .map((innerRel) => buildImplicitSectionRecord(innerRel, storeRel, storeAbs))
+    .filter((record) => record.id && !knownIds.has(record.id));
+  return implicitRecords.length ? [...sections, ...implicitRecords] : sections;
+}
+
 function buildRecordTree(records) {
   const byId = new Map(records.map((r) => [r.id, { ...r, children: [] }]));
   const roots = [];
@@ -1844,9 +1946,13 @@ function loadStore(dataRoot, storeEntry) {
     payload.records = main ? [main] : [];
   } else {
     const { sections, contentRecords } = partitionStoreRecords(records);
-    payload.sections = sections;
+    const mergedSections =
+      kind === "collection" && recordHierarchy
+        ? mergeImplicitStoreSections(storeAbs, storeRel, sections, recordHierarchy)
+        : sections;
+    payload.sections = mergedSections;
     payload.records = contentRecords;
-    payload.tree = buildRecordTree(records);
+    payload.tree = buildRecordTree([...mergedSections, ...contentRecords]);
   }
 
   return payload;
@@ -3282,20 +3388,17 @@ function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
   if (!ref) throw new Error("record is required");
 
   const storeRel = String(storeEntry?.relPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  const records = storeEntry?.records || [];
   const refBase = path.basename(ref, path.extname(ref));
-  const hit = records.find(
-    (item) =>
-      item.id === ref ||
-      item.id === refBase ||
-      item.fileName === ref ||
-      item.fileName === `${ref}.md` ||
-      item.relPath === ref ||
-      item.relPath.endsWith(`/${ref}`) ||
-      item.relPath.endsWith(`/${ref}.md`) ||
-      (refBase && item.id === refBase)
-  );
+  const hit = findStoreRecordHit(storeEntry, ref);
   if (hit) {
+    if (hit.isSection && hit.missingManifest) {
+      const innerPath = resolveSectionInnerPathFromHit(hit);
+      const sectionDir = resolveSectionDirectoryAbs(storeAbs, innerPath);
+      if (!sectionDir || !fs.existsSync(sectionDir)) {
+        throw new Error(`Section not found: ${ref}`);
+      }
+      return path.join(sectionDir, COLLECTION_MANIFEST);
+    }
     const relPath = String(hit.relPath || "").replace(/\\/g, "/");
     if (storeRel && relPath.startsWith(`${storeRel}/`)) {
       const withinStore = relPath.slice(storeRel.length + 1);
@@ -3602,10 +3705,17 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
   return readAwnDataStoreSchemaPayload(agentRoot, projectRoot, rel);
 }
 
+function getStoreCatalogRecords(storeEntry) {
+  const sections = Array.isArray(storeEntry?.sections) ? storeEntry.sections : [];
+  const content = Array.isArray(storeEntry?.records) ? storeEntry.records : [];
+  if (sections.length) return [...sections, ...content];
+  return content;
+}
+
 function findStoreRecordHit(storeEntry, recordRef) {
   const ref = String(recordRef || "").trim();
   if (!ref) return null;
-  const records = storeEntry?.records || [];
+  const records = getStoreCatalogRecords(storeEntry);
   const refBase = path.basename(ref, path.extname(ref));
   return (
     records.find(
@@ -3698,11 +3808,12 @@ function resolveRecordDeletionTarget(storeEntry, storeAbs, recordRef) {
 
 function listAwnDataRecordsPayload(agentRoot, projectRoot, storeRel) {
   const { store, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
-  const records = (store.records || []).map((record) => ({
+  const records = getStoreCatalogRecords(store).map((record) => ({
     id: record.id,
     title: record.title || record.id,
     parent: record.parent || null,
     isSection: Boolean(record.isSection),
+    missingManifest: Boolean(record.missingManifest),
     relPath: record.relPath,
     fileName: record.fileName,
     fileExtension: path.extname(String(record.fileName || "")).toLowerCase() || ".md"
@@ -3801,6 +3912,34 @@ function deleteAwnDataRecord(agentRoot, projectRoot, storeRel, recordRef) {
   return { ok: true, store: rel, record: recordId, deleted: true };
 }
 
+function ensureAwnDataSectionManifest(agentRoot, projectRoot, storeRel, sectionRef, options = {}) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const hit = findStoreRecordHit(store, sectionRef);
+  if (!hit?.isSection) throw new Error("Section not found");
+
+  const innerPath = resolveSectionInnerPathFromHit(hit);
+  const sectionDir = resolveSectionDirectoryAbs(storeAbs, innerPath);
+  if (!sectionDir || !fs.existsSync(sectionDir)) throw new Error("Section folder not found");
+
+  const manifestPath = path.join(sectionDir, COLLECTION_MANIFEST);
+  if (!fs.existsSync(manifestPath)) {
+    const name = String(options.name || options.title || hit.title || path.basename(sectionDir)).trim();
+    const title = String(options.title || name || hit.id || path.basename(sectionDir)).trim();
+    const content = buildSectionManifestMarkdown({
+      id: hit.id,
+      name: title,
+      title,
+      parent: hit.parent || null,
+      storeRel: rel,
+      agentRoot,
+      projectRoot
+    });
+    fs.writeFileSync(manifestPath, content, "utf-8");
+  }
+
+  return getAwnDataPayload(agentRoot, projectRoot, rel).store;
+}
+
 function renameAwnDataRecord(agentRoot, projectRoot, storeRel, recordRef, options = {}) {
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
   if (store.kind === "single") throw new Error("Cannot rename the only record in a single store");
@@ -3820,7 +3959,10 @@ function renameAwnDataRecord(agentRoot, projectRoot, storeRel, recordRef, option
 
   let targetAbs;
   if (hit?.isSection) {
-    const sectionDir = path.dirname(recordAbs);
+    const sectionDir = hit?.missingManifest
+      ? resolveSectionDirectoryAbs(storeAbs, resolveSectionInnerPathFromHit(hit))
+      : path.dirname(recordAbs);
+    if (!sectionDir || !fs.existsSync(sectionDir)) throw new Error("Section not found");
     const sectionId = nextSlug || path.basename(sectionDir);
     const parentDir = nextParent ? path.join(recordRoot, nextParent) : recordRoot;
     targetAbs = path.join(parentDir, sectionId);
@@ -3940,6 +4082,7 @@ module.exports = {
   ensureAwnDataBase,
   createAwnDataStore,
   createAwnDataRecord,
+  ensureAwnDataSectionManifest,
   ensureAwnDataMainCsvFile,
   buildStoreManifestContent,
   buildStoreMdContent,

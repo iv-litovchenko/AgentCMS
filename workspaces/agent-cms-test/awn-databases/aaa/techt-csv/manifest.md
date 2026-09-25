@@ -1,5 +1,5 @@
 ---
-awn-name: store
+awn-name: Течт CSV
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
@@ -22,17 +22,17 @@ awn-priority: ""
 awn-color: ""
 awn-tags: ""
 awn-type: awn.infoblock.frame.collection
-awn-create: 2026-09-25T20:11:39.106Z
-awn-update: 2026-09-25T20:11:39.106Z
+awn-create: 2026-09-25T20:43:56.430Z
+awn-update: 2026-09-25T20:43:56.430Z
 awn-version: 1
 awn-record-file-types: ""
-awn-collection-type: md
-awn-record-storage: md
+awn-collection-type: csv
+awn-record-storage: csv
 awn-record-id-mode: slug
-awn-record-file: "{id}.md"
+awn-record-file: main.csv
 awn-record-hierarchy: false
 ---
 
-# store
+# Течт CSV
 
 manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/
