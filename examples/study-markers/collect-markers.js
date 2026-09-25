@@ -10,7 +10,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { KNOWN_TYPES, metaFor, sortGrouped, TYPE_ORDER } = require("./marker-types");
+const { KNOWN_TYPES, metaFor, serializeGrouped, sortGrouped, TYPE_ORDER } = require("./marker-types");
+const { parseFileRecord, parseMarkerMetaAfter } = require("./parse-meta");
 
 const MARKER_RE = /^\[([^\]]+)\]:\s*(.+)$/;
 const HEADING_RE = /^(#{1,6})\s+(.+)$/;
@@ -32,6 +33,7 @@ function parseArgs(argv) {
     else if (a === "--type" || a === "-t") args.type = argv[++i]?.toLowerCase();
     else if (a === "--output" || a === "-o") args.output = argv[++i];
     else if (a === "--format" || a === "-f") args.format = argv[++i];
+    else if (a === "--export-browser" || a === "-e") args.exportBrowser = argv[++i];
     else if (a === "--help" || a === "-h") args.help = true;
   }
   return args;
@@ -52,6 +54,7 @@ function parseFile(filePath) {
   const lines = content.split(/\r?\n/);
   const headings = [];
   const markers = [];
+  const fileRecord = parseFileRecord(lines);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -76,6 +79,8 @@ function parseFile(filePath) {
     const section = headings.length ? headings[headings.length - 1] : null;
     const anchor = section ? `#${section.slug}` : `#L${lineNo}`;
 
+    const markerMeta = parseMarkerMetaAfter(lines, i);
+
     markers.push({
       type,
       text,
@@ -87,7 +92,9 @@ function parseFile(filePath) {
         : "(начало файла)",
       sectionTitle: section?.title ?? null,
       anchor,
-      href: `${path.basename(filePath)}${anchor}`,
+      href: `sample-notes/${path.basename(filePath)}${anchor}`,
+      meta: markerMeta || null,
+      fileRecord: fileRecord || null,
     });
   }
 
@@ -110,14 +117,34 @@ function groupMarkers(markers) {
   return new Map(sortGrouped(byType));
 }
 
+function formatMarkerMetaLine(meta) {
+  if (!meta) return "";
+  const parts = [];
+  if (meta.added) parts.push(`добавлено ${meta.added}`);
+  if (meta.updated) parts.push(`обновлено ${meta.updated}`);
+  if (meta.review) parts.push(`повторить ${meta.review}`);
+  if (meta.status) parts.push(`статус: ${meta.status}`);
+  return parts.length ? ` _(${parts.join(" · ")})_` : "";
+}
+
+function formatFileRecordLine(record) {
+  if (!record) return "";
+  const parts = [];
+  if (record.created) parts.push(`созд. ${record.created}`);
+  if (record.updated) parts.push(`обн. ${record.updated}`);
+  if (record.topic) parts.push(record.topic);
+  return parts.length ? ` — ${parts.join(" · ")}` : "";
+}
+
 function renderMarkdown(grouped) {
   const lines = ["# Сводка пометок", ""];
   for (const [type, byFile] of grouped) {
     lines.push(`## [${type}]`, "");
     for (const [fileName, items] of byFile) {
-      lines.push(`### ${fileName}`, "");
+      const record = items[0]?.fileRecord;
+      lines.push(`### ${fileName}${formatFileRecordLine(record)}`, "");
       for (const m of items) {
-        lines.push(`- **${m.section}** (стр. ${m.line}): ${m.text}`);
+        lines.push(`- **${m.section}** (стр. ${m.line}): ${m.text}${formatMarkerMetaLine(m.meta)}`);
         lines.push(`  → [перейти](${m.href})`);
       }
       lines.push("");
@@ -137,12 +164,16 @@ function renderHtml(grouped, filterType) {
     body += `<section class="type-group" data-type="${escapeHtml(type)}">`;
     body += `<h2><span class="type-icon type-${meta.slug}">${meta.icon}</span> [${escapeHtml(type)}]</h2>`;
     for (const [fileName, items] of byFile) {
+      const record = items[0]?.fileRecord;
+      const fileDates = formatFileRecordLine(record);
       body += `<div class="file-group">`;
-      body += `<h3>${escapeHtml(fileName)}</h3><ul class="marker-list">`;
+      body += `<h3>${escapeHtml(fileName)}${fileDates ? `<span class="file-dates">${escapeHtml(fileDates.replace(/^ — /, ""))}</span>` : ""}</h3><ul class="marker-list">`;
       for (const m of items) {
+        const metaLine = formatMarkerMetaLine(m.meta);
         body += `<li class="marker-item">`;
         body += `<div class="marker-meta"><span class="section">${escapeHtml(m.section)}</span>`;
         body += `<span class="line">стр. ${m.line}</span></div>`;
+        if (metaLine) body += `<div class="marker-dates">${escapeHtml(metaLine.replace(/^ _\(|\)_$/g, ""))}</div>`;
         body += `<p class="marker-text">${escapeHtml(m.text)}</p>`;
         body += `<a class="marker-link" href="${escapeHtml(m.href)}">перейти к месту →</a>`;
         body += `</li>`;
@@ -192,19 +223,27 @@ function printConsole(grouped) {
   console.log("");
 }
 
+function exportBrowserData(markers, outputPath) {
+  const grouped = serializeGrouped(groupMarkers(markers));
+  const payload = JSON.stringify({ markers, grouped }, null, 2);
+  const out = `window.MARKERS_DATA = ${payload};\n`;
+  fs.writeFileSync(outputPath, out);
+}
+
 function main() {
   const args = parseArgs(process.argv);
   if (args.help || !args.input) {
     const types = TYPE_ORDER.map((t) => `[${t}]`).join(", ");
     console.log(`Использование:
-  node collect-markers.js --input <файл|папка> [--type "<тип>"] [--output report.html] [--format md|html|json]
+  node collect-markers.js --input <файл|папка> [--type "<тип>"] [--output report.html] [--format md|html|json] [--export-browser data.js]
 
 Типы пометок: ${types}
 
 Примеры:
   node collect-markers.js -i sample-notes/
   node collect-markers.js -i sample-notes/ -t "мое вопрос"
-  node collect-markers.js -i sample-notes/ -o report.html`);
+  node collect-markers.js -i sample-notes/ -o report.html
+  node collect-markers.js -i sample-notes/ -e 03-study-markers-data.js`);
     process.exit(args.help ? 0 : 1);
   }
 
@@ -212,6 +251,12 @@ function main() {
   const files = collectFiles(inputPath);
   let markers = files.flatMap(parseFile);
   markers = filterByType(markers, args.type);
+
+  if (args.exportBrowser) {
+    exportBrowserData(markers, path.resolve(args.exportBrowser));
+    console.log(`✓ ${args.exportBrowser} (${markers.length} пометок)`);
+    return;
+  }
 
   const unknown = markers.filter((m) => !KNOWN_TYPES.has(m.type));
   for (const m of unknown) {
@@ -241,4 +286,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseFile, collectFiles, filterByType, groupMarkers, slugify };
+module.exports = { parseFile, collectFiles, filterByType, groupMarkers, exportBrowserData, slugify };

@@ -2,7 +2,7 @@
 
 Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.
 
-Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`GLOBAL_RESPONSE_STYLE.md`** (тоже always-context).
+Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`GLOBAL_RESPONSE_STYLE.md`** (тоже always-context). Справочник markdown preview — **`GLOBAL_MARKDOWN_SHOWCASE.md`** (opt-in).
 
 ## Зачем это
 
@@ -223,7 +223,7 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `.agent-cms/settings/workspace.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + GLOBAL_RESPONSE_STYLE | **да** |
+| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + GLOBAL_RESPONSE_STYLE + (opt-in) GLOBAL_MARKDOWN_SHOWCASE | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 

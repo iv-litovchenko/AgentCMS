@@ -38,6 +38,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "always-context-platform-readme": true,
   "always-context-global-mcp-doc": true,
   "always-context-global-response-style": true,
+  "always-context-global-markdown-showcase": false,
   "always-context-md-files": ["AGENTS.md"],
   "always-context-ws-folder": "awn-shared/context/awn-storage/",
   "default-workspace-id": ""

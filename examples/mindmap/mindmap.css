@@ -186,6 +186,22 @@ svg.mindmap {
   opacity: 0.85;
 }
 
+.link-xref-ext {
+  fill: none;
+  stroke: #eab308;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.9;
+}
+
+.link-xref-term {
+  fill: none;
+  stroke: #fcd34d;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+  opacity: 0.9;
+}
+
 .node circle, .node rect {
   stroke-width: 2;
   transition: filter 0.15s, stroke-width 0.15s;
@@ -195,6 +211,8 @@ svg.mindmap {
 .node.branch circle { fill: var(--branch); stroke: #86efac; }
 .node.file circle { fill: #0ea5e9; stroke: #7dd3fc; }
 .node.leaf circle { fill: var(--leaf); stroke: #c4b5fd; r: 6; }
+.node.external circle { fill: #422006; stroke: #eab308; r: 10; }
+.node.term circle { fill: #713f12; stroke: #fcd34d; r: 9; }
 
 .node text {
   fill: var(--text);
@@ -212,8 +230,12 @@ svg.mindmap {
 
 .node.is-dimmed { opacity: 0.25; }
 
-.link-xref.is-highlight { stroke-width: 2.5; opacity: 1; }
-.link-xref.is-dimmed { opacity: 0.1; }
+.link-xref.is-highlight,
+.link-xref-ext.is-highlight,
+.link-xref-term.is-highlight { stroke-width: 2.5; opacity: 1; }
+.link-xref.is-dimmed,
+.link-xref-ext.is-dimmed,
+.link-xref-term.is-dimmed { opacity: 0.1; }
 
 .hint {
   position: absolute;

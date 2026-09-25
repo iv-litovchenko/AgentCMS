@@ -575,6 +575,7 @@ const {
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
 const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL_RESPONSE_STYLE.md";
+const GLOBAL_MARKDOWN_SHOWCASE_FILE = "GLOBAL_MARKDOWN_SHOWCASE.md";
 const PLATFORM_README_FILE = "README.md";
 
 const PLATFORM_ALWAYS_CONTEXT_FILES = [
@@ -593,6 +594,11 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
     file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
     description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)"
+  },
+  {
+    file: GLOBAL_MARKDOWN_SHOWCASE_FILE,
+    settingKey: "always-context-global-markdown-showcase",
+    description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)"
   }
 ];
 
@@ -5513,6 +5519,7 @@ const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
 
 const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/platform/readme",
+  "/api/platform/global-doc",
   "/api/platform/settings-global",
   "/api/platform/settings-schema",
   "/api/agent/settings-schema",
@@ -27111,6 +27118,12 @@ async function handleApiForAgent(req, res, url) {
   return sendJson(res, 404, { error: "API route not found" });
 }
 
+const PLATFORM_GLOBAL_DOC_FILES = new Set([
+  GLOBAL_MCP_DOC_FILE,
+  GLOBAL_RESPONSE_STYLE_FILE,
+  GLOBAL_MARKDOWN_SHOWCASE_FILE
+]);
+
 async function readPlatformReadmePayload() {
   const readmeAbsolute = path.join(getAppRoot(), "README.md");
   try {
@@ -27124,7 +27137,48 @@ async function readPlatformReadmePayload() {
   }
 }
 
+async function readPlatformGlobalDocPayload(fileName = "") {
+  const normalized = String(fileName || "").trim();
+  if (!PLATFORM_GLOBAL_DOC_FILES.has(normalized)) {
+    return { error: "Unsupported platform global document", file: normalized };
+  }
+  const docAbsolute = path.join(getPlatformAgentRootAbsolute(getAppRoot()), normalized);
+  try {
+    const content = await fs.readFile(docAbsolute, "utf-8");
+    return {
+      path: `workspaces/agent-cms-core/${normalized}`,
+      file: normalized,
+      content,
+      exists: true
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return {
+        path: `workspaces/agent-cms-core/${normalized}`,
+        file: normalized,
+        content: "",
+        exists: false
+      };
+    }
+    throw error;
+  }
+}
+
 async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/platform/global-doc") {
+    const fileName = url.searchParams.get("file") || "";
+    try {
+      const payload = await readPlatformGlobalDocPayload(fileName);
+      if (payload.error) return sendJson(res, 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform global document",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/platform/readme") {
     try {
       return sendJson(res, 200, await readPlatformReadmePayload());

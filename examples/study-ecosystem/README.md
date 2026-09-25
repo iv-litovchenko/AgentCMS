@@ -23,6 +23,7 @@ open examples/study-ecosystem/index.html
 
 ### Слой 1 — Mindmap
 - `../mindmap/01-single-file.html`, `02-folder-with-links.html`
+- **`../mindmap/13-assembly-map.html`** — ★ сборка внутреннего + внешнего
 - `11-mindmap-markers.html` (слои 1+3)
 
 ### Слой 2 — Roadmap

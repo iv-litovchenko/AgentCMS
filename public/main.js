@@ -3810,6 +3810,13 @@ async function fetchDocumentationTopicMarkdown(topicPath) {
   return String(data.content || "");
 }
 
+async function fetchPlatformGlobalMarkdown(fileName) {
+  const response = await fetch(`/api/platform/global-doc?file=${encodeURIComponent(fileName)}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json();
+  return String(data.content || "");
+}
+
 function appendAgentToApiUrl(url, agentId = activeAgentId) {
   if (!url || typeof url !== "string" || !url.startsWith("/api/")) return url;
   const parsed = new URL(url, window.location.origin);
@@ -112288,12 +112295,12 @@ async function openMdShowcaseModal() {
   if (!mdShowcaseModalNode || !mdShowcaseContentNode) return;
   try {
     if (!mdShowcaseCache) {
-      mdShowcaseCache = await fetchDocumentationTopicMarkdown("markdown-showcase.md");
+      mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL_MARKDOWN_SHOWCASE.md");
     }
     setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache, HEADER_DOC_PREVIEW_OPTIONS);
     mdShowcaseModalNode.classList.remove("hidden");
   } catch (error) {
-    showToast(`Не удалось загрузить Markdown showcase: ${error.message}`, "error");
+    showToast(`Не удалось загрузить GLOBAL_MARKDOWN_SHOWCASE.md: ${error.message}`, "error");
   }
 }
 

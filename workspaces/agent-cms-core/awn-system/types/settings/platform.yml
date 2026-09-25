@@ -134,6 +134,14 @@ fields:
     group: auto-context
     sort: 3
 
+  always-context-global-markdown-showcase:
+    type: awn.field.boolean
+    title: GLOBAL_MARKDOWN_SHOWCASE.md
+    description: Справочник поддерживаемой markdown-разметки в preview — always-context (opt-in)
+    default: false
+    group: auto-context
+    sort: 4
+
   always-context-md-files:
     type: awn.field.choice.many
     title: Корневые .md workspace
@@ -157,7 +165,7 @@ fields:
       - key: TODO.md
         name: TODO.md
     group: auto-context
-    sort: 4
+    sort: 5
 
   always-context-ws-folder:
     type: awn.field.string

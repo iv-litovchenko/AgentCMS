@@ -51,6 +51,7 @@ settings:
 docs:
   map: GLOBAL_MCP_DOC.md
   response-style: GLOBAL_RESPONSE_STYLE.md
+  markdown-showcase: GLOBAL_MARKDOWN_SHOWCASE.md
   agents: AGENTS.md
 
 canonical-types: migrated

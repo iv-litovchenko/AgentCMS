@@ -20,7 +20,7 @@ function renderMindmap(svg, data, options = {}) {
     center.y = centerY;
   }
 
-  const branches = data.nodes.filter((n) => n.level === "branch" || n.level === "file");
+  const branches = data.nodes.filter((n) => (n.level === "branch" || n.level === "file") && n.x == null);
   const branchCount = branches.length || 1;
   branches.forEach((node, i) => {
     const angle = (i / branchCount) * Math.PI * 2 - Math.PI / 2;
@@ -64,7 +64,15 @@ function renderMindmap(svg, data, options = {}) {
 
   const gLinks = el("g", { class: "links" });
   const gXref = el("g", { class: "xrefs" });
+  const gXrefExt = el("g", { class: "xrefs-ext" });
+  const gXrefTerm = el("g", { class: "xrefs-term" });
   const gNodes = el("g", { class: "nodes" });
+
+  const XREF_GROUPS = {
+    xref: gXref,
+    "xref-ext": gXrefExt,
+    "xref-term": gXrefTerm,
+  };
 
   for (const link of data.links.filter((l) => l.type === "tree")) {
     const s = byId.get(link.source);
@@ -78,16 +86,19 @@ function renderMindmap(svg, data, options = {}) {
     }));
   }
 
-  for (const link of data.links.filter((l) => l.type === "xref")) {
+  for (const link of data.links.filter((l) => l.type === "xref" || l.type === "xref-ext" || l.type === "xref-term")) {
     const s = byId.get(link.source);
     const t = byId.get(link.target);
     if (s.x == null || t.x == null) continue;
-    gXref.appendChild(el("path", {
-      class: "link-xref",
+    const cls = link.type === "xref-ext" ? "link-xref-ext" : link.type === "xref-term" ? "link-xref-term" : "link-xref";
+    const group = XREF_GROUPS[link.type] || gXref;
+    group.appendChild(el("path", {
+      class: cls,
       d: curve(s.x, s.y, t.x, t.y, 0.45),
       "data-source": link.source,
       "data-target": link.target,
       "data-label": link.label || "",
+      "data-type": link.type,
     }));
   }
 
@@ -98,7 +109,12 @@ function renderMindmap(svg, data, options = {}) {
       "data-id": node.id,
       transform: `translate(${node.x},${node.y})`,
     });
-    const r = node.level === "center" ? 28 : node.level === "leaf" ? 6 : node.level === "file" ? 14 : 12;
+    const r = node.level === "center" ? 28
+      : node.level === "leaf" ? 6
+      : node.level === "file" ? 14
+      : node.level === "external" ? 10
+      : node.level === "term" ? 9
+      : 12;
     g.appendChild(el("circle", { r }));
     const label = el("text", {
       x: r + 8,
@@ -110,7 +126,7 @@ function renderMindmap(svg, data, options = {}) {
     gNodes.appendChild(g);
   }
 
-  svg.append(gLinks, gXref, gNodes);
+  svg.append(gLinks, gXref, gXrefExt, gXrefTerm, gNodes);
   return { byId, svg, gNodes, gXref };
 }
 
@@ -167,7 +183,7 @@ function bindPanZoom(wrap, viewport) {
 
 function bindHighlight(svg) {
   const nodes = [...svg.querySelectorAll(".node")];
-  const xrefs = [...svg.querySelectorAll(".link-xref")];
+  const xrefs = [...svg.querySelectorAll(".link-xref, .link-xref-ext, .link-xref-term")];
 
   const clear = () => {
     nodes.forEach((n) => n.classList.remove("is-highlight", "is-dimmed"));

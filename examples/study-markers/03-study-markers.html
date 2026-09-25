@@ -23,11 +23,25 @@
     <main>
       <aside>
         <h2>Синтаксис маркеров</h2>
-        <pre><span class="syntax-comment"># Заголовок раздела</span>
+        <pre><span class="syntax-comment">[запись]</span>
+<span class="syntax-meta">создано: 2026-01-05</span>
+<span class="syntax-meta">обновлено: 2026-09-20</span>
+<span class="syntax-meta">тема: Java / синтаксис</span>
+<span class="syntax-comment">[/запись]</span>
+
+<span class="syntax-comment"># Заголовок раздела</span>
 
 Текст конспекта…
 
 <span class="syntax-line">[мое повторить]: что нужно повторить</span>
+
+<span class="syntax-comment">[мое мета]</span>
+<span class="syntax-meta">добавлено: 2026-03-10</span>
+<span class="syntax-meta">обновлено: 2026-09-18</span>
+<span class="syntax-meta">повторить: 2026-09-25</span>
+<span class="syntax-meta">статус: открыто</span>
+<span class="syntax-comment">[/мое мета]</span>
+
 <span class="syntax-line">[мое вопрос]: что осталось непонятным</span>
 <span class="syntax-line">[мое заметка]: личная заметка</span>
 <span class="syntax-line">[мое важно]: ключевой момент</span>
@@ -40,7 +54,8 @@
         <h2>CLI</h2>
         <pre>node collect-markers.js -i sample-notes/
 node collect-markers.js -i sample-notes/ -t "мое вопрос"
-node collect-markers.js -i sample-notes/ -o report.html</pre>
+node collect-markers.js -i sample-notes/ -o report.html
+node collect-markers.js -i sample-notes/ -e 03-study-markers-data.js</pre>
       </aside>
 
       <div class="content" id="dashboard"></div>

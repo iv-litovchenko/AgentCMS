@@ -9,6 +9,30 @@
       .replace(/"/g, "&quot;");
   }
 
+  function renderFileRecord(record) {
+    if (!record) return "";
+    const parts = [];
+    if (record.created) parts.push(`созд. ${record.created}`);
+    if (record.updated) parts.push(`обн. ${record.updated}`);
+    if (record.topic) parts.push(record.topic);
+    if (!parts.length) return "";
+    return `<span class="file-dates">${escapeHtml(parts.join(" · "))}</span>`;
+  }
+
+  function renderMarkerDates(meta) {
+    if (!meta) return "";
+    const chips = [];
+    if (meta.added) chips.push(`<span class="date-chip date-added" title="Добавлено">+ ${escapeHtml(meta.added)}</span>`);
+    if (meta.updated) chips.push(`<span class="date-chip date-updated" title="Обновлено">↻ ${escapeHtml(meta.updated)}</span>`);
+    if (meta.review) chips.push(`<span class="date-chip date-review" title="Повторить">⏱ ${escapeHtml(meta.review)}</span>`);
+    if (meta.status) {
+      const slug = String(meta.status).toLowerCase().replace(/\s+/g, "-");
+      chips.push(`<span class="date-chip date-status status-${escapeHtml(slug)}">${escapeHtml(meta.status)}</span>`);
+    }
+    if (!chips.length) return "";
+    return `<div class="marker-dates">${chips.join("")}</div>`;
+  }
+
   function renderMarkerList(markers) {
     return markers
       .map(
@@ -18,6 +42,7 @@
           <span class="section">${escapeHtml(m.section)}</span>
           <span class="line">стр. ${m.line}</span>
         </div>
+        ${renderMarkerDates(m.meta)}
         <p class="marker-text">${escapeHtml(m.text)}</p>
         <a class="marker-link" href="${escapeHtml(m.href)}">перейти к месту →</a>
       </li>`
@@ -39,8 +64,9 @@
       html += `<h2><span class="type-icon type-${meta.slug}">${meta.icon}</span> [${escapeHtml(type)}]</h2>`;
 
       for (const [fileName, items] of byFile) {
+        const record = items[0]?.fileRecord;
         html += `<div class="file-group">`;
-        html += `<h3>${escapeHtml(fileName)}</h3>`;
+        html += `<h3>${escapeHtml(fileName)}${renderFileRecord(record)}</h3>`;
         html += `<ul class="marker-list">${renderMarkerList(items)}</ul>`;
         html += `</div>`;
       }

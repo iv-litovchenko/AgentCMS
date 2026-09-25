@@ -37,6 +37,14 @@
       transition: border-color 0.15s, transform 0.15s;
     }
     .tool-link:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .tool-link.tool-assembly {
+      border-color: #eab308;
+      background: linear-gradient(135deg, #1a2332 0%, #422006 100%);
+      box-shadow: 0 0 0 1px #eab30844;
+    }
+    .tool-link.tool-assembly:hover { border-color: #fcd34d; }
+    .tool-link.tool-assembly strong { color: #fef08a; }
+    .tool-link.tool-assembly em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #fcd34d; font-style: normal; font-weight: 500; }
     .tool-link strong { display: block; margin-bottom: 0.2rem; }
     .tool-link span { font-size: 0.82rem; color: var(--muted); }
     .grid-tools { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
@@ -80,7 +88,8 @@
     <p class="section-title">Слой 1 · Mindmap</p>
     <div class="grid-tools">
       <a class="tool-link" href="../mindmap/01-single-file.html"><strong>1. Один файл → карта</strong><span>Иерархия заголовков</span></a>
-      <a class="tool-link" href="../mindmap/02-folder-with-links.html"><strong>2. Папка + ссылки</strong><span>Перекрёстные связи</span></a>
+      <a class="tool-link" href="../mindmap/02-folder-with-links.html"><strong>2. Папка + ссылки</strong><span>Перекрёстные связи внутри папки</span></a>
+      <a class="tool-link tool-assembly" href="../mindmap/13-assembly-map.html"><strong>★ 13. Сборка: внутреннее + внешнее</strong><span>Текущая папка + другие конспекты, URL, глоссарий</span><em>↳ сборка на базе текущего содержимого и внешнего</em></a>
       <a class="tool-link" href="11-mindmap-markers.html"><strong>11. Mindmap + пометки</strong><span>Слои 1+3: клик по узлу → [мое *]</span></a>
     </div>
 
