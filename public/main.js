@@ -109202,8 +109202,12 @@ function resolveRepositoryGroupsCatalog(groupsCatalog) {
 
 let repositoryCreateTypeDetailCache = null;
 
-async function fetchRepositoryCreateTypeDetail(agentId = activeAgentId) {
-  if (repositoryCreateTypeDetailCache) return repositoryCreateTypeDetailCache;
+function invalidateRepositoryCreateTypeDetailCache() {
+  repositoryCreateTypeDetailCache = null;
+}
+
+async function fetchRepositoryCreateTypeDetail(agentId = activeAgentId, { force = false } = {}) {
+  if (!force && repositoryCreateTypeDetailCache) return repositoryCreateTypeDetailCache;
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
   if (!resolvedAgent) return null;
   const response = await fetch(
@@ -109269,7 +109273,7 @@ function getRepositoryCreateFieldMeta(key, fieldDef) {
       formatSchemaDisplayTitle(getFieldDefDisplayName(fieldDef, key), {
         typeId,
         key,
-        replaceMarker: true
+        replaceMarker: false
       }) || key,
     hint: fieldDef?.hint || fieldDef?.description || "",
     required: Boolean(fieldDef?.required),
@@ -109281,6 +109285,7 @@ function getRepositoryCreateFieldMeta(key, fieldDef) {
 
 function shouldRenderRepositoryCreateField(key, fieldDef) {
   if (!key || !fieldDef) return false;
+  if (key === "awn-repo-status") return false;
   if (fieldDef.hidden) return false;
   if (isProjectSettingsLockedField(fieldDef) && fieldDef.hidden !== false) return false;
   return true;
@@ -109399,11 +109404,11 @@ function populateRepositoryGroupSelectElement(selectNode, groupsCatalog, selecte
 function createRepositoryCreateSchemaFieldRow(key, fieldDef, value, groupsCatalog) {
   const meta = getRepositoryCreateFieldMeta(key, fieldDef);
   const placeholder = String(fieldDef?.placeholder || "").trim();
-  const footnote = meta.hint ? meta.hint.replace(/`/g, "") : "";
+  const footnote = String(fieldDef?.footnote || "").trim();
 
   if (key === "awn-repository-group") {
     const row = createRepositoryCreateSelectFieldRow(key, meta.label, value, [], {
-      footnote: footnote || "Sidebar-группа из awn-repositories/groups.yml"
+      footnote
     });
     const select = row.querySelector("select");
     populateRepositoryGroupSelectElement(select, groupsCatalog, value || "study");
@@ -109468,7 +109473,8 @@ async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) 
   repositoryCreateFieldsNode.replaceChildren();
   repositoryCreateFieldsNode.classList.add("is-loading");
   try {
-    const detail = await fetchRepositoryCreateTypeDetail(agentId);
+    invalidateRepositoryCreateTypeDetailCache();
+    const detail = await fetchRepositoryCreateTypeDetail(agentId, { force: true });
     const config = getRepositoryCreateFormConfig(detail);
     const mergedFields =
       detail?.mergedFields && typeof detail.mergedFields === "object" ? detail.mergedFields : {};

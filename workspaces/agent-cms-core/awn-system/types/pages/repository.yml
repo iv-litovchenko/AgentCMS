@@ -55,9 +55,15 @@ fields:
   awn-index-exclude-record:
     hidden: true
 
+  awn-name:
+    title: Название
+
+  awn-description:
+    title: Описание
+
   awn-repo-origin:
     type: awn.field.string.url
-    title: "{A2!} Git origin"
+    title: Git origin
     description: URL удалённого репозитория (https://github.com/…)
     placeholder: "https://github.com/org/repo"
     placement: aside-body
@@ -66,7 +72,7 @@ fields:
 
   awn-repository-group:
     type: awn.field.string
-    title: "{A2!} Группа sidebar"
+    title: Группа
     description: Логическая группа из awn-repositories/groups.yml (без подпапок)
     placement: aside-body
     group: repository
@@ -74,7 +80,7 @@ fields:
 
   awn-repo-tech:
     type: awn.field.string
-    title: "{A2!} Стек / теги"
+    title: Стек / теги
     description: Технологии и метки через запятую (React, Python, fork…)
     placeholder: "react, typescript, fork"
     placement: aside-body
@@ -83,7 +89,7 @@ fields:
 
   awn-repo-related-topic:
     type: awn.field.string
-    title: "{A2!} Связанная тема"
+    title: Связанная тема
     description: Путь manifest.md темы CMS, к которой привязан репозиторий
     placeholder: "awn-container/moya-tema/manifest.md"
     placement: aside-body
@@ -92,7 +98,7 @@ fields:
 
   awn-index-exclude-subtree:
     default: true
-    title: "{A2!} Запретить индексирование содержимого"
+    title: Запретить индексирование содержимого
     description: >
       Не индексировать файлы внутри папки репозитория.
       manifest.md и readme.md (любой регистр) остаются в индексе.
