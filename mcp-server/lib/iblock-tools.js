@@ -46,7 +46,7 @@ export function registerIblockTools(reg, client) {
     legacyName: "iblock_create",
     name: "create",
     description:
-      "Create infoblock frame: group, collection (MD/CSV/files), or single. Uses frame type defaults from awn.infoblock.frame.*.",
+      "Create infoblock frame: group, collection (MD/md-lite/CSV/files), or single. Uses frame type defaults from awn.infoblock.frame.*. For simple lists use collectionType md-lite → record-lite schema.",
     schema: z.object({
       kind: z
         .enum(["group", "collection", "single", "singleton"])
@@ -55,8 +55,12 @@ export function registerIblockTools(reg, client) {
       slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
       name: z.string().optional(),
       description: z.string().optional(),
+      collectionType: z
+        .enum(["md", "md-lite", "csv", "csv-files", "files"])
+        .optional()
+        .describe("Collection preset: md (full record), md-lite (minimal record-lite), csv, csv-files, files"),
       collectionKind: z.enum(["records", "files"]).optional(),
-      recordStorage: z.enum(["md", "csv"]).optional(),
+      recordStorage: z.enum(["md", "csv", "csv-files"]).optional(),
       recordHierarchy: z.boolean().optional(),
       recordFileTypes: z.string().optional(),
       hierarchy: z.boolean().optional().describe("Alias for recordHierarchy"),
@@ -102,7 +106,7 @@ export function registerIblockTools(reg, client) {
     legacyName: "iblock_read_schema",
     name: "read_schema",
     description:
-      "Read custom field overrides from store schema.yml (instance layer only). Base element fields: get_type({ id: \"awn.infoblock.element.record\" }) (or category/sidecar).",
+      "Read custom field overrides from store schema.yml (instance layer only). Base element fields: get_type({ id: \"awn.infoblock.element.record\" }) or record-lite for md-lite stores; category/sidecar — own ids. Check awn_schema.record.extends in response.",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/tags")
     }),
@@ -110,7 +114,7 @@ export function registerIblockTools(reg, client) {
   });
 
   const writeSchemaDescription =
-    "Write custom field overrides to store schema.yml. Base fields come from get_type(awn.infoblock.element.*); pass awnSchema or raw YAML content.";
+    "Write custom field overrides to store schema.yml. Base fields come from get_type(awn.infoblock.element.record|record-lite|category|sidecar); set awn_schema.record.extends for md-lite; pass awnSchema or raw YAML content.";
   const writeSchemaSchema = z.object({
     store: storePath,
     content: z.string().optional().describe("Raw schema.yml YAML"),
@@ -209,7 +213,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_content_create",
-    "Add element to infoblock: record (*.md), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
+    "Add element to infoblock: record (*.md; md-lite stores get minimal frontmatter), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
       name: z.string().optional().describe("Display name (awn-name)"),

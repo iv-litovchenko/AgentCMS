@@ -781,10 +781,22 @@ razdel-1/
 **Типовой flow (3 шага):**
 1. `iblock_frame_list` → `iblock_frame_get({ store })`
 2. поля записи: `iblock_content_read_properties` / `iblock_content_write_properties`
-3. базовые поля типа: `get_type({ id: "awn.infoblock.element.record" })` (category/sidecar — свои id)
+3. базовые поля типа: `get_type({ id: "awn.infoblock.element.record" })` или для **md-lite** → `get_type({ id: "awn.infoblock.element.record-lite" })` (category/sidecar — свои id)
+
+**Тип коллекции (`awn-collection-type` в manifest frame):**
+
+| Значение | Хранение | Схема записи | Когда |
+|----------|----------|--------------|-------|
+| `md` | `{id}.md` | `awn.infoblock.element.record` (полная) | Задачи, документы, сущности с полями |
+| `md-lite` | `{id}.md` | `awn.infoblock.element.record-lite` (минимум) | Простые списки: тексты, слоганы, UI-строки |
+| `csv` | `main.csv` | `record` + колонки в `schema.yml` | Табличный реестр |
+| `csv-files` | `{id}.csv` | `record` | Отдельная таблица на запись |
+| `files` | файлы в `data/` | `record` | Загрузка файлов |
+
+`md-lite` = тот же формат файлов, что `md`, но **лёгкий frontmatter** (имя, описание, превью, системные поля, индексирование + свои поля в `schema.yml`). В `schema.yml` store: `awn_schema.record.extends: awn.infoblock.element.record-lite`.
 
 - типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
-- типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`
+- типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })` или `…record-lite`
 - оглавление frames: `iblock_frame_read_index` / `iblock_frame_refresh_index` → `awn-databases/index.md`
 - **бриф frame** — тело `manifest.md` (после frontmatter); в `iblock_frame_get` → `manifestMarkdown`
 - **кастомные поля instance** (не весь тип): `iblock_frame_read_schema` / `iblock_frame_write_schema` — только доп. поля в `schema.yml`
@@ -1047,7 +1059,7 @@ recall_workspace_facts({
 - create_page → `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 - контент в слоте → `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
 - store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
-- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`
+- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })` (или `…record-lite` для md-lite коллекций)
 
 **Не типы** (экземпляр / override): `read_page_schema`, `iblock_frame_read_schema` — локальные schema.yml, не справочник.
 
