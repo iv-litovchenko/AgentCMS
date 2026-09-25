@@ -10707,6 +10707,73 @@ function createAppLandingPlatformReadmePanel(readme, options = {}) {
   return panel;
 }
 
+function createAppLandingPlatformHero(platform) {
+  const hero = document.createElement("div");
+  hero.className = "app-landing-platform-hero";
+
+  const bg = createAppLandingPlatformVisualBg();
+  bg.classList.add("app-landing-platform-hero-bg");
+
+  const body = document.createElement("div");
+  body.className = "app-landing-platform-hero-body";
+
+  const copy = document.createElement("div");
+  copy.className = "app-landing-platform-hero-copy";
+
+  const platformLabel = String(platform?.name || platform?.id || "agent-cms-core").trim();
+
+  const eyebrow = document.createElement("span");
+  eyebrow.className = "app-landing-platform-hero-eyebrow";
+  eyebrow.textContent = `Ядро платформы · ${platformLabel}`;
+
+  const title = document.createElement("h3");
+  title.id = "app-landing-platform-title";
+  title.className = "app-landing-platform-hero-title";
+  title.textContent = "Один язык для всех хранилищ";
+
+  const lead = document.createElement("p");
+  lead.className = "app-landing-platform-hero-lead";
+  lead.textContent =
+    "Типы, поля, слоты и настройки живут здесь — не в каждой папке отдельно. Задаёте правила один раз, и каждый workspace говорит с агентом на одних терминах.";
+
+  const aside = document.createElement("p");
+  aside.className = "app-landing-platform-hero-aside";
+  aside.textContent = "Схема раньше контента · без перевода между вами и ИИ";
+
+  const pills = document.createElement("div");
+  pills.className = "app-landing-platform-hero-pills";
+  for (const label of ["Типы", "Поля", "Слоты", "Настройки", "MCP"]) {
+    const pill = document.createElement("span");
+    pill.className = "app-landing-platform-hero-pill";
+    pill.textContent = label;
+    pills.appendChild(pill);
+  }
+
+  copy.append(eyebrow, title, lead, aside, pills);
+
+  const action = document.createElement("div");
+  action.className = "app-landing-platform-hero-action";
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "app-landing-platform-hero-enter-btn";
+  openBtn.title = `Открыть хранилище ${platformLabel}`;
+  openBtn.innerHTML =
+    '<span class="app-landing-platform-hero-enter-icon" aria-hidden="true">📚</span>' +
+    '<span class="app-landing-platform-hero-enter-text">Войти в справочники</span>' +
+    '<span class="app-landing-platform-hero-enter-arrow" aria-hidden="true">→</span>';
+  openBtn.addEventListener("click", () => openCoreCatalogAgentFromLanding());
+  action.appendChild(openBtn);
+
+  const orbit = document.createElement("div");
+  orbit.className = "app-landing-platform-hero-orbit";
+  orbit.setAttribute("aria-hidden", "true");
+  orbit.appendChild(createAppLandingPlatformCatalogScene());
+
+  body.append(copy, action);
+  hero.append(bg, body, orbit);
+  return hero;
+}
+
 async function renderAppLandingPlatformSection() {
   if (!appLandingPlatformNode) return;
   const renderToken = ++appLandingPlatformRenderToken;
@@ -10717,27 +10784,6 @@ async function renderAppLandingPlatformSection() {
     appLandingPlatformNode.classList.add("hidden");
     return;
   }
-
-  const head = document.createElement("header");
-  head.className = "app-landing-platform-head";
-  const title = document.createElement("h3");
-  title.id = "app-landing-platform-title";
-  title.className = "app-landing-platform-title";
-  title.textContent = "Платформа";
-  const lead = document.createElement("p");
-  lead.className = "app-landing-platform-lead";
-  lead.textContent = "Глобальные справочники и конфигурация платформы";
-  head.append(title, lead);
-
-  const actions = document.createElement("div");
-  actions.className = "app-landing-platform-actions";
-  const openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.className = "app-landing-platform-open-btn";
-  openBtn.textContent = "Открыть справочники";
-  openBtn.title = "Открыть хранилище agent-cms-core";
-  openBtn.addEventListener("click", () => openCoreCatalogAgentFromLanding());
-  actions.append(openBtn);
 
   let readmePanel = null;
   try {
@@ -10755,8 +10801,7 @@ async function renderAppLandingPlatformSection() {
   appLandingPlatformNode.replaceChildren();
   appLandingPlatformNode.classList.remove("hidden");
   appLandingPlatformNode.append(
-    head,
-    actions,
+    createAppLandingPlatformHero(platform),
     readmePanel,
     createAppLandingPlatformVisual(),
     createAppLandingPlatformCatalogVisual()

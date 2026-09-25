@@ -108,6 +108,14 @@
         border-color: rgba(250, 204, 21, 0.35);
       }
 
+      .legend-item.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.35);
+      }
+
+      .legend-item.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
       .panel {
         position: relative;
         min-height: clamp(680px, 82vh, 920px);
@@ -192,7 +200,19 @@
         left: 50%;
         top: 50%;
         z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
         transform: translate(-50%, -50%);
+      }
+
+      .system-map-hub-caption {
+        max-width: 120px;
+        font-size: 9px;
+        line-height: 1.3;
+        text-align: center;
+        color: #94a3b8;
       }
 
       .system-map-orbit {
@@ -355,6 +375,16 @@
       .system-map-branch.is-tone-yellow {
         border-color: rgba(250, 204, 21, 0.32);
         background: linear-gradient(180deg, rgba(113, 63, 18, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.32);
+        background: linear-gradient(180deg, rgba(112, 26, 117, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.32);
+        background: linear-gradient(180deg, rgba(51, 65, 85, 0.16), rgba(15, 23, 42, 0.5));
       }
 
       .system-map-branch-head {
@@ -573,6 +603,16 @@
         background: linear-gradient(180deg, rgba(113, 63, 18, 0.5), rgba(15, 23, 42, 0.88));
       }
 
+      .system-map-node.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.45);
+        background: linear-gradient(180deg, rgba(112, 26, 117, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.45);
+        background: linear-gradient(180deg, rgba(51, 65, 85, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
       .system-map-node.is-tone-amber {
         border-color: rgba(251, 191, 36, 0.45);
         background: linear-gradient(180deg, rgba(120, 53, 15, 0.5), rgba(15, 23, 42, 0.88));
@@ -646,6 +686,27 @@
     <script>
       const GROUPS = [
         {
+          id: "vaults",
+          icon: "🗃️",
+          title: "Хранилища",
+          caption: "Workspace · agentId · группы",
+          tone: "slate",
+          sections: [
+            {
+              label: "Реестр",
+              nodes: ["Хранилище", "agentId", "По умолчанию", "Оркестратор"]
+            },
+            {
+              label: "Группы",
+              nodes: ["Группа", "Вне группы", "Порядок", "Светлая / тёмная"]
+            },
+            {
+              label: "Корневые зоны",
+              nodes: ["awn-container", "awn-shared", "awn-agent-kit"]
+            }
+          ]
+        },
+        {
           id: "page",
           icon: "📁",
           title: "Дерево",
@@ -687,6 +748,27 @@
             {
               label: "Режимы",
               nodes: ["Гибкий слот", "history"]
+            }
+          ]
+        },
+        {
+          id: "fields",
+          icon: "🏷️",
+          title: "Поля",
+          caption: "Схема · свойства · типы",
+          tone: "fuchsia",
+          sections: [
+            {
+              label: "Три слоя",
+              nodes: ["schema.yml", "Свойства", "config.yml", "get_type"]
+            },
+            {
+              label: "Где живут",
+              nodes: ["Workspace", "Область", "Тема", "Инфоблок"]
+            },
+            {
+              label: "Каталог полей",
+              nodes: ["awn-system/fields", "Базовые", "Локальные", "Слои layers"]
             }
           ]
         },
@@ -1246,6 +1328,10 @@
             tone: "gold"
           })
         );
+        const hubCaption = document.createElement("div");
+        hubCaption.className = "system-map-hub-caption";
+        hubCaption.textContent = "текущее хранилище · может быть в группе";
+        hubWrap.appendChild(hubCaption);
 
         const orbit = document.createElement("div");
         orbit.className = "system-map-orbit";
