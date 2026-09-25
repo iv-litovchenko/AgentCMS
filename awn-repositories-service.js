@@ -400,6 +400,9 @@ async function buildUnregisteredRepositoryEntry(agentRoot, slug) {
   const folderAbs = path.join(agentRoot, folderRel);
   let hasGit = false;
   let entryCount = 0;
+  let readmePath = null;
+  let readmeBody = "";
+  let readmeExists = false;
   try {
     hasGit = await pathExists(path.join(folderAbs, ".git"));
     const children = await fs.readdir(folderAbs, { withFileTypes: true });
@@ -407,12 +410,26 @@ async function buildUnregisteredRepositoryEntry(agentRoot, slug) {
   } catch {
     // ignore
   }
+  readmePath = await resolveRepositoryReadmeRel(agentRoot, folderRel);
+  if (readmePath) {
+    try {
+      readmeBody = await fs.readFile(path.join(agentRoot, readmePath), "utf-8");
+      readmeExists = true;
+    } catch {
+      readmeExists = false;
+      readmeBody = "";
+    }
+  }
   return {
     slug,
     folderPath: folderRel,
     manifestPath: `${folderRel}/${REPOSITORY_MANIFEST_FILE}`,
+    name: slug,
     hasGit,
     entryCount,
+    readmePath,
+    readmeExists,
+    readmeBody,
     registered: false,
     hint: "Папка есть, manifest.md нет — вызовите register_repository или «Подхватить» в UI."
   };
@@ -533,15 +550,33 @@ async function getRepository(agentRoot, inputPath) {
   }
 
   const entry = await readRepositoryEntry(agentRoot, manifestRel);
-  if (!entry) {
-    return { error: "Repository manifest not found", status: 404, path: manifestRel };
+  if (entry) {
+    return {
+      version: 1,
+      model: "awn-repository",
+      repository: { ...entry, registered: true },
+      hint: "Исходники лежат в folderPath; для файлов используй read_file с полным workspace path."
+    };
   }
 
+  const folderRel = manifestRel.replace(/\/manifest\.md$/i, "");
+  const slug = path.posix.basename(folderRel);
+  if (!slug || folderRel === AWN_REPOSITORIES_DIR) {
+    return { error: "Repository not found", status: 404, path: manifestRel };
+  }
+  const folderAbs = path.join(agentRoot, folderRel);
+  if (!(await pathExists(folderAbs))) {
+    return { error: "Repository folder not found", status: 404, path: folderRel };
+  }
+
+  const repository = await buildUnregisteredRepositoryEntry(agentRoot, slug);
   return {
     version: 1,
-    model: "awn-repository",
-    repository: entry,
-    hint: "Исходники лежат в folderPath; для файлов используй read_file с полным workspace path."
+    model: "awn-repository-unregistered",
+    repository,
+    hint:
+      "Папка репозитория без manifest.md. Для регистрации — register_repository или «Подхватить» в UI. " +
+      "Файлы читай через read_file с folderPath."
   };
 }
 

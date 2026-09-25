@@ -60679,7 +60679,12 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-repository-item--unregistered {
   grid-template-columns: auto 1fr auto;
-  cursor: pointer;
+  cursor: default;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.menu-repository-item--unregistered:hover,
+.menu-repository-item--unregistered:focus-visible {
   background: rgba(251, 191, 36, 0.1);
 }
 

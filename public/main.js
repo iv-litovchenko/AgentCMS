@@ -2552,7 +2552,7 @@ async function applyChpuResolvedRoute(resolved) {
     }
     if (isRepositoryWorkspaceRel(topicPath)) {
       hideHomeView();
-      await openRepositoryWorkspacePath(`${topicPath}/manifest.md`, { skipRouteSync: true });
+      await openRepositoryWorkspacePath(topicPath, { skipRouteSync: true });
       return;
     }
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
@@ -4672,18 +4672,133 @@ function isRepositoryManifestPath(path = getResolvedNodePath(activePath)) {
   return /^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized);
 }
 
+function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return /^awn-repositories\/[^/]+$/i.test(normalized);
+}
+
+function isRepositoryWorkspacePath(path = getResolvedNodePath(activePath)) {
+  return isRepositoryManifestPath(path) || isRepositoryFolderPath(path);
+}
+
 function getRepositoryFolderPathFromManifest(manifestPath) {
   return normalizeCreateParentPath(getFolderBrowseParentPath(manifestPath));
+}
+
+function getRepositoryFolderPathFromWorkspacePath(path = getResolvedNodePath(activePath)) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (isRepositoryFolderPath(normalized)) return normalized;
+  if (isRepositoryManifestPath(normalized)) return getRepositoryFolderPathFromManifest(normalized);
+  return "";
+}
+
+function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)(?:\/manifest\.md)?$/i);
+  if (!slugMatch) return null;
+  const slug = slugMatch[1];
+  const folderPath = `awn-repositories/${slug}`;
+  const manifestPath = `${folderPath}/manifest.md`;
+  const payload = menuRepositoriesLastPayload;
+  const registeredRepo = payload?.repositories?.find(
+    (repo) => String(repo.slug || "").toLowerCase() === slug.toLowerCase()
+  );
+  if (registeredRepo) return registeredRepo;
+  const unregisteredRepo = payload?.unregistered?.find(
+    (entry) => String(entry.slug || "").toLowerCase() === slug.toLowerCase()
+  );
+  if (unregisteredRepo) return { ...unregisteredRepo, registered: false };
+  const isManifestPath = /\/manifest\.md$/i.test(normalized);
+  return {
+    slug,
+    folderPath,
+    manifestPath,
+    name: slug,
+    registered: isManifestPath
+  };
+}
+
+async function openRepositoryWorkspaceEntry(entry, options = {}) {
+  if (!entry || entry.registered === false) return;
+  const folderPath = normalizeLinkFilePath(
+    entry.folderPath || `awn-repositories/${entry.slug || ""}`
+  );
+  const manifestPath = normalizeLinkFilePath(
+    entry.manifestPath || `${folderPath}/manifest.md`
+  );
+  const slug = String(entry.slug || folderPath.split("/").pop() || "").trim();
+  const label = String(entry.name || slug || "Репозиторий").trim();
+  let registered = entry.registered !== false;
+
+  hideHomeView();
+  clearActiveSystemFile();
+  clearActiveThreadScope();
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  activeExternalFilePath = null;
+  nodeOverviewRenderSeq += 1;
+  clearMediaSidecarEditor();
+  resetPropsLibrariesCache();
+
+  activePath = registered ? manifestPath : folderPath;
+  activeLabel = label;
+  hideLiveFileUpdateBanner();
+  hideLiveFileDiffPanel();
+  clearLiveSyncInlineDiffState();
+  liveSyncPendingChange = null;
+  liveSyncMtimeBaselineReady = false;
+  liveSyncMtimeByPath = new Map();
+
+  applyContentModeState(NODE_OVERVIEW_MODE, { skipWorkspaceUi: false });
+  updateActiveButton();
+  titleInputNode.value = label;
+
+  modeContentCache.description = "";
+  propsFormEntries = [];
+  navigationManifestCachedPath = null;
+
+  if (registered) {
+    showContentLoading({ variant: "default", message: "Загрузка…" });
+    try {
+      const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }));
+      if (response.ok) {
+        const data = await response.json();
+        modeContentCache.description = data.content || "";
+        navigationManifestCachedPath = manifestPath;
+        await loadPropertiesForActivePath();
+      } else {
+        modeContentCache.description = "";
+      }
+    } catch {
+      modeContentCache.description = "";
+    } finally {
+      hideContentLoading();
+    }
+  }
+
+  applyModeUi();
+  applyNodeWorkspaceViewUi();
+  if (registered) {
+    void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
+  }
+
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: !options.replaceRoute, replace: Boolean(options.replaceRoute) });
+  }
 }
 
 async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
   const normalized = normalizeLinkFilePath(workspaceRel);
   if (!normalized || !isRepositoryWorkspaceRel(normalized)) return false;
-
-  if (/\/manifest\.md$/i.test(normalized)) {
-    await openRepositoryOverview(resolveRepositoryEntryForManifestPath(normalized), options);
-    return true;
-  }
 
   if (/^awn-repositories\/index\.md$/i.test(normalized)) {
     const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(normalized));
@@ -4699,11 +4814,10 @@ async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
 
   if (await tryOpenAdoptWorkspaceRel(normalized, options)) return true;
 
-  if (/^awn-repositories\/[^/]+$/i.test(normalized)) {
-    const label = normalized.split("/").filter(Boolean).pop() || normalized;
-    await openFolderBrowseFromMenu(label, normalized, {
-      skipRouteSync: Boolean(options.skipRouteSync)
-    });
+  const repositoryEntry = resolveRepositoryEntryFromWorkspaceRel(normalized);
+  if (repositoryEntry) {
+    if (repositoryEntry.registered === false) return false;
+    await openRepositoryWorkspaceEntry(repositoryEntry, options);
     return true;
   }
 
@@ -4720,6 +4834,14 @@ async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
         /\\/g,
         "/"
       );
+      if (isRepositoryWorkspaceRel(folderPath)) {
+        const repositoryEntry = resolveRepositoryEntryFromWorkspaceRel(folderPath);
+        if (repositoryEntry?.registered !== false) {
+          await openRepositoryWorkspaceEntry(repositoryEntry, options);
+          return true;
+        }
+        return false;
+      }
       const label =
         resolved.title ||
         folderPath.split("/").filter(Boolean).pop() ||
@@ -17103,7 +17225,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
 }
 
 function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
-  if (!activePath || activeSystemFile || isGraphModeActive() || isRepositoryManifestPath()) {
+  if (!activePath || activeSystemFile || isGraphModeActive() || isRepositoryWorkspacePath()) {
     return false;
   }
   const domain = getNodeWorkspaceDomain(mode);
@@ -19483,7 +19605,7 @@ function getNodeDefaultLandingDomainLabel(mode) {
 function syncNodeDefaultLandingBtn() {
   const btn = nodeDefaultLandingBtn;
   if (!btn) return;
-  btn.classList.toggle("hidden", isRepositoryManifestPath());
+  btn.classList.toggle("hidden", isRepositoryWorkspacePath());
 
   const saved = getNodeDefaultView(activePath);
   const currentMode = activeContentMode;
@@ -23423,7 +23545,7 @@ async function selectNodeManifest(label, filePath, contentMode, options = {}) {
   }
   if (
     contentMode &&
-    isRepositoryManifestPath(filePath) &&
+    isRepositoryWorkspacePath(filePath) &&
     contentMode !== NODE_OVERVIEW_MODE &&
     contentMode !== "description" &&
     contentMode !== FOLDER_BROWSE_MODE &&
@@ -23463,8 +23585,12 @@ async function openNodeFromMenu(label, filePath, options = {}) {
   if (nextPath !== normalizeMenuNodePath(activePath)) {
     clearActiveThreadScope();
   }
-  if (isRepositoryManifestPath(filePath)) {
-    await openRepositoryOverview(resolveRepositoryEntryForManifestPath(filePath), {
+  if (isRepositoryWorkspacePath(filePath)) {
+    const repositoryEntry =
+      resolveRepositoryEntryFromWorkspaceRel(filePath) ||
+      resolveRepositoryEntryForManifestPath(filePath);
+    if (repositoryEntry?.registered === false) return;
+    await openRepositoryWorkspaceEntry(repositoryEntry, {
       skipRouteSync: Boolean(options.skipRouteSync)
     });
     if (!options.skipRouteSync) {
@@ -23673,7 +23799,7 @@ function syncNodeWorkspaceDomainSelect() {
 }
 
 async function applyNodeWorkspaceDomainChange(domain) {
-  if (isRepositoryManifestPath()) {
+  if (isRepositoryWorkspacePath()) {
     if (activeContentMode !== NODE_OVERVIEW_MODE && activeContentMode !== "description") {
       setContentMode(NODE_OVERVIEW_MODE);
     }
@@ -23829,10 +23955,10 @@ function applyNodeWorkspaceViewUi(options = {}) {
   workspacePathHeaderNode?.classList.toggle("is-node-journal", journalDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
-  workspacePathHeaderNode?.classList.toggle("is-repository-workspace", isRepositoryManifestPath());
+  workspacePathHeaderNode?.classList.toggle("is-repository-workspace", isRepositoryWorkspacePath());
   nodeWorkspaceNavControlsNode?.classList.toggle(
     "hidden",
-    !showWorkspaceDomainControls || awnDatabaseManifestEditing || isRepositoryManifestPath()
+    !showWorkspaceDomainControls || awnDatabaseManifestEditing || isRepositoryWorkspacePath()
   );
   nodeSettingsPathControlsNode?.classList.toggle(
     "hidden",
@@ -29044,7 +29170,7 @@ function applyContentModeState(mode, options = {}) {
   if (mode === "quick-notes") mode = "note";
   if (mode === "graph") return false;
   if (
-    isRepositoryManifestPath(activePath) &&
+    isRepositoryWorkspacePath(activePath) &&
     mode !== NODE_OVERVIEW_MODE &&
     mode !== "description" &&
     mode !== FOLDER_BROWSE_MODE &&
@@ -83465,7 +83591,7 @@ async function appendNodeNavigationSplitRail(
 async function renderNodeNavigation() {
   if (!nodeOverviewContentNode || !activePath) return;
 
-  if (isRepositoryManifestPath()) {
+  if (isRepositoryWorkspacePath()) {
     if (activeContentMode !== NODE_OVERVIEW_MODE) {
       applyContentModeState(NODE_OVERVIEW_MODE, { skipWorkspaceUi: true });
     }
@@ -83939,7 +84065,7 @@ async function renderNodeOverview() {
   const typeLabel = getPropsEntryValueByKey(entries, "awn-type");
   const nodePathResolved = getResolvedNodePath(activePath);
 
-  if (typeLabel === "awn.repository" || isRepositoryManifestPath(nodePathResolved)) {
+  if (typeLabel === "awn.repository" || isRepositoryWorkspacePath(nodePathResolved)) {
     await renderRepositoryWorkspacePage({
       nodePath: nodePathResolved,
       entries,
@@ -84393,7 +84519,7 @@ function applyModeUi(options = {}) {
   mindmapViewBarNode?.classList.toggle("hidden", !mindmapMode);
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode || attachmentSidecarEditing);
-  const repositoryWorkspaceMode = isRepositoryManifestPath() && overviewMode;
+  const repositoryWorkspaceMode = isRepositoryWorkspacePath() && overviewMode;
   nodeOverviewBlockNode?.classList.toggle("is-repository-workspace", repositoryWorkspaceMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode || awnDataViewMode);
   const workspaceToolModule = isWorkspaceToolModuleView();
@@ -109314,8 +109440,9 @@ function formatRepositoryStatusLabel(status) {
   return REPOSITORY_STATUS_LABELS[key] || key || "—";
 }
 
-async function fetchRepositoryOverviewData(manifestPath, agentId = activeAgentId) {
-  const path = String(manifestPath || "").trim();
+async function fetchRepositoryOverviewData(repositoryPath, agentId = activeAgentId) {
+  const folderPath = getRepositoryFolderPathFromWorkspacePath(repositoryPath);
+  const path = folderPath || String(repositoryPath || "").trim();
   if (!path) return null;
   try {
     const response = await fetch(buildApiUrl("/api/agent/repository", { path }, agentId));
@@ -109459,6 +109586,7 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   const meta = document.createElement("p");
   meta.className = "repository-workspace-dashboard-meta";
   const metaBits = [
+    repo.registered === false ? "не зарегистрирован" : "",
     formatRepositoryStatusLabel(repo.status),
     resolveRepositoryGroupTitle(repo.group),
     repo.hasGit ? "Git" : "без .git"
@@ -109476,7 +109604,11 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
     createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—"),
     createRepositoryWorkspaceStatCard(
       "Индекс",
-      repo.indexExcludeSubtree !== false ? "manifest + readme" : "полный"
+      repo.registered === false
+        ? "—"
+        : repo.indexExcludeSubtree !== false
+          ? "manifest + readme"
+          : "полный"
     ),
     createRepositoryWorkspaceStatCard("Slug", repo.slug || "—")
   );
@@ -109525,12 +109657,15 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   browseBtn.type = "button";
   browseBtn.className = "node-overview-action-btn repository-workspace-action-btn";
   browseBtn.textContent = "Открыть папку";
-  browseBtn.addEventListener("click", () => void openRepositoryFolderOverview(repo));
+  browseBtn.addEventListener("click", () => void openRepositoryFolderBrowse(repo));
   const metaBtn = document.createElement("button");
   metaBtn.type = "button";
   metaBtn.className = "node-overview-action-btn repository-workspace-action-btn";
-  metaBtn.textContent = "Свойства";
-  metaBtn.addEventListener("click", () => openRepositoryEditModal(repo));
+  metaBtn.textContent = repo.registered === false ? "Подхватить" : "Свойства";
+  metaBtn.addEventListener("click", () => {
+    if (repo.registered === false) openRepositoryAdoptModal(repo);
+    else openRepositoryEditModal(repo);
+  });
   actions.append(browseBtn, metaBtn);
   dashboard.appendChild(actions);
 
@@ -109548,15 +109683,15 @@ async function renderRepositoryWorkspacePage({
   if (!nodeOverviewContentNode) return;
   syncNodeOverviewNavigationSplitClass(false);
 
-  const manifestPath = String(nodePath || getResolvedNodePath(activePath)).trim();
-  const folderPath = getRepositoryFolderPathFromManifest(manifestPath);
+  const workspacePath = String(nodePath || getResolvedNodePath(activePath)).trim();
+  const folderPath = getRepositoryFolderPathFromWorkspacePath(workspacePath);
+  const manifestPath = isRepositoryManifestPath(workspacePath)
+    ? workspacePath
+    : `${folderPath}/manifest.md`;
   const page = document.createElement("div");
   page.className = "repository-workspace-page";
 
-  const heroHost = nodeOverviewContentNode.querySelector(".node-overview-hero");
-  if (heroHost) {
-    page.appendChild(heroHost);
-  } else {
+  {
     const hero = document.createElement("div");
     hero.className = "node-overview-hero repository-workspace-hero";
     const heroMain = document.createElement("div");
@@ -109599,7 +109734,7 @@ async function renderRepositoryWorkspacePage({
   nodeOverviewContentNode.replaceChildren(page);
 
   const [repo, scanData] = await Promise.all([
-    fetchRepositoryOverviewData(manifestPath),
+    fetchRepositoryOverviewData(workspacePath),
     fetchWorkspaceFolderScan(folderPath, { depth: "all" }).catch(() => null)
   ]);
   if (isStale()) return;
@@ -109657,40 +109792,38 @@ function resolveRepositoryEntryForManifestPath(manifestPath) {
       String(repo.manifestPath || "").toLowerCase() === normalized.toLowerCase()
   );
   if (cached) return cached;
+  const unregistered = menuRepositoriesLastPayload?.unregistered?.find(
+    (entry) => String(entry.slug || "").toLowerCase() === slug.toLowerCase()
+  );
+  if (unregistered) return { ...unregistered, registered: false };
   return {
     slug,
+    folderPath: `awn-repositories/${slug}`,
     manifestPath: normalized,
-    name: slug || getLabelFromPath(normalized)
+    name: slug || getLabelFromPath(normalized),
+    registered: true
   };
 }
 
 async function openRepositoryOverview(repo, options = {}) {
-  if (!repo) return;
-  const manifestPath = String(repo.manifestPath || `awn-repositories/${repo.slug || ""}/manifest.md`)
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .trim();
-  if (!manifestPath) return;
-  const label = String(repo.name || repo.slug || "Репозиторий").trim();
-  await openNodeOverview(label, manifestPath, options);
+  await openRepositoryWorkspaceEntry(repo, options);
 }
 
-async function openRepositoryFolderOverview(entry) {
+async function openRepositoryFolderBrowse(entry) {
   if (!entry) return;
   const folderPath = String(entry.folderPath || `awn-repositories/${entry.slug || ""}`)
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  const manifestPath = String(entry.manifestPath || `${folderPath}/manifest.md`)
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .trim();
-  const targetRel = entry.registered === false ? folderPath : manifestPath;
-  if (await openRepositoryWorkspacePath(targetRel)) {
-    syncAppRouteToUrl({ push: true });
-    return;
-  }
-  showToast(`Не удалось открыть ${targetRel}`, "error");
+  const label = String(entry.name || entry.slug || folderPath.split("/").pop() || folderPath).trim();
+  await openFolderBrowseFromMenu(label, folderPath, { skipRouteSync: true });
+  syncAppRouteToUrl({ push: true });
+}
+
+async function openRepositoryFolderOverview(entry) {
+  if (!entry || entry.registered === false) return;
+  await openRepositoryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
+  syncAppRouteToUrl({ push: true });
 }
 
 async function openRepositoryManifestFromModal() {
@@ -109968,7 +110101,7 @@ function createMenuRepositoryGitIcon({ hasGit = false } = {}) {
 function createMenuRepositoryUnregisteredRow(entry) {
   const row = document.createElement("li");
   row.className = "menu-repository-item menu-repository-item--unregistered";
-  row.title = entry.hint || "manifest.md нет — перетащите в чат или подхватите";
+  row.title = entry.hint || "manifest.md нет — нажмите «+» чтобы подхватить";
 
   const leading = document.createElement("span");
   leading.className = "menu-repository-leading";
@@ -109994,10 +110127,6 @@ function createMenuRepositoryUnregisteredRow(entry) {
   );
   attachRepositoryRowDragMetadata(row, entry, { registered: false });
 
-  row.addEventListener("click", (event) => {
-    if (event.target.closest(".menu-repository-adopt-btn")) return;
-    void openRepositoryFolderOverview({ ...entry, registered: false });
-  });
   row.addEventListener("dragstart", (event) => {
     if (event.target.closest(".menu-repository-adopt-btn")) {
       event.preventDefault();
@@ -110020,7 +110149,7 @@ function createMenuRepositoryRow(repo) {
   row.append(createMenuRepositoryGroupDragHandle(), leading, createMenuRepositoryRowBody(repo));
   attachRepositoryRowDragMetadata(row, repo, { registered: true });
 
-  const openRepository = () => void openRepositoryOverview(repo);
+  const openRepository = () => void openRepositoryWorkspaceEntry({ ...repo, registered: true });
   row.addEventListener("click", openRepository);
   row.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
