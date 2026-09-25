@@ -46405,9 +46405,11 @@ button.node-navigation-memory-title:focus-visible {
   display: none;
 }
 
-.awn-databases-create-group-presets .awn-databases-create-group-preset-btn[disabled] {
+.awn-databases-create-group-presets .awn-databases-create-group-preset-btn[disabled],
+.awn-databases-create-group-presets .awn-databases-create-group-preset-btn.is-disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .menu-awn-databases-store-group--builtin > .menu-awn-databases-store-group-head {
@@ -46439,6 +46441,57 @@ button.node-navigation-memory-title:focus-visible {
   gap: 8px;
   padding: 10px 0;
   border-top: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.25));
+}
+
+.props-form-taxonomy-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.props-form-taxonomy-control-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.doc-props-aside .props-form-taxonomy-control-row .props-form-value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.props-form-taxonomy-add-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  border-radius: 6px;
+  background: rgba(237, 233, 254, 0.9);
+  color: #6d28d9;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.props-form-taxonomy-add-btn:hover,
+.props-form-taxonomy-add-btn:focus-visible {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.props-form-taxonomy-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.doc-props-aside .props-form-taxonomy-add-form {
+  margin-top: 0;
 }
 
 .props-form-taxonomy-section:first-child {

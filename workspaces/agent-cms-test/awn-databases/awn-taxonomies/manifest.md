@@ -18,8 +18,8 @@ awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
 awn-type: awn.infoblock.frame.group
-awn-create: 2026-09-25T22:35:05.766Z
-awn-update: 2026-09-25T22:35:05.766Z
+awn-create: 2026-09-25T22:53:07.687Z
+awn-update: 2026-09-25T22:53:07.687Z
 awn-version: 1
 awn-collection-type: md
 awn-record-storage: ""

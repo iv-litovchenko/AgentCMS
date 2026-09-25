@@ -28917,6 +28917,20 @@ function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
   );
 }
 
+function isAwnTaxonomiesGroupPresent(agentId = activeAgentId) {
+  const resolvedAgentId = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgentId) return false;
+  const cache = getAgentTaxonomiesCache(resolvedAgentId);
+  if (cache?.groupExists) return true;
+  if (
+    awnDataCatalogAgentId === resolvedAgentId &&
+    findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, SHARED_TAXONOMIES_SLUG)
+  ) {
+    return true;
+  }
+  return isSharedTaxonomiesAreaPresent(resolvedAgentId);
+}
+
 function getServiceDocManifestCandidates(serviceFolder, preset) {
   const fileName = SERVICE_DOC_PRESET_FILES[preset];
   if (!serviceFolder || !fileName) return [];
@@ -56109,16 +56123,165 @@ function readPropsFormTaxonomyValue(wrap) {
   return value;
 }
 
+function applyTaxonomyItemToPropsEntry(taxonomyKey, cardinality, itemId) {
+  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === "awn-taxonomy");
+  if (index < 0 || !itemId) return;
+
+  const entry = propsFormEntries[index];
+  const value =
+    entry?.kind === "taxonomy" && entry.value && typeof entry.value === "object" && !Array.isArray(entry.value)
+      ? { ...entry.value }
+      : {};
+
+  if (cardinality === "many") {
+    const current = normalizeTaxonomyEntryValue(value[taxonomyKey], "many");
+    if (!current.includes(itemId)) value[taxonomyKey] = [...current, itemId];
+  } else {
+    value[taxonomyKey] = itemId;
+  }
+
+  propsFormEntries[index] = { ...entry, kind: "taxonomy", value };
+}
+
+async function submitPropsTaxonomyAdd(definition, code) {
+  const id = String(code || "").trim();
+  if (!id) throw new Error("Укажите код");
+  const storeRel = String(definition?.storeRel || "").trim();
+  if (!storeRel) throw new Error("Справочник не найден");
+
+  const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeAgentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      store: storeRel,
+      id,
+      name: id,
+      title: id
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  }
+
+  applyTaxonomyItemToPropsEntry(definition.key, definition.cardinality, id);
+  syncYamlFromPropsForm();
+  invalidateAgentTaxonomiesCache(activeAgentId);
+  await loadAgentTaxonomies(activeAgentId, { force: true });
+  if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
+  showToast(`Добавлено в справочник: ${id}`, "success");
+  return data;
+}
+
+function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
+  const panel = document.createElement("div");
+  panel.className = "props-form-taxonomy-add";
+  if (locked) return panel;
+
+  const form = document.createElement("div");
+  form.className = "props-form-catalog-add-form props-form-taxonomy-add-form hidden";
+
+  const field = document.createElement("label");
+  field.className = "props-form-catalog-add-field";
+  const caption = document.createElement("span");
+  caption.textContent = "Код";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "props-form-value props-form-catalog-add-input";
+  input.placeholder = "work";
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  field.append(caption, input);
+  form.appendChild(field);
+
+  const actions = document.createElement("div");
+  actions.className = "props-form-catalog-add-actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "props-form-catalog-add-save";
+  saveBtn.textContent = "Добавить";
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "props-form-catalog-add-cancel";
+  cancelBtn.textContent = "Отмена";
+  actions.append(saveBtn, cancelBtn);
+  form.appendChild(actions);
+
+  const setOpen = (open) => {
+    form.classList.toggle("hidden", !open);
+    panel.classList.toggle("is-open", open);
+    if (open) {
+      window.requestAnimationFrame(() => input.focus());
+    } else {
+      input.value = "";
+    }
+  };
+
+  cancelBtn.addEventListener("click", () => setOpen(false));
+  saveBtn.addEventListener("click", () => {
+    void (async () => {
+      saveBtn.disabled = true;
+      try {
+        await submitPropsTaxonomyAdd(definition, input.value);
+        setOpen(false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        showToast(message ? `Справочник: ${message}` : "Не удалось добавить", "error");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    })();
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveBtn.click();
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
+    }
+  });
+
+  panel._toggleTaxonomyAddForm = () => setOpen(form.classList.contains("hidden"));
+  panel._closeTaxonomyAddForm = () => setOpen(false);
+  panel.appendChild(form);
+  return panel;
+}
+
+function createPropsFormTaxonomyAddButton(definition, addPanel, { locked = false } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "props-form-taxonomy-add-btn";
+  button.textContent = "+";
+  button.title = `Добавить в «${definition.name || definition.key}»`;
+  button.setAttribute("aria-label", `Добавить в «${definition.name || definition.key}»`);
+  button.disabled = locked;
+  if (!locked) {
+    button.addEventListener("click", () => {
+      addPanel?._toggleTaxonomyAddForm?.();
+    });
+  }
+  return button;
+}
+
 function createPropsFormTaxonomyManySection(definition, selectedValues, { locked = false } = {}) {
   const section = document.createElement("div");
   section.className = "props-form-taxonomy-section";
   section.dataset.taxonomyKey = definition.key;
   section.dataset.taxonomyCardinality = "many";
 
+  const head = document.createElement("div");
+  head.className = "props-form-taxonomy-section-head";
   const title = document.createElement("div");
   title.className = "props-form-catalog-group-title";
   title.textContent = definition.name || definition.key;
-  section.appendChild(title);
+  const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
+  const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
+  head.append(title, addBtn);
+  section.appendChild(head);
+  section.appendChild(addPanel);
 
   const selected = new Set(normalizeTaxonomyEntryValue(selectedValues, "many"));
   const items = definition.items || [];
@@ -56162,6 +56325,8 @@ function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked =
   section.appendChild(title);
 
   const items = definition.items || [];
+  const controlRow = document.createElement("div");
+  controlRow.className = "props-form-taxonomy-control-row";
   const select = document.createElement("select");
   select.className = "props-form-value";
   const current = normalizeTaxonomyEntryValue(selectedValue, "one");
@@ -56170,7 +56335,10 @@ function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked =
     appendPropsFormSelectOption(select, item.id, item.label || item.id, { selected: item.id === current });
   }
   bindPropsFormLockedState(select, locked);
-  section.appendChild(select);
+  const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
+  const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
+  controlRow.append(select, addBtn);
+  section.append(controlRow, addPanel);
   return section;
 }
 
@@ -104495,8 +104663,9 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="taxonomies"]'
   );
   if (!taxonomiesBtn) return;
-  const exists = isSharedTaxonomiesAreaPresent(getCreateModalAgentId());
+  const exists = isAwnTaxonomiesGroupPresent(activeAgentId);
   taxonomiesBtn.disabled = exists;
+  taxonomiesBtn.classList.toggle("is-disabled", exists);
   taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
   taxonomiesBtn.title = exists
     ? "Группа awn-databases/awn-taxonomies/ уже создана"
@@ -104563,6 +104732,9 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   syncAwnDataCreateGroupPresetsUi();
   syncAwnDataCreateTaxonomyUi();
   awnDataCreateModalNode.classList.remove("hidden");
+  if (awnDataCreateKind === "group") {
+    void loadAgentTaxonomies(activeAgentId).finally(() => syncAwnDataCreateGroupPresetsUi());
+  }
   awnDataCreateNameInputNode?.focus();
 }
 
@@ -113300,8 +113472,12 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
     invalidateAgentTaxonomiesCache(resolvedAgent);
-    if (resolvedAgent === activeAgentId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
-      void loadAgentTaxonomies(resolvedAgent);
+    if (resolvedAgent === activeAgentId) {
+      void loadAgentTaxonomies(resolvedAgent).finally(() => {
+        if (awnDataCreateModalNode && !awnDataCreateModalNode.classList.contains("hidden")) {
+          syncAwnDataCreateGroupPresetsUi();
+        }
+      });
     }
     renderMenuAwnDataStores(data);
     void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
