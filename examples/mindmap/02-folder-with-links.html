@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Режим 2 — папка + перекрёстные ссылки</title>
+  <link rel="stylesheet" href="mindmap.css">
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge mode-2">Режим 2</span>
+        <h1>Папка файлов + markdown-ссылки</h1>
+        <p>sample-folder/ — syntax.md, oop.md, databases.md, frameworks.md</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Все примеры</a>
+        <button type="button" id="toggle-xref">Скрыть ссылки</button>
+        <button type="button" id="reset-view">Сбросить вид</button>
+      </div>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Структура папки</h2>
+        <pre>sample-folder/
+├── syntax.md      → ветка «Основы синтаксиса»
+├── oop.md           → ветка «ООП»
+├── databases.md     → ветка «Базы данных»
+└── frameworks.md    → ветка «Фреймворки»</pre>
+
+        <h2>Перекрёстные ссылки</h2>
+        <pre>oop.md        → syntax.md#типы-данных
+syntax.md     → oop.md#классы
+databases.md  → frameworks.md#spring-data
+frameworks.md → databases.md#jdbc</pre>
+
+        <h2>Легенда</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--center)"></span> Тема (имя папки / H1)</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#0ea5e9"></span> Файл = крупная ветка</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--branch)"></span> H2 внутри файла</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--leaf)"></span> H3 — листья</div>
+          <div class="legend-item"><span class="legend-line"></span> пунктир — [markdown](link)</div>
+        </div>
+      </aside>
+
+      <div class="canvas-wrap" id="canvas-wrap">
+        <div id="viewport">
+          <svg class="mindmap" id="mindmap" viewBox="0 0 1100 900" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="hint">Наведите на узел — подсветятся перекрёстные ссылки</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="mindmap.js"></script>
+  <script src="02-folder-with-links.js"></script>
+</body>
+</html>

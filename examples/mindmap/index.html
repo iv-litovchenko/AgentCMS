@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindmap из Markdown — примеры</title>
+  <link rel="stylesheet" href="mindmap.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .cards { display: grid; gap: 1rem; max-width: 640px; padding: 2rem; width: 100%; }
+    .card {
+      display: block;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card h2 { margin: 0.5rem 0 0.35rem; font-size: 1.1rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+    .title { text-align: center; margin-bottom: 0.5rem; }
+    .title h1 { margin: 0; font-size: 1.5rem; }
+    .title p { color: var(--muted); margin: 0.35rem 0 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="cards">
+    <div class="title">
+      <h1>Mindmap из Markdown</h1>
+      <p>Интерактивные HTML-примеры для технического задания</p>
+    </div>
+
+    <a class="card" href="01-single-file.html">
+      <span class="badge mode-1">Режим 1</span>
+      <h2>Один файл → одна карта</h2>
+      <p>H1 — центр, H2 — ветки, H3 — листья. Пример: <code>sample-single/java-overview.md</code></p>
+    </a>
+
+    <a class="card" href="02-folder-with-links.html">
+      <span class="badge mode-2">Режим 2</span>
+      <h2>Папка файлов + перекрёстные ссылки</h2>
+      <p>Каждый .md — крупная ветка, внутри H2/H3. Пунктир — markdown-ссылки между узлами.</p>
+    </a>
+  </div>
+</body>
+</html>

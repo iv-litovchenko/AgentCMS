@@ -1,0 +1,233 @@
+:root {
+  --bg: #0f1419;
+  --surface: #1a2332;
+  --border: #2d3a4f;
+  --text: #e8edf4;
+  --muted: #8b9cb3;
+  --accent: #3b82f6;
+  --branch: #22c55e;
+  --leaf: #a78bfa;
+  --xref: #f59e0b;
+  --center: #ef4444;
+  --font: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.layout {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+header p {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge.mode-1 { background: #1e3a5f; color: #93c5fd; }
+.badge.mode-2 { background: #14532d; color: #86efac; }
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.toolbar button, .toolbar a {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.toolbar button:hover, .toolbar a:hover {
+  border-color: var(--accent);
+}
+
+main {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 0;
+}
+
+aside {
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+  overflow: auto;
+  background: #121820;
+}
+
+aside h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+aside pre {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.legend {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-line {
+  width: 24px;
+  height: 0;
+  border-top: 2px dashed var(--xref);
+  flex-shrink: 0;
+}
+
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 50%, #1a2332 0%, transparent 70%),
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  cursor: grab;
+}
+
+.canvas-wrap.is-dragging { cursor: grabbing; }
+
+#viewport {
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+svg.mindmap {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.link-tree {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+.link-xref {
+  fill: none;
+  stroke: var(--xref);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  opacity: 0.85;
+}
+
+.node circle, .node rect {
+  stroke-width: 2;
+  transition: filter 0.15s, stroke-width 0.15s;
+}
+
+.node.center circle { fill: var(--center); stroke: #fca5a5; }
+.node.branch circle { fill: var(--branch); stroke: #86efac; }
+.node.file circle { fill: #0ea5e9; stroke: #7dd3fc; }
+.node.leaf circle { fill: var(--leaf); stroke: #c4b5fd; r: 6; }
+
+.node text {
+  fill: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  pointer-events: none;
+  user-select: none;
+}
+
+.node.is-highlight circle,
+.node.is-highlight rect {
+  filter: drop-shadow(0 0 8px var(--accent));
+  stroke-width: 3;
+}
+
+.node.is-dimmed { opacity: 0.25; }
+
+.link-xref.is-highlight { stroke-width: 2.5; opacity: 1; }
+.link-xref.is-dimmed { opacity: 0.1; }
+
+.hint {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.55);
+  font-size: 0.72rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  aside { max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+}

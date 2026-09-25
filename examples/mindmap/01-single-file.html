@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Режим 1 — один Markdown-файл</title>
+  <link rel="stylesheet" href="mindmap.css">
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge mode-1">Режим 1</span>
+        <h1>Один файл → иерархия заголовков</h1>
+        <p>sample-single/java-overview.md</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Все примеры</a>
+        <button type="button" id="reset-view">Сбросить вид</button>
+      </div>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Входной Markdown</h2>
+        <pre id="source-md"># Java
+
+## Синтаксис
+### Переменные и типы
+### Управляющие конструкции
+### Массивы и коллекции
+
+## ООП
+### Классы и объекты
+### Наследование
+### Интерфейсы
+
+## JVM
+### Bytecode
+### Garbage Collection
+### ClassLoader</pre>
+
+        <h2>Легенда</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--center)"></span> H1 — центральный узел</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--branch)"></span> H2 — крупные ветки</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--leaf)"></span> H3 — листья</div>
+          <div class="legend-item"><span class="legend-line"></span> сплошная линия — иерархия</div>
+        </div>
+      </aside>
+
+      <div class="canvas-wrap" id="canvas-wrap">
+        <div id="viewport">
+          <svg class="mindmap" id="mindmap" viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="hint">Колёсико — масштаб · перетаскивание — панорама · наведение — подсветка</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="mindmap.js"></script>
+  <script src="01-single-file.js"></script>
+</body>
+</html>
