@@ -10579,9 +10579,114 @@ function createAppLandingSystemMapDiagram() {
   }
 
   diagram.append(svg, root, columns);
-  map.append(badge, diagram);
+
+  const footer = document.createElement("div");
+  footer.className = "app-landing-system-map-footer";
+  const draftLink = document.createElement("a");
+  draftLink.className = "app-landing-system-map-draft-btn";
+  draftLink.href = "/index2.html";
+  draftLink.target = "_blank";
+  draftLink.rel = "noopener noreferrer";
+  draftLink.textContent = "Расширенная карта системы";
+  footer.appendChild(draftLink);
+
+  map.append(badge, diagram, footer);
   mountAppLandingSystemMapLinks(diagram);
   return map;
+}
+
+function createAppLandingPlatformMascotNode() {
+  const mascot = document.createElement("div");
+  mascot.className = "app-landing-platform-mascot";
+
+  const glow = document.createElement("div");
+  glow.className = "app-landing-platform-mascot-glow";
+  glow.setAttribute("aria-hidden", "true");
+
+  const shell = document.createElement("div");
+  shell.className = "app-landing-platform-mascot-shell";
+
+  const antenna = document.createElement("div");
+  antenna.className = "app-landing-platform-mascot-antenna";
+
+  const screen = document.createElement("div");
+  screen.className = "app-landing-platform-mascot-screen";
+
+  const face = document.createElement("div");
+  face.className = "app-landing-platform-mascot-face";
+  face.innerHTML =
+    '<span class="app-landing-platform-mascot-eye app-landing-platform-mascot-eye--left"></span>' +
+    '<span class="app-landing-platform-mascot-eye app-landing-platform-mascot-eye--right"></span>' +
+    '<span class="app-landing-platform-mascot-smile"></span>';
+  screen.appendChild(face);
+
+  const body = document.createElement("div");
+  body.className = "app-landing-platform-mascot-body";
+
+  const armLeft = document.createElement("div");
+  armLeft.className = "app-landing-platform-mascot-arm app-landing-platform-mascot-arm--left";
+
+  const torso = document.createElement("div");
+  torso.className = "app-landing-platform-mascot-torso";
+  torso.textContent = "A";
+
+  const armRight = document.createElement("div");
+  armRight.className = "app-landing-platform-mascot-arm app-landing-platform-mascot-arm--right";
+
+  body.append(armLeft, torso, armRight);
+
+  const feet = document.createElement("div");
+  feet.className = "app-landing-platform-mascot-feet";
+  feet.innerHTML = "<span></span><span></span>";
+
+  shell.append(antenna, screen, body, feet);
+  mascot.append(glow, shell);
+  return mascot;
+}
+
+function createAppLandingPlatformAgentScene() {
+  const scene = document.createElement("div");
+  scene.className = "app-landing-platform-agent-scene";
+
+  const copy = document.createElement("div");
+  copy.className = "app-landing-platform-agent-copy";
+
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "app-landing-platform-hero-brand-eyebrow";
+  eyebrow.textContent = "Workspaces / *.md";
+
+  const title = document.createElement("h4");
+  title.className = "app-landing-platform-hero-brand-title";
+  title.innerHTML =
+    '<span class="app-landing-platform-hero-brand-clover" aria-hidden="true">☘️</span>' +
+    '<span class="app-landing-platform-hero-brand-label">Agent CMS</span>';
+
+  const tags = document.createElement("ul");
+  tags.className = "app-landing-platform-hero-brand-tags";
+  tags.setAttribute("aria-label", "Теги");
+  for (const text of ["обучаем агента", "обучаемся сами", "вместе растём"]) {
+    const tag = document.createElement("li");
+    tag.className = "app-landing-platform-hero-brand-tag";
+    tag.innerHTML = '<span class="app-landing-platform-hero-brand-tag-hash" aria-hidden="true">#</span>' + text;
+    tags.appendChild(tag);
+  }
+
+  const caption = document.createElement("p");
+  caption.className = "app-landing-platform-agent-scene-caption";
+  caption.textContent = "Цифровая память для агента и человека";
+
+  copy.append(eyebrow, title, tags, caption);
+
+  const aside = document.createElement("div");
+  aside.className = "app-landing-platform-agent-aside";
+
+  const figure = document.createElement("div");
+  figure.className = "app-landing-platform-agent-figure";
+  figure.appendChild(createAppLandingPlatformMascotNode());
+
+  aside.appendChild(figure);
+  scene.append(copy, aside);
+  return scene;
 }
 
 function createAppLandingPlatformCatalogScene() {
@@ -10631,7 +10736,15 @@ function createAppLandingPlatformCatalogScene() {
 
   scene.appendChild(hub);
 
-  for (const [i, label] of ["types", "tags", "users", "status", "colors"].entries()) {
+  for (const [i, label] of [
+    "Области",
+    "Темы",
+    "Слоты",
+    "Инфоблоки",
+    "Репозитории",
+    "Типы",
+    "Настройки"
+  ].entries()) {
     const chip = document.createElement("span");
     chip.className = "app-landing-platform-chip";
     chip.style.setProperty("--chip-i", String(i));
@@ -10711,8 +10824,13 @@ function createAppLandingPlatformHero(platform) {
   const hero = document.createElement("div");
   hero.className = "app-landing-platform-hero";
 
-  const bg = createAppLandingPlatformVisualBg();
-  bg.classList.add("app-landing-platform-hero-bg");
+  const nebula = document.createElement("div");
+  nebula.className = "app-landing-platform-hero-nebula";
+  nebula.setAttribute("aria-hidden", "true");
+
+  const stars = document.createElement("div");
+  stars.className = "app-landing-platform-hero-stars";
+  stars.setAttribute("aria-hidden", "true");
 
   const body = document.createElement("div");
   body.className = "app-landing-platform-hero-body";
@@ -10720,7 +10838,7 @@ function createAppLandingPlatformHero(platform) {
   const copy = document.createElement("div");
   copy.className = "app-landing-platform-hero-copy";
 
-  const platformLabel = String(platform?.name || platform?.id || "agent-cms-core").trim();
+  const platformLabel = String(platform?.id || "agent-cms-core").trim();
 
   const eyebrow = document.createElement("span");
   eyebrow.className = "app-landing-platform-hero-eyebrow";
@@ -10751,26 +10869,13 @@ function createAppLandingPlatformHero(platform) {
 
   copy.append(eyebrow, title, lead, aside, pills);
 
-  const action = document.createElement("div");
-  action.className = "app-landing-platform-hero-action";
-  const openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.className = "app-landing-platform-hero-enter-btn";
-  openBtn.title = `Открыть хранилище ${platformLabel}`;
-  openBtn.innerHTML =
-    '<span class="app-landing-platform-hero-enter-icon" aria-hidden="true">📚</span>' +
-    '<span class="app-landing-platform-hero-enter-text">Войти в справочники</span>' +
-    '<span class="app-landing-platform-hero-enter-arrow" aria-hidden="true">→</span>';
-  openBtn.addEventListener("click", () => openCoreCatalogAgentFromLanding());
-  action.appendChild(openBtn);
+  const visual = document.createElement("div");
+  visual.className = "app-landing-platform-hero-visual";
+  visual.setAttribute("aria-hidden", "true");
+  visual.appendChild(createAppLandingPlatformAgentScene());
 
-  const orbit = document.createElement("div");
-  orbit.className = "app-landing-platform-hero-orbit";
-  orbit.setAttribute("aria-hidden", "true");
-  orbit.appendChild(createAppLandingPlatformCatalogScene());
-
-  body.append(copy, action);
-  hero.append(bg, body, orbit);
+  body.append(copy);
+  hero.append(nebula, stars, body, visual);
   return hero;
 }
 
