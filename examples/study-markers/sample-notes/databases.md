@@ -4,12 +4,18 @@
 
 `Connection`, `PreparedStatement`, `ResultSet`. Всегда закрывать в try-with-resources.
 
-[повторить]: жизненный цикл Connection — кто создаёт пул, кто закрывает
+[мое повторить]: жизненный цикл Connection — кто создаёт пул, кто закрывает
+
+[мое важно]: не забывать setAutoCommit(false) перед транзакцией
 
 ## JPA / Hibernate
 
 Entity, `@Id`, `@GeneratedValue`. Lazy vs Eager fetching.
 
-[вопрос]: что такое N+1 problem и как его лечить в Hibernate?
+[мое вопрос]: что такое N+1 problem и как его лечить в Hibernate?
 
-[повторить]: разница между persist(), merge() и save()
+[мое повторить]: разница между persist(), merge() и save()
+
+[мое ошибка]: забыл @Transactional на сервисе — данные не сохранялись
+
+[мое идея]: написать мини-проект «заметки» на Spring Data JPA

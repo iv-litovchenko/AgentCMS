@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * Сканирует markdown-конспекты и собирает пометки [повторить]: и [вопрос]:
+ * Сканирует markdown-конспекты и собирает личные пометки:
+ * [мое повторить], [мое вопрос], [мое заметка], [мое важно], [мое ошибка], [мое идея]
  *
  *   node collect-markers.js --input sample-notes/
- *   node collect-markers.js --input sample-notes/oop.md --type вопрос
+ *   node collect-markers.js --input sample-notes/oop.md --type "мое вопрос"
  *   node collect-markers.js --input sample-notes/ --output report.html
  */
 
 const fs = require("fs");
 const path = require("path");
+const { KNOWN_TYPES, metaFor, sortGrouped, TYPE_ORDER } = require("./marker-types");
 
 const MARKER_RE = /^\[([^\]]+)\]:\s*(.+)$/;
 const HEADING_RE = /^(#{1,6})\s+(.+)$/;
-
-const KNOWN_TYPES = new Set(["повторить", "вопрос"]);
 
 function slugify(text) {
   return text
@@ -107,7 +107,7 @@ function groupMarkers(markers) {
     if (!byFile.has(m.fileName)) byFile.set(m.fileName, []);
     byFile.get(m.fileName).push(m);
   }
-  return byType;
+  return new Map(sortGrouped(byType));
 }
 
 function renderMarkdown(grouped) {
@@ -133,12 +133,12 @@ function renderHtml(grouped, filterType) {
 
   let body = "";
   for (const [type, byFile] of grouped) {
-    const icon = type === "повторить" ? "↻" : type === "вопрос" ? "?" : "•";
+    const meta = metaFor(type);
     body += `<section class="type-group" data-type="${escapeHtml(type)}">`;
-    body += `<h2><span class="type-icon type-${escapeHtml(type)}">${icon}</span> [${escapeHtml(type)}]</h2>`;
+    body += `<h2><span class="type-icon type-${meta.slug}">${meta.icon}</span> [${escapeHtml(type)}]</h2>`;
     for (const [fileName, items] of byFile) {
       body += `<div class="file-group">`;
-      body += `<h3>${escapeHtml(fileName)}</h3><ul>`;
+      body += `<h3>${escapeHtml(fileName)}</h3><ul class="marker-list">`;
       for (const m of items) {
         body += `<li class="marker-item">`;
         body += `<div class="marker-meta"><span class="section">${escapeHtml(m.section)}</span>`;
@@ -178,7 +178,8 @@ function escapeHtml(s) {
 
 function printConsole(grouped) {
   for (const [type, byFile] of grouped) {
-    console.log(`\n══ [${type}] ══`);
+    const meta = metaFor(type);
+    console.log(`\n══ [${type}] ${meta.icon} ══`);
     for (const [fileName, items] of byFile) {
       console.log(`\n  📄 ${fileName}`);
       for (const m of items) {
@@ -194,12 +195,15 @@ function printConsole(grouped) {
 function main() {
   const args = parseArgs(process.argv);
   if (args.help || !args.input) {
+    const types = TYPE_ORDER.map((t) => `[${t}]`).join(", ");
     console.log(`Использование:
-  node collect-markers.js --input <файл|папка> [--type повторить|вопрос] [--output report.html] [--format md|html|json]
+  node collect-markers.js --input <файл|папка> [--type "<тип>"] [--output report.html] [--format md|html|json]
+
+Типы пометок: ${types}
 
 Примеры:
   node collect-markers.js -i sample-notes/
-  node collect-markers.js -i sample-notes/ -t вопрос
+  node collect-markers.js -i sample-notes/ -t "мое вопрос"
   node collect-markers.js -i sample-notes/ -o report.html`);
     process.exit(args.help ? 0 : 1);
   }

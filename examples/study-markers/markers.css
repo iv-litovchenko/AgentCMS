@@ -89,8 +89,12 @@ header p {
   background: #1e3a5f;
 }
 
-.filter-repeat.is-active { border-color: var(--repeat); background: #422006; color: #fcd34d; }
-.filter-question.is-active { border-color: var(--question); background: #2e1065; color: #c4b5fd; }
+.filter-moe-povtorit.is-active { border-color: #f59e0b; background: #422006; color: #fcd34d; }
+.filter-moe-vopros.is-active { border-color: #a78bfa; background: #2e1065; color: #c4b5fd; }
+.filter-moe-zametka.is-active { border-color: #3b82f6; background: #1e3a5f; color: #93c5fd; }
+.filter-moe-vazhno.is-active { border-color: #ef4444; background: #7f1d1d; color: #fca5a5; }
+.filter-moe-oshibka.is-active { border-color: #dc2626; background: #450a0a; color: #f87171; }
+.filter-moe-ideya.is-active { border-color: #10b981; background: #064e3b; color: #6ee7b7; }
 
 main {
   display: grid;
@@ -176,8 +180,12 @@ aside pre {
   font-weight: 700;
 }
 
-.type-повторить { background: #422006; color: #fcd34d; }
-.type-вопрос { background: #2e1065; color: #c4b5fd; }
+.type-moe-povtorit { background: #422006; color: #fcd34d; }
+.type-moe-vopros { background: #2e1065; color: #c4b5fd; }
+.type-moe-zametka { background: #1e3a5f; color: #93c5fd; }
+.type-moe-vazhno { background: #7f1d1d; color: #fca5a5; }
+.type-moe-oshibka { background: #450a0a; color: #f87171; }
+.type-moe-ideya { background: #064e3b; color: #6ee7b7; }
 
 .file-group {
   margin-bottom: 1.25rem;
