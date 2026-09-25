@@ -2,6 +2,8 @@ const fs = require("fs/promises");
 const path = require("path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const { parseImportanceValue } = require("./workspace-importance");
+const { buildDefaultFrontmatter } = require("./awn-types-loader");
+const { isSameWorkspaceIndexPath } = require("./lib/workspace-index-path");
 
 const AWN_REPOSITORIES_DIR = "awn-repositories";
 const AWN_REPOSITORIES_INDEX_FILE = "index.md";
@@ -21,20 +23,8 @@ const DEFAULT_REPOSITORY_GROUPS = [
 
 const DEFAULT_REPOSITORY_GROUP_IDS = new Set(DEFAULT_REPOSITORY_GROUPS.map((group) => group.id));
 
-const REPOSITORY_MANIFEST_TEMPLATE = `---
-awn-type: ${REPOSITORY_TYPE_ID}
-awn-name: "Название репозитория"
-awn-description: "Кратко: зачем клон, что смотреть"
-awn-repo-origin: ""
-awn-repo-status: study
-awn-repo-tech: []
-awn-repository-group: ""
-awn-runtime-index: manifest-only
-awn-index-exclude-subtree: true
----
-
-Описание для агента и человека: entry point, ветка, связь с темами CMS.
-`;
+const REPOSITORY_MANIFEST_DEFAULT_BODY =
+  "Описание для агента и человека: entry point, ветка, связь с темами CMS.";
 
 function normalizeRelPath(value) {
   return String(value || "")
@@ -55,19 +45,13 @@ function getRepositoryIndexLegacyRelPath() {
   return `${AWN_REPOSITORIES_DIR}/${AWN_REPOSITORIES_INDEX_LEGACY_FILE}`;
 }
 
-function isSameRepositoryIndexPath(leftRel, rightRel) {
-  const left = String(leftRel || "").replace(/\\/g, "/").trim().toLowerCase();
-  const right = String(rightRel || "").replace(/\\/g, "/").trim().toLowerCase();
-  return Boolean(left && right && left === right);
-}
-
 async function resolveRepositoryIndexFileOnDisk(agentRoot) {
   const canonical = getRepositoryIndexRelPath();
   if (await pathExists(path.join(agentRoot, canonical))) {
     return { path: canonical, exists: true };
   }
   const legacy = getRepositoryIndexLegacyRelPath();
-  if (!isSameRepositoryIndexPath(legacy, canonical) && (await pathExists(path.join(agentRoot, legacy)))) {
+  if (!isSameWorkspaceIndexPath(legacy, canonical) && (await pathExists(path.join(agentRoot, legacy)))) {
     return { path: legacy, exists: true, legacy: true };
   }
   return { path: canonical, exists: false };
@@ -760,7 +744,7 @@ async function writeRepositoryIndex(agentRoot, options = {}) {
   const legacyRel = getRepositoryIndexLegacyRelPath();
   const legacyAbs = path.join(agentRoot, legacyRel);
   if (
-    !isSameRepositoryIndexPath(legacyRel, indexRel) &&
+    !isSameWorkspaceIndexPath(legacyRel, indexRel) &&
     legacyAbs !== indexAbs &&
     (await pathExists(legacyAbs))
   ) {
@@ -789,36 +773,63 @@ function formatYamlScalar(value) {
   return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+function upsertYamlScalarLine(frontmatter, key, value) {
+  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*\\n?`, "gm");
+  const line = `${key}: ${formatYamlScalar(value)}`;
+  const raw = String(frontmatter || "").trim();
+  if (!raw) return line;
+  if (pattern.test(raw)) {
+    return raw.replace(pattern, `${line}\n`).trim();
+  }
+  return `${raw}\n${line}`.trim();
+}
+
+function joinRepositoryManifestContent(frontmatter, body) {
+  const fm = String(frontmatter ?? "").trim();
+  const mdBody = String(body ?? "").trim();
+  if (!fm) return mdBody;
+  if (!mdBody) return `---\n${fm}\n---\n`;
+  return `---\n${fm}\n---\n\n${mdBody}\n`;
+}
+
 function composeRepositoryManifestContent(options = {}) {
-  let content = REPOSITORY_MANIFEST_TEMPLATE;
+  const agentRoot = String(options.agentRoot || "").trim();
+  const projectRoot = options.projectRoot || process.cwd();
   const name = String(options.name || "").trim();
+
+  let frontmatter = buildDefaultFrontmatter(REPOSITORY_TYPE_ID, {
+    name,
+    agentRoot,
+    projectRoot,
+    skipCanonical: true
+  });
+
   const description = String(options.description || "").trim();
-  const origin = String(options.origin || options.repoOrigin || "").trim();
-  const status = String(options.status || "").trim().toLowerCase();
-  const group = String(options.group || "").trim();
-  if (name) content = content.replace('awn-name: "Название репозитория"', `awn-name: ${formatYamlScalar(name)}`);
   if (description) {
-    content = content.replace(
-      'awn-description: "Кратко: зачем клон, что смотреть"',
-      `awn-description: ${formatYamlScalar(description)}`
-    );
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-description", description);
   }
-  if (origin) content = content.replace('awn-repo-origin: ""', `awn-repo-origin: ${formatYamlScalar(origin)}`);
-  if (REPOSITORY_STATUSES.has(status)) {
-    content = content.replace("awn-repo-status: study", `awn-repo-status: ${status}`);
+
+  const origin = String(options.origin || options.repoOrigin || "").trim();
+  if (origin) {
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-repo-origin", origin);
   }
+
+  const group = String(options.group || "").trim();
   if (group) {
-    content = content.replace('awn-repository-group: ""', `awn-repository-group: ${formatYamlScalar(group)}`);
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-repository-group", group);
   }
+
   const tech = Array.isArray(options.tech)
     ? options.tech
     : parseYamlScalarList(String(options.tech || "").trim());
   if (tech.length) {
-    content = setYamlScalarInFrontmatter(content, "awn-repo-tech", tech.join(", "));
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-repo-tech", tech.join(", "));
   }
+
   if (options.relatedTopic) {
-    content = setYamlScalarInFrontmatter(content, "awn-repo-related-topic", options.relatedTopic);
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-repo-related-topic", options.relatedTopic);
   }
+
   const indexFlags = options.indexExcludeFlags || {
     record: Boolean(options.indexExcludeRecord),
     subtree:
@@ -829,17 +840,16 @@ function composeRepositoryManifestContent(options = {}) {
           : true
   };
   if (indexFlags?.record) {
-    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-record", "true");
+    frontmatter = upsertYamlScalarLine(frontmatter, "awn-index-exclude-record", "true");
   }
-  if (indexFlags?.subtree !== false) {
-    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-subtree", "true");
-  } else {
-    content = setYamlScalarInFrontmatter(content, "awn-index-exclude-subtree", "false");
-  }
-  if (options.body) {
-    content = content.replace(/Описание для агента[\s\S]*$/, `${String(options.body).trim()}\n`);
-  }
-  return content;
+  frontmatter = upsertYamlScalarLine(
+    frontmatter,
+    "awn-index-exclude-subtree",
+    indexFlags?.subtree !== false ? "true" : "false"
+  );
+
+  const body = String(options.body || REPOSITORY_MANIFEST_DEFAULT_BODY).trim();
+  return joinRepositoryManifestContent(frontmatter, body);
 }
 
 function setYamlScalarInFrontmatter(content, key, value) {
@@ -981,7 +991,7 @@ async function registerRepository(agentRoot, options = {}) {
 
   const folderExists = await pathExists(folderAbs);
   await fs.mkdir(folderAbs, { recursive: true });
-  const content = composeRepositoryManifestContent(options);
+  const content = composeRepositoryManifestContent({ ...options, agentRoot });
   await fs.writeFile(manifestAbs, content, "utf-8");
   if (options.group !== undefined) {
     const groupId = String(options.group || "").trim() || inferRepositoryGroupId({ status: options.status });
@@ -1013,7 +1023,7 @@ module.exports = {
   AWN_REPOSITORIES_GROUPS_FILE,
   DEFAULT_REPOSITORY_GROUPS,
   REPOSITORY_TYPE_ID,
-  REPOSITORY_MANIFEST_TEMPLATE,
+  REPOSITORY_MANIFEST_DEFAULT_BODY,
   getRepositoriesRootRel,
   getRepositoryIndexRelPath,
   getRepositoryGroupsRelPath,
