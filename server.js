@@ -25,6 +25,7 @@ const {
   enrichMcpDocsForClient
 } = require("./lib/https-redirect");
 const { buildPageUrlPayload } = require("./lib/page-url");
+const { isSameWorkspaceIndexPath } = require("./lib/workspace-index-path");
 const {
   clampThumbMax,
   readOrCreateImageThumb,
@@ -12290,19 +12291,13 @@ function getAwnDataIndexLegacyRelPath() {
   return `${AWN_DATA_DIR}/${AWN_DATA_INDEX_LEGACY_FILE}`.replace(/\\/g, "/");
 }
 
-function isSameAwnDataIndexPath(leftRel, rightRel) {
-  const left = String(leftRel || "").replace(/\\/g, "/").trim().toLowerCase();
-  const right = String(rightRel || "").replace(/\\/g, "/").trim().toLowerCase();
-  return Boolean(left && right && left === right);
-}
-
 async function resolveAwnDataIndexFileOnDisk() {
   const canonical = getAwnDataIndexRelPath();
   if (await workspaceRelFileExists(canonical)) {
     return { path: canonical, exists: true };
   }
   const legacy = getAwnDataIndexLegacyRelPath();
-  if (!isSameAwnDataIndexPath(legacy, canonical) && (await workspaceRelFileExists(legacy))) {
+  if (!isSameWorkspaceIndexPath(legacy, canonical) && (await workspaceRelFileExists(legacy))) {
     return { path: legacy, exists: true, legacy: true };
   }
   return { path: canonical, exists: false };
@@ -12578,7 +12573,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   const legacyPath = getAwnDataIndexLegacyRelPath();
   const legacyAbsolute = normalizeWorkspacePath(legacyPath);
   if (
-    !isSameAwnDataIndexPath(legacyPath, indexPath) &&
+    !isSameWorkspaceIndexPath(legacyPath, indexPath) &&
     legacyAbsolute &&
     legacyAbsolute !== indexAbs &&
     (await workspaceRelFileExists(legacyPath))

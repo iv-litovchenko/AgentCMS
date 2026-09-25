@@ -102333,15 +102333,14 @@ function getAwnDataIndexRelPath() {
 async function probeAwnDataIndexExists(agentId = activeAgentId) {
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
   if (!resolvedAgent) return false;
-  for (const relPath of [getAwnDataIndexRelPath(), "awn-databases/INDEX.md"]) {
-    try {
-      const response = await fetch(buildApiUrl("/api/file", { path: relPath }, resolvedAgent));
-      if (response.ok) return true;
-    } catch {
-      // ignore
-    }
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/file", { path: getAwnDataIndexRelPath() }, resolvedAgent)
+    );
+    return response.ok;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 function syncMenuAwnDataIndexRowState() {
