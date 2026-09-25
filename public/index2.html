@@ -39,13 +39,15 @@
       }
 
       .legend {
-        display: grid;
-        grid-template-columns: repeat(11, minmax(0, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         margin-bottom: 12px;
       }
 
       .legend-item {
+        flex: 1 1 140px;
+        max-width: 220px;
         padding: 8px 10px;
         border-radius: 10px;
         border: 1px solid rgba(148, 163, 184, 0.22);
@@ -108,7 +110,7 @@
 
       .panel {
         position: relative;
-        min-height: clamp(480px, 56vw, 620px);
+        min-height: clamp(680px, 82vh, 920px);
         border-radius: 12px;
         border: 1px solid rgba(96, 165, 250, 0.28);
         background: #0b1220;
@@ -152,10 +154,6 @@
       .system-map-diagram {
         position: absolute;
         inset: 34px 10px 12px;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
         min-height: 0;
       }
 
@@ -175,6 +173,112 @@
         stroke-linejoin: round;
       }
 
+      .system-map-link.is-spoke {
+        stroke: rgba(125, 211, 252, 0.55);
+      }
+
+      .system-map-link.is-branch {
+        stroke: rgba(148, 163, 184, 0.38);
+        stroke-width: 1.25;
+      }
+
+      .system-map-radial {
+        position: absolute;
+        inset: 0;
+      }
+
+      .system-map-hub {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 4;
+        transform: translate(-50%, -50%);
+      }
+
+      .system-map-orbit {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+
+      .system-map-spoke {
+        position: absolute;
+        z-index: 3;
+        transform: translate(-50%, -50%);
+      }
+
+      .system-map-spoke-hub {
+        cursor: pointer;
+        padding: 6px 8px;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .system-map-spoke-hub .system-map-node-label {
+        max-width: 76px;
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .system-map-spoke-hub:hover {
+        transform: scale(1.04);
+      }
+
+      .system-map-spoke.is-expanded {
+        z-index: 6;
+      }
+
+      .system-map-spoke.is-expanded .system-map-spoke-hub {
+        box-shadow:
+          0 0 0 2px rgba(250, 204, 21, 0.35),
+          0 10px 24px rgba(2, 6, 23, 0.45);
+      }
+
+      .system-map-spoke-panel {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 5;
+        display: none;
+        width: min(220px, 42vw);
+        max-height: min(320px, 46vh);
+        overflow: auto;
+        padding: 10px 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.94);
+        box-shadow: 0 16px 40px rgba(2, 6, 23, 0.55);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+      }
+
+      .system-map-spoke.is-expanded .system-map-spoke-panel {
+        display: block;
+      }
+
+      .system-map-spoke-caption {
+        margin-bottom: 8px;
+        font-size: 9px;
+        line-height: 1.35;
+        color: #94a3b8;
+        text-align: center;
+      }
+
+      .system-map-spoke-panel .system-map-section {
+        padding: 6px 4px 4px;
+        margin-bottom: 6px;
+      }
+
+      .system-map-spoke-panel .system-map-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .system-map-spoke-panel .system-map-node.is-leaf {
+        padding: 4px 7px;
+      }
+
       .system-map-root,
       .system-map-groups,
       .system-map-branch,
@@ -188,21 +292,6 @@
       .system-map-stack {
         position: relative;
         z-index: 1;
-      }
-
-      .system-map-root {
-        display: flex;
-        justify-content: center;
-        flex: 0 0 auto;
-      }
-
-      .system-map-groups {
-        display: grid;
-        grid-template-columns: repeat(11, minmax(0, 1fr));
-        gap: 10px;
-        flex: 1 1 auto;
-        min-height: 0;
-        align-items: start;
       }
 
       .system-map-branch {
@@ -533,20 +622,12 @@
       }
 
       @media (max-width: 980px) {
-        .legend,
-        .system-map-groups {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
         .panel {
           min-height: clamp(640px, 80vw, 820px);
         }
-      }
 
-      @media (max-width: 560px) {
-        .legend,
-        .system-map-groups {
-          grid-template-columns: 1fr;
+        .system-map-spoke-panel {
+          width: min(200px, 58vw);
         }
       }
     </style>
@@ -923,87 +1004,6 @@
         );
       }
 
-      function getGroupNodes(group) {
-        if (Array.isArray(group.sections)) {
-          return group.sections.flatMap((section) => section.nodes || []);
-        }
-        return group.nodes || [];
-      }
-
-      function buildEdges() {
-        const edges = [];
-        for (const group of GROUPS) {
-          const rootId = `${group.id}-root`;
-          edges.push(["workspace", rootId]);
-
-          let prevId = rootId;
-          const allNodes = getGroupNodes(group);
-
-          for (const entry of allNodes) {
-            if (entry && typeof entry === "object" && entry.type === "row") {
-              const restNodes = allNodes.slice(allNodes.indexOf(entry) + 1);
-              const nextLabel = restNodes.find((item) => typeof item === "string");
-              const nextId = nextLabel ? `${group.id}-${nextLabel}` : `${group.id}-${entry.tail || "Запись"}`;
-              edges.push([prevId, `${group.id}-row`]);
-              for (const item of entry.items || []) {
-                const rowNodeId = `${group.id}-${nodeLabel(item)}`;
-                edges.push([`${group.id}-row`, rowNodeId]);
-                edges.push([rowNodeId, nextId]);
-              }
-              prevId = nextId;
-              continue;
-            }
-
-            if (entry && typeof entry === "object" && entry.type === "group") {
-              const groupId = `${group.id}-${entry.label}`;
-              if (groupId !== prevId) edges.push([prevId, groupId]);
-
-              if (entry.layout === "row") {
-                const rowId = `${group.id}-${entry.label}-row`;
-                const restNodes = allNodes.slice(allNodes.indexOf(entry) + 1);
-                const nextLabel = restNodes.find((item) => typeof item === "string");
-                const nextId = nextLabel ? `${group.id}-${nextLabel}` : groupId;
-                edges.push([groupId, rowId]);
-                for (const item of entry.items || []) {
-                  const itemId = `${group.id}-${nodeLabel(item)}`;
-                  edges.push([rowId, itemId]);
-                  if (nextId !== itemId) edges.push([itemId, nextId]);
-                }
-                prevId = nextId;
-              } else {
-                for (const item of entry.items || []) {
-                  edges.push([groupId, `${group.id}-${nodeLabel(item)}`]);
-                }
-                prevId = groupId;
-              }
-              continue;
-            }
-
-            if (entry && typeof entry === "object" && entry.label && Array.isArray(entry.side)) {
-              const nodeId = `${group.id}-${entry.label}`;
-              if (nodeId !== prevId) edges.push([prevId, nodeId]);
-              for (const sideLabel of entry.side) {
-                edges.push([nodeId, `${group.id}-${sideLabel}`]);
-              }
-              prevId = nodeId;
-              continue;
-            }
-
-            if (entry && typeof entry === "object" && entry.label && !entry.side && !entry.type) {
-              const nodeId = `${group.id}-${nodeLabel(entry)}`;
-              if (nodeId !== prevId) edges.push([prevId, nodeId]);
-              prevId = nodeId;
-              continue;
-            }
-
-            const nodeId = `${group.id}-${entry}`;
-            if (nodeId !== prevId) edges.push([prevId, nodeId]);
-            prevId = nodeId;
-          }
-        }
-        return edges;
-      }
-
       function getAnchor(nodeEl, diagramEl, side = "center") {
         if (!nodeEl || !diagramEl) return null;
         const nodeRect = nodeEl.getBoundingClientRect();
@@ -1023,7 +1023,7 @@
         return { x, y };
       }
 
-      function drawEdge(svg, from, to, straight = false) {
+      function drawEdge(svg, from, to, straight = false, className = "") {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const d = straight
           ? `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`
@@ -1032,8 +1032,37 @@
               return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${from.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
             })();
         path.setAttribute("d", d);
-        path.setAttribute("class", "system-map-link");
+        path.setAttribute("class", `system-map-link${className ? ` ${className}` : ""}`);
         svg.appendChild(path);
+      }
+
+      function layoutRadialSpokes(diagramEl) {
+        const width = diagramEl.clientWidth;
+        const height = diagramEl.clientHeight;
+        if (!width || !height) return;
+
+        const cx = width / 2;
+        const cy = height / 2;
+        const spokes = [...diagramEl.querySelectorAll(".system-map-spoke")];
+        const n = spokes.length;
+        if (!n) return;
+
+        const orbitR = Math.min(cx, cy) * 0.56;
+        const panelOffset = Math.min(140, Math.min(cx, cy) * 0.26);
+
+        spokes.forEach((spoke, i) => {
+          const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+          const x = cx + Math.cos(angle) * orbitR;
+          const y = cy + Math.sin(angle) * orbitR;
+          spoke.style.left = `${x}px`;
+          spoke.style.top = `${y}px`;
+
+          const panel = spoke.querySelector(".system-map-spoke-panel");
+          if (!panel) return;
+          const px = Math.cos(angle) * panelOffset;
+          const py = Math.sin(angle) * panelOffset;
+          panel.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+        });
       }
 
       function syncLinks(diagramEl) {
@@ -1049,50 +1078,99 @@
         svg.setAttribute("height", String(height));
         svg.replaceChildren();
 
-        const nodeById = new Map(
-          [...diagramEl.querySelectorAll(".system-map-node[data-node-id]")].map((node) => [
-            node.dataset.nodeId,
-            node
-          ])
-        );
+        const hub = diagramEl.querySelector('[data-node-id="workspace"]');
+        if (!hub) return;
+        const hubCenter = getAnchor(hub, diagramEl, "center");
+        if (!hubCenter) return;
 
-        for (const rowEl of diagramEl.querySelectorAll(".system-map-row[data-node-id]")) {
-          nodeById.set(rowEl.dataset.nodeId, rowEl);
-        }
+        for (const spoke of diagramEl.querySelectorAll(".system-map-spoke")) {
+          const spokeHub = spoke.querySelector(".system-map-spoke-hub");
+          if (!spokeHub) continue;
+          const spokeCenter = getAnchor(spokeHub, diagramEl, "center");
+          if (!spokeCenter) continue;
+          drawEdge(svg, hubCenter, spokeCenter, true, "is-spoke");
 
-        for (const [fromId, toId] of buildEdges()) {
-          const fromNode = nodeById.get(fromId);
-          const toNode = nodeById.get(toId);
-          if (!fromNode || !toNode) continue;
-          const isSideBranch = Boolean(toNode.closest(".system-map-fork-side"));
-          const from = getAnchor(fromNode, diagramEl, isSideBranch ? "right" : "bottom");
-          const to = getAnchor(toNode, diagramEl, isSideBranch ? "left" : "top");
-          if (!from || !to) continue;
-          drawEdge(svg, from, to, isSideBranch);
+          if (!spoke.classList.contains("is-expanded")) continue;
+          const panel = spoke.querySelector(".system-map-spoke-panel");
+          if (!panel) continue;
+          const panelCenter = getAnchor(panel, diagramEl, "center");
+          if (!panelCenter) continue;
+          drawEdge(svg, spokeCenter, panelCenter, true, "is-branch");
         }
       }
 
-      function createBranch(group) {
-        const branch = document.createElement("div");
-        branch.className = `system-map-branch is-tone-${group.tone}`;
+      function toggleSpoke(spoke, diagramEl) {
+        const willExpand = !spoke.classList.contains("is-expanded");
+        for (const other of diagramEl.querySelectorAll(".system-map-spoke.is-expanded")) {
+          other.classList.remove("is-expanded");
+          other.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "false");
+        }
+        if (willExpand) {
+          spoke.classList.add("is-expanded");
+          spoke.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "true");
+        }
+        layoutRadialSpokes(diagramEl);
+        syncLinks(diagramEl);
+      }
 
-        const head = document.createElement("div");
-        head.className = "system-map-branch-head";
-        head.innerHTML = `<div class="system-map-branch-title">${group.icon} ${group.title}</div><div class="system-map-branch-caption">${group.caption}</div>`;
-        branch.appendChild(head);
+      function bindSpokeInteractions(diagramEl) {
+        for (const spoke of diagramEl.querySelectorAll(".system-map-spoke")) {
+          const hub = spoke.querySelector(".system-map-spoke-hub");
+          if (!hub || hub.dataset.bound === "1") continue;
+          hub.dataset.bound = "1";
+          hub.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleSpoke(spoke, diagramEl);
+          });
+          hub.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleSpoke(spoke, diagramEl);
+            }
+          });
+        }
 
-        const chain = document.createElement("div");
-        chain.className = "system-map-chain";
+        if (diagramEl.dataset.radialBound === "1") return;
+        diagramEl.dataset.radialBound = "1";
+        diagramEl.addEventListener("click", (event) => {
+          if (event.target.closest(".system-map-spoke-hub") || event.target.closest(".system-map-spoke-panel")) {
+            return;
+          }
+          for (const spoke of diagramEl.querySelectorAll(".system-map-spoke.is-expanded")) {
+            spoke.classList.remove("is-expanded");
+            spoke.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "false");
+          }
+          syncLinks(diagramEl);
+        });
+      }
 
-        chain.appendChild(
-          createNode({
-            id: `${group.id}-root`,
-            label: group.title,
-            icon: group.icon,
-            variant: "pillar",
-            tone: group.tone
-          })
-        );
+      function createRadialSpoke(group) {
+        const spoke = document.createElement("div");
+        spoke.className = `system-map-spoke is-tone-${group.tone}`;
+        spoke.dataset.groupId = group.id;
+
+        const hub = createNode({
+          id: `${group.id}-root`,
+          label: group.title,
+          icon: group.icon,
+          variant: "pillar",
+          tone: group.tone
+        });
+        hub.classList.add("system-map-spoke-hub");
+        hub.setAttribute("role", "button");
+        hub.setAttribute("tabindex", "0");
+        hub.setAttribute("aria-expanded", "false");
+        hub.title = `${group.caption} — нажмите, чтобы раскрыть`;
+
+        const panel = document.createElement("div");
+        panel.className = "system-map-spoke-panel";
+        panel.setAttribute("role", "region");
+        panel.setAttribute("aria-label", group.title);
+
+        const caption = document.createElement("div");
+        caption.className = "system-map-spoke-caption";
+        caption.textContent = group.caption;
+        panel.appendChild(caption);
 
         const sections = group.sections || [{ label: "", nodes: group.nodes || [] }];
         for (const section of sections) {
@@ -1112,11 +1190,11 @@
             appendEntry(body, group, entry);
           }
           sectionEl.appendChild(body);
-          chain.appendChild(sectionEl);
+          panel.appendChild(sectionEl);
         }
 
-        branch.appendChild(chain);
-        return branch;
+        spoke.append(hub, panel);
+        return spoke;
       }
 
       function renderLegend() {
@@ -1145,7 +1223,7 @@
 
         const badge = document.createElement("div");
         badge.className = "system-map-badge";
-        badge.textContent = "Элементы системы";
+        badge.textContent = "Граф · клик по ветке";
 
         const diagram = document.createElement("div");
         diagram.className = "system-map-diagram";
@@ -1154,9 +1232,12 @@
         svg.classList.add("system-map-svg");
         svg.setAttribute("aria-hidden", "true");
 
-        const root = document.createElement("div");
-        root.className = "system-map-root";
-        root.appendChild(
+        const radial = document.createElement("div");
+        radial.className = "system-map-radial";
+
+        const hubWrap = document.createElement("div");
+        hubWrap.className = "system-map-hub";
+        hubWrap.appendChild(
           createNode({
             id: "workspace",
             label: "Workspace",
@@ -1166,17 +1247,22 @@
           })
         );
 
-        const groups = document.createElement("div");
-        groups.className = "system-map-groups";
+        const orbit = document.createElement("div");
+        orbit.className = "system-map-orbit";
         for (const group of GROUPS) {
-          groups.appendChild(createBranch(group));
+          orbit.appendChild(createRadialSpoke(group));
         }
 
-        diagram.append(svg, root, groups);
+        radial.append(svg, hubWrap, orbit);
+        diagram.appendChild(radial);
         map.append(badge, diagram);
         mount.appendChild(map);
 
-        const sync = () => syncLinks(diagram);
+        bindSpokeInteractions(diagram);
+        const sync = () => {
+          layoutRadialSpokes(diagram);
+          syncLinks(diagram);
+        };
         requestAnimationFrame(() => requestAnimationFrame(sync));
         new ResizeObserver(sync).observe(diagram);
       }

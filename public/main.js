@@ -86532,7 +86532,7 @@ function getWysiwygProseMirrorRoot() {
 
 function getWysiwygScrollElement() {
   if (shouldUseEditorAutoHeight()) {
-    return workspacePaneNode;
+    return getDocBodyMainEditorScrollTargets()?.scrollElement || workspacePaneNode;
   }
   return (
     editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .toastui-editor-contents") ||
@@ -113095,6 +113095,24 @@ function getOverviewDocSlabChromeHost(docSlabContent) {
   return docBodyMain?.classList.contains("doc-body-main") ? docBodyMain : docSlabContent;
 }
 
+function isDocPropsAsideVisible() {
+  return Boolean(
+    docBodyGridNode?.classList.contains("has-props-aside") &&
+      yamlPanelNode &&
+      !yamlPanelNode.classList.contains("hidden")
+  );
+}
+
+function getDocBodyMainEditorScrollTargets() {
+  if (!isDocPropsAsideVisible() || !shouldUseEditorAutoHeight()) return null;
+  const docSlabContent = getDocSlabContentNode();
+  if (!docSlabContent) return null;
+  return {
+    scrollElement: docSlabContent,
+    hostTarget: getOverviewDocSlabChromeHost(docSlabContent)
+  };
+}
+
 function teardownOverviewDocSlabScrollHost() {
   const docSlabContent = getDocSlabContentNode();
   if (!docSlabContent) return;
@@ -113126,12 +113144,19 @@ function getWorkspaceOverviewScrollTargets() {
   return { scrollElement: overview, hostTarget: overview };
 }
 
-function isOverviewDocSlabScrollChromeHost(hostTarget) {
+function isDocBodyMainScrollChromeHost(hostTarget) {
   if (!hostTarget) return false;
   if (hostTarget.classList.contains("doc-body-main")) {
-    return Boolean(getOverviewNodeInDocSlabContent(hostTarget.querySelector(":scope > .doc-slab-content")));
+    const docSlabContent = hostTarget.querySelector(":scope > .doc-slab-content");
+    if (!docSlabContent) return false;
+    if (getOverviewNodeInDocSlabContent(docSlabContent)) return true;
+    return Boolean(getDocBodyMainEditorScrollTargets());
   }
   return Boolean(hostTarget.classList.contains("doc-slab-content") && getOverviewNodeInDocSlabContent(hostTarget));
+}
+
+function isOverviewDocSlabScrollChromeHost(hostTarget) {
+  return isDocBodyMainScrollChromeHost(hostTarget);
 }
 
 function getWorkspaceScrollContext() {
@@ -113139,6 +113164,9 @@ function getWorkspaceScrollContext() {
 
   const overviewTargets = getWorkspaceOverviewScrollTargets();
   if (overviewTargets) return overviewTargets;
+
+  const docBodyMainEditorTargets = getDocBodyMainEditorScrollTargets();
+  if (docBodyMainEditorTargets) return docBodyMainEditorTargets;
 
   const autoHeightHostTarget = getEditorAutoHeightScrollHostTarget();
   if (autoHeightHostTarget) {

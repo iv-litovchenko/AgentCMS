@@ -932,6 +932,7 @@ body.app-locked {
 .agent-canvas-pane,
 .workspace-pane,
 .workspace-pane .doc-slab-content,
+.workspace-pane .doc-aside-panel-scroll,
 .workspace-pane .node-overview,
 .workspace-pane .workspace-scroll-host,
 .workspace-pane .file-content-preview,
@@ -949,6 +950,7 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar,
 .workspace-pane::-webkit-scrollbar,
 .workspace-pane .doc-slab-content::-webkit-scrollbar,
+.workspace-pane .doc-aside-panel-scroll::-webkit-scrollbar,
 .workspace-pane .node-overview::-webkit-scrollbar,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar,
 .workspace-pane .file-content-preview::-webkit-scrollbar,
@@ -966,6 +968,7 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar-thumb,
 .workspace-pane::-webkit-scrollbar-thumb,
 .workspace-pane .doc-slab-content::-webkit-scrollbar-thumb,
+.workspace-pane .doc-aside-panel-scroll::-webkit-scrollbar-thumb,
 .workspace-pane .node-overview::-webkit-scrollbar-thumb,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar-thumb,
 .workspace-pane .file-content-preview::-webkit-scrollbar-thumb,
@@ -985,6 +988,7 @@ body.app-locked {
 .agent-canvas-pane::-webkit-scrollbar-thumb:hover,
 .workspace-pane::-webkit-scrollbar-thumb:hover,
 .workspace-pane .doc-slab-content::-webkit-scrollbar-thumb:hover,
+.workspace-pane .doc-aside-panel-scroll::-webkit-scrollbar-thumb:hover,
 .workspace-pane .node-overview::-webkit-scrollbar-thumb:hover,
 .workspace-pane .workspace-scroll-host::-webkit-scrollbar-thumb:hover,
 .workspace-pane .file-content-preview::-webkit-scrollbar-thumb:hover,
@@ -28758,6 +28762,12 @@ a.header-tool-btn {
   box-sizing: border-box;
 }
 
+.doc-body-grid.has-props-aside .doc-body-main,
+.doc-body-grid.has-props-aside .doc-props-aside {
+  height: 100%;
+  max-height: 100%;
+}
+
 .doc-body-main {
   display: flex;
   flex-direction: column;
@@ -29412,7 +29422,11 @@ a.header-tool-btn {
 .doc-props-aside .doc-aside-panel-scroll {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   padding: 0 10px 10px;
   width: 100%;
   box-sizing: border-box;
@@ -47047,6 +47061,62 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .app.editor-autoheight:has(#node-overview-block:not(.hidden)) .doc-slab-main {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Editor + правая панель: два независимых скролла вместо прокрутки workspace-pane */
+.app.editor-autoheight:has(#doc-body-grid.has-props-aside) .workspace-pane {
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(#doc-body-grid.has-props-aside) .workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(#doc-body-grid.has-props-aside) .doc-stack {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside,
+.app.editor-autoheight .doc-body-grid.has-props-aside {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .doc-body-main,
+.app.editor-autoheight .doc-body-grid.has-props-aside .doc-body-main {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .doc-props-aside,
+.app.editor-autoheight .doc-body-grid.has-props-aside .doc-props-aside {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .doc-slab-content,
+.app.editor-autoheight .doc-body-grid.has-props-aside .doc-slab-content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .doc-slab-main,
+.app.editor-autoheight .doc-body-grid.has-props-aside .doc-slab-main {
   flex: 0 0 auto;
   min-height: 0;
   overflow: visible;
