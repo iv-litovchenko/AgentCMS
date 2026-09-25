@@ -2337,12 +2337,6 @@ body.is-booting {
   line-height: 1.35;
 }
 
-.launch-note {
-  margin: 6px 0 0;
-  font-size: 0.64rem;
-  color: var(--warn);
-}
-
 .launch-tile-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

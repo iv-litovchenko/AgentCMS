@@ -126,8 +126,7 @@ const APP_PRODUCTS = [
     appBundle: "Agent CMS.app",
     npmRebuild: "npm run cms:pack",
     openActionId: "cms-open",
-    rebuildActionId: "cms-rebuild",
-    needsServer: false
+    rebuildActionId: "cms-rebuild"
   },
   {
     id: "voice",
@@ -139,8 +138,7 @@ const APP_PRODUCTS = [
     appBundle: "Agent Shell.app",
     npmRebuild: "npm run shell:pack",
     openActionId: "voice-open",
-    rebuildActionId: "voice-rebuild",
-    needsServer: true
+    rebuildActionId: "voice-rebuild"
   }
 ];
 

@@ -1040,9 +1040,6 @@ function renderCardPort(accent) {
 }
 
 function launchTile(app, actionsHtml) {
-  const serverNote =
-    app.needsServer && !lastServer?.running ? `<p class="launch-note">нужен сервер</p>` : "";
-
   const icon = app.icon
     ? `<img class="launch-icon" src="../assets/${app.icon}" alt="" width="44" height="44" />`
     : "";
@@ -1057,7 +1054,6 @@ function launchTile(app, actionsHtml) {
             <span class="product-badge" data-accent="${app.accent}">${app.badge}</span>
             <h3>${app.title}</h3>
             <p class="launch-subtitle">${app.subtitle}</p>
-            ${serverNote}
           </div>
         </div>
         <div class="launch-tile-actions">${actionsHtml}</div>
