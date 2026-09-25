@@ -13,3 +13,4 @@ groups:
   - id: clients
     title: "Клиентские сайты"
 assignments:
+  9999: study

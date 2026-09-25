@@ -12564,25 +12564,43 @@ async function writeAgentAwnDataIndex(options = {}) {
   if (!agentRoot) {
     return { error: "Agent not selected", status: 400 };
   }
-  const manifestRel = await resolveWorkspacePageIndexManifestRel();
   const markdown = payload.markdown || (await buildAwnDataIndexMarkdown({ entries: payload.entries }));
-  await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  const indexAbs = path.join(agentRoot, indexPath);
+  const created = !payload.indexFile.exists;
+  await fs.mkdir(path.dirname(indexAbs), { recursive: true });
+  await fs.writeFile(indexAbs, markdown, "utf-8");
   const legacyPath = getAwnDataIndexLegacyRelPath();
   if (legacyPath !== indexPath && (await workspaceRelFileExists(legacyPath))) {
     const legacyAbsolute = normalizeWorkspacePath(legacyPath);
     if (legacyAbsolute) await fs.rm(legacyAbsolute, { force: true }).catch(() => {});
   }
+  const writtenExists = await workspaceRelFileExists(indexPath);
+  if (!writtenExists) {
+    return {
+      error: "Failed to write awn-databases index file",
+      status: 500,
+      path: indexPath,
+      indexFile: { path: indexPath, exists: false }
+    };
+  }
+  queueWorkspaceIndexFileSync(indexPath);
+  await recordWorkspaceActivityAsync({
+    action: created ? "create" : "update",
+    path: indexPath,
+    manifestPath: indexPath,
+    label: path.posix.basename(indexPath)
+  });
   return {
     version: 1,
     model: "awn-databases-index-write",
     hint: "index.md обновлён в awn-databases/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
-    path: payload.path,
+    path: indexPath,
     overwrite,
     written: {
       path: indexPath,
-      created: !payload.indexFile.exists,
-      overwritten: Boolean(payload.indexFile.exists),
+      created,
+      overwritten: !created,
       entryCount: payload.entryCount,
       storeCount: payload.storeCount
     },

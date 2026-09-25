@@ -102463,6 +102463,9 @@ async function openAwnDataIndexOverview(agentId = activeAgentId) {
 
 async function refreshAwnDataIndexOverview(agentId = activeAgentId) {
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    throw new Error("Выберите агента");
+  }
   const response = await fetch(buildApiUrl("/api/agent/awn-databases-index", {}, resolvedAgent), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -109322,7 +109325,6 @@ function createRepositoryCreateTextFieldRow(key, label, value, options = {}) {
   } = options;
   const row = document.createElement("label");
   row.className = `agents-registry-field agents-registry-create-field repository-create-field${className ? ` ${className}` : ""}`;
-  row.dataset.repoField = key;
 
   const title = document.createElement("span");
   title.textContent = label;
@@ -109355,7 +109357,6 @@ function createRepositoryCreateTextFieldRow(key, label, value, options = {}) {
 function createRepositoryCreateCheckboxRow(key, label, checked, { title = "" } = {}) {
   const row = document.createElement("label");
   row.className = "awn-databases-create-checkbox-field create-form-indexing-option repository-create-field";
-  row.dataset.repoField = key;
   if (title) row.title = title;
 
   const input = document.createElement("input");
@@ -109374,7 +109375,6 @@ function createRepositoryCreateCheckboxRow(key, label, checked, { title = "" } =
 function createRepositoryCreateSelectFieldRow(key, label, value, options, { footnote = "" } = {}) {
   const row = document.createElement("label");
   row.className = "agents-registry-field agents-registry-create-field repository-create-field";
-  row.dataset.repoField = key;
 
   const title = document.createElement("span");
   title.textContent = label;
@@ -109509,9 +109509,9 @@ async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) 
         className: "repository-create-field--slug"
       }
     );
-    const slugInput = slugRow.querySelector('[data-repo-field="__slug"]');
-    if (slugInput && slugReadOnly) slugInput.dataset.manual = "1";
     repositoryCreateFieldsNode.appendChild(slugRow);
+    const slugInput = getRepositoryCreateFieldControl("__slug");
+    if (slugInput && slugReadOnly) slugInput.dataset.manual = "1";
 
     for (const key of config.fieldKeys) {
       const fieldDef = mergedFields[key];
@@ -109523,7 +109523,7 @@ async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) 
       );
     }
 
-    const nameInput = repositoryCreateFieldsNode.querySelector('[data-repo-field="awn-name"]');
+    const nameInput = getRepositoryCreateFieldControl("awn-name");
     if (nameInput && slugInput && !slugReadOnly) {
       nameInput.addEventListener("input", () => {
         if (slugInput.dataset.manual === "1") return;
@@ -109545,7 +109545,7 @@ async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) 
 }
 
 function populateRepositoryGroupSelect(groupsCatalog, selectedGroup = "study") {
-  const selectNode = repositoryCreateFieldsNode?.querySelector('[data-repo-field="awn-repository-group"]');
+  const selectNode = getRepositoryCreateFieldControl("awn-repository-group");
   populateRepositoryGroupSelectElement(selectNode, groupsCatalog, selectedGroup);
 }
 
@@ -110445,10 +110445,19 @@ async function openRepositoryManifestFromModal() {
   showToast(`Не удалось открыть ${manifestPath}`, "error");
 }
 
-function readRepositoryCreateFieldValue(key) {
+function getRepositoryCreateFieldControl(key) {
   const root = repositoryCreateFieldsNode;
-  if (!root || !key) return "";
-  const control = root.querySelector(`[data-repo-field="${key}"]`);
+  if (!root || !key) return null;
+  const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(key) : key;
+  return (
+    root.querySelector(`input[data-repo-field="${escaped}"]`) ||
+    root.querySelector(`select[data-repo-field="${escaped}"]`) ||
+    root.querySelector(`textarea[data-repo-field="${escaped}"]`)
+  );
+}
+
+function readRepositoryCreateFieldValue(key) {
+  const control = getRepositoryCreateFieldControl(key);
   if (!control) return "";
   if (control.type === "checkbox") return Boolean(control.checked);
   return String(control.value || "").trim();

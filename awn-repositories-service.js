@@ -725,8 +725,6 @@ async function formatRepositoryIndexMarkdown(agentRoot, repositories) {
   const lines = [
     "# Каталог репозиториев",
     "",
-    "_Исходники проектов workspace. В поиске: эта таблица, manifest.md и readme.md каждого репозитория (регистр readme не важен)._",
-    "",
     formatRepositoryIndexEntriesMarkdown(entries),
     "",
     REPOSITORY_INDEX_IMPORTANCE_LEGEND,
