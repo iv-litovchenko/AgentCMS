@@ -9,6 +9,7 @@
   --layer-map: #22c55e;
   --layer-road: #0ea5e9;
   --layer-me: #a78bfa;
+  --layer-terms: #f59e0b;
   --font: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -55,6 +56,7 @@ header p { margin: 0.15rem 0 0; font-size: 0.8rem; color: var(--muted); }
 .badge.layer-map { background: #14532d; color: #86efac; }
 .badge.layer-road { background: #0c4a6e; color: #7dd3fc; }
 .badge.layer-me { background: #4c1d95; color: #c4b5fd; }
+.badge.layer-terms { background: #422006; color: #fcd34d; }
 .badge.tool { background: #334155; color: #cbd5e1; }
 
 .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
