@@ -28809,11 +28809,54 @@ a.header-tool-btn {
   font-variant-numeric: tabular-nums;
 }
 
+.doc-body-status-bar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.doc-body-status-bar-window-wrap {
+  flex-shrink: 0;
+}
+
+.doc-body-status-bar-window-select,
+.doc-body-status-bar-window-wrap .document-context-meter-window-select {
+  max-width: 56px;
+  min-width: 56px;
+}
+
 .doc-body-status-bar-meta {
   flex-shrink: 0;
-  font-weight: 600;
-  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.doc-body-status-bar-meta--comfort {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.doc-body-status-bar-meta--warn {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.doc-body-status-bar-meta--split {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.doc-body-status-bar-meta--overflow {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .doc-body-main:has(.doc-body-status-bar:not(.hidden)) {
@@ -29287,8 +29330,12 @@ a.header-tool-btn {
   align-items: stretch;
   gap: 8px;
   margin: 0;
-  padding: 10px 10px 8px;
-  background: #fff;
+  padding: 10px 10px 9px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 55%, #eef2f7 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 1px 0 rgba(148, 163, 184, 0.12);
 }
 
 .doc-aside-mini-doc {

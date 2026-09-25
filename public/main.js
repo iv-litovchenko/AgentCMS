@@ -596,6 +596,7 @@ const attachmentSidecarFullEditBtn = document.getElementById("attachment-sidecar
 const docBodyGridNode = document.getElementById("doc-body-grid");
 const docBodyStatusBarNode = document.getElementById("doc-body-status-bar");
 const docBodyStatusStatsNode = document.getElementById("doc-body-status-stats");
+const docBodyStatusWindowWrapNode = document.getElementById("doc-body-status-window-wrap");
 const docBodyStatusMetaNode = document.getElementById("doc-body-status-meta");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const systemFileHintNode = document.getElementById("system-file-hint");
@@ -65427,12 +65428,22 @@ function createDocumentContextMeterWindowSelect(selectedTokens) {
     const next = Number(select.value);
     if (!Number.isFinite(next)) return;
     setDocumentContextMeterWindowTokens(next);
-    document.querySelectorAll(".document-context-meter").forEach((meterEl) => {
-      syncDocumentContextMeter(meterEl, next);
-    });
+    syncAllDocumentContextMeters(next);
   });
   select.addEventListener("click", (event) => event.stopPropagation());
   return select;
+}
+
+function syncAllDocumentContextMeters(windowTokens = getDocumentContextMeterWindowTokens()) {
+  document.querySelectorAll(".document-context-meter").forEach((meterEl) => {
+    syncDocumentContextMeter(meterEl, windowTokens);
+  });
+  document.querySelectorAll(".document-context-meter-window-select").forEach((selectEl) => {
+    if (String(selectEl.value) !== String(windowTokens)) {
+      selectEl.value = String(windowTokens);
+    }
+  });
+  syncDocBodyStatusBar();
 }
 
 function syncDocumentContextMeter(meter, windowTokens = getDocumentContextMeterWindowTokens()) {
@@ -113125,24 +113136,53 @@ function getDocBodyStatusBarSourceText() {
   return String(fileContentInputNode?.value || getListViewRawContent() || "");
 }
 
+function ensureDocBodyStatusBarWindowSelect() {
+  if (!docBodyStatusWindowWrapNode) return null;
+  const existing = docBodyStatusWindowWrapNode.querySelector(".document-context-meter-window-select");
+  if (existing) return existing;
+  const select = createDocumentContextMeterWindowSelect(getDocumentContextMeterWindowTokens());
+  select.classList.add("doc-body-status-bar-window-select");
+  docBodyStatusWindowWrapNode.appendChild(select);
+  return select;
+}
+
 function syncDocBodyStatusBar(scrollMetrics = null) {
   if (!docBodyStatusBarNode || !docBodyStatusStatsNode) return;
   const visible = shouldShowDocBodyStatusBar();
   docBodyStatusBarNode.classList.toggle("hidden", !visible);
   if (!visible) return;
 
-  const stats = analyzeDocumentContextStats(getDocBodyStatusBarSourceText());
+  const windowTokens = getDocumentContextMeterWindowTokens();
+  const stats = analyzeDocumentContextStats(getDocBodyStatusBarSourceText(), windowTokens);
+  const fillPct = Math.round(stats.fillRatio * 100);
+  const windowLabel = formatDocumentContextWindowLabel(stats.windowTokens);
+
+  docBodyStatusBarNode.classList.remove(
+    "doc-body-status-bar--comfort",
+    "doc-body-status-bar--warn",
+    "doc-body-status-bar--split",
+    "doc-body-status-bar--overflow"
+  );
+  docBodyStatusBarNode.classList.add(`doc-body-status-bar--${stats.level}`);
+
   docBodyStatusStatsNode.textContent = [
     `${stats.words.toLocaleString("ru-RU")} слов`,
     `${stats.chars.toLocaleString("ru-RU")} симв.`,
     formatDocumentContextByteSize(stats.bytes),
-    formatDocumentContextTokenEstimate(stats.tokensEstimate)
+    formatDocumentContextTokenEstimate(stats.tokensEstimate),
+    `${fillPct}% окна ${windowLabel}`
   ].join(" · ");
 
+  const windowSelect = ensureDocBodyStatusBarWindowSelect();
+  if (windowSelect && String(windowSelect.value) !== String(windowTokens)) {
+    windowSelect.value = String(windowTokens);
+  }
+
   if (docBodyStatusMetaNode) {
+    docBodyStatusMetaNode.className = `doc-body-status-bar-meta doc-body-status-bar-meta--${stats.level}`;
     const metrics = scrollMetrics || getScrollMetrics(getWorkspaceScrollElement());
     if (metrics.scrollable && metrics.percent > 0) {
-      docBodyStatusMetaNode.textContent = `${metrics.percent}%`;
+      docBodyStatusMetaNode.textContent = `${metrics.percent}% прокр.`;
     } else {
       docBodyStatusMetaNode.textContent = getDocumentContextMeterStatusLabel(stats.level);
     }
