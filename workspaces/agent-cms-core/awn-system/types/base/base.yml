@@ -48,7 +48,7 @@ field-groups:
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
-    description: Категории, теги, приоритет, цвет, владелец
+    description: awn-taxonomy, приоритет, владелец
     collapsed: true
   - id: system
     name: "{A2!} Системные"
@@ -214,10 +214,10 @@ fields:
     sort: 5
 
   # --- taxonomy ---
-  awn-category:
-    type: awn.field.lookup.one
-    source: categories
-    title: "{A2!} Категория"
+  awn-taxonomy:
+    type: awn.field.taxonomy
+    title: "{A2!} Таксономия"
+    description: Теги, категория, цвет и другие справочники из awn-databases/taxonomies/
     placement: aside-body
     group: taxonomy
     sort: 1
@@ -238,23 +238,6 @@ fields:
     placement: aside-body
     group: taxonomy
     sort: 3
-
-  awn-color:
-    type: awn.field.lookup.one
-    source: colors
-    value-kind: color
-    title: "{A2!} Цвет"
-    placement: aside-body
-    group: taxonomy
-    sort: 4
-
-  awn-tags:
-    type: awn.field.lookup.many
-    source: tags
-    title: "{A2!} Теги"
-    placement: aside-body
-    group: taxonomy
-    sort: 5
 
   # --- system ---
   awn-id:

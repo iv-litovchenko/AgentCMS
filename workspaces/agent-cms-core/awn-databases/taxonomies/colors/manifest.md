@@ -31,7 +31,9 @@ awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
 awn-record-hierarchy: false
+awn-taxonomy-key: color
+awn-taxonomy-cardinality: many
 ---
 # Палитра
 
-Справочник цветов для `awn-color`. Данные — `main.csv`.
+Справочник цветов-меток. Ключ в `awn-taxonomy.color`. Данные — `main.csv`.

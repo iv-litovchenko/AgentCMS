@@ -72,7 +72,10 @@ function createStorageIndexService(deps) {
     return fields;
   }
 
-  async function collectRecordsQuick(agentRoot, { reportProgress = false, preserveFieldCatalogMeta = [] } = {}) {
+  async function collectRecordsQuick(
+    agentRoot,
+    { reportProgress = false, preserveFieldCatalogMeta = [], projectRoot = process.cwd() } = {}
+  ) {
     const relFiles = await collectSearchableFiles(agentRoot);
     const eligible = [];
     for (const relPath of relFiles) {
@@ -100,7 +103,7 @@ function createStorageIndexService(deps) {
       } catch {
         continue;
       }
-      const flatFields = extractFrontmatter(content);
+      const flatFields = extractFrontmatter(content, { agentRoot, projectRoot });
       if (!Object.keys(flatFields).length) continue;
       const fields = flatFieldsToQuickRecordFields(flatFields);
       for (const key of Object.keys(fields)) fieldSet.add(key);
@@ -151,7 +154,7 @@ function createStorageIndexService(deps) {
       } catch {
         continue;
       }
-      const flatFields = extractFrontmatter(content);
+      const flatFields = extractFrontmatter(content, { agentRoot, projectRoot });
       if (!Object.keys(flatFields).length) continue;
 
       const schemaCtx = await resolver.resolveMergedFieldsForPath(relPath);

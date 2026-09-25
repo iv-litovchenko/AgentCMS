@@ -71,6 +71,7 @@ function sortPropsEntries(entries, agentRoot = "", projectRoot = process.cwd()) 
 
 function fieldDefToEntryKind(fieldDef, agentRoot = "", projectRoot = process.cwd()) {
   const entry = getFieldType(fieldDef?.type, agentRoot, projectRoot);
+  if (entry?.storage === "taxonomy") return "taxonomy";
   if (entry?.storage) return entry.storage;
   if (entry?.kind && entry.kind !== "field") return entry.kind;
   return "string";
@@ -80,6 +81,7 @@ function fieldDefDefaultValue(fieldDef, agentRoot = "", projectRoot = process.cw
   if (fieldDef?.default !== undefined) return fieldDef.default;
   const kind = fieldDefToEntryKind(fieldDef, agentRoot, projectRoot);
   if (kind === "array") return [];
+  if (kind === "taxonomy") return {};
   if (kind === "bool") return false;
   if (kind === "null") return null;
   return "";

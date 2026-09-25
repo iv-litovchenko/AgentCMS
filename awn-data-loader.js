@@ -2284,6 +2284,13 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
     }
   }
 
+  const taxonomy = schema.taxonomy && typeof schema.taxonomy === "object" ? schema.taxonomy : null;
+  if (taxonomy?.key) overrides["awn-taxonomy-key"] = String(taxonomy.key).trim();
+  if (taxonomy?.cardinality) {
+    overrides["awn-taxonomy-cardinality"] =
+      String(taxonomy.cardinality).trim().toLowerCase() === "many" ? "many" : "one";
+  }
+
   frontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
 
   const manifestBody =
@@ -2634,14 +2641,32 @@ function buildCollectionSchemaContent({
   };
 }
 
-function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
+function inferTaxonomyKeyFromSlug(slug) {
+  const leaf = String(slug || "").split("/").pop() || "";
+  if (leaf === "categories") return "category";
+  if (leaf === "colors") return "color";
+  return leaf;
+}
+
+function inferTaxonomyCardinality(key, slug = "") {
+  const normalized = String(key || slug || "").trim().toLowerCase();
+  if (normalized === "tags" || normalized === "color" || normalized === "colors") return "many";
+  if (normalized === "category" || normalized === "categories") return "one";
+  return "one";
+}
+
+function buildTaxonomyCollectionSchemaContent({ slug, name, description, taxonomyKey, taxonomyCardinality, hierarchy }) {
   const id = slug.replace(/\//g, ".");
   const shortName = name || slug.split("/").pop();
   const desc = String(description || shortName).trim();
+  const key = String(taxonomyKey || inferTaxonomyKeyFromSlug(slug)).trim();
+  const cardinality = String(taxonomyCardinality || inferTaxonomyCardinality(key, slug)).trim().toLowerCase();
   const recordFields = {
-    label: { type: "awn.string", title: "Подпись", required: true },
-    emoji: { type: "awn.string", title: "Эмодзи" },
-    color: { type: "awn.color", title: "Цвет" }
+    "awn-code": { type: "awn.string", title: "Код", required: true },
+    "awn-label": { type: "awn.string", title: "Подпись", required: true },
+    "awn-emoji": { type: "awn.string", title: "Эмодзи" },
+    "awn-color": { type: "awn.color", title: "Цвет" },
+    "awn-sort": { type: "awn.integer", title: "Порядок", default: 0 }
   };
   return {
     schema: {
@@ -2651,18 +2676,23 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
       description: desc,
       extends: ELEMENT_TYPE_RECORD_CSV,
       fieldsInSchemeMod: true,
+      taxonomy: {
+        key,
+        cardinality: cardinality === "many" ? "many" : "one",
+        hierarchy: Boolean(hierarchy)
+      },
       record: {
         storage: "csv",
         file: "main.csv",
         "id-mode": "slug",
-        hierarchy: false,
+        hierarchy: Boolean(hierarchy),
         collectionType: "csv"
       },
       fields: recordFields
     },
     schemeModFields: recordFields,
     schemeModExtends: ELEMENT_TYPE_RECORD_CSV,
-    manifestBody: `# ${shortName}\n\n${desc}`
+    manifestBody: `# ${shortName}\n\n${desc}\n\nКлюч в \`awn-taxonomy.${key}\`. Кардинальность: ${cardinality}.`
   };
 }
 
@@ -3010,7 +3040,14 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
         ? String(options.recordFileTypes || typeDefaults.recordFileTypes || "").trim()
         : "";
     const bundle = isTaxonomy
-      ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
+      ? buildTaxonomyCollectionSchemaContent({
+          slug,
+          name,
+          description,
+          taxonomyKey: options.taxonomyKey,
+          taxonomyCardinality: options.taxonomyCardinality,
+          hierarchy: options.recordHierarchy
+        })
       : buildCollectionSchemaContent({
           slug,
           name,
@@ -4066,6 +4103,8 @@ module.exports = {
   getAwnDataRoot,
   loadAwnDataStores,
   getAwnDataPayload,
+  findAwnDataStore,
+  readStoreMdParts,
   resolveAwnDataReadRoot,
   buildRecordTree,
   normalizeStoreKind,

@@ -176,11 +176,9 @@ const FALLBACK_BASE_FIELD_ORDER = [
   "awn-description",
   "awn-focus",
   "awn-main",
-  "awn-category",
+  "awn-taxonomy",
   "awn-owner",
   "awn-priority",
-  "awn-tags",
-  "awn-color",
   "awn-version",
   "awn-sort"
 ];
@@ -225,7 +223,7 @@ function getBaseFieldOrderForType(typeName, agentRoot = "", projectRoot = proces
   }
   return FALLBACK_BASE_FIELD_ORDER.filter(
     (key) =>
-      !["awn-focus", "awn-main", "awn-category", "awn-owner", "awn-priority", "awn-color", "awn-sort"].includes(key) &&
+      !["awn-focus", "awn-main", "awn-taxonomy", "awn-owner", "awn-priority", "awn-sort"].includes(key) &&
       !key.startsWith("awn-runtime")
   );
 }

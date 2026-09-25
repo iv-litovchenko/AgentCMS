@@ -40,7 +40,7 @@ field-groups:
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
-    description: Категории, теги, приоритет, цвет, владелец
+    description: awn-taxonomy, приоритет, владелец
     collapsed: true
   - id: physical-location
     name: "{A2!} Физическая локация"

@@ -31,7 +31,9 @@ awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
 awn-record-hierarchy: false
+awn-taxonomy-key: category
+awn-taxonomy-cardinality: one
 ---
 # Категории
 
-Справочник категорий для `awn-category`. Данные — `main.csv`.
+Справочник категорий. Ключ в `awn-taxonomy.category`. Данные — `main.csv`.

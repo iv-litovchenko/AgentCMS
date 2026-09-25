@@ -354,6 +354,7 @@ const {
 } = require("./agent-system");
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const { parseYamlScalar, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
+const { getWorkspaceTaxonomiesPayload } = require("./awn-taxonomy-service");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
 const { createExistsApi } = require("./exists-api");
 const { createContentSchemaApi } = require("./content-schema-api");
@@ -22961,6 +22962,8 @@ async function handleApiForAgent(req, res, url) {
         recordStorage: payload?.recordStorage,
         recordHierarchy: payload?.recordHierarchy,
         recordFileTypes: payload?.recordFileTypes,
+        taxonomyKey: payload?.taxonomyKey,
+        taxonomyCardinality: payload?.taxonomyCardinality,
         withSampleRecord: payload?.withSampleRecord,
         indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
       });
@@ -23663,6 +23666,20 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load agent catalogs",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/taxonomies") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = getWorkspaceTaxonomiesPayload(agentRoot, getProjectRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load workspace taxonomies",
         details: String(error.message || error)
       });
     }

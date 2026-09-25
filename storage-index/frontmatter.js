@@ -1,25 +1,53 @@
-/** Extract YAML frontmatter block and parse flat key → string values. */
-function extractFrontmatter(content) {
+const { parseTypeYaml } = require("../awn-yaml-utils");
+const { projectTaxonomyIndexFields, resolveTaxonomyFromFrontmatter } = require("../awn-taxonomy-service");
+
+function extractFrontmatterBlock(content) {
   const text = String(content || "");
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) return {};
-  const fields = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const kv = trimmed.match(/^([A-Za-z0-9_.-]+):\s*(.+)$/);
-    if (!kv) continue;
-    const key = kv[1].trim();
-    let value = kv[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    fields[key] = value;
-  }
-  return fields;
+  return match ? match[1] : "";
 }
 
-module.exports = { extractFrontmatter };
+function flattenFrontmatterValue(value) {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
+function extractFrontmatterParsed(content, options = {}) {
+  const block = extractFrontmatterBlock(content);
+  if (!block.trim()) return {};
+  const parsed = parseTypeYaml(block);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+  const agentRoot = options.agentRoot || "";
+  const projectRoot = options.projectRoot || process.cwd();
+  const flat = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    flat[key] = flattenFrontmatterValue(value);
+  }
+
+  const taxonomy = resolveTaxonomyFromFrontmatter(parsed, agentRoot, projectRoot);
+  if (Object.keys(taxonomy).length) {
+    flat["awn-taxonomy"] = flattenFrontmatterValue(taxonomy);
+    Object.assign(flat, projectTaxonomyIndexFields(taxonomy));
+  }
+
+  return flat;
+}
+
+/** Extract YAML frontmatter block and parse flat key → string values. */
+function extractFrontmatter(content, options = {}) {
+  return extractFrontmatterParsed(content, options);
+}
+
+module.exports = { extractFrontmatter, extractFrontmatterParsed, extractFrontmatterBlock };

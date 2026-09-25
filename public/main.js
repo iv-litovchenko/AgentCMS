@@ -7732,13 +7732,33 @@ function getFocusItemType(item) {
   return String(item?.awnType || item?.awnProps?.["awn-type"] || "").trim();
 }
 
+function getFocusItemTaxonomyRaw(item, taxonomyKey) {
+  const taxonomy = item?.awnProps?.["awn-taxonomy"];
+  if (taxonomy && typeof taxonomy === "object" && !Array.isArray(taxonomy)) {
+    const value = taxonomy[taxonomyKey];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  const projected = item?.awnProps?.[`awn-taxonomy-${taxonomyKey}`];
+  if (projected !== undefined && projected !== null && projected !== "") return projected;
+  return null;
+}
+
 function getFocusItemTags(item) {
-  const raw = item?.awnProps?.["awn-tags"];
+  const fromTaxonomy = getFocusItemTaxonomyRaw(item, "tags");
+  const raw = fromTaxonomy ?? item?.awnProps?.["awn-tags"];
   if (Array.isArray(raw)) return raw.map((tag) => String(tag).trim()).filter(Boolean);
   return String(raw || "")
     .split(",")
     .map((tag) => tag.trim().replace(/^#+/, ""))
     .filter(Boolean);
+}
+
+function getFocusItemCategory(item) {
+  const fromTaxonomy = getFocusItemTaxonomyRaw(item, "category");
+  if (fromTaxonomy !== null) {
+    return String(Array.isArray(fromTaxonomy) ? fromTaxonomy[0] : fromTaxonomy).trim();
+  }
+  return getFocusItemCatalogRaw(item, "awn-category");
 }
 
 function getFocusItemCatalogRaw(item, key) {
@@ -7753,7 +7773,7 @@ function getLandingFocusSearchHaystack(item) {
     item?.nodePath,
     getFocusItemType(item),
     getFocusItemStatus(item),
-    getFocusItemCatalogRaw(item, "awn-category"),
+    getFocusItemCategory(item),
     getFocusItemCatalogRaw(item, "awn-owner"),
     ...getFocusItemTags(item)
   ]
@@ -7776,7 +7796,7 @@ function filterLandingFocusItems(items) {
     if (queryFilter && !getLandingFocusSearchHaystack(item).includes(queryFilter)) return false;
     if (statusFilter && getFocusItemStatus(item) !== statusFilter) return false;
     if (typeFilterSet && !typeFilterSet.has(getFocusItemType(item))) return false;
-    if (categoryFilter && getFocusItemCatalogRaw(item, "awn-category") !== categoryFilter) return false;
+    if (categoryFilter && getFocusItemCategory(item) !== categoryFilter) return false;
     if (ownerFilter && getFocusItemCatalogRaw(item, "awn-owner") !== ownerFilter) return false;
     if (priorityFilter && getFocusItemCatalogRaw(item, "awn-priority") !== priorityFilter) return false;
     if (tagFilter && !getFocusItemTags(item).includes(tagFilter)) return false;
@@ -42938,6 +42958,106 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
   return agentCatalogsLoadPromise;
 }
 
+let agentTaxonomiesCache = null;
+let agentTaxonomiesLoadPromise = null;
+
+async function loadAgentTaxonomies(agentId = activeAgentId) {
+  if (!agentId) {
+    agentTaxonomiesCache = null;
+    agentTaxonomiesLoadPromise = null;
+    return null;
+  }
+  if (agentTaxonomiesLoadPromise) return agentTaxonomiesLoadPromise;
+
+  agentTaxonomiesLoadPromise = (async () => {
+    try {
+      const response = await fetch(buildApiUrl("/api/agent/taxonomies", {}, agentId));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      agentTaxonomiesCache = await response.json();
+      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
+      return agentTaxonomiesCache;
+    } catch {
+      agentTaxonomiesCache = null;
+      return null;
+    } finally {
+      agentTaxonomiesLoadPromise = null;
+    }
+  })();
+
+  return agentTaxonomiesLoadPromise;
+}
+
+function getAgentTaxonomyDefinitions() {
+  return agentTaxonomiesCache?.taxonomies || [];
+}
+
+function getAgentTaxonomyDefinition(key) {
+  const normalized = String(key || "").trim();
+  return getAgentTaxonomyDefinitions().find((item) => item.key === normalized) || null;
+}
+
+function normalizeTaxonomyEntryValue(value, cardinality = "one") {
+  if (cardinality === "many") {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item).trim().replace(/^#+/, "")).filter(Boolean);
+    }
+    const text = String(value ?? "").trim();
+    if (!text) return [];
+    return text
+      .split(",")
+      .map((item) => item.trim().replace(/^#+/, ""))
+      .filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    const first = value.map((item) => String(item).trim()).find(Boolean);
+    return first || "";
+  }
+  return String(value ?? "").trim();
+}
+
+function parsePropsYamlTaxonomyBlock(lines, startIndex) {
+  const value = {};
+  let index = startIndex;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim() || line.trim().startsWith("#")) {
+      index += 1;
+      continue;
+    }
+    if (!/^ {2}\S/.test(line)) break;
+    const childMatch = line.match(/^ {2}([^:]+):\s*(.*)$/);
+    if (!childMatch) break;
+    const childKey = normalizePropsKey(childMatch[1].trim());
+    const childRest = childMatch[2];
+    if (childRest === "") {
+      const items = [];
+      index += 1;
+      while (index < lines.length && /^ {4}-\s?/.test(lines[index])) {
+        items.push(
+          lines[index]
+            .replace(/^ {4}-\s?/, "")
+            .trim()
+            .replace(/^["']|["']$/g, "")
+        );
+        index += 1;
+      }
+      value[childKey] = items;
+      continue;
+    }
+    if (childRest.startsWith("[") && childRest.endsWith("]")) {
+      const inner = childRest.slice(1, -1).trim();
+      value[childKey] = inner
+        ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
+        : [];
+      index += 1;
+      continue;
+    }
+    value[childKey] = String(parseYamlScalarValue(childRest) ?? "");
+    index += 1;
+  }
+  return { value, nextIndex: index };
+}
+
 const PROPS_FIELD_CATALOG_PRESET = {
   "awn-category": "categories",
   "awn-tags": "tags",
@@ -50733,6 +50853,10 @@ function isLookupOneFieldTypeId(typeId) {
   return fieldTypeIs(typeId, "lookup.one");
 }
 
+function isTaxonomyFieldTypeId(typeId) {
+  return fieldTypeIs(typeId, "taxonomy");
+}
+
 function isLookupManyFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isLookupManyFieldTypeId === "function") return api.isLookupManyFieldTypeId(typeId);
@@ -51761,8 +51885,37 @@ function migrateRuntimeLoadPropEntries(entries) {
   return filtered;
 }
 
+function migrateLegacyTaxonomyPropsEntries(entries) {
+  const list = [...(entries || [])];
+  const byKey = new Map(list.map((entry) => [normalizePropsKey(entry?.key), entry]));
+  if (byKey.has("awn-taxonomy")) return list;
+
+  const taxonomyValue = {};
+  const legacyTags = byKey.get("awn-tags");
+  if (legacyTags) {
+    taxonomyValue.tags = normalizeTaxonomyEntryValue(legacyTags.value, "many");
+  }
+  const legacyCategory = byKey.get("awn-category");
+  if (legacyCategory) {
+    taxonomyValue.category = normalizeTaxonomyEntryValue(legacyCategory.value, "one");
+  }
+  const legacyColor = byKey.get("awn-color");
+  if (legacyColor) {
+    taxonomyValue.color = normalizeTaxonomyEntryValue(legacyColor.value, "many");
+  }
+  if (!Object.keys(taxonomyValue).length) return list;
+
+  const filtered = list.filter(
+    (entry) => !["awn-tags", "awn-category", "awn-color"].includes(normalizePropsKey(entry?.key))
+  );
+  filtered.push({ key: "awn-taxonomy", kind: "taxonomy", value: taxonomyValue });
+  return filtered;
+}
+
 function absorbPropsYamlEntries(entries) {
-  const normalized = migrateRuntimeLoadPropEntries(normalizePropsEntries(entries));
+  const normalized = migrateRuntimeLoadPropEntries(
+    migrateLegacyTaxonomyPropsEntries(normalizePropsEntries(entries))
+  );
   const hidden = [];
   const visible = [];
   for (const entry of normalized) {
@@ -51892,6 +52045,13 @@ function parsePropsYaml(text) {
     const key = normalizePropsKey(match[2].trim());
     const rest = match[3];
 
+    if (key === "awn-taxonomy" && rest === "") {
+      const parsed = parsePropsYamlTaxonomyBlock(lines, index + 1);
+      entries.push({ key, kind: "taxonomy", value: parsed.value });
+      index = parsed.nextIndex;
+      continue;
+    }
+
     if (rest === "|" || rest === ">") {
       const folded = rest === ">";
       const blockLines = [];
@@ -52003,6 +52163,35 @@ function stringifyPropsYaml(entries) {
       lines.push(`${entry.key}: null`);
       continue;
     }
+    if (entry.kind === "taxonomy") {
+      const obj =
+        entry.value && typeof entry.value === "object" && !Array.isArray(entry.value) ? entry.value : {};
+      const keys = Object.keys(obj);
+      if (!keys.length) {
+        lines.push(`${entry.key}: {}`);
+        continue;
+      }
+      lines.push(`${entry.key}:`);
+      for (const childKey of keys) {
+        const childValue = obj[childKey];
+        if (Array.isArray(childValue)) {
+          const items = childValue.map((item) => String(item).trim()).filter(Boolean);
+          if (!items.length) continue;
+          if (items.length === 1) {
+            lines.push(`  ${childKey}: ${formatYamlScalar(items[0])}`);
+          } else {
+            lines.push(`  ${childKey}:`);
+            for (const item of items) {
+              lines.push(`    - ${formatYamlScalar(item)}`);
+            }
+          }
+          continue;
+        }
+        const scalar = String(childValue ?? "").trim();
+        if (scalar) lines.push(`  ${childKey}: ${formatYamlScalar(scalar)}`);
+      }
+      continue;
+    }
     lines.push(`${entry.key}: ${formatYamlScalar(entry.value ?? "")}`);
   }
   return lines.join("\n");
@@ -52058,6 +52247,22 @@ function applyFormValueToEntry(entry, rawValue) {
   }
   if (entry.kind === "null") {
     return { ...entry, value: null };
+  }
+  if (entry.kind === "taxonomy") {
+    if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      return { ...entry, kind: "taxonomy", value: rawValue };
+    }
+    if (!trimmed) return { ...entry, kind: "taxonomy", value: {} };
+    try {
+      const parsed = JSON.parse(trimmed);
+      return {
+        ...entry,
+        kind: "taxonomy",
+        value: parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
+      };
+    } catch {
+      return { ...entry, kind: "taxonomy", value: entry.value ?? {} };
+    }
   }
   return { ...entry, kind: "string", value: rawValue };
 }
@@ -54631,6 +54836,7 @@ const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "coordinates": "coordinates",
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
+  taxonomy: "taxonomy",
   "materials": "materials",
   "array": "array",
   "number.stars": "stars",
@@ -54736,6 +54942,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
+  if (isTaxonomyFieldTypeId(typeId)) return "taxonomy";
   if (isLookupOneFieldTypeId(typeId)) return "lookup-one";
   if (isLookupManyFieldTypeId(typeId)) return "lookup-many";
   if (isChoiceOneFieldTypeId(typeId)) {
@@ -55249,6 +55456,12 @@ function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
   }
   if (kind === "runtime-schedule-type") {
     return { ...entry, kind: "bool", value: trimmed === "recurring" };
+  }
+  if (kind === "taxonomy") {
+    if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      return { ...entry, kind: "taxonomy", value: rawValue };
+    }
+    return { ...entry, kind: "taxonomy", value: {} };
   }
   return applyFormValueToEntry(entry, rawValue);
 }
@@ -55796,6 +56009,125 @@ const LOOKUP_SOURCE_LABELS = {
   colors: "Цвета",
   tags: "Теги"
 };
+
+function readPropsFormTaxonomyValue(wrap) {
+  const value = {};
+  for (const section of wrap.querySelectorAll("[data-taxonomy-key]")) {
+    const key = String(section.dataset.taxonomyKey || "").trim();
+    if (!key) continue;
+    const cardinality = String(section.dataset.taxonomyCardinality || "one").trim();
+    if (cardinality === "many") {
+      const selected = [...section.querySelectorAll('input[type="checkbox"]:checked')]
+        .map((input) => input.value)
+        .filter(Boolean);
+      const extra = section.querySelector(".props-form-tags-extra");
+      const extraTags = String(extra?.value || "")
+        .split(",")
+        .map((item) => item.trim().replace(/^#+/, ""))
+        .filter(Boolean);
+      const merged = [...new Set([...selected, ...extraTags])];
+      if (merged.length) value[key] = merged;
+      continue;
+    }
+    const select = section.querySelector("select");
+    const selected = String(select?.value || "").trim();
+    if (selected) value[key] = selected;
+  }
+  return value;
+}
+
+function createPropsFormTaxonomyManySection(definition, selectedValues, { locked = false } = {}) {
+  const section = document.createElement("div");
+  section.className = "props-form-taxonomy-section";
+  section.dataset.taxonomyKey = definition.key;
+  section.dataset.taxonomyCardinality = "many";
+
+  const title = document.createElement("div");
+  title.className = "props-form-catalog-group-title";
+  title.textContent = definition.name || definition.key;
+  section.appendChild(title);
+
+  const selected = new Set(normalizeTaxonomyEntryValue(selectedValues, "many"));
+  const items = definition.items || [];
+  const list = document.createElement("div");
+  list.className = "props-form-tags-list";
+  if (!items.length) {
+    list.appendChild(createPropsFormCatalogMissingNote("Справочник пуст"));
+  } else {
+    appendPropsFormCatalogTagOptions(list, items, selected, locked);
+  }
+  section.appendChild(list);
+
+  const knownIds = new Set(items.map((item) => item.id));
+  const extraTags = [...selected].filter((id) => !knownIds.has(id));
+  const extraWrap = document.createElement("div");
+  extraWrap.className = "props-form-tags-extra-wrap";
+  const extraLabel = document.createElement("label");
+  extraLabel.className = "props-form-tags-extra-label";
+  extraLabel.textContent = extraTags.length ? "Другие значения" : "Свои значения (через запятую)";
+  const extraInput = document.createElement("input");
+  extraInput.type = "text";
+  extraInput.className = "props-form-value props-form-tags-extra";
+  extraInput.placeholder = "custom, local";
+  extraInput.value = extraTags.join(", ");
+  extraInput.disabled = locked;
+  extraLabel.appendChild(extraInput);
+  extraWrap.appendChild(extraLabel);
+  section.appendChild(extraWrap);
+  return section;
+}
+
+function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked = false } = {}) {
+  const section = document.createElement("div");
+  section.className = "props-form-taxonomy-section";
+  section.dataset.taxonomyKey = definition.key;
+  section.dataset.taxonomyCardinality = "one";
+
+  const title = document.createElement("div");
+  title.className = "props-form-catalog-group-title";
+  title.textContent = definition.name || definition.key;
+  section.appendChild(title);
+
+  const items = definition.items || [];
+  const select = document.createElement("select");
+  select.className = "props-form-value";
+  const current = normalizeTaxonomyEntryValue(selectedValue, "one");
+  appendPropsFormSelectOption(select, "", "— не задано —", { selected: !current });
+  for (const item of items) {
+    appendPropsFormSelectOption(select, item.id, item.label || item.id, { selected: item.id === current });
+  }
+  bindPropsFormLockedState(select, locked);
+  section.appendChild(select);
+  return section;
+}
+
+function createPropsFormTaxonomyControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("taxonomy");
+  const definitions = getAgentTaxonomyDefinitions();
+  const current =
+    entry?.kind === "taxonomy" && entry.value && typeof entry.value === "object" && !Array.isArray(entry.value)
+      ? entry.value
+      : {};
+
+  if (!definitions.length) {
+    wrap.appendChild(
+      createPropsFormCatalogMissingNote(
+        "Справочники таксономий не найдены — создайте их в awn-databases/taxonomies/"
+      )
+    );
+    return wrap;
+  }
+
+  for (const definition of definitions) {
+    const childValue = current[definition.key];
+    if (definition.cardinality === "many") {
+      wrap.appendChild(createPropsFormTaxonomyManySection(definition, childValue, { locked }));
+    } else {
+      wrap.appendChild(createPropsFormTaxonomyOneSection(definition, childValue, { locked }));
+    }
+  }
+  return wrap;
+}
 
 function createPropsFormLookupManyControl(entry, meta, { locked = false, compact = false } = {}) {
   const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
@@ -58930,6 +59262,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   const widget = resolvePropsFieldWidget(entry.key, fieldDef);
   const compact = editorCompact;
 
+  if (widget === "taxonomy") {
+    return createPropsFormTaxonomyControl(entry, meta, { locked });
+  }
   if (isLookupOneWidget(widget)) {
     return createPropsFormLookupOneControl(entry, meta, { locked });
   }
@@ -59071,6 +59406,9 @@ function readPropsFormValueFromControl(valueWrap) {
   if (widget === "runtime-schedule-type") {
     const select = valueWrap.querySelector("select");
     return select?.value ?? "";
+  }
+  if (widget === "taxonomy") {
+    return readPropsFormTaxonomyValue(valueWrap);
   }
   if (isLookupManyWidget(widget)) {
     const fromCheckboxes = [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
@@ -59227,6 +59565,9 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   const needsLookup = isLookupFieldWidget(fieldWidget);
   if (needsLookup && !agentCatalogsCache && activeAgentId) {
     loadAgentCatalogs(activeAgentId);
+  }
+  if (fieldWidget === "taxonomy" && !agentTaxonomiesCache && activeAgentId) {
+    loadAgentTaxonomies(activeAgentId);
   }
 
   return row;
@@ -59520,6 +59861,7 @@ async function applyStorageFileContentUi(rawContent, { mode = "external" } = {})
   await Promise.all([
     loadAwnTypes(activeAgentId).catch(() => null),
     loadAgentCatalogs(activeAgentId).catch(() => null),
+    loadAgentTaxonomies(activeAgentId).catch(() => null),
     ensureTopicSchemaForActiveContext()
   ]);
   const { frontmatter, body } = splitFrontmatter(rawContent);
@@ -114528,7 +114870,8 @@ async function init() {
       setMenuLoading(false);
       void Promise.all([
         loadAwnTypes(activeAgentId),
-        loadAgentCatalogs(activeAgentId)
+        loadAgentCatalogs(activeAgentId),
+        loadAgentTaxonomies(activeAgentId)
       ]);
     }
 

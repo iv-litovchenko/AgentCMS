@@ -31,7 +31,9 @@ awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
 awn-record-hierarchy: false
+awn-taxonomy-key: tags
+awn-taxonomy-cardinality: many
 ---
 # Теги
 
-Список тегов workspace — как `#tag` в Obsidian. Поле темы: `awn-tags`. Данные — `main.csv`.
+Список тегов workspace — как `#tag` в Obsidian. Ключ в `awn-taxonomy.tags`. Данные — `main.csv`.

@@ -28,13 +28,23 @@ awn-description: "Группировка enum-справочников плат�
 ---
 # Таксономии (справочники)
 
-Группировка enum-справочников платформы. Каждый **поднакопитель** — коллекция на `main.csv` в `awn-databases/taxonomies/`.
+Встроенная группа CSV-справочников workspace. Каждый поднакопитель — коллекция `main.csv` в `awn-databases/taxonomies/`.
 
-| Справочник | Поле |
-|------------|------|
-| [tags/](./tags/manifest.md) | `awn-tags` |
-| [categories/](./categories/manifest.md) | `awn-category` |
-| [priorities/](./priorities/manifest.md) | `awn-priority` |
-| [colors/](./colors/manifest.md) | `awn-color` |
+Значения подключаются к записям через единое поле `awn-taxonomy`:
 
-`awn-status` — enum в `awn-system/types/base/base.yml`, не CSV-справочник.
+```yaml
+awn-taxonomy:
+  tags: [demo, idea]
+  category: work
+  color: [blue, slate]
+```
+
+| Справочник | Ключ | Кардинальность |
+|------------|------|----------------|
+| [tags/](./tags/manifest.md) | `tags` | many |
+| [categories/](./categories/manifest.md) | `category` | one |
+| [colors/](./colors/manifest.md) | `color` | many |
+
+Метаданные словаря: `awn-taxonomy-key`, `awn-taxonomy-cardinality` (`one`/`many`), `awn-record-hierarchy`.
+
+`awn-priority` и `awn-status` — отдельные поля (не часть `awn-taxonomy`).

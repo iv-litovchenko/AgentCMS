@@ -46369,6 +46369,18 @@ button.node-navigation-memory-title:focus-visible {
   background: #fff;
 }
 
+.props-form-taxonomy-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.25));
+}
+
+.props-form-taxonomy-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .doc-props-aside .props-form-catalog-group {
   display: flex;
   flex-direction: column;
