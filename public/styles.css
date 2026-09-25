@@ -46382,9 +46382,9 @@ button.node-navigation-memory-title:focus-visible {
 .awn-databases-create-taxonomy-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 2px 0 6px;
-  padding: 10px 11px;
+  gap: 5px;
+  margin: 0 0 4px;
+  padding: 7px 9px;
   border-radius: 8px;
   border: 1px solid rgba(124, 58, 237, 0.22);
   background: rgba(245, 243, 255, 0.65);
@@ -46392,6 +46392,18 @@ button.node-navigation-memory-title:focus-visible {
 
 .awn-databases-create-taxonomy-wrap.hidden {
   display: none;
+}
+
+.awn-databases-create-taxonomy-wrap .agents-registry-create-field {
+  margin-bottom: 0;
+}
+
+.awn-databases-create-taxonomy-wrap .awn-databases-create-checkbox-field {
+  margin-top: 0;
+}
+
+.awn-databases-modal-card .slug-input-row .slug-unlink-btn {
+  z-index: 2;
 }
 
 .awn-databases-create-group-presets-wrap {

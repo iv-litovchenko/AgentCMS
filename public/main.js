@@ -104584,7 +104584,13 @@ function syncAwnDataCreateSlugFromName() {
 
 function applyAwnDataCreateSlugLinkedUi() {
   if (!awnDataCreateSlugInputNode || !awnDataCreateSlugUnlinkBtn) return;
+  if (awnDataCreateSlugLinked) {
+    awnDataCreateSlugInputNode.setAttribute("readonly", "");
+  } else {
+    awnDataCreateSlugInputNode.removeAttribute("readonly");
+  }
   awnDataCreateSlugInputNode.readOnly = awnDataCreateSlugLinked;
+  awnDataCreateSlugInputNode.classList.toggle("slug-input--readonly", awnDataCreateSlugLinked);
   awnDataCreateSlugUnlinkBtn.classList.toggle("is-linked", awnDataCreateSlugLinked);
   awnDataCreateSlugUnlinkBtn.textContent = awnDataCreateSlugLinked ? "✎" : "↩";
   awnDataCreateSlugUnlinkBtn.title = awnDataCreateSlugLinked
@@ -112894,8 +112900,17 @@ function setupAwnDataStoresUi() {
       awnDataCreateTaxonomyCardinalityInputNode.value = inferAwnTaxonomyCardinalityFromKey(key);
     }
   });
-  awnDataCreateSlugUnlinkBtn?.addEventListener("click", () => {
-    setAwnDataCreateSlugLinked(!awnDataCreateSlugLinked);
+  awnDataCreateSlugUnlinkBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const nextLinked = !awnDataCreateSlugLinked;
+    setAwnDataCreateSlugLinked(nextLinked);
+    if (!nextLinked) {
+      window.requestAnimationFrame(() => {
+        awnDataCreateSlugInputNode?.focus();
+        awnDataCreateSlugInputNode?.select();
+      });
+    }
   });
 
   awnDataCreateModalNode?.addEventListener("click", (event) => {
