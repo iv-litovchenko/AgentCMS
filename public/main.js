@@ -128,6 +128,7 @@ const menuRepositoriesIndexRow = document.getElementById("menu-repositories-inde
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
 const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
 const REPOSITORY_INDEX_REL = "awn-repositories/index.md";
+const REPOSITORY_STATS_THEME_STORAGE_KEY = "agentcms.repositoryStatsTheme.v1";
 const repositoryGroupsModalNode = document.getElementById("repository-groups-modal");
 const repositoryGroupsListNode = document.getElementById("repository-groups-list");
 const repositoryGroupsAddBtn = document.getElementById("repository-groups-add-btn");
@@ -2552,7 +2553,19 @@ async function applyChpuResolvedRoute(resolved) {
     }
     if (isRepositoryWorkspaceRel(topicPath)) {
       hideHomeView();
-      await openRepositoryWorkspacePath(topicPath, { skipRouteSync: true });
+      const manifestPath = String(
+        resolved.topicManifestPath || `${topicPath.replace(/\/$/, "")}/manifest.md`
+      ).replace(/\\/g, "/");
+      const entry =
+        resolveRepositoryEntryFromWorkspaceRel(manifestPath) ||
+        resolveRepositoryEntryFromWorkspaceRel(topicPath) || {
+          slug: topicPath.split("/").filter(Boolean).pop() || "",
+          folderPath: topicPath,
+          manifestPath,
+          name: topicPath.split("/").filter(Boolean).pop() || topicPath,
+          registered: true
+        };
+      await openRepositoryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
       return;
     }
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
@@ -2600,6 +2613,10 @@ async function applyChpuResolvedRoute(resolved) {
     }
     if (isNodeManifestPath(fileRel) || isTopicManifestPath(fileRel)) {
       const label = getLabelFromPath(fileRel);
+      if (isRepositoryWorkspaceRel(fileRel)) {
+        await openRepositoryWorkspacePath(fileRel, { skipRouteSync: true });
+        return;
+      }
       if (uiViews.includes("edit")) {
         await selectNodeManifest(label, fileRel, "description", { skipRouteSync: true });
       } else {
@@ -2896,6 +2913,13 @@ function getChpuWorkspacePathFromState() {
       slotPath = appendChpuMediaFilterToPath(slotPath);
       return suffix ? appendChpuViewToWorkspacePath(slotPath, suffix) : slotPath;
     }
+  }
+
+  if (isRepositoryWorkspacePath(activePath)) {
+    if (activeContentMode === "description") {
+      return appendChpuViewToWorkspacePath(topicRoute, "edit");
+    }
+    return topicRoute;
   }
 
   const uiView = contentModeToChpuUiView(activeContentMode);
@@ -4664,6 +4688,14 @@ function isRepositoryWorkspaceRel(workspaceRel) {
   return /^awn-repositories(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
 
+function isRepositoryIndexRel(path = "") {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return /^awn-repositories\/index\.md$/i.test(normalized);
+}
+
 function isRepositoryManifestPath(path = getResolvedNodePath(activePath)) {
   const normalized = String(path || "")
     .replace(/\\/g, "/")
@@ -4677,7 +4709,20 @@ function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  return /^awn-repositories\/[^/]+$/i.test(normalized);
+  if (isRepositoryIndexRel(normalized)) return false;
+  return /^awn-repositories\/[^/]+$/i.test(normalized) && !/\.md$/i.test(normalized);
+}
+
+function isRepositoryTypeLabel(typeLabel) {
+  return normalizeAwnTypeName(typeLabel) === normalizeAwnTypeName("awn.repository");
+}
+
+function isRepositoryPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
+  const resolved = getResolvedNodePath(nodePath);
+  if (isRepositoryWorkspacePath(resolved)) return true;
+  if (getResolvedNodePath(activePath) !== resolved) return false;
+  const propsEntries = Array.isArray(entries) ? entries : resolveNodeOverviewPropsEntries();
+  return isRepositoryTypeLabel(getPropsEntryValueByKey(propsEntries, "awn-type"));
 }
 
 function isRepositoryWorkspacePath(path = getResolvedNodePath(activePath)) {
@@ -4700,6 +4745,7 @@ function getRepositoryFolderPathFromWorkspacePath(path = getResolvedNodePath(act
 
 function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
   const normalized = normalizeLinkFilePath(workspaceRel);
+  if (isRepositoryIndexRel(normalized)) return null;
   const slugMatch = normalized.match(/^awn-repositories\/([^/]+)(?:\/manifest\.md)?$/i);
   if (!slugMatch) return null;
   const slug = slugMatch[1];
@@ -4714,13 +4760,12 @@ function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
     (entry) => String(entry.slug || "").toLowerCase() === slug.toLowerCase()
   );
   if (unregisteredRepo) return { ...unregisteredRepo, registered: false };
-  const isManifestPath = /\/manifest\.md$/i.test(normalized);
   return {
     slug,
     folderPath,
     manifestPath,
     name: slug,
-    registered: isManifestPath
+    registered: true
   };
 }
 
@@ -4734,7 +4779,6 @@ async function openRepositoryWorkspaceEntry(entry, options = {}) {
   );
   const slug = String(entry.slug || folderPath.split("/").pop() || "").trim();
   const label = String(entry.name || slug || "Репозиторий").trim();
-  let registered = entry.registered !== false;
 
   hideHomeView();
   clearActiveSystemFile();
@@ -4749,7 +4793,7 @@ async function openRepositoryWorkspaceEntry(entry, options = {}) {
   clearMediaSidecarEditor();
   resetPropsLibrariesCache();
 
-  activePath = registered ? manifestPath : folderPath;
+  activePath = manifestPath;
   activeLabel = label;
   hideLiveFileUpdateBanner();
   hideLiveFileDiffPanel();
@@ -4758,7 +4802,7 @@ async function openRepositoryWorkspaceEntry(entry, options = {}) {
   liveSyncMtimeBaselineReady = false;
   liveSyncMtimeByPath = new Map();
 
-  applyContentModeState(NODE_OVERVIEW_MODE, { skipWorkspaceUi: false });
+  applyContentModeState(NODE_NAVIGATION_MODE, { skipWorkspaceUi: false });
   updateActiveButton();
   titleInputNode.value = label;
 
@@ -4766,30 +4810,28 @@ async function openRepositoryWorkspaceEntry(entry, options = {}) {
   propsFormEntries = [];
   navigationManifestCachedPath = null;
 
-  if (registered) {
-    showContentLoading({ variant: "default", message: "Загрузка…" });
-    try {
-      const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }));
-      if (response.ok) {
-        const data = await response.json();
-        modeContentCache.description = data.content || "";
-        navigationManifestCachedPath = manifestPath;
-        await loadPropertiesForActivePath();
-      } else {
-        modeContentCache.description = "";
-      }
-    } catch {
+  showContentLoading({ variant: "default", message: "Загрузка…" });
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }));
+    if (response.ok) {
+      const data = await response.json();
+      modeContentCache.description = data.content || "";
+      navigationManifestCachedPath = manifestPath;
+      await loadPropertiesForActivePath();
+    } else {
       modeContentCache.description = "";
-    } finally {
-      hideContentLoading();
     }
+  } catch {
+    modeContentCache.description = "";
+  } finally {
+    hideContentLoading();
   }
 
-  applyModeUi();
+  applyModeUi({ skipAsyncRender: true });
+  await renderRepositoryNavigationPage();
   applyNodeWorkspaceViewUi();
-  if (registered) {
-    void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
-  }
+  updateBreadcrumbsForActiveMode();
+  void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
 
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: !options.replaceRoute, replace: Boolean(options.replaceRoute) });
@@ -4817,7 +4859,7 @@ async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
   const repositoryEntry = resolveRepositoryEntryFromWorkspaceRel(normalized);
   if (repositoryEntry) {
     if (repositoryEntry.registered === false) return false;
-    await openRepositoryWorkspaceEntry(repositoryEntry, options);
+    await openRepositoryWorkspaceEntry({ ...repositoryEntry, registered: true }, options);
     return true;
   }
 
@@ -4827,6 +4869,12 @@ async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
 async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
   const normalized = normalizeLinkFilePath(targetRel);
   if (!normalized || normalized === ".") return false;
+  if (isRepositoryWorkspaceRel(normalized)) {
+    const repositoryEntry = resolveRepositoryEntryFromWorkspaceRel(normalized);
+    if (repositoryEntry?.registered === false) return false;
+    await openRepositoryWorkspaceEntry({ ...repositoryEntry, registered: true }, options);
+    return true;
+  }
   try {
     const resolved = await fetchChpuResolve(workspaceRelToChpuPath(normalized));
     if (resolved?.kind === "adoptFolder") {
@@ -19530,6 +19578,9 @@ async function saveNodeConfigDefaultLanding(nodePath, mode, options = {}) {
 
 function getNodeDefaultView(nodePath) {
   if (!nodePath) return null;
+  if (isRepositoryWorkspacePath(nodePath)) {
+    return { mode: NODE_NAVIGATION_MODE };
+  }
   const cached = getCachedNodeConfig(nodePath);
   if (!cached?.defaultLandingMode) return null;
   return { mode: cached.defaultLandingMode };
@@ -23546,12 +23597,13 @@ async function selectNodeManifest(label, filePath, contentMode, options = {}) {
   if (
     contentMode &&
     isRepositoryWorkspacePath(filePath) &&
+    contentMode !== NODE_NAVIGATION_MODE &&
     contentMode !== NODE_OVERVIEW_MODE &&
     contentMode !== "description" &&
     contentMode !== FOLDER_BROWSE_MODE &&
     contentMode !== FOLDER_BROWSE_FILE_MODE
   ) {
-    contentMode = NODE_OVERVIEW_MODE;
+    contentMode = NODE_NAVIGATION_MODE;
   }
   if (contentMode) {
     applyContentModeState(contentMode);
@@ -23573,6 +23625,15 @@ async function openNodeOverview(label, filePath, options = {}) {
 }
 
 async function openNodeNavigation(label, filePath) {
+  if (isRepositoryWorkspacePath(filePath)) {
+    const repositoryEntry =
+      resolveRepositoryEntryFromWorkspaceRel(filePath) ||
+      resolveRepositoryEntryForManifestPath(filePath);
+    if (repositoryEntry?.registered !== false) {
+      await openRepositoryWorkspaceEntry(repositoryEntry);
+      return;
+    }
+  }
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
   await selectNodeManifest(label, filePath, NODE_NAVIGATION_MODE);
@@ -23800,8 +23861,8 @@ function syncNodeWorkspaceDomainSelect() {
 
 async function applyNodeWorkspaceDomainChange(domain) {
   if (isRepositoryWorkspacePath()) {
-    if (activeContentMode !== NODE_OVERVIEW_MODE && activeContentMode !== "description") {
-      setContentMode(NODE_OVERVIEW_MODE);
+    if (activeContentMode !== NODE_NAVIGATION_MODE && activeContentMode !== "description") {
+      setContentMode(NODE_NAVIGATION_MODE);
     }
     return;
   }
@@ -27119,6 +27180,10 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
 
   if (resolved?.kind === "file" && resolved.fileRelPath) {
     const fileRel = String(resolved.fileRelPath).replace(/\\/g, "/");
+    if (isRepositoryWorkspaceRel(fileRel)) {
+      await openRepositoryWorkspacePath(fileRel, { skipRouteSync: true });
+      return;
+    }
     if (isNodeManifestPath(fileRel) || isTopicManifestPath(fileRel)) {
       await openNodeFromMenu(getLabelFromPath(fileRel), fileRel, { skipRouteSync: true });
       return;
@@ -29171,12 +29236,13 @@ function applyContentModeState(mode, options = {}) {
   if (mode === "graph") return false;
   if (
     isRepositoryWorkspacePath(activePath) &&
+    mode !== NODE_NAVIGATION_MODE &&
     mode !== NODE_OVERVIEW_MODE &&
     mode !== "description" &&
     mode !== FOLDER_BROWSE_MODE &&
     mode !== FOLDER_BROWSE_FILE_MODE
   ) {
-    mode = NODE_OVERVIEW_MODE;
+    mode = NODE_NAVIGATION_MODE;
   }
   const group = findModeGroup(mode);
   const modeDef = group?.modes.find((item) => item.id === mode);
@@ -61457,7 +61523,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 
     const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
       hideEmpty: true,
-      propEntries: options.propEntries || []
+      propEntries: options.propEntries || [],
+      showHeroQuality: options.showHeroQuality
     });
     if (datesPanel.childElementCount > 0) toolbar.appendChild(datesPanel);
     toolbar.appendChild(actions);
@@ -61495,7 +61562,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     }
 
     const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
-      propEntries: options.propEntries || []
+      propEntries: options.propEntries || [],
+      showHeroQuality: options.showHeroQuality
     });
     if (datesPanel.childElementCount > 0) {
       datesPanel.classList.add("node-navigation-hero-body-dates");
@@ -61549,7 +61617,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     });
   }
 
-  appendNavigationHeroTags(hero, options.propEntries || []);
+  if (options.showHeroTags !== false) {
+    appendNavigationHeroTags(hero, options.propEntries || []);
+  }
 
   if (options.showHeroInstruction) {
     appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title);
@@ -64639,12 +64709,16 @@ function buildNavigationHeroDatesPanel(meta, nodePath = activePath, options = {}
 
   const quality = getAwnQualityFromPropEntries(options.propEntries || []);
   const rows = [
-    {
-      kind: "quality",
-      label: getAwnQualityTooltip(quality),
-      value: `★ ${quality}/10`,
-      qualityValue: quality
-    },
+    ...(options.showHeroQuality !== false
+      ? [
+          {
+            kind: "quality",
+            label: getAwnQualityTooltip(quality),
+            value: `★ ${quality}/10`,
+            qualityValue: quality
+          }
+        ]
+      : []),
     { kind: "created", label: "Создан", value: createdIso ? formatNodeMetaDateTime(createdIso) : null },
     { kind: "modified", label: "Изменён", value: modifiedIso ? formatNodeMetaDateTime(modifiedIso) : null },
     {
@@ -81006,6 +81080,13 @@ function getFolderBrowseFileKindFromName(name) {
 async function openFolderBrowseFile(label, filePath, options = {}) {
   const normalizedFile = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalizedFile) return;
+  if (
+    !isRepositoryIndexRel(normalizedFile) &&
+    (isRepositoryWorkspaceRel(normalizedFile) || isRepositoryManifestPath(normalizedFile))
+  ) {
+    await openRepositoryWorkspacePath(normalizedFile, options);
+    return;
+  }
   const parentFolder = normalizeCreateParentPath(
     options.folderPath || getFolderBrowseParentPath(normalizedFile)
   );
@@ -82286,9 +82367,27 @@ function renderFolderBrowseSections(hub, data) {
 async function renderFolderBrowseFileView() {
   if (!nodeOverviewContentNode || !activeFolderBrowseFilePath) return;
 
-  const renderSeq = ++nodeOverviewRenderSeq;
   const filePath = activeFolderBrowseFilePath;
   const folderPath = activeFolderBrowsePath;
+  if (
+    !isRepositoryIndexRel(filePath) &&
+    (isRepositoryWorkspaceRel(filePath) ||
+      isRepositoryManifestPath(filePath) ||
+      isRepositoryFolderPath(folderPath))
+  ) {
+    const repositoryEntry =
+      resolveRepositoryEntryFromWorkspaceRel(filePath) ||
+      resolveRepositoryEntryFromWorkspaceRel(folderPath);
+    if (repositoryEntry?.registered !== false) {
+      await openRepositoryWorkspaceEntry({ ...repositoryEntry, registered: true }, {
+        skipRouteSync: true
+      });
+      syncAppRouteToUrl({ replace: true });
+      return;
+    }
+  }
+
+  const renderSeq = ++nodeOverviewRenderSeq;
   const isStale = () =>
     renderSeq !== nodeOverviewRenderSeq ||
     activeContentMode !== FOLDER_BROWSE_FILE_MODE ||
@@ -83591,11 +83690,8 @@ async function appendNodeNavigationSplitRail(
 async function renderNodeNavigation() {
   if (!nodeOverviewContentNode || !activePath) return;
 
-  if (isRepositoryWorkspacePath()) {
-    if (activeContentMode !== NODE_OVERVIEW_MODE) {
-      applyContentModeState(NODE_OVERVIEW_MODE, { skipWorkspaceUi: true });
-    }
-    await renderNodeOverview();
+  if (isRepositoryPageNodePath()) {
+    await renderRepositoryNavigationPage();
     return;
   }
 
@@ -84065,15 +84161,8 @@ async function renderNodeOverview() {
   const typeLabel = getPropsEntryValueByKey(entries, "awn-type");
   const nodePathResolved = getResolvedNodePath(activePath);
 
-  if (typeLabel === "awn.repository" || isRepositoryWorkspacePath(nodePathResolved)) {
-    await renderRepositoryWorkspacePage({
-      nodePath: nodePathResolved,
-      entries,
-      title,
-      desc,
-      manifestRaw,
-      isStale
-    });
+  if (isRepositoryTypeLabel(typeLabel) || isRepositoryPageNodePath(nodePathResolved, entries)) {
+    await renderRepositoryNavigationPage();
     return;
   }
 
@@ -84519,7 +84608,8 @@ function applyModeUi(options = {}) {
   mindmapViewBarNode?.classList.toggle("hidden", !mindmapMode);
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode || attachmentSidecarEditing);
-  const repositoryWorkspaceMode = isRepositoryWorkspacePath() && overviewMode;
+  const repositoryWorkspaceMode =
+    isRepositoryWorkspacePath() && (overviewMode || navigationMode);
   nodeOverviewBlockNode?.classList.toggle("is-repository-workspace", repositoryWorkspaceMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode || awnDataViewMode);
   const workspaceToolModule = isWorkspaceToolModuleView();
@@ -84629,7 +84719,11 @@ function applyModeUi(options = {}) {
   } else if (mindmapMode) {
     renderNodeMindmapView();
   } else if (overviewMode) {
-    void renderNodeOverview();
+    if (isRepositoryWorkspacePath()) {
+      if (!options.skipAsyncRender) void renderRepositoryNavigationPage();
+    } else if (!options.skipAsyncRender) {
+      void renderNodeOverview();
+    }
     syncSaveButtonLamp();
     return;
   } else if (navigationMode) {
@@ -93805,7 +93899,12 @@ async function loadContentByMode(options = {}) {
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
     fileContentInputNode.value = "";
-    applyModeUi();
+    if (isRepositoryWorkspacePath()) {
+      applyModeUi({ skipAsyncRender: true });
+      await renderRepositoryNavigationPage();
+    } else {
+      applyModeUi();
+    }
     updateBreadcrumbsForActiveMode();
     return;
   }
@@ -109079,21 +109178,29 @@ const REPOSITORY_STATUS_LABELS = {
 
 function resolveRepositoryGroupsCatalog(groupsCatalog) {
   const defs = Array.isArray(groupsCatalog?.groups) ? groupsCatalog.groups : [];
+  if (!defs.length) {
+    return DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }));
+  }
+
   const byId = new Map(DEFAULT_REPOSITORY_GROUPS.map((group) => [group.id, { ...group }]));
+  const merged = [];
+  const seen = new Set();
+
   for (const group of defs) {
-    const id = String(group?.id || "").trim();
-    if (!id) continue;
-    byId.set(id, {
+    const id = normalizeRepositoryGroupId(group?.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const fallback = byId.get(id);
+    merged.push({
       id,
-      title: String(group.title || byId.get(id)?.title || id).trim() || id
+      title: String(group.title || fallback?.title || id).trim() || id
     });
   }
-  const merged = DEFAULT_REPOSITORY_GROUPS.map((group) => byId.get(group.id));
-  for (const group of defs) {
-    const id = String(group?.id || "").trim();
-    if (!id || DEFAULT_REPOSITORY_GROUPS.some((item) => item.id === id)) continue;
-    merged.push({ id, title: String(group.title || id).trim() || id });
+
+  for (const group of DEFAULT_REPOSITORY_GROUPS) {
+    if (!seen.has(group.id)) merged.push({ ...group });
   }
+
   return merged;
 }
 
@@ -109142,22 +109249,58 @@ function normalizeRepositoryGroupId(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function sortRepositoryGroupsForEditor(groups = []) {
-  return [...groups].sort((a, b) => {
-    const aId = normalizeRepositoryGroupId(a.id);
-    const bId = normalizeRepositoryGroupId(b.id);
-    const aDefault = DEFAULT_REPOSITORY_GROUP_IDS.has(aId);
-    const bDefault = DEFAULT_REPOSITORY_GROUP_IDS.has(bId);
-    if (aDefault && bDefault) {
-      const aIdx = DEFAULT_REPOSITORY_GROUPS.findIndex((group) => group.id === aId);
-      const bIdx = DEFAULT_REPOSITORY_GROUPS.findIndex((group) => group.id === bId);
-      return aIdx - bIdx;
+let repositoryGroupsSortDragRow = null;
+
+function syncRepositoryGroupsDraftFromDom() {
+  if (!repositoryGroupsListNode) return;
+  const order = [];
+  repositoryGroupsListNode.querySelectorAll(".repository-groups-row").forEach((row) => {
+    if (row.__repositoryGroupRef) order.push(row.__repositoryGroupRef);
+  });
+  if (order.length) repositoryGroupsDraft.groups = order;
+}
+
+function setupRepositoryGroupsSortDragDrop() {
+  const list = repositoryGroupsListNode;
+  if (!list || list.dataset.sortBound === "1") return;
+  list.dataset.sortBound = "1";
+
+  list.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".repository-groups-sort-handle");
+    if (!handle) return;
+    const row = handle.closest(".repository-groups-row");
+    if (!row) {
+      event.preventDefault();
+      return;
     }
-    if (aDefault) return -1;
-    if (bDefault) return 1;
-    const titleA = String(a.title || a.id || "").trim();
-    const titleB = String(b.title || b.id || "").trim();
-    return titleA.localeCompare(titleB, "ru", { sensitivity: "base", numeric: true });
+    repositoryGroupsSortDragRow = row;
+    row.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", "repository-group");
+  });
+
+  list.addEventListener("dragover", (event) => {
+    if (!repositoryGroupsSortDragRow) return;
+    const targetRow = event.target.closest(".repository-groups-row");
+    if (!targetRow || targetRow === repositoryGroupsSortDragRow) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const rect = targetRow.getBoundingClientRect();
+    const insertBefore = event.clientY < rect.top + rect.height / 2;
+    if (insertBefore) list.insertBefore(repositoryGroupsSortDragRow, targetRow);
+    else list.insertBefore(repositoryGroupsSortDragRow, targetRow.nextSibling);
+  });
+
+  list.addEventListener("drop", (event) => {
+    if (!repositoryGroupsSortDragRow) return;
+    event.preventDefault();
+    syncRepositoryGroupsDraftFromDom();
+  });
+
+  list.addEventListener("dragend", () => {
+    repositoryGroupsSortDragRow?.classList.remove("is-dragging");
+    repositoryGroupsSortDragRow = null;
+    syncRepositoryGroupsDraftFromDom();
   });
 }
 
@@ -109165,9 +109308,9 @@ function renderRepositoryGroupsEditor() {
   if (!repositoryGroupsListNode) return;
   repositoryGroupsListNode.replaceChildren();
   const groups = Array.isArray(repositoryGroupsDraft.groups) ? repositoryGroupsDraft.groups : [];
-  const visibleGroups = sortRepositoryGroupsForEditor(
-    groups.length ? groups : DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }))
-  );
+  const visibleGroups = groups.length
+    ? groups
+    : DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }));
 
   for (const group of visibleGroups) {
     const groupId = normalizeRepositoryGroupId(group.id);
@@ -109175,6 +109318,21 @@ function renderRepositoryGroupsEditor() {
     const row = document.createElement("li");
     row.className = "repository-groups-row";
     if (isDefaultGroup) row.classList.add("repository-groups-row--default");
+    row.__repositoryGroupRef = group;
+
+    const handleCell = document.createElement("div");
+    handleCell.className = "repository-groups-cell repository-groups-cell--handle";
+    const sortHandle = document.createElement("span");
+    sortHandle.className = "repository-groups-sort-handle menu-sort-handle";
+    sortHandle.draggable = true;
+    sortHandle.setAttribute("role", "button");
+    sortHandle.tabIndex = 0;
+    sortHandle.title = "Перетащите для изменения порядка";
+    sortHandle.setAttribute("aria-label", "Перетащите для изменения порядка");
+    sortHandle.textContent = "⠿";
+    sortHandle.addEventListener("mousedown", (event) => event.stopPropagation());
+    sortHandle.addEventListener("click", (event) => event.stopPropagation());
+    handleCell.appendChild(sortHandle);
 
     const idCell = document.createElement("div");
     idCell.className = "repository-groups-cell repository-groups-cell--id";
@@ -109226,7 +109384,7 @@ function renderRepositoryGroupsEditor() {
     });
     actionsCell.appendChild(removeBtn);
 
-    row.append(idCell, titleCell, actionsCell);
+    row.append(handleCell, idCell, titleCell, actionsCell);
     repositoryGroupsListNode.appendChild(row);
   }
 
@@ -109269,6 +109427,7 @@ async function saveRepositoryGroups(agentId = activeAgentId) {
     showToast("Выберите агента", "error");
     return;
   }
+  syncRepositoryGroupsDraftFromDom();
   const groups = [];
   const seen = new Set();
   for (const group of repositoryGroupsDraft.groups || []) {
@@ -109490,9 +109649,17 @@ function aggregateRepositoryFolderScan(scanData = {}) {
   };
 }
 
-function createRepositoryWorkspaceStatCard(label, value, hint = "") {
+function createRepositoryWorkspaceStatCard(label, value, { hint = "", icon = "", tone = "" } = {}) {
   const card = document.createElement("article");
   card.className = "repository-workspace-stat-card";
+  if (tone) card.classList.add(`is-tone-${tone}`);
+  if (icon) {
+    const iconNode = document.createElement("span");
+    iconNode.className = "repository-workspace-stat-icon";
+    iconNode.textContent = icon;
+    iconNode.setAttribute("aria-hidden", "true");
+    card.appendChild(iconNode);
+  }
   const valueNode = document.createElement("div");
   valueNode.className = "repository-workspace-stat-value";
   valueNode.textContent = String(value ?? "—");
@@ -109507,6 +109674,18 @@ function createRepositoryWorkspaceStatCard(label, value, hint = "") {
     card.appendChild(hintNode);
   }
   return card;
+}
+
+function createRepositoryHeroThumbWrap(repo = {}) {
+  const thumbWrap = document.createElement("div");
+  thumbWrap.className = "node-overview-thumb-wrap is-repository-default-thumb";
+  const glyph = document.createElement("span");
+  glyph.className = "repository-hero-thumb-icon";
+  glyph.textContent = repo?.hasGit ? "🌿" : "📚";
+  glyph.setAttribute("aria-hidden", "true");
+  thumbWrap.title = repo?.hasGit ? "Git-репозиторий" : "Репозиторий";
+  thumbWrap.appendChild(glyph);
+  return thumbWrap;
 }
 
 function renderRepositoryWorkspaceExtensionBars(topExtensions, totalFiles) {
@@ -109546,8 +109725,6 @@ function renderRepositoryWorkspaceExtensionBars(topExtensions, totalFiles) {
 }
 
 function renderRepositoryWorkspaceReadme(repo, nodePath) {
-  if (!repo?.readmeExists || !String(repo.readmeBody || "").trim()) return null;
-
   const section = document.createElement("section");
   section.className = "repository-workspace-readme node-overview-excerpt";
 
@@ -109555,27 +109732,85 @@ function renderRepositoryWorkspaceReadme(repo, nodePath) {
   head.className = "node-overview-excerpt-head";
   const label = document.createElement("span");
   label.className = "node-overview-excerpt-label";
-  label.textContent = `📄 ${repo.readmePath || "readme.md"}`;
+  label.textContent = `📄 ${repo?.readmePath || "README.md"}`;
   head.appendChild(label);
 
   const body = document.createElement("div");
   body.className = "node-overview-excerpt-body";
-  const text = document.createElement("div");
-  text.className = "node-overview-excerpt-text file-content-preview";
-  let readmeMarkdown = String(repo.readmeBody || "").trim();
-  if (readmeMarkdown.startsWith("---")) {
-    const end = readmeMarkdown.indexOf("\n---", 3);
-    if (end !== -1) readmeMarkdown = readmeMarkdown.slice(end + 4).replace(/^\s+/, "");
+
+  const hasReadme = Boolean(repo?.readmeExists && String(repo.readmeBody || "").trim());
+  if (hasReadme) {
+    const text = document.createElement("div");
+    text.className = "node-overview-excerpt-text file-content-preview";
+    let readmeMarkdown = String(repo.readmeBody || "").trim();
+    if (readmeMarkdown.startsWith("---")) {
+      const end = readmeMarkdown.indexOf("\n---", 3);
+      if (end !== -1) readmeMarkdown = readmeMarkdown.slice(end + 4).replace(/^\s+/, "");
+    }
+    setMarkdownPreviewHtml(text, readmeMarkdown, { nodePath });
+    body.appendChild(text);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "repository-workspace-readme-empty";
+    empty.textContent = "Описание проекта отсутствует";
+    body.appendChild(empty);
   }
-  setMarkdownPreviewHtml(text, readmeMarkdown, { nodePath });
-  body.appendChild(text);
+
   section.append(head, body);
   return section;
 }
 
+function getRepositoryStatsTheme() {
+  const saved = readStorageItem(REPOSITORY_STATS_THEME_STORAGE_KEY);
+  return saved === "light" ? "light" : "dark";
+}
+
+function setRepositoryStatsTheme(theme) {
+  writeStorageItem(REPOSITORY_STATS_THEME_STORAGE_KEY, theme === "light" ? "light" : "dark");
+}
+
+function applyRepositoryStatsTheme(dashboard, theme) {
+  const resolved = theme === "light" ? "light" : "dark";
+  dashboard.classList.toggle("is-light", resolved === "light");
+  dashboard.classList.toggle("is-dark", resolved === "dark");
+  const toggle = dashboard.querySelector(".repository-workspace-theme-toggle");
+  if (!toggle) return;
+  toggle.querySelectorAll("[data-theme]").forEach((btn) => {
+    const isActive = btn.dataset.theme === resolved;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function createRepositoryStatsThemeToggle(dashboard) {
+  const wrap = document.createElement("div");
+  wrap.className = "repository-workspace-theme-toggle";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "Оформление статистики");
+
+  for (const { theme, label, title } of [
+    { theme: "dark", label: "Тёмная", title: "Тёмное оформление" },
+    { theme: "light", label: "Светлая", title: "Светлое оформление" }
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "repository-workspace-theme-toggle-btn";
+    btn.dataset.theme = theme;
+    btn.title = title;
+    btn.setAttribute("aria-label", title);
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      setRepositoryStatsTheme(theme);
+      applyRepositoryStatsTheme(dashboard, theme);
+    });
+    wrap.appendChild(btn);
+  }
+  return wrap;
+}
+
 function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   const dashboard = document.createElement("section");
-  dashboard.className = "repository-workspace-dashboard";
+  dashboard.className = "repository-workspace-dashboard is-dark";
   dashboard.setAttribute("aria-label", "Статистика репозитория");
 
   const head = document.createElement("div");
@@ -109583,34 +109818,19 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   const title = document.createElement("h2");
   title.className = "repository-workspace-dashboard-title";
   title.textContent = "Статистика";
-  const meta = document.createElement("p");
-  meta.className = "repository-workspace-dashboard-meta";
-  const metaBits = [
-    repo.registered === false ? "не зарегистрирован" : "",
-    formatRepositoryStatusLabel(repo.status),
-    resolveRepositoryGroupTitle(repo.group),
-    repo.hasGit ? "Git" : "без .git"
-  ].filter(Boolean);
-  meta.textContent = metaBits.join(" · ");
-  head.append(title, meta);
+  head.append(title, createRepositoryStatsThemeToggle(dashboard));
   dashboard.appendChild(head);
 
   const grid = document.createElement("div");
   grid.className = "repository-workspace-stat-grid";
   grid.append(
-    createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount),
-    createRepositoryWorkspaceStatCard("Папок", scanStats.folderCount),
-    createRepositoryWorkspaceStatCard("Размер", formatFileSize(scanStats.totalSize) || "0 B"),
-    createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—"),
-    createRepositoryWorkspaceStatCard(
-      "Индекс",
-      repo.registered === false
-        ? "—"
-        : repo.indexExcludeSubtree !== false
-          ? "manifest + readme"
-          : "полный"
-    ),
-    createRepositoryWorkspaceStatCard("Slug", repo.slug || "—")
+    createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount, { icon: "📄", tone: "files" }),
+    createRepositoryWorkspaceStatCard("Папок", scanStats.folderCount, { icon: "📁", tone: "folders" }),
+    createRepositoryWorkspaceStatCard("Размер", formatFileSize(scanStats.totalSize) || "0 B", {
+      icon: "💾",
+      tone: "size"
+    }),
+    createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—", { icon: "📌", tone: "root" })
   );
   dashboard.appendChild(grid);
 
@@ -109651,25 +109871,103 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   }
   if (chips.childElementCount) dashboard.appendChild(chips);
 
-  const actions = document.createElement("div");
-  actions.className = "repository-workspace-actions";
-  const browseBtn = document.createElement("button");
-  browseBtn.type = "button";
-  browseBtn.className = "node-overview-action-btn repository-workspace-action-btn";
-  browseBtn.textContent = "Открыть папку";
-  browseBtn.addEventListener("click", () => void openRepositoryFolderBrowse(repo));
-  const metaBtn = document.createElement("button");
-  metaBtn.type = "button";
-  metaBtn.className = "node-overview-action-btn repository-workspace-action-btn";
-  metaBtn.textContent = repo.registered === false ? "Подхватить" : "Свойства";
-  metaBtn.addEventListener("click", () => {
-    if (repo.registered === false) openRepositoryAdoptModal(repo);
-    else openRepositoryEditModal(repo);
-  });
-  actions.append(browseBtn, metaBtn);
-  dashboard.appendChild(actions);
-
+  applyRepositoryStatsTheme(dashboard, getRepositoryStatsTheme());
   return dashboard;
+}
+
+async function renderRepositoryNavigationPage() {
+  if (!nodeOverviewContentNode || !activePath) return;
+  syncNodeOverviewNavigationSplitClass(false);
+  syncEntryOverviewKindClass(null);
+  syncEntryOverviewMediaAssetKindClass(null);
+
+  const renderSeq = ++nodeOverviewRenderSeq;
+  const isStale = () =>
+    renderSeq !== nodeOverviewRenderSeq ||
+    !nodeOverviewContentNode ||
+    !isRepositoryPageNodePath() ||
+    (activeContentMode !== NODE_NAVIGATION_MODE && activeContentMode !== NODE_OVERVIEW_MODE);
+
+  if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
+    await loadPropertiesForActivePath();
+    if (isStale()) return;
+  }
+
+  const nodePath = getResolvedNodePath(activePath);
+  const manifestApiPath = resolveManifestPathForNodeApi(nodePath);
+  const entries = resolveNodeOverviewPropsEntries();
+  const heroTitle = getOverviewTitleFromProps(entries);
+  const topicTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
+
+  const workspacePath = String(nodePath || "").trim();
+  const folderPath = getRepositoryFolderPathFromWorkspacePath(workspacePath);
+  const manifestPath = isRepositoryManifestPath(workspacePath)
+    ? workspacePath
+    : `${folderPath}/manifest.md`;
+
+  const [preview, nodeMeta, repo, scanData] = await Promise.all([
+    fetchNodeOverviewPreview(nodePath, entries),
+    fetchNodeNavigationMeta(nodePath),
+    fetchRepositoryOverviewData(workspacePath),
+    fetchWorkspaceFolderScan(folderPath, { depth: "all" }).catch(() => null)
+  ]);
+  if (isStale()) return;
+
+  const hub = document.createElement("div");
+  hub.className = "node-navigation-hub is-repository-workspace-hub";
+  const hubMain = document.createElement("div");
+  hubMain.className = "node-navigation-hub-main";
+
+  const hero = createNavigationHero(preview, heroTitle, nodePath, {
+    meta: nodeMeta,
+    propEntries: entries,
+    descriptionRaw: modeContentCache.description || "",
+    typeLabel: topicTypeLabel,
+    showHeroInstruction: true,
+    showHeroTags: false,
+    showHeroQuality: false,
+    onEditClick: openDescriptionFromOverview,
+    settingsSlots: [],
+    hideSharedSlot: true,
+    showWorkspaceMarkers: false,
+    thumbWrap: createRepositoryHeroThumbWrap(repo),
+    slugIssue: getNodeManifestSlugIssue(nodePath),
+    recordPath: getOverviewNodeApiPath(nodePath),
+    pageManifestPath: getOverviewNodeApiPath(nodePath),
+    onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
+    showUnread: isNodePageUnread(manifestApiPath)
+  });
+  hubMain.appendChild(hero);
+
+  hub.appendChild(hubMain);
+  nodeOverviewContentNode.replaceChildren(hub);
+
+  const scanStats = aggregateRepositoryFolderScan(scanData || {});
+  if (repo) {
+    hubMain.appendChild(renderRepositoryWorkspaceDashboard(repo, scanStats));
+    hubMain.appendChild(renderRepositoryWorkspaceReadme(repo, manifestPath));
+  } else {
+    const error = document.createElement("p");
+    error.className = "repository-workspace-error";
+    error.textContent = "Не удалось загрузить данные репозитория.";
+    hubMain.appendChild(error);
+  }
+
+  if (getActiveNodeApiPath()) {
+    await appendNodeCommentsBlockToContainer(hubMain, {
+      manifestPath: getActiveNodeApiPath(),
+      nodeTitle: heroTitle,
+      mode: "description"
+    });
+    if (isStale()) return;
+  }
+
+  hideContentLoading({ force: true });
+  scheduleWorkspaceScrollChromeSync();
+}
+
+async function renderRepositoryWorkspacePageFromActive() {
+  await renderRepositoryNavigationPage();
 }
 
 async function renderRepositoryWorkspacePage({
@@ -109743,36 +110041,12 @@ async function renderRepositoryWorkspacePage({
   const scanStats = aggregateRepositoryFolderScan(scanData || {});
   if (repo) {
     page.appendChild(renderRepositoryWorkspaceDashboard(repo, scanStats));
-    const readme = renderRepositoryWorkspaceReadme(repo, manifestPath);
-    if (readme) page.appendChild(readme);
+    page.appendChild(renderRepositoryWorkspaceReadme(repo, manifestPath));
   } else {
     const error = document.createElement("p");
     error.className = "repository-workspace-error";
     error.textContent = "Не удалось загрузить данные репозитория.";
     page.appendChild(error);
-  }
-
-  const excerpt = stripLeadingDuplicateMarkdownHeading(
-    getOverviewMarkdownBeforeDivider(manifestRaw),
-    title
-  ).trim();
-  if (excerpt && !repo?.readmeExists) {
-    const excerptBlock = document.createElement("section");
-    excerptBlock.className = "node-overview-excerpt repository-workspace-manifest-excerpt";
-    const excerptHead = document.createElement("div");
-    excerptHead.className = "node-overview-excerpt-head";
-    const excerptLabel = document.createElement("span");
-    excerptLabel.className = "node-overview-excerpt-label";
-    excerptLabel.textContent = "📖 Описание из manifest";
-    const excerptBody = document.createElement("div");
-    excerptBody.className = "node-overview-excerpt-body";
-    const excerptText = document.createElement("div");
-    excerptText.className = "node-overview-excerpt-text file-content-preview";
-    setMarkdownPreviewHtml(excerptText, excerpt, { nodePath: manifestPath });
-    excerptHead.appendChild(excerptLabel);
-    excerptBody.appendChild(excerptText);
-    excerptBlock.append(excerptHead, excerptBody);
-    page.appendChild(excerptBlock);
   }
 
   hideContentLoading({ force: true });
@@ -110149,12 +110423,21 @@ function createMenuRepositoryRow(repo) {
   row.append(createMenuRepositoryGroupDragHandle(), leading, createMenuRepositoryRowBody(repo));
   attachRepositoryRowDragMetadata(row, repo, { registered: true });
 
-  const openRepository = () => void openRepositoryWorkspaceEntry({ ...repo, registered: true });
+  const openRepository = (event) => {
+    if (event?.target?.closest?.(".menu-repository-group-drag-handle")) return;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    suspendAppRouteSync();
+    void openRepositoryWorkspaceEntry({ ...repo, registered: true }, { skipRouteSync: true })
+      .finally(() => {
+        resumeAppRouteSync();
+        syncAppRouteToUrl({ push: true });
+      });
+  };
   row.addEventListener("click", openRepository);
   row.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openRepository();
+      openRepository(event);
     }
   });
   return row;
@@ -110371,11 +110654,13 @@ async function openRepositoryIndexOverview() {
   const indexPath =
     String(menuRepositoriesLastPayload?.indexFile?.path || REPOSITORY_INDEX_REL).trim() ||
     REPOSITORY_INDEX_REL;
-  if (await tryOpenMarkdownLinkByWorkspaceRel(indexPath)) {
-    syncAppRouteToUrl({ push: true });
-    return;
-  }
-  showToast(`Не удалось открыть ${indexPath}`, "error");
+  hideHomeView();
+  const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(indexPath));
+  await openFolderBrowseFile("Индекс репозиториев", indexPath, {
+    folderPath,
+    skipRouteSync: true
+  });
+  syncAppRouteToUrl({ push: true });
 }
 
 async function handleRepositoryIndexRefreshClick() {
@@ -110469,6 +110754,7 @@ function setupRepositoriesUi() {
     event.stopPropagation();
     void handleRepositoryIndexRefreshClick();
   });
+  setupRepositoryGroupsSortDragDrop();
   repositoryGroupsAddBtn?.addEventListener("click", () => {
     repositoryGroupsDraft.groups.push({ id: "", title: "" });
     renderRepositoryGroupsEditor();

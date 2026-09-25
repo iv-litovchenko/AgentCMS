@@ -54,13 +54,19 @@ function getRepositoryIndexLegacyRelPath() {
   return `${AWN_REPOSITORIES_DIR}/${AWN_REPOSITORIES_INDEX_LEGACY_FILE}`;
 }
 
+function isSameRepositoryIndexPath(leftRel, rightRel) {
+  const left = String(leftRel || "").replace(/\\/g, "/").trim().toLowerCase();
+  const right = String(rightRel || "").replace(/\\/g, "/").trim().toLowerCase();
+  return Boolean(left && right && left === right);
+}
+
 async function resolveRepositoryIndexFileOnDisk(agentRoot) {
   const canonical = getRepositoryIndexRelPath();
   if (await pathExists(path.join(agentRoot, canonical))) {
     return { path: canonical, exists: true };
   }
   const legacy = getRepositoryIndexLegacyRelPath();
-  if (await pathExists(path.join(agentRoot, legacy))) {
+  if (!isSameRepositoryIndexPath(legacy, canonical) && (await pathExists(path.join(agentRoot, legacy)))) {
     return { path: legacy, exists: true, legacy: true };
   }
   return { path: canonical, exists: false };
@@ -80,27 +86,31 @@ function normalizeRepositoryGroupId(value) {
 }
 
 function mergeRepositoryGroupsWithDefaults(groups = []) {
+  const input = Array.isArray(groups) ? groups : [];
+  if (!input.length) {
+    return DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }));
+  }
+
   const byId = new Map(DEFAULT_REPOSITORY_GROUPS.map((group) => [group.id, { ...group }]));
-  for (const entry of Array.isArray(groups) ? groups : []) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const entry of input) {
     if (!entry || typeof entry !== "object") continue;
     const id = normalizeRepositoryGroupId(entry.id);
-    if (!id) continue;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
     const fallback = byId.get(id);
-    byId.set(id, {
+    merged.push({
       id,
       title: String(entry.title || entry.name || fallback?.title || id).trim() || id
     });
   }
-  const merged = DEFAULT_REPOSITORY_GROUPS.map((group) => byId.get(group.id));
-  for (const entry of Array.isArray(groups) ? groups : []) {
-    if (!entry || typeof entry !== "object") continue;
-    const id = normalizeRepositoryGroupId(entry.id);
-    if (!id || DEFAULT_REPOSITORY_GROUP_IDS.has(id)) continue;
-    merged.push({
-      id,
-      title: String(entry.title || entry.name || id).trim() || id
-    });
+
+  for (const group of DEFAULT_REPOSITORY_GROUPS) {
+    if (!seen.has(group.id)) merged.push({ ...group });
   }
+
   return merged;
 }
 
@@ -668,8 +678,13 @@ async function writeRepositoryIndex(agentRoot, options = {}) {
   const indexAbs = path.join(agentRoot, indexRel);
   await fs.writeFile(indexAbs, markdown, "utf-8");
   const legacyRel = getRepositoryIndexLegacyRelPath();
-  if (legacyRel !== indexRel && (await pathExists(path.join(agentRoot, legacyRel)))) {
-    await fs.rm(path.join(agentRoot, legacyRel), { force: true }).catch(() => {});
+  const legacyAbs = path.join(agentRoot, legacyRel);
+  if (
+    !isSameRepositoryIndexPath(legacyRel, indexRel) &&
+    legacyAbs !== indexAbs &&
+    (await pathExists(legacyAbs))
+  ) {
+    await fs.rm(legacyAbs, { force: true }).catch(() => {});
   }
 
   return {

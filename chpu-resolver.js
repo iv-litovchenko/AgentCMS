@@ -521,6 +521,22 @@ async function resolveChpuPath(agentRoot, rawPath) {
   const awnDataResolved = await resolveAwnDataPath(agentRootResolved, chpuPath);
   if (awnDataResolved) return attachChpuViews(awnDataResolved, views);
 
+  const repoManifestMatch = chpuPath.match(/^awn-repositories\/([^/]+)\/manifest\.md$/i);
+  if (repoManifestMatch) {
+    const manifestRel = chpuPath.replace(/\\/g, "/");
+    const manifestAbs = path.join(agentRootResolved, manifestRel);
+    if (manifestAbs.startsWith(agentRootResolved) && (await fileExists(manifestAbs))) {
+      return attachChpuViews(
+        {
+          kind: "manifest",
+          topicManifestPath: manifestRel,
+          workspacePath: `awn-repositories/${repoManifestMatch[1]}`
+        },
+        views
+      );
+    }
+  }
+
   const manifestRel = `${chpuPath}/${MANIFEST_FILE}`.replace(/\\/g, "/");
   const manifestAbs = path.join(agentRootResolved, manifestRel);
   if (manifestAbs.startsWith(agentRootResolved) && (await fileExists(manifestAbs))) {
