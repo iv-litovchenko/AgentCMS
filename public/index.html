@@ -1839,16 +1839,6 @@
               </div>
               <div id="menu-awn-databases-band-body" class="menu-awn-databases-band-body">
                 <div class="menu-awn-databases-toolbar">
-                  <div class="menu-awn-databases-toolbar-row menu-awn-databases-toolbar-row--service">
-                    <button
-                      id="menu-awn-databases-scaffold-taxonomies-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-awn-databases-create-btn menu-awn-databases-create-btn--taxonomies"
-                      title="Создать встроенную группу awn-databases/awn-taxonomies/ со справочниками tags, categories, colors"
-                    >
-                      + Таксономии
-                    </button>
-                  </div>
                   <div class="menu-awn-databases-toolbar-row">
                     <button
                       id="menu-awn-databases-create-group-btn"
@@ -5606,6 +5596,20 @@
         <p class="agents-registry-hint" id="awn-databases-create-modal-hint">
           Папка в <code>awn-databases/</code> с <code>manifest.md</code>.
         </p>
+        <div id="awn-databases-create-group-presets-wrap" class="awn-databases-create-group-presets-wrap hidden">
+          <div class="popover-label">Встроенные группы</div>
+          <div class="awn-databases-create-group-presets create-node-service-docs-actions create-node-service-docs-actions--cols-3">
+            <button
+              type="button"
+              class="create-node-action-btn awn-databases-create-group-preset-btn"
+              data-awn-data-group-preset="taxonomies"
+              title="Пустая группа awn-databases/awn-taxonomies/ для CSV-справочников"
+            >
+              Таксономии
+            </button>
+          </div>
+        </div>
+        <hr id="awn-databases-create-group-presets-divider" class="create-node-divider hidden" />
         <label class="popover-label" for="awn-databases-create-name-input">Название</label>
         <input
           id="awn-databases-create-name-input"

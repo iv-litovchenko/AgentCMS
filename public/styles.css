@@ -46379,18 +46379,44 @@ button.node-navigation-memory-title:focus-visible {
   background: #fff;
 }
 
-.menu-awn-databases-toolbar-row--service {
-  margin-bottom: 6px;
+.awn-databases-create-group-presets-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
-.menu-awn-databases-create-btn--taxonomies {
-  width: 100%;
-  justify-content: center;
-  font-weight: 600;
+.awn-databases-create-group-presets-wrap.hidden {
+  display: none;
+}
+
+.awn-databases-create-group-presets .awn-databases-create-group-preset-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .menu-awn-databases-store-group--builtin > .menu-awn-databases-store-group-head {
   border-left: 3px solid #7c3aed;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), rgba(124, 58, 237, 0.02) 72%);
+}
+
+.menu-awn-databases-store-group--builtin > .menu-awn-databases-store-group-head .menu-awn-databases-store-group-open-btn {
+  color: #5b21b6;
+}
+
+.menu-awn-databases-store-builtin-badge {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  background: rgba(237, 233, 254, 0.95);
+  color: #6d28d9;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.3;
 }
 
 .props-form-taxonomy-section {

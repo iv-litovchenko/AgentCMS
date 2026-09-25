@@ -3206,7 +3206,7 @@ function ensureTaxonomiesGroupSort(dataRoot) {
 
 function ensureTaxonomiesGroupScaffold(agentRoot, projectRoot = process.cwd(), options = {}) {
   const dataRoot = ensureAwnDataBase(agentRoot, projectRoot);
-  const withDefaults = options.withDefaults !== false;
+  const withDefaults = options.withDefaults === true;
   const result = {
     groupRel: TAXONOMIES_GROUP_REL,
     groupCreated: false,

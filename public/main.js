@@ -78,7 +78,8 @@ const menuAwnDataHelpBtn = document.getElementById("menu-awn-databases-help-btn"
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-databases-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-databases-create-single-btn");
 const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-databases-create-group-btn");
-const menuAwnDataScaffoldTaxonomiesBtn = document.getElementById("menu-awn-databases-scaffold-taxonomies-btn");
+const awnDataCreateGroupPresetsWrapNode = document.getElementById("awn-databases-create-group-presets-wrap");
+const awnDataCreateGroupPresetsDividerNode = document.getElementById("awn-databases-create-group-presets-divider");
 const menuAwnDataSearchInputNode = document.getElementById("menu-awn-databases-search-input");
 const menuAwnDataIndexRowNode = document.getElementById("menu-awn-databases-index-row");
 const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-databases-index-open-btn");
@@ -1599,6 +1600,14 @@ const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
 );
 const SHARED_TAXONOMIES_SLUG = "awn-taxonomies";
 const SHARED_TAXONOMIES_LABEL = "Таксономии";
+
+function isBuiltinAwnDataGroupRel(relPath) {
+  const top = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .split("/")[0];
+  return top.startsWith("awn-");
+}
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
@@ -104397,6 +104406,24 @@ function slugifyAwnDataStoreName(name) {
     .replace(/-+/g, "-");
 }
 
+function syncAwnDataCreateGroupPresetsUi() {
+  const showPresets =
+    awnDataCreateKind === "group" && !String(awnDataCreateParentGroup || "").trim();
+  awnDataCreateGroupPresetsWrapNode?.classList.toggle("hidden", !showPresets);
+  awnDataCreateGroupPresetsDividerNode?.classList.toggle("hidden", !showPresets);
+  if (!showPresets || !awnDataCreateGroupPresetsWrapNode) return;
+  const taxonomiesBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="taxonomies"]'
+  );
+  if (!taxonomiesBtn) return;
+  const exists = isSharedTaxonomiesAreaPresent(getCreateModalAgentId());
+  taxonomiesBtn.disabled = exists;
+  taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+  taxonomiesBtn.title = exists
+    ? "Группа awn-databases/awn-taxonomies/ уже создана"
+    : "Пустая группа awn-databases/awn-taxonomies/ для CSV-справочников";
+}
+
 function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (!awnDataCreateModalNode) return;
   awnDataCreateKind =
@@ -104454,6 +104481,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   syncAwnDataCreateParentHint();
   if (awnDataCreateDescriptionInputNode) awnDataCreateDescriptionInputNode.value = "";
   if (awnDataCreateSampleInputNode) awnDataCreateSampleInputNode.checked = true;
+  syncAwnDataCreateGroupPresetsUi();
   awnDataCreateModalNode.classList.remove("hidden");
   awnDataCreateNameInputNode?.focus();
 }
@@ -104461,6 +104489,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
 function closeAwnDataCreateModal() {
   awnDataCreateModalNode?.classList.add("hidden");
   awnDataCreateParentGroup = "";
+  syncAwnDataCreateGroupPresetsUi();
 }
 
 const AWN_DATA_CREATE_COLLECTION_TYPES = {
@@ -112523,37 +112552,36 @@ function setupRepositoriesUi() {
   });
 }
 
-async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId) {
+async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId, { withDefaults = false } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
   }
-  if (menuAwnDataScaffoldTaxonomiesBtn) menuAwnDataScaffoldTaxonomiesBtn.disabled = true;
+  const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
+    '[data-awn-data-group-preset="taxonomies"]'
+  );
+  if (presetBtn) presetBtn.disabled = true;
   try {
     const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-taxonomies", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ withDefaults: true })
+      body: JSON.stringify({ withDefaults })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
-    const created = [
-      data.groupCreated ? "группа" : null,
-      ...(Array.isArray(data.storesCreated) ? data.storesCreated : [])
-    ].filter(Boolean);
-    showToast(
-      created.length
-        ? `Таксономии: создано ${created.join(", ")}`
-        : "Группа «Таксономии» уже существует",
-      "success"
-    );
+    closeAwnDataCreateModal();
+    if (data.groupCreated) {
+      showToast("Создана группа «Таксономии (справочники)»", "success");
+    } else {
+      showToast("Группа «Таксономии» уже существует", "success");
+    }
     await refreshMenuAwnDataStores(agentId);
     await loadAgentTaxonomies(agentId).catch(() => null);
     if (data.store?.relPath) void openAwnDataViewPage(data.store.relPath, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
   } finally {
-    if (menuAwnDataScaffoldTaxonomiesBtn) menuAwnDataScaffoldTaxonomiesBtn.disabled = false;
+    syncAwnDataCreateGroupPresetsUi();
   }
 }
 
@@ -112561,7 +112589,12 @@ function setupAwnDataStoresUi() {
   if (setupAwnDataStoresUi.initialized) return;
   setupAwnDataStoresUi.initialized = true;
 
-  menuAwnDataScaffoldTaxonomiesBtn?.addEventListener("click", () => void submitAwnDataScaffoldTaxonomies());
+  awnDataCreateGroupPresetsWrapNode?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-awn-data-group-preset]");
+    if (!button || button.disabled) return;
+    const preset = button.getAttribute("data-awn-data-group-preset");
+    if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
+  });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));
   menuAwnDataCreateGroupBtn?.addEventListener("click", () => openAwnDataCreateModal("group"));
@@ -112947,7 +112980,8 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
-  if (relPath === SHARED_TAXONOMIES_SLUG) {
+  const isBuiltinGroup = isBuiltinAwnDataGroupRel(relPath);
+  if (isBuiltinGroup) {
     item.classList.add("menu-awn-databases-store-group--builtin");
   }
 
@@ -113000,6 +113034,13 @@ function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   nameNode.className = "menu-awn-databases-store-name";
   nameNode.textContent = displayName;
   openBtn.appendChild(nameNode);
+  if (isBuiltinGroup) {
+    const builtinBadge = document.createElement("span");
+    builtinBadge.className = "menu-awn-databases-store-builtin-badge";
+    builtinBadge.textContent = "встр.";
+    builtinBadge.title = "Встроенная системная группа";
+    openBtn.appendChild(builtinBadge);
+  }
 
   openBtn.addEventListener("click", () => void openAwnDataViewPage(store.relPath));
   openBtn.addEventListener("keydown", (event) => {

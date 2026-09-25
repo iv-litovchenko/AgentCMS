@@ -22955,7 +22955,7 @@ async function handleApiForAgent(req, res, url) {
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const payload = await readJsonBody(req);
       const result = ensureTaxonomiesGroupScaffold(agentRoot, getProjectRoot(), {
-        withDefaults: payload?.withDefaults !== false
+        withDefaults: payload?.withDefaults === true
       });
       return sendJson(res, 201, {
         ok: true,
