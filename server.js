@@ -12290,13 +12290,19 @@ function getAwnDataIndexLegacyRelPath() {
   return `${AWN_DATA_DIR}/${AWN_DATA_INDEX_LEGACY_FILE}`.replace(/\\/g, "/");
 }
 
+function isSameAwnDataIndexPath(leftRel, rightRel) {
+  const left = String(leftRel || "").replace(/\\/g, "/").trim().toLowerCase();
+  const right = String(rightRel || "").replace(/\\/g, "/").trim().toLowerCase();
+  return Boolean(left && right && left === right);
+}
+
 async function resolveAwnDataIndexFileOnDisk() {
   const canonical = getAwnDataIndexRelPath();
   if (await workspaceRelFileExists(canonical)) {
     return { path: canonical, exists: true };
   }
   const legacy = getAwnDataIndexLegacyRelPath();
-  if (await workspaceRelFileExists(legacy)) {
+  if (!isSameAwnDataIndexPath(legacy, canonical) && (await workspaceRelFileExists(legacy))) {
     return { path: legacy, exists: true, legacy: true };
   }
   return { path: canonical, exists: false };
@@ -12570,9 +12576,14 @@ async function writeAgentAwnDataIndex(options = {}) {
   await fs.mkdir(path.dirname(indexAbs), { recursive: true });
   await fs.writeFile(indexAbs, markdown, "utf-8");
   const legacyPath = getAwnDataIndexLegacyRelPath();
-  if (legacyPath !== indexPath && (await workspaceRelFileExists(legacyPath))) {
-    const legacyAbsolute = normalizeWorkspacePath(legacyPath);
-    if (legacyAbsolute) await fs.rm(legacyAbsolute, { force: true }).catch(() => {});
+  const legacyAbsolute = normalizeWorkspacePath(legacyPath);
+  if (
+    !isSameAwnDataIndexPath(legacyPath, indexPath) &&
+    legacyAbsolute &&
+    legacyAbsolute !== indexAbs &&
+    (await workspaceRelFileExists(legacyPath))
+  ) {
+    await fs.rm(legacyAbsolute, { force: true }).catch(() => {});
   }
   const writtenExists = await workspaceRelFileExists(indexPath);
   if (!writtenExists) {
