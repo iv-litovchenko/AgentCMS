@@ -31118,6 +31118,13 @@ a.header-tool-btn {
   min-width: 0;
 }
 
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)),
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)),
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .topic-schema-panel:not(.hidden)) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .content-loading {
   display: none !important;
   position: absolute;
@@ -44726,7 +44733,8 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .doc-slab-content:has(> .doc-slab-main > .node-overview:not(.hidden)) .doc-slab-main,
-.doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) .doc-slab-main {
+.doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview:not(.hidden)) .doc-slab-main,
+.doc-slab-content:has(> .doc-slab-main > .topic-schema-panel:not(.hidden)) .doc-slab-main {
   flex: 0 0 auto;
   min-height: 0;
   overflow: visible;
