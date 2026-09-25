@@ -11,6 +11,27 @@ manifest-pattern: "awn-repositories/{slug}/manifest.md"
 
 form:
   panel-title: "{A2!} Репозиторий"
+  create:
+    title: "Новый репозиторий"
+    edit-title: "Репозиторий"
+    adopt-title: "Подхватить репозиторий"
+    hint: >
+      Папка в awn-repositories/{slug}/ с manifest.md. Код клонируйте отдельно — в поиск CMS не попадёт.
+    bootstrap:
+      slug:
+        title: "Папка (slug)"
+        placeholder: "voice-shell-fork"
+        footnote: "kebab-case, одна папка — без /"
+        required: true
+    field-keys:
+      - awn-name
+      - awn-description
+      - awn-repo-origin
+      - awn-repo-status
+      - awn-repository-group
+      - awn-repo-tech
+      - awn-repo-related-topic
+      - awn-index-exclude-subtree
 
 field-groups:
   - id: repository

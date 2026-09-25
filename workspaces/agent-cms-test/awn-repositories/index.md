@@ -4,5 +4,7 @@ _Исходники проектов workspace. В поиске: эта табл
 
 | Статус | Путь | Название | Описание |
 | --- | --- | --- | --- |
+| study | `awn-repositories/444` | [444](awn-repositories/444/manifest.md) | Кратко: зачем клон, что смотреть |
 | study | `awn-repositories/mupukpuk` | [мупукпук](awn-repositories/mupukpuk/manifest.md) | пкупку |
+| study | `awn-repositories/pupupuk` | [пупупук](awn-repositories/pupupuk/manifest.md) | Кратко: зачем клон, что смотреть |
 | study | `awn-repositories/rgrgsh` | [ргргш](awn-repositories/rgrgsh/manifest.md) | Кратко: зачем клон, что смотреть |

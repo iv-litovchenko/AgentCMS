@@ -112,17 +112,13 @@ const menuRepositoriesRefreshBtn = document.getElementById("menu-repositories-re
 const menuRepositoriesHelpBtn = document.getElementById("menu-repositories-help-btn");
 const menuRepositoriesCreateBtn = document.getElementById("menu-repositories-create-btn");
 const repositoryCreateModalNode = document.getElementById("repository-create-modal");
-const repositoryCreateNameInputNode = document.getElementById("repository-create-name-input");
-const repositoryCreateSlugInputNode = document.getElementById("repository-create-slug-input");
-const repositoryCreateDescriptionInputNode = document.getElementById("repository-create-description-input");
-const repositoryCreateOriginInputNode = document.getElementById("repository-create-origin-input");
-const repositoryCreateTechInputNode = document.getElementById("repository-create-tech-input");
-const repositoryCreateGroupInputNode = document.getElementById("repository-create-group-input");
+const repositoryCreateFieldsNode = document.getElementById("repository-create-fields");
 const repositoryCreateModalTitleNode = document.getElementById("repository-create-modal-title");
+const repositoryCreateModalHintNode = document.getElementById("repository-create-modal-hint");
 const repositoryCreateOpenManifestBtn = document.getElementById("repository-create-open-manifest-btn");
 const repositoryCreateCancelBtn = document.getElementById("repository-create-cancel-btn");
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
-const repositoryCreateIndexExcludeSubtreeInput = document.getElementById("repository-create-index-exclude-subtree");
+const REPOSITORY_CREATE_TYPE_ID = "awn.repository";
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
@@ -109204,38 +109200,373 @@ function resolveRepositoryGroupsCatalog(groupsCatalog) {
   return merged;
 }
 
-function populateRepositoryGroupSelect(groupsCatalog, selectedGroup = "study") {
-  if (!repositoryCreateGroupInputNode) return;
+let repositoryCreateTypeDetailCache = null;
+
+async function fetchRepositoryCreateTypeDetail(agentId = activeAgentId) {
+  if (repositoryCreateTypeDetailCache) return repositoryCreateTypeDetailCache;
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) return null;
+  const response = await fetch(
+    buildApiUrl("/api/agent-system/type", { id: REPOSITORY_CREATE_TYPE_ID }, resolvedAgent)
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  }
+  repositoryCreateTypeDetailCache = data;
+  return data;
+}
+
+function getRepositoryCreateFormConfig(detail) {
+  const form =
+    (detail?.form && typeof detail.form === "object" ? detail.form : null) ||
+    (detail?.mergedSchema?.form && typeof detail.mergedSchema.form === "object"
+      ? detail.mergedSchema.form
+      : null) ||
+    (detail?.schema?.form && typeof detail.schema.form === "object" ? detail.schema.form : null) ||
+    {};
+  const create = form.create && typeof form.create === "object" ? form.create : {};
+  const defaultFieldKeys = [
+    "awn-name",
+    "awn-description",
+    "awn-repo-origin",
+    "awn-repo-status",
+    "awn-repository-group",
+    "awn-repo-tech",
+    "awn-repo-related-topic",
+    "awn-index-exclude-subtree"
+  ];
+  const fieldKeys = Array.isArray(create["field-keys"])
+    ? create["field-keys"].map((key) => String(key || "").trim()).filter(Boolean)
+    : defaultFieldKeys;
+  const bootstrap =
+    create.bootstrap && typeof create.bootstrap === "object" ? create.bootstrap : {};
+  const slugBootstrap =
+    bootstrap.slug && typeof bootstrap.slug === "object"
+      ? bootstrap.slug
+      : {
+          title: "Папка (slug)",
+          placeholder: "voice-shell-fork",
+          footnote: "kebab-case, одна папка — без /",
+          required: true
+        };
+  return {
+    title: String(create.title || "Новый репозиторий").trim() || "Новый репозиторий",
+    editTitle: String(create["edit-title"] || "Репозиторий").trim() || "Репозиторий",
+    adoptTitle:
+      String(create["adopt-title"] || "Подхватить репозиторий").trim() || "Подхватить репозиторий",
+    hint:
+      String(create.hint || "").trim() ||
+      "Папка в awn-repositories/{slug}/ с manifest.md. Код клонируйте отдельно — в поиск CMS не попадёт.",
+    slugBootstrap,
+    fieldKeys
+  };
+}
+
+function getRepositoryCreateFieldMeta(key, fieldDef) {
+  const typeId = resolveFieldTypeId(fieldDef?.type || "awn.field.string");
+  return {
+    label:
+      formatSchemaDisplayTitle(getFieldDefDisplayName(fieldDef, key), {
+        typeId,
+        key,
+        replaceMarker: true
+      }) || key,
+    hint: fieldDef?.hint || fieldDef?.description || "",
+    required: Boolean(fieldDef?.required),
+    locked: Boolean(fieldDef?.locked) || isProjectSettingsLockedField(fieldDef),
+    typeId,
+    fieldDef
+  };
+}
+
+function shouldRenderRepositoryCreateField(key, fieldDef) {
+  if (!key || !fieldDef) return false;
+  if (fieldDef.hidden) return false;
+  if (isProjectSettingsLockedField(fieldDef) && fieldDef.hidden !== false) return false;
+  return true;
+}
+
+function createRepositoryCreateFootnote(text) {
+  const footnote = document.createElement("p");
+  footnote.className = "agents-registry-create-footnote";
+  footnote.innerHTML = String(text || "");
+  return footnote;
+}
+
+function createRepositoryCreateTextFieldRow(key, label, value, options = {}) {
+  const {
+    inputType = "text",
+    placeholder = "",
+    footnote = "",
+    required = false,
+    readOnly = false,
+    rows = 0,
+    className = ""
+  } = options;
+  const row = document.createElement("label");
+  row.className = `agents-registry-field agents-registry-create-field repository-create-field${className ? ` ${className}` : ""}`;
+  row.dataset.repoField = key;
+
+  const title = document.createElement("span");
+  title.textContent = label;
+  row.appendChild(title);
+
+  let control;
+  if (rows > 1) {
+    control = document.createElement("textarea");
+    control.className = "agents-registry-create-description-input";
+    control.rows = rows;
+  } else {
+    control = document.createElement("input");
+    control.type = inputType;
+  }
+  control.dataset.repoField = key;
+  control.spellcheck = false;
+  control.autocomplete = "off";
+  if (placeholder) control.placeholder = placeholder;
+  if (required) control.required = true;
+  if (readOnly) {
+    control.readOnly = true;
+    control.classList.add("is-readonly");
+  }
+  control.value = value == null ? "" : String(value);
+  row.appendChild(control);
+  if (footnote) row.appendChild(createRepositoryCreateFootnote(footnote));
+  return row;
+}
+
+function createRepositoryCreateCheckboxRow(key, label, checked, { title = "" } = {}) {
+  const row = document.createElement("label");
+  row.className = "awn-databases-create-checkbox-field create-form-indexing-option repository-create-field";
+  row.dataset.repoField = key;
+  if (title) row.title = title;
+
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.dataset.repoField = key;
+  input.checked = Boolean(checked);
+  row.appendChild(input);
+
+  const text = document.createElement("span");
+  text.className = "awn-databases-create-checkbox-label";
+  text.textContent = label;
+  row.appendChild(text);
+  return row;
+}
+
+function createRepositoryCreateSelectFieldRow(key, label, value, options, { footnote = "" } = {}) {
+  const row = document.createElement("label");
+  row.className = "agents-registry-field agents-registry-create-field repository-create-field";
+  row.dataset.repoField = key;
+
+  const title = document.createElement("span");
+  title.textContent = label;
+  row.appendChild(title);
+
+  const select = document.createElement("select");
+  select.dataset.repoField = key;
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = String(option.value ?? "").trim();
+    node.textContent = String(option.label ?? option.value ?? "").trim() || node.value;
+    select.appendChild(node);
+  }
+  const normalized = String(value ?? "").trim();
+  if (normalized && [...select.options].some((option) => option.value === normalized)) {
+    select.value = normalized;
+  } else if (select.options.length) {
+    select.selectedIndex = 0;
+  }
+  row.appendChild(select);
+  if (footnote) row.appendChild(createRepositoryCreateFootnote(footnote));
+  return row;
+}
+
+function populateRepositoryGroupSelectElement(selectNode, groupsCatalog, selectedGroup = "study") {
+  if (!selectNode) return;
   const groups = resolveRepositoryGroupsCatalog(groupsCatalog);
-  repositoryCreateGroupInputNode.replaceChildren();
+  selectNode.replaceChildren();
   for (const group of groups) {
     const option = document.createElement("option");
     option.value = String(group.id || "").trim();
     option.textContent = String(group.title || group.id || "").trim() || group.id;
-    repositoryCreateGroupInputNode.appendChild(option);
+    selectNode.appendChild(option);
   }
   const normalized = String(selectedGroup || "study").trim() || "study";
-  repositoryCreateGroupInputNode.value = groups.some((group) => group.id === normalized)
-    ? normalized
-    : "study";
+  selectNode.value = groups.some((group) => group.id === normalized) ? normalized : groups[0]?.id || "study";
 }
 
-function syncRepositoryModalUi() {
+function createRepositoryCreateSchemaFieldRow(key, fieldDef, value, groupsCatalog) {
+  const meta = getRepositoryCreateFieldMeta(key, fieldDef);
+  const placeholder = String(fieldDef?.placeholder || "").trim();
+  const footnote = meta.hint ? meta.hint.replace(/`/g, "") : "";
+
+  if (key === "awn-repository-group") {
+    const row = createRepositoryCreateSelectFieldRow(key, meta.label, value, [], {
+      footnote: footnote || "Sidebar-группа из awn-repositories/groups.yml"
+    });
+    const select = row.querySelector("select");
+    populateRepositoryGroupSelectElement(select, groupsCatalog, value || "study");
+    return row;
+  }
+
+  if (key === "awn-index-exclude-subtree") {
+    const checked = value !== undefined ? Boolean(value) : fieldDefDefaultValue(fieldDef);
+    return createRepositoryCreateCheckboxRow(key, meta.label, checked, { title: meta.hint });
+  }
+
+  if (key === "awn-repo-status" && Array.isArray(fieldDef?.enum) && fieldDef.enum.length) {
+    const options = fieldDef.enum.map((item) => ({
+      value: item?.key ?? item?.value ?? item,
+      label: item?.name ?? item?.label ?? item?.key ?? item
+    }));
+    const row = createRepositoryCreateSelectFieldRow(key, meta.label, value ?? fieldDef?.default ?? "study", options, {
+      footnote
+    });
+    return row;
+  }
+
+  if (key === "awn-description" || fieldDefToEntryKind(fieldDef) === "text") {
+    return createRepositoryCreateTextFieldRow(key, meta.label, value, {
+      placeholder,
+      footnote,
+      rows: 2,
+      required: meta.required
+    });
+  }
+
+  if (key === "awn-repo-tech") {
+    const techValue = Array.isArray(value) ? value.join(", ") : String(value || "");
+    return createRepositoryCreateTextFieldRow(key, meta.label, techValue, {
+      placeholder: "react, typescript, fork",
+      footnote: footnote || "Через запятую — попадёт в awn-repo-tech"
+    });
+  }
+
+  const inputType =
+    fieldDef?.type === "awn.field.string.url" || resolvePropsFieldWidget(key, fieldDef) === "url"
+      ? "url"
+      : "text";
+  return createRepositoryCreateTextFieldRow(key, meta.label, value, {
+    inputType,
+    placeholder,
+    footnote,
+    required: meta.required
+  });
+}
+
+function getRepositoryCreateDefaultValues() {
+  return {
+    __slug: "",
+    "awn-name": "",
+    "awn-description": "",
+    "awn-repo-origin": "",
+    "awn-repo-status": "study",
+    "awn-repository-group": "study",
+    "awn-repo-tech": [],
+    "awn-repo-related-topic": "",
+    "awn-index-exclude-subtree": true
+  };
+}
+
+function mapRepositoryToCreateFormValues(repo = {}) {
+  return {
+    __slug: String(repo.slug || "").trim(),
+    "awn-name": String(repo.name || repo.slug || "").trim(),
+    "awn-description": String(repo.description || "").trim(),
+    "awn-repo-origin": String(repo.origin || "").trim(),
+    "awn-repo-status": String(repo.status || "study").trim() || "study",
+    "awn-repository-group": String(repo.group || "study").trim() || "study",
+    "awn-repo-tech": Array.isArray(repo.tech) ? repo.tech : [],
+    "awn-repo-related-topic": String(repo.relatedTopic || "").trim(),
+    "awn-index-exclude-subtree": repo.indexExcludeSubtree !== false
+  };
+}
+
+async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) {
+  if (!repositoryCreateFieldsNode) return;
+  const mergedValues = { ...getRepositoryCreateDefaultValues(), ...values };
+  repositoryCreateFieldsNode.replaceChildren();
+  repositoryCreateFieldsNode.classList.add("is-loading");
+  try {
+    const detail = await fetchRepositoryCreateTypeDetail(agentId);
+    const config = getRepositoryCreateFormConfig(detail);
+    const mergedFields =
+      detail?.mergedFields && typeof detail.mergedFields === "object" ? detail.mergedFields : {};
+    const mode = repositoryModalState.mode || "create";
+    const slugReadOnly = mode === "edit" || mode === "adopt";
+
+    if (repositoryCreateModalHintNode) {
+      repositoryCreateModalHintNode.textContent = config.hint;
+    }
+
+    const slugRow = createRepositoryCreateTextFieldRow(
+      "__slug",
+      String(config.slugBootstrap.title || "Папка (slug)"),
+      mergedValues.__slug,
+      {
+        placeholder: String(config.slugBootstrap.placeholder || "").trim(),
+        footnote: String(config.slugBootstrap.footnote || "").trim(),
+        required: Boolean(config.slugBootstrap.required),
+        readOnly: slugReadOnly,
+        className: "repository-create-field--slug"
+      }
+    );
+    const slugInput = slugRow.querySelector('[data-repo-field="__slug"]');
+    if (slugInput && slugReadOnly) slugInput.dataset.manual = "1";
+    repositoryCreateFieldsNode.appendChild(slugRow);
+
+    for (const key of config.fieldKeys) {
+      const fieldDef = mergedFields[key];
+      if (!shouldRenderRepositoryCreateField(key, fieldDef)) continue;
+      const value =
+        mergedValues[key] !== undefined ? mergedValues[key] : fieldDefDefaultValue(fieldDef);
+      repositoryCreateFieldsNode.appendChild(
+        createRepositoryCreateSchemaFieldRow(key, fieldDef, value, menuRepositoriesLastPayload?.groupsCatalog)
+      );
+    }
+
+    const nameInput = repositoryCreateFieldsNode.querySelector('[data-repo-field="awn-name"]');
+    if (nameInput && slugInput && !slugReadOnly) {
+      nameInput.addEventListener("input", () => {
+        if (slugInput.dataset.manual === "1") return;
+        slugInput.value = slugifyRepositorySlug(nameInput.value);
+      });
+      slugInput.addEventListener("input", () => {
+        slugInput.dataset.manual = "1";
+      });
+    }
+  } catch (error) {
+    repositoryCreateFieldsNode.replaceChildren();
+    const fallback = document.createElement("p");
+    fallback.className = "agents-registry-create-footnote is-error";
+    fallback.textContent = String(error.message || error);
+    repositoryCreateFieldsNode.appendChild(fallback);
+  } finally {
+    repositoryCreateFieldsNode.classList.remove("is-loading");
+  }
+}
+
+function populateRepositoryGroupSelect(groupsCatalog, selectedGroup = "study") {
+  const selectNode = repositoryCreateFieldsNode?.querySelector('[data-repo-field="awn-repository-group"]');
+  populateRepositoryGroupSelectElement(selectNode, groupsCatalog, selectedGroup);
+}
+
+function syncRepositoryModalUi(detail = repositoryCreateTypeDetailCache) {
   const mode = repositoryModalState.mode || "create";
+  const config = detail ? getRepositoryCreateFormConfig(detail) : null;
   if (repositoryCreateModalTitleNode) {
     repositoryCreateModalTitleNode.textContent =
-      mode === "edit" ? "Репозиторий" : mode === "adopt" ? "Подхватить репозиторий" : "Новый репозиторий";
+      mode === "edit"
+        ? config?.editTitle || "Репозиторий"
+        : mode === "adopt"
+          ? config?.adoptTitle || "Подхватить репозиторий"
+          : config?.title || "Новый репозиторий";
   }
   if (repositoryCreateSubmitBtn) {
     repositoryCreateSubmitBtn.textContent =
       mode === "edit" ? "Сохранить" : mode === "adopt" ? "Подхватить" : "Создать";
-  }
-  if (repositoryCreateSlugInputNode) {
-    repositoryCreateSlugInputNode.readOnly = mode === "edit" || mode === "adopt";
-    repositoryCreateSlugInputNode.classList.toggle(
-      "is-readonly",
-      mode === "edit" || mode === "adopt"
-    );
   }
   repositoryCreateOpenManifestBtn?.classList.toggle("hidden", mode !== "edit" || !repositoryModalState.manifestPath);
 }
@@ -109255,7 +109586,17 @@ function syncRepositoryGroupsDraftFromDom() {
   if (!repositoryGroupsListNode) return;
   const order = [];
   repositoryGroupsListNode.querySelectorAll(".repository-groups-row").forEach((row) => {
-    if (row.__repositoryGroupRef) order.push(row.__repositoryGroupRef);
+    const idInput = row.querySelector(".repository-groups-cell--id input");
+    const titleInput = row.querySelector(".repository-groups-cell--title input");
+    const id = normalizeRepositoryGroupId(idInput?.value || row.__repositoryGroupRef?.id);
+    if (!id) return;
+    const title =
+      String(titleInput?.value || row.__repositoryGroupRef?.title || "").trim() || id;
+    const entry = row.__repositoryGroupRef
+      ? Object.assign(row.__repositoryGroupRef, { id, title })
+      : { id, title };
+    row.__repositoryGroupRef = entry;
+    order.push(entry);
   });
   if (order.length) repositoryGroupsDraft.groups = order;
 }
@@ -109281,10 +109622,13 @@ function setupRepositoryGroupsSortDragDrop() {
 
   list.addEventListener("dragover", (event) => {
     if (!repositoryGroupsSortDragRow) return;
-    const targetRow = event.target.closest(".repository-groups-row");
-    if (!targetRow || targetRow === repositoryGroupsSortDragRow) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
+    const targetRow = event.target.closest(".repository-groups-row");
+    if (!targetRow || targetRow === repositoryGroupsSortDragRow) {
+      list.appendChild(repositoryGroupsSortDragRow);
+      return;
+    }
     const rect = targetRow.getBoundingClientRect();
     const insertBefore = event.clientY < rect.top + rect.height / 2;
     if (insertBefore) list.insertBefore(repositoryGroupsSortDragRow, targetRow);
@@ -109409,6 +109753,7 @@ async function openRepositoryGroupsModal(agentId = activeAgentId) {
       assignments:
         data.assignments && typeof data.assignments === "object" ? { ...data.assignments } : {}
     };
+    setupRepositoryGroupsSortDragDrop();
     renderRepositoryGroupsEditor();
     repositoryGroupsModalNode.classList.remove("hidden");
   } catch (error) {
@@ -109459,77 +109804,61 @@ async function saveRepositoryGroups(agentId = activeAgentId) {
   }
 }
 
-function openRepositoryCreateModal() {
+async function openRepositoryCreateModal() {
   if (!repositoryCreateModalNode) return;
   repositoryModalState = { mode: "create" };
-  if (repositoryCreateNameInputNode) repositoryCreateNameInputNode.value = "";
-  if (repositoryCreateSlugInputNode) {
-    repositoryCreateSlugInputNode.value = "";
-    delete repositoryCreateSlugInputNode.dataset.manual;
+  try {
+    const detail = await fetchRepositoryCreateTypeDetail();
+    syncRepositoryModalUi(detail);
+    await renderRepositoryCreateForm(getRepositoryCreateDefaultValues());
+    repositoryCreateModalNode.classList.remove("hidden");
+    repositoryCreateFieldsNode?.querySelector('[data-repo-field="awn-name"]')?.focus();
+  } catch (error) {
+    showToast(String(error.message || error), "error");
   }
-  if (repositoryCreateDescriptionInputNode) repositoryCreateDescriptionInputNode.value = "";
-  if (repositoryCreateOriginInputNode) repositoryCreateOriginInputNode.value = "";
-  if (repositoryCreateTechInputNode) repositoryCreateTechInputNode.value = "";
-  if (repositoryCreateIndexExcludeSubtreeInput) repositoryCreateIndexExcludeSubtreeInput.checked = true;
-  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, "study");
-  syncRepositoryModalUi();
-  repositoryCreateModalNode.classList.remove("hidden");
-  repositoryCreateNameInputNode?.focus();
 }
 
-function openRepositoryEditModal(repo) {
+async function openRepositoryEditModal(repo) {
   if (!repositoryCreateModalNode || !repo) return;
   repositoryModalState = {
     mode: "edit",
     manifestPath: String(repo.manifestPath || "").trim(),
     slug: String(repo.slug || "").trim()
   };
-  if (repositoryCreateNameInputNode) {
-    repositoryCreateNameInputNode.value = String(repo.name || repo.slug || "").trim();
+  try {
+    const detail = await fetchRepositoryCreateTypeDetail();
+    syncRepositoryModalUi(detail);
+    await renderRepositoryCreateForm(mapRepositoryToCreateFormValues(repo));
+    repositoryCreateModalNode.classList.remove("hidden");
+    repositoryCreateFieldsNode?.querySelector('[data-repo-field="awn-name"]')?.focus();
+  } catch (error) {
+    showToast(String(error.message || error), "error");
   }
-  if (repositoryCreateSlugInputNode) {
-    repositoryCreateSlugInputNode.value = String(repo.slug || "").trim();
-    repositoryCreateSlugInputNode.dataset.manual = "1";
-  }
-  if (repositoryCreateDescriptionInputNode) {
-    repositoryCreateDescriptionInputNode.value = String(repo.description || "").trim();
-  }
-  if (repositoryCreateOriginInputNode) {
-    repositoryCreateOriginInputNode.value = String(repo.origin || "").trim();
-  }
-  if (repositoryCreateTechInputNode) {
-    repositoryCreateTechInputNode.value = Array.isArray(repo.tech) ? repo.tech.join(", ") : "";
-  }
-  if (repositoryCreateIndexExcludeSubtreeInput) {
-    repositoryCreateIndexExcludeSubtreeInput.checked = repo.indexExcludeSubtree !== false;
-  }
-  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, repo.group || "study");
-  syncRepositoryModalUi();
-  repositoryCreateModalNode.classList.remove("hidden");
-  repositoryCreateNameInputNode?.focus();
 }
 
-function openRepositoryAdoptModal(entry) {
+async function openRepositoryAdoptModal(entry) {
   if (!repositoryCreateModalNode || !entry) return;
   const slug = String(entry.slug || "").trim();
   repositoryModalState = { mode: "adopt", slug };
-  if (repositoryCreateNameInputNode) repositoryCreateNameInputNode.value = slug;
-  if (repositoryCreateSlugInputNode) {
-    repositoryCreateSlugInputNode.value = slug;
-    repositoryCreateSlugInputNode.dataset.manual = "1";
+  try {
+    const detail = await fetchRepositoryCreateTypeDetail();
+    syncRepositoryModalUi(detail);
+    await renderRepositoryCreateForm({
+      ...getRepositoryCreateDefaultValues(),
+      __slug: slug,
+      "awn-name": slug,
+      "awn-repository-group": "new"
+    });
+    repositoryCreateModalNode.classList.remove("hidden");
+    repositoryCreateFieldsNode?.querySelector('[data-repo-field="awn-name"]')?.focus();
+  } catch (error) {
+    showToast(String(error.message || error), "error");
   }
-  if (repositoryCreateDescriptionInputNode) repositoryCreateDescriptionInputNode.value = "";
-  if (repositoryCreateOriginInputNode) repositoryCreateOriginInputNode.value = "";
-  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, "new");
-  syncRepositoryModalUi();
-  repositoryCreateModalNode.classList.remove("hidden");
-  repositoryCreateNameInputNode?.focus();
 }
 
 function closeRepositoryCreateModal() {
   repositoryCreateModalNode?.classList.add("hidden");
   repositoryModalState = { mode: "create" };
-  if (repositoryCreateIndexExcludeSubtreeInput) repositoryCreateIndexExcludeSubtreeInput.checked = true;
 }
 
 async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
@@ -109545,8 +109874,10 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
     ...(payload.name ? { name: payload.name } : {}),
     ...(payload.description ? { description: payload.description } : {}),
     ...(payload.origin ? { origin: payload.origin } : {}),
+    ...(payload.status ? { status: payload.status } : {}),
     ...(Array.isArray(payload.tech) && payload.tech.length ? { tech: payload.tech } : {}),
     ...(payload.group ? { group: payload.group } : {}),
+    ...(payload.relatedTopic ? { relatedTopic: payload.relatedTopic } : {}),
     indexExcludeSubtree: payload.indexExcludeSubtree !== false,
     ...(payload.indexExclude ? { indexExcludeSubtree: true } : {})
   };
@@ -109615,20 +109946,35 @@ async function fetchRepositoryOverviewData(repositoryPath, agentId = activeAgent
 
 function aggregateRepositoryFolderScan(scanData = {}) {
   const items = Array.isArray(scanData.items) ? scanData.items : [];
+  const counts = scanData.counts && typeof scanData.counts === "object" ? scanData.counts : null;
   let fileCount = 0;
   let folderCount = 0;
   let totalSize = 0;
   const extCounts = new Map();
   const kindCounts = new Map();
 
+  if (counts) {
+    fileCount =
+      (counts.images || 0) +
+      (counts.pages || 0) +
+      (counts.videos || 0) +
+      (counts.audio || 0) +
+      (counts.files || 0);
+    folderCount = counts.folders || 0;
+    totalSize = Number(counts.totalBytes) || 0;
+  }
+
   for (const item of items) {
-    if (item.kind === "folder") {
-      folderCount += 1;
-      continue;
+    if (!counts) {
+      if (item.kind === "folder") {
+        folderCount += 1;
+      } else {
+        fileCount += 1;
+        const size = Number(item.size);
+        if (Number.isFinite(size) && size > 0) totalSize += size;
+      }
     }
-    fileCount += 1;
-    const size = Number(item.size);
-    if (Number.isFinite(size) && size > 0) totalSize += size;
+    if (item.kind === "folder") continue;
     const ext = String(item.ext || "").trim().toLowerCase() || "без расширения";
     extCounts.set(ext, (extCounts.get(ext) || 0) + 1);
     const kind = String(item.kind || "file").trim() || "file";
@@ -109826,23 +110172,16 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   grid.append(
     createRepositoryWorkspaceStatCard("Файлов", scanStats.fileCount, { icon: "📄", tone: "files" }),
     createRepositoryWorkspaceStatCard("Папок", scanStats.folderCount, { icon: "📁", tone: "folders" }),
+    createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—", { icon: "📌", tone: "root" }),
     createRepositoryWorkspaceStatCard("Размер", formatFileSize(scanStats.totalSize) || "0 B", {
       icon: "💾",
       tone: "size"
-    }),
-    createRepositoryWorkspaceStatCard("В корне", repo.entryCount ?? "—", { icon: "📌", tone: "root" })
+    })
   );
   dashboard.appendChild(grid);
 
   const extBars = renderRepositoryWorkspaceExtensionBars(scanStats.topExtensions, scanStats.fileCount);
   if (extBars) dashboard.appendChild(extBars);
-
-  if (scanStats.truncated) {
-    const note = document.createElement("p");
-    note.className = "repository-workspace-dashboard-note";
-    note.textContent = "Показана часть инвентаря — в репозитории больше файлов, чем в лимите сканирования.";
-    dashboard.appendChild(note);
-  }
 
   const chips = document.createElement("div");
   chips.className = "repository-workspace-meta-chips";
@@ -110111,23 +110450,38 @@ async function openRepositoryManifestFromModal() {
   showToast(`Не удалось открыть ${manifestPath}`, "error");
 }
 
+function readRepositoryCreateFieldValue(key) {
+  const root = repositoryCreateFieldsNode;
+  if (!root || !key) return "";
+  const control = root.querySelector(`[data-repo-field="${key}"]`);
+  if (!control) return "";
+  if (control.type === "checkbox") return Boolean(control.checked);
+  return String(control.value || "").trim();
+}
+
 function readRepositoryModalForm() {
-  const name = String(repositoryCreateNameInputNode?.value || "").trim();
-  let slug = String(repositoryCreateSlugInputNode?.value || "").trim() || slugifyRepositorySlug(name);
+  const name = String(readRepositoryCreateFieldValue("awn-name") || "").trim();
+  let slug =
+    String(readRepositoryCreateFieldValue("__slug") || "").trim() || slugifyRepositorySlug(name);
   slug = slug.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/").pop() || "";
   slug = slugifyRepositorySlug(slug);
-  const tech = String(repositoryCreateTechInputNode?.value || "")
+  const tech = String(readRepositoryCreateFieldValue("awn-repo-tech") || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+  const status = String(readRepositoryCreateFieldValue("awn-repo-status") || "study").trim() || "study";
+  const group =
+    String(readRepositoryCreateFieldValue("awn-repository-group") || "study").trim() || "study";
   return {
     name,
     slug,
-    description: String(repositoryCreateDescriptionInputNode?.value || "").trim(),
-    origin: String(repositoryCreateOriginInputNode?.value || "").trim(),
+    description: String(readRepositoryCreateFieldValue("awn-description") || "").trim(),
+    origin: String(readRepositoryCreateFieldValue("awn-repo-origin") || "").trim(),
+    status,
     tech,
-    group: String(repositoryCreateGroupInputNode?.value || "study").trim() || "study",
-    indexExcludeSubtree: Boolean(repositoryCreateIndexExcludeSubtreeInput?.checked)
+    group,
+    relatedTopic: String(readRepositoryCreateFieldValue("awn-repo-related-topic") || "").trim(),
+    indexExcludeSubtree: Boolean(readRepositoryCreateFieldValue("awn-index-exclude-subtree"))
   };
 }
 
@@ -110158,8 +110512,10 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
           name: form.name,
           description: form.description,
           origin: form.origin,
+          status: form.status,
           tech: form.tech,
           group: form.group,
+          relatedTopic: form.relatedTopic,
           indexExcludeSubtree: form.indexExcludeSubtree
         },
         agentId
@@ -110175,8 +110531,10 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
         name: form.name,
         description: form.description,
         origin: form.origin,
+        status: form.status,
         group: form.group,
         tech: form.tech,
+        relatedTopic: form.relatedTopic,
         indexExcludeSubtree: form.indexExcludeSubtree
       },
       agentId
@@ -110768,14 +111126,6 @@ function setupRepositoriesUi() {
   repositoryCreateCancelBtn?.addEventListener("click", closeRepositoryCreateModal);
   repositoryCreateOpenManifestBtn?.addEventListener("click", () => void openRepositoryManifestFromModal());
   repositoryCreateSubmitBtn?.addEventListener("click", () => void submitRepositoryCreate());
-  repositoryCreateNameInputNode?.addEventListener("input", () => {
-    if (!repositoryCreateSlugInputNode) return;
-    if (repositoryCreateSlugInputNode.dataset.manual === "1") return;
-    repositoryCreateSlugInputNode.value = slugifyRepositorySlug(repositoryCreateNameInputNode.value);
-  });
-  repositoryCreateSlugInputNode?.addEventListener("input", () => {
-    if (repositoryCreateSlugInputNode) repositoryCreateSlugInputNode.dataset.manual = "1";
-  });
   repositoryCreateModalNode?.addEventListener("click", (event) => {
     if (event.target === repositoryCreateModalNode) closeRepositoryCreateModal();
   });

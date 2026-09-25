@@ -61141,8 +61141,21 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 2rem;
 }
 
-#repository-create-status-input,
-#repository-create-group-input {
+.repository-create-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.repository-create-fields.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.repository-create-fields select,
+.repository-create-fields input[type="text"],
+.repository-create-fields input[type="url"],
+.repository-create-fields textarea {
   width: 100%;
   font: inherit;
   font-size: 0.8125rem;

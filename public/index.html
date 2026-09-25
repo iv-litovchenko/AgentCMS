@@ -5541,46 +5541,8 @@
     <div id="repository-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
       <div class="modal-card awn-databases-modal-card">
         <div class="modal-message" id="repository-create-modal-title">Новый репозиторий</div>
-        <p class="agents-registry-hint" id="repository-create-modal-hint">
-          Папка в <code>awn-repositories/{slug}/</code> с <code>manifest.md</code>. Код клонируйте отдельно — в поиск CMS не попадёт.
-        </p>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Название</span>
-          <input id="repository-create-name-input" type="text" placeholder="Voice Shell fork" spellcheck="false" autocomplete="off" required />
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Папка (slug)</span>
-          <input id="repository-create-slug-input" type="text" placeholder="voice-shell-fork" spellcheck="false" autocomplete="off" required />
-          <p class="agents-registry-create-footnote">kebab-case, одна папка — без <code>/</code></p>
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Описание</span>
-          <textarea id="repository-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Зачем клон, что смотреть"></textarea>
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Git origin (необязательно)</span>
-          <input id="repository-create-origin-input" type="url" placeholder="https://github.com/org/repo" spellcheck="false" autocomplete="off" />
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Стек / теги</span>
-          <input id="repository-create-tech-input" type="text" placeholder="react, typescript, fork" spellcheck="false" autocomplete="off" />
-          <p class="agents-registry-create-footnote">Через запятую — попадёт в <code>awn-repo-tech</code></p>
-        </label>
-        <label class="agents-registry-field agents-registry-create-field">
-          <span>Группа</span>
-          <select id="repository-create-group-input">
-            <option value="study">Изучение</option>
-          </select>
-          <p class="agents-registry-create-footnote">Sidebar-группа из <code>awn-repositories/groups.yml</code></p>
-        </label>
-        <label
-          class="awn-databases-create-checkbox-field create-form-indexing-option"
-          for="repository-create-index-exclude-subtree"
-          title="Не индексировать код и файлы внутри репозитория (только manifest остаётся в индексе)"
-        >
-          <input id="repository-create-index-exclude-subtree" type="checkbox" checked />
-          <span class="awn-databases-create-checkbox-label">Запретить индексирование содержимого</span>
-        </label>
+        <p class="agents-registry-hint" id="repository-create-modal-hint"></p>
+        <div id="repository-create-fields" class="repository-create-fields" aria-live="polite"></div>
         <div class="modal-actions">
           <button id="repository-create-open-manifest-btn" class="save-btn hidden" type="button">Открыть manifest.md</button>
           <button id="repository-create-cancel-btn" class="save-btn" type="button">Отмена</button>

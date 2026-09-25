@@ -13,8 +13,3 @@ groups:
   - id: clients
     title: "Клиентские сайты"
 assignments:
-  444: study
-  mupukpuk: study
-  pupupuk: study
-  rgrgsh: study
-  yamlcms-core: cms
