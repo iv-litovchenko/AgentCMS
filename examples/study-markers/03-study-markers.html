@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Режим 3 — пометки в конспектах</title>
+  <link rel="stylesheet" href="markers.css">
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge mode-3">Режим 3</span>
+        <h1>Пометки [повторить] и [вопрос] → сводный список</h1>
+        <p>sample-notes/ — 3 файла, 10 пометок</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Все примеры</a>
+        <button type="button" data-filter="all" class="is-active">Все</button>
+        <button type="button" data-filter="повторить" class="filter-repeat">↻ Повторить</button>
+        <button type="button" data-filter="вопрос" class="filter-question">? Вопросы</button>
+      </div>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Синтаксис маркеров</h2>
+        <pre><span class="syntax-comment"># Заголовок раздела</span>
+
+Текст конспекта…
+
+<span class="syntax-line">[повторить]: что нужно повторить</span>
+<span class="syntax-line">[вопрос]: что осталось непонятным</span></pre>
+
+        <h2>Статистика</h2>
+        <div class="stats">
+          <div class="stat"><span>Всего</span><strong id="stat-total">0</strong></div>
+          <div class="stat"><span>↻ Повторить</span><strong id="stat-repeat">0</strong></div>
+          <div class="stat"><span>? Вопросы</span><strong id="stat-question">0</strong></div>
+          <div class="stat"><span>Показано</span><strong id="stat-shown">0</strong></div>
+        </div>
+
+        <h2>CLI</h2>
+        <pre>node collect-markers.js -i sample-notes/
+node collect-markers.js -i sample-notes/ -t вопрос
+node collect-markers.js -i sample-notes/ -o report.html</pre>
+      </aside>
+
+      <div class="content" id="dashboard"></div>
+    </main>
+  </div>
+
+  <script src="markers-renderer.js"></script>
+  <script src="03-study-markers-data.js"></script>
+  <script src="03-study-markers.js"></script>
+</body>
+</html>
