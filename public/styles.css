@@ -64274,6 +64274,36 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-size: 0.625rem;
 }
 
+.awn-databases-view-section-tree-actions .awn-databases-view-section-slug-fix-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  border: 0;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.awn-databases-view-section-tree-actions .awn-databases-view-section-slug-fix-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.awn-databases-view-section-tree-actions .awn-databases-view-section-slug-fix-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .awn-databases-view-section-tree-actions .awn-databases-view-edit-btn {
   width: 1.5rem;
   height: 1.5rem;

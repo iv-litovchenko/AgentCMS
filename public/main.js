@@ -17370,12 +17370,15 @@ function buildDataHubSlugWarningElement(issue) {
 async function applyDataHubSlugFix(issue, triggerBtn = null) {
   if (!issue) return;
   const manifestPath = getActiveNodeApiPath();
-  if (!manifestPath) {
+  if (issue.kind !== "awn-data-section" && !manifestPath) {
     showToast("Не выбран топик", "error");
     return;
   }
 
   if (triggerBtn) {
+    if (!triggerBtn.dataset.slugFixOriginalLabel) {
+      triggerBtn.dataset.slugFixOriginalLabel = triggerBtn.textContent || "";
+    }
     triggerBtn.disabled = true;
     triggerBtn.textContent = "Преобразование…";
   }
@@ -17591,9 +17594,13 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
   } finally {
     if (triggerBtn) {
       triggerBtn.disabled = !canApplyDataHubSlugFix(issue);
-      triggerBtn.textContent = "Преобразовать";
+      triggerBtn.textContent = triggerBtn.dataset.slugFixOriginalLabel || "Преобразовать";
+      delete triggerBtn.dataset.slugFixOriginalLabel;
     }
     syncDataHubSlugWarning(activeContentMode);
+    if (issue?.kind === "awn-data-section") {
+      syncAwnDataViewSectionPanelNotices(awnDataViewStoreCache);
+    }
   }
 }
 
@@ -107640,11 +107647,11 @@ function getAwnDataSectionUnregisteredTitle(record) {
   return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — создайте описание раздела`;
 }
 
-function getAwnDataViewSectionSlugIssue(store = awnDataViewStoreCache) {
-  const record = getAwnDataViewActiveSectionRecord(store);
-  if (!record || !awnDataSectionMissingManifest(record)) return null;
-  const sectionPath = resolveAwnDataSectionReadmeFolder(record);
-  const segment = sectionPath.split("/").filter(Boolean).pop() || String(record.id || "");
+function getAwnDataSectionRecordSlugIssue(record, store = awnDataViewStoreCache) {
+  if (!record || !isAwnDataSectionRecord(record)) return null;
+  const sectionPath = resolveAwnDataSectionReadmeFolder(record) || String(record.id || "").trim();
+  const segment = sectionPath.split("/").filter(Boolean).pop() || String(record.id || "").trim();
+  if (!segment) return null;
   const displayName = resolveAwnDataRecordDisplayName(record) || segment;
   const issue = getSlugIssueForSegment(segment, displayName);
   if (!issue) return null;
@@ -107657,6 +107664,12 @@ function getAwnDataViewSectionSlugIssue(store = awnDataViewStoreCache) {
     label: displayName,
     ...issue
   };
+}
+
+function getAwnDataViewSectionSlugIssue(store = awnDataViewStoreCache) {
+  const record = getAwnDataViewActiveSectionRecord(store);
+  if (!record) return null;
+  return getAwnDataSectionRecordSlugIssue(record, store);
 }
 
 async function ensureAwnDataSectionReadme(record, store = awnDataViewStoreCache) {
@@ -107737,9 +107750,31 @@ function createAwnDataViewSectionTreeIdControl(record, store) {
   return wrap;
 }
 
+function createAwnDataViewSectionTreeSlugFixButton(record, store) {
+  const issue = getAwnDataSectionRecordSlugIssue(record, store);
+  if (!issue) return null;
+  const canFix = canApplyDataHubSlugFix(issue);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "awn-databases-view-section-slug-fix-btn";
+  btn.textContent = "ЧПУ";
+  btn.title = canFix
+    ? `Преобразовать slug в «${issue.suggested}»`
+    : "Сначала необходимо создать описание раздела";
+  btn.setAttribute("aria-label", "Преобразовать slug");
+  btn.disabled = !canFix;
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void applyDataHubSlugFix(issue, btn);
+  });
+  return btn;
+}
+
 function createAwnDataViewSectionTreeActions(record, store) {
   const actions = document.createElement("div");
   actions.className = "awn-databases-view-section-tree-actions";
+  const slugBtn = createAwnDataViewSectionTreeSlugFixButton(record, store);
+  if (slugBtn) actions.appendChild(slugBtn);
   actions.append(
     createAwnDataViewSectionTreeIdControl(record, store),
     createAwnDataViewRecordEditIconButton(record, store, resolveAwnDataRecordDisplayName(record))
