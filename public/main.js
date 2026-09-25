@@ -46759,6 +46759,28 @@ function setTopicSchemaPendingGroup(value, target = topicSchemaActiveTarget) {
   else delete topicSchemaPendingGroupByTarget[target];
 }
 
+function resolveTopicSchemaTargetContentKind(targetId) {
+  const target = String(targetId || "").trim();
+  if (!target) return "";
+  if (target === "record-csv") return "record-csv";
+  if (typeof TopicSchemaSlotSpecs !== "undefined") {
+    const spec = TopicSchemaSlotSpecs.findTopicSchemaTargetSpecById(target);
+    if (spec?.contentKind) return spec.contentKind;
+  }
+  return "";
+}
+
+function schemaEditorTargetSupportsFieldGroups(targetId) {
+  const contentKind = resolveTopicSchemaTargetContentKind(targetId);
+  if (
+    typeof TopicSchemaSlotSpecs !== "undefined" &&
+    TopicSchemaSlotSpecs.topicSchemaContentKindSupportsFieldGroups
+  ) {
+    return TopicSchemaSlotSpecs.topicSchemaContentKindSupportsFieldGroups(contentKind);
+  }
+  return contentKind !== "record-csv";
+}
+
 function resolveSchemaEditorContextTarget(root = topicSchemaPanelNode) {
   if (root?.classList?.contains("node-entry-overview-section-schema")) {
     return String(root._sectionSchemaCache?.activeTarget || "").trim();
@@ -46909,8 +46931,21 @@ function syncTopicSchemaPendingGroupHint(root = topicSchemaPanelNode) {
   if (!footer) return;
 
   const target = resolveSchemaEditorContextTarget(root);
-  const pendingGroup = getTopicSchemaPendingGroup(target);
+  const supportsFieldGroups = schemaEditorTargetSupportsFieldGroups(target);
+  const pendingGroup = supportsFieldGroups ? getTopicSchemaPendingGroup(target) : "";
   const sectionBtn = footer.querySelector(".topic-schema-add-section-btn");
+  if (sectionBtn) {
+    sectionBtn.disabled = !supportsFieldGroups;
+    sectionBtn.classList.toggle("is-disabled", !supportsFieldGroups);
+    sectionBtn.title = supportsFieldGroups
+      ? ""
+      : "CSV-колонки без разделов — только плоский список полей";
+  }
+  if (!supportsFieldGroups) {
+    if (getTopicSchemaPendingGroup(target)) resetTopicSchemaPendingGroup(target);
+    closeTopicSchemaSectionEditor(root);
+    return;
+  }
   sectionBtn?.classList.toggle("is-active", Boolean(pendingGroup));
   if (!pendingGroup) return;
 
@@ -46967,6 +47002,7 @@ function applyTopicSchemaPendingGroup(target, rawValue, root = null) {
 
 function beginTopicSchemaSectionEdit(root, target) {
   if (!root || !target) return;
+  if (!schemaEditorTargetSupportsFieldGroups(target)) return;
   const footer = root.querySelector(".topic-schema-footer");
   if (!footer) return;
 
@@ -47043,6 +47079,7 @@ function resetTopicSchemaPendingGroup(target = topicSchemaActiveTarget) {
 }
 
 function addTopicSchemaSection(target = topicSchemaActiveTarget, root = null) {
+  if (!schemaEditorTargetSupportsFieldGroups(target)) return;
   beginTopicSchemaSectionEdit(resolveTopicSchemaPanelRootForTarget(target, root), target);
 }
 
@@ -47157,7 +47194,7 @@ function buildTopicSchemaFieldDefaults(index = 1, target = topicSchemaActiveTarg
     placement: TOPIC_SCHEMA_FIELD_PLACEMENT,
     sort: index * 10
   };
-  const pending = getTopicSchemaPendingGroup(target);
+  const pending = schemaEditorTargetSupportsFieldGroups(target) ? getTopicSchemaPendingGroup(target) : "";
   if (pending) defaults.group = pending;
   return defaults;
 }
@@ -47708,6 +47745,7 @@ function syncTopicSchemaFieldRowGroupSelect(row, fieldDef, key, fields, target) 
 function reorderTopicSchemaFieldsInDom(cache = getTopicSchemaCache()) {
   if (!topicSchemaFieldsNode) return false;
   const target = topicSchemaActiveTarget;
+  const supportsFieldGroups = schemaEditorTargetSupportsFieldGroups(target);
   const fields = cache?.awnSchema?.[target]?.fields || {};
   const keys = sortSchemaEditorFieldKeys(getTopicSchemaCustomFieldKeys(target, cache), fields);
   if (!keys.length) return false;
@@ -47719,7 +47757,7 @@ function reorderTopicSchemaFieldsInDom(cache = getTopicSchemaCache()) {
   });
   if (keys.some((key) => !rowByKey.has(key))) return false;
 
-  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupOrder = supportsFieldGroups ? getSchemaEditorGroupOrder(fields, keys) : [];
   const groupState = { lastGroup: null };
   const scrollRoot = getTopicSchemaScrollRoot();
   const scrollTop = scrollRoot?.scrollTop ?? 0;
@@ -47727,14 +47765,16 @@ function reorderTopicSchemaFieldsInDom(cache = getTopicSchemaCache()) {
   topicSchemaFieldsNode.replaceChildren();
   keys.forEach((key, index) => {
     const fieldDef = fields[key] || {};
-    const groupId = resolvePropsFieldGroupId(key, fieldDef);
-    appendSchemaEditorGroupHeader(topicSchemaFieldsNode, groupId, groupState, {
-      groupIndex: groupOrder.indexOf(groupId),
-      groupCount: groupOrder.length
-    });
+    if (supportsFieldGroups) {
+      const groupId = resolvePropsFieldGroupId(key, fieldDef);
+      appendSchemaEditorGroupHeader(topicSchemaFieldsNode, groupId, groupState, {
+        groupIndex: groupOrder.indexOf(groupId),
+        groupCount: groupOrder.length
+      });
+    }
     const row = rowByKey.get(key);
     syncTopicSchemaFieldRowSortUi(row, index, keys.length);
-    syncTopicSchemaFieldRowGroupSelect(row, fieldDef, key, fields, target);
+    if (supportsFieldGroups) syncTopicSchemaFieldRowGroupSelect(row, fieldDef, key, fields, target);
     topicSchemaFieldsNode.appendChild(row);
   });
 
@@ -47746,6 +47786,7 @@ function reorderSectionSchemaFieldsInDom(panel, cache) {
   const fieldsNode = panel?.querySelector(".topic-schema-fields");
   if (!fieldsNode || !cache) return false;
   const target = cache.activeTarget;
+  const supportsFieldGroups = schemaEditorTargetSupportsFieldGroups(target);
   const fields = cache?.awnSchema?.[target]?.fields || {};
   const keys = sortSchemaEditorFieldKeys(Object.keys(fields), fields);
   if (!keys.length) return false;
@@ -47757,7 +47798,7 @@ function reorderSectionSchemaFieldsInDom(panel, cache) {
   });
   if (keys.some((key) => !rowByKey.has(key))) return false;
 
-  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupOrder = supportsFieldGroups ? getSchemaEditorGroupOrder(fields, keys) : [];
   const groupState = { lastGroup: null };
   const scrollRoot = getTopicSchemaScrollRoot(panel);
   const scrollTop = scrollRoot?.scrollTop ?? 0;
@@ -47765,14 +47806,16 @@ function reorderSectionSchemaFieldsInDom(panel, cache) {
   fieldsNode.replaceChildren();
   keys.forEach((key, index) => {
     const fieldDef = fields[key] || {};
-    const groupId = resolvePropsFieldGroupId(key, fieldDef);
-    appendSchemaEditorGroupHeader(fieldsNode, groupId, groupState, {
-      groupIndex: groupOrder.indexOf(groupId),
-      groupCount: groupOrder.length
-    });
+    if (supportsFieldGroups) {
+      const groupId = resolvePropsFieldGroupId(key, fieldDef);
+      appendSchemaEditorGroupHeader(fieldsNode, groupId, groupState, {
+        groupIndex: groupOrder.indexOf(groupId),
+        groupCount: groupOrder.length
+      });
+    }
     const row = rowByKey.get(key);
     syncTopicSchemaFieldRowSortUi(row, index, keys.length);
-    syncTopicSchemaFieldRowGroupSelect(row, fieldDef, key, fields, target);
+    if (supportsFieldGroups) syncTopicSchemaFieldRowGroupSelect(row, fieldDef, key, fields, target);
     fieldsNode.appendChild(row);
   });
 
@@ -47783,10 +47826,11 @@ function reorderSectionSchemaFieldsInDom(panel, cache) {
 function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   if (!topicSchemaFieldsNode || !topicSchemaEmptyNode) return;
   const target = topicSchemaActiveTarget;
+  const supportsFieldGroups = schemaEditorTargetSupportsFieldGroups(target);
   const fields = cache?.awnSchema?.[target]?.fields || {};
   const keys = sortSchemaEditorFieldKeys(getTopicSchemaCustomFieldKeys(target, cache), fields);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
-  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupOrder = supportsFieldGroups ? getSchemaEditorGroupOrder(fields, keys) : [];
   const groupState = { lastGroup: null };
 
   topicSchemaFieldsNode.replaceChildren();
@@ -47799,11 +47843,13 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
 
   keys.forEach((key, index) => {
     const fieldDef = fields[key] || {};
-    const groupId = resolvePropsFieldGroupId(key, fieldDef);
-    appendSchemaEditorGroupHeader(topicSchemaFieldsNode, groupId, groupState, {
-      groupIndex: groupOrder.indexOf(groupId),
-      groupCount: groupOrder.length
-    });
+    if (supportsFieldGroups) {
+      const groupId = resolvePropsFieldGroupId(key, fieldDef);
+      appendSchemaEditorGroupHeader(topicSchemaFieldsNode, groupId, groupState, {
+        groupIndex: groupOrder.indexOf(groupId),
+        groupCount: groupOrder.length
+      });
+    }
     const expanded = isTopicSchemaFieldExpanded(target, key);
     const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
     const row = document.createElement("div");
@@ -47869,9 +47915,9 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     removeBtn.title = "Удалить поле";
     removeBtn.textContent = "×";
 
-    const groupSelect = createTopicSchemaGroupSelect(fieldDef, key, fields, target);
+    const groupSelect = supportsFieldGroups ? createTopicSchemaGroupSelect(fieldDef, key, fields, target) : null;
 
-    compact.append(sort, groupSelect, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    compact.append(sort, ...(groupSelect ? [groupSelect] : []), keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
     row.appendChild(compact);
     appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
     topicSchemaFieldsNode.append(row);
@@ -48395,6 +48441,7 @@ function getSectionSchemaTargetTabGroup(targetId) {
     const spec = TopicSchemaSlotSpecs.findTopicSchemaTargetSpecById(targetId);
     if (spec?.contentKind === "category") return "slot-meta";
     if (spec?.contentKind === "sidecar") return "slot-sidecar";
+    if (spec?.contentKind === "record-csv") return "slot";
   }
   if (String(targetId).endsWith("_category") || targetId === "slot_media_category") return "slot-meta";
   if (String(targetId).endsWith("_sidecar") || targetId === "slot_media") return "slot-sidecar";
@@ -48705,12 +48752,13 @@ function renderSectionSchemaCustomFields(panel, cache) {
   if (!fieldsNode || !emptyNode) return;
 
   const target = cache.activeTarget;
+  const supportsFieldGroups = schemaEditorTargetSupportsFieldGroups(target);
   if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
   const fields = cache.awnSchema[target].fields || {};
   const keys = sortSchemaEditorFieldKeys(Object.keys(fields), fields);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
   const scope = cache.cacheKey;
-  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupOrder = supportsFieldGroups ? getSchemaEditorGroupOrder(fields, keys) : [];
   const groupState = { lastGroup: null };
 
   fieldsNode.replaceChildren();
@@ -48723,11 +48771,13 @@ function renderSectionSchemaCustomFields(panel, cache) {
 
   keys.forEach((key, index) => {
     const fieldDef = fields[key] || {};
-    const groupId = resolvePropsFieldGroupId(key, fieldDef);
-    appendSchemaEditorGroupHeader(fieldsNode, groupId, groupState, {
-      groupIndex: groupOrder.indexOf(groupId),
-      groupCount: groupOrder.length
-    });
+    if (supportsFieldGroups) {
+      const groupId = resolvePropsFieldGroupId(key, fieldDef);
+      appendSchemaEditorGroupHeader(fieldsNode, groupId, groupState, {
+        groupIndex: groupOrder.indexOf(groupId),
+        groupCount: groupOrder.length
+      });
+    }
     const expanded = isSectionSchemaFieldExpanded(scope, target, key);
     const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
     const keyHint = getTopicSchemaFieldKeyHint(target);
@@ -48788,9 +48838,9 @@ function renderSectionSchemaCustomFields(panel, cache) {
     removeBtn.title = "Удалить поле";
     removeBtn.textContent = "×";
 
-    const groupSelect = createTopicSchemaGroupSelect(fieldDef, key, fields, target);
+    const groupSelect = supportsFieldGroups ? createTopicSchemaGroupSelect(fieldDef, key, fields, target) : null;
 
-    compact.append(sort, groupSelect, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    compact.append(sort, ...(groupSelect ? [groupSelect] : []), keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
     row.appendChild(compact);
     appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
     fieldsNode.append(row);
@@ -103314,16 +103364,18 @@ let awnDataViewSchemaDraft = "";
 let awnDataViewElementSchemaPanelNode = null;
 let awnDataViewOpenSchemaEditorBtn = null;
 let awnDataStoreSchemaLoadSeq = 0;
-const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "sidecar"];
+const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "record-csv", "sidecar"];
 const AWN_DATA_SCHEMA_TARGET_LABELS = {
   frame: "Инфоблок",
   category: "Раздел",
   record: "Запись",
+  "record-csv": "Запись (csv)",
   sidecar: "Sidecar"
 };
 const AWN_DATA_SCHEMA_TARGET_TYPES = {
   category: "awn.infoblock.element.category",
   record: "awn.infoblock.element.record",
+  "record-csv": "awn.infoblock.element.record-csv",
   sidecar: "awn.infoblock.element.sidecar"
 };
 
@@ -104865,6 +104917,7 @@ function renderAwnDataStoreSchemaTargetTabs(panel, cache) {
     btn.className = "topic-schema-target-tab topic-schema-target-tab--slot";
     if (targetId === "frame") btn.classList.add("topic-schema-target-tab--slot-frame");
     if (targetId === "category") btn.classList.add("topic-schema-target-tab--slot-meta");
+    if (targetId === "record-csv") btn.classList.add("topic-schema-target-tab--slot-csv");
     if (targetId === "sidecar") btn.classList.add("topic-schema-target-tab--slot-sidecar");
     btn.dataset.target = targetId;
     btn.setAttribute("role", "tab");
@@ -109027,7 +109080,15 @@ function parseAwnDataCsvPreviewText(text) {
   return { columns, rows };
 }
 
-function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
+function resolveAwnDataCsvColumnHeaderMeta(columnKey, schemaFields = {}) {
+  const key = String(columnKey || "").trim();
+  const field = key && schemaFields[key] && typeof schemaFields[key] === "object" ? schemaFields[key] : null;
+  const inSchema = Boolean(field);
+  const title = inSchema ? formatAwnDataViewFieldLabel(field, key) : "Вне схемы";
+  return { key, title, inSchema };
+}
+
+function renderAwnDataCsvPreviewTable(targetNode, csvContent, options = {}) {
   if (!targetNode) return;
   targetNode.classList.remove("file-content-preview");
   const { columns, rows } = parseAwnDataCsvPreviewText(csvContent);
@@ -109036,6 +109097,11 @@ function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
     targetNode.appendChild(createAwnDatabaseViewEmptyState("CSV пуст или не найден"));
     return;
   }
+
+  const schemaFields =
+    options.schemaFields && typeof options.schemaFields === "object"
+      ? options.schemaFields
+      : resolveAwnDataViewRecordSchemaFields(options.store || awnDataViewStoreCache || {});
 
   const wrap = document.createElement("div");
   wrap.className = "awn-databases-view-csv-table-wrap";
@@ -109046,8 +109112,20 @@ function renderAwnDataCsvPreviewTable(targetNode, csvContent) {
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   for (const column of columns) {
+    const meta = resolveAwnDataCsvColumnHeaderMeta(column, schemaFields);
     const th = document.createElement("th");
-    th.textContent = column;
+    th.classList.toggle("is-unknown-column", !meta.inSchema);
+    th.title = meta.inSchema ? `${meta.title} · ${meta.key}` : `Колонка «${meta.key}» отсутствует в schema.yml`;
+
+    const titleNode = document.createElement("span");
+    titleNode.className = "awn-databases-view-csv-table-col-title";
+    titleNode.textContent = meta.title;
+
+    const keyNode = document.createElement("span");
+    keyNode.className = "awn-databases-view-csv-table-col-key";
+    keyNode.textContent = meta.key;
+
+    th.append(titleNode, keyNode);
     headRow.appendChild(th);
   }
   thead.appendChild(headRow);
@@ -109299,7 +109377,7 @@ async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentI
         );
         return;
       }
-      renderAwnDataCsvPreviewTable(body, csvContent);
+      renderAwnDataCsvPreviewTable(body, csvContent, { store: viewStore });
     } catch (error) {
       const message = String(error.message || error);
       const isMissing = /\b404\b/.test(message);

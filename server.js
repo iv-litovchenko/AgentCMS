@@ -7402,11 +7402,11 @@ async function buildSlotContentFileContentForManifest(
   options = {}
 ) {
   const {
-    CONTENT_KIND_TYPE_NAMES,
+    resolveSlotContentKindTypeName,
     resolveTopicSchemaTargetIdForAwnType
   } = require("./public/topic-schema-slot-specs.js");
   const safeTitle = String(title || "Запись").trim() || "Запись";
-  const awnType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+  const awnType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const schemaTarget = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
 
   let frontmatter = "";
@@ -7521,9 +7521,9 @@ function countFrontmatterKeys(frontmatter) {
     .filter((line) => /^\s*[A-Za-z0-9_-]+\s*:/.test(line)).length;
 }
 
-function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record") {
-  const { CONTENT_KIND_TYPE_NAMES, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
-  const expectedType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record", slotKey = "") {
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const rawType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
   if (!rawType) return true;
   if (normalizeAwnContentTypeName(rawType) !== normalizeAwnContentTypeName(expectedType)) return true;
@@ -7542,13 +7542,13 @@ async function enrichTypedSlotMarkdownContent(
     return String(content ?? "");
   }
 
-  const { CONTENT_KIND_TYPE_NAMES, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
-  const expectedType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
   const diskFrontmatter = String(options.diskFrontmatter || "").trim();
 
   // Agent payload wins on keys it sends; disk fills gaps (awn-name, custom fields, …).
-  if (!options.force && !shouldEnrichTypedSlotMarkdown(userFrontmatter, contentKind)) {
+  if (!options.force && !shouldEnrichTypedSlotMarkdown(userFrontmatter, contentKind, slotKey)) {
     const merged = mergeFrontmatterBlocks(diskFrontmatter, userFrontmatter);
     const stamped = applyAwnTimestampsToFrontmatter(merged, { diskFrontmatter });
     return joinNodeFrontmatter(stamped, userBody);

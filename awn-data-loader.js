@@ -183,15 +183,17 @@ const CONTAINER_SUPERTYPE = {
 const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
 const ELEMENT_TYPE_RECORD = "awn.infoblock.element.record";
 const ELEMENT_TYPE_RECORD_LITE = "awn.infoblock.element.record-lite";
+const ELEMENT_TYPE_RECORD_CSV = "awn.infoblock.element.record-csv";
 const ELEMENT_TYPE_CATEGORY = "awn.infoblock.element.category";
 const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
 const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
 const ELEMENT_TYPE_PREFIXES = ["awn.infoblock.element.", "awn.infoblock.content."];
 const DEFAULT_RECORD_ELEMENT_TYPE = ELEMENT_TYPE_RECORD;
-const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "sidecar"];
+const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "record-csv", "sidecar"];
 const AWN_DATA_SCHEMA_TARGET_EXTENDS = {
   category: ELEMENT_TYPE_CATEGORY,
   record: ELEMENT_TYPE_RECORD,
+  "record-csv": ELEMENT_TYPE_RECORD_CSV,
   sidecar: ELEMENT_TYPE_SIDECAR
 };
 
@@ -329,6 +331,7 @@ function normalizeCollectionType(value, fallback = "md") {
 function elementTypeFromCollectionType(collectionType) {
   const type = normalizeCollectionType(collectionType);
   if (type === "md-lite") return ELEMENT_TYPE_RECORD_LITE;
+  if (type === "csv" || type === "csv-files") return ELEMENT_TYPE_RECORD_CSV;
   return ELEMENT_TYPE_RECORD;
 }
 
@@ -347,7 +350,7 @@ function recordPropsFromCollectionType(collectionType) {
       collectionType: type,
       collectionKind: "records",
       recordStorage: "csv",
-      elementType: ELEMENT_TYPE_RECORD
+      elementType: ELEMENT_TYPE_RECORD_CSV
     };
   }
   if (type === "csv-files") {
@@ -355,7 +358,7 @@ function recordPropsFromCollectionType(collectionType) {
       collectionType: type,
       collectionKind: "records",
       recordStorage: "csv-files",
-      elementType: ELEMENT_TYPE_RECORD
+      elementType: ELEMENT_TYPE_RECORD_CSV
     };
   }
   if (type === "md-lite") {
@@ -1171,11 +1174,16 @@ function readStoreSchemeModOverlay(storeAbs) {
       };
     }
 
+    const recordCsvBlock = blocks["record-csv"];
     const recordBlock = blocks.record || { fields: {}, tabs: {}, extends: AWN_DATA_SCHEMA_TARGET_EXTENDS.record };
+    const activeRecordBlock =
+      recordCsvBlock ||
+      (recordBlock.extends === ELEMENT_TYPE_RECORD_CSV ? recordBlock : null) ||
+      recordBlock;
     return {
-      fields: recordBlock.fields,
-      tabs: recordBlock.tabs,
-      extends: recordBlock.extends,
+      fields: activeRecordBlock.fields,
+      tabs: activeRecordBlock.tabs,
+      extends: activeRecordBlock.extends,
       blocks,
       schemePath,
       exists: true
@@ -1239,7 +1247,17 @@ function writeStoreSchemeMod(storeAbs, schema = {}) {
   // schema.yml — только пользовательские поля; база приходит из type-catalog в runtime.
   if (!Object.keys(fields).length && !extendsRef) return false;
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
-  const content = composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs, extends: extendsRef });
+  const blockKind = schema.blockKind || resolveStoreElementSchemaKind(extendsRef);
+  const content = composeAwnDataStoreSchemeModYaml({
+    blocks: {
+      [blockKind]: {
+        extends: extendsRef,
+        fields,
+        tabs
+      }
+    },
+    includeEmptyBlocks: Boolean(extendsRef)
+  });
   if (!String(content || "").trim()) return false;
   fs.writeFileSync(path.join(storeAbs, SCHEMA_MOD_FILE), content, "utf-8");
   return true;
@@ -2387,7 +2405,10 @@ function loadStoreElementScheme(
 function resolveStoreRecordElementType(storeAbs, agentRoot = "", projectRoot = process.cwd(), dataRoot = "") {
   const overlay = readStoreSchemeModOverlay(storeAbs);
   const overlayExtends = resolveElementExtendsRef(
-    overlay?.extends || overlay?.blocks?.record?.extends || ""
+    overlay?.blocks?.["record-csv"]?.extends ||
+      overlay?.extends ||
+      overlay?.blocks?.record?.extends ||
+      ""
   );
   if (overlayExtends && overlayExtends !== ELEMENT_TYPE_RECORD) return overlayExtends;
 
@@ -2512,11 +2533,9 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
   const shortName = name || slug.split("/").pop();
   const desc = String(description || shortName).trim();
   const recordFields = {
-    "awn-code": { type: "awn.string", title: "Код", required: true },
-    "awn-label": { type: "awn.string", title: "Подпись", required: true },
-    "awn-emoji": { type: "awn.string", title: "Эмодзи" },
-    "awn-color": { type: "awn.color", title: "Цвет" },
-    "awn-sort": { type: "awn.integer", title: "Порядок", default: 0 }
+    label: { type: "awn.string", title: "Подпись", required: true },
+    emoji: { type: "awn.string", title: "Эмодзи" },
+    color: { type: "awn.color", title: "Цвет" }
   };
   return {
     schema: {
@@ -2524,18 +2543,19 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
       id,
       name: shortName,
       description: desc,
-      extends: ELEMENT_TYPE_RECORD,
+      extends: ELEMENT_TYPE_RECORD_CSV,
       fieldsInSchemeMod: true,
       record: {
         storage: "csv",
         file: "main.csv",
         "id-mode": "slug",
-        hierarchy: false
+        hierarchy: false,
+        collectionType: "csv"
       },
       fields: recordFields
     },
     schemeModFields: recordFields,
-    schemeModExtends: ELEMENT_TYPE_RECORD,
+    schemeModExtends: ELEMENT_TYPE_RECORD_CSV,
     manifestBody: `# ${shortName}\n\n${desc}`
   };
 }
@@ -2639,22 +2659,41 @@ function resolveStoreElementSchemaKind(elementType) {
   const typeId = String(elementType || DEFAULT_RECORD_ELEMENT_TYPE).trim();
   if (typeId === ELEMENT_TYPE_CATEGORY) return "category";
   if (typeId === ELEMENT_TYPE_SIDECAR) return "sidecar";
+  if (typeId === ELEMENT_TYPE_RECORD_CSV) return "record-csv";
   return "record";
 }
 
 function resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs) {
   const frameTypeId = resolveStoreFrameTypeId(storeAbs);
-  if (overlay?.blocks?.[kind]) return overlay.blocks[kind];
+  const directBlock = overlay?.blocks?.[kind];
+  if (directBlock) return directBlock;
+
+  const legacyRecordBlock = overlay?.blocks?.record;
+  if (kind === "record-csv") {
+    if (legacyRecordBlock?.extends === ELEMENT_TYPE_RECORD_CSV) return legacyRecordBlock;
+    return {
+      fields: {},
+      tabs: {},
+      extends: resolveAwnDataSchemaTargetExtends("record-csv", frameTypeId)
+    };
+  }
+
   if (kind === "record") {
-    if (overlay?.blocks?.record) return overlay.blocks.record;
+    if (legacyRecordBlock && legacyRecordBlock.extends !== ELEMENT_TYPE_RECORD_CSV) {
+      return legacyRecordBlock;
+    }
     if (overlay?.fields && Object.keys(overlay.fields).length) {
-      return {
-        fields: overlay.fields,
-        tabs: overlay.tabs || {},
-        extends: overlay.extends || resolveAwnDataSchemaTargetExtends("record", frameTypeId)
-      };
+      const overlayExtends = resolveElementExtendsRef(overlay.extends || "");
+      if (overlayExtends !== ELEMENT_TYPE_RECORD_CSV) {
+        return {
+          fields: overlay.fields,
+          tabs: overlay.tabs || {},
+          extends: overlayExtends || resolveAwnDataSchemaTargetExtends("record", frameTypeId)
+        };
+      }
     }
   }
+
   return {
     fields: {},
     tabs: {},
@@ -2835,12 +2874,27 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   if (kind === "collection") {
     const typeDefaults = loadContainerTypeDefaults("collection", agentRoot, projectRoot);
+    const collectionType = normalizeCollectionType(
+      options.collectionType ||
+        collectionTypeFromRecordProps({
+          collectionKind: options.collectionKind || typeDefaults.collectionKind,
+          storage: options.recordStorage || typeDefaults.recordStorage
+        }),
+      "md"
+    );
+    const mappedFromType = recordPropsFromCollectionType(collectionType);
     const collectionKind = isTaxonomy
       ? "records"
-      : normalizeCollectionKind(options.collectionKind || typeDefaults.collectionKind, "records");
+      : normalizeCollectionKind(
+          options.collectionKind || mappedFromType.collectionKind || typeDefaults.collectionKind,
+          "records"
+        );
     const recordStorage = isTaxonomy
       ? "csv"
-      : normalizeRecordStorage(options.recordStorage || typeDefaults.recordStorage, "md");
+      : normalizeRecordStorage(
+          options.recordStorage || mappedFromType.recordStorage || typeDefaults.recordStorage,
+          "md"
+        );
     const recordHierarchy =
       recordStorage === "csv"
         ? false
@@ -2849,11 +2903,6 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       collectionKind === "files"
         ? String(options.recordFileTypes || typeDefaults.recordFileTypes || "").trim()
         : "";
-    const collectionType = normalizeCollectionType(
-      options.collectionType ||
-        collectionTypeFromRecordProps({ collectionKind, storage: recordStorage }),
-      "md"
-    );
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
       : buildCollectionSchemaContent({
@@ -3015,7 +3064,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   if (recordStorage === "csv") {
     if (parent) throw new Error("CSV store does not support hierarchy");
     const fields = schema?.fields || {};
-    const row = { "awn-code": id, "awn-label": name, "awn-name": name };
+    const row = { "awn-code": id, "awn-name": name, label: name };
     for (const key of Object.keys(fields)) {
       if (options[key] !== undefined) row[key] = options[key];
     }
@@ -3445,9 +3494,9 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
   const frameTypeId = resolveStoreFrameTypeId(storeAbs, store.kind);
   const awnSchema = {};
   for (const kind of AWN_DATA_SCHEMA_TARGETS) {
-    const block = overlay?.blocks?.[kind] || (kind === "record" ? overlay : null);
+    const block = resolveStoreSchemeModBlockForKind(overlay, kind, storeAbs);
     const extendsRef = block?.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
-    const storedFields = block?.fields || (kind === "record" ? overlay?.fields || {} : {});
+    const storedFields = block?.fields || {};
     awnSchema[kind] = {
       fields: extractCustomSchemeModFields(
         storedFields,
@@ -3455,8 +3504,25 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
         agentRootResolved,
         projectRoot
       ),
-      tabs: block?.tabs || (kind === "record" ? overlay?.tabs || {} : {}),
+      tabs: block?.tabs || {},
       extends: extendsRef
+    };
+  }
+
+  const legacyRecordBlock = overlay?.blocks?.record;
+  if (
+    legacyRecordBlock?.extends === ELEMENT_TYPE_RECORD_CSV &&
+    !overlay?.blocks?.["record-csv"]
+  ) {
+    awnSchema["record-csv"] = {
+      fields: { ...(awnSchema["record-csv"]?.fields || {}), ...(awnSchema.record?.fields || {}) },
+      tabs: { ...(awnSchema["record-csv"]?.tabs || {}), ...(awnSchema.record?.tabs || {}) },
+      extends: ELEMENT_TYPE_RECORD_CSV
+    };
+    awnSchema.record = {
+      fields: {},
+      tabs: {},
+      extends: ELEMENT_TYPE_RECORD
     };
   }
 
@@ -3488,7 +3554,11 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
     const awnSchema = options.awnSchema && typeof options.awnSchema === "object" ? options.awnSchema : null;
     if (
       awnSchema &&
-      (awnSchema.frame || awnSchema.category || awnSchema.record || awnSchema.sidecar)
+      (awnSchema.frame ||
+        awnSchema.category ||
+        awnSchema.record ||
+        awnSchema["record-csv"] ||
+        awnSchema.sidecar)
     ) {
       const agentRootResolved = findAgentRootFromStoreAbs(storeAbs);
       const blocks = {};
@@ -3911,6 +3981,7 @@ module.exports = {
   DEFAULT_RECORD_ELEMENT_TYPE,
   ELEMENT_TYPE_RECORD,
   ELEMENT_TYPE_RECORD_LITE,
+  ELEMENT_TYPE_RECORD_CSV,
   ELEMENT_TYPE_CATEGORY,
   elementTypeFromCollectionType,
   resolveStoreRecordElementType,

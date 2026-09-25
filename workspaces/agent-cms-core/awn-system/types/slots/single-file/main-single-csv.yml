@@ -10,6 +10,7 @@ description: Табличная память топика — main.csv
 path: main.csv
 slot-order: 3
 allowed-content:
+  - awn.content.record-csv
   - awn.content.record
   - awn.content.category
   - awn.content.sidecar

@@ -138,7 +138,6 @@ const RESERVED_FIELD_KEYS = new Set([
   "id",
   "created",
   "updated",
-  "awn-id",
   "awn-created",
   "awn-updated"
 ]);
@@ -150,7 +149,9 @@ function getCsvColumnsFromSchema(schema) {
     if (RESERVED_FIELD_KEYS.has(key)) continue;
     columns.push(key);
   }
-  if (!columns.length) return ["awn-code", "awn-label"];
+  if (!columns.length) {
+    return ["awn-id", "awn-name", "awn-description", "awn-code", "awn-sort"];
+  }
   return columns;
 }
 

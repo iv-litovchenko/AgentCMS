@@ -1,0 +1,22 @@
+version: 1
+layer: area
+
+awn_schema:
+  slot_memory_category:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: Многофайловое
+        sort: 10
+  slot_memory:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: Запись
+        sort: 10
+  slot_memory_sidecar:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: Сайдкар
+        sort: 10

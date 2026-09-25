@@ -17,22 +17,25 @@
     const CONTENT_KIND_TYPE_NAMES = {
       record: "awn.content.record",
       category: "awn.content.category",
-      sidecar: "awn.content.sidecar"
+      sidecar: "awn.content.sidecar",
+      "record-csv": "awn.content.record-csv"
     };
 
     const CONTENT_KIND_LABEL_SUFFIX = {
       record: "",
+      "record-csv": " (csv)",
       category: " · раздел",
       sidecar: " · sidecar"
     };
 
     const CONTENT_KIND_TAB_LABELS = {
       record: "Запись",
+      "record-csv": "Запись (csv)",
       category: "Раздел",
       sidecar: "Sidecar"
     };
 
-    const TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER = ["category", "record", "sidecar"];
+    const TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER = ["category", "record", "record-csv", "sidecar"];
 
     const TOPIC_SCHEMA_TAB_GROUP_LABELS = {
       memory: "Память",
@@ -73,9 +76,9 @@
         label: "Табличная",
         schemaLabel: "Память (табличная)",
         tabGroup: "memory",
-        defaultKind: "record",
+        defaultKind: "record-csv",
         targets: {
-          record: { id: "slot_main_single_csv" },
+          record: { id: "slot_main_single_csv_record" },
           category: { id: "slot_main_single_csv_category" },
           sidecar: { id: "slot_main_single_csv_sidecar" }
         }
@@ -236,10 +239,41 @@
       }
     ];
 
+    function ensureRecordCsvTargets(slots) {
+      for (const slot of slots) {
+        const recordTarget = slot.targets?.record;
+        if (!recordTarget?.id || slot.targets?.["record-csv"]?.id) continue;
+        if (slot.slotKey === "main-single-csv") {
+          slot.targets["record-csv"] = { id: "slot_main_single_csv", legacyIds: [] };
+          continue;
+        }
+        slot.targets["record-csv"] = { id: `${recordTarget.id}_record_csv` };
+      }
+      return slots;
+    }
+
+    ensureRecordCsvTargets(TOPIC_SCHEMA_SLOT_DEFINITIONS);
+
     const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo", "planning"];
 
     function getTopicSchemaSlotSchemaLabel(slot) {
       return slot.schemaLabel || slot.label;
+    }
+
+    function resolveSlotContentKindTypeName(slotKey, contentKind) {
+      const slot = getTopicSchemaSlotDefinition(slotKey);
+      const kind = String(contentKind || "record").trim();
+      return slot?.contentKindTypes?.[kind] || CONTENT_KIND_TYPE_NAMES[kind] || "awn.content.record";
+    }
+
+    function resolveSlotContentKindTabLabel(slotKey, contentKind) {
+      const slot = getTopicSchemaSlotDefinition(slotKey);
+      const kind = String(contentKind || "record").trim();
+      return slot?.contentKindTabLabels?.[kind] || CONTENT_KIND_TAB_LABELS[kind] || kind;
+    }
+
+    function topicSchemaContentKindSupportsFieldGroups(contentKind) {
+      return String(contentKind || "").trim() !== "record-csv";
     }
 
     function buildTopicSchemaStorageSlotTargetSpecs() {
@@ -259,7 +293,7 @@
                   ? ""
                   : CONTENT_KIND_LABEL_SUFFIX[kind]
             }`,
-            typeName: CONTENT_KIND_TYPE_NAMES[kind],
+            typeName: resolveSlotContentKindTypeName(slot.slotKey, kind),
             contentKind: kind,
             schemaOnly: slot.defaultKind !== kind
           });
@@ -319,7 +353,7 @@
                 const baseLabel = presentation.schemaLabel;
                 return {
                   id: target.id,
-                  label: CONTENT_KIND_TAB_LABELS[kind],
+                  label: resolveSlotContentKindTabLabel(slot.slotKey, kind),
                   fullLabel: `${baseLabel}${
                     target.labelSuffix !== undefined
                       ? target.labelSuffix
@@ -329,7 +363,7 @@
                   }`,
                   contentKind: kind,
                   slotKey: slot.slotKey,
-                  typeName: CONTENT_KIND_TYPE_NAMES[kind],
+                  typeName: resolveSlotContentKindTypeName(slot.slotKey, kind),
                   schemaOnly: slot.defaultKind !== kind,
                   isDefault: slot.defaultKind === kind,
                   group:
@@ -391,6 +425,7 @@
       const normalized = String(typeName || "").trim();
       const aliases = {
         "awn.record": "awn.content.record",
+        "awn.record-csv": "awn.content.record-csv",
         "awn.media.category": "awn.content.category",
         "awn.content.media.category": "awn.content.category",
         "awn.record.category": "awn.content.category",
@@ -407,6 +442,9 @@
       if (normalized === "awn.content.category") {
         return resolveTopicSchemaTargetId(slotKey, { contentKind: "category" });
       }
+      if (normalized === "awn.content.record-csv") {
+        return resolveTopicSchemaTargetId(slotKey, { contentKind: "record-csv" });
+      }
       if (normalized === "awn.content.record") {
         return resolveTopicSchemaTargetId(slotKey, { contentKind: "record" });
       }
@@ -416,6 +454,9 @@
     return {
       CONTENT_KIND_TYPE_NAMES,
       CONTENT_KIND_TAB_LABELS,
+      resolveSlotContentKindTypeName,
+      resolveSlotContentKindTabLabel,
+      topicSchemaContentKindSupportsFieldGroups,
       TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER,
       TOPIC_SCHEMA_TAB_GROUP_LABELS,
       TOPIC_SCHEMA_TAB_GROUP_ORDER,

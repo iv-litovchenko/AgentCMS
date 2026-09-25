@@ -14020,6 +14020,16 @@ body.app-locked {
   box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.18);
 }
 
+.topic-schema-add-section-btn:disabled,
+.topic-schema-add-section-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  box-shadow: none;
+}
+
 .topic-schema-pending-group-hint-wrap {
   display: inline-flex;
   align-items: center;
@@ -65068,6 +65078,30 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f8fafc;
   color: #334155;
   font-weight: 600;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.awn-databases-view-csv-table-col-title {
+  display: block;
+  font-weight: 600;
+}
+
+.awn-databases-view-csv-table-col-key {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.awn-databases-view-csv-table th.is-unknown-column {
+  background: #fef2f2;
+}
+
+.awn-databases-view-csv-table th.is-unknown-column .awn-databases-view-csv-table-col-title,
+.awn-databases-view-csv-table th.is-unknown-column .awn-databases-view-csv-table-col-key {
+  color: #dc2626;
 }
 
 .awn-databases-view-csv-table tbody tr:last-child td {
