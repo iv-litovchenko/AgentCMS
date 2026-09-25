@@ -150,7 +150,7 @@ function getCsvColumnsFromSchema(schema) {
     columns.push(key);
   }
   if (!columns.length) {
-    return ["awn-id", "awn-name", "awn-description", "awn-code", "awn-sort"];
+    return ["awn-id", "awn-pid", "awn-type", "awn-name", "awn-description", "awn-code", "awn-sort"];
   }
   return columns;
 }
