@@ -27,6 +27,7 @@
     "main/oop/%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%8B",
     "main/oop/Интерфейсы.md",
     "main/oop/Enums.md",
+    "main/primery-koda/Пример-1.md",
     "main/README.md",
     "references/laravel-docs.md",
     "references/php-net-manual.md",
@@ -38,5 +39,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-09-25T08:04:19.139Z"
+  "updatedAt": "2026-09-25T17:04:13.629Z"
 }

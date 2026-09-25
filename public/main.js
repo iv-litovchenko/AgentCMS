@@ -85054,6 +85054,7 @@ function applyModeUi(options = {}) {
       activeContentMode === "assets" ||
       activeContentMode === "repository"
   );
+  applyEditorAutoHeightUi();
   docActionsNode?.classList.toggle("hidden", hideToolbar);
   const showPathToolbarNav = isNodeWorkspaceToolbarDomainActive();
   workspacePathToolbarNode?.classList.toggle(
@@ -86499,6 +86500,10 @@ function toggleEditorLineNumbers() {
 
 function shouldUseEditorAutoHeight() {
   if (activeContentMode === NODE_DISCUSSION_MODE || activeContentMode === NODE_JOURNAL_MODE) return false;
+  if (editorSurfaceNode?.classList.contains("hidden")) return false;
+  if (nodeOverviewBlockNode && !nodeOverviewBlockNode.classList.contains("hidden")) return false;
+  if (listViewBlockNode && !listViewBlockNode.classList.contains("hidden")) return false;
+  if (graphViewBlockNode && !graphViewBlockNode.classList.contains("hidden")) return false;
   return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
 }
 
@@ -87589,9 +87594,15 @@ function applyEditorViewMode() {
   if (
     (activeContentMode === "node-preview" ||
       activeContentMode === "graph" ||
-      activeContentMode === NODE_OVERVIEW_MODE) &&
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      activeContentMode === FOLDER_BROWSE_MODE ||
+      activeContentMode === FOLDER_BROWSE_FILE_MODE ||
+      activeContentMode === AWN_DATA_VIEW_MODE ||
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE) &&
     !activeSystemFile
   ) {
+    applyEditorAutoHeightUi();
     return;
   }
 
@@ -113075,13 +113086,81 @@ function syncSidebarScrollChrome() {
 let workspaceScrollBinding = null;
 let workspaceScrollHostTarget = null;
 
+function getOverviewNodeInDocSlabContent(docSlabContent) {
+  return docSlabContent?.querySelector(
+    ":scope > .doc-slab-main > #node-overview-block.node-overview:not(.hidden), :scope > .doc-slab-overview-scroll-host > .doc-slab-main > #node-overview-block.node-overview:not(.hidden), :scope > .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
+  );
+}
+
+function teardownOverviewDocSlabScrollHost() {
+  const docSlabContent = getDocSlabContentNode();
+  if (!docSlabContent) return;
+  const scrollHost = docSlabContent.querySelector(":scope > .doc-slab-overview-scroll-host");
+  if (!scrollHost) return;
+  const parent = scrollHost.parentNode;
+  if (!parent) return;
+  while (scrollHost.firstChild) {
+    parent.insertBefore(scrollHost.firstChild, scrollHost);
+  }
+  scrollHost.remove();
+}
+
+function getOverviewDocSlabScrollHost(docSlabContent) {
+  return docSlabContent?.querySelector(":scope > .doc-slab-overview-scroll-host") || null;
+}
+
+function getOverviewDocSlabMain(docSlabContent) {
+  if (!docSlabContent) return null;
+  const scrollHost = getOverviewDocSlabScrollHost(docSlabContent);
+  return (
+    scrollHost?.querySelector(":scope > .doc-slab-main") ||
+    docSlabContent.querySelector(":scope > .doc-slab-main")
+  );
+}
+
+function ensureOverviewDocSlabScrollHost(docSlabContent) {
+  if (!docSlabContent) return null;
+
+  let scrollHost = getOverviewDocSlabScrollHost(docSlabContent);
+  const docSlabMain = getOverviewDocSlabMain(docSlabContent);
+  if (!docSlabMain) return scrollHost;
+
+  if (!scrollHost) {
+    scrollHost = document.createElement("div");
+    scrollHost.className = "doc-slab-overview-scroll-host";
+    docSlabContent.insertBefore(scrollHost, docSlabMain);
+    scrollHost.appendChild(docSlabMain);
+  } else if (docSlabMain.parentElement !== scrollHost) {
+    scrollHost.appendChild(docSlabMain);
+  }
+  return scrollHost;
+}
+
+function getWorkspaceOverviewScrollTargets() {
+  const docSlabContent = getDocSlabContentNode();
+  const overview = docSlabContent
+    ? getOverviewNodeInDocSlabContent(docSlabContent)
+    : workspacePaneNode?.querySelector(
+        ".doc-slab-main > #node-overview-block.node-overview:not(.hidden), .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
+      );
+  if (!overview) return null;
+  if (docSlabContent) {
+    const scrollHost = ensureOverviewDocSlabScrollHost(docSlabContent);
+    if (!scrollHost) return null;
+    return { scrollElement: scrollHost, hostTarget: docSlabContent };
+  }
+  return { scrollElement: overview, hostTarget: overview };
+}
+
+function isOverviewDocSlabContentScrollHost(hostTarget) {
+  return Boolean(hostTarget?.classList?.contains("doc-slab-content") && getOverviewNodeInDocSlabContent(hostTarget));
+}
+
 function getWorkspaceScrollContext() {
   if (!workspacePaneNode) return { scrollElement: null, hostTarget: null };
 
-  const overview = workspacePaneNode.querySelector(
-    ".doc-slab-main > #node-overview-block.node-overview:not(.hidden), .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
-  );
-  if (overview) return { scrollElement: overview, hostTarget: overview };
+  const overviewTargets = getWorkspaceOverviewScrollTargets();
+  if (overviewTargets) return overviewTargets;
 
   const autoHeightHostTarget = getEditorAutoHeightScrollHostTarget();
   if (autoHeightHostTarget) {
@@ -113133,16 +113212,17 @@ function mountWorkspaceScrollChrome(hostNode) {
   }
 }
 
-function teardownWorkspaceScrollHost() {
-  if (workspaceScrollChromeStoreNode) {
-    if (workspaceScrollChromeNode && workspaceScrollChromeNode.parentElement !== workspaceScrollChromeStoreNode) {
-      workspaceScrollChromeStoreNode.appendChild(workspaceScrollChromeNode);
-    }
-    if (workspaceScrollTopBtn && workspaceScrollTopBtn.parentElement !== workspaceScrollChromeStoreNode) {
-      workspaceScrollChromeStoreNode.appendChild(workspaceScrollTopBtn);
-    }
+function storeWorkspaceScrollChrome() {
+  if (!workspaceScrollChromeStoreNode) return;
+  if (workspaceScrollChromeNode && workspaceScrollChromeNode.parentElement !== workspaceScrollChromeStoreNode) {
+    workspaceScrollChromeStoreNode.appendChild(workspaceScrollChromeNode);
   }
+  if (workspaceScrollTopBtn && workspaceScrollTopBtn.parentElement !== workspaceScrollChromeStoreNode) {
+    workspaceScrollChromeStoreNode.appendChild(workspaceScrollTopBtn);
+  }
+}
 
+function teardownLegacyWorkspaceScrollHosts() {
   workspacePaneNode?.querySelectorAll(".workspace-scroll-host").forEach((hostNode) => {
     const parentNode = hostNode.parentNode;
     if (!parentNode) return;
@@ -113151,7 +113231,12 @@ function teardownWorkspaceScrollHost() {
     }
     hostNode.remove();
   });
+}
 
+function teardownWorkspaceScrollHost() {
+  storeWorkspaceScrollChrome();
+  teardownLegacyWorkspaceScrollHosts();
+  teardownOverviewDocSlabScrollHost();
   workspaceScrollHostTarget = null;
 }
 
@@ -113178,9 +113263,16 @@ function ensureWorkspaceScrollHost(hostTarget) {
 }
 
 function syncWorkspaceScrollChrome() {
-  const { scrollElement, hostTarget } = getWorkspaceScrollContext();
+  let { scrollElement, hostTarget } = getWorkspaceScrollContext();
   if (hostTarget) {
-    ensureWorkspaceScrollHost(hostTarget);
+    if (isOverviewDocSlabContentScrollHost(hostTarget)) {
+      teardownLegacyWorkspaceScrollHosts();
+      scrollElement = ensureOverviewDocSlabScrollHost(hostTarget) || scrollElement;
+      mountWorkspaceScrollChrome(hostTarget);
+      workspaceScrollHostTarget = hostTarget;
+    } else {
+      ensureWorkspaceScrollHost(hostTarget);
+    }
   } else {
     teardownWorkspaceScrollHost();
   }
