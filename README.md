@@ -11,24 +11,30 @@ flowchart TD
     WS --> AUX["⚙️ Вспомогательное"]
 
     TREE --> AREA["Область (Area)"]
-    AREA --> TOPIC["Тема (Topic / manifest.md)"]
+    AREA --> SHARED_AREA["Общие"]
+    AREA --> AGENT_AREA["Агент"]
+    SHARED_AREA --> TOPIC["Тема (Topic / manifest.md)"]
+    AGENT_AREA --> TOPIC
     TOPIC --> SLOT["Слот (main, inbox, media, notes…)"]
-    SLOT --> CONTENT["Content (файл: .md, медиа, код)"]
-    CONTENT --> SIDECAR["Sidecar"]
+    SLOT --> SECTION["Раздел"]
+    SECTION --> PAGE_ENTRY["Запись"]
+    PAGE_ENTRY --> SIDECAR["Sidecar"]
 
     DATA --> IBLOCK["Инфоблок"]
+    IBLOCK --> TAX["Таксономии / справочники"]
     IBLOCK --> GROUP["Группа"]
     IBLOCK --> COLLECTION["Коллекция"]
     IBLOCK --> SINGLE["Одиночка"]
-    GROUP --> RECORD["Запись"]
-    COLLECTION --> RECORD
-    SINGLE --> RECORD
-    DATA --> TAX["Таксономии / справочники"]
+    GROUP --> DATA_SECTION["Раздел"]
+    COLLECTION --> DATA_SECTION
+    SINGLE --> DATA_SECTION
+    DATA_SECTION --> RECORD["Запись"]
 
     MEM --> FACTS["Facts"]
     MEM --> JOURNAL["Journal"]
-    MEM --> DIALOGS["Dialogs"]
-    MEM --> DISCUSS["Discussion / Comments"]
+    MEM --> COMM["Коммуникация"]
+    COMM --> DIALOGS["Dialogs"]
+    COMM --> DISCUSS["Discussion / Comments"]
     MEM --> INBOX["Inbox (входящие)"]
 
     AUX --> SETTINGS["Settings (workspace / platform)"]
