@@ -28775,6 +28775,98 @@ a.header-tool-btn {
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.doc-body-status-bar {
+  --doc-body-status-bar-height: 34px;
+  flex: 0 0 var(--doc-body-status-bar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--doc-body-status-bar-height);
+  padding: 0 52px 0 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  box-sizing: border-box;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #64748b;
+  position: relative;
+  z-index: 35;
+}
+
+.doc-body-status-bar.hidden {
+  display: none;
+}
+
+.doc-body-status-bar-stats {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-body-status-bar-meta {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-body-main:has(.doc-body-status-bar:not(.hidden)) {
+  --doc-body-status-bar-height: 34px;
+}
+
+.doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .workspace-scroll-chrome {
+  bottom: var(--doc-body-status-bar-height, 34px);
+}
+
+#doc-body-grid.has-props-aside .doc-body-main > .workspace-scroll-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#doc-body-grid.has-props-aside .doc-body-main > .workspace-scroll-chrome.is-active {
+  opacity: 1;
+}
+
+#doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked {
+  position: absolute;
+  right: calc(10px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(10px + var(--scroll-top-shift-y, 0px));
+  z-index: 41;
+  margin: 0;
+  min-height: 32px;
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  gap: 0;
+  border-radius: 999px;
+  box-shadow:
+    0 8px 18px rgba(37, 99, 235, 0.28),
+    0 2px 6px rgba(15, 23, 42, 0.1);
+}
+
+.doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .scroll-top-btn--docked {
+  bottom: calc(var(--doc-body-status-bar-height, 34px) + 8px + var(--scroll-top-shift-y, 0px));
+}
+
+#doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked .scroll-top-btn-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+#doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked .scroll-top-btn-label {
+  display: none;
 }
 
 .doc-head-block {
@@ -47120,6 +47212,26 @@ button.node-navigation-memory-title:focus-visible {
   flex: 0 0 auto;
   min-height: 0;
   overflow: visible;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .editor-code-wrap,
+.app.editor-autoheight #doc-body-grid.has-props-aside .file-content-preview,
+.app.editor-autoheight #doc-body-grid.has-props-aside .editor-wysiwyg-wrap,
+.app.editor-autoheight .doc-body-grid.has-props-aside .editor-code-wrap,
+.app.editor-autoheight .doc-body-grid.has-props-aside .file-content-preview,
+.app.editor-autoheight .doc-body-grid.has-props-aside .editor-wysiwyg-wrap {
+  min-height: 120px;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .file-content-input,
+.app.editor-autoheight .doc-body-grid.has-props-aside .file-content-input {
+  min-height: 120px;
+}
+
+.app.editor-autoheight #doc-body-grid.has-props-aside .editor-wysiwyg-wrap.auto-height .toastui-editor-defaultUI .ProseMirror,
+.app.editor-autoheight .doc-body-grid.has-props-aside .editor-wysiwyg-wrap.auto-height .toastui-editor-defaultUI .ProseMirror {
+  min-height: 120px;
+  padding-bottom: 16px !important;
 }
 
 .app.editor-autoheight .doc-stack .editor-code-wrap,

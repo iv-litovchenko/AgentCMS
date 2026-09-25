@@ -594,6 +594,9 @@ const attachmentSidecarCancelBtn = document.getElementById("attachment-sidecar-c
 const attachmentSidecarSaveBtn = document.getElementById("attachment-sidecar-save-btn");
 const attachmentSidecarFullEditBtn = document.getElementById("attachment-sidecar-full-edit-btn");
 const docBodyGridNode = document.getElementById("doc-body-grid");
+const docBodyStatusBarNode = document.getElementById("doc-body-status-bar");
+const docBodyStatusStatsNode = document.getElementById("doc-body-status-stats");
+const docBodyStatusMetaNode = document.getElementById("doc-body-status-meta");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const systemFileHintNode = document.getElementById("system-file-hint");
 
@@ -86541,6 +86544,10 @@ function getWysiwygScrollElement() {
 }
 
 function getEditorFillMinHeightPx() {
+  if (isDocPropsAsideVisible()) {
+    return 120;
+  }
+
   const surface = editorSurfaceNode || editorCodeWrapNode;
   if (!surface) return 280;
 
@@ -87553,6 +87560,7 @@ function initWysiwygEditor() {
     syncSourceFromWysiwygEditor();
     syncSaveButtonLamp();
     refreshPropsAttachmentsUsageState();
+    syncDocBodyStatusBar();
   });
 
   syncSaveButtonLamp();
@@ -113103,6 +113111,44 @@ function isDocPropsAsideVisible() {
   );
 }
 
+function shouldShowDocBodyStatusBar() {
+  if (!docBodyStatusBarNode) return false;
+  if (!isDocPropsAsideVisible()) return false;
+  if (editorSurfaceNode?.classList.contains("hidden")) return false;
+  if (nodeOverviewBlockNode && !nodeOverviewBlockNode.classList.contains("hidden")) return false;
+  if (listViewBlockNode && !listViewBlockNode.classList.contains("hidden")) return false;
+  if (graphViewBlockNode && !graphViewBlockNode.classList.contains("hidden")) return false;
+  return true;
+}
+
+function getDocBodyStatusBarSourceText() {
+  return String(fileContentInputNode?.value || getListViewRawContent() || "");
+}
+
+function syncDocBodyStatusBar(scrollMetrics = null) {
+  if (!docBodyStatusBarNode || !docBodyStatusStatsNode) return;
+  const visible = shouldShowDocBodyStatusBar();
+  docBodyStatusBarNode.classList.toggle("hidden", !visible);
+  if (!visible) return;
+
+  const stats = analyzeDocumentContextStats(getDocBodyStatusBarSourceText());
+  docBodyStatusStatsNode.textContent = [
+    `${stats.words.toLocaleString("ru-RU")} слов`,
+    `${stats.chars.toLocaleString("ru-RU")} симв.`,
+    formatDocumentContextByteSize(stats.bytes),
+    formatDocumentContextTokenEstimate(stats.tokensEstimate)
+  ].join(" · ");
+
+  if (docBodyStatusMetaNode) {
+    const metrics = scrollMetrics || getScrollMetrics(getWorkspaceScrollElement());
+    if (metrics.scrollable && metrics.percent > 0) {
+      docBodyStatusMetaNode.textContent = `${metrics.percent}%`;
+    } else {
+      docBodyStatusMetaNode.textContent = getDocumentContextMeterStatusLabel(stats.level);
+    }
+  }
+}
+
 function getDocBodyMainEditorScrollTargets() {
   if (!isDocPropsAsideVisible() || !shouldUseEditorAutoHeight()) return null;
   const docSlabContent = getDocSlabContentNode();
@@ -113300,6 +113346,7 @@ function syncWorkspaceScrollChrome() {
     depthNode: workspaceScrollDepthNode,
     chromeNode: workspaceScrollChromeNode
   });
+  syncDocBodyStatusBar(getScrollMetrics(scrollElement));
 }
 
 function scheduleWorkspaceScrollChromeSync() {
@@ -115117,6 +115164,7 @@ fileContentInputNode.addEventListener("input", () => {
   applySourceEditorAutoHeightUi();
   syncSaveButtonLamp();
   refreshPropsAttachmentsUsageState();
+  syncDocBodyStatusBar();
 });
 
 fileContentInputNode.addEventListener("scroll", syncEditorLineNumbersScroll);
