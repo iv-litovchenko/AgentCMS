@@ -120,6 +120,10 @@ export class AgentCmsClient {
     return this.request("PUT", path, { body, ...opts });
   }
 
+  patch(path, body, opts) {
+    return this.request("PATCH", path, { body, ...opts });
+  }
+
   delete(path, query, opts) {
     return this.request("DELETE", path, { query, ...opts });
   }

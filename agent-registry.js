@@ -489,6 +489,55 @@ function updateWorkspaceReginfoFields(agentPath, fields = {}) {
   writeWorkspaceReginfoSync(absolute, frontmatter, raw.body);
 }
 
+function upsertYamlArrayInFrontmatter(frontmatter, key, values) {
+  const items = (Array.isArray(values) ? values : [])
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  const nextLine = `${key}: [${items.map((value) => formatYamlScalar(value)).join(", ")}]`;
+  const lines = String(frontmatter || "").split(/\r?\n/);
+  let replaced = false;
+  const result = lines.map((line) => {
+    if (new RegExp(`^${key}:`).test(line)) {
+      replaced = true;
+      return nextLine;
+    }
+    return line;
+  });
+  if (!replaced) result.push(nextLine);
+  return result.join("\n");
+}
+
+function updateWorkspaceManifestUiFields(agentPath, fields = {}) {
+  const resolvedPath = assertSafeAgentPath(agentPath);
+  const absolute = resolveAgentRootAbsolute(resolvedPath);
+  const raw = readWorkspaceReginfoRawSync(absolute);
+  if (!isWorkspaceReginfoRaw(raw)) {
+    throw new Error(`В «${resolvedPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`);
+  }
+
+  let frontmatter = raw.frontmatter;
+  const scalarMap = {
+    color: "awn-color",
+    emoji: "awn-emoji",
+    preview: "awn-preview",
+    category: "awn-category",
+    owner: "awn-owner",
+    priority: "awn-priority"
+  };
+
+  for (const [field, yamlKey] of Object.entries(scalarMap)) {
+    if (fields[field] !== undefined) {
+      frontmatter = upsertYamlScalarInFrontmatter(frontmatter, yamlKey, fields[field]);
+    }
+  }
+
+  if (fields.tags !== undefined) {
+    frontmatter = upsertYamlArrayInFrontmatter(frontmatter, "awn-tags", fields.tags);
+  }
+
+  writeWorkspaceReginfoSync(absolute, frontmatter, raw.body);
+}
+
 function getAgentsRegistryPathSync() {
   return path.join(projectRoot, AWN_AGENTS_REGISTRY_FILE);
 }
@@ -1765,6 +1814,321 @@ function refreshAgentsFromDisk() {
   loadRegistrySync();
 }
 
+function assertMutableWorkspaceAgent(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) throw new Error("agentId is required");
+  if (isPlatformAgentId(id)) {
+    throw new Error("Platform workspace cannot be modified");
+  }
+  refreshAgentsFromDisk();
+  const agent = resolveAgent(id);
+  if (!agent || agent.virtual) {
+    throw new Error(`Unknown workspace: ${id}`);
+  }
+  return agent;
+}
+
+function agentsToRegistryPayload() {
+  refreshAgentsFromDisk();
+  return agents.map((agent) => {
+    const manifest = readWorkspaceManifestSync(agent.rootAbsolute);
+    return {
+      path: agent.path,
+      environment: agent.environment,
+      active: normalizeAgentActive(agent.active),
+      default: Boolean(agent.default),
+      orchestrator: Boolean(agent.orchestrator),
+      name: manifest?.name || agent.name,
+      comment: manifest?.description || agent.comment || ""
+    };
+  });
+}
+
+function appendAgentToRegistry(entry = {}) {
+  const agentPath = assertSafeAgentPath(entry.path);
+  const pathKey = normalizeRegistryPathKey(agentPath);
+  const payload = agentsToRegistryPayload();
+  if (payload.some((item) => normalizeRegistryPathKey(item.path) === pathKey)) {
+    refreshAgentsFromDisk();
+    const existing = agents.find((agent) => normalizeRegistryPathKey(agent.path) === pathKey);
+    return {
+      agents: getAgentsPublicList(),
+      defaultAgentId: getDefaultAgentId(),
+      agent: existing ? enrichAgentEntry(existing) : null,
+      alreadyRegistered: true
+    };
+  }
+
+  payload.push({
+    path: agentPath,
+    environment: normalizeAgentEnvironment(entry.environment),
+    active: entry.active !== false,
+    default: Boolean(entry.default),
+    orchestrator: Boolean(entry.orchestrator),
+    name: entry.name,
+    comment: entry.comment ?? entry.description ?? ""
+  });
+
+  const data = saveAgentsRegistry(payload);
+  const created = data.agents.find(
+    (agent) => normalizeRegistryPathKey(agent.path) === pathKey
+  );
+  return { ...data, agent: created || null, alreadyRegistered: false };
+}
+
+function deriveWorkspacePathFromName(name) {
+  const slug = slugifyAgentId(name, 0);
+  if (!slug) throw new Error("name is required");
+  return `workspaces/${slug}`;
+}
+
+function createWorkspaceAndRegister(options = {}) {
+  const name = String(options.name || "").trim();
+  if (!name) throw new Error("name is required");
+
+  const workspacePath = normalizeAgentWorkspacePath(
+    String(options.path || "").trim() || deriveWorkspacePathFromName(name)
+  );
+  const created = createAgentWorkspace({
+    path: workspacePath,
+    name,
+    comment: options.description ?? options.comment
+  });
+
+  const registry = appendAgentToRegistry({
+    path: created.path,
+    environment: options.environment,
+    active: options.active !== false,
+    default: Boolean(options.default),
+    orchestrator: Boolean(options.orchestrator),
+    name: created.name,
+    comment: created.comment
+  });
+
+  let groups = null;
+  if (options.groupId) {
+    groups = assignWorkspaceToGroup(created.id, options.groupId);
+  }
+
+  const agent =
+    registry.agents?.find((item) => item.id === created.id) ||
+    getAgentsPublicList().find((item) => item.id === created.id) ||
+    null;
+
+  return {
+    agent,
+    groups,
+    defaultAgentId: registry.defaultAgentId,
+    alreadyRegistered: registry.alreadyRegistered
+  };
+}
+
+function updateAgentWorkspace(agentId, patch = {}) {
+  const agent = assertMutableWorkspaceAgent(agentId);
+
+  const manifestPatch = {};
+  if (patch.name !== undefined) manifestPatch.name = patch.name;
+  if (patch.description !== undefined) manifestPatch.comment = patch.description;
+  if (patch.comment !== undefined) manifestPatch.comment = patch.comment;
+  if (patch.active !== undefined) manifestPatch.active = patch.active;
+  if (patch.status !== undefined) manifestPatch.status = patch.status;
+  if (Object.keys(manifestPatch).length) {
+    updateWorkspaceReginfoFields(agent.path, manifestPatch);
+  }
+
+  const uiPatch = {};
+  for (const key of ["color", "emoji", "preview", "category", "owner", "priority", "tags"]) {
+    if (patch[key] !== undefined) uiPatch[key] = patch[key];
+  }
+  if (Object.keys(uiPatch).length) {
+    updateWorkspaceManifestUiFields(agent.path, uiPatch);
+  }
+
+  const registryPatch =
+    patch.default !== undefined ||
+    patch.orchestrator !== undefined ||
+    patch.environment !== undefined ||
+    patch.active !== undefined;
+
+  let registryResult = null;
+  if (registryPatch) {
+    const payload = agentsToRegistryPayload().map((entry) => {
+      if (normalizeRegistryPathKey(entry.path) !== normalizeRegistryPathKey(agent.path)) {
+        if (patch.default === true) {
+          return { ...entry, default: false };
+        }
+        if (patch.orchestrator === true) {
+          return { ...entry, orchestrator: false };
+        }
+        return entry;
+      }
+      return {
+        ...entry,
+        environment:
+          patch.environment !== undefined
+            ? normalizeAgentEnvironment(patch.environment)
+            : entry.environment,
+        active: patch.active !== undefined ? patch.active !== false : entry.active,
+        default: patch.default !== undefined ? Boolean(patch.default) : entry.default,
+        orchestrator:
+          patch.orchestrator !== undefined ? Boolean(patch.orchestrator) : entry.orchestrator,
+        name: patch.name !== undefined ? String(patch.name).trim() : entry.name,
+        comment:
+          patch.description !== undefined || patch.comment !== undefined
+            ? String(patch.description ?? patch.comment ?? "").trim()
+            : entry.comment
+      };
+    });
+    registryResult = saveAgentsRegistry(payload);
+  } else {
+    refreshAgentsFromDisk();
+  }
+
+  const updated =
+    registryResult?.agents?.find((item) => item.id === agentId) ||
+    getAgentsPublicList().find((item) => item.id === agentId) ||
+    null;
+
+  return {
+    agent: updated,
+    defaultAgentId: registryResult?.defaultAgentId || getDefaultAgentId()
+  };
+}
+
+function setDefaultAgentWorkspace(agentId) {
+  return updateAgentWorkspace(agentId, { default: true });
+}
+
+function setOrchestratorAgentWorkspace(agentId) {
+  return updateAgentWorkspace(agentId, { orchestrator: true });
+}
+
+function createWorkspaceGroup(options = {}) {
+  refreshAgentsFromDisk();
+  loadAgentsGroupsSync();
+  const title = String(options.title || options.name || "").trim();
+  if (!title) throw new Error("title is required");
+
+  const entry = normalizeAgentsGroupEntry(
+    { id: options.id, title },
+    agentsGroupsCache.groups.length,
+    getKnownAgentIdsSet()
+  );
+  if (!entry) throw new Error("Invalid group");
+  if (agentsGroupsCache.groups.some((group) => group.id === entry.id)) {
+    throw new Error(`Group already exists: ${entry.id}`);
+  }
+
+  const groups = [
+    ...agentsGroupsCache.groups,
+    {
+      id: entry.id,
+      title: entry.title,
+      agentIds: [],
+      background: null,
+      appearance: "light"
+    }
+  ];
+  return saveAgentsGroups(groups, agentsGroupsCache.ungrouped);
+}
+
+function updateWorkspaceGroup(groupId, patch = {}) {
+  refreshAgentsFromDisk();
+  loadAgentsGroupsSync();
+  const id = String(groupId || "").trim();
+  if (!id || id === UNGROUPED_GROUP_ID) {
+    throw new Error("groupId is required");
+  }
+
+  let found = false;
+  const groups = agentsGroupsCache.groups.map((group) => {
+    if (group.id !== id) return group;
+    found = true;
+    const title =
+      patch.title !== undefined ? String(patch.title || group.title).trim() || group.title : group.title;
+    const appearance =
+      patch.appearance !== undefined
+        ? patch.appearance === "dark"
+          ? "dark"
+          : "light"
+        : group.appearance;
+    return { ...group, title, appearance };
+  });
+
+  if (!found) throw new Error(`Group not found: ${id}`);
+  return saveAgentsGroups(groups, agentsGroupsCache.ungrouped);
+}
+
+function deleteWorkspaceGroup(groupId) {
+  refreshAgentsFromDisk();
+  loadAgentsGroupsSync();
+  const id = String(groupId || "").trim();
+  if (!id || id === UNGROUPED_GROUP_ID) {
+    throw new Error("groupId is required");
+  }
+
+  const groups = agentsGroupsCache.groups.filter((group) => group.id !== id);
+  if (groups.length === agentsGroupsCache.groups.length) {
+    throw new Error(`Group not found: ${id}`);
+  }
+  return saveAgentsGroups(groups, agentsGroupsCache.ungrouped);
+}
+
+function assignWorkspaceToGroup(agentId, groupId) {
+  const agent = assertMutableWorkspaceAgent(agentId);
+  const targetGroupId = String(groupId || "").trim();
+  if (!targetGroupId) throw new Error("groupId is required");
+  if (targetGroupId === UNGROUPED_GROUP_ID) {
+    return removeWorkspaceFromGroup(agentId);
+  }
+
+  loadAgentsGroupsSync();
+  if (!agentsGroupsCache.groups.some((group) => group.id === targetGroupId)) {
+    throw new Error(`Group not found: ${targetGroupId}`);
+  }
+
+  const groups = agentsGroupsCache.groups.map((group) => ({
+    ...group,
+    agentIds: group.agentIds.filter((id) => id !== agent.id)
+  }));
+  const target = groups.find((group) => group.id === targetGroupId);
+  if (!target.agentIds.includes(agent.id)) {
+    target.agentIds.push(agent.id);
+  }
+  return saveAgentsGroups(groups, agentsGroupsCache.ungrouped);
+}
+
+function removeWorkspaceFromGroup(agentId) {
+  const agent = assertMutableWorkspaceAgent(agentId);
+  loadAgentsGroupsSync();
+  const groups = agentsGroupsCache.groups.map((group) => ({
+    ...group,
+    agentIds: group.agentIds.filter((id) => id !== agent.id)
+  }));
+  return saveAgentsGroups(groups, agentsGroupsCache.ungrouped);
+}
+
+function reorderWorkspaceGroups(groupIds = []) {
+  refreshAgentsFromDisk();
+  loadAgentsGroupsSync();
+  const order = [...new Set((Array.isArray(groupIds) ? groupIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!order.length) throw new Error("groupIds is required");
+
+  const byId = new Map(agentsGroupsCache.groups.map((group) => [group.id, group]));
+  const reordered = [];
+  for (const id of order) {
+    if (!byId.has(id)) {
+      throw new Error(`Group not found: ${id}`);
+    }
+    reordered.push(byId.get(id));
+    byId.delete(id);
+  }
+  for (const group of byId.values()) {
+    reordered.push(group);
+  }
+  return saveAgentsGroups(reordered, agentsGroupsCache.ungrouped);
+}
+
 function findSystemReferenceScaffold(presetBase) {
   const key = String(presetBase || "").trim().toLowerCase();
   return SYSTEM_REFERENCE_SCAFFOLDS.find((item) => item.preset === key) || null;
@@ -1955,6 +2319,18 @@ module.exports = {
   validateAgentWorkspacePaths,
   discoverAgentManifests,
   createAgentWorkspace,
+  createWorkspaceAndRegister,
+  appendAgentToRegistry,
+  updateAgentWorkspace,
+  setDefaultAgentWorkspace,
+  setOrchestratorAgentWorkspace,
+  createWorkspaceGroup,
+  updateWorkspaceGroup,
+  deleteWorkspaceGroup,
+  assignWorkspaceToGroup,
+  removeWorkspaceFromGroup,
+  reorderWorkspaceGroups,
+  UNGROUPED_GROUP_ID,
   readWorkspaceManifestSync,
   isWorkspaceReginfoAtPath,
   enrichAgentEntry,

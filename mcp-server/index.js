@@ -19,6 +19,7 @@ import {
 } from "./lib/workspace-fs-tools.js";
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
+import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerIblockTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
@@ -113,6 +114,8 @@ function createServer() {
     listWorkspacesHandler,
     { agentScope: false }
   );
+
+  registerWorkspaceTools(reg, client);
 
   // ── Старт / контекст (5) ───────────────────────────────────────────────────
 

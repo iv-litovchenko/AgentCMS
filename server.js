@@ -536,6 +536,16 @@ const {
   validateAgentWorkspacePaths,
   discoverAgentManifests,
   createAgentWorkspace,
+  createWorkspaceAndRegister,
+  updateAgentWorkspace,
+  setDefaultAgentWorkspace,
+  setOrchestratorAgentWorkspace,
+  createWorkspaceGroup,
+  updateWorkspaceGroup,
+  deleteWorkspaceGroup,
+  assignWorkspaceToGroup,
+  removeWorkspaceFromGroup,
+  reorderWorkspaceGroups,
   getAgentManifestPreviewAbsolute,
   resolveManifestPreviewAbsolute,
   readWorkspaceManifestSync,
@@ -28276,6 +28286,20 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/create") {
     try {
       const payload = await readJsonBody(req);
+      if (payload?.register === true) {
+        const data = createWorkspaceAndRegister({
+          path: payload?.path,
+          name: payload?.name,
+          comment: payload?.comment ?? payload?.description,
+          description: payload?.description ?? payload?.comment,
+          environment: payload?.environment,
+          active: payload?.active,
+          default: payload?.default,
+          orchestrator: payload?.orchestrator,
+          groupId: payload?.groupId
+        });
+        return sendJson(res, 200, data);
+      }
       const agent = createAgentWorkspace({
         path: payload?.path,
         name: payload?.name,
@@ -28286,6 +28310,139 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to create agent workspace",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PATCH" && url.pathname === "/api/agents/workspace") {
+    try {
+      const payload = await readJsonBody(req);
+      const agentId = String(payload?.agentId || payload?.id || "").trim();
+      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const data = updateAgentWorkspace(agentId, payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to update workspace",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/workspace/default") {
+    try {
+      const payload = await readJsonBody(req);
+      const agentId = String(payload?.agentId || payload?.id || "").trim();
+      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const data = setDefaultAgentWorkspace(agentId);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to set default workspace",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/workspace/orchestrator") {
+    try {
+      const payload = await readJsonBody(req);
+      const agentId = String(payload?.agentId || payload?.id || "").trim();
+      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const data = setOrchestratorAgentWorkspace(agentId);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to set orchestrator workspace",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/groups/create") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = createWorkspaceGroup(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to create workspace group",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PATCH" && url.pathname === "/api/agents/groups/item") {
+    try {
+      const payload = await readJsonBody(req);
+      const groupId = String(payload?.groupId || payload?.id || "").trim();
+      if (!groupId) return sendJson(res, 400, { error: "groupId is required" });
+      const data = updateWorkspaceGroup(groupId, payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to update workspace group",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/agents/groups/item") {
+    try {
+      const groupId = String(url.searchParams.get("groupId") || "").trim();
+      if (!groupId) return sendJson(res, 400, { error: "groupId is required" });
+      const data = deleteWorkspaceGroup(groupId);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to delete workspace group",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/groups/assign") {
+    try {
+      const payload = await readJsonBody(req);
+      const agentId = String(payload?.agentId || "").trim();
+      const groupId = String(payload?.groupId || "").trim();
+      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      if (!groupId) return sendJson(res, 400, { error: "groupId is required" });
+      const data = assignWorkspaceToGroup(agentId, groupId);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to assign workspace to group",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/groups/unassign") {
+    try {
+      const payload = await readJsonBody(req);
+      const agentId = String(payload?.agentId || "").trim();
+      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const data = removeWorkspaceFromGroup(agentId);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to remove workspace from group",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/groups/reorder") {
+    try {
+      const payload = await readJsonBody(req);
+      const groupIds = Array.isArray(payload?.groupIds) ? payload.groupIds : [];
+      const data = reorderWorkspaceGroups(groupIds);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to reorder workspace groups",
         details: String(error?.message || error)
       });
     }
