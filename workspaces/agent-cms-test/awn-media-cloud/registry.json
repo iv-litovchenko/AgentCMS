@@ -2,11 +2,16 @@
   "version": 2,
   "entries": [
     {
-      "blob": "gd_ac6db220.png",
+      "blob": "gd_f61d49de.png",
       "mediaRel": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-1/awn-materials-igra-dalnoboyschik-2/Снимок экрана 2026-08-02 в 02.44.09.png",
       "providers": [
         {
           "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
           "status": "local",
           "remoteUrl": ""
         }

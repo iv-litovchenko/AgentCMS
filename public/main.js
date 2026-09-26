@@ -33,6 +33,8 @@ const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-b
 const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn");
 const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
+const appFooterIdeasLabelNode = document.getElementById("app-footer-ideas-label");
+const appFooterIdeasCountNode = document.getElementById("app-footer-ideas-count");
 const appFooterJournalBtn = document.getElementById("app-footer-journal-btn");
 const appFooterJournalPopoverNode = document.getElementById("app-footer-journal-popover");
 const appFooterJournalCloseBtn = document.getElementById("app-footer-journal-close-btn");
@@ -489,6 +491,8 @@ const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
 const agentTodoPreviewStatusNode = document.getElementById("agent-todo-preview-status");
+const agentTodoPreviewLabelNode = document.querySelector(".agent-todo-preview-label");
+const AGENT_NOTE_PREVIEW_LABEL_EMPTY = "NOTE.md (заметка)";
 const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 75;
 const SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY = "agentcms.sidebarNotePreviewExpanded.v1";
 const agentTablePaneNode = document.getElementById("agent-table-pane");
@@ -4554,7 +4558,12 @@ function extractVoiceChatDragLabelFromElement(el, { fallback = "" } = {}) {
 
   const footerIdeasLabel = el.querySelector(".app-footer-ideas-label");
   if (footerIdeasLabel) {
-    return sanitizeVoiceChatDragLabel(footerIdeasLabel.textContent);
+    const footerIdeasCount = el.querySelector(".app-footer-ideas-count");
+    const countSuffix =
+      footerIdeasCount && !footerIdeasCount.classList.contains("hidden")
+        ? String(footerIdeasCount.textContent || "")
+        : "";
+    return sanitizeVoiceChatDragLabel(`${footerIdeasLabel.textContent || ""}${countSuffix}`);
   }
 
   const notePreviewLabel = el.querySelector(".agent-todo-preview-label");
@@ -6501,9 +6510,15 @@ function syncAgentNotePreviewActiveState() {
   );
 }
 
-function syncAgentNotePreviewStatusIndicator(hasContent = false) {
-  const filled = Boolean(hasContent);
-  const title = filled ? "NOTE.md — в заметке есть содержимое" : "NOTE.md — заметка пуста";
+function syncAgentNotePreviewStatusIndicator(rawContent = "") {
+  const previewMarkdown = getAgentTodoSidebarPreviewMarkdown(rawContent);
+  const filled = Boolean(previewMarkdown);
+  const lineCount = filled ? countNonemptyLines(previewMarkdown) : 0;
+  const labelText = formatAgentNotePreviewToggleLabel(rawContent);
+  const title = filled ? labelText : `${AGENT_NOTE_PREVIEW_LABEL_EMPTY} — пусто`;
+  if (agentTodoPreviewLabelNode) {
+    agentTodoPreviewLabelNode.textContent = labelText;
+  }
   if (agentTodoPreviewToggleBtn) {
     agentTodoPreviewToggleBtn.classList.toggle("is-filled", filled);
     agentTodoPreviewToggleBtn.classList.toggle("is-empty", !filled);
@@ -6531,7 +6546,7 @@ function clearAgentNotePreviewBody() {
   agentNotePreviewLastMarkdown = "";
   agentTodoPreviewWrapNode?.classList.remove("has-note-content", "is-expanded");
   agentTodoPreviewExpandBtn?.classList.add("hidden");
-  syncAgentNotePreviewStatusIndicator(false);
+  syncAgentNotePreviewStatusIndicator("");
   if (agentTodoPreviewBodyNode) {
     agentTodoPreviewBodyNode.innerHTML = "";
   }
@@ -6547,7 +6562,7 @@ function applyAgentNotePreviewMarkdown(rawContent, { fileName = ROOT_SYSTEM_NOTE
   }
 
   agentTodoPreviewWrapNode.classList.add("has-note-content");
-  syncAgentNotePreviewStatusIndicator(true);
+  syncAgentNotePreviewStatusIndicator(rawContent);
 
   if (previewMarkdown !== agentNotePreviewLastMarkdown) {
     setMarkdownPreviewHtml(agentTodoPreviewBodyNode, previewMarkdown, { nodePath: fileName });
@@ -6561,7 +6576,7 @@ function hideAgentTodoPreview() {
   agentTodoPreviewWrapNode?.classList.add("hidden");
   agentTodoPreviewWrapNode?.classList.remove("has-note-content", "is-note-active", "is-expanded");
   agentTodoPreviewExpandBtn?.classList.add("hidden");
-  syncAgentNotePreviewStatusIndicator(false);
+  syncAgentNotePreviewStatusIndicator("");
   if (agentTodoPreviewBodyNode) {
     agentTodoPreviewBodyNode.innerHTML = "";
   }
@@ -99170,6 +99185,38 @@ function countTodoLines(text) {
     .filter((line) => /^[-*]\s+\S/.test(line) || /^\[[ xX]\]\s+\S/.test(line)).length;
 }
 
+function countNonemptyLines(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim()).length;
+}
+
+function formatRussianLineCountLabel(count) {
+  const n = Math.abs(Number(count) || 0);
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "строка";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "строки";
+  return "строк";
+}
+
+function formatRussianTaskCountLabel(count) {
+  const n = Math.abs(Number(count) || 0);
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "задача";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "задачи";
+  return "задач";
+}
+
+function formatAgentNotePreviewToggleLabel(rawContent = "") {
+  const previewMarkdown = getAgentTodoSidebarPreviewMarkdown(rawContent);
+  if (!previewMarkdown) return AGENT_NOTE_PREVIEW_LABEL_EMPTY;
+  const lineCount = countNonemptyLines(previewMarkdown);
+  if (lineCount <= 0) return AGENT_NOTE_PREVIEW_LABEL_EMPTY;
+  return `NOTE.md (заметка - ${lineCount} ${formatRussianLineCountLabel(lineCount)})`;
+}
+
 async function renderAgentTodoListView() {
   if (!agentTodoListContentNode) return;
 
@@ -103544,6 +103591,7 @@ function setupAppFooterToggle() {
 
 let appFooterIdeasOpen = false;
 let appFooterIdeasLoadSeq = 0;
+let appFooterIdeasBadgeUiCache = null;
 
 function getAppFooterTodoScopeLabel() {
   const agentLabel = getActiveAgentLabel() || activeAgentId || "проект";
@@ -103555,14 +103603,49 @@ function hasAppFooterTodoContent(content = "") {
 }
 
 function syncAppFooterIdeasBadgeState(content = "", { exists = true, loading = false } = {}) {
-  const filled = !loading && exists && hasAppFooterTodoContent(content);
+  if (loading) return;
+
+  const filled = exists && hasAppFooterTodoContent(content);
+  const normalized = String(content || "").trim();
+  const taskCount = normalized ? countTodoLines(normalized) : 0;
+  const scope = getAppFooterTodoScopeLabel();
+  let title = scope;
+  if (!exists || !normalized) {
+    title = `${scope} — пусто`;
+  } else if (taskCount > 0) {
+    title = `${scope} — ${taskCount} ${formatRussianTaskCountLabel(taskCount)}`;
+  } else {
+    title = `${scope} — есть записи`;
+  }
+
+  const nextCache = { filled, title, taskCount };
+  if (
+    appFooterIdeasBadgeUiCache &&
+    appFooterIdeasBadgeUiCache.filled === nextCache.filled &&
+    appFooterIdeasBadgeUiCache.title === nextCache.title &&
+    appFooterIdeasBadgeUiCache.taskCount === nextCache.taskCount
+  ) {
+    return;
+  }
+  appFooterIdeasBadgeUiCache = nextCache;
+
+  if (appFooterIdeasLabelNode && appFooterIdeasLabelNode.textContent !== ROOT_SYSTEM_TODO_FILE) {
+    appFooterIdeasLabelNode.textContent = ROOT_SYSTEM_TODO_FILE;
+  }
+  if (appFooterIdeasCountNode) {
+    if (taskCount > 0) {
+      appFooterIdeasCountNode.textContent = ` (${taskCount})`;
+      appFooterIdeasCountNode.classList.remove("hidden");
+    } else {
+      appFooterIdeasCountNode.textContent = "";
+      appFooterIdeasCountNode.classList.add("hidden");
+    }
+  }
   if (appFooterIdeasBtn) {
     appFooterIdeasBtn.classList.toggle("is-filled", filled);
     appFooterIdeasBtn.classList.toggle("is-empty", !filled);
-    appFooterIdeasBtn.title = filled
-      ? `${getAppFooterTodoScopeLabel()} — есть записи`
-      : `${getAppFooterTodoScopeLabel()} — пусто`;
-    appFooterIdeasBtn.setAttribute("aria-label", appFooterIdeasBtn.title);
+    appFooterIdeasBtn.title = title;
+    appFooterIdeasBtn.setAttribute("aria-label", title);
   }
   if (appFooterIdeasLampNode) {
     appFooterIdeasLampNode.classList.toggle("is-filled", filled);
@@ -103589,16 +103672,18 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
   if (!appFooterIdeasBodyNode) return;
 
   if (loading) {
-    syncAppFooterIdeasBadgeState("", { exists: true, loading: true });
-    appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
-    appFooterIdeasBodyNode.textContent = "Загрузка…";
+    if (appFooterIdeasOpen) {
+      appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
+      appFooterIdeasBodyNode.textContent = "Загрузка…";
+    }
     return;
   }
 
   if (error) {
-    syncAppFooterIdeasBadgeState("", { exists: false, loading: false });
-    appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta is-error";
-    appFooterIdeasBodyNode.textContent = error;
+    if (appFooterIdeasOpen) {
+      appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta is-error";
+      appFooterIdeasBodyNode.textContent = error;
+    }
     return;
   }
 
@@ -103627,7 +103712,9 @@ async function loadAppFooterIdeasPreview() {
   if (!appFooterIdeasBodyNode) return "";
   syncAppFooterIdeasPopoverChrome();
   const seq = ++appFooterIdeasLoadSeq;
-  renderAppFooterIdeasContent("", { loading: true });
+  if (appFooterIdeasOpen) {
+    renderAppFooterIdeasContent("", { loading: true });
+  }
 
   try {
     const response = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
@@ -103639,7 +103726,9 @@ async function loadAppFooterIdeasPreview() {
     return content;
   } catch {
     if (seq !== appFooterIdeasLoadSeq) return "";
-    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${ROOT_SYSTEM_TODO_FILE}` });
+    if (appFooterIdeasOpen) {
+      renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${ROOT_SYSTEM_TODO_FILE}` });
+    }
     return "";
   }
 }
@@ -114811,7 +114900,6 @@ function setupAppFooterIdeasPopover() {
   if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
 
   syncAppFooterIdeasPopoverChrome();
-  renderAppFooterIdeasContent("", { loading: true });
   void loadAppFooterIdeasPreview();
 
   appFooterIdeasBtn.addEventListener("click", (event) => {

@@ -22945,6 +22945,15 @@ a.header-tool-btn {
   text-transform: uppercase;
 }
 
+.app-footer-ideas-count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.app-footer-ideas-count.hidden {
+  display: none;
+}
+
 .app-footer-ideas-popover {
   position: fixed;
   z-index: 1100;
