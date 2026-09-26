@@ -144,15 +144,88 @@ const RESERVED_FIELD_KEYS = new Set([
 
 function getCsvColumnsFromSchema(schema) {
   const fields = schema?.fields || {};
-  const columns = [];
-  for (const key of Object.keys(fields)) {
-    if (RESERVED_FIELD_KEYS.has(key)) continue;
-    columns.push(key);
+  const entries = Object.entries(fields).filter(([key]) => !RESERVED_FIELD_KEYS.has(key));
+  if (!entries.length) {
+    return ["awn-code", "awn-name", "awn-sort"];
   }
-  if (!columns.length) {
-    return ["awn-id", "awn-pid", "awn-type", "awn-name", "awn-description", "awn-code", "awn-sort"];
+  entries.sort((a, b) => {
+    const sortA = Number(a[1]?.sort);
+    const sortB = Number(b[1]?.sort);
+    const safeA = Number.isFinite(sortA) ? sortA : 999;
+    const safeB = Number.isFinite(sortB) ? sortB : 999;
+    if (safeA !== safeB) return safeA - safeB;
+    return String(a[0]).localeCompare(String(b[0]), "ru");
+  });
+  return entries.map(([key]) => key);
+}
+
+function rowObjectFromCells(columns, cells) {
+  const obj = {};
+  for (let i = 0; i < columns.length; i += 1) {
+    const key = String(columns[i] || "").trim();
+    if (!key) continue;
+    obj[key] = String(cells[i] ?? "").trim();
   }
-  return columns;
+  return obj;
+}
+
+function buildCsvRowObject(recordData, schemaColumns, schema) {
+  const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "slug").trim();
+  const row = {};
+  const code = String(
+    recordData["awn-code"] || recordData.code || recordData["awn-id"] || recordData.id || ""
+  ).trim();
+  const label = String(
+    recordData["awn-name"] ||
+      recordData["awn-label"] ||
+      recordData.label ||
+      recordData["awn-title"] ||
+      recordData.title ||
+      recordData.name ||
+      code
+  ).trim();
+
+  for (const col of schemaColumns) {
+    if (col === "awn-code" || col === "code") {
+      row[col] = code;
+      continue;
+    }
+    if (recordData[col] !== undefined) {
+      row[col] = String(recordData[col] ?? "").trim();
+      continue;
+    }
+    if (col === "awn-name" || col === "awn-label" || col === "label") {
+      row[col] = label;
+      continue;
+    }
+    row[col] = "";
+  }
+
+  if (!row["awn-code"] && !row.code && code) row["awn-code"] = code;
+  if (idMode === "slug" && !row["awn-code"] && label) row["awn-code"] = label;
+  return row;
+}
+
+function normalizeCsvRowToSchemaColumns(rowObj, schemaColumns, schema, fileColumns) {
+  const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "slug").trim();
+  const id = resolveCsvId(rowObj, fileColumns, idMode);
+  if (!id) return null;
+
+  const normalized = {};
+  for (const col of schemaColumns) {
+    normalized[col] = String(rowObj[col] ?? "").trim();
+  }
+
+  if (!normalized["awn-code"] && !normalized.code) normalized["awn-code"] = id;
+  if (!normalized["awn-name"] && !normalized["awn-label"] && !normalized.label) {
+    normalized["awn-name"] = String(
+      rowObj["awn-name"] || rowObj["awn-label"] || rowObj.label || rowObj["awn-title"] || rowObj.title || id
+    ).trim();
+  }
+  if (schemaColumns.includes("awn-label") && !normalized["awn-label"]) {
+    normalized["awn-label"] = normalized["awn-name"] || id;
+  }
+  return normalized;
 }
 
 function resolveCsvId(rowObj, columns, idMode) {
@@ -212,38 +285,32 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
 }
 
 function appendCsvRecord(storeAbs, schema, recordData) {
-  const csvFile = getCsvFileName(schema);
   const csvPath = resolveCsvAbsPath(storeAbs, schema);
-  const columns = getCsvColumnsFromSchema(schema);
+  const schemaColumns = getCsvColumnsFromSchema(schema);
 
-  let existing = { columns: [], rows: [], delimiter: DEFAULT_CSV_DELIMITER };
+  let delimiter = DEFAULT_CSV_DELIMITER;
+  const objects = [];
   if (fs.existsSync(csvPath)) {
-    existing = parseCsvText(fs.readFileSync(csvPath, "utf-8"));
+    const existing = parseCsvText(fs.readFileSync(csvPath, "utf-8"));
+    delimiter = existing.delimiter || DEFAULT_CSV_DELIMITER;
+    const fileColumns = (existing.columns || []).map((col) => String(col).trim()).filter(Boolean);
+    for (const cells of existing.rows || []) {
+      const raw = rowObjectFromCells(fileColumns, cells);
+      const normalized = normalizeCsvRowToSchemaColumns(raw, schemaColumns, schema, fileColumns);
+      if (normalized) objects.push(normalized);
+    }
   }
 
-  const delimiter = existing.delimiter || DEFAULT_CSV_DELIMITER;
-  const header =
-    existing.columns.length > 0
-      ? existing.columns.map(String)
-      : columns;
+  const newRow = buildCsvRowObject(recordData, schemaColumns, schema);
+  const newCode = String(newRow["awn-code"] || newRow.code || "").trim();
+  if (newCode && !objects.some((row) => String(row["awn-code"] || row.code || "").trim() === newCode)) {
+    objects.push(newRow);
+  }
 
-  const row = header.map((col) => {
-    const key = String(col).trim();
-    if (key === "awn-code" || key === "code") {
-      return String(recordData["awn-code"] || recordData.code || recordData["awn-id"] || recordData.id || "").trim();
-    }
-    if (recordData[key] !== undefined) return String(recordData[key] ?? "").trim();
-    if (key === "awn-label" || key === "label") {
-      return String(
-        recordData["awn-label"] || recordData.label || recordData["awn-title"] || recordData.title || recordData.id || ""
-      ).trim();
-    }
-    return "";
-  });
-
-  const rows = [...(existing.rows || []), row];
-  fs.writeFileSync(csvPath, serializeCsv(header, rows, delimiter), "utf-8");
-  return row;
+  const rows = objects.map((obj) => schemaColumns.map((col) => String(obj[col] ?? "").trim()));
+  fs.mkdirSync(path.dirname(csvPath), { recursive: true });
+  fs.writeFileSync(csvPath, serializeCsv(schemaColumns, rows, delimiter), "utf-8");
+  return newRow;
 }
 
 function writeCsvFromRecords(storeAbs, schema, records) {

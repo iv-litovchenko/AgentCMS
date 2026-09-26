@@ -8,7 +8,6 @@ const {
   readStoreMdParts
 } = require("./awn-data-loader");
 const { recordToCatalogItem } = require("./awn-taxonomy-record");
-const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 
 const workspaceTaxonomiesPayloadCache = new Map();
 
@@ -218,15 +217,13 @@ function getWorkspaceTaxonomiesPayload(agentRoot, projectRoot = process.cwd()) {
   const cached = workspaceTaxonomiesPayloadCache.get(cacheKey);
   if (cached) return cached;
 
-  const { listMergedTaxonomiesForAgent } = require("./awn-taxonomy-catalog-bridge");
   const payload = loadAwnDataStores(agentRoot, projectRoot);
   const stores = payload?.stores || [];
   const groupExists = Boolean(
     findAwnDataStore(stores, TAXONOMIES_GROUP_REL) ||
       findAwnDataStore(stores, LEGACY_TAXONOMIES_GROUP_REL)
   );
-  const globalOnly = path.resolve(agentRoot) === path.resolve(getAgentCmsCoreAbsolute(projectRoot));
-  const taxonomies = listMergedTaxonomiesForAgent(agentRoot, projectRoot, globalOnly ? { globalOnly: true } : {});
+  const taxonomies = listWorkspaceTaxonomies(agentRoot, projectRoot);
   const byKey = {};
   for (const def of taxonomies) {
     byKey[def.key] = {

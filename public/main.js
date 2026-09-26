@@ -14105,6 +14105,7 @@ async function switchActiveAgent(nextAgentId) {
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
+    invalidateAgentTaxonomiesCache();
     invalidateContentSearchFieldCatalog();
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();

@@ -1322,9 +1322,25 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
     return merged;
   }
 
-  const extendsRef = resolveElementExtendsRef(
-    schemeOverlay?.extends || leaf.schema.extends || ELEMENT_TYPE_RECORD
-  );
+  let extendsRef = resolveElementExtendsRef(schemeOverlay?.extends || leaf.schema.extends || "");
+  const recordStorage = getRecordStorage(leaf.schema);
+  const frameTypeId = String(leaf.schema.typeId || leaf.schema.supertype || "").trim();
+  if (!extendsRef) {
+    if (recordStorage === "csv" || recordStorage === "csv-files") {
+      extendsRef = ELEMENT_TYPE_RECORD_CSV;
+    } else if (frameTypeId === FRAME_TYPE_ID.taxonomyCollection) {
+      extendsRef = ELEMENT_TYPE_RECORD_CSV;
+    } else {
+      extendsRef = ELEMENT_TYPE_RECORD;
+    }
+  } else if (
+    extendsRef === ELEMENT_TYPE_RECORD &&
+    (recordStorage === "csv" ||
+      recordStorage === "csv-files" ||
+      frameTypeId === FRAME_TYPE_ID.taxonomyCollection)
+  ) {
+    extendsRef = ELEMENT_TYPE_RECORD_CSV;
+  }
 
   let fields = {};
   if (isTypeIdRef(extendsRef)) {

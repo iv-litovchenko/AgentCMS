@@ -44,30 +44,6 @@ function catalogPresetToTaxonomyKeys(preset) {
   return CATALOG_PRESET_TO_TAXONOMY_KEYS[needle] || [needle];
 }
 
-function mergeTaxonomyCatalogItems(globalItems, agentItems) {
-  const byId = new Map();
-  for (const item of globalItems || []) {
-    if (!item?.id) continue;
-    byId.set(item.id, { ...item, scope: "global" });
-  }
-  for (const item of agentItems || []) {
-    if (!item?.id) continue;
-    byId.set(item.id, { ...item, scope: "agent" });
-  }
-  return [...byId.values()].sort((a, b) =>
-    String(a.label || a.id).localeCompare(String(b.label || b.id), "ru")
-  );
-}
-
-function isAgentCmsCoreRoot(agentRoot, projectRoot) {
-  if (!agentRoot) return false;
-  return path.resolve(agentRoot) === path.resolve(getAgentCmsCoreAbsolute(projectRoot));
-}
-
-function listPlatformTaxonomyDefinitions(projectRoot) {
-  return listWorkspaceTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot);
-}
-
 function findTaxonomyDefinition(definitions, keys) {
   for (const definition of definitions || []) {
     const key = String(definition?.key || "").trim().toLowerCase();
@@ -79,75 +55,9 @@ function findTaxonomyDefinition(definitions, keys) {
   return null;
 }
 
-function listMergedTaxonomiesForAgent(agentRoot, projectRoot, options = {}) {
-  const globalOnly = options.globalOnly === true;
-  const agentOnly = options.agentOnly === true;
-  const platformDefs = listPlatformTaxonomyDefinitions(projectRoot).map((definition) => ({
-    ...definition,
-    items: (definition.items || []).map((item) => ({ ...item, scope: "global" }))
-  }));
-
-  if (globalOnly || isAgentCmsCoreRoot(agentRoot, projectRoot)) {
-    return platformDefs;
-  }
-
-  const agentDefs = listWorkspaceTaxonomies(agentRoot, projectRoot);
-
-  if (agentOnly) {
-    const merged = [];
-    for (const preset of MERGE_CATALOG_PRESETS) {
-      if (preset === "statuses") {
-        const platformStatus = findTaxonomyDefinition(platformDefs, catalogPresetToTaxonomyKeys(preset));
-        if (platformStatus) {
-          merged.push({
-            ...platformStatus,
-            items: (platformStatus.items || []).map((item) => ({ ...item, scope: "global" }))
-          });
-        }
-        continue;
-      }
-      const agentDef = findTaxonomyDefinition(agentDefs, catalogPresetToTaxonomyKeys(preset));
-      if (!agentDef) continue;
-      merged.push({
-        ...agentDef,
-        items: (agentDef.items || []).map((item) => ({ ...item, scope: "agent" }))
-      });
-    }
-    for (const def of agentDefs) {
-      const preset = taxonomyKeyToCatalogPreset(def.key, def.slug);
-      if (MERGE_CATALOG_PRESETS.includes(preset)) continue;
-      merged.push({
-        ...def,
-        items: (def.items || []).map((item) => ({ ...item, scope: "agent" }))
-      });
-    }
-    return merged;
-  }
-
-  const byKey = new Map();
-  for (const definition of platformDefs) {
-    byKey.set(definition.key, { ...definition });
-  }
-  for (const definition of agentDefs) {
-    const existing = byKey.get(definition.key);
-    const agentItems = (definition.items || []).map((item) => ({ ...item, scope: "agent" }));
-    if (existing) {
-      byKey.set(definition.key, {
-        ...existing,
-        ...definition,
-        name: definition.name || existing.name,
-        description: definition.description || existing.description,
-        storeRel: definition.storeRel || existing.storeRel,
-        items: mergeTaxonomyCatalogItems(existing.items, agentItems)
-      });
-    } else {
-      byKey.set(definition.key, {
-        ...definition,
-        items: agentItems
-      });
-    }
-  }
-  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+function listMergedTaxonomiesForAgent(agentRoot, projectRoot) {
+  if (!agentRoot) return [];
+  return listWorkspaceTaxonomies(agentRoot, projectRoot);
 }
 
 function buildCatalogPresetFromTaxonomies(preset, definitions, options = {}) {
