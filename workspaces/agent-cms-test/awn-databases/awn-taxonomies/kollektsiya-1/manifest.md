@@ -18,7 +18,7 @@ awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
-awn-type: awn.infoblock.frame.collection
+awn-type: awn.infoblock.frame.taxonomy-collection
 awn-create: 2026-09-26T06:58:29.427Z
 awn-update: 2026-09-26T06:58:29.427Z
 awn-version: 1
@@ -29,7 +29,6 @@ awn-collection-type: csv
 awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
-awn-taxonomy-key: kollektsiya-1
 awn-taxonomy-cardinality: one
 awn-taxonomy-hierarchy: false
 ---

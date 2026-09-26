@@ -43,8 +43,7 @@ function readTaxonomyManifestMeta(storeAbs) {
   const parts = readStoreMdParts(manifestPath);
   const fm = parts?.frontmatter || {};
   const storeRelHint = path.basename(storeAbs);
-  const explicitKey = getYamlScalar(fm, "awn-taxonomy-key");
-  const key = explicitKey || inferTaxonomyKeyFromSlug(storeRelHint);
+  const key = inferTaxonomyKeyFromSlug(storeRelHint);
   const cardinalityRaw = getYamlScalar(fm, "awn-taxonomy-cardinality").toLowerCase();
   const cardinality = cardinalityRaw === "many" || cardinalityRaw === "one"
     ? cardinalityRaw
@@ -58,7 +57,6 @@ function readTaxonomyManifestMeta(storeAbs) {
     hierarchyRaw === "1";
   return {
     key,
-    explicitKey: Boolean(explicitKey),
     cardinality,
     hierarchy,
     name: getYamlScalar(fm, "awn-name") || key,
@@ -164,7 +162,6 @@ function loadTaxonomyDefinition(store, agentRoot, projectRoot) {
   const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
   const storeAbs = path.join(dataRoot, store.relPath);
   const meta = readTaxonomyManifestMeta(storeAbs);
-  if (!meta.explicitKey) return null;
   const storePayload = getAwnDataPayload(agentRoot, projectRoot, store.relPath);
   const fromStore = (storePayload?.store?.records || store.records || [])
     .map((record) => recordToCatalogItem(record))

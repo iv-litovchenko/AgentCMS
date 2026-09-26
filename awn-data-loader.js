@@ -136,11 +136,13 @@ function isSystemStoreFile(name) {
 const FRAME_TYPE_ID = {
   group: "awn.infoblock.frame.group",
   collection: "awn.infoblock.frame.collection",
+  taxonomyCollection: "awn.infoblock.frame.taxonomy-collection",
   single: "awn.infoblock.frame.single"
 };
 
 const AWN_PROP_TYPE_TO_KIND = {
   [FRAME_TYPE_ID.collection]: "collection",
+  [FRAME_TYPE_ID.taxonomyCollection]: "collection",
   [FRAME_TYPE_ID.single]: "single",
   [FRAME_TYPE_ID.group]: "group",
   "awn.infoblock.frame.singleton": "single",
@@ -855,8 +857,11 @@ function extractFlatRecordProps(raw) {
   const record = {};
   const idMode = readStoreProp(raw, ["awn-record-id-mode"], "");
   const file = readStoreProp(raw, ["awn-record-file"], "");
-  const taxonomyKey = readStoreProp(raw, ["awn-taxonomy-key"], "");
-  const hierarchy = taxonomyKey
+  const frameType = readStoreProp(raw, ["awn-type"], "");
+  const taxonomyCardinality = readStoreProp(raw, ["awn-taxonomy-cardinality"], "");
+  const isTaxonomyFrame =
+    frameType === FRAME_TYPE_ID.taxonomyCollection || Boolean(taxonomyCardinality);
+  const hierarchy = isTaxonomyFrame
     ? raw["awn-taxonomy-hierarchy"] !== undefined
       ? raw["awn-taxonomy-hierarchy"]
       : raw["awn-record-hierarchy"]
@@ -1179,8 +1184,19 @@ function readStoreSchemeModOverlay(storeAbs) {
       };
     }
 
-    const recordCsvBlock = blocks["record-csv"];
-    const recordBlock = blocks.record || { fields: {}, tabs: {}, extends: AWN_DATA_SCHEMA_TARGET_EXTENDS.record };
+    const storeRelHint = path.basename(storeAbs);
+    const parentRel = path.basename(path.dirname(storeAbs));
+    const taxonomyStoreRel =
+      parentRel === "awn-taxonomies" || parentRel === "taxonomies"
+        ? `${parentRel}/${storeRelHint}`
+        : "";
+    const sanitizedBlocks = sanitizeTaxonomySchemeModBlocks(blocks, taxonomyStoreRel);
+    const recordCsvBlock = sanitizedBlocks["record-csv"];
+    const recordBlock = sanitizedBlocks.record || {
+      fields: {},
+      tabs: {},
+      extends: AWN_DATA_SCHEMA_TARGET_EXTENDS.record
+    };
     const activeRecordBlock =
       recordCsvBlock ||
       (recordBlock.extends === ELEMENT_TYPE_RECORD_CSV ? recordBlock : null) ||
@@ -1189,7 +1205,7 @@ function readStoreSchemeModOverlay(storeAbs) {
       fields: activeRecordBlock.fields,
       tabs: activeRecordBlock.tabs,
       extends: activeRecordBlock.extends,
-      blocks,
+      blocks: sanitizedBlocks,
       schemePath,
       exists: true
     };
@@ -2289,7 +2305,6 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
       overrides["awn-record-file-types"] = String(record.fileTypes).trim();
     }
   }
-  if (taxonomy?.key) overrides["awn-taxonomy-key"] = String(taxonomy.key).trim();
   if (taxonomy?.cardinality) {
     overrides["awn-taxonomy-cardinality"] =
       String(taxonomy.cardinality).trim().toLowerCase() === "many" ? "many" : "one";
@@ -2430,15 +2445,14 @@ function appendRootSortEntry(dataRoot, storeRel) {
   fs.writeFileSync(sortPath, `${JSON.stringify(order, null, 2)}\n`, "utf-8");
 }
 
-function loadContainerTypeMeta(kind, agentRoot, projectRoot) {
-  const normalizedKind = normalizeStoreKind(kind);
-  const typeDefaults = loadContainerTypeDefaults(normalizedKind, agentRoot, projectRoot);
-  const typeId = typeDefaults.typeId || CONTAINER_TYPE_ID[normalizedKind] || "";
+function loadTypeMetaByTypeId(typeId, agentRoot, projectRoot) {
+  const resolvedTypeId = String(typeId || "").trim();
   let typeDescription = "";
-  let typeFields = typeDefaults.fields || {};
+  let typeFields = {};
+  if (!resolvedTypeId) return { typeId: "", typeDescription, typeFields };
   try {
     const { getTypeDetailByTypeId } = require("./type-catalog-loader");
-    const detail = getTypeDetailByTypeId(projectRoot, agentRoot, typeId);
+    const detail = getTypeDetailByTypeId(projectRoot, agentRoot, resolvedTypeId);
     if (detail) {
       typeDescription = String(detail.description || "").trim();
       if (detail.mergedFields && typeof detail.mergedFields === "object") {
@@ -2448,7 +2462,21 @@ function loadContainerTypeMeta(kind, agentRoot, projectRoot) {
   } catch {
     // ignore
   }
-  return { normalizedKind, typeId, typeDescription, typeFields, typeDefaults };
+  return { typeId: resolvedTypeId, typeDescription, typeFields };
+}
+
+function loadContainerTypeMeta(kind, agentRoot, projectRoot) {
+  const normalizedKind = normalizeStoreKind(kind);
+  const typeDefaults = loadContainerTypeDefaults(normalizedKind, agentRoot, projectRoot);
+  const typeId = typeDefaults.typeId || CONTAINER_TYPE_ID[normalizedKind] || "";
+  const meta = loadTypeMetaByTypeId(typeId, agentRoot, projectRoot);
+  return {
+    normalizedKind,
+    typeId: meta.typeId || typeId,
+    typeDescription: meta.typeDescription,
+    typeFields: meta.typeFields,
+    typeDefaults
+  };
 }
 
 function buildStoreManifestBody({ name, description, typeDescription, fallbackTitle = "Накопитель" }) {
@@ -2679,31 +2707,76 @@ function inferTaxonomyCardinality(key, slug = "") {
   return "one";
 }
 
+const LEGACY_TAXONOMY_CSV_FIELD_KEYS = new Set([
+  "awn-label",
+  "awn-emoji",
+  "awn-color",
+  "label",
+  "emoji",
+  "color"
+]);
+
+function isTaxonomyCollectionStoreRel(storeRel) {
+  const rel = String(storeRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  return rel.startsWith("awn-taxonomies/") || rel.startsWith("taxonomies/");
+}
+
+function isTaxonomyCollectionStoreAbs(storeAbs) {
+  const normalized = String(storeAbs || "").replace(/\\/g, "/");
+  return /\/awn-taxonomies\/[^/]+$/.test(normalized) || /\/taxonomies\/[^/]+$/.test(normalized);
+}
+
+function stripLegacyTaxonomyCsvSchemaFields(fields = {}) {
+  return Object.fromEntries(
+    Object.entries(fields || {}).filter(([key]) => !LEGACY_TAXONOMY_CSV_FIELD_KEYS.has(key))
+  );
+}
+
+function sanitizeTaxonomySchemeModBlocks(blocks, storeRel = "") {
+  if (!blocks || typeof blocks !== "object") return blocks;
+  if (!isTaxonomyCollectionStoreRel(storeRel) && !isTaxonomyCollectionStoreAbs(storeRel)) return blocks;
+  const next = { ...blocks };
+  for (const kind of ["record-csv", "record"]) {
+    if (!next[kind]) continue;
+    next[kind] = {
+      ...next[kind],
+      fields: stripLegacyTaxonomyCsvSchemaFields(next[kind].fields || {})
+    };
+  }
+  return next;
+}
+
 function buildTaxonomyCollectionSchemaContent({
   slug,
   name,
   description,
-  taxonomyKey,
   taxonomyCardinality,
   taxonomyHierarchy,
-  hierarchy
+  hierarchy,
+  agentRoot = "",
+  projectRoot = process.cwd()
 }) {
   const id = slug.replace(/\//g, ".");
   const shortName = name || slug.split("/").pop();
   const desc = String(description || shortName).trim();
-  const key = String(taxonomyKey || inferTaxonomyKeyFromSlug(slug)).trim();
+  const key = inferTaxonomyKeyFromSlug(slug);
   const cardinality = String(taxonomyCardinality || inferTaxonomyCardinality(key, slug)).trim().toLowerCase();
   const hierarchyEnabled = Boolean(taxonomyHierarchy ?? hierarchy);
+  const typeMeta = loadTypeMetaByTypeId(FRAME_TYPE_ID.taxonomyCollection, agentRoot, projectRoot);
+  const typeId = typeMeta.typeId || FRAME_TYPE_ID.taxonomyCollection;
   return {
     schema: {
       kind: "collection",
       id,
       name: shortName,
       description: desc,
+      typeId,
+      supertype: typeId,
       extends: ELEMENT_TYPE_RECORD_CSV,
       fieldsInSchemeMod: false,
       taxonomy: {
-        key,
         cardinality: cardinality === "many" ? "many" : "one",
         hierarchy: hierarchyEnabled
       },
@@ -2714,11 +2787,12 @@ function buildTaxonomyCollectionSchemaContent({
         hierarchy: hierarchyEnabled,
         collectionType: "csv"
       },
-      fields: {}
+      fields: {},
+      containerFields: normalizeAwnFieldsMap(typeMeta.typeFields || {})
     },
     schemeModFields: null,
     schemeModExtends: ELEMENT_TYPE_RECORD_CSV,
-    manifestBody: `# ${shortName}\n\n${desc}\n\nКлюч в \`awn-taxonomy.${key}\`. Кардинальность: ${cardinality}. Иерархия: ${hierarchyEnabled ? "да" : "нет"}.`
+    manifestBody: `# ${shortName}\n\n${desc}\n\nСловарь \`awn-taxonomy.${key}\` (ключ из slug папки). Кардинальность: ${cardinality}. Иерархия: ${hierarchyEnabled ? "да" : "нет"}.`
   };
 }
 
@@ -3072,9 +3146,10 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
           slug,
           name,
           description,
-          taxonomyKey: options.taxonomyKey,
           taxonomyCardinality: options.taxonomyCardinality,
-          taxonomyHierarchy
+          taxonomyHierarchy,
+          agentRoot,
+          projectRoot
         })
       : buildCollectionSchemaContent({
           slug,
@@ -3095,7 +3170,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     const schemeModExtends = bundle.schemeModExtends || ELEMENT_TYPE_RECORD;
     const hasCustomSchemeFields =
       bundle.schemeModFields && Object.keys(bundle.schemeModFields).length > 0;
-    if (hasCustomSchemeFields || schemeModExtends !== ELEMENT_TYPE_RECORD) {
+    if (hasCustomSchemeFields || (!isTaxonomy && schemeModExtends !== ELEMENT_TYPE_RECORD)) {
       writeStoreSchemeMod(storeAbs, {
         extends: schemeModExtends,
         fields: bundle.schemeModFields || {},
@@ -3872,10 +3947,11 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
       for (const kind of targets) {
         const block = awnSchema[kind] || {};
         const extendsRef = block.extends || resolveAwnDataSchemaTargetExtends(kind, frameTypeId);
+        const rawFields = stripLegacyTaxonomyCsvSchemaFields(block.fields || {});
         blocks[kind] = {
           extends: extendsRef,
           fields: extractCustomSchemeModFields(
-            block.fields || {},
+            rawFields,
             extendsRef,
             agentRootResolved,
             projectRoot
@@ -3883,8 +3959,9 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
           tabs: block.tabs && typeof block.tabs === "object" ? block.tabs : {}
         };
       }
-      const hasAnyCustom = targets.some((kind) => Object.keys(blocks[kind]?.fields || {}).length > 0);
-      nextContent = hasAnyCustom ? composeAwnDataStoreSchemeModYaml({ blocks }) : "";
+      const sanitizedBlocks = sanitizeTaxonomySchemeModBlocks(blocks, rel);
+      const hasAnyCustom = targets.some((kind) => Object.keys(sanitizedBlocks[kind]?.fields || {}).length > 0);
+      nextContent = hasAnyCustom ? composeAwnDataStoreSchemeModYaml({ blocks: sanitizedBlocks }) : "";
     } else {
       const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
       const fields = normalizeSchemeModFieldsMap(

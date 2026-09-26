@@ -104742,7 +104742,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
         "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-databases/awn-taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
+        "Поднакопитель в <code>awn-databases/awn-taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
@@ -110528,7 +110528,6 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
         ...(awnDataCreateKind === "collection" ? resolveAwnDataCreateCollectionPayload() : {}),
         ...(isAwnTaxonomiesParentGroup(parentGroup) && awnDataCreateKind === "collection"
           ? {
-              taxonomyKey,
               taxonomyCardinality: String(awnDataCreateTaxonomyCardinalityInputNode?.value || "one").trim(),
               taxonomyHierarchy: Boolean(awnDataCreateTaxonomyHierarchyInputNode?.checked)
             }
