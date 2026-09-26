@@ -10235,7 +10235,8 @@ const APP_LANDING_SYSTEM_MAP_COLUMNS = [
   {
     id: "page",
     icon: "📁",
-    title: "Дерево Page",
+    title: "Дерево страниц",
+    caption: "Для изучения и анализа данных",
     tone: "blue",
     nodes: [
       { type: "group", label: "Область", layout: "row", items: ["Общие", "Агент"] },
@@ -10250,6 +10251,7 @@ const APP_LANDING_SYSTEM_MAP_COLUMNS = [
     id: "data",
     icon: "🗄️",
     title: "Структурированные данные",
+    caption: "Для хранения структурированных данных",
     tone: "violet",
     nodes: [
       { label: "Инфоблок", side: ["Таксономии"] },
@@ -10493,7 +10495,8 @@ function createAppLandingSystemMapColumn(column) {
       label: column.title,
       icon: column.icon,
       variant: "pillar",
-      tone: column.tone
+      tone: column.tone,
+      meta: column.caption || ""
     })
   );
 
