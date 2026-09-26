@@ -186,8 +186,13 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
   ).trim();
 
   for (const col of schemaColumns) {
-    if (col === "awn-id" || col === "awn-code" || col === "code") {
+    if (col === "awn-id" || col === "code") {
       row[col] = code;
+      continue;
+    }
+    if (col === "awn-code") {
+      const explicit = String(recordData["awn-code"] ?? "").trim();
+      row[col] = explicit || label;
       continue;
     }
     if (col === "awn-parent-id" || col === "awn-parent" || col === "awn-pid") {
@@ -212,8 +217,7 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
   }
 
   if (!row["awn-id"] && code) row["awn-id"] = code;
-  if (!row["awn-code"] && !row.code && code) row["awn-code"] = code;
-  if (idMode === "slug" && !row["awn-code"] && label) row["awn-code"] = label;
+  if (!row["awn-code"] && !row.code && label) row["awn-code"] = label;
   return row;
 }
 
@@ -228,7 +232,10 @@ function normalizeCsvRowToSchemaColumns(rowObj, schemaColumns, schema, fileColum
   }
 
   if (!normalized["awn-id"]) normalized["awn-id"] = id;
-  if (!normalized["awn-code"] && !normalized.code) normalized["awn-code"] = id;
+  if (!normalized["awn-code"] && !normalized.code) {
+    normalized["awn-code"] =
+      normalized["awn-name"] || normalized["awn-label"] || normalized.label || id;
+  }
   if (!normalized["awn-name"] && !normalized["awn-label"] && !normalized.label) {
     normalized["awn-name"] = String(
       rowObj["awn-name"] || rowObj["awn-label"] || rowObj.label || rowObj["awn-title"] || rowObj.title || id

@@ -3465,9 +3465,11 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     const recordHierarchy = getRecordHierarchy(schema);
     if (parent && !recordHierarchy) throw new Error("CSV store does not support hierarchy");
     const fields = schema?.fields || {};
+    const displayName = name || title || id;
     const row = {
       "awn-id": id,
-      "awn-name": name || title || id
+      "awn-name": displayName,
+      "awn-code": displayName
     };
     if (parent && recordHierarchy) {
       row["awn-parent-id"] = parent;
