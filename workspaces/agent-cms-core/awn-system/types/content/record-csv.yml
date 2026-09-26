@@ -19,7 +19,7 @@ fields:
     description: Глобальный номер workspace (счётчик в settings.yml)
     sort: 0
 
-  awn-parent:
+  awn-parent-id:
     type: awn.field.string
     title: Родитель
     description: awn-id родительской строки; пусто — корень

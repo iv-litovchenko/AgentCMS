@@ -3470,7 +3470,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
       "awn-name": name || title || id
     };
     if (parent && recordHierarchy) {
-      row["awn-parent"] = parent;
+      row["awn-parent-id"] = parent;
       row.parent = parent;
     }
     for (const key of Object.keys(fields)) {

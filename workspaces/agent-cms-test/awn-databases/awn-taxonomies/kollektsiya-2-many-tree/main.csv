@@ -1,4 +1,4 @@
-awn-id,awn-parent,awn-type,awn-name,awn-description,awn-code,awn-sort
+awn-id,awn-parent-id,awn-type,awn-name,awn-description,awn-code,awn-sort
 koren,,,Корень,,koren,
 razdel-1,koren,,Раздел 1,,razdel-1,
 podrazdel,razdel-1,,Подраздел,,podrazdel,

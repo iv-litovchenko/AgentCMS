@@ -11,7 +11,9 @@ function recordToCatalogItem(record) {
   ).trim();
   const label = name || id;
   const parent =
-    String(fm["awn-parent"] || fm["awn-pid"] || record.parent || "").trim() || null;
+    String(
+      fm["awn-parent-id"] || fm["awn-parent"] || fm["awn-pid"] || record.parent || ""
+    ).trim() || null;
   const color = String(fm.color || "").trim() || null;
   const email = String(fm.email || "").trim() || null;
   const item = { id, label, name: label, color };

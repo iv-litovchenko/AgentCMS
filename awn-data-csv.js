@@ -190,9 +190,13 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
       row[col] = code;
       continue;
     }
-    if (col === "awn-parent" || col === "awn-pid") {
+    if (col === "awn-parent-id" || col === "awn-parent" || col === "awn-pid") {
       row[col] = String(
-        recordData["awn-parent"] || recordData["awn-pid"] || recordData.parent || ""
+        recordData["awn-parent-id"] ||
+          recordData["awn-parent"] ||
+          recordData["awn-pid"] ||
+          recordData.parent ||
+          ""
       ).trim();
       continue;
     }
@@ -272,7 +276,9 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
       frontmatter["awn-code"] = frontmatter["awn-code"] || frontmatter.code || id;
       frontmatter.code = frontmatter.code || id;
       const parent =
-        String(frontmatter["awn-parent"] || frontmatter["awn-pid"] || "").trim() || null;
+        String(
+          frontmatter["awn-parent-id"] || frontmatter["awn-parent"] || frontmatter["awn-pid"] || ""
+        ).trim() || null;
       const title = String(
         frontmatter["awn-name"] ||
           frontmatter["awn-label"] ||
