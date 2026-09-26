@@ -8,6 +8,18 @@ const {
   readStoreMdParts
 } = require("./awn-data-loader");
 const { recordToCatalogItem } = require("./awn-taxonomy-record");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
+
+const workspaceTaxonomiesPayloadCache = new Map();
+
+function invalidateWorkspaceTaxonomiesPayloadCache(agentRoot = null, projectRoot = process.cwd()) {
+  if (!agentRoot) {
+    workspaceTaxonomiesPayloadCache.clear();
+    return;
+  }
+  const cacheKey = `${path.resolve(String(projectRoot || process.cwd()))}::${path.resolve(String(agentRoot))}`;
+  workspaceTaxonomiesPayloadCache.delete(cacheKey);
+}
 
 const TAXONOMIES_GROUP_REL = "awn-taxonomies";
 const LEGACY_TAXONOMIES_GROUP_REL = "taxonomies";
@@ -202,13 +214,19 @@ function listWorkspaceTaxonomies(agentRoot, projectRoot = process.cwd()) {
 }
 
 function getWorkspaceTaxonomiesPayload(agentRoot, projectRoot = process.cwd()) {
+  const cacheKey = `${path.resolve(String(projectRoot || process.cwd()))}::${path.resolve(String(agentRoot))}`;
+  const cached = workspaceTaxonomiesPayloadCache.get(cacheKey);
+  if (cached) return cached;
+
+  const { listMergedTaxonomiesForAgent } = require("./awn-taxonomy-catalog-bridge");
   const payload = loadAwnDataStores(agentRoot, projectRoot);
   const stores = payload?.stores || [];
   const groupExists = Boolean(
     findAwnDataStore(stores, TAXONOMIES_GROUP_REL) ||
       findAwnDataStore(stores, LEGACY_TAXONOMIES_GROUP_REL)
   );
-  const taxonomies = listWorkspaceTaxonomies(agentRoot, projectRoot);
+  const globalOnly = path.resolve(agentRoot) === path.resolve(getAgentCmsCoreAbsolute(projectRoot));
+  const taxonomies = listMergedTaxonomiesForAgent(agentRoot, projectRoot, globalOnly ? { globalOnly: true } : {});
   const byKey = {};
   for (const def of taxonomies) {
     byKey[def.key] = {
@@ -222,12 +240,14 @@ function getWorkspaceTaxonomiesPayload(agentRoot, projectRoot = process.cwd()) {
       items: def.items
     };
   }
-  return {
+  const result = {
     group: TAXONOMIES_GROUP_REL,
     groupExists,
     taxonomies,
     byKey
   };
+  workspaceTaxonomiesPayloadCache.set(cacheKey, result);
+  return result;
 }
 
 function projectTaxonomyIndexFields(taxonomyValue = {}) {
@@ -262,6 +282,7 @@ module.exports = {
   migrateLegacyTaxonomyFields,
   listTaxonomyStores,
   listWorkspaceTaxonomies,
+  invalidateWorkspaceTaxonomiesPayloadCache,
   getWorkspaceTaxonomiesPayload,
   projectTaxonomyIndexFields,
   resolveTaxonomyFromFrontmatter,

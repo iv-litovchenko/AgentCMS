@@ -10224,7 +10224,7 @@ async function runPlatformCatalogMigration(preset = "") {
         .map(([key, result]) => `${key} +${result.addedCount}`);
       showToast(parts.length ? parts.join(" · ") : "Новых значений не найдено", "success");
     }
-    if (activeAgentId) await loadAgentCatalogs(activeAgentId);
+    if (activeAgentId) await loadAgentTaxonomies(activeAgentId, { force: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(message ? `Миграция: ${message}` : "Ошибка миграции", "error");
@@ -14156,7 +14156,7 @@ async function switchActiveAgent(nextAgentId) {
         await Promise.all([
           loadSystemFiles(),
           loadAwnTypes(switchedAgentId),
-          loadAgentCatalogs(switchedAgentId)
+          loadAgentTaxonomies(switchedAgentId)
         ]);
         if (switchedAgentId !== activeAgentId) return;
         if (hasCachedView) {
@@ -42627,8 +42627,6 @@ let awnTypesLoadPromise = null;
 let awnTypeKindManifestById = null;
 let typeCatalogCacheByAgent = new Map();
 let typeCatalogLoadPromiseByAgent = new Map();
-let agentCatalogsCache = null;
-
 function invalidateTypeCatalogCache(agentId = activeAgentId) {
   const cacheKey = String(agentId || "default");
   typeCatalogCacheByAgent.delete(cacheKey);
@@ -42657,7 +42655,6 @@ function agentHasTypeCatalogOverview(nodePath = activePath) {
   return isAgentSystemRelPath(nodePath);
 }
 
-let agentCatalogsLoadPromise = null;
 let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
@@ -42952,8 +42949,6 @@ const PROPS_FIELD_META = {
 async function loadAwnTypes(agentId = activeAgentId) {
   if (!agentId) {
     awnTypesCache = null;
-    agentCatalogsCache = null;
-    agentCatalogsLoadPromise = null;
     awnTypesLoadPromise = null;
     return null;
   }
@@ -42986,29 +42981,7 @@ async function loadAwnTypes(agentId = activeAgentId) {
 }
 
 async function loadAgentCatalogs(agentId = activeAgentId) {
-  if (!agentId) {
-    agentCatalogsCache = null;
-    agentCatalogsLoadPromise = null;
-    return null;
-  }
-  if (agentCatalogsLoadPromise) return agentCatalogsLoadPromise;
-
-  agentCatalogsLoadPromise = (async () => {
-    try {
-      const response = await fetch(buildApiUrl("/api/agent/catalogs", {}, agentId));
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      agentCatalogsCache = await response.json();
-      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
-      return agentCatalogsCache;
-    } catch {
-      agentCatalogsCache = null;
-      return null;
-    } finally {
-      agentCatalogsLoadPromise = null;
-    }
-  })();
-
-  return agentCatalogsLoadPromise;
+  return loadAgentTaxonomies(agentId);
 }
 
 const agentTaxonomiesCacheByAgent = new Map();
@@ -43205,7 +43178,8 @@ async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
 
   applyCatalogItemToPropsEntry(fieldKey, preset, data.item?.id);
   syncYamlFromPropsForm();
-  await loadAgentCatalogs(activeAgentId);
+  invalidateAgentTaxonomiesCache(activeAgentId);
+  await loadAgentTaxonomies(activeAgentId, { force: true });
   showToast(`Добавлено в ${getPropsCatalogAddScopeLabel()}: ${data.item?.label || data.item?.id}`, "success");
   return data;
 }
@@ -55086,7 +55060,17 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
 }
 
 function getAgentCatalogPreset(preset) {
-  return agentCatalogsCache?.[preset] || { exists: false, title: preset, items: [], groups: null };
+  const definition = findTaxonomyDefinitionForCatalogPreset(preset);
+  if (!definition) {
+    return { exists: false, title: preset, items: [], groups: null };
+  }
+  const items = definition.items || [];
+  return {
+    exists: true,
+    title: definition.name || preset,
+    items,
+    groups: getCatalogGroups({ items })
+  };
 }
 
 function getCatalogGroups(catalog) {
@@ -56104,6 +56088,28 @@ const LOOKUP_SOURCE_LABELS = {
   colors: "Цвета",
   tags: "Теги"
 };
+
+const CATALOG_PRESET_TO_TAXONOMY_KEYS = {
+  categories: ["category", "categories"],
+  colors: ["color", "colors"],
+  tags: ["tags"],
+  priorities: ["priorities"],
+  statuses: ["statuses"],
+  users: ["users"]
+};
+
+function findTaxonomyDefinitionForCatalogPreset(preset, agentId = activeAgentId) {
+  const keys = CATALOG_PRESET_TO_TAXONOMY_KEYS[preset] || [String(preset || "").trim().toLowerCase()];
+  const definitions = getAgentTaxonomyDefinitions(agentId);
+  for (const definition of definitions) {
+    const key = String(definition?.key || "").trim().toLowerCase();
+    const slug = String(definition?.slug || "").trim().toLowerCase();
+    if (keys.some((needle) => needle === key || needle === slug)) {
+      return definition;
+    }
+  }
+  return null;
+}
 
 function readPropsFormTaxonomyValue(wrap) {
   const value = {};
@@ -59841,8 +59847,8 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   }
 
   const needsLookup = isLookupFieldWidget(fieldWidget);
-  if (needsLookup && !agentCatalogsCache && activeAgentId) {
-    loadAgentCatalogs(activeAgentId);
+  if (needsLookup && !getAgentTaxonomiesCache(activeAgentId) && activeAgentId) {
+    void loadAgentTaxonomies(activeAgentId);
   }
   if (fieldWidget === "taxonomy" && activeAgentId) {
     void loadAgentTaxonomies(activeAgentId);
@@ -60138,7 +60144,6 @@ function applyMediaSidecarContentUi(rawContent) {
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
   await Promise.all([
     loadAwnTypes(activeAgentId).catch(() => null),
-    loadAgentCatalogs(activeAgentId).catch(() => null),
     loadAgentTaxonomies(activeAgentId).catch(() => null),
     ensureTopicSchemaForActiveContext()
   ]);
@@ -115298,11 +115303,7 @@ async function init() {
       setMenuLoading(true, "Загрузка дерева…");
       await refreshMenu();
       setMenuLoading(false);
-      void Promise.all([
-        loadAwnTypes(activeAgentId),
-        loadAgentCatalogs(activeAgentId),
-        loadAgentTaxonomies(activeAgentId)
-      ]);
+      void Promise.all([loadAwnTypes(activeAgentId), loadAgentTaxonomies(activeAgentId)]);
     }
 
     suspendAppRouteSync();

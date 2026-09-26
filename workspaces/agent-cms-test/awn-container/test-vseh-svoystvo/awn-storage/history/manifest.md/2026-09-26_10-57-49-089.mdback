@@ -6,6 +6,11 @@ awn-attachments: []
   **Жирный** и *курсив*.
   - "[[All-Field-Types]]"
   - "[[main]]"
+  - reference
+  - 2024
+  - книги
+  - криминал-ит
+  - москва
   version: 1
     qty: 2
 - name: alpha"
@@ -33,9 +38,7 @@ awn-taxonomy:
   kollektsiya-1: 009
   kollektsiya-1-tree: 999
   kollektsiya-2-many: 777
-  kollektsiya-2-many-tree:
-    - 55555
-    - 444
+  kollektsiya-2-many-tree: 55555
 awn-type: awn.page.topic
 awn-create: "2026-06-21T12:00"
 awn-owner: me
@@ -46,12 +49,7 @@ awn-name: Тест всех свойство
 awn-preview: awn-storage/assets/preview/20260623203544.png
 awn-priority: high
 awn-slots-disabled: false
-awn-tags:
-  - reference
-  - 2024
-  - книги
-  - криминал-ит
-  - москва
+awn-tags: "reference, 2024, книги, криминал-ит, москва"
 awn-web-url: "https://example.com/all-field-types"
 demo_array:
   - demo
@@ -102,8 +100,8 @@ demo_time: "14:30"
 demo_url: "https://example.com/all-field-types"
 field-1: ""
 items: ""
-awn-update: 2026-09-26T07:57:49.087Z
-awn-version: 23
+awn-update: 2026-09-26T07:57:41.987Z
+awn-version: 22
 ---
 
 # All Field Types — демонстрация типов полей

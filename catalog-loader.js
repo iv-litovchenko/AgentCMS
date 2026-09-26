@@ -468,9 +468,12 @@ async function getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, optio
     : options.agentOnly
       ? { agentOnly: true }
       : {};
-  const dynamicTaxonomyPresets = listPlatformTaxonomyPresetKeys(projectRoot).filter(
-    (key) => !MERGE_CATALOG_PRESETS.includes(key)
-  );
+  const dynamicTaxonomyPresets = listPlatformTaxonomyPresetKeys(projectRoot).filter((key) => {
+    if (MERGE_CATALOG_PRESETS.includes(key)) return false;
+    const slugAliases = { category: "categories", color: "colors" };
+    const alias = slugAliases[key];
+    return !(alias && MERGE_CATALOG_PRESETS.includes(alias));
+  });
   const catalogPresets = [...MERGE_CATALOG_PRESETS, ...dynamicTaxonomyPresets];
   const entries = await Promise.all(
     catalogPresets.map(async (preset) => [
@@ -504,8 +507,20 @@ function buildCatalogLookupMaps(payload) {
 }
 
 async function getCatalogLookupMaps(projectRoot, agentCatalogAbsolute = null, options = {}) {
-  const payload = await getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, options);
-  return buildCatalogLookupMaps(payload);
+  const {
+    buildCatalogLookupMapsFromTaxonomies,
+    resolveAgentRootForCatalogLookup
+  } = require("./awn-taxonomy-catalog-bridge");
+  const agentRoot = resolveAgentRootForCatalogLookup(projectRoot, agentCatalogAbsolute, options);
+  if (!agentRoot) {
+    if (options.globalOnly) {
+      const { getAgentCmsCoreAbsolute } = require("./platform-sources");
+      return buildCatalogLookupMapsFromTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot, options);
+    }
+    const payload = await getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, options);
+    return buildCatalogLookupMaps(payload);
+  }
+  return buildCatalogLookupMapsFromTaxonomies(agentRoot, projectRoot, options);
 }
 
 function resolveCatalogPropValue(map, raw) {

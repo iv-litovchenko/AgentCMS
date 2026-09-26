@@ -304,7 +304,13 @@ const {
 const { isSchemaModFileName } = require("./schema-mod-paths");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
-const { getMergedCatalogsPayload, getCatalogLookupMaps, resolveCatalogPropValue, resolveCatalogTagsList } = require("./catalog-loader");
+const {
+  getMergedCatalogsPayload,
+  getCatalogLookupMaps,
+  loadSchemasCatalogPreset,
+  resolveCatalogPropValue,
+  resolveCatalogTagsList
+} = require("./catalog-loader");
 const {
   migrateDiscoveredTagsToGlobal,
   migrateDiscoveredPresetToGlobal,
@@ -15678,58 +15684,32 @@ function extractPriorityFromProps(content) {
 }
 
 async function getAgentCatalogLookupMaps() {
-  const catalogOptions = isPlatformAgentId(getActiveAgentId()) ? {} : { agentOnly: true };
+  const { buildCatalogLookupMapsFromTaxonomies } = require("./awn-taxonomy-catalog-bridge");
+  const projectRoot = getProjectRoot();
+  if (isPlatformAgentId(getActiveAgentId())) {
+    return buildCatalogLookupMapsFromTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot, {
+      globalOnly: true
+    });
+  }
   const agentRoot = getAgentRoot();
-  const sharedFolder = getAgentSharedFolder();
-  const serviceFolder = getAgentKitFolder();
-  let catalogAbsolute = null;
-
-  if (sharedFolder) {
-    const sharedTaxonomiesAbsolute = path.join(agentRoot, sharedFolder, WORKSPACE_TAXONOMY_FOLDER);
-    try {
-      await fs.access(sharedTaxonomiesAbsolute);
-      catalogAbsolute = sharedTaxonomiesAbsolute;
-    } catch {
-      // fall through to agent-kit
-    }
-  }
-
-  if (!catalogAbsolute && serviceFolder) {
-    try {
-      catalogAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, serviceFolder);
-    } catch {
-      return null;
-    }
-  }
-
-  if (!catalogAbsolute) return null;
-  return getCatalogLookupMaps(getProjectRoot(), catalogAbsolute, catalogOptions);
+  if (!agentRoot) return null;
+  return buildCatalogLookupMapsFromTaxonomies(agentRoot, projectRoot, {});
 }
 
 async function getAgentCatalogsPayload() {
+  const { getCatalogsPayloadFromTaxonomies } = require("./awn-taxonomy-catalog-bridge");
+  const projectRoot = getProjectRoot();
   if (isPlatformAgentId(getActiveAgentId())) {
-    return getMergedCatalogsPayload(getProjectRoot(), null, { globalOnly: true });
+    const payload = getCatalogsPayloadFromTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot, {
+      globalOnly: true
+    });
+    payload.schemas = await loadSchemasCatalogPreset(null, projectRoot);
+    return payload;
   }
   const agentRoot = getAgentRoot();
-  const sharedFolder = getAgentSharedFolder();
-  const serviceFolder = getAgentKitFolder();
-  let catalogAbsolute = null;
-
-  if (sharedFolder) {
-    const sharedTaxonomiesAbsolute = path.join(agentRoot, sharedFolder, WORKSPACE_TAXONOMY_FOLDER);
-    try {
-      await fs.access(sharedTaxonomiesAbsolute);
-      catalogAbsolute = sharedTaxonomiesAbsolute;
-    } catch {
-      // fall through to legacy kit folder
-    }
-  }
-
-  if (!catalogAbsolute && serviceFolder) {
-    catalogAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, serviceFolder);
-  }
-
-  return getMergedCatalogsPayload(getProjectRoot(), catalogAbsolute, { agentOnly: true });
+  const payload = getCatalogsPayloadFromTaxonomies(agentRoot, projectRoot, {});
+  payload.schemas = await loadSchemasCatalogPreset(null, projectRoot);
+  return payload;
 }
 
 async function readNodeDisplayLabelForManifestRel(manifestRel) {
@@ -23016,6 +22996,13 @@ async function handleApiForAgent(req, res, url) {
         body: payload?.body,
         fileExtension: payload?.fileExtension || payload?.extension
       });
+      const storeRel = String(payload?.store || "").replace(/\\/g, "/");
+      if (storeRel.includes("awn-taxonomies/") || storeRel.includes("taxonomies/")) {
+        const { invalidatePlatformTaxonomyCache } = require("./awn-data-taxonomies-bridge");
+        const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./awn-taxonomy-service");
+        invalidatePlatformTaxonomyCache(getProjectRoot());
+        invalidateWorkspaceTaxonomiesPayloadCache(agentRoot, getProjectRoot());
+      }
       return sendJson(res, 201, { ok: true, store });
     } catch (error) {
       return sendJson(res, 400, {

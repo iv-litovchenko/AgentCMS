@@ -8,22 +8,47 @@ const { recordToCatalogItem } = require("./awn-taxonomy-record");
 
 const AWN_DATA_MANIFEST_REL_PREFIX = "awn-databases/awn-taxonomies";
 
-function listPlatformTaxonomyDefinitions(projectRoot) {
+const platformTaxonomyCacheByRoot = new Map();
+
+function invalidatePlatformTaxonomyCache(projectRoot = process.cwd()) {
+  platformTaxonomyCacheByRoot.delete(path.resolve(String(projectRoot || process.cwd())));
+  try {
+    const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./awn-taxonomy-service");
+    invalidateWorkspaceTaxonomiesPayloadCache(null, projectRoot);
+  } catch {
+    // ignore cache helper load errors
+  }
+}
+
+function getPlatformTaxonomyIndex(projectRoot) {
+  const cacheKey = path.resolve(String(projectRoot || process.cwd()));
+  const cached = platformTaxonomyCacheByRoot.get(cacheKey);
+  if (cached) return cached;
+
   const agentRoot = getAgentCmsCoreAbsolute(projectRoot);
-  return listWorkspaceTaxonomies(agentRoot, projectRoot);
+  const definitions = listWorkspaceTaxonomies(agentRoot, projectRoot);
+  const byKey = new Map();
+  const bySlug = new Map();
+  for (const def of definitions) {
+    const key = String(def.key || "").trim().toLowerCase();
+    const slug = String(def.slug || "").trim().toLowerCase();
+    if (key) byKey.set(key, def);
+    if (slug) bySlug.set(slug, def);
+  }
+  const index = { definitions, byKey, bySlug };
+  platformTaxonomyCacheByRoot.set(cacheKey, index);
+  return index;
+}
+
+function listPlatformTaxonomyDefinitions(projectRoot) {
+  return getPlatformTaxonomyIndex(projectRoot).definitions;
 }
 
 function resolveTaxonomyPreset(projectRoot, preset) {
   const needle = String(preset || "").trim().toLowerCase();
   if (!needle) return null;
-  const definitions = listPlatformTaxonomyDefinitions(projectRoot);
-  return (
-    definitions.find(
-      (def) =>
-        String(def.key || "").trim().toLowerCase() === needle ||
-        String(def.slug || "").trim().toLowerCase() === needle
-    ) || null
-  );
+  const { byKey, bySlug } = getPlatformTaxonomyIndex(projectRoot);
+  return byKey.get(needle) || bySlug.get(needle) || null;
 }
 
 function listPlatformTaxonomyPresetKeys(projectRoot) {
@@ -153,6 +178,7 @@ module.exports = {
   getTaxonomyStoreRel,
   listPlatformTaxonomyPresetKeys,
   listPlatformTaxonomyDefinitions,
+  invalidatePlatformTaxonomyCache,
   resolveTaxonomyPreset,
   isPlatformTaxonomyPreset,
   taxonomyStoreHasRecords,
