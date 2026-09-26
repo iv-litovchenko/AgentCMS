@@ -221,8 +221,17 @@
     let stepTimer = null;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const sloganFullText = (item) => {
+      if (item.kind === "arc") {
+        return item.parts.join(" → ");
+      }
+      return item.text;
+    };
+
     const paint = (idx) => {
-      display.replaceChildren(buildSloganNode(slogans[idx]));
+      const item = slogans[idx];
+      display.title = sloganFullText(item);
+      display.replaceChildren(buildSloganNode(item));
       if (!reducedMotion) {
         void display.offsetWidth;
       }

@@ -10955,6 +10955,179 @@ function createAppLandingPlatformHero(platform) {
   return hero;
 }
 
+function createAppLandingPlatformLearningMindset() {
+  const section = document.createElement("section");
+  section.className = "app-landing-platform-learning";
+  section.setAttribute("aria-label", "Обучение: источники информации и первые шаги");
+
+  const head = document.createElement("header");
+  head.className = "app-landing-platform-learning-head";
+
+  const eyebrow = document.createElement("span");
+  eyebrow.className = "app-landing-platform-learning-eyebrow";
+  eyebrow.textContent = "Напоминание при работе";
+
+  const title = document.createElement("h4");
+  title.className = "app-landing-platform-learning-title";
+  title.textContent = "Обучение";
+
+  const lead = document.createElement("p");
+  lead.className = "app-landing-platform-learning-lead";
+  lead.textContent = "Всегда есть то, откуда мы черпаем информацию — держи источники в голове и опирайся на хранилище.";
+
+  head.append(eyebrow, title, lead);
+
+  const body = document.createElement("div");
+  body.className = "app-landing-platform-learning-body";
+
+  const orbitWrap = document.createElement("div");
+  orbitWrap.className = "app-landing-platform-learning-orbit-wrap";
+
+  const orbit = document.createElement("div");
+  orbit.className = "app-landing-platform-learning-orbit";
+  orbit.setAttribute("aria-hidden", "true");
+
+  const ring = document.createElement("div");
+  ring.className = "app-landing-platform-learning-orbit-ring";
+
+  const hub = document.createElement("div");
+  hub.className = "app-landing-platform-learning-hub";
+  hub.innerHTML =
+    '<span class="app-landing-platform-learning-hub-icon" aria-hidden="true">◎</span>' +
+    '<span class="app-landing-platform-learning-hub-label"><strong>Источники</strong></span>';
+
+  const sources = [
+    { icon: "🧠", label: "Твоя", hint: "Мозг и данные обучения", angle: -90 },
+    { icon: "🌐", label: "Интернет", hint: "Поиск и ссылки", angle: -38 },
+    { icon: "📚", label: "Книги", hint: "Глубина и система", angle: 14 },
+    { icon: "🎓", label: "Образование", hint: "Курсы и практика", angle: 66 },
+    { icon: "👥", label: "Другие люди", hint: "Обратная связь", angle: 118 },
+    { icon: "💭", label: "Своя голова", hint: "Опыт и интуиция", angle: 170 },
+    {
+      icon: "🗄️",
+      label: "Наше хранилище",
+      hint: "Страницы, факты, workspace",
+      angle: 222,
+      featured: true
+    }
+  ];
+
+  for (const source of sources) {
+    const node = document.createElement("div");
+    node.className = "app-landing-platform-learning-source";
+    if (source.featured) node.classList.add("is-featured");
+    node.style.setProperty("--source-angle", `${source.angle}deg`);
+    node.innerHTML =
+      `<span class="app-landing-platform-learning-source-icon" aria-hidden="true">${source.icon}</span>` +
+      `<span class="app-landing-platform-learning-source-label">${escapeHtml(source.label)}</span>` +
+      `<span class="app-landing-platform-learning-source-hint">${escapeHtml(source.hint)}</span>`;
+    orbit.appendChild(node);
+  }
+
+  orbit.append(ring, hub);
+  orbitWrap.appendChild(orbit);
+
+  const aside = document.createElement("div");
+  aside.className = "app-landing-platform-learning-aside";
+
+  const sphereField = document.createElement("div");
+  sphereField.className = "app-landing-platform-learning-sphere-field";
+  sphereField.setAttribute("aria-label", "Подсказки: с чего начать работу");
+
+  const sphereBg = document.createElement("div");
+  sphereBg.className = "app-landing-platform-learning-sphere-bg";
+  sphereBg.setAttribute("aria-hidden", "true");
+  sphereBg.innerHTML =
+    '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--1"></span>' +
+    '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--2"></span>' +
+    '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--3"></span>';
+
+  const spherePrompt = document.createElement("div");
+  spherePrompt.className = "app-landing-platform-learning-sphere-prompt";
+
+  const promptCloud = document.createElement("div");
+  promptCloud.className = "app-landing-platform-learning-sphere-prompt-cloud";
+  promptCloud.setAttribute("aria-hidden", "true");
+  promptCloud.textContent = "☁️";
+
+  const promptCopy = document.createElement("div");
+  promptCopy.className = "app-landing-platform-learning-sphere-prompt-copy";
+
+  const promptTitle = document.createElement("p");
+  promptTitle.className = "app-landing-platform-learning-sphere-prompt-title";
+  promptTitle.textContent = "Не знаешь, с чего начать?";
+
+  const promptSubtitle = document.createElement("p");
+  promptSubtitle.className = "app-landing-platform-learning-sphere-prompt-subtitle";
+  promptSubtitle.textContent = "Задача и контекст — четыре первых шага";
+
+  promptCopy.append(promptTitle, promptSubtitle);
+  spherePrompt.append(promptCloud, promptCopy);
+
+  const sphereJourney = document.createElement("div");
+  sphereJourney.className = "app-landing-platform-learning-sphere-journey";
+
+  const orbsLayer = document.createElement("div");
+  orbsLayer.className = "app-landing-platform-learning-sphere-orbs";
+
+  const steps = [
+    {
+      icon: "💬",
+      label: "Первый вопрос",
+      detail: "Сформулируй задачу и спроси агента или нейросеть, с чего начать",
+      tone: "violet",
+      delay: 0,
+      step: 1
+    },
+    {
+      icon: "🛤️",
+      label: "Составь дорожную карту",
+      detail: "Опиши цель и разложи её на этапы, шаг за шагом в workspace",
+      tone: "sky",
+      delay: 0.35,
+      step: 2
+    },
+    {
+      icon: "🕸️",
+      label: "Составь интелект карту",
+      detail: "Увидь взаимосвязи между различными темами",
+      tone: "emerald",
+      delay: 0.7,
+      step: 3
+    },
+    {
+      icon: "📝",
+      label: "Термины и заметки",
+      detail: "Создавай и изучай интересующие темы и вопросы",
+      tone: "amber",
+      delay: 1.05,
+      step: 4
+    }
+  ];
+
+  for (const step of steps) {
+    const unit = document.createElement("article");
+    unit.className = "app-landing-platform-learning-sphere-unit";
+    if (step.tone) unit.classList.add(`is-tone-${step.tone}`);
+    unit.style.setProperty("--unit-delay", `${step.delay}s`);
+    unit.innerHTML =
+      `<span class="app-landing-platform-learning-sphere-step">${step.step}</span>` +
+      `<div class="app-landing-platform-learning-sphere-orb" aria-hidden="true"><span class="app-landing-platform-learning-sphere-orb-icon">${step.icon}</span></div>` +
+      `<div class="app-landing-platform-learning-sphere-unit-caption">` +
+      `<h5 class="app-landing-platform-learning-sphere-unit-label">${escapeHtml(step.label)}</h5>` +
+      `<p class="app-landing-platform-learning-sphere-unit-detail">${escapeHtml(step.detail)}</p>` +
+      "</div>";
+    orbsLayer.appendChild(unit);
+  }
+
+  sphereJourney.append(spherePrompt, orbsLayer);
+  sphereField.append(sphereBg, sphereJourney);
+  aside.appendChild(sphereField);
+  body.append(orbitWrap, aside);
+  section.append(head, body);
+  return section;
+}
+
 async function renderAppLandingPlatformSection() {
   if (!appLandingPlatformNode) return;
   const renderToken = ++appLandingPlatformRenderToken;
@@ -10983,6 +11156,7 @@ async function renderAppLandingPlatformSection() {
   appLandingPlatformNode.classList.remove("hidden");
   appLandingPlatformNode.append(
     createAppLandingPlatformHero(platform),
+    createAppLandingPlatformLearningMindset(),
     readmePanel,
     createAppLandingPlatformVisual(),
     createAppLandingPlatformCatalogVisual()
@@ -102418,6 +102592,7 @@ function hideAppLandingView() {
   setAppLandingHint("");
   closeHeaderWelcomePopover();
   syncWorkspaceNotificationsAvailability();
+  syncAppFooterWorkspaceToolsAvailability();
 }
 
 function showAppLandingView(hint = "") {
@@ -102466,6 +102641,7 @@ function showAppLandingView(hint = "") {
   void loadGlobalLandingHubTopicItems();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
+  syncAppFooterWorkspaceToolsAvailability();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
@@ -103710,6 +103886,7 @@ function syncAppFooterIdeasFromEditor() {
 
 async function loadAppFooterIdeasPreview() {
   if (!appFooterIdeasBodyNode) return "";
+  if (!isAppFooterWorkspaceToolsContextActive()) return "";
   syncAppFooterIdeasPopoverChrome();
   const seq = ++appFooterIdeasLoadSeq;
   if (appFooterIdeasOpen) {
@@ -103757,6 +103934,7 @@ function positionAppFooterIdeasPopover() {
 
 function openAppFooterIdeasPopover() {
   if (!appFooterIdeasPopoverNode || !appFooterIdeasBtn) return;
+  if (!isAppFooterWorkspaceToolsContextActive()) return;
   appFooterIdeasOpen = true;
   appFooterIdeasPopoverNode.classList.remove("hidden");
   appFooterIdeasBtn.setAttribute("aria-expanded", "true");
@@ -114704,10 +114882,23 @@ async function resolveWorkspaceJournalEntryContextResolved() {
   return syncContext;
 }
 
+function isAppFooterWorkspaceToolsContextActive() {
+  return Boolean(activeAgentId) && !isAppLandingViewActive();
+}
+
+function syncAppFooterWorkspaceToolsAvailability() {
+  const active = isAppFooterWorkspaceToolsContextActive();
+  appFooterIdeasBtn?.closest(".app-footer-ideas-wrap")?.classList.toggle("hidden", !active);
+  if (appFooterJournalBtn) appFooterJournalBtn.hidden = !active;
+  appFooterJournalBtn?.closest(".app-footer-journal-wrap")?.classList.toggle("hidden", !active);
+  if (!active) {
+    closeAppFooterIdeasPopover();
+    closeAppFooterJournalPopover();
+  }
+}
+
 function syncAppFooterJournalAvailability() {
-  const available = Boolean(activeAgentId);
-  if (appFooterJournalBtn) appFooterJournalBtn.hidden = !available;
-  if (!available) closeAppFooterJournalPopover();
+  syncAppFooterWorkspaceToolsAvailability();
 }
 
 function normalizeWorkspaceJournalContext(context = {}) {
@@ -114759,7 +114950,7 @@ function positionAppFooterJournalPopover() {
 }
 
 function openAppFooterJournalPopover() {
-  if (!appFooterJournalPopoverNode || !appFooterJournalBtn || !activeAgentId) return;
+  if (!appFooterJournalPopoverNode || !appFooterJournalBtn || !isAppFooterWorkspaceToolsContextActive()) return;
   closeAppFooterIdeasPopover();
   appFooterJournalOpen = true;
   appFooterJournalContextCache = null;
