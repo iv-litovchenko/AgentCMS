@@ -430,7 +430,7 @@ function syncServerUi(server) {
   const isRunning = Boolean(server?.running);
   applyServerStatusChip(document.getElementById("server-status-inline"), server);
 
-  document.querySelectorAll(".browser-link").forEach((button) => {
+  document.querySelectorAll(".browser-link, .browser-link-copy").forEach((button) => {
     button.disabled = !isRunning;
   });
 
@@ -770,25 +770,39 @@ function renderGuideStepServer() {
   const server = lastServer || bootstrap?.server;
   const isRunning = Boolean(server?.running);
   const ports = getPorts();
-  const cmsUrl = `https://localhost:${ports.editorHttps}`;
-  const voiceUrl = `https://localhost:${ports.voiceHttps}`;
+  const cmsHttps = `https://localhost:${ports.editorHttps}`;
+  const cmsHttp = `http://localhost:${ports.editorHttp}`;
+  const voiceHttps = `https://localhost:${ports.voiceHttps}`;
+  const voiceHttp = `http://localhost:${ports.voiceHttp}`;
   const linkDisabled = isRunning ? "" : " disabled";
   const browserLinks = `
-    <div class="server-browser-row" role="group" aria-label="Открыть в браузере">
-      <button type="button" class="link-btn browser-link link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>
-        <span class="browser-link-icon">${BROWSER_ICON}</span>
-        <span class="browser-link-text">
-          <span>Editor</span>
-          <code>:${ports.editorHttps}</code>
-        </span>
-      </button>
-      <button type="button" class="link-btn browser-link link-btn--voice" data-url="${voiceUrl}"${linkDisabled}>
-        <span class="browser-link-icon">${BROWSER_ICON}</span>
-        <span class="browser-link-text">
-          <span>Voice</span>
-          <code>:${ports.voiceHttps}</code>
-        </span>
-      </button>
+    <div class="server-browser-row" role="group" aria-label="Открыть или скопировать ссылки">
+      <div class="browser-link-wrap">
+        <button type="button" class="link-btn browser-link link-btn--cms" data-open-url="${escapeAttr(cmsHttps)}"${linkDisabled}>
+          <span class="browser-link-icon">${BROWSER_ICON}</span>
+          <span class="browser-link-text">
+            <span>Editor</span>
+            <code>:${ports.editorHttps}</code>
+          </span>
+        </button>
+        <div class="browser-link-copy-pair">
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(cmsHttp)}" data-copy-label="Editor HTTP" title="Копировать HTTP"${linkDisabled}>HTTP</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(cmsHttps)}" data-copy-label="Editor HTTPS" title="Копировать HTTPS"${linkDisabled}>HTTPS</button>
+        </div>
+      </div>
+      <div class="browser-link-wrap">
+        <button type="button" class="link-btn browser-link link-btn--voice" data-open-url="${escapeAttr(voiceHttps)}"${linkDisabled}>
+          <span class="browser-link-icon">${BROWSER_ICON}</span>
+          <span class="browser-link-text">
+            <span>Voice</span>
+            <code>:${ports.voiceHttps}</code>
+          </span>
+        </button>
+        <div class="browser-link-copy-pair">
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttp)}" data-copy-label="Voice HTTP" title="Копировать HTTP"${linkDisabled}>HTTP</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttps)}" data-copy-label="Voice HTTPS" title="Копировать HTTPS"${linkDisabled}>HTTPS</button>
+        </div>
+      </div>
     </div>
   `;
 
@@ -1110,12 +1124,46 @@ async function renderLayout() {
   updateRunningButtons();
 }
 
-async function copyText(text) {
+let copyToastTimer = null;
+
+function showCopyToast(label, url) {
+  const name = String(label || "").trim();
+  const address = String(url || "").trim();
+  if (!address) return;
+  let toast = document.getElementById("copy-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "copy-toast";
+    toast.className = "copy-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    document.body.appendChild(toast);
+  }
+  toast.textContent = name
+    ? `Адрес скопирован ${name} — ${address}`
+    : `Адрес скопирован — ${address}`;
+  toast.hidden = false;
+  toast.classList.add("copy-toast--visible");
+  clearTimeout(copyToastTimer);
+  copyToastTimer = window.setTimeout(() => {
+    toast.classList.remove("copy-toast--visible");
+    window.setTimeout(() => {
+      if (!toast.classList.contains("copy-toast--visible")) toast.hidden = true;
+    }, 280);
+  }, 2400);
+}
+
+async function copyText(text, options = {}) {
   const value = String(text || "").trim();
   if (!value) return;
+  const label = String(options.label || "").trim();
   try {
     await navigator.clipboard.writeText(value);
-    appendLog(`Скопировано: ${value}\n`);
+    if (label) {
+      showCopyToast(label, value);
+    } else {
+      appendLog(`Скопировано: ${value}\n`);
+    }
   } catch (error) {
     appendLog(`Не удалось скопировать: ${error.message}\n`, "stderr");
   }
@@ -1213,10 +1261,17 @@ function bindActionHandlers() {
     button.addEventListener("click", () => runAction(button.dataset.action));
   });
 
-  actionsRoot.querySelectorAll(".link-btn").forEach((button) => {
+  actionsRoot.querySelectorAll("[data-open-url]").forEach((button) => {
     button.addEventListener("click", () => {
-      const url = button.dataset.url;
-      if (url) window.agentControl.openExternal(url);
+      const url = button.dataset.openUrl;
+      if (url && !button.disabled) window.agentControl.openExternal(url);
+    });
+  });
+
+  actionsRoot.querySelectorAll("[data-copy-url]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      copyText(button.dataset.copyUrl || "", { label: button.dataset.copyLabel || "" });
     });
   });
 

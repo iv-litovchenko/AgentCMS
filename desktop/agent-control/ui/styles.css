@@ -1661,6 +1661,61 @@ body.is-booting {
   gap: 8px;
 }
 
+.browser-link-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.browser-link-wrap .browser-link {
+  width: 100%;
+  min-width: 0;
+}
+
+.browser-link-copy-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.browser-link-copy {
+  padding: 6px 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 10000;
+  max-width: min(92vw, 520px);
+  word-break: break-all;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(6, 20, 16, 0.94);
+  color: #a7f3d0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.copy-toast--visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .mobile-voice-block {
   display: grid;
   gap: 8px;
