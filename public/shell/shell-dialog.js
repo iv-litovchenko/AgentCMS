@@ -468,6 +468,7 @@ function connectionHint(error) {
  *   lastAskWrap?: HTMLElement | null,
  *   lastAsk?: HTMLElement | null,
  *   thread?: HTMLElement | null,
+ *   emptyPlaceholder?: HTMLElement | null,
  *   lastReply?: HTMLElement | null,
  *   errorEl?: HTMLElement | null,
  *   pullHint?: HTMLElement | null,
@@ -985,13 +986,36 @@ export function createShellDialog(options = {}) {
     if (!nodes.panel) return;
     if (historyLoading) {
       nodes.panel.dataset.historyState = history.length ? "ready" : "loading";
+      syncDialogEmptyState();
       return;
     }
     if (historyLoadError && !history.length) {
       nodes.panel.dataset.historyState = "error";
+      syncDialogEmptyState();
       return;
     }
     nodes.panel.dataset.historyState = history.length ? "ready" : "empty";
+    syncDialogEmptyState();
+  }
+
+  function shouldShowDialogEmpty() {
+    if (history.length > 0) return false;
+    if (historyLoading) return false;
+    if (historyLoadError) return false;
+    if (nodes.panel?.classList.contains("is-streaming")) return false;
+    if (nodes.lastAskWrap && !nodes.lastAskWrap.classList.contains("hidden")) return false;
+    if (nodes.lastReply && !nodes.lastReply.classList.contains("hidden")) return false;
+    if (nodes.liveTools && !nodes.liveTools.classList.contains("hidden")) return false;
+    return nodes.panel?.dataset.historyState === "empty";
+  }
+
+  function syncDialogEmptyState() {
+    const el = nodes.emptyPlaceholder;
+    if (!el) return;
+    const show = shouldShowDialogEmpty();
+    el.classList.toggle("hidden", !show);
+    el.setAttribute("aria-hidden", show ? "false" : "true");
+    nodes.scroll?.classList.toggle("is-dialog-empty", show);
   }
 
   function renderHistoryLoading() {
@@ -1599,6 +1623,7 @@ export function createShellDialog(options = {}) {
 
     nodes.lastReply?.classList.toggle("hidden", hideLiveReply);
     nodes.lastAskWrap?.classList.toggle("hidden", hasThread || !lastAskRaw);
+    syncDialogEmptyState();
   }
 
   function findLastUserIndex() {
@@ -2023,6 +2048,7 @@ export function createShellDialog(options = {}) {
     refreshDialog,
     refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot,
+    syncDialogEmptyState,
     updateScrollProgress,
     isScrollNearBottom,
     scrollDialogToBottom,

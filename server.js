@@ -376,6 +376,8 @@ const {
   normalizeIntegrationsAgentSettings,
   parseWorkspaceAgentSettingsFromConfigContent,
   touchWorkspaceAwnIdCounterOnSave,
+  workspaceAwnSettingsFlatEqual,
+  flattenAwnSettingsValues,
   getPlatformReadTextMaxBytes,
   getPlatformReadBinaryMaxBytes,
   isPlatformIndexEnabled,
@@ -20989,9 +20991,23 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: "content is required" });
       }
       const parsed = parseSettingsFileContent(content);
+      const existing = await readWorkspaceSettingsFile(agentRoot);
+      const prevFlat = flattenAwnSettingsValues(
+        existing.exists ? parseSettingsFileContent(existing.content || "").awn_settings || {} : {}
+      );
+      const nextFlat = flattenAwnSettingsValues(parsed.awn_settings || {});
+      if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
+        return sendJson(res, 200, {
+          path: existing.path,
+          content: existing.content || content,
+          exists: existing.exists,
+          settings: normalizeWorkspaceAgentSettings(prevFlat),
+          scope: "workspace"
+        });
+      }
       const nextContent = composeSettingsFileContent({
         headerComment: parsed.headerComment,
-        awn_settings: touchWorkspaceAwnIdCounterOnSave(parsed.awn_settings || {})
+        awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat, prevFlat)
       });
       const saved = await writeWorkspaceSettingsFile(
         agentRoot,

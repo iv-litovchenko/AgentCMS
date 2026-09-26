@@ -374,12 +374,41 @@ function parseWorkspaceAgentSettingsFromConfigContent(content) {
   return normalizeWorkspaceAgentSettings(bundle.awn_settings || {});
 }
 
-function touchWorkspaceAwnIdCounterOnSave(settings = {}) {
+function workspaceAwnSettingsFlatEqual(a = {}, b = {}) {
+  const left = a && typeof a === "object" && !Array.isArray(a) ? a : {};
+  const right = b && typeof b === "object" && !Array.isArray(b) ? b : {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) return false;
+  }
+  return true;
+}
+
+function touchWorkspaceAwnIdCounterOnSave(settings = {}, previousFlat = null) {
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) return settings;
   const touched = { ...settings };
   const hasCounterField =
     WORKSPACE_AWN_ID_COUNTER_KEYS.next in touched || WORKSPACE_AWN_ID_COUNTER_KEYS.issued in touched;
   if (!hasCounterField) return touched;
+
+  const prev =
+    previousFlat && typeof previousFlat === "object" && !Array.isArray(previousFlat) ? previousFlat : null;
+  const countersChanged =
+    !prev ||
+    prev[WORKSPACE_AWN_ID_COUNTER_KEYS.next] !== touched[WORKSPACE_AWN_ID_COUNTER_KEYS.next] ||
+    prev[WORKSPACE_AWN_ID_COUNTER_KEYS.issued] !== touched[WORKSPACE_AWN_ID_COUNTER_KEYS.issued];
+
+  if (!countersChanged) {
+    const prevUpdated = prev?.[WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt];
+    if (prevUpdated) {
+      touched[WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt] = prevUpdated;
+    }
+    if (prev?.[WORKSPACE_AWN_ID_COUNTER_KEYS.model]) {
+      touched[WORKSPACE_AWN_ID_COUNTER_KEYS.model] = prev[WORKSPACE_AWN_ID_COUNTER_KEYS.model];
+    }
+    return touched;
+  }
+
   touched[WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt] = new Date().toISOString();
   touched[WORKSPACE_AWN_ID_COUNTER_KEYS.model] = WORKSPACE_AWN_ID_COUNTER_MODEL;
   return touched;
@@ -538,6 +567,7 @@ module.exports = {
   normalizeIntegrationsAgentSettings,
   parsePlatformAgentSettingsFromConfigContent,
   parseWorkspaceAgentSettingsFromConfigContent,
+  workspaceAwnSettingsFlatEqual,
   touchWorkspaceAwnIdCounterOnSave,
   isMcpWriteTool,
   isMcpExecTool,

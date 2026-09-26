@@ -2202,6 +2202,7 @@ const nodes = {
   characterPicker: document.getElementById("shell-character-picker"),
   replyPanel: document.getElementById("shell-reply-panel"),
   dialogScroll: document.getElementById("shell-dialog-scroll"),
+  dialogEmptyStarter: document.getElementById("shell-dialog-empty-starter"),
   composePanel: document.getElementById("shell-compose-panel"),
   composeDock: document.getElementById("shell-compose-dock"),
   messageQueue: document.getElementById("shell-message-queue"),
@@ -2379,12 +2380,10 @@ function bindDialogScrollPersistence() {
   document.documentElement.dataset.shellDialogScrollBound = "1";
   window.addEventListener("pagehide", () => {
     flushDialogScrollRatioSave();
-    flushDialogAutoScrollSave();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushDialogScrollRatioSave();
-      flushDialogAutoScrollSave();
     }
   });
 }
@@ -2489,28 +2488,6 @@ function persistDialogAutoScroll(enabled) {
   void saveWindowSettings({ dialogAutoScroll: next }).catch((error) => renderPhase("waiting", error.message));
 }
 
-function flushDialogAutoScrollSave() {
-  if (!state.agentId) return;
-  const enabled = isDialogAutoScrollEnabled();
-  writeLocalDialogAutoScroll(state.agentId, enabled);
-  try {
-    fetch(apiUrl("/api/shell/window"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: { dialogAutoScroll: enabled } }),
-      keepalive: true
-    }).catch(() => {});
-    fetch(apiUrl("/api/shell/settings"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: { dialogAutoScroll: enabled } }),
-      keepalive: true
-    }).catch(() => {});
-  } catch {
-    /* ignore */
-  }
-}
-
 function syncDialogAutoScrollUi() {
   const btn = nodes.dialogAutoscrollToggle;
   if (!btn) return;
@@ -2547,6 +2524,7 @@ const shellDialog = createShellDialog({
   lastAskWrap: document.getElementById("shell-last-ask-wrap"),
   lastAsk: document.getElementById("shell-last-ask"),
   thread: document.getElementById("shell-dialog-thread"),
+  emptyPlaceholder: document.getElementById("shell-dialog-empty"),
   liveTools: document.getElementById("shell-live-tools"),
   lastReply: document.getElementById("shell-last-reply"),
   composeErrorEl: document.getElementById("shell-compose-error"),
@@ -4366,6 +4344,8 @@ function setReplyPanelStreaming(active) {
     shellDialog.renderLiveToolStrip?.();
     shellDialog.syncLiveReplySlot?.();
   }
+  shellDialog.syncDialogEmptyState?.();
+  syncDialogEmptyStarterUi();
   syncCompactQa();
 }
 
@@ -5153,6 +5133,7 @@ function updateSendButtonLabel() {
   if (nodes.heroCancelSend) {
     nodes.heroCancelSend.disabled = !heroCancelActive;
   }
+  syncDialogEmptyStarterUi();
 }
 
 async function stopActiveMessage({ remote = false } = {}) {
@@ -5883,7 +5864,6 @@ function buildWindowSettingsPayload(overrides = {}) {
     windowTransparent,
     windowBackground,
     windowBackgroundImageUrl: String(nodes.windowBackgroundImage?.value || "").trim(),
-    windowCompact: isWindowCompactEnabled(),
     windowPetOverlay: nodes.windowPetOverlay?.checked === true,
     compactDialogQa,
     dialogAutoScroll: isDialogAutoScrollEnabled(),
@@ -6122,7 +6102,7 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   const pressed = compact ? "true" : "false";
   nodes.windowCompact?.setAttribute("aria-pressed", pressed);
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
-  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Компактный режим");
+  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Двойной клик — компактный режим");
   syncCompactSensorUi(compact);
   syncCompactQa();
 }
@@ -6156,6 +6136,10 @@ function toggleCompactMode() {
 }
 
 function exitCompactMode() {
+  if (shellEmbedMode && document.body.dataset.shellEmbedCompact === "1") {
+    clearEmbedCompactAppearance();
+    return;
+  }
   setWindowCompactMode(false);
 }
 
@@ -6293,6 +6277,25 @@ function onShellPhaseChange(nextState) {
   state.previousPhase = next;
 }
 
+function applyEmbedCompactAppearance() {
+  if (!shellEmbedMode) return;
+  document.body.dataset.shellEmbedCompact = "1";
+  applyWindowAppearance({
+    ...(state.windowSettings || {}),
+    windowCompact: true
+  });
+  syncCompactActionUi(true);
+  setShellView("main");
+  void shellDialog.refreshHistory?.().then(() => syncCompactQa());
+}
+
+function clearEmbedCompactAppearance() {
+  if (document.body.dataset.shellEmbedCompact !== "1") return;
+  delete document.body.dataset.shellEmbedCompact;
+  applyWindowAppearance(state.windowSettings || {});
+  syncCompactActionUi(Boolean(state.windowSettings?.windowCompact));
+}
+
 function applyWindowAppearance(settings) {
   const ws = settings || state.windowSettings || {};
   const transparent = Boolean(ws.windowTransparent);
@@ -6323,8 +6326,7 @@ function applyWindowAppearance(settings) {
 }
 
 function isWindowCompactEnabled() {
-  if (nodes.shellApp?.dataset.compact === "1") return true;
-  if (document.body.classList.contains("shell-compact")) return true;
+  if (document.body.dataset.shellEmbedCompact === "1") return true;
   return Boolean(state.windowSettings?.windowCompact);
 }
 
@@ -9012,6 +9014,27 @@ async function patchShellState(patch) {
   });
   state.shellState = data.state;
   renderPhase(data.state.phase, data.state.phrase, data.state.metrics);
+}
+
+const SHELL_DIALOG_STARTER_TEXT = "Привет";
+
+function syncDialogEmptyStarterUi() {
+  const btn = nodes.dialogEmptyStarter;
+  if (!btn) return;
+  const busy = isMessagePipelineActive() || !canUseShellMessaging();
+  btn.disabled = busy;
+}
+
+function bindDialogEmptyStarterUi() {
+  const btn = nodes.dialogEmptyStarter;
+  if (!btn || btn.dataset.shellBound === "1") return;
+  btn.dataset.shellBound = "1";
+  btn.addEventListener("click", () => {
+    if (btn.disabled || isMessagePipelineActive()) return;
+    hapticTap();
+    void sendMessage(SHELL_DIALOG_STARTER_TEXT, { fromCompose: false });
+  });
+  syncDialogEmptyStarterUi();
 }
 
 async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
@@ -12467,6 +12490,7 @@ function bindShellClickHandlers() {
   });
   shellComposePage.bindUi();
   bindComposeSendUi();
+  bindDialogEmptyStarterUi();
 }
 
 function bindWindowSettingsUi() {
@@ -12646,17 +12670,21 @@ function bindUi() {
     void takeManualScreenshot();
   });
 
-  nodes.agentAvatar?.addEventListener("click", () => {
-    toggleCompactMode();
+  nodes.agentAvatar?.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    if (shellEmbedMode || isWindowCompactEnabled()) return;
+    setWindowCompactMode(true);
   });
   nodes.agentAvatar?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    toggleCompactMode();
+    if (event.altKey && !isWindowCompactEnabled()) {
+      event.preventDefault();
+      setWindowCompactMode(true);
+    }
   });
   if (nodes.agentAvatar && !nodes.agentAvatar.getAttribute("title")) {
-    nodes.agentAvatar.setAttribute("title", "Компактный режим");
-    nodes.agentAvatar.setAttribute("aria-label", "Компактный режим");
+    nodes.agentAvatar.setAttribute("title", "Двойной клик — компактный режим");
+    nodes.agentAvatar.setAttribute("aria-label", "Двойной клик — компактный режим");
   }
 
   initCompactSensor();
@@ -13321,13 +13349,7 @@ async function bootShellAgentLayer() {
     await loadShellPromptTemplates();
     await loadWindowSettings();
     if (shellEmbedMode) {
-      applyWindowSettings({
-        ...(state.windowSettings || {}),
-        windowCompact: true,
-        windowBackground: "wallpaper",
-        windowTransparent: false,
-        windowPetOverlay: false
-      });
+      applyEmbedCompactAppearance();
     }
   } catch (error) {
     shellLog("error", "Ошибка инициализации агента", error.message);

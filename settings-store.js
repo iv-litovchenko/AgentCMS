@@ -13,7 +13,8 @@ const {
   normalizeIntegrationsAgentSettings,
   flattenAwnSettingsValues,
   parseWorkspaceAgentSettingsFromConfigContent,
-  touchWorkspaceAwnIdCounterOnSave
+  touchWorkspaceAwnIdCounterOnSave,
+  workspaceAwnSettingsFlatEqual
 } = require("./workspace-agent-settings");
 const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
 
@@ -124,13 +125,14 @@ async function patchWorkspaceSettings(agentRoot, workspacePatch = {}, projectRoo
   const parsed = file.exists
     ? parseSettingsFileContent(file.content || "")
     : { headerComment: WORKSPACE_SETTINGS_HEADER.trim(), awn_settings: file.awn_settings || {} };
-  const nextFlat = {
-    ...flattenAwnSettingsValues(parsed.awn_settings || {}),
-    ...patch
-  };
+  const prevFlat = flattenAwnSettingsValues(parsed.awn_settings || {});
+  const nextFlat = { ...prevFlat, ...patch };
+  if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
+    return normalizeWorkspaceAgentSettings(parsed.awn_settings || {});
+  }
   const nextContent = composeSettingsFileContent({
     headerComment: parsed.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
-    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat, prevFlat)
   });
   const saved = await writeWorkspaceSettingsFile(
     agentRoot,
@@ -1018,6 +1020,7 @@ async function resetAgentSettingsScope(agentRoot, projectRoot, scope) {
   const scopeKey = resolveSettingsScopeKey(scope);
   const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
   const payload = await readSettingsRawForScope(agentRoot, projectRoot, scopeKey);
+  const prevFlat = flattenAwnSettingsValues(payload.parsed?.awn_settings || payload.raw || {});
   const nextFlat = buildResetSettingsFlatForScope(scopeKey, schema, payload.raw);
 
   if (scopeKey === "platform") {
@@ -1083,9 +1086,20 @@ async function resetAgentSettingsScope(agentRoot, projectRoot, scope) {
     };
   }
 
+  if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
+    return {
+      ok: true,
+      scope: "workspace",
+      path: payload.path,
+      content: payload.content || "",
+      exists: payload.exists,
+      settings: normalizeWorkspaceAgentSettings(prevFlat)
+    };
+  }
+
   const nextContent = composeSettingsFileContent({
     headerComment: payload.parsed?.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
-    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat, prevFlat)
   });
   const saved = await writeWorkspaceSettingsFile(
     agentRoot,
@@ -1119,10 +1133,8 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
     scopeKey === "platform"
       ? payload.parsed?.awn_settings || {}
       : payload.parsed?.awn_settings || payload.raw || {};
-  const nextFlat = {
-    ...flattenAwnSettingsValues(sourceSettings),
-    [fieldKey]: coerced
-  };
+  const prevFlat = flattenAwnSettingsValues(sourceSettings);
+  const nextFlat = { ...prevFlat, [fieldKey]: coerced };
 
   if (scopeKey === "platform") {
     const nextContent = composeGlobalSettingsFileContent({
@@ -1181,9 +1193,19 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
     };
   }
 
+  if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
+    const normalized = normalizeWorkspaceAgentSettings(prevFlat);
+    return {
+      ok: true,
+      ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+      path: payload.path,
+      valuesFile: schema.valuesFile || payload.path
+    };
+  }
+
   const nextContent = composeSettingsFileContent({
     headerComment: payload.parsed?.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
-    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat, prevFlat)
   });
   const saved = await writeWorkspaceSettingsFile(
     agentRoot,

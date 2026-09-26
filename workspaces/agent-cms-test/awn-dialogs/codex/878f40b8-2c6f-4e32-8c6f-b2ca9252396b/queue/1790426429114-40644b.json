@@ -1,0 +1,21 @@
+{
+  "id": "1790426429114-40644b",
+  "body": "Привет",
+  "dialogBody": "",
+  "author": "shell",
+  "voice": false,
+  "displayPhrase": "",
+  "shellClientId": "c91c0f7b-3f74-42ac-93e9-5cc4a67ee8bd:d5fc0a6b-066e-4373-a2c3-8159cfd69261",
+  "surfaceHost": "browser-tab",
+  "surfaceHint": "Отдельная вкладка браузера",
+  "surfaceBackend": "local",
+  "hostUrl": "https://localhost:8488/agent-cms-test/",
+  "ttsEnabled": false,
+  "ttsPrompt": "Каждый ответ пользователю используй в формате (строго, в таком порядке):\n\n1) Текст для озвучки — plain text, без emoji и markdown. Только то, что можно сказать вслух. Без секретов и ключей. Длина не ограничена — озвучь весь смысл ответа.\n\n2) Отдельной строкой маркер конца голосовой части:\n\n[tts-break]\n\n3) Подробный ответ для экрана (markdown, списки, код). Если главное уже сказано голосом — начни с короткой отсылки: «Подробнее ниже» или «Смотри детали ниже».\n\nФормат обязателен для любых ответов, включая уточняющие вопросы.\nБез HTML-комментариев <!-- -->.",
+  "deviceContext": null,
+  "status": "processing",
+  "createdAt": "2026-09-26T12:40:29.114Z",
+  "startedAt": "2026-09-26T12:40:29.128Z",
+  "finishedAt": null,
+  "error": ""
+}
