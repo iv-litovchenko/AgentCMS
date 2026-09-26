@@ -11,7 +11,7 @@ awn_settings:
   default-slot: main
   awn-temp-ttl-days: 0
   hooks-rules: []
-  voice-route-runtime: claude
+  voice-route-runtime: codex
   voice-route-claude-cli-path: claude
   voice-route-codex-cli-path: codex
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
@@ -104,7 +104,7 @@ awn_settings:
   voice-route-claude-model: sonnet
   voice-route-claude-session-id: dca6bc90-3700-43de-a741-391ae93091d9
   voice-input-global-listen: false
-  voice-route-codex-session-id: 878f40b8-2c6f-4e32-8c6f-b2ca9252396b
+  voice-route-codex-session-id: 0db2b4cd-5967-4bbb-bb93-ad564aee88e8
   voice-route-codex-permission-mode: untrusted
   voice-compose-templates:
     - id: very-brief
