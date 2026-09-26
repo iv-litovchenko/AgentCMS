@@ -51955,10 +51955,6 @@ function migrateLegacyTaxonomyPropsEntries(entries) {
   if (byKey.has("awn-taxonomy")) return list;
 
   const taxonomyValue = {};
-  const legacyTags = byKey.get("awn-tags");
-  if (legacyTags) {
-    taxonomyValue.tags = normalizeTaxonomyEntryValue(legacyTags.value, "many");
-  }
   const legacyCategory = byKey.get("awn-category");
   if (legacyCategory) {
     taxonomyValue.category = normalizeTaxonomyEntryValue(legacyCategory.value, "one");
@@ -51970,7 +51966,7 @@ function migrateLegacyTaxonomyPropsEntries(entries) {
   if (!Object.keys(taxonomyValue).length) return list;
 
   const filtered = list.filter(
-    (entry) => !["awn-tags", "awn-category", "awn-color"].includes(normalizePropsKey(entry?.key))
+    (entry) => !["awn-category", "awn-color"].includes(normalizePropsKey(entry?.key))
   );
   filtered.push({ key: "awn-taxonomy", kind: "taxonomy", value: taxonomyValue });
   return filtered;
@@ -56152,11 +56148,15 @@ function applyTaxonomyItemToPropsEntry(taxonomyKey, cardinality, itemId) {
   propsFormEntries[index] = { ...entry, kind: "taxonomy", value };
 }
 
-async function submitPropsTaxonomyAdd(definition, code) {
-  const id = normalizeTaxonomyRecordCode(code);
+async function submitPropsTaxonomyAdd(definition, payload) {
+  const raw = typeof payload === "string" ? { code: payload } : payload || {};
+  const name = String(raw.name ?? raw.title ?? "").trim();
+  const codeSource = String(raw.code ?? raw.id ?? "").trim();
+  const id = normalizeTaxonomyRecordCode(codeSource || name);
   if (!id) throw new Error("Некорректный код — латиница, цифры или дефис");
   const storeRel = String(definition?.storeRel || "").trim();
   if (!storeRel) throw new Error("Справочник не найден");
+  const displayName = name || id;
 
   const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeAgentId), {
     method: "POST",
@@ -56164,8 +56164,8 @@ async function submitPropsTaxonomyAdd(definition, code) {
     body: JSON.stringify({
       store: storeRel,
       id,
-      name: id,
-      title: id
+      name: displayName,
+      title: displayName
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -56178,7 +56178,7 @@ async function submitPropsTaxonomyAdd(definition, code) {
   invalidateAgentTaxonomiesCache(activeAgentId);
   await loadAgentTaxonomies(activeAgentId, { force: true });
   if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
-  showToast(`Добавлено в справочник: ${id}`, "success");
+  showToast(`Добавлено в справочник: ${displayName}`, "success");
   return data;
 }
 
@@ -56190,18 +56190,38 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
   const form = document.createElement("div");
   form.className = "props-form-catalog-add-form props-form-taxonomy-add-form hidden";
 
-  const field = document.createElement("label");
-  field.className = "props-form-catalog-add-field";
-  const caption = document.createElement("span");
-  caption.textContent = "Код";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "props-form-value props-form-catalog-add-input";
-  input.placeholder = "work";
-  input.spellcheck = false;
-  input.autocomplete = "off";
-  field.append(caption, input);
-  form.appendChild(field);
+  const nameField = document.createElement("label");
+  nameField.className = "props-form-catalog-add-field";
+  const nameCaption = document.createElement("span");
+  nameCaption.textContent = "Название";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "props-form-value props-form-catalog-add-input";
+  nameInput.placeholder = "Работа";
+  nameInput.spellcheck = true;
+  nameInput.autocomplete = "off";
+  nameField.append(nameCaption, nameInput);
+  form.appendChild(nameField);
+
+  const codeField = document.createElement("label");
+  codeField.className = "props-form-catalog-add-field";
+  const codeCaption = document.createElement("span");
+  codeCaption.textContent = "Код";
+  const codeInput = document.createElement("input");
+  codeInput.type = "text";
+  codeInput.className = "props-form-value props-form-catalog-add-input";
+  codeInput.placeholder = "work";
+  codeInput.spellcheck = false;
+  codeInput.autocomplete = "off";
+  codeField.append(codeCaption, codeInput);
+  form.appendChild(codeField);
+
+  const codeSlugController = createSlugFieldController({
+    nameInput,
+    slugInput: codeInput,
+    unlinkBtn: null
+  });
+  codeInput.addEventListener("input", () => codeSlugController.setLinked(false));
 
   const actions = document.createElement("div");
   actions.className = "props-form-catalog-add-actions";
@@ -56220,9 +56240,12 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     form.classList.toggle("hidden", !open);
     panel.classList.toggle("is-open", open);
     if (open) {
-      window.requestAnimationFrame(() => input.focus());
+      codeSlugController.reset();
+      window.requestAnimationFrame(() => nameInput.focus());
     } else {
-      input.value = "";
+      nameInput.value = "";
+      codeInput.value = "";
+      codeSlugController.reset();
     }
   };
 
@@ -56230,7 +56253,8 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     panel.classList.toggle("is-loading", loading);
     saveBtn.disabled = loading;
     cancelBtn.disabled = loading;
-    input.disabled = loading;
+    nameInput.disabled = loading;
+    codeInput.disabled = loading;
     if (panel._addBtn) panel._addBtn.disabled = loading;
     let spinner = saveBtn.querySelector(".props-form-taxonomy-add-spinner");
     if (loading) {
@@ -56252,7 +56276,10 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     void (async () => {
       setLoading(true);
       try {
-        await submitPropsTaxonomyAdd(definition, input.value);
+        await submitPropsTaxonomyAdd(definition, {
+          name: nameInput.value.trim(),
+          code: codeInput.value.trim()
+        });
         setOpen(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -56263,16 +56290,18 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     })();
   });
 
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      saveBtn.click();
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setOpen(false);
-    }
-  });
+  for (const input of [nameInput, codeInput]) {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveBtn.click();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      }
+    });
+  }
 
   panel._toggleTaxonomyAddForm = () => setOpen(form.classList.contains("hidden"));
   panel._closeTaxonomyAddForm = () => setOpen(false);
@@ -56302,25 +56331,20 @@ function createPropsFormTaxonomyManySection(definition, selectedValues, { locked
   section.dataset.taxonomyKey = definition.key;
   section.dataset.taxonomyCardinality = "many";
 
-  const title = document.createElement("div");
-  title.className = "props-form-catalog-group-title";
-  title.textContent = definition.name || definition.key;
-  section.appendChild(title);
-
   const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
   const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
   addPanel._addBtn = addBtn;
 
-  const controlRow = document.createElement("div");
-  controlRow.className = "props-form-taxonomy-control-row";
-  const previewSelect = document.createElement("select");
-  previewSelect.className = "props-form-value props-form-taxonomy-preview-select";
-  previewSelect.disabled = true;
-  previewSelect.tabIndex = -1;
-  previewSelect.setAttribute("aria-hidden", "true");
-  appendPropsFormSelectOption(previewSelect, "", "— не задано —", { selected: true });
-  controlRow.append(previewSelect, addBtn);
-  section.append(controlRow, addPanel);
+  const listBlock = document.createElement("div");
+  listBlock.className = "props-form-taxonomy-list-block";
+
+  const head = document.createElement("div");
+  head.className = "props-form-taxonomy-section-head";
+  const title = document.createElement("div");
+  title.className = "props-form-catalog-group-title";
+  title.textContent = definition.name || definition.key;
+  head.append(title, addBtn);
+  listBlock.append(head, addPanel);
 
   const selected = new Set(normalizeTaxonomyEntryValue(selectedValues, "many"));
   const items = definition.items || [];
@@ -56338,7 +56362,8 @@ function createPropsFormTaxonomyManySection(definition, selectedValues, { locked
   } else {
     appendPropsFormCatalogTagOptions(list, listItems, selected, locked);
   }
-  section.appendChild(list);
+  listBlock.appendChild(list);
+  section.appendChild(listBlock);
 
   if (extraTags.length) {
     const extraInput = document.createElement("input");

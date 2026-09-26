@@ -214,6 +214,15 @@ fields:
     sort: 5
 
   # --- taxonomy ---
+  awn-tags:
+    type: awn.field.array
+    items: awn.field.string
+    title: "{A2!} Теги"
+    description: Произвольные теги — список строк в YAML-frontmatter
+    placement: aside-body
+    group: taxonomy
+    sort: 0
+
   awn-taxonomy:
     type: awn.field.taxonomy
     title: "{A2!} Таксономия"
