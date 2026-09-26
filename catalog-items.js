@@ -19,7 +19,7 @@ const {
   BUNDLE_TABULAR_FILE
 } = require("./manifest-paths");
 const {
-  AWN_DATA_TAXONOMY_PRESETS,
+  isPlatformTaxonomyPreset,
   getTaxonomyStoreRel,
   loadTaxonomyPresetFromAwnData
 } = require("./awn-data-taxonomies-bridge");
@@ -87,7 +87,7 @@ async function writeCategoryLikeCsv(catalogAbsolute, preset, items, options = {}
 }
 
 async function addCatalogItemToAwnData(projectRoot, preset, itemInput) {
-  const storeRel = getTaxonomyStoreRel(preset);
+  const storeRel = getTaxonomyStoreRel(projectRoot, preset);
   if (!storeRel) {
     const error = new Error("Unsupported taxonomy preset");
     error.code = "EINVAL";
@@ -169,7 +169,9 @@ async function addCatalogItemForAgentContext({
   preset,
   item
 }) {
-  if (!MERGE_CATALOG_PRESETS.includes(preset)) {
+  const supportsPreset =
+    MERGE_CATALOG_PRESETS.includes(preset) || isPlatformTaxonomyPreset(projectRoot, preset);
+  if (!supportsPreset) {
     const error = new Error("Unsupported catalog preset");
     error.code = "EINVAL";
     throw error;
@@ -181,7 +183,7 @@ async function addCatalogItemForAgentContext({
     throw error;
   }
 
-  if (isPlatform && AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+  if (isPlatform && isPlatformTaxonomyPreset(projectRoot, preset)) {
     const result = await addCatalogItemToAwnData(projectRoot, preset, item);
     return { ...result, scope: "global" };
   }

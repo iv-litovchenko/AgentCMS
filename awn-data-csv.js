@@ -189,7 +189,8 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
       frontmatter["awn-code"] = frontmatter["awn-code"] || frontmatter.code || id;
       frontmatter.code = frontmatter.code || id;
       const title = String(
-        frontmatter["awn-label"] ||
+        frontmatter["awn-name"] ||
+          frontmatter["awn-label"] ||
           frontmatter.label ||
           frontmatter["awn-title"] ||
           frontmatter.title ||

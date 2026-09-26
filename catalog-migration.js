@@ -6,7 +6,7 @@ const {
 } = require("./catalog-loader");
 const { resolveDiscoveredCatalogItem } = require("./catalog-normalize");
 const {
-  AWN_DATA_TAXONOMY_PRESETS,
+  isPlatformTaxonomyPreset,
   getTaxonomyStoreRel
 } = require("./awn-data-taxonomies-bridge");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
@@ -115,7 +115,7 @@ async function collectValuesFromAgent(agent, preset) {
 }
 
 async function writeAwnDataTaxonomyItems(projectRoot, preset, items) {
-  const storeRel = getTaxonomyStoreRel(preset);
+  const storeRel = getTaxonomyStoreRel(projectRoot, preset);
   if (!storeRel) throw new Error(`Unsupported preset: ${preset}`);
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const storeAbs = path.join(coreRoot, "awn-databases", ...storeRel.split("/"));
@@ -138,7 +138,7 @@ async function migrateDiscoveredPresetToGlobal(projectRoot, preset) {
   if (!MIGRATABLE_PRESETS.includes(preset)) {
     throw new Error(`Unsupported preset: ${preset}`);
   }
-  if (!AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+  if (!isPlatformTaxonomyPreset(projectRoot, preset)) {
     throw new Error(`Preset not in awn-databases: ${preset}`);
   }
 

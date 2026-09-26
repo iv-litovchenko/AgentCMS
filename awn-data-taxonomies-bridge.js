@@ -3,25 +3,41 @@ const path = require("path");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { findCatalogScaffold } = require("./agent-registry");
 const { AWN_DATA_DIR, getAwnDataPayload } = require("./awn-data-loader");
-
-/** Presets backed by awn-databases/awn-taxonomies/{preset}/ */
-const AWN_DATA_TAXONOMY_PRESETS = new Set([
-  "tags",
-  "categories",
-  "priorities",
-  "colors"
-]);
-
-const PRESET_TO_STORE_REL = {
-  tags: "awn-taxonomies/tags",
-  categories: "awn-taxonomies/categories",
-  priorities: "awn-taxonomies/priorities",
-  colors: "awn-taxonomies/colors"
-};
+const { listWorkspaceTaxonomies } = require("./awn-taxonomy-service");
+const { recordToCatalogItem } = require("./awn-taxonomy-record");
 
 const AWN_DATA_MANIFEST_REL_PREFIX = "awn-databases/awn-taxonomies";
 
-function getAwnDataTaxonomyManifestRel(preset) {
+function listPlatformTaxonomyDefinitions(projectRoot) {
+  const agentRoot = getAgentCmsCoreAbsolute(projectRoot);
+  return listWorkspaceTaxonomies(agentRoot, projectRoot);
+}
+
+function resolveTaxonomyPreset(projectRoot, preset) {
+  const needle = String(preset || "").trim().toLowerCase();
+  if (!needle) return null;
+  const definitions = listPlatformTaxonomyDefinitions(projectRoot);
+  return (
+    definitions.find(
+      (def) =>
+        String(def.key || "").trim().toLowerCase() === needle ||
+        String(def.slug || "").trim().toLowerCase() === needle
+    ) || null
+  );
+}
+
+function listPlatformTaxonomyPresetKeys(projectRoot) {
+  return listPlatformTaxonomyDefinitions(projectRoot).map((def) => def.key).filter(Boolean);
+}
+
+function isPlatformTaxonomyPreset(projectRoot, preset) {
+  return Boolean(resolveTaxonomyPreset(projectRoot, preset));
+}
+
+function getAwnDataTaxonomyManifestRel(preset, storeRel = "") {
+  if (storeRel) {
+    return `awn-databases/${String(storeRel).replace(/^\/+|\/+$/g, "")}/manifest.md`;
+  }
   return `${AWN_DATA_MANIFEST_REL_PREFIX}/${preset}/manifest.md`;
 }
 
@@ -29,55 +45,46 @@ function getPlatformAwnDataRoot(projectRoot) {
   return path.join(getAgentCmsCoreAbsolute(projectRoot), AWN_DATA_DIR);
 }
 
-function getTaxonomyStoreRel(preset) {
-  const key = String(preset || "").trim().toLowerCase();
-  return PRESET_TO_STORE_REL[key] || null;
+function getTaxonomyStoreRel(projectRoot, preset) {
+  const def = resolveTaxonomyPreset(projectRoot, preset);
+  return def?.storeRel || null;
 }
 
 function taxonomyStoreHasRecords(projectRoot, preset) {
-  const storeRel = getTaxonomyStoreRel(preset);
+  const storeRel = getTaxonomyStoreRel(projectRoot, preset);
   if (!storeRel) return false;
   const payload = getAwnDataPayload(getAgentCmsCoreAbsolute(projectRoot), projectRoot, storeRel);
   return Boolean(payload.store?.records?.length);
 }
 
-function recordToCatalogItem(record) {
-  const fm = record.frontmatter || {};
-  const id = String(fm.code || fm.id || record.id || "").trim();
-  if (!id) return null;
-  const label = String(fm.label || record.title || id).trim();
-  const color = String(fm.color || "").trim() || null;
-  const email = String(fm.email || "").trim() || null;
-  const item = { id, label, color };
-  if (email) item.email = email;
-  return item;
-}
-
 function taxonomyStoreExists(projectRoot, preset) {
-  const storeRel = getTaxonomyStoreRel(preset);
+  const storeRel = getTaxonomyStoreRel(projectRoot, preset);
   if (!storeRel) return false;
   const schemaPath = path.join(getPlatformAwnDataRoot(projectRoot), ...storeRel.split("/"), "manifest.md");
   return fs.existsSync(schemaPath);
 }
 
 function loadPlatformTaxonomyPreset(projectRoot, preset) {
+  const def = resolveTaxonomyPreset(projectRoot, preset);
   const scaffold = findCatalogScaffold(preset);
-  const manifestRel = getAwnDataTaxonomyManifestRel(preset);
+  const manifestRel = def
+    ? getAwnDataTaxonomyManifestRel(preset, def.storeRel)
+    : getAwnDataTaxonomyManifestRel(preset);
   const fromAwnData = loadTaxonomyPresetFromAwnData(projectRoot, preset);
-  const items = fromAwnData?.items || [];
+  const items = fromAwnData?.items || def?.items || [];
   return {
-    preset,
+    preset: def?.key || preset,
     exists: Boolean(items.length || taxonomyStoreExists(projectRoot, preset)),
-    title: scaffold?.title || preset,
+    title: def?.name || scaffold?.title || preset,
     manifestRel,
     items,
-    source: items.length ? fromAwnData.source : undefined,
-    storeRel: getTaxonomyStoreRel(preset)
+    source: items.length ? fromAwnData?.source || "awn-databases" : undefined,
+    storeRel: getTaxonomyStoreRel(projectRoot, preset)
   };
 }
 
 function loadTaxonomyItemsFromAwnData(projectRoot, preset) {
-  const storeRel = getTaxonomyStoreRel(preset);
+  const storeRel = getTaxonomyStoreRel(projectRoot, preset);
   if (!storeRel) return null;
 
   const payload = getAwnDataPayload(getAgentCmsCoreAbsolute(projectRoot), projectRoot, storeRel);
@@ -137,15 +144,17 @@ function loadTaxonomyItemsFromAwnData(projectRoot, preset) {
 function loadTaxonomyPresetFromAwnData(projectRoot, preset) {
   const items = loadTaxonomyItemsFromAwnData(projectRoot, preset);
   if (!items?.length) return null;
-  return { items, source: "awn-databases", storeRel: getTaxonomyStoreRel(preset) };
+  return { items, source: "awn-databases", storeRel: getTaxonomyStoreRel(projectRoot, preset) };
 }
 
 module.exports = {
-  AWN_DATA_TAXONOMY_PRESETS,
   AWN_DATA_MANIFEST_REL_PREFIX,
-  PRESET_TO_STORE_REL,
   getAwnDataTaxonomyManifestRel,
   getTaxonomyStoreRel,
+  listPlatformTaxonomyPresetKeys,
+  listPlatformTaxonomyDefinitions,
+  resolveTaxonomyPreset,
+  isPlatformTaxonomyPreset,
   taxonomyStoreHasRecords,
   taxonomyStoreExists,
   loadTaxonomyItemsFromAwnData,

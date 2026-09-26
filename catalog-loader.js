@@ -19,7 +19,9 @@ const {
 const { AGENT_CMS_CORE_REL } = require("./platform-sources");
 const { parseCsvText } = require("./awn-data-csv");
 const {
-  AWN_DATA_TAXONOMY_PRESETS,
+  isPlatformTaxonomyPreset,
+  listPlatformTaxonomyPresetKeys,
+  resolveTaxonomyPreset,
   loadPlatformTaxonomyPreset,
   getTaxonomyStoreRel,
   loadTaxonomyPresetFromAwnData
@@ -305,7 +307,7 @@ async function loadGlobalCatalogPreset(projectRoot, preset) {
       source: "awn-system/types/base/base.yml"
     };
   }
-  if (AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+  if (isPlatformTaxonomyPreset(projectRoot, preset)) {
     return loadPlatformTaxonomyPreset(projectRoot, preset);
   }
   const scaffold = findCatalogScaffold(preset);
@@ -382,6 +384,10 @@ function buildCatalogGroups(items) {
 
 async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset, options = {}) {
   const scaffold = findCatalogScaffold(preset);
+  const taxonomyDef = isPlatformTaxonomyPreset(projectRoot, preset)
+    ? resolveTaxonomyPreset(projectRoot, preset)
+    : null;
+  const presetTitle = taxonomyDef?.name || scaffold?.title || preset;
   const globalAbsolute = getGlobalCatalogAbsolute(projectRoot);
 
   if (options.globalOnly) {
@@ -390,7 +396,7 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
     return {
       preset,
       exists: Boolean(globalPayload?.exists || items.length),
-      title: scaffold?.title || preset,
+      title: globalPayload?.title || presetTitle,
       manifestRel: globalPayload?.manifestRel || null,
       globalManifestRel: globalPayload?.manifestRel || null,
       items,
@@ -407,7 +413,7 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
       return {
         preset,
         exists: Boolean(globalPayload?.exists || items.length),
-        title: scaffold?.title || preset,
+        title: globalPayload?.title || presetTitle,
         manifestRel: null,
         globalManifestRel: globalPayload?.manifestRel || null,
         items,
@@ -418,12 +424,12 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
 
     const agentPayload = agentCatalogAbsolute
       ? await loadCatalogPreset(agentCatalogAbsolute, preset, { projectRoot })
-      : { preset, exists: false, title: scaffold?.title || preset, items: [] };
+      : { preset, exists: false, title: presetTitle, items: [] };
     const items = (agentPayload?.items || []).map((item) => ({ ...item, scope: "agent" }));
     return {
       preset,
       exists: Boolean(agentPayload?.exists || items.length),
-      title: scaffold?.title || preset,
+      title: agentPayload?.title || presetTitle,
       manifestRel: agentPayload?.exists ? agentPayload.manifestRel : null,
       globalManifestRel: null,
       items,
@@ -444,7 +450,7 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
   return {
     preset,
     exists,
-    title: scaffold?.title || preset,
+    title: globalPayload?.title || agentPayload?.title || presetTitle,
     manifestRel: agentPayload?.exists ? agentPayload.manifestRel : null,
     globalManifestRel: globalPayload?.exists ? globalPayload.manifestRel : null,
     items,
@@ -462,8 +468,12 @@ async function getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, optio
     : options.agentOnly
       ? { agentOnly: true }
       : {};
+  const dynamicTaxonomyPresets = listPlatformTaxonomyPresetKeys(projectRoot).filter(
+    (key) => !MERGE_CATALOG_PRESETS.includes(key)
+  );
+  const catalogPresets = [...MERGE_CATALOG_PRESETS, ...dynamicTaxonomyPresets];
   const entries = await Promise.all(
-    MERGE_CATALOG_PRESETS.map(async (preset) => [
+    catalogPresets.map(async (preset) => [
       preset,
       await loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset, loadOptions)
     ])

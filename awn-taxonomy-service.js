@@ -7,7 +7,7 @@ const {
   getAwnDataPayload,
   readStoreMdParts
 } = require("./awn-data-loader");
-const { recordToCatalogItem } = require("./awn-data-taxonomies-bridge");
+const { recordToCatalogItem } = require("./awn-taxonomy-record");
 
 const TAXONOMIES_GROUP_REL = "awn-taxonomies";
 const LEGACY_TAXONOMIES_GROUP_REL = "taxonomies";

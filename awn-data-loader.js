@@ -2694,13 +2694,6 @@ function buildTaxonomyCollectionSchemaContent({
   const key = String(taxonomyKey || inferTaxonomyKeyFromSlug(slug)).trim();
   const cardinality = String(taxonomyCardinality || inferTaxonomyCardinality(key, slug)).trim().toLowerCase();
   const hierarchyEnabled = Boolean(taxonomyHierarchy ?? hierarchy);
-  const recordFields = {
-    "awn-code": { type: "awn.string", title: "Код", required: true },
-    "awn-label": { type: "awn.string", title: "Подпись", required: true },
-    "awn-emoji": { type: "awn.string", title: "Эмодзи" },
-    "awn-color": { type: "awn.color", title: "Цвет" },
-    "awn-sort": { type: "awn.integer", title: "Порядок", default: 0 }
-  };
   return {
     schema: {
       kind: "collection",
@@ -2708,7 +2701,7 @@ function buildTaxonomyCollectionSchemaContent({
       name: shortName,
       description: desc,
       extends: ELEMENT_TYPE_RECORD_CSV,
-      fieldsInSchemeMod: true,
+      fieldsInSchemeMod: false,
       taxonomy: {
         key,
         cardinality: cardinality === "many" ? "many" : "one",
@@ -2721,9 +2714,9 @@ function buildTaxonomyCollectionSchemaContent({
         hierarchy: hierarchyEnabled,
         collectionType: "csv"
       },
-      fields: recordFields
+      fields: {}
     },
-    schemeModFields: recordFields,
+    schemeModFields: null,
     schemeModExtends: ELEMENT_TYPE_RECORD_CSV,
     manifestBody: `# ${shortName}\n\n${desc}\n\nКлюч в \`awn-taxonomy.${key}\`. Кардинальность: ${cardinality}. Иерархия: ${hierarchyEnabled ? "да" : "нет"}.`
   };
@@ -3380,7 +3373,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   if (recordStorage === "csv") {
     if (parent) throw new Error("CSV store does not support hierarchy");
     const fields = schema?.fields || {};
-    const row = { "awn-code": id, "awn-name": name, label: name };
+    const row = { "awn-code": id, "awn-name": name || title || id };
     for (const key of Object.keys(fields)) {
       if (options[key] !== undefined) row[key] = options[key];
     }
