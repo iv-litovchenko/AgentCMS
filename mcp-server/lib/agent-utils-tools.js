@@ -11,14 +11,16 @@ export function registerAgentUtilsTools(reg, client) {
     "test_mcp_connection",
     "Ping Agent CMS: ok, agentId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
     z.object({}),
-    () => client.get("/api/agent/mcp-ping")
+    () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
+    { agentScope: false }
   );
 
   reg(
     "get_workspace_storage_info",
     "Workspace storage summary (same as CMS sidebar #menu-agent-stats): topics, containers, files, size, inbox totals + summaryLine.",
     z.object({}),
-    () => client.get("/api/agent/storage-summary")
+    () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
+    { agentScope: false }
   );
 
   reg(
