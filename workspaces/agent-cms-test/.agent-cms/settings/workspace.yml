@@ -6,7 +6,7 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 39
   awn-id-issued: 38
-  awn-id-updated-at: "2026-09-26T07:34:50.197Z"
+  awn-id-updated-at: "2026-09-26T11:25:15.954Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
