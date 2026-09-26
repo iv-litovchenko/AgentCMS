@@ -3575,7 +3575,15 @@ function ensureAwnDataMainCsvFile(agentRoot, projectRoot, storeRel) {
 
 const IBLOCK_OUTSIDE_STORAGE_ALLOWED_DIRS = new Set([
   STORE_DATA_DIR.toLowerCase(),
-  STORE_ASSETS_DIR.toLowerCase()
+  STORE_ASSETS_DIR.toLowerCase(),
+  "history"
+]);
+
+const IBLOCK_OUTSIDE_ALLOWED_ROOT_FILES = new Set([
+  "read.json",
+  "read-content.json",
+  "sort.json",
+  ".env"
 ]);
 
 function shouldIgnoreIblockOutsideScanEntryName(name) {
@@ -3590,8 +3598,7 @@ function isAllowedIblockStoreRootFile(name, { storageDataLayout, isGroup, fileTy
   if (isSystemStoreFile(name)) return true;
   if (isSchemaModFileName(name)) return true;
   const lower = String(name || "").trim().toLowerCase();
-  if (lower === "sort.json") return true;
-  if (lower === ".env") return true;
+  if (IBLOCK_OUTSIDE_ALLOWED_ROOT_FILES.has(lower)) return true;
   if (lower === LEGACY_STORE_FILE.toLowerCase()) return true;
   if (isGroup) return false;
   if (storageDataLayout) return false;
@@ -3705,6 +3712,8 @@ function buildIblockOutsideStructureReport(agentRoot, projectRoot, storeRelInput
       for (const entry of storageEntries) {
         if (shouldIgnoreIblockOutsideScanEntryName(entry.name)) continue;
         if (entry.isFile()) {
+          const fileLower = entry.name.toLowerCase();
+          if (IBLOCK_OUTSIDE_ALLOWED_ROOT_FILES.has(fileLower)) continue;
           pushItem("storage-root", "file", entry.name, `${STORE_STORAGE_ROOT}/${entry.name}`);
           continue;
         }
