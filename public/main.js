@@ -96,7 +96,6 @@ const awnDataCreateSlugUnlinkBtn = document.getElementById("awn-databases-create
 const awnDataCreateParentHintNode = document.getElementById("awn-databases-create-parent-hint");
 const awnDataCreateDescriptionInputNode = document.getElementById("awn-databases-create-description-input");
 const awnDataCreateTaxonomyWrapNode = document.getElementById("awn-databases-create-taxonomy-wrap");
-const awnDataCreateTaxonomyKeyInputNode = document.getElementById("awn-databases-create-taxonomy-key-input");
 const awnDataCreateTaxonomyCardinalityInputNode = document.getElementById(
   "awn-databases-create-taxonomy-cardinality-input"
 );
@@ -104678,12 +104677,16 @@ function slugifyAwnDataStoreName(name) {
     .replace(/-+/g, "-");
 }
 
+function resolveAwnDataCreateTaxonomyKey() {
+  const tail =
+    getAwnDataCreateSlugInputValue() || slugifyAwnDataStoreName(awnDataCreateNameInputNode?.value || "");
+  return inferAwnTaxonomyKeyFromSlug(tail);
+}
+
 function syncAwnDataCreateTaxonomyKeyFromSlug() {
-  if (!awnDataCreateTaxonomyKeyInputNode || !isAwnTaxonomiesParentGroup()) return;
-  const tail = getAwnDataCreateSlugInputValue() || slugifyAwnDataStoreName(awnDataCreateNameInputNode?.value || "");
-  const key = inferAwnTaxonomyKeyFromSlug(tail);
-  awnDataCreateTaxonomyKeyInputNode.value = key;
-  if (awnDataCreateTaxonomyCardinalityInputNode) {
+  if (!isAwnTaxonomiesParentGroup()) return;
+  const key = resolveAwnDataCreateTaxonomyKey();
+  if (awnDataCreateTaxonomyCardinalityInputNode && key) {
     awnDataCreateTaxonomyCardinalityInputNode.value = inferAwnTaxonomyCardinalityFromKey(key);
   }
 }
@@ -110502,9 +110505,12 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     showToast("Укажите название и папку (slug)", "error");
     return;
   }
-  const taxonomyKey = String(awnDataCreateTaxonomyKeyInputNode?.value || "").trim();
+  const taxonomyKey =
+    isAwnTaxonomiesParentGroup(parentGroup) && awnDataCreateKind === "collection"
+      ? resolveAwnDataCreateTaxonomyKey()
+      : "";
   if (isAwnTaxonomiesParentGroup(parentGroup) && awnDataCreateKind === "collection" && !taxonomyKey) {
-    showToast("Укажите ключ для awn-taxonomy", "error");
+    showToast("Укажите папку (slug) справочника", "error");
     return;
   }
 
@@ -112932,12 +112938,6 @@ function setupAwnDataStoresUi() {
       awnDataCreateSlugInputNode.value = sanitizeSlugValue(awnDataCreateSlugInputNode.value);
     }
     syncAwnDataCreateTaxonomyKeyFromSlug();
-  });
-  awnDataCreateTaxonomyKeyInputNode?.addEventListener("input", () => {
-    const key = String(awnDataCreateTaxonomyKeyInputNode.value || "").trim();
-    if (awnDataCreateTaxonomyCardinalityInputNode && key) {
-      awnDataCreateTaxonomyCardinalityInputNode.value = inferAwnTaxonomyCardinalityFromKey(key);
-    }
   });
   awnDataCreateSlugUnlinkBtn?.addEventListener("click", (event) => {
     event.preventDefault();
