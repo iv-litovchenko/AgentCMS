@@ -63897,6 +63897,14 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
+.awn-databases-view-iblock-outside-structure-row:not([hidden]) {
+  margin-top: 0.15rem;
+}
+
+.awn-databases-view-schema-panel.has-outside-structure-warning .awn-databases-view-iblock-outside-structure-row {
+  margin-top: 0.35rem;
+}
+
 .awn-databases-view-schema-block {
   display: flex;
   flex-direction: column;

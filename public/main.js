@@ -73080,6 +73080,124 @@ async function refreshWorkspaceOutsideSlotsRow(row, wrap, topicPath, prefetchedR
   }
 }
 
+const IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS = {
+  "iblock-root": "Корень инфоблока",
+  "storage-root": "awn-storage/ (не data или assets)"
+};
+
+async function fetchIblockOutsideStructureReport(storeRel) {
+  const response = await fetch(buildApiUrl("/api/agent/iblock-outside-structure", { store: storeRel }));
+  if (!response.ok) {
+    throw new Error(`iblock-outside-structure ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderIblockOutsideStructureWarningPanel(report) {
+  const panel = document.createElement("section");
+  panel.className = "node-navigation-outside-slots-warning awn-databases-view-iblock-outside-structure-warning";
+  panel.setAttribute("role", "note");
+  panel.setAttribute("aria-label", "Вне структуры");
+
+  const header = document.createElement("div");
+  header.className = "node-navigation-outside-slots-warning-header";
+
+  const title = document.createElement("h3");
+  title.className = "node-navigation-outside-slots-warning-title";
+  title.textContent = "Вне структуры";
+
+  const hint = document.createElement("p");
+  hint.className = "node-navigation-outside-slots-warning-hint";
+  const isGroup = String(report?.kind || "") === "group";
+  hint.textContent = isGroup
+    ? "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/."
+    : "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/ и (при плоском хранении) записи и разделы; в awn-storage/ — только data/ и assets/.";
+
+  header.append(title, hint);
+
+  const list = document.createElement("ul");
+  list.className = "node-navigation-outside-slots-warning-list";
+
+  for (const item of report?.items || []) {
+    const row = document.createElement("li");
+    row.className = "node-navigation-outside-slots-warning-item";
+
+    const scope = document.createElement("span");
+    scope.className = "node-navigation-outside-slots-warning-scope";
+    scope.textContent = IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS[item.scope] || item.scope || "—";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-outside-slots-warning-path";
+    btn.textContent = item.relPath || item.name || "—";
+    btn.title = item.kind === "folder" ? "Открыть папку" : "Открыть файл";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const relPath = String(item.relPath || "").trim();
+      if (!relPath) return;
+      if (item.kind === "folder") {
+        void openFolderBrowseFromMenu(item.name || relPath, relPath);
+        return;
+      }
+      void selectFile(item.name || relPath, relPath);
+    });
+
+    row.append(scope, btn);
+    list.appendChild(row);
+  }
+
+  panel.append(header, list);
+  return panel;
+}
+
+function applyIblockOutsideStructureWarningRow(row, wrap, report) {
+  row.replaceChildren();
+  if (!report?.items?.length) {
+    row.hidden = true;
+    wrap?.classList.remove("has-outside-structure-warning");
+    return;
+  }
+  row.hidden = false;
+  wrap?.classList.add("has-outside-structure-warning");
+  row.appendChild(renderIblockOutsideStructureWarningPanel(report));
+}
+
+async function refreshAwnDataViewIblockOutsideStructureRow(row, wrap, storeRel) {
+  if (!row || !wrap || !storeRel) return;
+  try {
+    const report = await fetchIblockOutsideStructureReport(storeRel);
+    if (!row.isConnected) return;
+    applyIblockOutsideStructureWarningRow(row, wrap, report);
+  } catch {
+    if (row.isConnected) {
+      row.hidden = true;
+      wrap?.classList.remove("has-outside-structure-warning");
+    }
+  }
+}
+
+function mountAwnDataViewIblockOutsideStructureWarning(store) {
+  const panel = awnDataViewSchemaWrapNode;
+  if (!panel) return;
+  let row = panel.querySelector(":scope > .awn-databases-view-iblock-outside-structure-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "awn-databases-view-iblock-outside-structure-row";
+    row.hidden = true;
+    const anchor =
+      awnDataViewSchemaFieldsSectionNode || awnDataViewSchemaSettingsAccordionNode || panel.lastElementChild;
+    if (anchor) anchor.insertAdjacentElement("afterend", row);
+    else panel.appendChild(row);
+  }
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!storeRel) {
+    applyIblockOutsideStructureWarningRow(row, panel, null);
+    return;
+  }
+  void refreshAwnDataViewIblockOutsideStructureRow(row, panel, storeRel);
+}
+
 function createWorkspaceCounterIndexButton(slot, topicPath) {
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const btn = document.createElement("button");
@@ -107534,6 +107652,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     renderAwnDataIblockDescription(null);
     awnDataViewSchemaMetaTbodyNode?.replaceChildren();
     if (awnDataViewSchemaFieldsCountNode) awnDataViewSchemaFieldsCountNode.textContent = "";
+    mountAwnDataViewIblockOutsideStructureWarning(null);
     return;
   }
 
@@ -107559,6 +107678,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
       schemaModFileNode.textContent = SCHEMA_MOD_FILE;
     }
     void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+    mountAwnDataViewIblockOutsideStructureWarning(viewStore);
     return;
   }
 
@@ -107586,6 +107706,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
   }
 
   void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+  mountAwnDataViewIblockOutsideStructureWarning(viewStore);
 }
 
 function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeAgentId) {

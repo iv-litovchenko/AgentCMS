@@ -347,6 +347,7 @@ const {
   renameAwnDataRecord,
   deleteAwnDataStore,
   renameAwnDataStore,
+  buildIblockOutsideStructureReport,
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
   TAXONOMIES_GROUP_REL
@@ -20384,6 +20385,25 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan page outside slots",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/iblock-outside-structure") {
+    const storeRel = url.searchParams.get("store") || url.searchParams.get("path") || "";
+    if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+    try {
+      const payload = buildIblockOutsideStructureReport(
+        getAgentRoot(),
+        getProjectRoot(),
+        storeRel
+      );
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan iblock outside structure",
         details: String(error.message || error)
       });
     }

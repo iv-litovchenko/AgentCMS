@@ -18,7 +18,8 @@ const {
   LEGACY_SCHEMA_MOD_FILE,
   LEGACY_SCHEME_MOD_FILE,
   LEGACY_SHEMAMOD_FILE,
-  LEGACY_CONFIGURATION_SCHEMA_FILE
+  LEGACY_CONFIGURATION_SCHEMA_FILE,
+  isSchemaModFileName
 } = require("./schema-mod-paths");
 const {
   normalizeStorageRecordExtension,
@@ -3572,6 +3573,170 @@ function ensureAwnDataMainCsvFile(agentRoot, projectRoot, storeRel) {
   return getAwnDataPayload(agentRoot, projectRoot, rel).store;
 }
 
+const IBLOCK_OUTSIDE_STORAGE_ALLOWED_DIRS = new Set([
+  STORE_DATA_DIR.toLowerCase(),
+  STORE_ASSETS_DIR.toLowerCase()
+]);
+
+function shouldIgnoreIblockOutsideScanEntryName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower || lower === ".ds_store") return true;
+  if (lower.startsWith(".") && lower !== ".env") return true;
+  return false;
+}
+
+function isAllowedIblockStoreRootFile(name, { storageDataLayout, isGroup, fileTypesSpec, csvFileName }) {
+  if (shouldIgnoreIblockOutsideScanEntryName(name)) return true;
+  if (isSystemStoreFile(name)) return true;
+  if (isSchemaModFileName(name)) return true;
+  const lower = String(name || "").trim().toLowerCase();
+  if (lower === "sort.json") return true;
+  if (lower === ".env") return true;
+  if (lower === LEGACY_STORE_FILE.toLowerCase()) return true;
+  if (isGroup) return false;
+  if (storageDataLayout) return false;
+  if (csvFileName && lower === String(csvFileName).trim().toLowerCase()) return true;
+  if (isCollectionContentFile(name) && matchesFileTypesSpec(name, fileTypesSpec)) return true;
+  return false;
+}
+
+function isAllowedIblockStoreRootDir(name, { storageDataLayout, isGroup, knownChildDirNames }) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return true;
+  if (lower === STORE_STORAGE_ROOT.toLowerCase()) return true;
+  if (isGroup) return knownChildDirNames.has(lower);
+  if (storageDataLayout) return false;
+  if (DISCOVER_SKIP_DIRS.has(name) || DISCOVER_SKIP_DIRS.has(lower)) return false;
+  if (lower === STORE_ASSETS_DIR) return false;
+  return true;
+}
+
+function buildIblockOutsideStructureReport(agentRoot, projectRoot, storeRelInput) {
+  let storeRel = String(storeRelInput || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  storeRel = storeRel.replace(/^(?:awn-databases|awn-data|awn-database)\//i, "");
+  if (!storeRel) return { error: "Missing store path", status: 400 };
+
+  let context;
+  try {
+    context = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  } catch (error) {
+    return { error: String(error.message || error), status: 404 };
+  }
+
+  const { store, storeAbs, dataRoot } = context;
+  const kind = normalizeStoreKind(store.kind || store.schema?.kind || "collection");
+  const isGroup = kind === "group";
+  const storageDataLayout = usesStoreStorageDataLayout(storeAbs);
+  const schema = loadMergedStoreSchema(storeAbs, dataRoot);
+  const fileTypesSpec = getRecordFileTypes(schema);
+  const recordStorage = getRecordStorage(schema);
+  const csvFileName = recordStorage === "csv" ? getCsvFileName(schema) : "";
+  const displayPrefix = `${AWN_DATABASE_DIR}/${store.relPath}`.replace(/\\/g, "/");
+
+  const knownChildDirNames = new Set();
+  if (isGroup && Array.isArray(store.children)) {
+    for (const child of store.children) {
+      const childRel = String(child?.relPath || "").replace(/\\/g, "/");
+      const base = childRel.split("/").filter(Boolean).pop();
+      if (base) knownChildDirNames.add(base.toLowerCase());
+    }
+  }
+  if (isGroup && !knownChildDirNames.size) {
+    try {
+      for (const entry of fs.readdirSync(storeAbs, { withFileTypes: true })) {
+        if (!entry.isDirectory() || shouldIgnoreIblockOutsideScanEntryName(entry.name)) continue;
+        const manifestPath = path.join(storeAbs, entry.name, COLLECTION_MANIFEST);
+        if (fs.existsSync(manifestPath)) knownChildDirNames.add(entry.name.toLowerCase());
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const items = [];
+  const pushItem = (scope, entryKind, entryName, relSuffix) => {
+    items.push({
+      scope,
+      kind: entryKind,
+      name: entryName,
+      relPath: `${displayPrefix}/${relSuffix}`.replace(/\/+/g, "/")
+    });
+  };
+
+  try {
+    const entries = fs.readdirSync(storeAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (shouldIgnoreIblockOutsideScanEntryName(entry.name)) continue;
+      if (entry.isFile()) {
+        if (
+          isAllowedIblockStoreRootFile(entry.name, {
+            storageDataLayout,
+            isGroup,
+            fileTypesSpec,
+            csvFileName
+          })
+        ) {
+          continue;
+        }
+        pushItem("iblock-root", "file", entry.name, entry.name);
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (
+          isAllowedIblockStoreRootDir(entry.name, {
+            storageDataLayout,
+            isGroup,
+            knownChildDirNames
+          })
+        ) {
+          continue;
+        }
+        pushItem("iblock-root", "folder", entry.name, entry.name);
+      }
+    }
+  } catch {
+    // ignore unreadable store root
+  }
+
+  const storageRootAbs = path.join(storeAbs, STORE_STORAGE_ROOT);
+  if (fs.existsSync(storageRootAbs) && fs.statSync(storageRootAbs).isDirectory()) {
+    try {
+      const storageEntries = fs.readdirSync(storageRootAbs, { withFileTypes: true });
+      for (const entry of storageEntries) {
+        if (shouldIgnoreIblockOutsideScanEntryName(entry.name)) continue;
+        if (entry.isFile()) {
+          pushItem("storage-root", "file", entry.name, `${STORE_STORAGE_ROOT}/${entry.name}`);
+          continue;
+        }
+        if (!entry.isDirectory()) continue;
+        const folderLower = entry.name.toLowerCase();
+        if (IBLOCK_OUTSIDE_STORAGE_ALLOWED_DIRS.has(folderLower)) continue;
+        pushItem("storage-root", "folder", entry.name, `${STORE_STORAGE_ROOT}/${entry.name}`);
+      }
+    } catch {
+      // ignore unreadable storage root
+    }
+  }
+
+  items.sort((a, b) => {
+    const scopeOrder = { "iblock-root": 0, "storage-root": 1 };
+    const aScope = scopeOrder[a.scope] ?? 9;
+    const bScope = scopeOrder[b.scope] ?? 9;
+    if (aScope !== bScope) return aScope - bScope;
+    return a.relPath.localeCompare(b.relPath, "ru", { sensitivity: "base", numeric: true });
+  });
+
+  return {
+    version: 1,
+    storeRel: store.relPath,
+    path: `${AWN_DATABASE_DIR}/${store.relPath}/${COLLECTION_MANIFEST}`.replace(/\\/g, "/"),
+    kind,
+    storageDataLayout,
+    items,
+    count: items.length
+  };
+}
+
 function resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel) {
   const filter = String(storeRel || "").trim();
   if (!filter) throw new Error("Missing store path");
@@ -4423,6 +4588,7 @@ module.exports = {
   renameAwnDataRecord,
   deleteAwnDataStore,
   renameAwnDataStore,
+  buildIblockOutsideStructureReport,
   normalizeExtendsRef,
   resolveKindFromSupertype,
   CONTAINER_SUPERTYPE,
