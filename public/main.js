@@ -56253,15 +56253,27 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
   const codeField = document.createElement("label");
   codeField.className = "props-form-catalog-add-field";
   const codeCaption = document.createElement("span");
-  codeCaption.textContent = "Код";
+  codeCaption.textContent = "Код (slug)";
+  const codeSlugRow = document.createElement("div");
+  codeSlugRow.className = "slug-input-row props-form-taxonomy-slug-row";
   const codeInput = document.createElement("input");
   codeInput.type = "text";
-  codeInput.className = "props-form-value props-form-catalog-add-input";
+  codeInput.className = "props-form-value props-form-catalog-add-input slug-input";
   codeInput.placeholder = "work";
   codeInput.spellcheck = false;
   codeInput.autocomplete = "off";
-  codeField.append(codeCaption, codeInput);
+  const codeSlugUnlinkBtn = document.createElement("button");
+  codeSlugUnlinkBtn.type = "button";
+  codeSlugUnlinkBtn.className = "slug-unlink-btn";
+  codeSlugRow.append(codeInput, codeSlugUnlinkBtn);
+  codeField.append(codeCaption, codeSlugRow);
   form.appendChild(codeField);
+
+  const codeSlugController = createSlugFieldController({
+    nameInput,
+    slugInput: codeInput,
+    unlinkBtn: codeSlugUnlinkBtn
+  });
 
   let parentSelect = null;
   if (definition?.hierarchy) {
@@ -56278,20 +56290,6 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     parentField.append(parentCaption, parentSelect);
     form.appendChild(parentField);
   }
-
-  let codeLinkedToName = true;
-  const syncCodeFromName = () => {
-    if (!codeLinkedToName) return;
-    codeInput.value = nameInput.value;
-  };
-  const resetCodeLink = () => {
-    codeLinkedToName = true;
-    syncCodeFromName();
-  };
-  nameInput.addEventListener("input", syncCodeFromName);
-  codeInput.addEventListener("input", () => {
-    codeLinkedToName = false;
-  });
 
   const actions = document.createElement("div");
   actions.className = "props-form-catalog-add-actions";
@@ -56313,13 +56311,13 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
       nameInput.value = "";
       codeInput.value = "";
       if (parentSelect) parentSelect.value = "";
-      codeLinkedToName = true;
+      codeSlugController.reset();
       window.requestAnimationFrame(() => nameInput.focus());
     } else {
       nameInput.value = "";
       codeInput.value = "";
       if (parentSelect) parentSelect.value = "";
-      codeLinkedToName = true;
+      codeSlugController.reset();
     }
   };
 

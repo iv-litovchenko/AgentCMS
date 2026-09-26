@@ -1,0 +1,4 @@
+awn-id,awn-parent-id,awn-type,awn-name,awn-description,awn-code,awn-sort
+korevoy-razdel,,,Коревой раздел,,Коревой раздел,
+podrzdel,korevoy-razdel,,подрздел,,подрздел,
+esche-podrazdel,podrzdel,,еще подраздел,,еще подраздел,
