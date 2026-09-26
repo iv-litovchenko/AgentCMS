@@ -11,7 +11,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**81 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**87 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 ### Новый чат — выбор хранилища (`agentId`)
 
@@ -623,6 +623,34 @@ razdel-1/
 | Shell-строка (pipes, `&&`) | `exec_shell` |
 
 Для обхода слотов и media — **path-based** tools (`read_file`, `upload_file`, `list_folder`).
+
+### Медиа в облако (`awn-media-cloud`)
+
+Локальная **выгрузка** тяжёлых файлов: оригинальный путь становится **симлинком**, байты лежат в `awn-media-cloud/_blobs/gd_*` (в git не коммитятся). Реестр — `awn-media-cloud/registry.json` (поле `providers[]`: google-drive, yandex-disk…). Sidecar остаётся **локально** рядом с симлинком. Справочник облаков — platform settings группа **media-cloud** (`list_settings` / `read_setting` или `list_media_cloud_providers`).
+
+| Tool | Зачем |
+|------|-------|
+| `list_media_cloud_providers` | `defaultProvider` + список ключей из platform |
+| `get_media_cloud_file_status` | Синхронизирован ли файл; `providers[]`; `scope`: `file` \| `topic` |
+| `sync_media_cloud_file` | Включить/выключить выгрузку (как UI «Выгрузка в облако»); опц. `provider` |
+| `repair_media_cloud_links` | Починить симлинки по registry |
+| `upload_media_cloud_to_provider_zzz` | **Заглушка** — будущий upload на API провайдера |
+| `get_remote_url_zzz` | **Заглушка** — будущий `remoteUrl` после upload |
+
+**Аргументы** (как в UI): `path` = manifest темы; `file` = **полный** workspace-path к файлу (напр. `awn-container/tema/awn-storage/media/photo.png`), не только `media/photo.png`.
+
+```json
+list_media_cloud_providers({ "agentId": "agent-cms-test" })
+get_media_cloud_file_status({
+  "agentId": "agent-cms-test",
+  "path": "awn-container/tema/manifest.md",
+  "file": "awn-container/tema/awn-storage/media/photo.png",
+  "provider": "google-drive"
+})
+sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "…/media/photo.png", "provider": "yandex-disk" })
+```
+
+Удалённая выгрузка на Google/Яндекс пока **не** реализована — только локальный offload + метки провайдеров в registry.
 
 ### Пакетные вызовы — `batch_invoke`
 

@@ -23656,11 +23656,54 @@ a.header-tool-btn {
   gap: 6px;
 }
 
+.agent-large-files-item {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow: visible;
+}
+
+.agent-large-files-item .node-gdrive-sync-bar--compact {
+  flex: 0 0 min(220px, 38%);
+  width: auto;
+  min-width: 168px;
+  max-width: 240px;
+  height: auto;
+  align-self: stretch;
+}
+
+.agent-large-files-item .node-gdrive-sync-bar--compact .node-gdrive-sync-menu,
+.agent-large-files-item .node-gdrive-sync-bar--compact .node-gdrive-sync-menu-trigger {
+  height: 100%;
+  min-height: 34px;
+}
+
+.agent-large-files-item .node-gdrive-sync-bar--compact .node-gdrive-sync-menu-trigger-label {
+  font-size: 11px;
+}
+
+.agent-large-files-item .node-gdrive-sync-bar--compact .node-gdrive-sync-menu-trigger-main {
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.agent-large-files-item .node-gdrive-sync-bar--compact .node-gdrive-sync-menu-trigger-chevron {
+  min-width: 34px;
+}
+
+.agent-large-files-item .node-gdrive-sync-menu-panel {
+  min-width: 220px;
+  right: 0;
+  left: auto;
+}
+
 .agent-large-files-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;

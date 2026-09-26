@@ -98926,6 +98926,8 @@ async function renderAgentLargeFilesView() {
 
       for (const item of files) {
         const row = document.createElement("li");
+        row.className = "agent-large-files-item";
+
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "agent-large-files-row";
@@ -98943,7 +98945,16 @@ async function renderAgentLargeFilesView() {
         btn.addEventListener("click", () => {
           void revealWorkspacePath(item.path);
         });
-        row.appendChild(btn);
+
+        const cloudBar = createGoogleDriveSyncBar({
+          ...resolveCloudSyncConfigForWorkspaceFile(item.path),
+          compact: true
+        });
+        cloudBar.addEventListener("click", (event) => {
+          event.stopPropagation();
+        });
+
+        row.append(btn, cloudBar);
         list.appendChild(row);
       }
 
@@ -104522,20 +104533,40 @@ function setGoogleDriveSyncMenuOpen(bar, open) {
 function bindGoogleDriveSyncMenuDismiss(bar) {
   if (!bar || bar._cloudMenuDismissBound) return;
   bar._cloudMenuDismissBound = true;
+  if (window._mediaCloudMenuDismissBound) return;
+  window._mediaCloudMenuDismissBound = true;
   document.addEventListener(
     "click",
     (event) => {
-      if (!bar.classList.contains("is-open")) return;
-      if (bar.contains(event.target)) return;
-      setGoogleDriveSyncMenuOpen(bar, false);
+      document.querySelectorAll(".node-gdrive-sync-bar.is-open").forEach((openBar) => {
+        if (!openBar.contains(event.target)) {
+          setGoogleDriveSyncMenuOpen(openBar, false);
+        }
+      });
     },
     true
   );
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (!bar.classList.contains("is-open")) return;
-    setGoogleDriveSyncMenuOpen(bar, false);
+    document.querySelectorAll(".node-gdrive-sync-bar.is-open").forEach((openBar) => {
+      setGoogleDriveSyncMenuOpen(openBar, false);
+    });
   });
+}
+
+function resolveCloudSyncConfigForWorkspaceFile(relPath) {
+  const filePath = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  let manifestPath = filePath;
+  const storageMarker = "/awn-storage/";
+  const storageIdx = filePath.indexOf(storageMarker);
+  if (storageIdx > 0) {
+    manifestPath = `${filePath.slice(0, storageIdx)}/manifest.md`;
+  }
+  return {
+    scope: "file",
+    manifestPath,
+    filePath
+  };
 }
 
 async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePath = null, providerId = null } = {}) {
@@ -104907,6 +104938,9 @@ function createEntryOverviewMediaAssetToolbar(context, entries = []) {
 function createGoogleDriveSyncBar(initialConfig = {}) {
   const bar = document.createElement("div");
   bar.className = "node-gdrive-sync-bar";
+  if (initialConfig.compact) {
+    bar.classList.add("node-gdrive-sync-bar--compact");
+  }
 
   const menu = document.createElement("div");
   menu.className = "node-gdrive-sync-menu";

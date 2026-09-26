@@ -24,6 +24,7 @@ import { registerIblockTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
+import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
@@ -313,6 +314,7 @@ function createServer() {
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
   registerAgentUtilsTools(reg, client);
+  registerMediaCloudTools(reg, client, { pagePath });
   registerSidecarTools(reg, client);
 
   reg(

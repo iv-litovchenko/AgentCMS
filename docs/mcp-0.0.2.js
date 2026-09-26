@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 103 tools",
+  versionLabel: "Per-chat agentId · 109 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -16,6 +16,7 @@ module.exports = {
     "path → manifest.md; slot → main|inbox|media|…; ref → путь внутри слота.",
     "Карта tools: workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
+    "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
     "awn-facts: retain_workspace_fact (запись), recall_workspace_facts (поиск), list_workspace_facts (список). Выжимки из чатов — не полный диалог. См. GLOBAL_MCP_DOC.md § Банк фактов."
   ],
@@ -469,6 +470,48 @@ module.exports = {
           description: "Произвольная shell-строка (pipes, &&).",
           parameters: "command, cwd?, topicPath?, timeoutMs?, env?",
           http: "POST /api/exec/shell"
+        }
+      ]
+    },
+    {
+      id: "media-cloud",
+      title: "Медиа в облако (awn-media-cloud)",
+      tools: [
+        {
+          name: "list_media_cloud_providers",
+          description: "Справочник провайдеров из platform.yml (media-cloud-providers) + defaultProvider.",
+          parameters: "agentId",
+          http: "GET /api/media-cloud/providers"
+        },
+        {
+          name: "get_media_cloud_file_status",
+          description: "Статус выгрузки: symlink, providers[], scope file|topic.",
+          parameters: "agentId, path, file? (scope=file), scope?, provider?",
+          http: "GET /api/gdrive/status"
+        },
+        {
+          name: "sync_media_cloud_file",
+          description: "Переключить локальную выгрузку в _blobs/ или провайдер в registry (как UI «Выгрузка в облако»).",
+          parameters: "agentId, path, file? (scope=file), scope?, provider?",
+          http: "POST /api/gdrive/toggle"
+        },
+        {
+          name: "repair_media_cloud_links",
+          description: "Восстановить симлинки по registry.json.",
+          parameters: "agentId",
+          http: "POST /api/gdrive/repair-links"
+        },
+        {
+          name: "upload_media_cloud_to_provider_zzz",
+          description: "Заглушка: будущая выгрузка на API Google/Яндекс.",
+          parameters: "agentId, path, file, provider?",
+          http: "— (stub)"
+        },
+        {
+          name: "get_remote_url_zzz",
+          description: "Заглушка: будущий remoteUrl после upload на провайдер.",
+          parameters: "agentId, path, file, provider?",
+          http: "— (stub)"
         }
       ]
     },
