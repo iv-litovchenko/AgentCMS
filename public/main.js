@@ -104432,13 +104432,74 @@ async function fetchMediaCloudProviders({ force = false } = {}) {
   return mediaCloudProvidersCache;
 }
 
-function resolveGoogleDriveSyncMenuTriggerLabel(status) {
-  if (!status?.exists) return "Файл не найден";
-  const count = Array.isArray(status.providers) ? status.providers.length : 0;
-  if (status.synced && count > 0) {
-    return count === 1 ? "В облаке (1 сервис)" : `В облаке (${count} сервиса)`;
+const MEDIA_CLOUD_TRIGGER_LABEL = "Выгрузка в облако";
+
+function resolveMediaCloudProviderTitle(runtimeConfig = {}, providerId = "") {
+  const key = String(providerId || "").trim();
+  const match = (runtimeConfig.providersList || []).find((item) => item.key === key);
+  return match?.title || key || "облако";
+}
+
+function resolveGoogleDriveSyncMenuTriggerState(status) {
+  if (!status?.exists) {
+    return {
+      label: MEDIA_CLOUD_TRIGGER_LABEL,
+      badge: "",
+      title: "Файл не найден",
+      synced: false
+    };
   }
-  return "Отправить в облако";
+  const count = Array.isArray(status.providers) ? status.providers.length : 0;
+  const synced = Boolean(status.synced && count > 0);
+  const title = synced
+    ? count === 1
+      ? "Файл в облаке (1 сервис). Откройте меню для другого сервиса или возврата."
+      : `Файл в облаке (${count} сервиса). Откройте меню.`
+    : "Выгрузка в облако — выберите сервис в меню.";
+  return {
+    label: MEDIA_CLOUD_TRIGGER_LABEL,
+    badge: synced ? String(count) : "",
+    title,
+    synced
+  };
+}
+
+function resolveMediaCloudSyncToastMessage(result, runtimeConfig, providerId) {
+  const providerTitle = resolveMediaCloudProviderTitle(runtimeConfig, providerId);
+  if (result.action === "provider-removed" || result.action === "unsynced" || !result.synced) {
+    return `Файл убран из облака «${providerTitle}»`;
+  }
+  return `Файл добавлен в облако «${providerTitle}»`;
+}
+
+function setGoogleDriveSyncMenuOpen(bar, open) {
+  if (!bar) return;
+  const panel = bar.querySelector(".node-gdrive-sync-menu-panel");
+  const trigger = bar.querySelector(".node-gdrive-sync-menu-trigger");
+  if (!panel || !trigger) return;
+  const nextOpen = Boolean(open);
+  panel.hidden = !nextOpen;
+  trigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+  bar.classList.toggle("is-open", nextOpen);
+}
+
+function bindGoogleDriveSyncMenuDismiss(bar) {
+  if (!bar || bar._cloudMenuDismissBound) return;
+  bar._cloudMenuDismissBound = true;
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!bar.classList.contains("is-open")) return;
+      if (bar.contains(event.target)) return;
+      setGoogleDriveSyncMenuOpen(bar, false);
+    },
+    true
+  );
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!bar.classList.contains("is-open")) return;
+    setGoogleDriveSyncMenuOpen(bar, false);
+  });
 }
 
 async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePath = null, providerId = null } = {}) {
@@ -104514,31 +104575,35 @@ function renderGoogleDriveSyncMenuItems(bar, providers, status) {
     })
   );
 
-  retrieveGroup.classList.toggle("hidden", !canRetrieve);
+  retrieveGroup.classList.toggle("is-empty", !canRetrieve);
 }
 
 async function refreshGoogleDriveSyncBar(bar, runtimeConfig = {}) {
   if (!bar) return;
-  const details = bar.querySelector(".node-gdrive-sync-menu");
   const triggerLabel = bar.querySelector(".node-gdrive-sync-menu-trigger-label");
-  const summary = bar.querySelector(".node-gdrive-sync-menu-trigger");
+  const triggerBadge = bar.querySelector(".node-gdrive-sync-menu-trigger-badge");
+  const trigger = bar.querySelector(".node-gdrive-sync-menu-trigger");
   bar.classList.add("is-loading");
   try {
     const status = await fetchGoogleDriveSyncStatus(runtimeConfig);
     bar._cloudSyncStatus = status;
-    const label = resolveGoogleDriveSyncMenuTriggerLabel(status);
-    if (triggerLabel) triggerLabel.textContent = label;
-    if (summary) {
-      summary.title = label;
-      summary.setAttribute("aria-label", label);
-      summary.classList.toggle("is-synced", Boolean(status.synced && status.providers?.length));
-      summary.toggleAttribute("disabled", !status.exists);
+    const triggerState = resolveGoogleDriveSyncMenuTriggerState(status);
+    if (triggerLabel) triggerLabel.textContent = triggerState.label;
+    if (triggerBadge) {
+      triggerBadge.textContent = triggerState.badge || "";
+      triggerBadge.classList.toggle("hidden", !triggerState.badge);
+    }
+    if (trigger) {
+      trigger.title = triggerState.title;
+      trigger.setAttribute("aria-label", triggerState.title);
+      trigger.classList.toggle("is-synced", triggerState.synced);
+      trigger.disabled = !status.exists;
     }
     bar.dataset.gdriveSynced = status.synced ? "1" : "0";
     renderGoogleDriveSyncMenuItems(bar, runtimeConfig.providersList || [], status);
   } catch (error) {
-    if (triggerLabel) triggerLabel.textContent = "Облако — ошибка";
-    if (summary) summary.title = String(error.message || "Ошибка облака");
+    if (triggerLabel) triggerLabel.textContent = MEDIA_CLOUD_TRIGGER_LABEL;
+    if (trigger) trigger.title = String(error.message || "Ошибка облака");
   } finally {
     bar.classList.remove("is-loading");
   }
@@ -104546,25 +104611,14 @@ async function refreshGoogleDriveSyncBar(bar, runtimeConfig = {}) {
 
 async function handleGoogleDriveSyncAction(bar, runtimeConfig = {}, { providerId, action } = {}) {
   if (!bar || bar.classList.contains("is-loading")) return;
-  const details = bar.querySelector(".node-gdrive-sync-menu");
   bar.classList.add("is-loading");
   try {
     const config = { ...runtimeConfig, providerId };
     const result = await toggleGoogleDriveSyncRequest(config);
-    const toastMsg =
-      result.action === "provider-removed"
-        ? "Забрано из облака"
-        : result.action === "provider-added"
-          ? "Добавлено в облако"
-          : result.synced
-            ? "Отправлено в облако"
-            : "Файл возвращён на диск";
-    showToast(toastMsg, "success");
-    if (details) details.open = false;
+    showToast(resolveMediaCloudSyncToastMessage(result, runtimeConfig, providerId), "success");
+    setGoogleDriveSyncMenuOpen(bar, false);
     void refreshMenuGoogleDriveStats();
-    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-      await renderEntryOverview();
-    } else {
+    if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE) {
       await refreshMediaListIfVisible();
       rerenderMediaListViewBody();
     }
@@ -104818,26 +104872,42 @@ function createGoogleDriveSyncBar(initialConfig = {}) {
   const bar = document.createElement("div");
   bar.className = "node-gdrive-sync-bar";
 
-  const details = document.createElement("details");
-  details.className = "node-gdrive-sync-menu";
+  const menu = document.createElement("div");
+  menu.className = "node-gdrive-sync-menu";
 
-  const summary = document.createElement("summary");
-  summary.className = "node-gdrive-sync-menu-trigger";
-  summary.appendChild(createGoogleDriveIconSvg());
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "node-gdrive-sync-menu-trigger";
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.title = "Выгрузка в облако — выберите сервис в меню.";
+
+  const main = document.createElement("span");
+  main.className = "node-gdrive-sync-menu-trigger-main";
+  main.appendChild(createGoogleDriveIconSvg());
 
   const labelNode = document.createElement("span");
   labelNode.className = "node-gdrive-sync-menu-trigger-label";
-  labelNode.textContent = "Отправить в облако";
-  summary.appendChild(labelNode);
+  labelNode.textContent = MEDIA_CLOUD_TRIGGER_LABEL;
+  main.appendChild(labelNode);
+
+  const badgeNode = document.createElement("span");
+  badgeNode.className = "node-gdrive-sync-menu-trigger-badge hidden";
+  badgeNode.setAttribute("aria-hidden", "true");
+  main.appendChild(badgeNode);
+
+  trigger.appendChild(main);
 
   const chevron = document.createElement("span");
   chevron.className = "node-gdrive-sync-menu-trigger-chevron";
   chevron.setAttribute("aria-hidden", "true");
   chevron.textContent = "▾";
-  summary.appendChild(chevron);
+  trigger.appendChild(chevron);
 
   const panel = document.createElement("div");
   panel.className = "node-gdrive-sync-menu-panel";
+  panel.hidden = true;
+  panel.setAttribute("role", "menu");
 
   const sendGroup = document.createElement("div");
   sendGroup.className = "node-gdrive-sync-menu-group";
@@ -104861,10 +104931,18 @@ function createGoogleDriveSyncBar(initialConfig = {}) {
   retrieveGroup.append(retrieveTitle, retrieveList);
 
   panel.append(sendGroup, retrieveGroup);
-  details.append(summary, panel);
-  bar.appendChild(details);
+  menu.append(trigger, panel);
+  bar.appendChild(menu);
+  bindGoogleDriveSyncMenuDismiss(bar);
 
   const runtimeConfig = { ...initialConfig };
+
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (trigger.disabled || bar.classList.contains("is-loading")) return;
+    setGoogleDriveSyncMenuOpen(bar, !bar.classList.contains("is-open"));
+  });
 
   panel.addEventListener("click", (event) => {
     const item = event.target.closest(".node-gdrive-sync-menu-item");

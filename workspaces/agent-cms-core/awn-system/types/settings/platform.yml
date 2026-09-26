@@ -438,8 +438,9 @@ fields:
   media-cloud-default-provider:
     type: awn.field.string.slug
     title: Облако по умолчанию
-    description: Ключ из списка ниже — выбор в кнопке «Отправить в облако».
+    description: Ключ из списка ниже — выбор в кнопке «Отправить в облако». Пока только просмотр.
     default: google-drive
+    readonly: true
     group: media-cloud
     sort: 1
 
@@ -447,10 +448,10 @@ fields:
     type: awn.field.repeater
     title: Облачные сервисы
     description: >
-      Название для UI и ключ папки awn-media-cloud/{ключ}/. Один файл — один blob в _blobs/,
-      несколько облаков — в registry.json (providers).
+      Название для UI и ключ папки awn-media-cloud/{ключ}/. Пока только просмотр — правки в platform.yml.
     group: media-cloud
     sort: 2
+    readonly: true
     default: []
     properties:
       key:

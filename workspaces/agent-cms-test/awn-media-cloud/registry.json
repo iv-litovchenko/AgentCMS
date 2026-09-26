@@ -44,6 +44,38 @@
           "remoteUrl": ""
         }
       ]
+    },
+    {
+      "blob": "gd_b321c719.png",
+      "mediaRel": "awn-container/test-vseh-svoystvo/awn-storage/assets/preview/20260623203519.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_15bf6007.png",
+      "mediaRel": "awn-container/test-vseh-svoystvo/awn-storage/assets/preview/20260623203544.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
     }
   ]
 }

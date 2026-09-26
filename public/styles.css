@@ -34865,11 +34865,15 @@ img.is-svg-media,
 }
 
 .node-entry-overview-media-asset-toolbar {
+  --media-toolbar-action-height: 36px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
 }
 
 .node-entry-overview-media-asset .node-entry-overview-media-asset-kind {
@@ -37298,42 +37302,58 @@ img.is-svg-media,
   padding: 14px 16px 16px;
 }
 
-.node-entry-overview-media-asset-toolbar {
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
-  grid-column: 1 / -1;
-  width: 100%;
-}
-
 .node-entry-overview-media-asset-toolbar .node-gdrive-sync-bar,
 .node-entry-overview-media-asset-toolbar .node-ocr-sync-bar {
   flex: 1 1 0;
   min-width: 0;
   grid-column: auto;
   width: auto;
+  height: var(--media-toolbar-action-height);
+}
+
+.node-entry-overview-media-asset-toolbar .node-gdrive-sync-menu {
+  height: 100%;
+}
+
+.node-entry-overview-media-asset-toolbar .node-gdrive-sync-menu-trigger {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.node-entry-overview-media-asset-toolbar .node-gdrive-sync-menu-trigger-main {
+  padding: 0 12px;
+  height: 100%;
+}
+
+.node-entry-overview-media-asset-toolbar .node-ocr-sync-bar-btn {
+  height: 100%;
+  min-height: var(--media-toolbar-action-height);
+  box-sizing: border-box;
 }
 
 .node-gdrive-sync-bar {
   grid-column: 1 / -1;
   width: 100%;
   position: relative;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .node-gdrive-sync-menu {
   width: 100%;
+  position: relative;
 }
 
 .node-gdrive-sync-menu-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: stretch;
   width: 100%;
+  min-height: 34px;
   margin: 0;
-  padding: 8px 12px;
-  list-style: none;
-  border: 1px solid rgba(66, 133, 244, 0.28);
+  padding: 0;
+  border: 1px solid rgba(66, 133, 244, 0.32);
   border-radius: 10px;
   background:
     linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(52, 168, 83, 0.06) 45%, rgba(251, 188, 5, 0.07) 100%),
@@ -37341,52 +37361,108 @@ img.is-svg-media,
   color: #1e3a5f;
   font-size: 12px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   transition:
-    background 0.15s ease,
     border-color 0.15s ease,
-    opacity 0.15s ease;
+    box-shadow 0.15s ease;
 }
 
-.node-gdrive-sync-menu-trigger::-webkit-details-marker {
-  display: none;
+.node-gdrive-sync-menu-trigger-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 12px;
 }
 
-.node-gdrive-sync-menu-trigger:hover:not([disabled]) {
-  border-color: rgba(66, 133, 244, 0.45);
+.node-gdrive-sync-menu-trigger-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.node-gdrive-sync-menu-trigger-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(52, 168, 83, 0.16);
+  color: #166534;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.node-gdrive-sync-menu-trigger-badge.hidden {
+  visibility: hidden;
+}
+
+.node-gdrive-sync-menu-trigger:hover:not(:disabled) {
+  border-color: rgba(66, 133, 244, 0.5);
 }
 
 .node-gdrive-sync-menu-trigger.is-synced {
-  border-color: rgba(52, 168, 83, 0.35);
+  border-color: rgba(52, 168, 83, 0.4);
   background:
     linear-gradient(135deg, rgba(52, 168, 83, 0.1) 0%, rgba(66, 133, 244, 0.06) 100%),
     #f8fffb;
 }
 
-.node-gdrive-sync-menu-trigger[disabled] {
+.node-gdrive-sync-bar.is-open .node-gdrive-sync-menu-trigger {
+  border-color: rgba(66, 133, 244, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 0 0 2px rgba(66, 133, 244, 0.12);
+}
+
+.node-gdrive-sync-menu-trigger:disabled {
   opacity: 0.62;
   cursor: not-allowed;
 }
 
 .node-gdrive-sync-menu-trigger-chevron {
-  margin-left: auto;
-  font-size: 11px;
-  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  border-left: 1px solid rgba(66, 133, 244, 0.22);
+  border-radius: 0 9px 9px 0;
+  background: rgba(66, 133, 244, 0.1);
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.node-gdrive-sync-menu-trigger .node-gdrive-sync-btn-icon {
+  flex: 0 0 auto;
 }
 
 .node-gdrive-sync-menu-panel {
   position: absolute;
-  z-index: 40;
+  z-index: 80;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
+  min-height: 148px;
   padding: 8px;
   border: 1px solid rgba(66, 133, 244, 0.22);
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+.node-gdrive-sync-menu-panel[hidden] {
+  display: none !important;
 }
 
 .node-gdrive-sync-menu-group + .node-gdrive-sync-menu-group {
@@ -37395,8 +37471,9 @@ img.is-svg-media,
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-.node-gdrive-sync-menu-group.hidden {
-  display: none;
+.node-gdrive-sync-menu-group.is-empty .node-gdrive-sync-menu-list {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .node-gdrive-sync-menu-group-title {
@@ -37445,6 +37522,10 @@ img.is-svg-media,
 .node-gdrive-sync-bar.is-loading .node-gdrive-sync-menu-trigger {
   opacity: 0.72;
   pointer-events: none;
+}
+
+.node-entry-overview-media-asset-head.node-navigation-hero-main {
+  overflow: visible;
 }
 
 .node-ocr-sync-bar {
