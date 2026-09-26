@@ -41,7 +41,8 @@ function buildProjectSetupFlags(root) {
 }
 
 function buildMcpConnectInfo(root) {
-  const { SERVER_PORTS } = loadActionsModule();
+  const { getServerPortsPayload } = loadActionsModule();
+  const SERVER_PORTS = getServerPortsPayload();
   const cmsBaseUrl = `https://localhost:${SERVER_PORTS.editorHttps}`;
   const mcpServerPath = path.join(root, "mcp-server", "index.js");
 
@@ -90,7 +91,8 @@ function buildMcpConnectInfo(root) {
 }
 
 function buildMobileConnectInfo(environment) {
-  const { SERVER_PORTS } = loadActionsModule();
+  const { getServerPortsPayload } = loadActionsModule();
+  const SERVER_PORTS = getServerPortsPayload();
   const lanIp = String(environment?.host?.lanIp || "").trim();
   const voiceHttpsPort = SERVER_PORTS.voiceHttps;
   const voiceHttpPort = SERVER_PORTS.voiceHttp;
@@ -223,6 +225,8 @@ function parsePsElapsedSec(stdout) {
 
 async function probeServerStatus() {
   const root = getProjectRoot();
+  const { getServerPortsPayload } = loadActionsModule();
+  const ports = getServerPortsPayload();
   const pidFile = path.join(root, ".run", "agent-cms-https.pid");
   let supervisorPid = null;
   let supervisorAlive = false;
@@ -273,7 +277,10 @@ async function probeServerStatus() {
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
 
-  const [cmsPid, voicePid] = await Promise.all([getPortPid(3443), getPortPid(3488)]);
+  const [cmsPid, voicePid] = await Promise.all([
+    getPortPid(ports.editorHttps),
+    getPortPid(ports.voiceHttps)
+  ]);
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
   const running = cms || voice;
@@ -318,8 +325,8 @@ async function probeServerStatus() {
             ? "работает"
             : "остановлен",
     urls: {
-      cms: cms ? "https://localhost:3443" : null,
-      voice: voice ? "https://localhost:3488" : null
+      cms: cms ? `https://localhost:${ports.editorHttps}` : null,
+      voice: voice ? `https://localhost:${ports.voiceHttps}` : null
     }
   };
 }
@@ -352,10 +359,12 @@ function killProcessTree(pid, signal = "SIGTERM") {
 
 async function forceStopServerPorts() {
   const { execFileSync } = require("child_process");
-  const ports = [3488, 3088, 3443, 3000];
+  const { getServerPortsPayload } = loadActionsModule();
+  const ports = getServerPortsPayload();
+  const portList = [ports.voiceHttps, ports.voiceHttp, ports.editorHttps, ports.editorHttp];
   const pids = new Set();
 
-  for (const port of ports) {
+  for (const port of portList) {
     try {
       const stdout = execFileSync("lsof", ["-ti", `:${port}`], { encoding: "utf8", timeout: 2000 }).trim();
       for (const pid of stdout.split("\n")) {
@@ -758,11 +767,13 @@ if (!gotLock) {
         APP_PRODUCTS,
         CONTROL_SELF,
         SETUP_ACTIONS,
-        SERVER_PORTS,
+        getServerPortsPayload,
+        getChromeExtensionConfig,
         SERVER_TEST,
-        MCP_TEST,
-        CHROME_EXTENSION
+        MCP_TEST
       } = loadActionsModule();
+      const serverPorts = getServerPortsPayload();
+      const chromeExtension = getChromeExtensionConfig();
       const environment = await buildSystemEnvironment(root).catch(() => null);
       const server = await probeServerStatus();
       return {
@@ -771,13 +782,13 @@ if (!gotLock) {
         appProducts: APP_PRODUCTS,
         controlSelf: CONTROL_SELF,
         setupActionIds: SETUP_ACTIONS,
-        serverPorts: SERVER_PORTS,
+        serverPorts,
         serverTest: SERVER_TEST,
         mcpTest: MCP_TEST,
         mcpConnect: buildMcpConnectInfo(root),
         chromeExtension: {
-          ...CHROME_EXTENSION,
-          folderPath: path.join(root, CHROME_EXTENSION.folderName)
+          ...chromeExtension,
+          folderPath: path.join(root, chromeExtension.folderName)
         },
         environment,
         mobileConnect: buildMobileConnectInfo(environment),

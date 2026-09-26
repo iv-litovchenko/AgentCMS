@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/load-agent-cms-env.sh
+. "$ROOT/scripts/load-agent-cms-env.sh"
 RUN_DIR="$ROOT/.run"
 PID_FILE="$RUN_DIR/agent-cms-https.pid"
 LOG_FILE="$RUN_DIR/agent-cms-https.log"
@@ -27,7 +29,12 @@ is_running() {
 }
 
 server_listening() {
-  lsof -ti :3443 >/dev/null 2>&1 && lsof -ti :3488 >/dev/null 2>&1
+  lsof -ti :"$AGENT_CMS_EDITOR_HTTPS_PORT" >/dev/null 2>&1 && lsof -ti :"$AGENT_CMS_VOICE_HTTPS_PORT" >/dev/null 2>&1
+}
+
+print_https_urls() {
+  echo "$AGENT_CMS_EDITOR_HTTPS_URL"
+  echo "$AGENT_CMS_VOICE_HTTPS_URL"
 }
 
 start_direct() {
@@ -35,15 +42,13 @@ start_direct() {
 
   if is_running && server_listening; then
     echo "Уже запущен (supervisor PID $(cat "$PID_FILE"))."
-    echo "https://localhost:3443"
-    echo "https://localhost:3488"
+    print_https_urls
     return 0
   fi
 
   if server_listening; then
     echo "Agent CMS уже работает."
-    echo "https://localhost:3443"
-    echo "https://localhost:3488"
+    print_https_urls
     return 0
   fi
 
@@ -63,8 +68,7 @@ start_direct() {
     if server_listening; then
       rm -f "$LOCK_FILE"
       echo "Agent CMS запущен в фоне (supervisor PID $(cat "$PID_FILE"))."
-      echo "https://localhost:3443"
-      echo "https://localhost:3488"
+      print_https_urls
       echo "Лог: .run/agent-cms-https.log"
       echo "Остановка: Agent CMS Control или commands/server-stop.command"
       return 0
@@ -86,8 +90,7 @@ start_via_terminal() {
 
   if server_listening; then
     echo "Agent CMS уже работает."
-    echo "https://localhost:3443"
-    echo "https://localhost:3488"
+    print_https_urls
     return 0
   fi
 
@@ -99,8 +102,7 @@ start_via_terminal() {
         if server_listening; then
           rm -f "$LOCK_FILE"
           echo "Agent CMS запущен."
-          echo "https://localhost:3443"
-          echo "https://localhost:3488"
+          print_https_urls
           return 0
         fi
         sleep 0.5
@@ -116,8 +118,7 @@ start_via_terminal() {
     if server_listening; then
       rm -f "$LOCK_FILE"
       echo "Agent CMS запущен."
-      echo "https://localhost:3443"
-      echo "https://localhost:3488"
+      print_https_urls
       return 0
     fi
     sleep 0.5
@@ -125,13 +126,13 @@ start_via_terminal() {
 
   rm -f "$LOCK_FILE"
   echo "Сервер ещё стартует. Если открылось несколько окон Terminal — закройте лишние."
-  echo "https://localhost:3488"
+  echo "$AGENT_CMS_VOICE_HTTPS_URL"
   return 1
 }
 
 collect_port_pids() {
   local port pids seen="" pid
-  for port in 3488 3088 3443 3000; do
+  for port in "$AGENT_CMS_VOICE_HTTPS_PORT" "$AGENT_CMS_VOICE_HTTP_PORT" "$AGENT_CMS_EDITOR_HTTPS_PORT" "$AGENT_CMS_EDITOR_HTTP_PORT"; do
     while IFS= read -r pid; do
       [[ -n "$pid" ]] || continue
       case " $seen " in
@@ -220,7 +221,7 @@ stop_server() {
   rm -f "$LOCK_FILE"
 
   if [[ "$still_listening" -eq 1 ]]; then
-    echo "Не удалось полностью остановить сервер — порты 3443/3488 всё ещё заняты."
+    echo "Не удалось полностью остановить сервер — порты ${AGENT_CMS_EDITOR_HTTPS_PORT}/${AGENT_CMS_VOICE_HTTPS_PORT} всё ещё заняты."
     return 1
   fi
 

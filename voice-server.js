@@ -19,6 +19,7 @@ const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler
 } = require("./lib/https-redirect");
+const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } = require("./lib/agent-cms-ports");
 const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
 
 const ROOT = __dirname;
@@ -285,14 +286,19 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
 
     if (ext === ".html" && safePath === "shell/index.html") {
       const html = content.toString("utf-8");
-      if (!html.includes('name="agent-cms-voice-app"')) {
-        content = Buffer.from(
-          html.replace(
-            "<head>",
-            '<head>\n    <meta name="agent-cms-voice-app" content="1" />'
-          )
+      const ports = getAgentCmsPorts();
+      let next = html;
+      if (!next.includes('name="agent-cms-voice-app"')) {
+        next = next.replace(
+          "<head>",
+          '<head>\n    <meta name="agent-cms-voice-app" content="1" />'
         );
       }
+      if (!next.includes("__AGENT_CMS_PORTS__")) {
+        const script = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(ports)};</script>`;
+        next = next.replace("<head>", `<head>\n    ${script}`);
+      }
+      content = Buffer.from(next);
     }
 
     res.writeHead(200, {
@@ -415,9 +421,14 @@ async function startVoiceServer(options = {}) {
 
   agentRegistry.init(options.root || ROOT);
 
+  const root = options.root || ROOT;
+  hydrateProcessEnvFromRoot(root);
+  syncLegacyPortEnvVars();
+  const configuredPorts = getAgentCmsPorts();
+
   const host = options.host ?? process.env.VOICE_HOST ?? process.env.HOST ?? "127.0.0.1";
-  const port = Number(options.port ?? process.env.VOICE_PORT ?? 3088);
-  const tlsPort = Number(options.tlsPort ?? process.env.VOICE_TLS_PORT ?? 3488);
+  const port = Number(options.port ?? configuredPorts.voiceHttp);
+  const tlsPort = Number(options.tlsPort ?? configuredPorts.voiceHttps);
   const tryNextPort = Boolean(options.tryNextPort);
   const handler = createVoiceRequestHandler();
   const lanIp = getLanIPv4(options.root || ROOT);
@@ -510,6 +521,8 @@ async function stopVoiceServer() {
 }
 
 if (require.main === module) {
+  hydrateProcessEnvFromRoot(ROOT);
+  syncLegacyPortEnvVars();
   startVoiceServer({ root: ROOT, tryNextPort: false })
     .then((info) => {
       if (info.httpUrl) {

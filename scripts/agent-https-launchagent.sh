@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/load-agent-cms-env.sh
+. "$ROOT/scripts/load-agent-cms-env.sh"
 RUN_DIR="$ROOT/.run"
 LOG_FILE="$RUN_DIR/agent-cms-https.log"
 LABEL="com.agentcms.https"
@@ -20,13 +22,13 @@ launch_target() {
 }
 
 server_listening() {
-  lsof -ti :3443 >/dev/null 2>&1 && lsof -ti :3488 >/dev/null 2>&1
+  lsof -ti :"$AGENT_CMS_EDITOR_HTTPS_PORT" >/dev/null 2>&1 && lsof -ti :"$AGENT_CMS_VOICE_HTTPS_PORT" >/dev/null 2>&1
 }
 
 stop_by_port() {
   local stopped=0
   local port
-  for port in 3488 3088 3443 3000; do
+  for port in "$AGENT_CMS_VOICE_HTTPS_PORT" "$AGENT_CMS_VOICE_HTTP_PORT" "$AGENT_CMS_EDITOR_HTTPS_PORT" "$AGENT_CMS_EDITOR_HTTP_PORT"; do
     local pids
     pids="$(lsof -ti :"$port" 2>/dev/null || true)"
     if [[ -n "$pids" ]]; then

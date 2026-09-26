@@ -1,3 +1,27 @@
+const path = require("path");
+
+function getProjectRootFromActions() {
+  return path.join(__dirname, "..", "..");
+}
+
+function getServerPorts() {
+  const root = getProjectRootFromActions();
+  const portsMod = require(path.join(root, "lib", "agent-cms-ports"));
+  portsMod.hydrateProcessEnvFromRoot(root);
+  return portsMod.getAgentCmsPorts();
+}
+
+function getChromeExtensionConfig() {
+  const ports = getServerPorts();
+  return {
+    name: "Agent Shell Companion",
+    folderName: "browser-extension",
+    extensionsUrl: "chrome://extensions",
+    cmsUrl: `https://localhost:${ports.editorHttps}`,
+    voiceUrl: `https://localhost:${ports.voiceHttps}`
+  };
+}
+
 const ACTIONS = [
   {
     id: "install-deps",
@@ -155,14 +179,6 @@ const CONTROL_SELF = {
 
 const SETUP_ACTIONS = ["install-deps", "setup-certs", "setup-desktop-shortcuts"];
 
-const SERVER_PORTS = {
-  controlNote: "Agent CMS Control — desktop-приложение, порта нет",
-  editorHttps: 3443,
-  editorHttp: 3000,
-  voiceHttps: 3488,
-  voiceHttp: 3088
-};
-
 const SERVER_TEST = {
   path: "/",
   hint: "CMS отвечает по HTTPS"
@@ -173,21 +189,22 @@ const MCP_TEST = {
   hint: "test_mcp_connection — JSON с ok и mcpVersion"
 };
 
-const CHROME_EXTENSION = {
-  name: "Agent Shell Companion",
-  folderName: "browser-extension",
-  extensionsUrl: "chrome://extensions",
-  cmsUrl: "https://localhost:3443",
-  voiceUrl: "https://localhost:3488"
-};
+function getServerPortsPayload() {
+  const ports = getServerPorts();
+  return {
+    controlNote: "Agent CMS Control — desktop-приложение, порта нет",
+    ...ports
+  };
+}
 
 module.exports = {
   ACTIONS,
   APP_PRODUCTS,
   CONTROL_SELF,
   SETUP_ACTIONS,
-  SERVER_PORTS,
+  getServerPorts,
+  getServerPortsPayload,
+  getChromeExtensionConfig,
   SERVER_TEST,
-  MCP_TEST,
-  CHROME_EXTENSION
+  MCP_TEST
 };

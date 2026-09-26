@@ -1,8 +1,7 @@
 /** HTTPS / mic permissions for iPhone Safari (shared desktop + mobile). */
 
 import { buildVoiceShellPath, parseVoiceShellPath } from "./voice-chpu.js";
-
-const VOICE_TLS_PORT = 3488;
+import { resolveVoiceTlsPort } from "./shell-ports.js";
 
 function resolveHostname(hostname = window.location.hostname) {
   const host = String(hostname || "").trim();
@@ -36,7 +35,7 @@ function normalizeShellPath(shellPath) {
 export function getShellHttpsUrl(hostname = window.location.hostname, shellPath) {
   const host = resolveHostname(hostname);
   const path = normalizeShellPath(shellPath);
-  return `https://${host}:${VOICE_TLS_PORT}${path}`;
+  return `https://${host}:${resolveVoiceTlsPort()}${path}`;
 }
 
 export function isShellSecureContext() {
@@ -56,7 +55,7 @@ export function shellPermissionIssue({ shellPath } = {}) {
     body: onLan
       ? "Сейчас страница открыта по HTTP (например http://192.168…). Браузер не даст микрофон без HTTPS."
       : "Сейчас страница не в защищённом контексте (HTTPS). Без этого микрофон и Web Speech недоступны.",
-    hint: "Запустите npm run start:https и откройте ссылку ниже (порт 3488).",
+    hint: `Запустите npm run start:https и откройте ссылку ниже (порт ${resolveVoiceTlsPort()}).`,
     httpsUrl,
     currentUrl: window.location.href
   };
@@ -107,10 +106,10 @@ export function describeMicPermissionDialog({ shellPath, reason = "insecure" } =
       issue?.body ||
         `${browserLabel} не даёт микрофон по HTTP — только по HTTPS.`,
       `Откройте: ${httpsUrl}`,
-      "На Mac: npm run start:https (Voice на порту 3488).",
+      `На Mac: npm run start:https (Voice на порту ${resolveVoiceTlsPort()}).`,
       isMobile
-        ? "iPhone и Mac — одна Wi‑Fi; с телефона: https://IP-Mac:3488/…"
-        : "http://192.168… в Chrome тоже без микрофона — нужен https://…:3488",
+        ? `iPhone и Mac — одна Wi‑Fi; с телефона: https://IP-Mac:${resolveVoiceTlsPort()}/…`
+        : `http://192.168… в Chrome тоже без микрофона — нужен https://…:${resolveVoiceTlsPort()}`,
       `После HTTPS ${browserLabel} спросит «Разрешить микрофон?» — нажмите Разрешить.`
     ],
     httpsUrl,

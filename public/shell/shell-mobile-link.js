@@ -2,9 +2,11 @@
 
 import { buildVoiceShellPath } from "./voice-chpu.js";
 import { renderMobileQr } from "./shell-qr.js";
+import { readAgentCmsPorts } from "./shell-ports.js";
 
-export const VOICE_TLS_PORT = 3488;
-export const VOICE_HTTP_PORT = 3088;
+export function getVoicePorts() {
+  return readAgentCmsPorts();
+}
 
 function isPrivateLanHost(host) {
   const value = String(host || "").trim();
@@ -40,7 +42,7 @@ export function resolveMobileHost(lanIp, fallbackHostname = window.location.host
 export function buildMkcertCaHttpUrl({
   lanIp = null,
   hostname = window.location.hostname,
-  port = VOICE_HTTP_PORT
+  port = getVoicePorts().voiceHttp
 } = {}) {
   const host = resolveMobileHost(lanIp, hostname);
   return `http://${host}:${port}/dev/mkcert-root-ca.pem`;
@@ -49,7 +51,7 @@ export function buildMobileVoiceUrl({
   agentId = "",
   lanIp = null,
   hostname = window.location.hostname,
-  port = VOICE_TLS_PORT
+  port = getVoicePorts().voiceHttps
 } = {}) {
   const host = resolveMobileHost(lanIp, hostname);
   const path = buildVoiceShellPath(String(agentId || "").trim());
@@ -65,11 +67,12 @@ export async function resolveMobileVoiceUrl(agentId = "") {
   } catch {
     hostUsed = resolveMobileHost(lanIp);
   }
+  const ports = getVoicePorts();
   return {
     url,
     lanIp,
     hostUsed,
-    port: VOICE_TLS_PORT,
+    port: ports.voiceHttps,
     agentId: String(agentId || "").trim(),
     usesLoopback: hostUsed === "127.0.0.1" || hostUsed === "localhost"
   };

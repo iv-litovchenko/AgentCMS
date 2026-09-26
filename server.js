@@ -17235,6 +17235,11 @@ async function serveIndexHtml(res, reqHost = "") {
     const script = `<script>window.__AGENT_CMS_VOICE_URL__=${JSON.stringify(voiceBase)};</script>`;
     content = content.replace("<head>", `<head>\n    ${script}`);
   }
+  if (!content.includes("__AGENT_CMS_PORTS__")) {
+    const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getAgentCmsPorts())};</script>`;
+    content = content.replace("<head>", `<head>\n    ${portsScript}`);
+  }
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -17251,11 +17256,14 @@ function voicePublicBaseUrl() {
   if (voiceServerInfo?.httpUrl && !isTlsEnabled()) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
   if (isTlsEnabled()) {
     const host = process.env.VOICE_HOST || process.env.HOST || "localhost";
-    const port = Number(process.env.VOICE_TLS_PORT || 3488);
+    const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+    const port = getAgentCmsPorts().voiceHttps;
     return `https://${host}:${port}`;
   }
   if (voiceServerInfo?.httpUrl) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
-  const port = Number(process.env.VOICE_PORT || 3088);
+  const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+  const ports = getAgentCmsPorts();
+  const port = ports.voiceHttp;
   const host = process.env.VOICE_HOST || "localhost";
   return `http://${host}:${port}`;
 }
@@ -29003,6 +29011,11 @@ async function startServer(options = {}) {
     await stopServer();
   }
 
+  const portsMod = require("./lib/agent-cms-ports");
+  const projectRootForEnv = options.root || __dirname;
+  portsMod.hydrateProcessEnvFromRoot(projectRootForEnv);
+  portsMod.syncLegacyPortEnvVars();
+
   initProjectRoot(options.root || __dirname, {
     appRoot: options.appRoot || __dirname
   });
@@ -29037,9 +29050,11 @@ async function startServer(options = {}) {
     console.warn("Agent CMS layout migration skipped:", error?.message || error);
   }
 
+  const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+  const configuredPorts = getAgentCmsPorts();
   const host = options.host ?? process.env.HOST ?? undefined;
-  const port = Number(options.port ?? process.env.PORT ?? 3000);
-  const tlsPort = Number(process.env.TLS_PORT ?? 3443);
+  const port = Number(options.port ?? configuredPorts.editorHttp);
+  const tlsPort = Number(options.tlsPort ?? configuredPorts.editorHttps);
   const tryNextPort = Boolean(options.tryNextPort);
   const handler = createRequestHandler();
   const lanIp = getLanIPv4(options.root || __dirname);
@@ -29198,6 +29213,9 @@ function attachProcessDiagnostics() {
 
 if (require.main === module) {
   attachProcessDiagnostics();
+  const portsMod = require("./lib/agent-cms-ports");
+  portsMod.hydrateProcessEnvFromRoot(__dirname);
+  portsMod.syncLegacyPortEnvVars();
   startServer({ root: __dirname, tryNextPort: false })
     .then((info) => {
       if (info.httpUrl) {
