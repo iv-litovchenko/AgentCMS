@@ -173,7 +173,7 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "slug").trim();
   const row = {};
   const code = String(
-    recordData["awn-code"] || recordData.code || recordData["awn-id"] || recordData.id || ""
+    recordData["awn-id"] || recordData["awn-code"] || recordData.code || recordData.id || ""
   ).trim();
   const label = String(
     recordData["awn-name"] ||
@@ -186,8 +186,14 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
   ).trim();
 
   for (const col of schemaColumns) {
-    if (col === "awn-code" || col === "code") {
+    if (col === "awn-id" || col === "awn-code" || col === "code") {
       row[col] = code;
+      continue;
+    }
+    if (col === "awn-parent" || col === "awn-pid") {
+      row[col] = String(
+        recordData["awn-parent"] || recordData["awn-pid"] || recordData.parent || ""
+      ).trim();
       continue;
     }
     if (recordData[col] !== undefined) {
@@ -201,6 +207,7 @@ function buildCsvRowObject(recordData, schemaColumns, schema) {
     row[col] = "";
   }
 
+  if (!row["awn-id"] && code) row["awn-id"] = code;
   if (!row["awn-code"] && !row.code && code) row["awn-code"] = code;
   if (idMode === "slug" && !row["awn-code"] && label) row["awn-code"] = label;
   return row;
@@ -216,6 +223,7 @@ function normalizeCsvRowToSchemaColumns(rowObj, schemaColumns, schema, fileColum
     normalized[col] = String(rowObj[col] ?? "").trim();
   }
 
+  if (!normalized["awn-id"]) normalized["awn-id"] = id;
   if (!normalized["awn-code"] && !normalized.code) normalized["awn-code"] = id;
   if (!normalized["awn-name"] && !normalized["awn-label"] && !normalized.label) {
     normalized["awn-name"] = String(
@@ -230,7 +238,7 @@ function normalizeCsvRowToSchemaColumns(rowObj, schemaColumns, schema, fileColum
 
 function resolveCsvId(rowObj, columns, idMode) {
   const code = String(
-    rowObj["awn-code"] || rowObj.code || rowObj["awn-id"] || rowObj.id || rowObj.tag || ""
+    rowObj["awn-id"] || rowObj["awn-code"] || rowObj.code || rowObj.id || rowObj.tag || ""
   ).trim();
   if (code) return code;
   const firstCol = columns[0];
@@ -257,10 +265,14 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
       for (let i = 0; i < normalizedCols.length; i += 1) {
         frontmatter[normalizedCols[i]] = String(cells[i] ?? "").trim();
       }
-      const id = resolveCsvId(frontmatter, normalizedCols, idMode);
+      let id = String(frontmatter["awn-id"] || "").trim();
+      if (!id) id = resolveCsvId(frontmatter, normalizedCols, idMode);
       if (!id) return null;
+      frontmatter["awn-id"] = id;
       frontmatter["awn-code"] = frontmatter["awn-code"] || frontmatter.code || id;
       frontmatter.code = frontmatter.code || id;
+      const parent =
+        String(frontmatter["awn-parent"] || frontmatter["awn-pid"] || "").trim() || null;
       const title = String(
         frontmatter["awn-name"] ||
           frontmatter["awn-label"] ||
@@ -272,7 +284,7 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
       ).trim();
       return {
         id,
-        parent: null,
+        parent,
         relPath,
         fileName: csvFile,
         rowIndex: rowIndex + 1,
@@ -302,8 +314,10 @@ function appendCsvRecord(storeAbs, schema, recordData) {
   }
 
   const newRow = buildCsvRowObject(recordData, schemaColumns, schema);
-  const newCode = String(newRow["awn-code"] || newRow.code || "").trim();
-  if (newCode && !objects.some((row) => String(row["awn-code"] || row.code || "").trim() === newCode)) {
+  const rowRecordId = (row) =>
+    String(row["awn-id"] || row["awn-code"] || row.code || "").trim();
+  const newCode = rowRecordId(newRow);
+  if (newCode && !objects.some((row) => rowRecordId(row) === newCode)) {
     objects.push(newRow);
   }
 

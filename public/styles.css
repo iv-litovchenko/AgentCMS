@@ -46450,8 +46450,8 @@ button.node-navigation-memory-title:focus-visible {
 
 .props-form-taxonomy-section {
   display: grid;
-  gap: 8px;
-  padding: 10px 0;
+  gap: 6px;
+  padding: 6px 0;
   border-top: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.25));
 }
 
@@ -46459,41 +46459,90 @@ button.node-navigation-memory-title:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  min-height: 0;
 }
 
+.doc-props-aside .props-form-taxonomy-block,
 .doc-props-aside .props-form-taxonomy-list-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 0;
+  padding: 0;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 6px;
   background: #fff;
+  overflow: hidden;
 }
 
+.doc-props-aside .props-form-taxonomy-block .props-form-taxonomy-section-head,
 .doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-section-head {
   margin: 0;
-  padding: 0 0 2px;
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.18);
+  background: rgba(245, 243, 255, 0.95);
 }
 
+.doc-props-aside .props-form-taxonomy-block .props-form-taxonomy-section-head .props-form-catalog-group-title,
 .doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-section-head .props-form-catalog-group-title {
   margin: 0;
+  padding-top: 0;
+  line-height: 1.2;
 }
 
+.doc-props-aside .props-form-taxonomy-block .props-form-taxonomy-section-head .props-form-taxonomy-add-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  font-size: 14px;
+}
+
+.doc-props-aside .props-form-taxonomy-block > .props-form-taxonomy-add:not(.is-open) {
+  display: none;
+}
+
+.doc-props-aside .props-form-taxonomy-block > .props-form-taxonomy-add.is-open {
+  padding: 8px 8px 0;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.doc-props-aside .props-form-taxonomy-block .props-form-tags-list,
 .doc-props-aside .props-form-taxonomy-list-block .props-form-tags-list {
   max-height: 160px;
   margin: 0;
-  padding: 4px 0 0;
+  padding: 6px 8px 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
-.doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-add-form {
-  margin-bottom: 2px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+.doc-props-aside .props-form-taxonomy-block .props-form-tags-list--taxonomy-tree .props-form-tag-option {
+  white-space: nowrap;
+  min-width: max-content;
+}
+
+.doc-props-aside .props-form-taxonomy-block .props-form-tags-list--taxonomy-tree .props-form-tag-option span {
+  flex: 0 0 auto;
+}
+
+.doc-props-aside .props-form-taxonomy-block .props-form-taxonomy-add-form,
+.doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-add-form,
+.doc-props-aside .props-form-taxonomy-block .props-form-catalog-add-form.props-form-taxonomy-add-form {
+  margin: 0;
+  padding: 0 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.doc-props-aside .props-form-taxonomy-block .props-form-taxonomy-value-select {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  margin: 6px 8px 8px;
 }
 
 .props-form-taxonomy-control-row {

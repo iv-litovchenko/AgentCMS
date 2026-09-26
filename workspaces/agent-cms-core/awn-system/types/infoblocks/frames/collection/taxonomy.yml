@@ -25,7 +25,7 @@ fields:
   awn-taxonomy-hierarchy:
     type: awn.field.boolean
     title: "{A2!} Иерархия значений"
-    description: Дерево кодов в справочнике (awn-pid в CSV)
+    description: Дерево кодов в справочнике (awn-parent в CSV)
     placement: aside-body
     group: infoblock
     sort: 11

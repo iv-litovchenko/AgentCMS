@@ -55085,7 +55085,7 @@ function appendPropsFormCatalogTagOptions(list, items, selected, locked) {
     checkbox.checked = selected.has(item.id);
     checkbox.disabled = locked;
     const caption = document.createElement("span");
-    caption.textContent = item.label || `#${item.id}`;
+    caption.textContent = getTaxonomyItemDisplayName(item) || `#${item.id}`;
     label.append(checkbox, caption);
     list.appendChild(label);
   }
@@ -56148,6 +56148,51 @@ function applyTaxonomyItemToPropsEntry(taxonomyKey, cardinality, itemId) {
   propsFormEntries[index] = { ...entry, kind: "taxonomy", value };
 }
 
+function getTaxonomyItemPlainName(item) {
+  return String(item?.name || item?.label || "").trim() || String(item?.id || "").trim();
+}
+
+function getTaxonomyItemDisplayName(item) {
+  const withTree = String(item?.label ?? "").trim();
+  if (withTree) return withTree;
+  return getTaxonomyItemPlainName(item);
+}
+
+function getTaxonomyItemStoredId(item) {
+  return String(item?.id || "").trim();
+}
+
+function buildTaxonomyParentSelectItems(items) {
+  const list = Array.isArray(items) ? items.filter((item) => item?.id) : [];
+  const ids = new Set(list.map((item) => item.id));
+  const byParent = new Map();
+  for (const item of list) {
+    const pid = String(item.parent || "").trim();
+    const parentKey = pid && ids.has(pid) ? pid : "";
+    if (!byParent.has(parentKey)) byParent.set(parentKey, []);
+    byParent.get(parentKey).push(item);
+  }
+  const sortSiblings = (arr) =>
+    [...arr].sort((a, b) =>
+      getTaxonomyItemPlainName(a).localeCompare(getTaxonomyItemPlainName(b), "ru")
+    );
+  const result = [];
+  const walk = (parentKey, depth) => {
+    for (const item of sortSiblings(byParent.get(parentKey) || [])) {
+      const indent = depth > 0 ? `${"— ".repeat(depth)}` : "";
+      result.push({ id: item.id, label: `${indent}${getTaxonomyItemPlainName(item)}` });
+      walk(item.id, depth + 1);
+    }
+  };
+  walk("", 0);
+  for (const item of list) {
+    if (!result.some((entry) => entry.id === item.id)) {
+      result.push({ id: item.id, label: getTaxonomyItemPlainName(item) });
+    }
+  }
+  return result;
+}
+
 async function submitPropsTaxonomyAdd(definition, payload) {
   const raw = typeof payload === "string" ? { code: payload } : payload || {};
   const name = String(raw.name ?? raw.title ?? "").trim();
@@ -56157,6 +56202,7 @@ async function submitPropsTaxonomyAdd(definition, payload) {
   const storeRel = String(definition?.storeRel || "").trim();
   if (!storeRel) throw new Error("Справочник не найден");
   const displayName = name || id;
+  const parent = String(raw.parent ?? "").trim();
 
   const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeAgentId), {
     method: "POST",
@@ -56165,7 +56211,8 @@ async function submitPropsTaxonomyAdd(definition, payload) {
       store: storeRel,
       id,
       name: displayName,
-      title: displayName
+      title: displayName,
+      parent
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -56216,12 +56263,35 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
   codeField.append(codeCaption, codeInput);
   form.appendChild(codeField);
 
-  const codeSlugController = createSlugFieldController({
-    nameInput,
-    slugInput: codeInput,
-    unlinkBtn: null
+  let parentSelect = null;
+  if (definition?.hierarchy) {
+    const parentField = document.createElement("label");
+    parentField.className = "props-form-catalog-add-field";
+    const parentCaption = document.createElement("span");
+    parentCaption.textContent = "Родитель";
+    parentSelect = document.createElement("select");
+    parentSelect.className = "props-form-value";
+    appendPropsFormSelectOption(parentSelect, "", "— корень —");
+    for (const item of buildTaxonomyParentSelectItems(definition.items || [])) {
+      appendPropsFormSelectOption(parentSelect, item.id, item.label);
+    }
+    parentField.append(parentCaption, parentSelect);
+    form.appendChild(parentField);
+  }
+
+  let codeLinkedToName = true;
+  const syncCodeFromName = () => {
+    if (!codeLinkedToName) return;
+    codeInput.value = nameInput.value;
+  };
+  const resetCodeLink = () => {
+    codeLinkedToName = true;
+    syncCodeFromName();
+  };
+  nameInput.addEventListener("input", syncCodeFromName);
+  codeInput.addEventListener("input", () => {
+    codeLinkedToName = false;
   });
-  codeInput.addEventListener("input", () => codeSlugController.setLinked(false));
 
   const actions = document.createElement("div");
   actions.className = "props-form-catalog-add-actions";
@@ -56240,12 +56310,16 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     form.classList.toggle("hidden", !open);
     panel.classList.toggle("is-open", open);
     if (open) {
-      codeSlugController.reset();
+      nameInput.value = "";
+      codeInput.value = "";
+      if (parentSelect) parentSelect.value = "";
+      codeLinkedToName = true;
       window.requestAnimationFrame(() => nameInput.focus());
     } else {
       nameInput.value = "";
       codeInput.value = "";
-      codeSlugController.reset();
+      if (parentSelect) parentSelect.value = "";
+      codeLinkedToName = true;
     }
   };
 
@@ -56255,6 +56329,7 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     cancelBtn.disabled = loading;
     nameInput.disabled = loading;
     codeInput.disabled = loading;
+    if (parentSelect) parentSelect.disabled = loading;
     if (panel._addBtn) panel._addBtn.disabled = loading;
     let spinner = saveBtn.querySelector(".props-form-taxonomy-add-spinner");
     if (loading) {
@@ -56278,7 +56353,8 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
       try {
         await submitPropsTaxonomyAdd(definition, {
           name: nameInput.value.trim(),
-          code: codeInput.value.trim()
+          code: codeInput.value.trim(),
+          parent: parentSelect?.value?.trim() || ""
         });
         setOpen(false);
       } catch (error) {
@@ -56325,18 +56401,13 @@ function createPropsFormTaxonomyAddButton(definition, addPanel, { locked = false
   return button;
 }
 
-function createPropsFormTaxonomyManySection(definition, selectedValues, { locked = false } = {}) {
-  const section = document.createElement("div");
-  section.className = "props-form-taxonomy-section";
-  section.dataset.taxonomyKey = definition.key;
-  section.dataset.taxonomyCardinality = "many";
-
+function createPropsFormTaxonomySectionBlock(definition, { locked = false } = {}) {
   const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
   const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
   addPanel._addBtn = addBtn;
 
-  const listBlock = document.createElement("div");
-  listBlock.className = "props-form-taxonomy-list-block";
+  const block = document.createElement("div");
+  block.className = "props-form-taxonomy-block";
 
   const head = document.createElement("div");
   head.className = "props-form-taxonomy-section-head";
@@ -56344,19 +56415,30 @@ function createPropsFormTaxonomyManySection(definition, selectedValues, { locked
   title.className = "props-form-catalog-group-title";
   title.textContent = definition.name || definition.key;
   head.append(title, addBtn);
-  listBlock.append(head, addPanel);
+  block.append(head, addPanel);
+
+  return { block, addPanel, addBtn };
+}
+
+function createPropsFormTaxonomyManySection(definition, selectedValues, { locked = false } = {}) {
+  const section = document.createElement("div");
+  section.className = "props-form-taxonomy-section";
+  section.dataset.taxonomyKey = definition.key;
+  section.dataset.taxonomyCardinality = "many";
+
+  const { block: listBlock } = createPropsFormTaxonomySectionBlock(definition, { locked });
 
   const selected = new Set(normalizeTaxonomyEntryValue(selectedValues, "many"));
   const items = definition.items || [];
   const knownIds = new Set(items.map((item) => item.id));
   const extraTags = [...selected].filter((id) => !knownIds.has(id));
   const listItems = [
-    ...items,
+    ...buildTaxonomyParentSelectItems(items),
     ...extraTags.map((id) => ({ id, label: id }))
   ];
 
   const list = document.createElement("div");
-  list.className = "props-form-tags-list";
+  list.className = "props-form-tags-list props-form-tags-list--taxonomy-tree";
   if (!listItems.length) {
     list.appendChild(createPropsFormCatalogMissingNote("Справочник пуст"));
   } else {
@@ -56382,27 +56464,22 @@ function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked =
   section.dataset.taxonomyKey = definition.key;
   section.dataset.taxonomyCardinality = "one";
 
-  const title = document.createElement("div");
-  title.className = "props-form-catalog-group-title";
-  title.textContent = definition.name || definition.key;
-  section.appendChild(title);
+  const { block } = createPropsFormTaxonomySectionBlock(definition, { locked });
 
   const items = definition.items || [];
-  const controlRow = document.createElement("div");
-  controlRow.className = "props-form-taxonomy-control-row";
   const select = document.createElement("select");
-  select.className = "props-form-value";
+  select.className = "props-form-value props-form-taxonomy-value-select";
   const current = normalizeTaxonomyEntryValue(selectedValue, "one");
   appendPropsFormSelectOption(select, "", "— не задано —", { selected: !current });
-  for (const item of items) {
-    appendPropsFormSelectOption(select, item.id, item.label || item.id, { selected: item.id === current });
+  for (const item of buildTaxonomyParentSelectItems(items)) {
+    const storedId = getTaxonomyItemStoredId(item);
+    appendPropsFormSelectOption(select, storedId, getTaxonomyItemDisplayName(item), {
+      selected: storedId === current
+    });
   }
   bindPropsFormLockedState(select, locked);
-  const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
-  const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
-  addPanel._addBtn = addBtn;
-  controlRow.append(select, addBtn);
-  section.append(controlRow, addPanel);
+  block.appendChild(select);
+  section.appendChild(block);
   return section;
 }
 
