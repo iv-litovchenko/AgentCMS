@@ -29534,6 +29534,10 @@ a.header-tool-btn {
   margin: 0;
 }
 
+.doc-props-aside.doc-slab {
+  gap: 0;
+}
+
 .doc-props-aside {
   width: 100%;
   min-width: 0;
@@ -30179,7 +30183,7 @@ a.header-tool-btn {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
-  padding: 0 10px 10px;
+  padding: 8px 10px 10px;
   width: 100%;
   box-sizing: border-box;
 }
