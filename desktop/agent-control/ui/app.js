@@ -171,7 +171,8 @@ function getServerStatusDisplay(server) {
   }
 
   if (server.running) {
-    return { state: "on", label: "Запущен" };
+    const label = server.mode === "background" ? "Запущен (фон)" : "Запущен";
+    return { state: "on", label };
   }
 
   return { state: "off", label: "Остановлен" };
