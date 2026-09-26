@@ -41,7 +41,12 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "always-context-global-markdown-showcase": false,
   "always-context-md-files": ["AGENTS.md"],
   "always-context-ws-folder": "awn-shared/context/awn-storage/",
-  "default-workspace-id": ""
+  "default-workspace-id": "",
+  "media-cloud-default-provider": "google-drive",
+  "media-cloud-providers": [
+    { key: "google-drive", title: "Google Диск" },
+    { key: "yandex-disk", title: "Яндекс Диск" }
+  ]
 };
 
 const PLATFORM_FS_LIMITS = {
@@ -281,6 +286,31 @@ function migrateAlwaysContextMdFiles(flat = {}) {
   }
   if (!hasLegacy) return flat;
   return { ...flat, "always-context-md-files": selected };
+}
+
+function getMediaCloudProviders(settings = {}) {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const raw = normalized["media-cloud-providers"];
+  const list = Array.isArray(raw) ? raw : [];
+  const providers = list
+    .map((item) => ({
+      key: String(item?.key || "").trim(),
+      title: String(item?.title || "").trim() || String(item?.key || "").trim()
+    }))
+    .filter((item) => item.key);
+  if (providers.length) return providers;
+  return (PLATFORM_AGENT_SETTINGS_DEFAULTS["media-cloud-providers"] || []).map((item) => ({
+    key: String(item.key || "").trim(),
+    title: String(item.title || item.key || "").trim()
+  }));
+}
+
+function getMediaCloudDefaultProviderId(settings = {}) {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const value = String(normalized["media-cloud-default-provider"] || "").trim();
+  if (value) return value;
+  const first = getMediaCloudProviders(normalized)[0];
+  return first?.key || "google-drive";
 }
 
 function normalizePlatformAgentSettings(raw = {}) {
@@ -561,6 +591,8 @@ module.exports = {
   INTEGRATIONS_AGENT_SETTINGS_DEFAULTS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY,
   flattenAwnSettingsValues,
+  getMediaCloudProviders,
+  getMediaCloudDefaultProviderId,
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   normalizeUserAgentSettings,

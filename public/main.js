@@ -4392,7 +4392,7 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (parseStorageLayerRef(normalizedPart)) {
     return normalizedPart;
   }
-  if (/^(?:awn-container|awn-repositories|awn-databases|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
+  if (/^(?:awn-container|awn-repositories|awn-databases|awn-data|awn-media-cloud|awn-google-drive)\//i.test(normalizedPart)) {
     return normalizedPart;
   }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
@@ -23618,6 +23618,7 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
 
 const PLATFORM_DATA_ROOT_FOLDERS = new Set([
   "awn-databases",
+  "awn-media-cloud",
   "awn-google-drive",
   "awn-repositories",
   "awn-vendor"
@@ -104399,8 +104400,8 @@ function createGoogleDriveIconSvg() {
 function resolveGoogleDriveSyncedBadgeTitle(item) {
   const blob = String(item?.gdriveBlob || "").trim();
   return blob
-    ? `На Google Диске · awn-google-drive/${blob}`
-    : "На Google Диске · awn-google-drive";
+    ? `В облаке · awn-media-cloud/_blobs/${blob}`
+    : "В облаке · awn-media-cloud";
 }
 
 function createGoogleDriveSyncedBadge(item, { size = "sm" } = {}) {
@@ -104414,15 +104415,36 @@ function createGoogleDriveSyncedBadge(item, { size = "sm" } = {}) {
   return badge;
 }
 
-function resolveGoogleDriveSyncBarLabel(status) {
-  if (!status) return "Google Диск";
-  if (!status.exists) return "Файл не найден";
-  return status.synced ? "Вернуть с Google Диск" : "Отправить на Google Диск";
+let mediaCloudProvidersCache = null;
+
+async function fetchMediaCloudProviders({ force = false } = {}) {
+  if (!force && mediaCloudProvidersCache) return mediaCloudProvidersCache;
+  const response = await fetch(buildApiUrl("/api/media-cloud/providers"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  mediaCloudProvidersCache = {
+    defaultProvider: String(data.defaultProvider || "google-drive").trim() || "google-drive",
+    providers: Array.isArray(data.providers) ? data.providers : []
+  };
+  return mediaCloudProvidersCache;
 }
 
-async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePath = null } = {}) {
+function resolveGoogleDriveSyncMenuTriggerLabel(status) {
+  if (!status?.exists) return "Файл не найден";
+  const count = Array.isArray(status.providers) ? status.providers.length : 0;
+  if (status.synced && count > 0) {
+    return count === 1 ? "В облаке (1 сервис)" : `В облаке (${count} сервиса)`;
+  }
+  return "Отправить в облако";
+}
+
+async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePath = null, providerId = null } = {}) {
   const params = { path: manifestPath, scope };
   if (scope === "file" && filePath) params.file = filePath;
+  if (scope === "file" && providerId) params.provider = providerId;
   const response = await fetch(buildApiUrl("/api/gdrive/status", params));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -104431,14 +104453,20 @@ async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePa
   return response.json();
 }
 
-async function toggleGoogleDriveSyncRequest({ scope = "file", manifestPath, filePath = null } = {}) {
+async function toggleGoogleDriveSyncRequest({
+  scope = "file",
+  manifestPath,
+  filePath = null,
+  providerId = null
+} = {}) {
   const response = await fetch(buildApiUrl("/api/gdrive/toggle"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       path: manifestPath,
       scope,
-      file: scope === "file" ? filePath : undefined
+      file: scope === "file" ? filePath : undefined,
+      provider: scope === "file" ? providerId : undefined
     })
   });
   if (!response.ok) {
@@ -104448,40 +104476,91 @@ async function toggleGoogleDriveSyncRequest({ scope = "file", manifestPath, file
   return response.json();
 }
 
-async function refreshGoogleDriveSyncButton(button, config = {}) {
-  if (!button) return;
-  button.disabled = true;
-  button.classList.add("is-loading");
+function renderGoogleDriveSyncMenuItems(bar, providers, status) {
+  const sendList = bar.querySelector('[data-cloud-menu="send"]');
+  const retrieveList = bar.querySelector('[data-cloud-menu="retrieve"]');
+  const retrieveGroup = bar.querySelector('[data-cloud-menu-group="retrieve"]');
+  if (!sendList || !retrieveList || !retrieveGroup) return;
+
+  const activeIds = new Set(Array.isArray(status?.providers) ? status.providers : []);
+  const canSend = Boolean(status?.exists);
+  const canRetrieve = Boolean(status?.synced) && activeIds.size > 0;
+
+  sendList.replaceChildren(
+    ...providers.map((provider) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "node-gdrive-sync-menu-item";
+      btn.dataset.providerId = provider.key;
+      btn.dataset.cloudAction = "send";
+      btn.textContent = provider.title || provider.key;
+      const already = activeIds.has(provider.key);
+      btn.disabled = !canSend || already;
+      if (already) btn.title = "Уже в этом облаке";
+      return btn;
+    })
+  );
+
+  retrieveList.replaceChildren(
+    ...providers.map((provider) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "node-gdrive-sync-menu-item node-gdrive-sync-menu-item--retrieve";
+      btn.dataset.providerId = provider.key;
+      btn.dataset.cloudAction = "retrieve";
+      btn.textContent = provider.title || provider.key;
+      btn.disabled = !canRetrieve || !activeIds.has(provider.key);
+      return btn;
+    })
+  );
+
+  retrieveGroup.classList.toggle("hidden", !canRetrieve);
+}
+
+async function refreshGoogleDriveSyncBar(bar, runtimeConfig = {}) {
+  if (!bar) return;
+  const details = bar.querySelector(".node-gdrive-sync-menu");
+  const triggerLabel = bar.querySelector(".node-gdrive-sync-menu-trigger-label");
+  const summary = bar.querySelector(".node-gdrive-sync-menu-trigger");
+  bar.classList.add("is-loading");
   try {
-    const status = await fetchGoogleDriveSyncStatus(config);
-    button.dataset.gdriveSynced = status.synced ? "1" : "0";
-    button.classList.toggle("is-synced", Boolean(status.synced));
-    const label = resolveGoogleDriveSyncBarLabel(status);
-    button.title = label;
-    button.setAttribute("aria-label", label);
-    const labelNode = button.querySelector(".node-gdrive-sync-btn-label");
-    if (labelNode) labelNode.textContent = label;
-    button.disabled = !status.exists;
+    const status = await fetchGoogleDriveSyncStatus(runtimeConfig);
+    bar._cloudSyncStatus = status;
+    const label = resolveGoogleDriveSyncMenuTriggerLabel(status);
+    if (triggerLabel) triggerLabel.textContent = label;
+    if (summary) {
+      summary.title = label;
+      summary.setAttribute("aria-label", label);
+      summary.classList.toggle("is-synced", Boolean(status.synced && status.providers?.length));
+      summary.toggleAttribute("disabled", !status.exists);
+    }
+    bar.dataset.gdriveSynced = status.synced ? "1" : "0";
+    renderGoogleDriveSyncMenuItems(bar, runtimeConfig.providersList || [], status);
   } catch (error) {
-    button.disabled = true;
-    button.title = String(error.message || "Ошибка Google Диск");
-    const labelNode = button.querySelector(".node-gdrive-sync-btn-label");
-    if (labelNode) labelNode.textContent = "Google Диск — ошибка";
+    if (triggerLabel) triggerLabel.textContent = "Облако — ошибка";
+    if (summary) summary.title = String(error.message || "Ошибка облака");
   } finally {
-    button.classList.remove("is-loading");
+    bar.classList.remove("is-loading");
   }
 }
 
-async function handleGoogleDriveSyncToggle(button, config = {}) {
-  if (!button || button.disabled || button.classList.contains("is-loading")) return;
-  button.disabled = true;
-  button.classList.add("is-loading");
+async function handleGoogleDriveSyncAction(bar, runtimeConfig = {}, { providerId, action } = {}) {
+  if (!bar || bar.classList.contains("is-loading")) return;
+  const details = bar.querySelector(".node-gdrive-sync-menu");
+  bar.classList.add("is-loading");
   try {
+    const config = { ...runtimeConfig, providerId };
     const result = await toggleGoogleDriveSyncRequest(config);
-    showToast(
-      result.synced ? "Отправлено на Google Диск" : "Возвращено с Google Диск",
-      "success"
-    );
+    const toastMsg =
+      result.action === "provider-removed"
+        ? "Забрано из облака"
+        : result.action === "provider-added"
+          ? "Добавлено в облако"
+          : result.synced
+            ? "Отправлено в облако"
+            : "Файл возвращён на диск";
+    showToast(toastMsg, "success");
+    if (details) details.open = false;
     void refreshMenuGoogleDriveStats();
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
       await renderEntryOverview();
@@ -104489,12 +104568,12 @@ async function handleGoogleDriveSyncToggle(button, config = {}) {
       await refreshMediaListIfVisible();
       rerenderMediaListViewBody();
     }
-    await refreshGoogleDriveSyncButton(button, config);
+    await refreshGoogleDriveSyncBar(bar, runtimeConfig);
   } catch (error) {
-    showToast(`Google Диск: ${error.message}`, "error");
-    await refreshGoogleDriveSyncButton(button, config);
+    showToast(`Облако: ${error.message}`, "error");
+    await refreshGoogleDriveSyncBar(bar, runtimeConfig);
   } finally {
-    button.classList.remove("is-loading");
+    bar.classList.remove("is-loading");
   }
 }
 
@@ -104735,28 +104814,88 @@ function createEntryOverviewMediaAssetToolbar(context, entries = []) {
   return toolbar;
 }
 
-function createGoogleDriveSyncBar(config = {}) {
+function createGoogleDriveSyncBar(initialConfig = {}) {
   const bar = document.createElement("div");
   bar.className = "node-gdrive-sync-bar";
 
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "node-gdrive-sync-bar-btn";
-  button.append(createGoogleDriveIconSvg());
+  const details = document.createElement("details");
+  details.className = "node-gdrive-sync-menu";
+
+  const summary = document.createElement("summary");
+  summary.className = "node-gdrive-sync-menu-trigger";
+  summary.appendChild(createGoogleDriveIconSvg());
 
   const labelNode = document.createElement("span");
-  labelNode.className = "node-gdrive-sync-btn-label";
-  labelNode.textContent = "…";
-  button.appendChild(labelNode);
+  labelNode.className = "node-gdrive-sync-menu-trigger-label";
+  labelNode.textContent = "Отправить в облако";
+  summary.appendChild(labelNode);
 
-  button.addEventListener("click", (event) => {
+  const chevron = document.createElement("span");
+  chevron.className = "node-gdrive-sync-menu-trigger-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = "▾";
+  summary.appendChild(chevron);
+
+  const panel = document.createElement("div");
+  panel.className = "node-gdrive-sync-menu-panel";
+
+  const sendGroup = document.createElement("div");
+  sendGroup.className = "node-gdrive-sync-menu-group";
+  const sendTitle = document.createElement("div");
+  sendTitle.className = "node-gdrive-sync-menu-group-title";
+  sendTitle.textContent = "Отправить в облако";
+  const sendList = document.createElement("div");
+  sendList.className = "node-gdrive-sync-menu-list";
+  sendList.dataset.cloudMenu = "send";
+  sendGroup.append(sendTitle, sendList);
+
+  const retrieveGroup = document.createElement("div");
+  retrieveGroup.className = "node-gdrive-sync-menu-group";
+  retrieveGroup.dataset.cloudMenuGroup = "retrieve";
+  const retrieveTitle = document.createElement("div");
+  retrieveTitle.className = "node-gdrive-sync-menu-group-title";
+  retrieveTitle.textContent = "Забрать из облака";
+  const retrieveList = document.createElement("div");
+  retrieveList.className = "node-gdrive-sync-menu-list";
+  retrieveList.dataset.cloudMenu = "retrieve";
+  retrieveGroup.append(retrieveTitle, retrieveList);
+
+  panel.append(sendGroup, retrieveGroup);
+  details.append(summary, panel);
+  bar.appendChild(details);
+
+  const runtimeConfig = { ...initialConfig };
+
+  panel.addEventListener("click", (event) => {
+    const item = event.target.closest(".node-gdrive-sync-menu-item");
+    if (!item || item.disabled) return;
     event.preventDefault();
     event.stopPropagation();
-    void handleGoogleDriveSyncToggle(button, config);
+    const providerId = String(item.dataset.providerId || "").trim();
+    const action = String(item.dataset.cloudAction || "send").trim();
+    if (!providerId) return;
+    void handleGoogleDriveSyncAction(bar, runtimeConfig, { providerId, action });
   });
 
-  bar.appendChild(button);
-  void refreshGoogleDriveSyncButton(button, config);
+  void (async () => {
+    try {
+      const catalog = await fetchMediaCloudProviders();
+      runtimeConfig.providersList = catalog.providers.length
+        ? catalog.providers
+        : [
+            { key: "google-drive", title: "Google Диск" },
+            { key: "yandex-disk", title: "Яндекс Диск" }
+          ];
+    } catch {
+      runtimeConfig.providersList = [
+        { key: "google-drive", title: "Google Диск" },
+        { key: "yandex-disk", title: "Яндекс Диск" }
+      ];
+    }
+    renderGoogleDriveSyncMenuItems(bar, runtimeConfig.providersList, { exists: true, providers: [] });
+    await refreshGoogleDriveSyncBar(bar, runtimeConfig);
+  })();
+
   return bar;
 }
 
@@ -113823,7 +113962,7 @@ async function repairMenuGoogleDriveSymlinks(agentId = activeAgentId) {
       rerenderMediaListViewBody();
     }
   } catch (error) {
-    showToast(`Google Диск: ${error.message}`, "error");
+    showToast(`Облако: ${error.message}`, "error");
   } finally {
     menuGoogleDriveRepairBtn.disabled = false;
     menuGoogleDriveRepairBtn.classList.remove("is-loading");

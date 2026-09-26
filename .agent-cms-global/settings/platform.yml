@@ -47,4 +47,10 @@ awn_settings:
   search-semantic-chunk-overlap: 100
   search-hybrid-semantic-weight: 60
   search-hybrid-fulltext-weight: 40
+  media-cloud-default-provider: google-drive
+  media-cloud-providers:
+    - key: google-drive
+      title: Google Диск
+    - key: yandex-disk
+      title: Яндекс Диск
   auto-retain-facts: false

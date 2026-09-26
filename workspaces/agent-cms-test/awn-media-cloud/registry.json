@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "blob": "gd_61baf013.docx",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/ВОРД-ТЕСТ.docx",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_751548e6.png",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/Снимок экрана 2026-07-31 в 00.39.40 — копия.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_912ff68d.png",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/Снимок экрана 2026-07-31 в 00.48.32.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_4201f749.png",
+      "mediaRel": "awn-container/test-1000-soobscheniy/awn-storage/media/Снимок экрана 2026-09-12 в 22.57.18.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    }
+  ]
+}

@@ -33,6 +33,10 @@ Desktop.ini
 .idea/
 .vscode/
 
+# Workspace media cloud blobs (symlinks + registry stay in git)
+**/awn-media-cloud/_blobs/**
+**/awn-google-drive/gd_*
+
 # Cache & temp
 .cache/
 # Workspace runtime

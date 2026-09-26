@@ -38,6 +38,11 @@ fieldGroups:
   - id: memory
     name: Память
     description: Параметры долговременной памяти агента (пока не подключены в runtime).
+  - id: media-cloud
+    name: Медиа в облаке
+    description: >
+      Справочник облаков (Google, Яндекс…). Файлы уезжают в awn-media-cloud/_blobs/ (в git не коммитятся),
+      на месте — symlink. Sidecar не переносится.
 
 fields:
 
@@ -429,6 +434,33 @@ fields:
     default: 40
     group: indexing-search
     sort: 4
+
+  media-cloud-default-provider:
+    type: awn.field.string.slug
+    title: Облако по умолчанию
+    description: Ключ из списка ниже — выбор в кнопке «Отправить в облако».
+    default: google-drive
+    group: media-cloud
+    sort: 1
+
+  media-cloud-providers:
+    type: awn.field.repeater
+    title: Облачные сервисы
+    description: >
+      Название для UI и ключ папки awn-media-cloud/{ключ}/. Один файл — один blob в _blobs/,
+      несколько облаков — в registry.json (providers).
+    group: media-cloud
+    sort: 2
+    default: []
+    properties:
+      key:
+        type: awn.field.string.slug
+        title: Ключ папки
+        description: Подкаталог awn-media-cloud/{ключ}/ (google-drive, yandex-disk)
+      title:
+        type: awn.field.string
+        title: Название сервиса
+        description: Подпись в UI (Google Диск, Яндекс Диск)
 
   auto-retain-facts:
     type: awn.field.boolean

@@ -240,6 +240,7 @@ const {
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
   AWN_DATA_ROOT_FOLDER,
+  AWN_MEDIA_CLOUD_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,
@@ -385,7 +386,9 @@ const {
   getPlatformDefaultLocale,
   isPlatformAlwaysContextEnabled,
   getPlatformAlwaysContextMdFiles,
-  getPlatformAlwaysContextWsFolder
+  getPlatformAlwaysContextWsFolder,
+  getMediaCloudProviders,
+  getMediaCloudDefaultProviderId
 } = require("./workspace-agent-settings");
 const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
@@ -9371,6 +9374,7 @@ function dedupeReservedRootMenuSections(menu) {
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
       AWN_DATA_ROOT_FOLDER,
+      AWN_MEDIA_CLOUD_ROOT_FOLDER,
       AWN_GOOGLE_DRIVE_ROOT_FOLDER,
       AWN_REPOSITORIES_ROOT_FOLDER,
       AWN_VENDOR_ROOT_FOLDER
@@ -20119,10 +20123,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/media-cloud/providers") {
+    try {
+      const projectRoot = getProjectRoot();
+      const file = await readGlobalSettingsFile(projectRoot);
+      const parsed = parseSettingsFileContent(file.content || "");
+      const settings = normalizePlatformAgentSettings(parsed.awn_settings);
+      return sendJson(res, 200, {
+        defaultProvider: getMediaCloudDefaultProviderId(settings),
+        providers: getMediaCloudProviders(settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read media cloud providers",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/gdrive/status") {
     const manifestPath = url.searchParams.get("path");
     const scope = String(url.searchParams.get("scope") || "file").trim();
     const file = url.searchParams.get("file");
+    const providerId = String(url.searchParams.get("provider") || "").trim();
     if (!manifestPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
       const api = getGdriveSyncApi();
@@ -20131,7 +20154,7 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 200, status);
       }
       if (!file) return sendJson(res, 400, { error: "Missing file query parameter" });
-      const status = await api.getGoogleDriveFileSyncStatus(manifestPath, file);
+      const status = await api.getGoogleDriveFileSyncStatus(manifestPath, file, { providerId });
       return sendJson(res, 200, status);
     } catch (error) {
       return sendJson(res, 500, {
@@ -20154,7 +20177,8 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 200, result);
       }
       if (!file) return sendJson(res, 400, { error: "Missing file" });
-      const result = await api.toggleGoogleDriveFileSync(manifestPath, file);
+      const providerId = String(payload.provider || payload.providerId || "").trim();
+      const result = await api.toggleGoogleDriveFileSync(manifestPath, file, { providerId });
       return sendJson(res, 200, result);
     } catch (error) {
       return sendJson(res, 500, {

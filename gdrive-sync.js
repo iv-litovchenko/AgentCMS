@@ -2,35 +2,160 @@ const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
 
-const AWN_GOOGLE_DRIVE_DIR = "awn-google-drive";
-const AWN_GOOGLE_DRIVE_REGISTRY_FILE = "registry.json";
+const AWN_MEDIA_CLOUD_DIR = "awn-media-cloud";
+const LEGACY_AWN_GOOGLE_DRIVE_DIR = "awn-google-drive";
+const AWN_MEDIA_CLOUD_BLOBS_DIR = "_blobs";
+const AWN_MEDIA_CLOUD_REGISTRY_FILE = "registry.json";
+const MEDIA_CLOUD_DEFAULT_PROVIDER_ID = "google-drive";
+/** @deprecated use AWN_MEDIA_CLOUD_DIR */
+const AWN_GOOGLE_DRIVE_DIR = AWN_MEDIA_CLOUD_DIR;
+const AWN_GOOGLE_DRIVE_REGISTRY_FILE = AWN_MEDIA_CLOUD_REGISTRY_FILE;
 const GDRIVE_BLOB_NAME_RE = /^gd_[0-9a-f]{8}(?:\.[^./\\]+)?$/i;
 
+function getMediaCloudFolderAbsolute(agentRoot) {
+  return path.join(agentRoot, AWN_MEDIA_CLOUD_DIR);
+}
+
+function getLegacyGoogleDriveFolderAbsolute(agentRoot) {
+  return path.join(agentRoot, LEGACY_AWN_GOOGLE_DRIVE_DIR);
+}
+
+/** @deprecated use getMediaCloudFolderAbsolute */
 function getGoogleDriveFolderAbsolute(agentRoot) {
-  return path.join(agentRoot, AWN_GOOGLE_DRIVE_DIR);
+  return getMediaCloudFolderAbsolute(agentRoot);
 }
 
-function isPathInsideGoogleDrive(absolutePath, agentRoot) {
-  const driveRoot = path.resolve(getGoogleDriveFolderAbsolute(agentRoot));
+function getMediaCloudBlobsFolderAbsolute(agentRoot) {
+  return path.join(getMediaCloudFolderAbsolute(agentRoot), AWN_MEDIA_CLOUD_BLOBS_DIR);
+}
+
+function isPathInsideMediaCloud(absolutePath, agentRoot) {
   const resolved = path.resolve(absolutePath);
-  return resolved === driveRoot || resolved.startsWith(`${driveRoot}${path.sep}`);
+  const roots = [
+    path.resolve(getMediaCloudFolderAbsolute(agentRoot)),
+    path.resolve(getLegacyGoogleDriveFolderAbsolute(agentRoot))
+  ];
+  return roots.some(
+    (driveRoot) => resolved === driveRoot || resolved.startsWith(`${driveRoot}${path.sep}`)
+  );
 }
 
-function normalizeMediaFileRef(relFile) {
+/** @deprecated use isPathInsideMediaCloud */
+function isPathInsideGoogleDrive(absolutePath, agentRoot) {
+  return isPathInsideMediaCloud(absolutePath, agentRoot);
+}
+
+function normalizeWorkspaceCloudFileRef(relFile) {
   const normalized = String(relFile || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/{2,}/g, "/")
     .trim();
   if (!normalized || normalized.includes("..")) return null;
+  return normalized;
+}
+
+function isBlockedCloudFileRel(relFile) {
+  const lower = String(relFile || "").replace(/\\/g, "/").toLowerCase();
+  if (!lower) return true;
+  if (lower.startsWith("awn-media-cloud/")) return true;
+  if (lower.startsWith("awn-google-drive/")) return true;
+  if (lower.startsWith(".git/")) return true;
+  if (lower === ".env" || lower.endsWith("/.env")) return true;
+  return false;
+}
+
+/** @deprecated prefer normalizeWorkspaceCloudFileRef */
+function normalizeMediaFileRef(relFile) {
+  const normalized = normalizeWorkspaceCloudFileRef(relFile);
+  if (!normalized) return null;
   if (/^media\//i.test(normalized)) return normalized;
   return `media/${normalized}`;
 }
 
-async function ensureGoogleDriveFolder(agentRoot) {
-  const folderAbsolute = getGoogleDriveFolderAbsolute(agentRoot);
+async function ensureMediaCloudProviderFolder(agentRoot, providerKey) {
+  const key = String(providerKey || "").trim();
+  if (!key || key.includes("/") || key.includes("..")) return null;
+  const folderAbsolute = path.join(getMediaCloudFolderAbsolute(agentRoot), key);
   await fs.mkdir(folderAbsolute, { recursive: true });
   return folderAbsolute;
+}
+
+function resolveProviderLinkFileName(mediaRel, blobName) {
+  const base = path.basename(String(mediaRel || "").replace(/\\/g, "/"));
+  const blob = String(blobName || "").trim();
+  if (base && base !== "." && base !== blob) return base;
+  return blob || base || "file";
+}
+
+async function ensureProviderBlobSymlink(agentRoot, providerKey, blobName, mediaRel) {
+  const blobAbsolute = await resolveGoogleDriveBlobAbsolute(agentRoot, blobName);
+  const providerFolder = await ensureMediaCloudProviderFolder(agentRoot, providerKey);
+  if (!blobAbsolute || !providerFolder) return;
+
+  const linkName = resolveProviderLinkFileName(mediaRel, blobName);
+  const linkAbsolute = path.join(providerFolder, linkName);
+  const relTarget = path.relative(path.dirname(linkAbsolute), blobAbsolute).replace(/\\/g, "/");
+
+  try {
+    const stat = await fs.lstat(linkAbsolute);
+    if (stat.isSymbolicLink()) {
+      const current = await fs.readlink(linkAbsolute);
+      const currentResolved = path.isAbsolute(current)
+        ? current
+        : path.resolve(path.dirname(linkAbsolute), current);
+      if (path.resolve(currentResolved) === path.resolve(blobAbsolute)) return;
+      await fs.unlink(linkAbsolute);
+    } else if (stat.isFile()) {
+      return;
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  await fs.symlink(relTarget, linkAbsolute);
+}
+
+async function removeProviderBlobSymlink(agentRoot, providerKey, mediaRel, blobName) {
+  const key = String(providerKey || "").trim();
+  if (!key) return;
+  const providerFolder = path.join(getMediaCloudFolderAbsolute(agentRoot), key);
+  const linkAbsolute = path.join(providerFolder, resolveProviderLinkFileName(mediaRel, blobName));
+  try {
+    const stat = await fs.lstat(linkAbsolute);
+    if (stat.isSymbolicLink()) await fs.unlink(linkAbsolute);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+async function removeAllProviderBlobSymlinksForEntry(agentRoot, entry) {
+  const blob = String(entry?.blob || "").trim();
+  const mediaRel = String(entry?.mediaRel || "").trim();
+  if (!blob || !mediaRel) return;
+  const providers = Array.isArray(entry.providers) ? entry.providers : [];
+  for (const provider of providers) {
+    const id = normalizeRegistryProvider(provider).id;
+    await removeProviderBlobSymlink(agentRoot, id, mediaRel, blob);
+  }
+}
+
+async function ensureMediaCloudFolder(agentRoot) {
+  const folderAbsolute = getMediaCloudFolderAbsolute(agentRoot);
+  await fs.mkdir(folderAbsolute, { recursive: true });
+  return folderAbsolute;
+}
+
+async function ensureMediaCloudBlobsFolder(agentRoot) {
+  const mediaRoot = await ensureMediaCloudFolder(agentRoot);
+  const blobsAbsolute = path.join(mediaRoot, AWN_MEDIA_CLOUD_BLOBS_DIR);
+  await fs.mkdir(blobsAbsolute, { recursive: true });
+  return blobsAbsolute;
+}
+
+/** @deprecated use ensureMediaCloudFolder */
+async function ensureGoogleDriveFolder(agentRoot) {
+  return ensureMediaCloudFolder(agentRoot);
 }
 
 function createGoogleDriveBlobFileName(sourceAbsolute) {
@@ -71,8 +196,37 @@ async function getGoogleDriveSymlinkMeta(fileAbsolute, agentRoot) {
   }
 }
 
+function getMediaCloudRegistryAbsolute(agentRoot) {
+  return path.join(getMediaCloudFolderAbsolute(agentRoot), AWN_MEDIA_CLOUD_REGISTRY_FILE);
+}
+
+function getLegacyGoogleDriveRegistryAbsolute(agentRoot) {
+  return path.join(getLegacyGoogleDriveFolderAbsolute(agentRoot), AWN_MEDIA_CLOUD_REGISTRY_FILE);
+}
+
+/** @deprecated use getMediaCloudRegistryAbsolute */
 function getGoogleDriveRegistryAbsolute(agentRoot) {
-  return path.join(getGoogleDriveFolderAbsolute(agentRoot), AWN_GOOGLE_DRIVE_REGISTRY_FILE);
+  return getMediaCloudRegistryAbsolute(agentRoot);
+}
+
+function normalizeRegistryProvider(entry) {
+  const id = String(entry?.id || entry?.key || MEDIA_CLOUD_DEFAULT_PROVIDER_ID).trim();
+  return {
+    id: id || MEDIA_CLOUD_DEFAULT_PROVIDER_ID,
+    status: String(entry?.status || "local").trim() || "local",
+    remoteUrl: String(entry?.remoteUrl || entry?.["service-url"] || "").trim()
+  };
+}
+
+function normalizeRegistryEntryShape(entry, agentRoot) {
+  const blob = String(entry?.blob || "").trim();
+  const mediaRel = normalizeRegistryMediaRel(entry?.mediaRel, agentRoot);
+  const rawProviders = Array.isArray(entry?.providers) ? entry.providers : [];
+  const providers = rawProviders.map(normalizeRegistryProvider).filter((item) => item.id);
+  if (blob && mediaRel && !providers.length) {
+    providers.push(normalizeRegistryProvider({ id: MEDIA_CLOUD_DEFAULT_PROVIDER_ID, status: "local" }));
+  }
+  return { blob, mediaRel, providers };
 }
 
 function normalizeRegistryMediaRel(mediaRel, agentRoot) {
@@ -85,55 +239,92 @@ function normalizeRegistryMediaRel(mediaRel, agentRoot) {
   return normalized;
 }
 
+async function readRegistryFileAbsolute(registryAbsolute, agentRoot) {
+  const raw = await fs.readFile(registryAbsolute, "utf-8");
+  const parsed = JSON.parse(raw);
+  const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+  return {
+    version: Number(parsed?.version) || 1,
+    entries: entries
+      .map((entry) => normalizeRegistryEntryShape(entry, agentRoot))
+      .filter((entry) => entry.blob && entry.mediaRel)
+  };
+}
+
 async function readGoogleDriveRegistry(agentRoot) {
-  const registryAbsolute = getGoogleDriveRegistryAbsolute(agentRoot);
+  const primaryAbsolute = getMediaCloudRegistryAbsolute(agentRoot);
+  const legacyAbsolute = getLegacyGoogleDriveRegistryAbsolute(agentRoot);
   try {
-    const raw = await fs.readFile(registryAbsolute, "utf-8");
-    const parsed = JSON.parse(raw);
-    const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
-    return {
-      version: Number(parsed?.version) || 1,
-      entries: entries
-        .map((entry) => ({
-          blob: String(entry?.blob || "").trim(),
-          mediaRel: normalizeRegistryMediaRel(entry?.mediaRel, agentRoot)
-        }))
-        .filter((entry) => entry.blob && entry.mediaRel)
-    };
+    return await readRegistryFileAbsolute(primaryAbsolute, agentRoot);
   } catch (error) {
-    if (error?.code === "ENOENT") {
-      return { version: 1, entries: [] };
-    }
-    throw error;
+    if (error?.code !== "ENOENT") throw error;
   }
+  try {
+    const legacy = await readRegistryFileAbsolute(legacyAbsolute, agentRoot);
+    if (legacy.entries.length) return legacy;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  return { version: 2, entries: [] };
 }
 
 async function writeGoogleDriveRegistry(agentRoot, registry) {
-  await ensureGoogleDriveFolder(agentRoot);
-  const registryAbsolute = getGoogleDriveRegistryAbsolute(agentRoot);
+  await ensureMediaCloudFolder(agentRoot);
+  const registryAbsolute = getMediaCloudRegistryAbsolute(agentRoot);
+  const entries = (Array.isArray(registry?.entries) ? registry.entries : [])
+    .map((entry) => normalizeRegistryEntryShape(entry, agentRoot))
+    .filter((entry) => entry.blob && entry.mediaRel);
   const payload = {
-    version: 1,
-    entries: Array.isArray(registry?.entries) ? registry.entries : []
+    version: 2,
+    entries
   };
   await fs.writeFile(registryAbsolute, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
 }
 
-async function upsertGoogleDriveRegistryEntry(agentRoot, blobName, mediaAbsolute) {
+function mergeRegistryProviders(existingProviders, providerId) {
+  const id = String(providerId || MEDIA_CLOUD_DEFAULT_PROVIDER_ID).trim() || MEDIA_CLOUD_DEFAULT_PROVIDER_ID;
+  const list = Array.isArray(existingProviders) ? existingProviders.map(normalizeRegistryProvider) : [];
+  if (!list.some((item) => item.id === id)) {
+    list.push(normalizeRegistryProvider({ id, status: "local" }));
+  }
+  return list;
+}
+
+async function upsertGoogleDriveRegistryEntry(
+  agentRoot,
+  blobName,
+  mediaAbsolute,
+  providerId = MEDIA_CLOUD_DEFAULT_PROVIDER_ID
+) {
   const blob = String(blobName || "").trim();
   const mediaRel = normalizeRegistryMediaRel(path.relative(agentRoot, mediaAbsolute), agentRoot);
   if (!blob || !mediaRel) return;
 
   const registry = await readGoogleDriveRegistry(agentRoot);
-  const withoutBlob = registry.entries.filter((entry) => entry.blob !== blob);
-  withoutBlob.push({ blob, mediaRel });
-  withoutBlob.sort((a, b) => a.mediaRel.localeCompare(b.mediaRel, "ru"));
-  await writeGoogleDriveRegistry(agentRoot, { entries: withoutBlob });
+  const existing = registry.entries.find((entry) => entry.blob === blob || entry.mediaRel === mediaRel);
+  const without = registry.entries.filter((entry) => entry.blob !== blob && entry.mediaRel !== mediaRel);
+  const providers = mergeRegistryProviders(existing?.providers, providerId);
+  without.push({ blob, mediaRel, providers });
+  without.sort((a, b) => a.mediaRel.localeCompare(b.mediaRel, "ru"));
+  await writeGoogleDriveRegistry(agentRoot, { entries: without });
+  await ensureProviderBlobSymlink(agentRoot, providerId, blob, mediaRel);
+}
+
+async function readRegistryProvidersForFile(agentRoot, fileAbsolute) {
+  const mediaRel = normalizeRegistryMediaRel(path.relative(agentRoot, fileAbsolute), agentRoot);
+  if (!mediaRel) return [];
+  const registry = await readGoogleDriveRegistry(agentRoot);
+  const entry = registry.entries.find((item) => item.mediaRel === mediaRel);
+  if (!entry) return [];
+  return (entry.providers || []).map((item) => normalizeRegistryProvider(item).id);
 }
 
 async function removeGoogleDriveRegistryEntry(agentRoot, blobName) {
   const blob = String(blobName || "").trim();
   if (!blob) return;
   const registry = await readGoogleDriveRegistry(agentRoot);
+  const existing = registry.entries.find((entry) => entry.blob === blob);
+  if (existing) await removeAllProviderBlobSymlinksForEntry(agentRoot, existing);
   const nextEntries = registry.entries.filter((entry) => entry.blob !== blob);
   if (nextEntries.length === registry.entries.length) return;
   await writeGoogleDriveRegistry(agentRoot, { entries: nextEntries });
@@ -143,8 +334,14 @@ function extractGoogleDriveBlobNameFromLinkTarget(linkTarget) {
   const normalized = String(linkTarget || "").replace(/\\/g, "/");
   const base = path.basename(normalized);
   if (GDRIVE_BLOB_NAME_RE.test(base)) return base;
-  if (normalized.includes(`${AWN_GOOGLE_DRIVE_DIR}/`)) {
-    const tail = normalized.split(`${AWN_GOOGLE_DRIVE_DIR}/`).pop() || "";
+  for (const dirName of [AWN_MEDIA_CLOUD_DIR, LEGACY_AWN_GOOGLE_DRIVE_DIR]) {
+    if (!normalized.includes(`${dirName}/`)) continue;
+    const tail = normalized.split(`${dirName}/`).pop() || "";
+    const blob = path.basename(tail);
+    if (GDRIVE_BLOB_NAME_RE.test(blob)) return blob;
+  }
+  if (normalized.includes(`${AWN_MEDIA_CLOUD_BLOBS_DIR}/`)) {
+    const tail = normalized.split(`${AWN_MEDIA_CLOUD_BLOBS_DIR}/`).pop() || "";
     const blob = path.basename(tail);
     if (GDRIVE_BLOB_NAME_RE.test(blob)) return blob;
   }
@@ -154,15 +351,24 @@ function extractGoogleDriveBlobNameFromLinkTarget(linkTarget) {
 async function resolveGoogleDriveBlobAbsolute(agentRoot, blobName) {
   const blob = String(blobName || "").trim();
   if (!blob || blob.includes("/") || blob.includes("\\") || blob.includes("..")) return null;
-  const blobAbsolute = path.join(getGoogleDriveFolderAbsolute(agentRoot), blob);
-  const driveRoot = path.resolve(getGoogleDriveFolderAbsolute(agentRoot));
-  if (!blobAbsolute.startsWith(driveRoot)) return null;
-  try {
-    const stat = await fs.stat(blobAbsolute);
-    return stat.isFile() ? blobAbsolute : null;
-  } catch {
-    return null;
+
+  const candidates = [
+    path.join(getMediaCloudBlobsFolderAbsolute(agentRoot), blob),
+    path.join(getMediaCloudFolderAbsolute(agentRoot), blob),
+    path.join(getLegacyGoogleDriveFolderAbsolute(agentRoot), blob)
+  ];
+
+  for (const blobAbsolute of candidates) {
+    const inside = isPathInsideMediaCloud(blobAbsolute, agentRoot);
+    if (!inside) continue;
+    try {
+      const stat = await fs.stat(blobAbsolute);
+      if (stat.isFile()) return blobAbsolute;
+    } catch {
+      // try next candidate
+    }
   }
+  return null;
 }
 
 function buildGoogleDriveSymlinkRelative(linkAbsolute, blobAbsolute) {
@@ -262,7 +468,8 @@ async function repairGoogleDriveSymlinkAt(linkAbsolute, agentRoot) {
 
 async function walkAgentGoogleDriveSymlinks(agentRoot, visit) {
   const agentRootResolved = path.resolve(agentRoot);
-  const driveRootResolved = path.resolve(getGoogleDriveFolderAbsolute(agentRoot));
+  const mediaCloudResolved = path.resolve(getMediaCloudFolderAbsolute(agentRoot));
+  const legacyDriveResolved = path.resolve(getLegacyGoogleDriveFolderAbsolute(agentRoot));
 
   async function walk(currentAbsolute) {
     let entries = [];
@@ -276,7 +483,8 @@ async function walkAgentGoogleDriveSymlinks(agentRoot, visit) {
       if (entry.name.startsWith(".")) continue;
       const entryAbsolute = path.join(currentAbsolute, entry.name);
       if (entry.isDirectory()) {
-        if (path.resolve(entryAbsolute) === driveRootResolved) continue;
+        const resolvedEntry = path.resolve(entryAbsolute);
+        if (resolvedEntry === mediaCloudResolved || resolvedEntry === legacyDriveResolved) continue;
         await walk(entryAbsolute);
         continue;
       }
@@ -390,38 +598,61 @@ function createGdriveSyncHelpers(deps) {
   } = deps;
 
   async function resolveMediaFileAbsoluteForGdrive(contextPath, relFile) {
+    const agentRoot = getAgentRoot();
+    const contextPathNorm = String(contextPath || "").replace(/\\/g, "/");
+    const rawRef = normalizeWorkspaceCloudFileRef(relFile);
+    if (!rawRef || isBlockedCloudFileRel(rawRef)) return null;
+
+    const tryAbsolute = async (fileAbsolute, normalizedRelFile, storageContext = null) => {
+      if (!fileAbsolute.startsWith(agentRoot)) return null;
+      try {
+        await fs.lstat(fileAbsolute);
+        return {
+          fileAbsolute,
+          normalizedRelFile: normalizeRegistryMediaRel(normalizedRelFile, agentRoot) || normalizedRelFile,
+          storageContext,
+          contextPath: contextPathNorm
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    const direct = await tryAbsolute(path.join(agentRoot, rawRef), rawRef);
+    if (direct) return direct;
+
     const storageContext = await resolveApiStorageContext(contextPath);
     if (!storageContext) return null;
-    const normalizedRelFile = normalizeMediaFileRef(relFile);
-    if (!normalizedRelFile) return null;
 
     const mediaFolder = await getMediaFolderAbsolute(storageContext.absolute);
     if (mediaFolder) {
-      const relUnderMedia = normalizedRelFile.replace(/^media\//i, "");
-      const linkAbsolute = path.join(mediaFolder, relUnderMedia);
-      if (linkAbsolute.startsWith(mediaFolder)) {
-        try {
-          await fs.lstat(linkAbsolute);
-          return {
-            fileAbsolute: linkAbsolute,
-            normalizedRelFile,
-            storageContext,
-            contextPath: String(contextPath || "").replace(/\\/g, "/")
-          };
-        } catch {
-          // fall through to generic resolver
-        }
+      const candidates = [rawRef, rawRef.replace(/^media\//i, ""), `media/${rawRef}`];
+      for (const candidate of candidates) {
+        const relUnderMedia = candidate.replace(/^media\//i, "");
+        const linkAbsolute = path.join(mediaFolder, relUnderMedia);
+        if (!linkAbsolute.startsWith(mediaFolder)) continue;
+        const resolved = await tryAbsolute(
+          linkAbsolute,
+          path.relative(agentRoot, linkAbsolute).replace(/\\/g, "/"),
+          storageContext
+        );
+        if (resolved) return resolved;
       }
     }
 
-    const fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
-    if (!fileAbsolute) return null;
-    return {
-      fileAbsolute,
-      normalizedRelFile,
-      storageContext,
-      contextPath: String(contextPath || "").replace(/\\/g, "/")
-    };
+    for (const candidate of [rawRef, normalizeMediaFileRef(relFile)]) {
+      if (!candidate) continue;
+      const fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, candidate);
+      if (!fileAbsolute) continue;
+      const resolved = await tryAbsolute(
+        fileAbsolute,
+        path.relative(agentRoot, fileAbsolute).replace(/\\/g, "/"),
+        storageContext
+      );
+      if (resolved) return resolved;
+    }
+
+    return null;
   }
 
   async function listTopicMediaRelativeFiles(manifestPath) {
@@ -439,7 +670,7 @@ function createGdriveSyncHelpers(deps) {
   }
 
   async function syncFileAbsoluteToGoogleDrive(fileAbsolute, agentRoot = getAgentRoot()) {
-    const driveFolder = await ensureGoogleDriveFolder(agentRoot);
+    const blobsFolder = await ensureMediaCloudBlobsFolder(agentRoot);
 
     if (await isGoogleDriveSyncedFileAbsolute(fileAbsolute, agentRoot)) {
       const target = await readSymlinkTargetAbsolute(fileAbsolute);
@@ -447,10 +678,10 @@ function createGdriveSyncHelpers(deps) {
     }
 
     let blobName = createGoogleDriveBlobFileName(fileAbsolute);
-    let blobAbsolute = path.join(driveFolder, blobName);
+    let blobAbsolute = path.join(blobsFolder, blobName);
     while (await fileExists(blobAbsolute)) {
       blobName = createGoogleDriveBlobFileName(fileAbsolute);
-      blobAbsolute = path.join(driveFolder, blobName);
+      blobAbsolute = path.join(blobsFolder, blobName);
     }
 
     const stat = await fs.lstat(fileAbsolute);
@@ -461,14 +692,13 @@ function createGdriveSyncHelpers(deps) {
     await fs.rename(fileAbsolute, blobAbsolute);
     const relTarget = path.relative(path.dirname(fileAbsolute), blobAbsolute).replace(/\\/g, "/");
     await fs.symlink(relTarget, fileAbsolute);
-    await upsertGoogleDriveRegistryEntry(agentRoot, blobName, fileAbsolute);
-
     return {
       action: "synced",
       synced: true,
       blobAbsolute,
       blobName,
-      symlinkRelative: relTarget
+      symlinkRelative: relTarget,
+      fileAbsolute
     };
   }
 
@@ -480,7 +710,7 @@ function createGdriveSyncHelpers(deps) {
 
     const target = await readSymlinkTargetAbsolute(fileAbsolute);
     if (!isPathInsideGoogleDrive(target, agentRoot)) {
-      throw new Error("Symlink does not point to awn-google-drive storage");
+      throw new Error("Symlink does not point to awn-media-cloud storage");
     }
 
     await fs.unlink(fileAbsolute);
@@ -490,16 +720,22 @@ function createGdriveSyncHelpers(deps) {
     return { action: "unsynced", synced: false, restoredAbsolute: fileAbsolute };
   }
 
-  async function getGoogleDriveFileSyncStatus(contextPath, relFile) {
+  async function getGoogleDriveFileSyncStatus(contextPath, relFile, options = {}) {
     const resolved = await resolveMediaFileAbsoluteForGdrive(contextPath, relFile);
     if (!resolved) {
-      return { scope: "file", exists: false, synced: false };
+      return { scope: "file", exists: false, synced: false, providers: [] };
     }
-    const synced = await isGoogleDriveSyncedFileAbsolute(resolved.fileAbsolute, getAgentRoot());
+    const agentRoot = getAgentRoot();
+    const synced = await isGoogleDriveSyncedFileAbsolute(resolved.fileAbsolute, agentRoot);
+    const providers = synced ? await readRegistryProvidersForFile(agentRoot, resolved.fileAbsolute) : [];
+    const providerId = String(options.providerId || "").trim();
+    const providerActive = providerId ? providers.includes(providerId) : providers.length > 0;
     return {
       scope: "file",
       exists: true,
       synced,
+      providerActive,
+      providers,
       file: resolved.normalizedRelFile,
       path: resolved.contextPath
     };
@@ -524,21 +760,87 @@ function createGdriveSyncHelpers(deps) {
     };
   }
 
-  async function toggleGoogleDriveFileSync(contextPath, relFile) {
+  async function toggleGoogleDriveFileSync(contextPath, relFile, options = {}) {
+    const providerId =
+      String(options.providerId || MEDIA_CLOUD_DEFAULT_PROVIDER_ID).trim() ||
+      MEDIA_CLOUD_DEFAULT_PROVIDER_ID;
     const resolved = await resolveMediaFileAbsoluteForGdrive(contextPath, relFile);
     if (!resolved) {
-      throw new Error("Media file not found");
+      throw new Error("File not found");
     }
     const agentRoot = getAgentRoot();
     const synced = await isGoogleDriveSyncedFileAbsolute(resolved.fileAbsolute, agentRoot);
-    const result = synced
-      ? await unsyncFileAbsoluteFromGoogleDrive(resolved.fileAbsolute, agentRoot)
-      : await syncFileAbsoluteToGoogleDrive(resolved.fileAbsolute, agentRoot);
+
+    if (!synced) {
+      const result = await syncFileAbsoluteToGoogleDrive(resolved.fileAbsolute, agentRoot);
+      await upsertGoogleDriveRegistryEntry(agentRoot, result.blobName, resolved.fileAbsolute, providerId);
+      const providers = await readRegistryProvidersForFile(agentRoot, resolved.fileAbsolute);
+      return {
+        scope: "file",
+        path: resolved.contextPath,
+        file: resolved.normalizedRelFile,
+        providerId,
+        providers,
+        ...result
+      };
+    }
+
+    const providers = await readRegistryProvidersForFile(agentRoot, resolved.fileAbsolute);
+    if (providers.includes(providerId)) {
+      if (providers.length <= 1) {
+        const result = await unsyncFileAbsoluteFromGoogleDrive(resolved.fileAbsolute, agentRoot);
+        return {
+          scope: "file",
+          path: resolved.contextPath,
+          file: resolved.normalizedRelFile,
+          providerId,
+          providers: [],
+          ...result
+        };
+      }
+      const registry = await readGoogleDriveRegistry(agentRoot);
+      const mediaRel = normalizeRegistryMediaRel(
+        path.relative(agentRoot, resolved.fileAbsolute),
+        agentRoot
+      );
+      const entry = registry.entries.find((item) => item.mediaRel === mediaRel);
+      const nextProviders = (entry?.providers || []).filter(
+        (item) => normalizeRegistryProvider(item).id !== providerId
+      );
+      const nextEntries = registry.entries.map((item) =>
+        item.mediaRel === mediaRel ? { ...item, providers: nextProviders } : item
+      );
+      await writeGoogleDriveRegistry(agentRoot, { entries: nextEntries });
+      if (entry) {
+        await removeProviderBlobSymlink(agentRoot, providerId, entry.mediaRel, entry.blob);
+      }
+      return {
+        scope: "file",
+        action: "provider-removed",
+        synced: true,
+        path: resolved.contextPath,
+        file: resolved.normalizedRelFile,
+        providerId,
+        providers: nextProviders.map((item) => normalizeRegistryProvider(item).id)
+      };
+    }
+
+    const meta = await getGoogleDriveSymlinkMeta(resolved.fileAbsolute, agentRoot);
+    await upsertGoogleDriveRegistryEntry(
+      agentRoot,
+      meta.blobName,
+      resolved.fileAbsolute,
+      providerId
+    );
+    const nextProviders = await readRegistryProvidersForFile(agentRoot, resolved.fileAbsolute);
     return {
       scope: "file",
+      action: "provider-added",
+      synced: true,
       path: resolved.contextPath,
       file: resolved.normalizedRelFile,
-      ...result
+      providerId,
+      providers: nextProviders
     };
   }
 
@@ -586,10 +888,14 @@ function createGdriveSyncHelpers(deps) {
   }
 
   async function countGoogleDriveStorageStats(agentRoot = getAgentRoot()) {
-    const folderAbsolute = getGoogleDriveFolderAbsolute(agentRoot);
+    const roots = [
+      getMediaCloudFolderAbsolute(agentRoot),
+      getLegacyGoogleDriveFolderAbsolute(agentRoot)
+    ];
     let fileCount = 0;
     let totalBytes = 0;
     const files = [];
+    let anyExists = false;
 
     async function walk(dirAbsolute) {
       let entries;
@@ -602,7 +908,8 @@ function createGdriveSyncHelpers(deps) {
 
       for (const entry of entries) {
         if (entry.name === ".DS_Store") continue;
-        if (entry.name === AWN_GOOGLE_DRIVE_REGISTRY_FILE) continue;
+        if (entry.name === AWN_MEDIA_CLOUD_REGISTRY_FILE) continue;
+        if (entry.name === ".gitkeep") continue;
         const entryAbsolute = path.join(dirAbsolute, entry.name);
         if (entry.isDirectory()) {
           await walk(entryAbsolute);
@@ -626,28 +933,23 @@ function createGdriveSyncHelpers(deps) {
       String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
     );
 
-    try {
-      await fs.access(folderAbsolute);
-      await walk(folderAbsolute);
-      return {
-        path: AWN_GOOGLE_DRIVE_DIR,
-        exists: true,
-        fileCount,
-        totalBytes,
-        files
-      };
-    } catch (error) {
-      if (error?.code === "ENOENT") {
-        return {
-          path: AWN_GOOGLE_DRIVE_DIR,
-          exists: false,
-          fileCount: 0,
-          totalBytes: 0,
-          files: []
-        };
+    for (const folderAbsolute of roots) {
+      try {
+        await fs.access(folderAbsolute);
+        anyExists = true;
+        await walk(folderAbsolute);
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
       }
-      throw error;
     }
+
+    return {
+      path: AWN_MEDIA_CLOUD_DIR,
+      exists: anyExists,
+      fileCount,
+      totalBytes,
+      files
+    };
   }
 
   async function repairGoogleDriveSymlinksForAgent() {
@@ -655,6 +957,7 @@ function createGdriveSyncHelpers(deps) {
   }
 
   return {
+    AWN_MEDIA_CLOUD_DIR,
     AWN_GOOGLE_DRIVE_DIR,
     countGoogleDriveStorageStats,
     getGoogleDriveFileSyncStatus,
@@ -666,8 +969,12 @@ function createGdriveSyncHelpers(deps) {
 }
 
 module.exports = {
+  AWN_MEDIA_CLOUD_DIR,
+  AWN_MEDIA_CLOUD_BLOBS_DIR,
+  AWN_MEDIA_CLOUD_REGISTRY_FILE,
   AWN_GOOGLE_DRIVE_DIR,
   AWN_GOOGLE_DRIVE_REGISTRY_FILE,
+  MEDIA_CLOUD_DEFAULT_PROVIDER_ID,
   createGdriveSyncHelpers,
   getGoogleDriveSymlinkMeta,
   repairGoogleDriveSymlinks

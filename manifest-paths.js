@@ -44,7 +44,9 @@ const LEGACY_AWN_DATABASE_ROOT_FOLDER = "awn-database";
 const LEGACY_AWN_DATA_ROOT_FOLDER = "awn-data";
 /** @deprecated use AWN_DATABASE_ROOT_FOLDER */
 const AWN_DATA_ROOT_FOLDER = AWN_DATABASE_ROOT_FOLDER;
-/** Google Drive sync — отдельный UI, не в дереве тем */
+/** Медиа в облаке (symlink + выгрузка) — отдельный UI, не в дереве тем */
+const AWN_MEDIA_CLOUD_ROOT_FOLDER = "awn-media-cloud";
+/** @deprecated legacy workspace folder name; читается параллельно с awn-media-cloud */
 const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";
 /** Каталог исходников — sidebar «Репозитории», не в дереве тем */
 const AWN_REPOSITORIES_ROOT_FOLDER = "awn-repositories";
@@ -60,6 +62,7 @@ const AWN_WORKSPACE_BACKUP_FOLDER = "awn-backup";
 const AWN_DASHBOARDS_FOLDER = "awn-dashboards";
 const PLATFORM_DATA_ROOT_FOLDERS = [
   AWN_DATABASE_ROOT_FOLDER,
+  AWN_MEDIA_CLOUD_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER
@@ -80,8 +83,14 @@ function isAwnDataFolderName(name) {
   return isAwnDatabaseFolderName(name);
 }
 
+function isAwnMediaCloudFolderName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return lower === AWN_MEDIA_CLOUD_ROOT_FOLDER || lower === AWN_GOOGLE_DRIVE_ROOT_FOLDER;
+}
+
+/** @deprecated use isAwnMediaCloudFolderName */
 function isAwnGoogleDriveFolderName(name) {
-  return String(name || "").trim().toLowerCase() === AWN_GOOGLE_DRIVE_ROOT_FOLDER;
+  return isAwnMediaCloudFolderName(name);
 }
 
 function isPlatformDataRootFolderName(name) {
@@ -1441,6 +1450,7 @@ module.exports = {
   LEGACY_AWN_DATA_ROOT_FOLDER,
   AWN_DATA_ROOT_FOLDER,
   isAwnDatabaseFolderName,
+  AWN_MEDIA_CLOUD_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,
@@ -1450,6 +1460,7 @@ module.exports = {
   AWN_DASHBOARDS_FOLDER,
   PLATFORM_DATA_ROOT_FOLDERS,
   isAwnDataFolderName,
+  isAwnMediaCloudFolderName,
   isAwnGoogleDriveFolderName,
   isPlatformDataRootFolderName,
   isPlatformDataMenuFolderPath,
