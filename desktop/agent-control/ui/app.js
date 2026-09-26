@@ -39,6 +39,11 @@ const ENV_TOOL_HINTS = {
   python: "Python 3.12 для Whisper — brew install python@3.12",
   mkcert: "HTTPS без предупреждений — brew install mkcert && mkcert -install"
 };
+
+/** Зависимости, всегда видимые в блоке «Система» (без раскрытия). */
+const ENV_TECH_VISIBLE_IDS = new Set(["node", "python", "mkcert", "npm", "git", "https"]);
+/** Порядок дополнительных технологий при полном списке. */
+const ENV_TECH_EXTRA_ORDER = ["openssl", "whisper", "claude", "codex", "electron"];
 const flipClockState = { h0: "", h1: "", m0: "", m1: "", s0: "", s1: "" };
 const FLIP_CLOCK_KEYS = ["h0", "h1", "m0", "m1", "s0", "s1"];
 
@@ -382,12 +387,35 @@ function buildCoreEnvironmentRows(environment) {
   return rows;
 }
 
-function buildExtraEnvironmentRows(environment) {
+function getExtraEnvironmentDependencies(environment) {
   if (!environment) return [];
 
-  const extraOrder = ["openssl", "whisper", "claude", "codex", "electron"];
-  const depsById = Object.fromEntries((environment.dependencies || []).map((dep) => [dep.id, dep]));
-  return extraOrder.map((id) => depsById[id]).filter(Boolean).map(dependencyEnvRow);
+  const deps = environment.dependencies || [];
+  const depsById = Object.fromEntries(deps.map((dep) => [dep.id, dep]));
+  const knownExtraIds = new Set(ENV_TECH_EXTRA_ORDER);
+  const ordered = ENV_TECH_EXTRA_ORDER.map((id) => depsById[id]).filter(Boolean);
+  const rest = deps.filter((dep) => !ENV_TECH_VISIBLE_IDS.has(dep.id) && !knownExtraIds.has(dep.id));
+  return [...ordered, ...rest];
+}
+
+function buildExtraEnvironmentRows(environment) {
+  return getExtraEnvironmentDependencies(environment).map(dependencyEnvRow);
+}
+
+function buildFullEnvironmentRows(environment) {
+  return [
+    ...buildCoreEnvironmentRows(environment),
+    ...buildExtraEnvironmentRows(environment)
+  ];
+}
+
+function setEnvExpandAll(next) {
+  envExpandAll = Boolean(next);
+  const toggle = document.getElementById("env-expand-all");
+  if (toggle && toggle.checked !== envExpandAll) {
+    toggle.checked = envExpandAll;
+  }
+  renderEnvironmentRows(bootstrap?.environment);
 }
 
 function renderEnvironmentRows(environment) {
@@ -398,27 +426,32 @@ function renderEnvironmentRows(environment) {
     return;
   }
 
-  const rows = buildCoreEnvironmentRows(environment);
+  let html = "";
   if (envExpandAll) {
-    rows.push(...buildExtraEnvironmentRows(environment));
+    html = buildFullEnvironmentRows(environment).join("");
+    html += `<button type="button" class="env-expand-trigger" data-env-expand="0">Свернуть список технологий</button>`;
+  } else {
+    html = `<button type="button" class="env-expand-trigger" data-env-expand="1">Показать полный список технологий</button>`;
   }
 
-  envRows.innerHTML = rows.join("");
-
-  const expandToggle = document.getElementById("env-expand-all");
-  if (expandToggle && expandToggle.checked !== envExpandAll) {
-    expandToggle.checked = envExpandAll;
-  }
+  envRows.innerHTML = html;
 }
 
 function bindEnvExpandToggle() {
   const toggle = document.getElementById("env-expand-all");
-  if (!toggle || toggle.dataset.bound) return;
-  toggle.dataset.bound = "1";
-  toggle.addEventListener("change", () => {
-    envExpandAll = toggle.checked;
-    renderEnvironmentRows(bootstrap?.environment);
-  });
+  if (toggle && !toggle.dataset.bound) {
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("change", () => setEnvExpandAll(toggle.checked));
+  }
+
+  if (envRows && !envRows.dataset.expandBound) {
+    envRows.dataset.expandBound = "1";
+    envRows.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-env-expand]");
+      if (!trigger) return;
+      setEnvExpandAll(trigger.dataset.envExpand === "1");
+    });
+  }
 }
 
 function renderEnvironment(environment) {

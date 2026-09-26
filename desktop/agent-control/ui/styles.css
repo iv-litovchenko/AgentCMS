@@ -1137,6 +1137,26 @@ body.is-booting {
   gap: 3px;
 }
 
+.env-expand-trigger {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(120, 140, 180, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.35);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.env-expand-trigger:hover {
+  border-color: rgba(45, 212, 191, 0.45);
+  color: #ccfbf1;
+  background: rgba(20, 184, 166, 0.08);
+}
+
 .env-row {
   display: grid;
   grid-template-columns: 1.1rem 76px minmax(0, 1fr) auto;
