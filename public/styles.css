@@ -23730,6 +23730,7 @@ a.header-tool-btn {
 
 .agent-large-files-type {
   flex: 0 0 auto;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
