@@ -1,5 +1,5 @@
 ---
-awn-name: Такста-1
+awn-name: Такса-11
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
@@ -19,23 +19,23 @@ awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
 awn-type: awn.infoblock.frame.collection
-awn-create: 2026-09-25T22:56:15.197Z
-awn-update: 2026-09-25T22:56:15.197Z
+awn-create: 2026-09-25T23:01:24.465Z
+awn-update: 2026-09-25T23:01:24.465Z
 awn-version: 1
 awn-record-hierarchy: false
 awn-record-file-types: ""
-awn-id: awn-taxonomies.taksta-1
+awn-id: awn-taxonomies.taksa-11
 awn-collection-type: csv
 awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
-awn-taxonomy-key: taksta-1
+awn-taxonomy-key: taksa-11
 awn-taxonomy-cardinality: one
 awn-taxonomy-hierarchy: false
 ---
 
-# Такста-1
+# Такса-11
 
-Такста-1
+Такса-11
 
-Ключ в `awn-taxonomy.taksta-1`. Кардинальность: one. Иерархия: нет.
+Ключ в `awn-taxonomy.taksa-11`. Кардинальность: one. Иерархия: нет.

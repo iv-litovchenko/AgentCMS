@@ -46506,6 +46506,31 @@ button.node-navigation-memory-title:focus-visible {
   margin-top: 0;
 }
 
+.props-form-taxonomy-add.is-loading .props-form-taxonomy-add-form {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.props-form-taxonomy-add-spinner {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.doc-props-aside .props-form-catalog-add-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.5rem;
+}
+
+.doc-props-aside .props-form-taxonomy-preview-select {
+  color: #64748b;
+  cursor: default;
+}
+
 .props-form-taxonomy-section:first-child {
   border-top: 0;
   padding-top: 0;

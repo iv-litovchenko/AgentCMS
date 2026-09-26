@@ -2338,6 +2338,23 @@ function normalizeStoreSlug(slug) {
   return segments.join("/");
 }
 
+/** CSV row codes (awn-code): strict slug first, then transliterated slug for labels. */
+function normalizeCsvRecordCode(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const strict = normalizeStoreSlug(raw);
+  if (strict && !strict.includes("/")) return strict;
+  const slugified = slugifyStoreName(raw);
+  if (slugified && slugified !== "store") return slugified;
+  const loose = raw
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._-]+/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return loose || "";
+}
+
 function slugifyStoreName(name) {
   const map = {
     а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i",
@@ -3343,6 +3360,10 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     const normalizedSlug = normalizeStoreSlug(id);
     if (!normalizedSlug) throw new Error("Invalid section slug");
     id = normalizedSlug;
+  } else if (recordStorage === "csv") {
+    const normalizedCode = normalizeCsvRecordCode(id);
+    if (!normalizedCode) throw new Error("Invalid record code");
+    id = normalizedCode;
   } else if (idMode === "numeric") {
     if (!/^\d+$/.test(id)) throw new Error("Invalid record id for numeric id-mode");
   } else {

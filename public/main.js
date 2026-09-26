@@ -43083,6 +43083,15 @@ function getAgentTaxonomyDefinition(key) {
   return getAgentTaxonomyDefinitions().find((item) => item.key === normalized) || null;
 }
 
+function normalizeTaxonomyRecordCode(raw) {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return "";
+  const slug = sanitizeSlugValue(transliterateDisplayToSlug(trimmed));
+  if (slug) return slug;
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  return "";
+}
+
 function normalizeTaxonomyEntryValue(value, cardinality = "one") {
   if (cardinality === "many") {
     if (Array.isArray(value)) {
@@ -56144,8 +56153,8 @@ function applyTaxonomyItemToPropsEntry(taxonomyKey, cardinality, itemId) {
 }
 
 async function submitPropsTaxonomyAdd(definition, code) {
-  const id = String(code || "").trim();
-  if (!id) throw new Error("Укажите код");
+  const id = normalizeTaxonomyRecordCode(code);
+  if (!id) throw new Error("Некорректный код — латиница, цифры или дефис");
   const storeRel = String(definition?.storeRel || "").trim();
   if (!storeRel) throw new Error("Справочник не найден");
 
@@ -56217,10 +56226,31 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
     }
   };
 
+  const setLoading = (loading) => {
+    panel.classList.toggle("is-loading", loading);
+    saveBtn.disabled = loading;
+    cancelBtn.disabled = loading;
+    input.disabled = loading;
+    if (panel._addBtn) panel._addBtn.disabled = loading;
+    let spinner = saveBtn.querySelector(".props-form-taxonomy-add-spinner");
+    if (loading) {
+      saveBtn.setAttribute("aria-busy", "true");
+      if (!spinner) {
+        spinner = document.createElement("span");
+        spinner.className = "content-search-loading-spinner props-form-taxonomy-add-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        saveBtn.appendChild(spinner);
+      }
+    } else {
+      saveBtn.removeAttribute("aria-busy");
+      spinner?.remove();
+    }
+  };
+
   cancelBtn.addEventListener("click", () => setOpen(false));
   saveBtn.addEventListener("click", () => {
     void (async () => {
-      saveBtn.disabled = true;
+      setLoading(true);
       try {
         await submitPropsTaxonomyAdd(definition, input.value);
         setOpen(false);
@@ -56228,7 +56258,7 @@ function createPropsFormTaxonomyAddPanel(definition, { locked = false } = {}) {
         const message = error instanceof Error ? error.message : String(error);
         showToast(message ? `Справочник: ${message}` : "Не удалось добавить", "error");
       } finally {
-        saveBtn.disabled = false;
+        setLoading(false);
       }
     })();
   });
@@ -56272,44 +56302,52 @@ function createPropsFormTaxonomyManySection(definition, selectedValues, { locked
   section.dataset.taxonomyKey = definition.key;
   section.dataset.taxonomyCardinality = "many";
 
-  const head = document.createElement("div");
-  head.className = "props-form-taxonomy-section-head";
   const title = document.createElement("div");
   title.className = "props-form-catalog-group-title";
   title.textContent = definition.name || definition.key;
+  section.appendChild(title);
+
   const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
   const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
-  head.append(title, addBtn);
-  section.appendChild(head);
-  section.appendChild(addPanel);
+  addPanel._addBtn = addBtn;
+
+  const controlRow = document.createElement("div");
+  controlRow.className = "props-form-taxonomy-control-row";
+  const previewSelect = document.createElement("select");
+  previewSelect.className = "props-form-value props-form-taxonomy-preview-select";
+  previewSelect.disabled = true;
+  previewSelect.tabIndex = -1;
+  previewSelect.setAttribute("aria-hidden", "true");
+  appendPropsFormSelectOption(previewSelect, "", "— не задано —", { selected: true });
+  controlRow.append(previewSelect, addBtn);
+  section.append(controlRow, addPanel);
 
   const selected = new Set(normalizeTaxonomyEntryValue(selectedValues, "many"));
   const items = definition.items || [];
+  const knownIds = new Set(items.map((item) => item.id));
+  const extraTags = [...selected].filter((id) => !knownIds.has(id));
+  const listItems = [
+    ...items,
+    ...extraTags.map((id) => ({ id, label: id }))
+  ];
+
   const list = document.createElement("div");
   list.className = "props-form-tags-list";
-  if (!items.length) {
+  if (!listItems.length) {
     list.appendChild(createPropsFormCatalogMissingNote("Справочник пуст"));
   } else {
-    appendPropsFormCatalogTagOptions(list, items, selected, locked);
+    appendPropsFormCatalogTagOptions(list, listItems, selected, locked);
   }
   section.appendChild(list);
 
-  const knownIds = new Set(items.map((item) => item.id));
-  const extraTags = [...selected].filter((id) => !knownIds.has(id));
-  const extraWrap = document.createElement("div");
-  extraWrap.className = "props-form-tags-extra-wrap";
-  const extraLabel = document.createElement("label");
-  extraLabel.className = "props-form-tags-extra-label";
-  extraLabel.textContent = extraTags.length ? "Другие значения" : "Свои значения (через запятую)";
-  const extraInput = document.createElement("input");
-  extraInput.type = "text";
-  extraInput.className = "props-form-value props-form-tags-extra";
-  extraInput.placeholder = "custom, local";
-  extraInput.value = extraTags.join(", ");
-  extraInput.disabled = locked;
-  extraLabel.appendChild(extraInput);
-  extraWrap.appendChild(extraLabel);
-  section.appendChild(extraWrap);
+  if (extraTags.length) {
+    const extraInput = document.createElement("input");
+    extraInput.type = "hidden";
+    extraInput.className = "props-form-tags-extra";
+    extraInput.value = extraTags.join(", ");
+    section.appendChild(extraInput);
+  }
+
   return section;
 }
 
@@ -56337,6 +56375,7 @@ function createPropsFormTaxonomyOneSection(definition, selectedValue, { locked =
   bindPropsFormLockedState(select, locked);
   const addPanel = createPropsFormTaxonomyAddPanel(definition, { locked });
   const addBtn = createPropsFormTaxonomyAddButton(definition, addPanel, { locked });
+  addPanel._addBtn = addBtn;
   controlRow.append(select, addBtn);
   section.append(controlRow, addPanel);
   return section;
