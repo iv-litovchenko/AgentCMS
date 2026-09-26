@@ -54,21 +54,66 @@ export function buildVoiceShellTabUrl(voiceBase, agentId) {
   return `${base}/${encodeURIComponent(agent)}/`;
 }
 
+const DEFAULT_EDITOR_HTTPS_PORT = 3443;
+const DEFAULT_EDITOR_HTTP_PORT = 3000;
+const DEFAULT_VOICE_HTTPS_PORT = 3488;
+const DEFAULT_VOICE_HTTP_PORT = 3088;
+const VOICE_HTTPS_OFFSET = DEFAULT_VOICE_HTTPS_PORT - DEFAULT_EDITOR_HTTPS_PORT;
+
 export function voiceBaseFromCmsHost(cmsBase) {
   try {
     const url = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, ""));
     if (url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0") {
       url.hostname = "localhost";
     }
-    if (url.port === "3443" || url.port === "3000" || !url.port) {
+    const port = url.port;
+    if (!port || port === String(DEFAULT_EDITOR_HTTPS_PORT)) {
       url.protocol = "https:";
-      url.port = "3488";
+      url.port = String(DEFAULT_VOICE_HTTPS_PORT);
+      return url.origin;
+    }
+    if (port === String(DEFAULT_EDITOR_HTTP_PORT)) {
+      url.protocol = "https:";
+      url.port = String(DEFAULT_VOICE_HTTPS_PORT);
+      return url.origin;
+    }
+    if (port === String(DEFAULT_VOICE_HTTPS_PORT) || port === String(DEFAULT_VOICE_HTTP_PORT)) {
+      return url.origin;
+    }
+    const editorHttps = Number(port);
+    if (Number.isFinite(editorHttps) && editorHttps > 0 && url.protocol === "https:") {
+      url.port = String(editorHttps + VOICE_HTTPS_OFFSET);
       return url.origin;
     }
   } catch {
     // ignore
   }
   return DEFAULT_VOICE_BASE_URL;
+}
+
+function voiceBaseFromCmsHtml(cmsBase, html) {
+  const text = String(html || "");
+  const voiceMatch = text.match(/window\.__AGENT_CMS_VOICE_URL__\s*=\s*"([^"]+)"/);
+  if (voiceMatch?.[1]) return normalizeVoiceBaseForBrowser(voiceMatch[1]);
+  const portsMatch = text.match(/window\.__AGENT_CMS_PORTS__\s*=\s*(\{[\s\S]*?\});/);
+  if (portsMatch?.[1]) {
+    try {
+      const ports = JSON.parse(portsMatch[1]);
+      const voiceHttps = Number(ports?.voiceHttps);
+      if (Number.isFinite(voiceHttps) && voiceHttps > 0) {
+        const cmsUrl = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, "") + "/");
+        if (cmsUrl.hostname === "127.0.0.1" || cmsUrl.hostname === "0.0.0.0") {
+          cmsUrl.hostname = "localhost";
+        }
+        cmsUrl.protocol = "https:";
+        cmsUrl.port = String(voiceHttps);
+        return cmsUrl.origin;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
 }
 
 export function buildShellFrameUrl(cmsBase, agentId) {
@@ -84,8 +129,8 @@ export async function resolveVoiceBaseUrl(cmsBase) {
     clearTimeout(timer);
     if (response.ok) {
       const html = await response.text();
-      const match = html.match(/window\.__AGENT_CMS_VOICE_URL__\s*=\s*"([^"]+)"/);
-      if (match?.[1]) return normalizeVoiceBaseForBrowser(match[1]);
+      const fromHtml = voiceBaseFromCmsHtml(cms, html);
+      if (fromHtml) return fromHtml;
     }
   } catch {
     // ignore

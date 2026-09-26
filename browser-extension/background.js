@@ -7,11 +7,15 @@ const {
   buildExtensionShellUrl,
   buildVoiceShellTabUrl,
   voiceBaseFromCmsHost,
+  resolveVoiceBaseUrl,
   normalizeVoiceBaseForBrowser,
   isCmsReachable,
   decodeReadableUrl,
   readDecodeUrlsSetting
 } = globalThis.CompanionUrls;
+
+/** Последний Voice origin (для isVoiceServiceUrl при кастомных портах). */
+let lastResolvedVoiceOrigin = "";
 
 const {
   listClipboardHistory,
@@ -115,17 +119,26 @@ async function resolveCmsBase(preferredBase) {
   return preferred;
 }
 
+async function resolveVoiceBaseForCompanion(cmsBaseUrl) {
+  const cms = String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
+  const voiceBase = normalizeVoiceBaseForBrowser(await resolveVoiceBaseUrl(cms));
+  try {
+    lastResolvedVoiceOrigin = new URL(voiceBase).origin;
+  } catch {
+    lastResolvedVoiceOrigin = "";
+  }
+  return voiceBase;
+}
+
 async function getShellFramePayload() {
   const { cmsBaseUrl, agentId, _migratedFromSync } = await getSettings();
   if (!_migratedFromSync) {
     await storageLocal().set({ cmsBaseUrl, agentId, _migratedFromSync: true });
   }
-  const voiceBase = normalizeVoiceBaseForBrowser(
-    voiceBaseFromCmsHost(cmsBaseUrl) || DEFAULT_VOICE_BASE_URL
-  );
+  const voiceBase = await resolveVoiceBaseForCompanion(cmsBaseUrl);
   const shellUrl = buildExtensionShellUrl(voiceBase, agentId);
   const tabUrl = buildVoiceShellTabUrl(voiceBase, agentId);
-  return { shellUrl, tabUrl, panelUrl: shellUrl, cmsBaseUrl, agentId };
+  return { shellUrl, tabUrl, panelUrl: shellUrl, cmsBaseUrl, agentId, voiceBase };
 }
 
 /** @type {Map<number, number>} */
@@ -141,7 +154,9 @@ function isPickerTargetUrl(url) {
 function isVoiceServiceUrl(url) {
   try {
     const parsed = new URL(String(url || ""));
-    return parsed.port === "3488";
+    if (lastResolvedVoiceOrigin && parsed.origin === lastResolvedVoiceOrigin) return true;
+    const port = parsed.port;
+    return port === "3488" || port === "3088";
   } catch {
     return false;
   }
@@ -638,6 +653,8 @@ chrome.runtime.onInstalled.addListener(async () => {
       _migratedFromSync: true
     });
   }
+  const cmsBaseUrl = String(stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL);
+  void resolveVoiceBaseForCompanion(cmsBaseUrl);
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -693,7 +710,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const settings = message.settings && typeof message.settings === "object" ? message.settings : {};
     storageLocal()
       .set(settings)
-      .then(() => sendResponse({ ok: true }))
+      .then(async () => {
+        const cms = String(settings.cmsBaseUrl || (await getSettings()).cmsBaseUrl || DEFAULT_CMS_BASE_URL);
+        await resolveVoiceBaseForCompanion(cms);
+        sendResponse({ ok: true });
+      })
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }
