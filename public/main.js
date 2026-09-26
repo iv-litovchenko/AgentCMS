@@ -7813,8 +7813,7 @@ function getLandingFocusSearchHaystack(item) {
     getFocusItemType(item),
     getFocusItemStatus(item),
     getFocusItemCategory(item),
-    getFocusItemCatalogRaw(item, "awn-owner"),
-    ...getFocusItemTags(item)
+    getFocusItemCatalogRaw(item, "awn-owner")
   ]
     .map((value) => String(value ?? "").trim().toLowerCase())
     .filter(Boolean)
@@ -7827,7 +7826,6 @@ function filterLandingFocusItems(items) {
   const typeFilters = getLandingFocusSelectedTypes();
   const typeFilterSet = typeFilters.length ? new Set(typeFilters) : null;
   const categoryFilter = String(landingFocusFilter.category || "").trim();
-  const tagFilter = String(landingFocusFilter.tag || "").trim();
   const ownerFilter = String(landingFocusFilter.owner || "").trim();
   const priorityFilter = String(landingFocusFilter.priority || "").trim();
 
@@ -7838,7 +7836,6 @@ function filterLandingFocusItems(items) {
     if (categoryFilter && getFocusItemCategory(item) !== categoryFilter) return false;
     if (ownerFilter && getFocusItemCatalogRaw(item, "awn-owner") !== ownerFilter) return false;
     if (priorityFilter && getFocusItemCatalogRaw(item, "awn-priority") !== priorityFilter) return false;
-    if (tagFilter && !getFocusItemTags(item).includes(tagFilter)) return false;
     return true;
   });
 }
@@ -7971,9 +7968,9 @@ function syncLandingFocusFilterTypePanel() {
 }
 
 function syncLandingFocusCatalogFilterOptions() {
+  appLandingFocusFilterTagNode?.closest("label")?.classList.add("hidden");
   const specs = [
     { node: appLandingFocusFilterCategoryNode, key: "awn-category", filterKey: "category" },
-    { node: appLandingFocusFilterTagNode, key: "awn-tags", filterKey: "tag", tags: true },
     { node: appLandingFocusFilterOwnerNode, key: "awn-owner", filterKey: "owner" },
     { node: appLandingFocusFilterPriorityNode, key: "awn-priority", filterKey: "priority" }
   ];
@@ -8249,7 +8246,6 @@ const FOCUS_AWN_KEYS = [
   "awn-category",
   "awn-owner",
   "awn-priority",
-  "awn-tags",
   "awn-color",
   "awn-version",
   "awn-type",
@@ -14153,11 +14149,7 @@ async function switchActiveAgent(nextAgentId) {
 
     void (async () => {
       try {
-        await Promise.all([
-          loadSystemFiles(),
-          loadAwnTypes(switchedAgentId),
-          loadAgentTaxonomies(switchedAgentId)
-        ]);
+        await Promise.all([loadSystemFiles(), loadAwnTypes(switchedAgentId)]);
         if (switchedAgentId !== activeAgentId) return;
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
@@ -14169,7 +14161,9 @@ async function switchActiveAgent(nextAgentId) {
         if (isAgentWorkspaceCanvasVisible()) {
           applyAgentWorkspaceCanvasUi();
         }
-        await loadAgentFocusItems(switchedAgentId);
+        if (!isAppLandingViewActive()) {
+          void loadAgentFocusItems(switchedAgentId);
+        }
         if (switchedAgentId !== activeAgentId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
@@ -59846,11 +59840,11 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
     row.append(head, valueControl);
   }
 
-  const needsLookup = isLookupFieldWidget(fieldWidget);
-  if (needsLookup && !getAgentTaxonomiesCache(activeAgentId) && activeAgentId) {
-    void loadAgentTaxonomies(activeAgentId);
-  }
-  if (fieldWidget === "taxonomy" && activeAgentId) {
+  const needsTaxonomies =
+    activeAgentId &&
+    !getAgentTaxonomiesCache(activeAgentId) &&
+    (isLookupFieldWidget(fieldWidget) || fieldWidget === "taxonomy");
+  if (needsTaxonomies) {
     void loadAgentTaxonomies(activeAgentId);
   }
 
@@ -60144,7 +60138,6 @@ function applyMediaSidecarContentUi(rawContent) {
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
   await Promise.all([
     loadAwnTypes(activeAgentId).catch(() => null),
-    loadAgentTaxonomies(activeAgentId).catch(() => null),
     ensureTopicSchemaForActiveContext()
   ]);
   const { frontmatter, body } = splitFrontmatter(rawContent);
@@ -113529,14 +113522,6 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     const data = await response.json();
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
-    invalidateAgentTaxonomiesCache(resolvedAgent);
-    if (resolvedAgent === activeAgentId) {
-      void loadAgentTaxonomies(resolvedAgent).finally(() => {
-        if (awnDataCreateModalNode && !awnDataCreateModalNode.classList.contains("hidden")) {
-          syncAwnDataCreateGroupPresetsUi();
-        }
-      });
-    }
     renderMenuAwnDataStores(data);
     void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
       if (!menuAwnDataIndexRowNode?.isConnected) return;
@@ -115303,7 +115288,7 @@ async function init() {
       setMenuLoading(true, "Загрузка дерева…");
       await refreshMenu();
       setMenuLoading(false);
-      void Promise.all([loadAwnTypes(activeAgentId), loadAgentTaxonomies(activeAgentId)]);
+      void loadAwnTypes(activeAgentId);
     }
 
     suspendAppRouteSync();
@@ -115313,8 +115298,8 @@ async function init() {
       resumeAppRouteSync();
     }
 
-    if (activeAgentId) {
-      await loadAgentFocusItems(activeAgentId);
+    if (activeAgentId && !isAppLandingViewActive()) {
+      void loadAgentFocusItems(activeAgentId);
     }
 
     syncAppRouteToUrl({ replace: true });

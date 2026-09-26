@@ -15311,32 +15311,6 @@ async function getAgentPreviewMeta(agent) {
 }
 
 async function enrichFocusItems(items) {
-  const lookupCache = new Map();
-
-  async function getLookupForAgent(agentId) {
-    if (lookupCache.has(agentId)) return lookupCache.get(agentId);
-    const agent = resolveAgent(agentId);
-    if (!agent || isPlatformAgentId(agent.id)) {
-      lookupCache.set(agentId, null);
-      return null;
-    }
-    let serviceAbsolute = null;
-    try {
-      await runWithAgent(agent.id, async () => {
-        const kitFolder = getAgentKitFolder();
-        if (kitFolder) {
-          serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), kitFolder);
-        }
-      });
-    } catch {
-      lookupCache.set(agentId, null);
-      return null;
-    }
-    const lookup = await getCatalogLookupMaps(getProjectRoot(), serviceAbsolute, { agentOnly: true });
-    lookupCache.set(agentId, lookup);
-    return lookup;
-  }
-
   return Promise.all(
     items.map(async (item) => {
       const agent = resolveAgent(item.agentId);
@@ -15362,45 +15336,10 @@ async function enrichFocusItems(items) {
         }
       }
 
-      const lookup = await getLookupForAgent(item.agentId);
-      const awnProps = item.awnProps && typeof item.awnProps === "object" ? { ...item.awnProps } : {};
-      const catalogDisplay = {};
-      if (lookup) {
-        if (awnProps["awn-category"]) {
-          catalogDisplay["awn-category"] = resolveCatalogPropValue(lookup.categories, awnProps["awn-category"]);
-        }
-        if (awnProps["awn-status"]) {
-          catalogDisplay["awn-status"] = resolveCatalogPropValue(lookup.statuses, awnProps["awn-status"]);
-        }
-        if (awnProps["awn-owner"]) {
-          catalogDisplay["awn-owner"] = resolveCatalogPropValue(lookup.users, awnProps["awn-owner"]);
-        }
-        if (awnProps["awn-priority"]) {
-          catalogDisplay["awn-priority"] = resolveCatalogPropValue(lookup.priorities, awnProps["awn-priority"]);
-        }
-        if (awnProps["awn-tags"]) {
-          catalogDisplay["awn-tags"] = resolveCatalogTagsList(lookup.tags, awnProps["awn-tags"]).join(", ");
-        }
-        if (awnProps["awn-color"]) {
-          const colorRaw = String(awnProps["awn-color"]).trim();
-          const colorItem = lookup.colors.find(
-            (entry) => entry.id === colorRaw || entry.color === colorRaw
-          );
-          if (colorItem) {
-            catalogDisplay["awn-color"] = colorItem.label || colorRaw;
-            if (colorItem.color) catalogDisplay["awn-color-hex"] = colorItem.color;
-          } else if (/^#[0-9a-f]{3,8}$/i.test(colorRaw)) {
-            catalogDisplay["awn-color"] = colorRaw;
-            catalogDisplay["awn-color-hex"] = colorRaw;
-          }
-        }
-      }
-
       return {
         ...item,
         agentPreviewUrl,
-        nodePreviewUrl,
-        catalogDisplay
+        nodePreviewUrl
       };
     })
   );
