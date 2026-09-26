@@ -48088,6 +48088,92 @@ button.node-navigation-memory-title:focus-visible {
   min-height: auto;
 }
 
+/* Редактор (preview / wysiwyg / source): скролл на doc-slab-content, не на workspace-pane */
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .workspace-pane {
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-stack {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-body-grid,
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-body-main {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-slab-content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-slab-main {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-body-main {
+  position: relative;
+}
+
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .editor-surface:not(.hidden)) > .workspace-scroll-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .editor-surface:not(.hidden)) > .workspace-scroll-chrome.is-active {
+  opacity: 1;
+}
+
+.doc-body-main:has(> .doc-slab-content > .doc-slab-main > .editor-surface:not(.hidden)) > .scroll-top-btn--docked {
+  position: absolute;
+  right: calc(14px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(14px + var(--scroll-top-shift-y, 0px));
+  z-index: 41;
+  margin: 0;
+  width: auto;
+  max-width: none;
+  align-self: auto;
+  flex: none;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar {
+  width: 10px;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.62);
+  border-radius: 999px;
+  border: 2px solid rgba(248, 250, 252, 0.92);
+  background-clip: padding-box;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar-thumb:hover {
+  background: rgba(51, 65, 85, 0.82);
+  background-clip: padding-box;
+}
+
 /* Overview / navigation: не схлопывать layout даже если editor-autoheight ещё на root */
 .app.editor-autoheight:has(#node-overview-block:not(.hidden)) .workspace-pane {
   overflow: hidden;

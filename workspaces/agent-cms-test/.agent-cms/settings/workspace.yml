@@ -6,12 +6,12 @@ awn_settings:
   notify-on-complete: false
   awn-id-next: 39
   awn-id-issued: 38
-  awn-id-updated-at: "2026-09-26T12:40:27.602Z"
+  awn-id-updated-at: "2026-09-26T12:42:26.804Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
   hooks-rules: []
-  voice-route-runtime: codex
+  voice-route-runtime: claude
   voice-route-claude-cli-path: claude
   voice-route-codex-cli-path: codex
   voice-route-qwenpaw-url: "http://127.0.0.1:8088"
@@ -87,7 +87,7 @@ awn_settings:
   voice-window-compact-dialog-qa: true
   voice-window-keep-awake: true
   voice-window-processing-sound: off
-  voice-window-dialog-auto-scroll: true
+  voice-window-dialog-auto-scroll: false
   ws-static-example-1: значение 1
   ws-static-example-2: значение 2
   ws-static-example-3: значение 3

@@ -114652,10 +114652,14 @@ function syncDocBodyStatusBar(scrollMetrics = null) {
   }
 }
 
+function getEditorSurfaceInDocSlabContent(docSlabContent) {
+  return docSlabContent?.querySelector(":scope > .doc-slab-main > .editor-surface:not(.hidden)");
+}
+
 function getDocBodyMainEditorScrollTargets() {
-  if (!isDocPropsAsideVisible() || !shouldUseEditorAutoHeight()) return null;
+  if (!shouldUseEditorAutoHeight()) return null;
   const docSlabContent = getDocSlabContentNode();
-  if (!docSlabContent) return null;
+  if (!docSlabContent || !getEditorSurfaceInDocSlabContent(docSlabContent)) return null;
   return {
     scrollElement: docSlabContent,
     hostTarget: getOverviewDocSlabChromeHost(docSlabContent)
