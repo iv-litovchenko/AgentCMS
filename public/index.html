@@ -3242,7 +3242,16 @@
           </div>
         </div>
         <div id="agent-large-files-info" class="agent-tool-info">
-          <p id="agent-large-files-meta" class="agent-tool-info-desc">Порог: 45 МБ · сортировка по размеру (убывание)</p>
+          <div id="agent-large-files-meta" class="agent-large-files-meta agent-tool-info-desc">
+            <span class="agent-large-files-meta-label">Порог:</span>
+            <div
+              id="agent-large-files-threshold-filter"
+              class="agent-large-files-threshold-filter"
+              role="group"
+              aria-label="Минимальный размер файла"
+            ></div>
+            <span class="agent-large-files-meta-hint">· сортировка по размеру (убывание)</span>
+          </div>
           <div id="agent-large-files-stats" class="agent-workspace-stats" aria-live="polite"></div>
         </div>
         <div id="agent-large-files-content" class="agent-tool-body agent-large-files-content"></div>

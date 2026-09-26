@@ -246,6 +246,8 @@ const agentLargeFilesContentNode = document.getElementById("agent-large-files-co
 const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
 const agentLargeFilesMetaNode = document.getElementById("agent-large-files-meta");
 const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
+const AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS = [3, 5, 10, 15, 25, 45];
+let agentLargeFilesThresholdMb = 45;
 const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pane");
 const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
@@ -98832,8 +98834,44 @@ async function renderAgentGitView() {
   }
 }
 
-async function fetchAgentLargeFiles() {
-  const response = await fetch(buildApiUrl("/api/agent/large-files", { minMb: 45 }));
+function syncAgentLargeFilesThresholdFilterUi() {
+  const wrap = document.getElementById("agent-large-files-threshold-filter");
+  if (!wrap) return;
+  wrap.querySelectorAll("[data-threshold-mb]").forEach((btn) => {
+    const value = Number(btn.dataset.thresholdMb);
+    const active = value === agentLargeFilesThresholdMb;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function ensureAgentLargeFilesThresholdFilter() {
+  const wrap = document.getElementById("agent-large-files-threshold-filter");
+  if (!wrap) return;
+  if (wrap.dataset.bound !== "1") {
+    wrap.dataset.bound = "1";
+    for (const mb of AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "agent-large-files-threshold-btn";
+      btn.dataset.thresholdMb = String(mb);
+      btn.textContent = `${mb} МБ`;
+      btn.addEventListener("click", () => {
+        if (agentLargeFilesThresholdMb === mb) return;
+        agentLargeFilesThresholdMb = mb;
+        syncAgentLargeFilesThresholdFilterUi();
+        if (agentWorkspaceView === "large-files") {
+          void renderAgentLargeFilesView();
+        }
+      });
+      wrap.appendChild(btn);
+    }
+  }
+  syncAgentLargeFilesThresholdFilterUi();
+}
+
+async function fetchAgentLargeFiles(minMb = agentLargeFilesThresholdMb) {
+  const response = await fetch(buildApiUrl("/api/agent/large-files", { minMb }));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `HTTP ${response.status}`);
@@ -98848,6 +98886,8 @@ function renderAgentLargeFilesStatChip(label, value, tone = "") {
 
 async function renderAgentLargeFilesView() {
   if (!agentLargeFilesContentNode) return;
+
+  ensureAgentLargeFilesThresholdFilter();
 
   agentLargeFilesContentNode.replaceChildren();
   if (agentLargeFilesStatsNode) agentLargeFilesStatsNode.replaceChildren();
@@ -98868,10 +98908,6 @@ async function renderAgentLargeFilesView() {
       );
     }
 
-    if (agentLargeFilesMetaNode) {
-      agentLargeFilesMetaNode.textContent = `Порог: ${data.thresholdMb ?? 45} МБ · сортировка по размеру (убывание)`;
-    }
-
     const shell = document.createElement("div");
     shell.className = "agent-tool-shell agent-large-files-shell";
 
@@ -98881,7 +98917,7 @@ async function renderAgentLargeFilesView() {
       empty.className = "agent-tool-empty-card agent-large-files-empty-state";
       empty.innerHTML = `
         <p class="agent-tool-empty-title agent-large-files-empty-title">Крупных файлов не найдено</p>
-        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? 45} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
+        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? agentLargeFilesThresholdMb} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
       `;
       shell.appendChild(empty);
     } else {
