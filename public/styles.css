@@ -46462,6 +46462,40 @@ button.node-navigation-memory-title:focus-visible {
   gap: 8px;
 }
 
+.doc-props-aside .props-form-taxonomy-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-section-head {
+  margin: 0;
+  padding: 0 0 2px;
+}
+
+.doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-section-head .props-form-catalog-group-title {
+  margin: 0;
+}
+
+.doc-props-aside .props-form-taxonomy-list-block .props-form-tags-list {
+  max-height: 160px;
+  margin: 0;
+  padding: 4px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.doc-props-aside .props-form-taxonomy-list-block .props-form-taxonomy-add-form {
+  margin-bottom: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
 .props-form-taxonomy-control-row {
   display: flex;
   align-items: stretch;
