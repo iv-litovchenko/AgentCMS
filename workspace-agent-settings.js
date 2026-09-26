@@ -27,7 +27,8 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "index-workspace-id-enabled": true,
   "index-storage-mode": "quick",
   "index-path-prefixes": [],
-  "index-exclude-patterns": ".git/\n.agent-cms/cache/\nnode_modules/\nawn-temp/\n*.mdback",
+  "index-exclude-patterns":
+    ".git/\n.agent-cms/cache/\nnode_modules/\nawn-temp/\nawn-media-cloud/\nawn-google-drive/\n*.mdback",
   "index-file-extensions": [".md", ".sidecar.md"],
   "search-default-scopes": ["semantic", "fulltext"],
   "search-semantic-chunk-size": "900",

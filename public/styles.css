@@ -23700,7 +23700,7 @@ a.header-tool-btn {
 .agent-large-files-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
@@ -23719,11 +23719,79 @@ a.header-tool-btn {
 
 .agent-large-files-size {
   flex: 0 0 auto;
-  min-width: 72px;
+  margin-left: auto;
+  padding-left: 8px;
   font-size: 12px;
   font-weight: 600;
   color: #7c3aed;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agent-large-files-type {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #dbe3ee;
+  background: #f8fafc;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-large-files-type--image {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.agent-large-files-type--pdf {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.agent-large-files-type--doc {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.agent-large-files-type--sheet {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.agent-large-files-type--slide {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.agent-large-files-type--video {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
+}
+
+.agent-large-files-type--audio {
+  background: #fdf4ff;
+  border-color: #f5d0fe;
+  color: #a21caf;
+}
+
+.agent-large-files-type--archive {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
 }
 
 .agent-large-files-path {

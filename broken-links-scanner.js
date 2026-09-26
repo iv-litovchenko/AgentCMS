@@ -5,7 +5,8 @@ const {
   STORAGE_SUBFOLDER_REPOSITORY,
   parseStorageAssetsRef,
   parseStorageSlotInlineRef,
-  getNamedStorageSlotDirRel
+  getNamedStorageSlotDirRel,
+  isAwnMediaCloudFolderName
 } = require("./manifest-paths");
 const {
   resolveMarkdownHrefToWorkspaceRel,
@@ -39,6 +40,7 @@ function normalizeLinkPath(relPath) {
 function shouldSkipScanDirectory(name) {
   const lower = String(name || "").toLowerCase();
   if (SCAN_SKIP_DIRS.has(lower)) return true;
+  if (isAwnMediaCloudFolderName(name)) return true;
   if (lower === ".obsidian") return true;
   return false;
 }

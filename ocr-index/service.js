@@ -6,7 +6,8 @@ const {
 } = require("../awn-yaml-utils");
 const {
   parseStorageLayerRef,
-  pickManifestRelFromStorageLayerRef
+  pickManifestRelFromStorageLayerRef,
+  isAwnMediaCloudFolderName
 } = require("../manifest-paths");
 const { STORAGE_SLOT_ROUTING } = require("../storage-slot-routing");
 const {
@@ -46,6 +47,7 @@ function isOcrCandidateFileName(name) {
 
 function shouldSkipDir(name) {
   const lower = String(name || "").toLowerCase();
+  if (isAwnMediaCloudFolderName(name)) return true;
   return (
     lower === ".git" ||
     lower === "node_modules" ||

@@ -98884,6 +98884,25 @@ function renderAgentLargeFilesStatChip(label, value, tone = "") {
   return createAgentWorkspaceStatElement(value, label, mappedTone);
 }
 
+function resolveAgentLargeFilesTypeTone(ext) {
+  const normalized = String(ext || "").toLowerCase();
+  const bare = normalized.replace(/^\./, "");
+  if (/^(?:jpe?g|png|gif|webp|svg|avif|bmp|ico|heic|heif|tiff?)$/.test(bare)) return "image";
+  return getNavigationFileTypeTone(ext);
+}
+
+function createAgentLargeFilesTypeBadge(filePath) {
+  const ext = getNavigationItemFileExtension({ path: filePath });
+  const badge = formatNavigationFileExtensionBadge(ext) || "—";
+  const typeLabel = ext ? ext.replace(/^\./, "").toUpperCase() : "Без расширения";
+  const node = document.createElement("span");
+  node.className = `agent-large-files-type agent-large-files-type--${resolveAgentLargeFilesTypeTone(ext)}`;
+  node.title = typeLabel;
+  node.setAttribute("aria-label", `Тип файла: ${typeLabel}`);
+  node.textContent = badge;
+  return node;
+}
+
 async function renderAgentLargeFilesView() {
   if (!agentLargeFilesContentNode) return;
 
@@ -98917,7 +98936,7 @@ async function renderAgentLargeFilesView() {
       empty.className = "agent-tool-empty-card agent-large-files-empty-state";
       empty.innerHTML = `
         <p class="agent-tool-empty-title agent-large-files-empty-title">Крупных файлов не найдено</p>
-        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? agentLargeFilesThresholdMb} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
+        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? agentLargeFilesThresholdMb} МБ (кроме служебных каталогов: <code>.git</code>, <code>node_modules</code>, <code>awn-media-cloud</code>…).</p>
       `;
       shell.appendChild(empty);
     } else {
@@ -98937,11 +98956,13 @@ async function renderAgentLargeFilesView() {
         sizeNode.className = "agent-large-files-size";
         sizeNode.textContent = item.sizeLabel || formatFileSize(item.size);
 
+        const typeNode = createAgentLargeFilesTypeBadge(item.path);
+
         const pathNode = document.createElement("span");
         pathNode.className = "agent-large-files-path";
         pathNode.textContent = item.path;
 
-        btn.append(sizeNode, pathNode);
+        btn.append(typeNode, pathNode, sizeNode);
         btn.addEventListener("click", () => {
           void revealWorkspacePath(item.path);
         });

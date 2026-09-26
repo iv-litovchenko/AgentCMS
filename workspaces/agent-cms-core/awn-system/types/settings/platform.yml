@@ -386,6 +386,8 @@ fields:
       .agent-cms/cache/
       node_modules/
       awn-temp/
+      awn-media-cloud/
+      awn-google-drive/
       *.mdback
     group: indexing
     sort: 29

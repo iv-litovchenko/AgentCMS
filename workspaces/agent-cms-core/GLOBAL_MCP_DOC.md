@@ -652,6 +652,8 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 
 Удалённая выгрузка на Google/Яндекс пока **не** реализована — только локальный offload + метки провайдеров в registry.
 
+`awn-media-cloud/` и `awn-google-drive/` (в т.ч. `_blobs/`) **не индексируются** (platform `index-exclude-patterns`) и **не попадают** в «Крупные файлы» — рабочая копия остаётся по пути симлинка в теме; blobs — дубликат байтов для git/облака.
+
 ### Пакетные вызовы — `batch_invoke`
 
 Один round-trip вместо N одиночных вызовов **одного и того же** MCP-tool.

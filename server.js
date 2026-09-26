@@ -249,6 +249,7 @@ const {
   AWN_WORKSPACE_BACKUP_FOLDER,
   AWN_DASHBOARDS_FOLDER,
   isPlatformDataRootFolderName,
+  isAwnMediaCloudFolderName,
   isPlatformDataMenuFolderPath,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
@@ -16178,6 +16179,7 @@ const LARGE_FILE_SCAN_SKIP_DIRS = new Set([
 function shouldSkipLargeFileScanDirectory(name) {
   const lower = String(name || "").toLowerCase();
   if (LARGE_FILE_SCAN_SKIP_DIRS.has(lower)) return true;
+  if (isAwnMediaCloudFolderName(name)) return true;
   if (isHiddenMenuEntry(name)) return true;
   return false;
 }

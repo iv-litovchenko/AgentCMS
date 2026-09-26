@@ -39,6 +39,8 @@ awn_settings:
     .agent-cms/cache/
     node_modules/
     awn-temp/
+    awn-media-cloud/
+    awn-google-drive/
     *.mdback
   search-default-scopes:
     - semantic
