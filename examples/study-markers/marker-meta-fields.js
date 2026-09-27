@@ -1,16 +1,17 @@
 /**
  * Мета в блоках [marker:*] и в [мое мета].
  *
- * Канон (все необязательные): awn-create, awn-update, awn-status.
+ * Канон (все необязательные): awn-create, awn-update, awn-status, awn-repeat.
  * Любые другие ключи — произвольные поля автора.
  */
 
-const MARKER_AWN_CANONICAL = ["awn-create", "awn-update", "awn-status"];
+const MARKER_AWN_CANONICAL = ["awn-create", "awn-update", "awn-status", "awn-repeat"];
 
 const MARKER_META_FIELD_MAP = {
   "awn-create": "added",
   "awn-update": "updated",
   "awn-status": "status",
+  "awn-repeat": "review",
   "awn-review": "review",
   создано: "created",
   добавлено: "added",

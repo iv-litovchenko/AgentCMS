@@ -1,9 +1,9 @@
 id: awn.block.marker-important
-name: Marker · Важно
+name: Маркер · Важно
 kind: block
 group: markers
 status: active
-sort: 5
+sort: 2
 icon: "!"
 description: Блок [marker:important] — выделить важное
 template: |

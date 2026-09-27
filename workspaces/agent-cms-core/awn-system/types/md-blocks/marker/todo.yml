@@ -1,10 +1,10 @@
 id: awn.block.marker-todo
-name: Marker · Задачи
+name: Маркер · Задача
 kind: block
 group: markers
 status: active
-sort: 8
-icon: "☐"
+sort: 4
+icon: "✓"
 description: Блок [marker:todo] — чеклист в конспекте
 template: |
   [marker:todo]

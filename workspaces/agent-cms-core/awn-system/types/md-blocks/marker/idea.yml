@@ -1,9 +1,9 @@
 id: awn.block.marker-idea
-name: Marker · Идея
+name: Маркер · Идея
 kind: block
 group: markers
 status: active
-sort: 7
+sort: 1
 icon: "★"
 description: Блок [marker:idea] — идея на потом
 template: |

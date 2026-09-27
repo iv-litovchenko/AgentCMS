@@ -1,9 +1,9 @@
 id: awn.block.marker-question
-name: Marker · Вопрос
+name: Маркер · Вопрос
 kind: block
 group: markers
 status: active
-sort: 2
+sort: 5
 icon: "?"
 description: Блок [marker:question] в тексте конспекта
 template: |

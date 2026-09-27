@@ -24,8 +24,8 @@ awn-description: ""
 awn-name: Тест md-блоков
 awn-preview: ""
 awn-web-url: ""
-awn-update: 2026-09-27T12:00:06.846Z
-awn-version: 8
+awn-update: 2026-09-27T11:57:57.661Z
+awn-version: 7
 ---
 
 111
@@ -84,8 +84,7 @@ awn-status: открыто
 [marker:repeat]
 awn-status: открыто
 awn-create: 2026-09-27
-awn-repeat: 2026-10-01
-мое-какое-тополе: 1021 Привет
+повторить: 2026-10-01
 ---
 Что нужно повторить.
 

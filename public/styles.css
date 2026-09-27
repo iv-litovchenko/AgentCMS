@@ -31619,6 +31619,69 @@ a.header-tool-btn {
   text-align: center;
 }
 
+/* Маркеры: цветные бейджи иконок (как study-markers .type-icon) */
+.doc-block-btn .type-icon,
+.file-content-preview .md-marker-block-icon.type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.doc-block-btn .type-moe-ideya,
+.file-content-preview .type-moe-ideya {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+.doc-block-btn .type-moe-vazhno,
+.file-content-preview .type-moe-vazhno {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+.doc-block-btn .type-moe-zametka,
+.file-content-preview .type-moe-zametka {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.doc-block-btn .type-moe-todo,
+.file-content-preview .type-moe-todo {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.doc-block-btn .type-moe-vopros,
+.file-content-preview .type-moe-vopros {
+  background: #2e1065;
+  color: #c4b5fd;
+}
+
+.doc-block-btn .type-moe-oshibka,
+.file-content-preview .type-moe-oshibka {
+  background: #450a0a;
+  color: #f87171;
+}
+
+.doc-block-btn .type-moe-termin,
+.file-content-preview .type-moe-termin {
+  background: #4a044e;
+  color: #f0abfc;
+}
+
+.doc-block-btn .type-moe-povtorit,
+.file-content-preview .type-moe-povtorit {
+  background: #422006;
+  color: #fcd34d;
+}
+
 .doc-block-btn-label {
   font-size: 11px;
   font-weight: 600;
@@ -49759,6 +49822,163 @@ button.node-navigation-memory-title:focus-visible {
 .file-content-preview .md-highlight--purple {
   background: #e9d5ff;
   color: #6b21a8;
+}
+
+/* Маркеры [marker:*] — в духе GitHub Alerts (.markdown-alert), цвет по типу */
+.file-content-preview .md-marker-block {
+  padding: 0.55rem 1rem 0.65rem;
+  margin: 0.85rem 0;
+  border-left: 0.25em solid #94a3b8;
+  border-radius: 0 8px 8px 0;
+  background: #f8fafc;
+}
+
+.file-content-preview .md-marker-block-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.file-content-preview .md-marker-block-label {
+  font-size: 0.9rem;
+  cursor: default;
+}
+
+.file-content-preview .md-marker-block-inline-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.file-content-preview .md-marker-chip {
+  display: inline-block;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.65);
+  color: #475569;
+}
+
+.file-content-preview .md-marker-chip--added {
+  color: #92400e;
+}
+
+.file-content-preview .md-marker-chip--updated {
+  color: #1d4ed8;
+}
+
+.file-content-preview .md-marker-chip--review {
+  color: #c2410c;
+}
+
+.file-content-preview .md-marker-chip--extra {
+  border-style: dashed;
+  border-color: rgba(100, 116, 139, 0.35);
+  color: #64748b;
+}
+
+.file-content-preview .md-marker-chip-extra-icon {
+  display: inline-block;
+  margin-right: 0.2rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: #94a3b8;
+  vertical-align: 0.05em;
+}
+
+.file-content-preview .md-marker-block-body {
+  font-size: inherit;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.file-content-preview .md-marker-block-body > :first-child {
+  margin-top: 0;
+}
+
+.file-content-preview .md-marker-block-body > :last-child {
+  margin-bottom: 0;
+}
+
+.file-content-preview .md-marker-block--idea {
+  border-left-color: #1a7f37;
+  background: #eefbf1;
+}
+
+.file-content-preview .md-marker-block--idea .md-marker-block-label {
+  color: #1a7f37;
+}
+
+.file-content-preview .md-marker-block--important {
+  border-left-color: #8250df;
+  background: #f6f0ff;
+}
+
+.file-content-preview .md-marker-block--important .md-marker-block-label {
+  color: #8250df;
+}
+
+.file-content-preview .md-marker-block--note {
+  border-left-color: #0969da;
+  background: #eef6ff;
+}
+
+.file-content-preview .md-marker-block--note .md-marker-block-label {
+  color: #0969da;
+}
+
+.file-content-preview .md-marker-block--todo {
+  border-left-color: #57606a;
+  background: #f6f8fa;
+}
+
+.file-content-preview .md-marker-block--todo .md-marker-block-label {
+  color: #424a53;
+}
+
+.file-content-preview .md-marker-block--question {
+  border-left-color: #6639ba;
+  background: #f4f0ff;
+}
+
+.file-content-preview .md-marker-block--question .md-marker-block-label {
+  color: #6639ba;
+}
+
+.file-content-preview .md-marker-block--mistake {
+  border-left-color: #cf222e;
+  background: #fff1f2;
+}
+
+.file-content-preview .md-marker-block--mistake .md-marker-block-label {
+  color: #cf222e;
+}
+
+.file-content-preview .md-marker-block--term {
+  border-left-color: #a21caf;
+  background: #fdf4ff;
+}
+
+.file-content-preview .md-marker-block--term .md-marker-block-label {
+  color: #86198f;
+}
+
+.file-content-preview .md-marker-block--repeat {
+  border-left-color: #bf8700;
+  background: #fff8e5;
+}
+
+.file-content-preview .md-marker-block--repeat .md-marker-block-label {
+  color: #9a6700;
 }
 
 .editor-wysiwyg-wrap mark,

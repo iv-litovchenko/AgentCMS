@@ -2,11 +2,11 @@ id: awn.block.groups
 kind: meta
 status: active
 domain: md-blocks
-groupOrder: [structure, text, markers, lists, code, visualization, misc]
+groupOrder: [structure, markers, text, lists, code, visualization, misc]
 groupNames:
   structure: Структура
   text: Текст
-  markers: Пометки · marker
+  markers: Маркеры и пометки
   lists: Списки
   code: Код и таблицы
   visualization: Визуализация

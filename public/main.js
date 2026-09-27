@@ -18276,6 +18276,25 @@ const DOC_CONTENT_BLOCK_ICON_BY_ID = {
   "awn.block.awn-desc": "🏷️"
 };
 
+/** Slug md-block marker-* → класс иконки как в study-markers (type-moe-*). */
+const DOC_MARKER_BLOCK_TYPE_ICON_CLASS = {
+  idea: "moe-ideya",
+  important: "moe-vazhno",
+  note: "moe-zametka",
+  todo: "moe-todo",
+  question: "moe-vopros",
+  mistake: "moe-oshibka",
+  term: "moe-termin",
+  repeat: "moe-povtorit",
+};
+
+function resolveDocMarkerBlockIconTypeClass(blockId) {
+  const id = String(blockId || "").trim();
+  const match = id.match(/^awn\.block\.marker-([a-z0-9-]+)$/i);
+  if (!match) return "";
+  return DOC_MARKER_BLOCK_TYPE_ICON_CLASS[match[1].toLowerCase()] || "";
+}
+
 function resolveDocBlockIcon(block) {
   const direct = String(block?.icon || block?.emoji || "").trim();
   if (direct) return direct;
@@ -53029,7 +53048,10 @@ function renderDocContentBlocks() {
       const iconText = resolveDocBlockIcon(block);
       if (iconText) {
         const icon = document.createElement("span");
-        icon.className = "doc-block-btn-icon";
+        const markerTypeClass = resolveDocMarkerBlockIconTypeClass(block.id);
+        icon.className = markerTypeClass
+          ? `doc-block-btn-icon type-icon type-${markerTypeClass}`
+          : "doc-block-btn-icon";
         icon.textContent = iconText;
         icon.setAttribute("aria-hidden", "true");
         head.appendChild(icon);
@@ -87560,7 +87582,13 @@ function renderMarkdownToHtml(markdown, { nodePath, hideFrontmatter = false } = 
   };
 
   try {
-    const bodyHtml = md.render(String(body || "").trim(), renderEnv);
+    let bodyText = String(body || "").trim();
+    if (typeof convertMarkerBlocksForPreview === "function" && bodyText.includes("[marker:")) {
+      bodyText = convertMarkerBlocksForPreview(bodyText, (fragment) =>
+        md.render(String(fragment || "").trim(), renderEnv)
+      );
+    }
+    const bodyHtml = md.render(bodyText, renderEnv);
     const frontmatterHtml = hideFrontmatter ? "" : renderFrontmatterTableHtml(frontmatter);
     return frontmatterHtml ? `${frontmatterHtml}${bodyHtml}` : bodyHtml;
   } catch (error) {
