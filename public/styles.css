@@ -21243,6 +21243,32 @@ a.header-tool-btn {
   gap: 8px;
 }
 
+.sidebar-agent-controls--globe-row {
+  justify-content: flex-end;
+}
+
+.sidebar-roadmap-globe-btn {
+  color: #0d9488;
+}
+
+.sidebar-roadmap-globe-btn:hover {
+  color: #0f766e;
+  border-color: #5eead4;
+  background: #f0fdfa;
+}
+
+.sidebar-roadmap-globe-btn.is-active {
+  border-color: #0d9488;
+  background: #ccfbf1;
+  color: #115e59;
+  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.25);
+}
+
+.sidebar-roadmap-globe-btn-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
 .agent-select-wrap--sr-only,
 .agent-view-select-wrap--sr-only {
   position: absolute;

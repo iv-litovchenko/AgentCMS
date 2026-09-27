@@ -1324,7 +1324,10 @@ const appLockLogoutBtn = document.getElementById("app-lock-logout-btn");
 let headerProfileMenuOpen = false;
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
+const sidebarRoadmapGlobeBtn = document.getElementById("sidebar-roadmap-globe-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
+const SIDEBAR_ROADMAP_GLOBE_PATH =
+  "/agent-cms-core/zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy";
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
 const agentPreviewSlideCounterNode = document.getElementById("agent-preview-slide-counter");
@@ -14398,6 +14401,7 @@ function setMenuLoading(isLoading, message = "Загрузка...") {
   if (agentSelectNode) agentSelectNode.disabled = isLoading;
   if (agentsManageBtn) agentsManageBtn.disabled = isLoading;
   if (agentsPickerBtn) agentsPickerBtn.disabled = isLoading;
+  if (sidebarRoadmapGlobeBtn) sidebarRoadmapGlobeBtn.disabled = isLoading;
   if (isLoading) closeAgentsPickerPopover();
   syncMenuRefreshButtonState();
   if (menuCollapseAllBtn) menuCollapseAllBtn.disabled = isLoading;
@@ -25386,6 +25390,44 @@ function createBrokenLinksMarkerSvg() {
   breakLine.setAttribute("stroke-width", "2");
   breakLine.setAttribute("stroke-linecap", "round");
   svg.appendChild(breakLine);
+
+  return svg;
+}
+
+function createGlobeMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "12");
+  circle.setAttribute("cy", "12");
+  circle.setAttribute("r", "9");
+  circle.setAttribute("fill", "none");
+  circle.setAttribute("stroke", "currentColor");
+  circle.setAttribute("stroke-width", "1.8");
+  svg.appendChild(circle);
+
+  const meridian = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+  meridian.setAttribute("cx", "12");
+  meridian.setAttribute("cy", "12");
+  meridian.setAttribute("rx", "4");
+  meridian.setAttribute("ry", "9");
+  meridian.setAttribute("fill", "none");
+  meridian.setAttribute("stroke", "currentColor");
+  meridian.setAttribute("stroke-width", "1.8");
+  svg.appendChild(meridian);
+
+  const parallel = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  parallel.setAttribute("x1", "3");
+  parallel.setAttribute("y1", "12");
+  parallel.setAttribute("x2", "21");
+  parallel.setAttribute("y2", "12");
+  parallel.setAttribute("stroke", "currentColor");
+  parallel.setAttribute("stroke-width", "1.8");
+  parallel.setAttribute("stroke-linecap", "round");
+  svg.appendChild(parallel);
 
   return svg;
 }
@@ -95235,6 +95277,7 @@ function updateActiveButton() {
   }
   syncFocusPanelActiveState();
   syncMenuPinBranchUi();
+  syncSidebarRoadmapGlobeToolbarUi();
 }
 
 async function selectSystemFile(name, options = {}) {
@@ -97803,6 +97846,7 @@ function applyAgentWorkspaceCanvasUi() {
 
   syncAgentGitToolbarUi();
   syncAwnDashboardsToolbarUi();
+  syncSidebarRoadmapGlobeToolbarUi();
   syncAgentLargeFilesToolbarUi();
   syncAgentBrokenLinksToolbarUi();
   syncAgentRunScriptsToolbarUi();
@@ -98794,6 +98838,39 @@ function syncAgentGitToolbarUi() {
 function syncAwnDashboardsToolbarUi() {
   const btn = document.getElementById("awn-dashboards-toolbar-btn");
   btn?.classList.toggle("is-active", agentWorkspaceView === "dashboard3" && isAgentWorkspaceCanvasVisible());
+}
+
+function isSidebarRoadmapGlobePageActive() {
+  const normalizedPath = decodeURIComponent(String(location.pathname || ""))
+    .replace(/\/+$/, "")
+    .toLowerCase();
+  const target = SIDEBAR_ROADMAP_GLOBE_PATH.replace(/\/+$/, "").toLowerCase();
+  if (normalizedPath === target) return true;
+  const rel = normalizeLinkFilePath(activePath || "").toLowerCase();
+  return rel.endsWith("mindmapkarta-roudmapy.md");
+}
+
+function syncSidebarRoadmapGlobeToolbarUi() {
+  sidebarRoadmapGlobeBtn?.classList.toggle("is-active", isSidebarRoadmapGlobePageActive());
+}
+
+async function openSidebarRoadmapGlobePage() {
+  closeAgentsPickerPopover();
+  const href = `${location.origin}${SIDEBAR_ROADMAP_GLOBE_PATH}`;
+  const opened = await tryOpenSameOriginAppUrl(href);
+  if (!opened) {
+    location.href = href;
+  }
+  syncSidebarRoadmapGlobeToolbarUi();
+}
+
+function initSidebarRoadmapGlobeToolbar() {
+  if (!sidebarRoadmapGlobeBtn) return;
+  mountAgentToolbarBtnIcon(sidebarRoadmapGlobeBtn, createGlobeMarkerSvg(), "sidebar-roadmap-globe-btn-icon");
+  syncSidebarRoadmapGlobeToolbarUi();
+  sidebarRoadmapGlobeBtn.addEventListener("click", () => {
+    void openSidebarRoadmapGlobePage();
+  });
 }
 
 function initAgentLargeFilesToolbar() {
@@ -119060,6 +119137,7 @@ if (!window.__agentCmsThreadFocusBound) {
   });
 }
 initAgentAwnTypesToolbar();
+initSidebarRoadmapGlobeToolbar();
 initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
