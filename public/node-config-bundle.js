@@ -1,10 +1,44 @@
 (function (global) {
   const NODE_CONFIG_SECTION_KEYS = ["awn_schema", "awn_ui", "awn_settings"];
   const NODE_CONFIG_LEGACY_UI_KEYS = new Set(["default_landing_mode"]);
+  const NODE_CONFIG_UI_RUNTIME_KEY_PREFIXES = ["navigation_list_sort_", "navigation_media_images_layout_"];
   const NODE_CONFIG_RESERVED_ROOT_KEYS = new Set([
     ...NODE_CONFIG_SECTION_KEYS,
     ...NODE_CONFIG_LEGACY_UI_KEYS
   ]);
+
+  function isNodeConfigUiRuntimeKey(key) {
+    const normalized = String(key || "").trim();
+    if (!normalized) return false;
+    if (NODE_CONFIG_LEGACY_UI_KEYS.has(normalized)) return true;
+    return NODE_CONFIG_UI_RUNTIME_KEY_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+  }
+
+  function stripUiRuntimeKeysFromSettings(awnSettings) {
+    if (!awnSettings || typeof awnSettings !== "object" || Array.isArray(awnSettings)) return {};
+    const next = { ...awnSettings };
+    for (const key of Object.keys(next)) {
+      if (isNodeConfigUiRuntimeKey(key)) delete next[key];
+    }
+    return next;
+  }
+
+  function normalizeNodeConfigBundle(bundle) {
+    const awnUi = { ...(bundle?.awn_ui && typeof bundle.awn_ui === "object" ? bundle.awn_ui : {}) };
+    const rawSettings =
+      bundle?.awn_settings && typeof bundle.awn_settings === "object" && !Array.isArray(bundle.awn_settings)
+        ? bundle.awn_settings
+        : {};
+    for (const [key, value] of Object.entries(rawSettings)) {
+      if (!isNodeConfigUiRuntimeKey(key)) continue;
+      if (awnUi[key] === undefined) awnUi[key] = value;
+    }
+    return {
+      ...bundle,
+      awn_ui: awnUi,
+      awn_settings: stripUiRuntimeKeysFromSettings(rawSettings)
+    };
+  }
 
   function parseYamlScalar(value) {
     const raw = String(value ?? "").trim();
@@ -326,7 +360,7 @@
 
     for (const [key, value] of Object.entries(parsed)) {
       if (NODE_CONFIG_SECTION_KEYS.includes(key)) continue;
-      if (NODE_CONFIG_LEGACY_UI_KEYS.has(key)) {
+      if (isNodeConfigUiRuntimeKey(key)) {
         if (awnUi[key] === undefined) awnUi[key] = value;
         continue;
       }
@@ -358,12 +392,12 @@
       awn_settings: sectionParsed.awn_settings
     });
 
-    return {
+    return normalizeNodeConfigBundle({
       headerComment,
       awn_schema: awnSchemaRaw && typeof awnSchemaRaw === "object" ? awnSchemaRaw : null,
       awn_ui: awnUi,
       awn_settings: awnSettings
-    };
+    });
   }
 
   function composeNodeConfigBundle(bundle) {
@@ -403,6 +437,7 @@
       }
     }
     bundle.awn_ui = nextUi;
+    bundle.awn_settings = stripUiRuntimeKeysFromSettings(bundle.awn_settings);
     bundle.awn_schemaYaml = extractSectionYamlText(content, "awn_schema");
     bundle.awn_schema = null;
     return composeNodeConfigBundle(bundle);
@@ -410,7 +445,7 @@
 
   function applyAwnSettingsToConfig(content, entries) {
     const bundle = parseNodeConfigBundle(content);
-    bundle.awn_settings = settingsEntriesToObject(entries);
+    bundle.awn_settings = stripUiRuntimeKeysFromSettings(settingsEntriesToObject(entries));
     bundle.awn_schemaYaml = extractSectionYamlText(content, "awn_schema");
     bundle.awn_schema = null;
     return composeNodeConfigBundle(bundle);
@@ -419,6 +454,9 @@
   global.NodeConfigBundle = {
     NODE_CONFIG_SECTION_KEYS,
     NODE_CONFIG_RESERVED_ROOT_KEYS,
+    isNodeConfigUiRuntimeKey,
+    stripUiRuntimeKeysFromSettings,
+    normalizeNodeConfigBundle,
     extractConfigHeaderComment,
     stripSectionFromConfigText,
     extractSectionYamlText,

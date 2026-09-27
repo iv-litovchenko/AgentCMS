@@ -44413,15 +44413,22 @@ function parseNodeSettingsState(content) {
   return {
     headerComment: headerComment || NODE_CONFIG_HEADER.trim(),
     entries: NodeConfigBundle.settingsObjectToEntries(bundle.awn_settings),
+    awnUi: bundle.awn_ui && typeof bundle.awn_ui === "object" ? { ...bundle.awn_ui } : {},
     defaultLandingMode: mode && isValidNodeDefaultLandingMode(mode) ? mode : null,
     awnSchemaYaml: ""
   };
 }
 
 function buildNodeConfigYamlFromState(state) {
+  const awnUi = { ...(state?.awnUi && typeof state.awnUi === "object" ? state.awnUi : {}) };
+  if (state?.defaultLandingMode) {
+    awnUi.default_landing_mode = state.defaultLandingMode;
+  } else {
+    delete awnUi.default_landing_mode;
+  }
   return NodeConfigBundle.composeNodeConfigBundle({
     headerComment: state?.headerComment,
-    awn_ui: state?.defaultLandingMode ? { default_landing_mode: state.defaultLandingMode } : {},
+    awn_ui: awnUi,
     awn_settings: NodeConfigBundle.settingsEntriesToObject(state?.entries || []),
     awn_schemaYaml: ""
   });
@@ -46521,6 +46528,12 @@ async function saveNodeSettingsContent() {
 
   const useProjectSettingsApi =
     isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(manifestPath);
+  if (!useProjectSettingsApi) {
+    const fresh = await loadNodeConfig(manifestPath, { force: true });
+    const freshState = parseNodeSettingsState(fresh.content || "");
+    cache.awnUi = freshState.awnUi;
+    cache.defaultLandingMode = freshState.defaultLandingMode;
+  }
   const content = useProjectSettingsApi
     ? buildSettingsYamlFromState(cache, cache?.settingsFields || {})
     : buildNodeConfigYamlFromState(cache);
@@ -46558,6 +46571,7 @@ async function saveNodeSettingsContent() {
     nextState.entries,
     cache.settingsFields || {}
   );
+  cache.awnUi = nextState.awnUi || cache.awnUi || {};
   cache.defaultLandingMode = nextState.defaultLandingMode;
   cache.awnSchemaYaml = nextState.awnSchemaYaml;
   if (!useProjectSettingsApi) {
@@ -67115,17 +67129,12 @@ function hydrateNavigationListSortFromNodeConfig(topicPath, content, { migrateLe
   }
   if (hasConfig || !migrateLegacy) return;
 
-  let migrated = false;
   for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
     if (cache[scope]) continue;
     const legacy = readLegacyNavigationListSort(scope);
     if (legacy) {
       cache[scope] = legacy;
-      migrated = true;
     }
-  }
-  if (migrated) {
-    void persistAllNavigationListSortToNodeConfig(path);
   }
 }
 
@@ -67274,14 +67283,9 @@ function hydrateNavigationMediaImagesLayoutFromNodeConfig(topicPath, content, { 
   const legacy = readLegacyNavigationMediaImagesLayout();
   if (legacy == null) return;
 
-  let migrated = false;
   for (const scope of NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES) {
     if (cache[scope]) continue;
     cache[scope] = legacy;
-    migrated = true;
-  }
-  if (migrated) {
-    void persistAllNavigationMediaImagesLayoutToNodeConfig(path);
   }
 }
 
