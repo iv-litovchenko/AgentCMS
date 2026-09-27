@@ -36,7 +36,7 @@ const ACTIONS = [
   {
     id: "setup-certs",
     category: "setup",
-    title: "Сертификаты HTTPS",
+    title: "Выпустить сертификаты HTTPS",
     description: "Dev-сертификаты в .dev-certs/ для https://localhost без предупреждений браузера.",
     command: "npm",
     args: ["run", "setup:certs"],
@@ -45,7 +45,7 @@ const ACTIONS = [
   {
     id: "setup-desktop-shortcuts",
     category: "setup",
-    title: "Ярлыки на рабочем столе",
+    title: "Создать ярлыки на Desktop",
     description: "Desktop: ACMS-Control, ACMS-Editor, ACMS-Voice, ACMS-Browser-Extension. Для .app — сначала «Собрать».",
     command: "node",
     args: ["scripts/create-desktop-shortcuts.js"],

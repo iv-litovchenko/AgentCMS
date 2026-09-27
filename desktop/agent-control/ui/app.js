@@ -247,8 +247,8 @@ function renderSetupChecklist() {
   const state = getSetupCheckState();
   const diskState = getDiskStatState();
   const hints = {
-    deps: "Шаг 1 → Зависимости",
-    certs: "Шаг 1 → Сертификаты HTTPS",
+    deps: "Шаг 1 → Установить зависимости",
+    certs: "Шаг 1 → Выпустить сертификаты HTTPS",
     server: "Шаг 2 → Старт",
     mcp: "Шаг 3 → MCP к агенту"
   };
@@ -538,9 +538,9 @@ function actionButton(actionId, tone = "default", extraClass = "", disabled = fa
 }
 
 const SETUP_SHORT_TITLES = {
-  "install-deps": "Зависимости",
-  "setup-certs": "Сертификаты HTTPS",
-  "setup-desktop-shortcuts": "Ярлыки Desktop"
+  "install-deps": "Установить зависимости",
+  "setup-certs": "Выпустить сертификаты HTTPS",
+  "setup-desktop-shortcuts": "Создать ярлыки на Desktop"
 };
 
 const SERVER_BTN_TITLES = {
@@ -1375,9 +1375,9 @@ async function runAction(actionId) {
 }
 
 const ACTION_CARD_TITLES = {
-  "install-deps": "Зависимости",
-  "setup-certs": "Сертификаты HTTPS",
-  "setup-desktop-shortcuts": "Ярлыки Desktop"
+  "install-deps": "Установить зависимости",
+  "setup-certs": "Выпустить сертификаты HTTPS",
+  "setup-desktop-shortcuts": "Создать ярлыки на Desktop"
 };
 
 const ACTION_CARD_BUSY = {
