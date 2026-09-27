@@ -5,7 +5,7 @@ awn-importance: 0
 awn-emoji: ""
 awn-sort: 0
 awn-note-todo-sticker: ""
-awn-main: false
+awn-main: true
 awn-focus: false
 awn-slots-flexible: false
 awn-runtime-load-always: false
@@ -16,7 +16,7 @@ awn-runtime-commands: false
 awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-tags: []
-awn-taxonomy: "{}"
+awn-taxonomy: {}
 awn-id: 4
 awn-type: awn.page.topic
 awn-create: "2026-08-26T00:29"
@@ -29,10 +29,10 @@ awn-preview: ""
 awn-priority: false
 awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-09-27T08:52:55.385Z
-awn-version: 21
+awn-update: 2026-09-27T08:52:30.222Z
+awn-version: 17
 ---
 
 л
-ьщощш
+
 лдод

@@ -1,4 +1,5 @@
 ---
+awn-slots-disabled: false
 awn-status: open
 awn-quality: 4
 awn-importance: 0
@@ -26,13 +27,12 @@ awn-color: ""
 awn-description: ""
 awn-name: HTML и CSS 2
 awn-preview: ""
-awn-priority: false
-awn-slots-disabled: false
+awn-priority: ""
 awn-web-url: ""
-awn-update: 2026-09-27T08:52:55.385Z
-awn-version: 21
+awn-update: 2026-09-27T08:52:00.562Z
+awn-version: 16
 ---
 
 л
-ьщощш
+
 лдод
