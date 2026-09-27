@@ -74452,6 +74452,26 @@ function getEntryOverviewMediaAssetKindIcon(kind) {
   return icons[kind] || "📎";
 }
 
+function fillEntryOverviewMediaAssetFileFallback(fallbackEl, relativePath, assetKind) {
+  const emoji = getEntryOverviewMediaAssetKindIcon(assetKind);
+  if (typeof MaterialFileIcons !== "undefined" && MaterialFileIcons.fillFileFallback) {
+    MaterialFileIcons.fillFileFallback(fallbackEl, relativePath, emoji);
+    return;
+  }
+  fallbackEl.textContent = emoji;
+}
+
+function buildEntryOverviewMediaAssetKindBadge(kindBadge, relativePath, assetKind) {
+  const label = getEntryOverviewMediaAssetKindLabel(assetKind);
+  const emoji = getEntryOverviewMediaAssetKindIcon(assetKind);
+  if (typeof MaterialFileIcons !== "undefined" && MaterialFileIcons.appendKindBadgeIcon) {
+    MaterialFileIcons.appendKindBadgeIcon(kindBadge, relativePath, emoji);
+    kindBadge.append(document.createTextNode(label));
+    return;
+  }
+  kindBadge.textContent = `${emoji} ${label}`;
+}
+
 function syncEntryOverviewMediaAssetKindClass(assetKind = null) {
   if (!nodeOverviewBlockNode) return;
   for (const name of ENTRY_OVERVIEW_MEDIA_ASSET_KIND_CLASS_NAMES) {
@@ -74810,7 +74830,7 @@ function createEntryOverviewMediaAssetShowcase(
       showcase.classList.add("is-fallback");
       const fallback = document.createElement("div");
       fallback.className = "node-entry-overview-media-asset-file-fallback";
-      fallback.textContent = "🖼";
+      fillEntryOverviewMediaAssetFileFallback(fallback, relativePath, "image");
       showcase.appendChild(fallback);
     });
     showcase.appendChild(img);
@@ -74829,7 +74849,7 @@ function createEntryOverviewMediaAssetShowcase(
 
   const fallback = document.createElement("div");
   fallback.className = "node-entry-overview-media-asset-file-fallback";
-  fallback.textContent = getEntryOverviewMediaAssetKindIcon(assetKind);
+  fillEntryOverviewMediaAssetFileFallback(fallback, context.relativePath, assetKind);
   showcase.appendChild(fallback);
   return showcase;
 }
@@ -74864,7 +74884,7 @@ function createEntryOverviewMediaAssetPanel(
 
   const kindBadge = document.createElement("span");
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
-  kindBadge.textContent = `${getEntryOverviewMediaAssetKindIcon(assetKind)} ${getEntryOverviewMediaAssetKindLabel(assetKind)}`;
+  buildEntryOverviewMediaAssetKindBadge(kindBadge, context.relativePath, assetKind);
 
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";

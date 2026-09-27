@@ -36081,6 +36081,21 @@ img.is-svg-media,
   color: #64748b;
 }
 
+.node-entry-overview-media-asset-file-fallback-icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.material-file-icon--kind-badge {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.2em;
+  vertical-align: -0.18em;
+  object-fit: contain;
+}
+
 .node-entry-overview-media-asset-foot {
   display: flex;
   flex-wrap: wrap;
