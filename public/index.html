@@ -1477,6 +1477,7 @@
                   </p>
                   <div id="agent-view-select-wrap" class="agent-view-select-wrap">
                     <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace">
+                      <option value="roadmap-map">Визуализация</option>
                       <option value="dashboard" selected>Главная</option>
                       <option value="dashboard2">Дашборд</option>
                       <option value="dashboard3">Мой дашборд</option>
@@ -3762,41 +3763,82 @@
 
       <main
         id="agent-roadmap-map-pane"
-        class="agent-canvas-pane agent-schema-pane agent-roadmap-map-pane hidden"
-        aria-label="Карта и роадмап"
+        class="agent-canvas-pane agent-graph-pane agent-visualization-pane hidden"
+        aria-label="Визуализация workspace"
       >
-        <div class="agent-canvas-head">
-          <div class="agent-canvas-head-copy">
+        <div class="agent-canvas-head agent-canvas-head--compact agent-graph-head agent-rmm-head">
+          <div class="agent-canvas-head-copy agent-graph-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Карта и роадмап</h2>
+            <h2 class="agent-canvas-title">Визуализация</h2>
+          </div>
+          <div class="agent-canvas-head-aside agent-graph-head-actions agent-rmm-head-actions" role="toolbar" aria-label="Режим визуализации">
+            <div class="agent-rmm-mode-tabs" role="tablist" aria-label="Тип представления">
+              <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Mind map</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Roadmap</button>
+            </div>
+            <label class="agent-rmm-depth-label" for="agent-rmm-depth">
+              <span class="agent-rmm-depth-label-text">Глубина</span>
+              <select id="agent-rmm-depth" aria-label="Глубина данных">
+                <option value="files">Темы и файлы</option>
+                <option value="deep">Внутри .md</option>
+              </select>
+            </label>
+            <label class="agent-graph-setting agent-rmm-preview-setting" for="agent-rmm-show-previews">
+              <input id="agent-rmm-show-previews" type="checkbox" checked />
+              <span>Превью на темах</span>
+            </label>
+            <div id="agent-rmm-zoom" class="external-graph-controls external-graph-controls--head agent-rmm-zoom hidden" aria-label="Масштаб">
+              <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
+              <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
+              <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
+            </div>
           </div>
         </div>
-        <div id="agent-roadmap-map-content" class="agent-schema-content agent-roadmap-map-content">
-          <div class="agent-roadmap-map-prose">
-            <p>
-              Как их обычно строят эти карты какие параметры делают маркдаунам? в yaml свойствах что бы их собрать я
-              вижу что интелект карту можно привязать к маркдаун файлам и к содержимуму внутри маркдаун файлов я не
-              вижу смысл строить интелект карту если за каждим из ее веток не стоит маркдаун файл я верно понимаю?
-            </p>
-            <p>
-              как тогда строить дорожную карту - как их обычно строият к чему привязывают как отмечают блоки к
-              изучению что изучили что нет
-            </p>
-            <p>Короткий вывод Три слоя, одна экосистема.</p>
-            <p>Mindmap — «что вообще входит в тему» (пространство знаний).</p>
-            <p>
-              Roadmap — «в каком порядке идти» (лучше из диаграммы, статусы — из md/yaml).Пометки [мое *] — «что со
-              мной лично происходит при изучении».Три слоя, одна экосистема.
-            </p>
-            <p>
-              Если хочешь майндмап, то отталкиваешься не от цели, а от центрального понятия.Майндмап это карта связей
-              между понятиями, без порядка, просто как всё соотносится друг с другом.
-            </p>
-            <p>
-              роадмап по программированию, то строишь его на основе конечной цели (то порядок действий во времени,
-              путь от точки А к точке Б)
-            </p>
-          </div>
+        <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
+          <div id="agent-rmm-detail" class="agent-rmm-detail hidden" aria-live="polite"></div>
+          <div id="agent-rmm-host" class="agent-rmm-host"></div>
+          <aside id="agent-rmm-scratch-notes" class="agent-rmm-scratch-notes" aria-label="Заметки по картам (временно)">
+            <div class="agent-rmm-scratch-notes-head">
+              <span class="agent-rmm-scratch-notes-badge">временно</span>
+              <strong>Mind map · Roadmap · YAML</strong>
+              <button
+                type="button"
+                class="agent-rmm-scratch-notes-collapse"
+                aria-expanded="true"
+                aria-controls="agent-rmm-scratch-notes-body"
+                title="Свернуть"
+              >
+                −
+              </button>
+            </div>
+            <div id="agent-rmm-scratch-notes-body" class="agent-rmm-scratch-notes-body">
+              <p>
+                Как их обычно строят эти карты, какие параметры делают markdown-файлам в yaml-свойствах, чтобы их
+                собрать? Интеллект-карту можно привязать к markdown-файлам и к содержимому внутри markdown-файлов — я
+                не вижу смысл строить интеллект-карту, если за каждой из её веток не стоит markdown-файл. Верно ли я
+                понимаю?
+              </p>
+              <p>
+                Как тогда строить дорожную карту — как их обычно строят, к чему привязывают, как отмечают блоки к
+                изучению, что изучили, что нет?
+              </p>
+              <p><strong>Короткий вывод: три слоя, одна экосистема.</strong></p>
+              <p>Mindmap — «что вообще входит в тему» (пространство знаний).</p>
+              <p>
+                Roadmap — «в каком порядке идти» (лучше из диаграммы, статусы — из md/yaml). Пометки [моё *] — «что со
+                мной лично происходит при изучении».
+              </p>
+              <p>
+                Если хочешь mindmap, отталкиваешься не от цели, а от центрального понятия — карта связей между
+                понятиями, без порядка.
+              </p>
+              <p>
+                Roadmap по программированию строишь от конечной цели — порядок действий во времени, путь от точки А к
+                точке Б.
+              </p>
+            </div>
+          </aside>
         </div>
       </main>
 
@@ -6671,7 +6713,7 @@
     <script src="/awn-dashboards.js?v=6"></script>
     <script src="/platform-status.js"></script>
     <script src="/marker-blocks-preview.js?v=10"></script>
-    <script src="/main.js?v=0.5.920"></script>
+    <script src="/main.js?v=0.5.933"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>
     <script src="/page-picker-extract.js?v=0.5.5"></script>

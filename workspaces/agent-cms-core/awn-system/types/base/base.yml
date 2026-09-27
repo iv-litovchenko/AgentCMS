@@ -44,11 +44,15 @@ field-groups:
     collapsed: true
   - id: indexing
     name: "{A2!} Индексирование"
-    description: Поиск и индексы workspace
+    description: Поиск, индексы workspace, автооглавление и суммаризация для агента
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
     description: Справочники из awn-databases/awn-taxonomies/
+    collapsed: true
+  - id: visualization
+    name: "{A2!} Визуализация"
+    description: Граф, карта знаний и roadmap
     collapsed: true
   - id: system
     name: "{A2!} Системные"
@@ -108,12 +112,16 @@ fields:
         name: 🟠 Запланирована
       - key: in-progress
         name: 🟣 В работе
+      - key: blocked
+        name: 🚧 Заблокирована
       - key: done
         name: ✅ Готова
       - key: closed
         name: 🔴 Закрыта
       - key: archived
         name: ⚫ Архив
+      - key: backlog
+        name: 📥 Backlog
       - key: none
         name: ⚪ Без статуса
     default: open
@@ -212,6 +220,178 @@ fields:
     placement: aside-body
     group: runtime
     sort: 5
+
+  # --- visualization ---
+  awn-viz-graph:
+    type: awn.field.object
+    title: Граф
+    description: Узел на графе связей workspace
+    placement: aside-body
+    group: visualization
+    sort: 1
+    properties:
+      enabled:
+        type: awn.field.boolean
+        title: На графе
+        description: Пока всегда включено — узел участвует в графе
+        locked: true
+        readonly: true
+        default: true
+      pin:
+        type: awn.field.boolean
+        title: Закрепить узел
+        description: Не сдвигать при авто-раскладке
+        default: false
+      weight:
+        type: awn.field.number.importance
+        title: Вес узла
+        description: Влияет на силу связей и размер на графе
+        default: 0
+
+  awn-viz-mindmap:
+    type: awn.field.object
+    title: Карта (mind map)
+    description: Узел на карте знаний темы
+    placement: aside-body
+    group: visualization
+    sort: 2
+    properties:
+      enabled:
+        type: awn.field.boolean
+        title: На карте
+        description: Пока всегда включено — узел на mind map
+        locked: true
+        readonly: true
+        default: true
+      type:
+        type: awn.field.choice.one
+        title: Тип узла
+        widget: radio
+        enum:
+          - key: required
+            name: "! Required"
+          - key: recommended
+            name: "★ Recommended"
+          - key: optional
+            name: "○ Optional"
+          - key: advanced
+            name: "⚡ Advanced"
+          - key: milestone
+            name: "◆ Milestone"
+        default: optional
+      color:
+        type: awn.field.choice.one
+        title: Цвет
+        widget: radio
+        enum:
+          - key: blue
+            name: Blue
+          - key: teal
+            name: Teal
+          - key: slate
+            name: Slate
+          - key: amber
+            name: Amber
+          - key: red
+            name: Red
+          - key: purple
+            name: Purple
+          - key: green
+            name: Green
+          - key: pink
+            name: Pink
+        default: slate
+      size:
+        type: awn.field.choice.one
+        title: Размер
+        widget: radio
+        enum:
+          - key: auto
+            name: Auto
+          - key: small
+            name: Small
+          - key: medium
+            name: Medium
+          - key: large
+            name: Large
+          - key: junction
+            name: Junction
+        default: auto
+      layout-independent:
+        type: awn.field.boolean
+        title: Свой layout-бокс
+        description: Независимая раскладка ветки (Independent Layout Box)
+        default: false
+      direction:
+        type: awn.field.choice.one
+        title: Направление ветки
+        widget: radio
+        enum:
+          - key: auto
+            name: Auto
+          - key: left
+            name: "← Left"
+          - key: right
+            name: "→ Right"
+          - key: up
+            name: "↑ Up"
+          - key: down
+            name: "↓ Down"
+        default: auto
+
+  awn-viz-roadmap:
+    type: awn.field.object
+    title: Roadmap
+    description: Позиция на дорожной карте workspace
+    placement: aside-body
+    group: visualization
+    sort: 3
+    properties:
+      enabled:
+        type: awn.field.boolean
+        title: На roadmap
+        description: Пока всегда включено — узел на roadmap
+        locked: true
+        readonly: true
+        default: true
+      order:
+        type: awn.field.number.integer
+        title: Порядок
+        description: Сортировка в колонке roadmap (колонка — из awn-status)
+        default: 0
+      parallel-group:
+        type: awn.field.string
+        title: Параллельная группа
+        description: Задачи в одной группе идут параллельно на диаграмме
+      column:
+        type: awn.field.string
+        title: Колонка
+        description: Переопределить колонку roadmap (если пусто — по awn-status)
+
+  # --- indexing (поля base; флаги exclude — в mixin indexing-*) ---
+  awn-auto-toc:
+    type: awn.field.boolean
+    title: "{A2!} Автооглавление"
+    description: >
+      Table of contents (TOC): автоматически собирать оглавление документа по
+      заголовкам (кнопка «Сформировать» позже).
+    locked: true
+    readonly: true
+    default: false
+    placement: aside-body
+    group: indexing
+    sort: 3
+
+  awn-summary:
+    type: awn.field.text
+    title: "{A2!} Суммаризация"
+    description: >
+      Развёрнутое резюме записи для вас и агента: может быть объёмнее и
+      содержательнее, чем awn-description (факты, контекст, выводы).
+    hint: "Несколько предложений или абзацев; удобно для поиска и контекста LLM"
+    placement: aside-body
+    group: indexing
+    sort: 4
 
   # --- taxonomy ---
   awn-tags:

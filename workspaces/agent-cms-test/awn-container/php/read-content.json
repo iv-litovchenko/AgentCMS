@@ -13,6 +13,7 @@
     "main/Безопасность/XSS.md",
     "main/Безопасность/xss.md",
     "main/Веб/Роутинг.md",
+    "main/Веб/Сессии и cookies.md",
     "main/Веб/HTTP и формы.md",
     "main/Объекты.md",
     "main/Синтаксис/Массивы.md",
@@ -27,6 +28,7 @@
     "main/awn-container/manifest.md",
     "main/awn-container/php/awn-storage/manifest.md",
     "main/awn-container/php/manifest.md",
+    "main/baza-dannyh/Транзакции.md",
     "main/baza-dannyh/manifest.md",
     "main/baza-dannyh/migratsii.md",
     "main/baza-dannyh/PDO.md",
@@ -38,6 +40,7 @@
     "main/primery-koda/Пример-1.md",
     "main/primery-koda/Пример-3-REST.md",
     "main/README.md",
+    "main/standartnaya-biblioteka/manifest.md",
     "media/gd_61baf013.docx",
     "references/laravel-docs.md",
     "references/php-net-manual.md",
@@ -49,5 +52,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-09-27T13:24:28.581Z"
+  "updatedAt": "2026-09-27T17:49:51.602Z"
 }

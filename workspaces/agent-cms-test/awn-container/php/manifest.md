@@ -28,8 +28,8 @@ awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-priority: ""
 awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-09-27T08:33:10.983Z
-awn-version: 19
+awn-update: 2026-09-27T18:24:36.565Z
+awn-version: 25
 ---
 
 

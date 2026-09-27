@@ -533,6 +533,16 @@ const agentMap2ControlsNode = document.getElementById("agent-map2-controls");
 const agentSchemaPaneNode = document.getElementById("agent-schema-pane");
 const agentSchemaContentNode = document.getElementById("agent-schema-content");
 const agentRoadmapMapPaneNode = document.getElementById("agent-roadmap-map-pane");
+const agentRoadmapMapContentNode = document.getElementById("agent-roadmap-map-content");
+const agentRoadmapMapHostNode = document.getElementById("agent-rmm-host");
+const agentRoadmapMapDetailNode = document.getElementById("agent-rmm-detail");
+const agentRoadmapMapDepthNode = document.getElementById("agent-rmm-depth");
+const agentRoadmapMapZoomNode = document.getElementById("agent-rmm-zoom");
+let agentRoadmapMapSubview = "graph";
+let agentRoadmapMapDepth = "files";
+let agentRoadmapMapRenderSeq = 0;
+let agentRoadmapMapViewportApi = null;
+const agentRoadmapMapMindmapCollapsedIds = new Set();
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
 const topicSchemaTitleNode = topicSchemaPanelNode?.querySelector(".topic-schema-title");
 const topicSchemaTargetTabsNode = document.getElementById("topic-schema-target-tabs");
@@ -574,6 +584,7 @@ const agentVaultStatsNode = document.getElementById("agent-vault-stats");
 const agentGraphPaneNode = document.getElementById("agent-graph-pane");
 const agentGraphContentNode = document.getElementById("agent-graph-content");
 const agentGraphShowPreviewsNode = document.getElementById("agent-graph-show-previews");
+const agentRmmShowPreviewsNode = document.getElementById("agent-rmm-show-previews");
 const agentGraphControlsNode = document.getElementById("agent-graph-controls");
 const filePathNode = document.getElementById("file-path");
 const workspaceLinksMenuWrap = document.getElementById("workspace-links-menu-wrap");
@@ -20902,6 +20913,16 @@ function applyAgentGraphSettingsUi(agentId = activeAgentId) {
   if (agentGraphShowPreviewsNode) {
     agentGraphShowPreviewsNode.checked = settings.showPreviews;
   }
+  if (agentRmmShowPreviewsNode) {
+    agentRmmShowPreviewsNode.checked = settings.showPreviews;
+  }
+}
+
+function saveAgentGraphShowPreviewsFromUi(checked) {
+  saveAgentGraphSettings(activeAgentId, { showPreviews: Boolean(checked) });
+  applyAgentGraphSettingsUi(activeAgentId);
+  if (agentWorkspaceView === "graph") renderAgentGraphView();
+  if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
 }
 
 function applyMenuTreeSettingsUi(agentId = activeAgentId) {
@@ -31109,7 +31130,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   map2: "Структура",
   map3: "Карта 3",
   schema: "Карта",
-  "roadmap-map": "Карта и роадмап",
+  "roadmap-map": "Визуализация",
   "awn-types": "Реестр типов, модулей, компонентов и расширений",
   vault: "Каталог",
   graph: "Граф связей и знаний",
@@ -31933,9 +31954,11 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
   for (const [nodeId, nodeState] of nodeElements.entries()) {
     const node = nodeById.get(nodeId);
     if (!node) continue;
-    const labelOffset = nodeState.previewSize
-      ? nodeState.previewSize / 2 + 10
-      : nodeState.radius + 11 + (nodeState.labelSub ? 8 : 0);
+    const labelOffset = getGraphNodeLabelYOffset(
+      nodeState.radius,
+      nodeState.previewSize,
+      nodeState.labelSubLineCount || 0
+    );
     nodeState.glow.setAttribute("cx", String(node.x));
     nodeState.glow.setAttribute("cy", String(node.y));
     nodeState.circle.setAttribute("cx", String(node.x));
@@ -31952,8 +31975,9 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
     }
     nodeState.label.setAttribute("x", String(node.x));
     nodeState.label.setAttribute("y", String(node.y + labelOffset));
-    nodeState.labelTitle?.setAttribute("x", String(node.x));
-    nodeState.labelSub?.setAttribute("x", String(node.x));
+    nodeState.label.querySelectorAll("tspan").forEach((tspan) => {
+      tspan.setAttribute("x", String(node.x));
+    });
   }
   for (const line of linkElements) {
     const from = nodeById.get(line.from);
@@ -32578,12 +32602,13 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewImage.setAttribute("preserveAspectRatio", "xMidYMid slice");
       previewImage.setAttribute("class", "external-graph-preview-image");
       previewGroup.appendChild(previewImage);
+      appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize);
       group.appendChild(previewGroup);
     }
 
     group.appendChild(circle);
 
-    const { label, labelTitle, labelSub, labelOffset } = appendGraphNodeLabel(
+    const { label, labelTitle, labelSub, labelOffset, labelSubLineCount } = appendGraphNodeLabel(
       group,
       ns,
       node,
@@ -32603,6 +32628,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       labelTitle,
       labelSub,
       labelOffset,
+      labelSubLineCount,
       radius,
       previewSize,
       previewGroup,
@@ -32753,7 +32779,21 @@ function normalizeKnowledgeMapChoice(raw, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
 }
 
+function readVizObjectChildRaw(entries, objectKey, childKey) {
+  const entry = normalizePropsEntries(entries).find(
+    (item) => normalizePropsKey(item?.key) === objectKey && item?.kind === "object"
+  );
+  if (!entry?.value || typeof entry.value !== "object" || Array.isArray(entry.value)) return "";
+  const raw = entry.value[childKey];
+  if (raw === undefined || raw === null) return "";
+  if (typeof raw === "boolean") return raw ? "true" : "false";
+  if (typeof raw === "number") return String(raw);
+  return String(raw).trim();
+}
+
 function readMindmapPropRaw(entries, suffix) {
+  const nested = readVizObjectChildRaw(entries, "awn-viz-mindmap", suffix);
+  if (nested !== "") return nested;
   const primary = readPropsRawValue(entries, `awn-mindmap-${suffix}`);
   if (primary !== "") return primary;
   return readPropsRawValue(entries, `awn-map-${suffix}`);
@@ -43636,6 +43676,111 @@ function parsePropsYamlTaxonomyBlock(lines, startIndex) {
   return { value, nextIndex: index };
 }
 
+const AWN_VIZ_NESTED_OBJECT_KEYS = new Set(["awn-viz-graph", "awn-viz-mindmap", "awn-viz-roadmap"]);
+
+function isAwnNestedObjectPropsKey(key) {
+  return AWN_VIZ_NESTED_OBJECT_KEYS.has(normalizePropsKey(key));
+}
+
+function parsePropsYamlObjectBlock(lines, startIndex) {
+  const value = {};
+  let index = startIndex;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim() || line.trim().startsWith("#")) {
+      index += 1;
+      continue;
+    }
+    if (!/^ {2}\S/.test(line)) break;
+    const childMatch = line.match(/^ {2}([^:]+):\s*(.*)$/);
+    if (!childMatch) break;
+    const childKey = normalizePropsKey(childMatch[1].trim());
+    const childRest = childMatch[2];
+    if (childRest === "") {
+      const items = [];
+      index += 1;
+      while (index < lines.length && /^ {4}-\s?/.test(lines[index])) {
+        items.push(
+          lines[index]
+            .replace(/^ {4}-\s?/, "")
+            .trim()
+            .replace(/^["']|["']$/g, "")
+        );
+        index += 1;
+      }
+      value[childKey] = items;
+      continue;
+    }
+    if (childRest.startsWith("[") && childRest.endsWith("]")) {
+      const inner = childRest.slice(1, -1).trim();
+      value[childKey] = inner
+        ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
+        : [];
+      index += 1;
+      continue;
+    }
+    if (childRest === "true" || childRest === "false") {
+      value[childKey] = childRest === "true";
+      index += 1;
+      continue;
+    }
+    if (childRest === "null" || childRest === "~") {
+      value[childKey] = null;
+      index += 1;
+      continue;
+    }
+    if (/^-?\d+(?:\.\d+)?$/.test(childRest) && !/^\d+\.\d+\.\d+(?:[-+].*)?$/.test(childRest)) {
+      value[childKey] = Number(childRest);
+      index += 1;
+      continue;
+    }
+    value[childKey] = String(parseYamlScalarValue(childRest) ?? "");
+    index += 1;
+  }
+  return { value, nextIndex: index };
+}
+
+function stringifyPropsYamlNestedMapping(key, obj) {
+  const lines = [];
+  const keys = Object.keys(obj || {});
+  if (!keys.length) {
+    lines.push(`${key}: {}`);
+    return lines;
+  }
+  lines.push(`${key}:`);
+  for (const childKey of keys) {
+    const childValue = obj[childKey];
+    if (Array.isArray(childValue)) {
+      const items = childValue.map((item) => String(item).trim()).filter(Boolean);
+      if (!items.length) continue;
+      if (items.length === 1) {
+        lines.push(`  ${childKey}: ${formatYamlScalar(items[0])}`);
+      } else {
+        lines.push(`  ${childKey}:`);
+        for (const item of items) {
+          lines.push(`    - ${formatYamlScalar(item)}`);
+        }
+      }
+      continue;
+    }
+    if (typeof childValue === "boolean") {
+      lines.push(`  ${childKey}: ${childValue ? "true" : "false"}`);
+      continue;
+    }
+    if (typeof childValue === "number" && Number.isFinite(childValue)) {
+      lines.push(`  ${childKey}: ${childValue}`);
+      continue;
+    }
+    if (childValue === null) {
+      lines.push(`  ${childKey}: null`);
+      continue;
+    }
+    const scalar = String(childValue ?? "").trim();
+    if (scalar) lines.push(`  ${childKey}: ${formatYamlScalar(scalar)}`);
+  }
+  return lines;
+}
+
 const PROPS_FIELD_CATALOG_PRESET = {
   "awn-category": "categories",
   "awn-tags": "tags",
@@ -52131,6 +52276,7 @@ function getPropsFieldMetaFromSchema(key) {
 
 function fieldDefToEntryKind(fieldDef) {
   const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.field.string");
+  if (hasStructuredObjectFieldProperties(fieldDef)) return "object";
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry =
     registry[fieldDef?.type || ""] ||
@@ -52160,12 +52306,18 @@ function fieldDefDefaultValue(fieldDef) {
     if (kind === "null") {
       return null;
     }
+    if (kind === "object") {
+      return fieldDef.default && typeof fieldDef.default === "object" && !Array.isArray(fieldDef.default)
+        ? { ...fieldDef.default }
+        : {};
+    }
     return coerceSettingsTextValue(fieldDef.default, "");
   }
   const kind = fieldDefToEntryKind(fieldDef);
   if (kind === "array") return [];
   if (kind === "bool") return false;
   if (kind === "null") return null;
+  if (kind === "object") return {};
   return "";
 }
 
@@ -52232,11 +52384,37 @@ function remapLegacyCustomPropEntriesForSchema(entries, typeDef) {
   return result;
 }
 
+function migrateLegacyVisualizationPropsEntries(entries) {
+  const list = normalizePropsEntries(entries);
+  const byKey = new Map(list.map((entry) => [normalizePropsKey(entry?.key), entry]));
+  if (byKey.has("awn-viz-mindmap")) return list;
+
+  const legacySuffixes = ["enabled", "type", "color", "size", "layout-independent", "direction"];
+  const hasLegacy = legacySuffixes.some((suffix) => byKey.has(`awn-mindmap-${suffix}`));
+  if (!hasLegacy) return list;
+
+  const value = {};
+  for (const suffix of legacySuffixes) {
+    const legacy = byKey.get(`awn-mindmap-${suffix}`);
+    if (!legacy) continue;
+    if (legacy.kind === "bool") value[suffix] = Boolean(legacy.value);
+    else if (legacy.kind === "number") value[suffix] = legacy.value;
+    else value[suffix] = String(getPropsEntryDisplayValue(legacy) ?? "").trim();
+  }
+
+  const legacyKeys = new Set(legacySuffixes.map((suffix) => `awn-mindmap-${suffix}`));
+  const filtered = list.filter((entry) => !legacyKeys.has(normalizePropsKey(entry?.key)));
+  filtered.push({ key: "awn-viz-mindmap", kind: "object", value });
+  return filtered;
+}
+
 function applyTypeSchemaToEntries(entries, typeName = null) {
   const typeDef = getActiveAwnTypeDef(typeName);
   if (!typeDef?.fields) return sortPropsEntries(entries);
 
-  const normalizedEntries = remapLegacyCustomPropEntriesForSchema(entries, typeDef);
+  const normalizedEntries = migrateLegacyVisualizationPropsEntries(
+    remapLegacyCustomPropEntriesForSchema(entries, typeDef)
+  );
 
   const map = new Map();
   for (const entry of normalizePropsEntries(normalizedEntries)) {
@@ -52641,6 +52819,13 @@ function parsePropsYaml(text) {
       continue;
     }
 
+    if (isAwnNestedObjectPropsKey(key) && rest === "") {
+      const parsed = parsePropsYamlObjectBlock(lines, index + 1);
+      entries.push({ key, kind: "object", value: parsed.value });
+      index = parsed.nextIndex;
+      continue;
+    }
+
     if (rest === "|" || rest === ">") {
       const folded = rest === ">";
       const blockLines = [];
@@ -52755,30 +52940,13 @@ function stringifyPropsYaml(entries) {
     if (entry.kind === "taxonomy") {
       const obj =
         entry.value && typeof entry.value === "object" && !Array.isArray(entry.value) ? entry.value : {};
-      const keys = Object.keys(obj);
-      if (!keys.length) {
-        lines.push(`${entry.key}: {}`);
-        continue;
-      }
-      lines.push(`${entry.key}:`);
-      for (const childKey of keys) {
-        const childValue = obj[childKey];
-        if (Array.isArray(childValue)) {
-          const items = childValue.map((item) => String(item).trim()).filter(Boolean);
-          if (!items.length) continue;
-          if (items.length === 1) {
-            lines.push(`  ${childKey}: ${formatYamlScalar(items[0])}`);
-          } else {
-            lines.push(`  ${childKey}:`);
-            for (const item of items) {
-              lines.push(`    - ${formatYamlScalar(item)}`);
-            }
-          }
-          continue;
-        }
-        const scalar = String(childValue ?? "").trim();
-        if (scalar) lines.push(`  ${childKey}: ${formatYamlScalar(scalar)}`);
-      }
+      lines.push(...stringifyPropsYamlNestedMapping(entry.key, obj));
+      continue;
+    }
+    if (entry.kind === "object") {
+      const obj =
+        entry.value && typeof entry.value === "object" && !Array.isArray(entry.value) ? entry.value : {};
+      lines.push(...stringifyPropsYamlNestedMapping(entry.key, obj));
       continue;
     }
     lines.push(`${entry.key}: ${formatYamlScalar(entry.value ?? "")}`);
@@ -52851,6 +53019,22 @@ function applyFormValueToEntry(entry, rawValue) {
       };
     } catch {
       return { ...entry, kind: "taxonomy", value: entry.value ?? {} };
+    }
+  }
+  if (entry.kind === "object") {
+    if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      return { ...entry, kind: "object", value: rawValue };
+    }
+    if (!trimmed) return { ...entry, kind: "object", value: {} };
+    try {
+      const parsed = JSON.parse(trimmed);
+      return {
+        ...entry,
+        kind: "object",
+        value: parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
+      };
+    } catch {
+      return { ...entry, kind: "object", value: entry.value ?? {} };
     }
   }
   return { ...entry, kind: "string", value: rawValue };
@@ -55412,7 +55596,8 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
   "lookup-one",
   "lookup-many",
   "stars",
-  "importance"
+  "importance",
+  "object-group"
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
@@ -55519,6 +55704,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
   if (normalized === "awn-runtime-cron") return "runtime-schedule-type";
   if (isPropsAttachmentsField(key, fieldDef)) return "attachments";
+  if (hasStructuredObjectFieldProperties(fieldDef, normalized)) return "object-group";
   const fromSchema = resolveSchemaPropsWidget(fieldDef);
   if (fromSchema) return fromSchema;
   if (!fieldDef && PROPS_FIELD_WIDGET_FALLBACKS[normalized]) {
@@ -55563,6 +55749,12 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "text.code")) return "code";
   if (fieldTypeIs(typeId, "string.secret")) return "secret";
   if (fieldTypeIs(typeId, "json")) return "json";
+  if (
+    registryEntry?.storage === "object" &&
+    resolveRepeaterItemPropertyDefs(fieldDef, normalized).length
+  ) {
+    return "object-group";
+  }
   if (fieldTypeIs(typeId, "object")) return "object";
   if (fieldTypeIs(typeId, "repeater")) return "repeater";
   if (fieldTypeIs(typeId, "coordinates")) return "coordinates";
@@ -55866,7 +56058,9 @@ function buildRepeaterPropertyDefs(properties, preferredOrder = []) {
   if (!properties || typeof properties !== "object") return [];
   const keys = [...new Set([...preferredOrder, ...Object.keys(properties)])].filter((key) => {
     const propDef = properties[key];
-    return Boolean(propDef && typeof propDef === "object" && propDef.type);
+    if (!propDef || typeof propDef !== "object" || !propDef.type) return false;
+    if (preferredOrder.includes(key)) return true;
+    return Boolean(String(propDef.title || propDef.name || "").trim());
   });
   return keys.map((key) => ({
     key,
@@ -55882,10 +56076,32 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
   const preferredOrder =
     settingsFieldKey === "dependencies-columns"
       ? ["key", "title", "description", "required"]
-      : ["id", "key", "label", "text", "group"];
+      : settingsFieldKey === "awn-viz-mindmap"
+        ? ["enabled", "type", "color", "size", "layout-independent", "direction"]
+        : settingsFieldKey === "awn-viz-graph"
+          ? ["enabled", "pin", "weight"]
+          : settingsFieldKey === "awn-viz-roadmap"
+            ? ["enabled", "order", "parallel-group", "column"]
+            : ["id", "key", "label", "text", "group"];
   const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
   if (inlineProperties && Object.keys(inlineProperties).length) {
     return buildRepeaterPropertyDefs(inlineProperties, preferredOrder);
+  }
+
+  const fieldTypeId = resolveFieldTypeId(fieldDef?.type || "");
+  if (fieldTypeId) {
+    const registry = awnTypesCache?.fieldRegistry || {};
+    const typeEntry =
+      registry[fieldDef?.type || ""] ||
+      registry[fieldTypeId] ||
+      registry[normalizeCanonicalFieldTypeId(fieldTypeId)] ||
+      registry[`awn.field.${String(fieldTypeId).replace(/^awn\./, "")}`];
+    const typeProperties =
+      typeEntry?.properties && typeof typeEntry.properties === "object" ? typeEntry.properties : null;
+    if (typeProperties && Object.keys(typeProperties).length) {
+      const defs = buildRepeaterPropertyDefs(typeProperties, preferredOrder);
+      if (defs.length) return defs;
+    }
   }
 
   const itemsTypeId = resolveRepeaterItemsTypeId(fieldDef);
@@ -55898,6 +56114,14 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
   const properties =
     entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
   return buildRepeaterPropertyDefs(properties, preferredOrder);
+}
+
+function hasStructuredObjectFieldProperties(fieldDef, fieldKey = "") {
+  if (!fieldDef) return false;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "");
+  if (fieldTypeIs(typeId, "repeater") || isArrayFieldTypeId(typeId)) return false;
+  if (!fieldTypeIs(typeId, "object")) return false;
+  return resolveRepeaterItemPropertyDefs(fieldDef, fieldKey).length > 0;
 }
 
 function createRepeaterItemDefault(propertyDefs, index = 0, existing = []) {
@@ -56030,6 +56254,113 @@ function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
+function createObjectGroupDefault(propertyDefs) {
+  const item = {};
+  for (const { key, fieldDef: propDef } of propertyDefs) {
+    item[key] = fieldDefDefaultValue(propDef);
+  }
+  return item;
+}
+
+function readPropsFormObjectGroupValue(valueWrap) {
+  const item = {};
+  valueWrap?.querySelectorAll(".props-form-object-group-subfield")?.forEach((subfield) => {
+    const propKey = subfield.dataset?.objectField || "";
+    if (!propKey) return;
+    const fieldWrap = subfield.querySelector('[data-field="value"]');
+    if (!fieldWrap) return;
+    const propDef = getPropsFieldDef(propKey) || {
+      type: "awn.field.string"
+    };
+    const parentKey = subfield.closest(".props-form-row")?.dataset?.propKey || "";
+    const parentDef = parentKey ? getPropsFieldDef(parentKey) : null;
+    const propertyDefs = resolveRepeaterItemPropertyDefs(parentDef, parentKey);
+    const matched = propertyDefs.find((def) => def.key === propKey);
+    const fieldDef = matched?.fieldDef || propDef;
+    const raw = readPropsFormValueFromControl(fieldWrap);
+    const coerced = applyFormValueToEntry(
+      { key: propKey, kind: fieldDefToEntryKind(fieldDef), value: fieldDefDefaultValue(fieldDef) },
+      raw
+    );
+    item[propKey] = coerced.value;
+  });
+  return item;
+}
+
+function createPropsFormObjectGroupControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || entry.fieldDef || getPropsFieldDef(entry?.key);
+  const propertyDefs = resolveRepeaterItemPropertyDefs(fieldDef, entry?.key);
+  if (!propertyDefs.length) {
+    return createPropsFormCodeControl(entry, meta, "object", { locked });
+  }
+
+  const wrap = createPropsFormValueWrap("object-group");
+  wrap.classList.add("props-form-value-wrap--object-group");
+
+  const section = document.createElement("div");
+  section.className = "props-form-object-group-section props-form-taxonomy-section";
+
+  const block = document.createElement("div");
+  block.className = "props-form-object-group-block props-form-taxonomy-block";
+
+  const head = document.createElement("div");
+  head.className = "props-form-taxonomy-section-head";
+  const title = document.createElement("div");
+  title.className = "props-form-catalog-group-title";
+  title.textContent =
+    String(meta?.label || fieldDef?.title || entry?.key || "Объект").trim() || "Объект";
+  head.appendChild(title);
+
+  const body = document.createElement("div");
+  body.className = "props-form-object-group-body";
+
+  const stored =
+    entry?.value && typeof entry.value === "object" && !Array.isArray(entry.value)
+      ? entry.value
+      : createObjectGroupDefault(propertyDefs);
+
+  for (const { key, fieldDef: propDef } of propertyDefs) {
+    const subRow = document.createElement("div");
+    subRow.className = "props-form-object-group-subfield props-form-field props-form-field--compact";
+    subRow.dataset.objectField = key;
+
+    const subHead = document.createElement("div");
+    subHead.className = "props-form-field-head";
+    const subLabel = buildFieldLabelElement(propDef?.title || key, {
+      tag: "label",
+      className: "props-form-field-label",
+      typeId: propDef?.type,
+      key,
+      required: Boolean(propDef?.required),
+      title: propDef?.description || propDef?.hint || key
+    });
+    subHead.appendChild(subLabel);
+
+    const controlEntry = {
+      key,
+      kind: fieldDefToEntryKind(propDef),
+      value: stored[key] ?? fieldDefDefaultValue(propDef),
+      fieldDef: propDef
+    };
+    const propLocked = locked || Boolean(propDef?.locked || propDef?.readonly);
+    const control = createPropsFormValueControl(controlEntry, {
+      label: propDef?.title || key,
+      hint: propDef?.hint || propDef?.description || "",
+      format: propDef?.format || "",
+      required: Boolean(propDef?.required),
+      locked: propLocked,
+      fieldDef: propDef
+    });
+    subRow.append(subHead, control);
+    body.appendChild(subRow);
+  }
+
+  block.append(head, body);
+  section.appendChild(block);
+  wrap.appendChild(section);
+  return wrap;
+}
+
 function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
   const trimmed = String(rawValue ?? "").trim();
   const kind = String(widget || "").trim();
@@ -56064,6 +56395,12 @@ function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
       return { ...entry, kind: "taxonomy", value: rawValue };
     }
     return { ...entry, kind: "taxonomy", value: {} };
+  }
+  if (kind === "object" || kind === "object-group") {
+    if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      return { ...entry, kind: "object", value: rawValue };
+    }
+    return { ...entry, kind: "object", value: {} };
   }
   return applyFormValueToEntry(entry, rawValue);
 }
@@ -60262,6 +60599,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "repeater") {
     return createPropsFormRepeaterControl(entry, meta, { locked });
   }
+  if (widget === "object-group") {
+    return createPropsFormObjectGroupControl(entry, meta, { locked });
+  }
   if (widget === "code" || widget === "json" || widget === "object") {
     return createPropsFormCodeControl(entry, meta, widget, { locked });
   }
@@ -60318,6 +60658,9 @@ function readPropsFormValueFromControl(valueWrap) {
   }
   if (widget === "taxonomy") {
     return readPropsFormTaxonomyValue(valueWrap);
+  }
+  if (widget === "object-group") {
+    return readPropsFormObjectGroupValue(valueWrap);
   }
   if (isLookupManyWidget(widget)) {
     const fromCheckboxes = [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
@@ -60430,6 +60773,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
   const isPreviewField = fieldWidget === "preview";
   const isTaxonomyField = fieldWidget === "taxonomy";
+  const isObjectGroupField = fieldWidget === "object-group";
   const isAttachmentsField = normalizedKey === "awn-attachments";
   const isCronScheduleField = normalizedKey === "awn-runtime-cron-schedule";
   const row = document.createElement("div");
@@ -60438,13 +60782,14 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   if (isTaxonomyField) row.classList.add("props-form-field--taxonomy");
   if (isAttachmentsField) row.classList.add("props-form-field--attachments");
   if (isCronScheduleField) row.classList.add("props-form-field--cron-schedule");
+  if (isObjectGroupField) row.classList.add("props-form-field--object-group");
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
   const head = document.createElement("div");
   head.className = "props-form-field-head";
 
-  if (entry.key && !isPreviewField && !isCronScheduleField && !isTaxonomyField) {
+  if (entry.key && !isPreviewField && !isCronScheduleField && !isTaxonomyField && !isObjectGroupField) {
     const label = showFieldKey
       ? buildPropsFieldKeyLabelElement(entry.key, meta, { required: meta.required })
       : buildFieldLabelElement(meta.label || entry.key, {
@@ -60467,7 +60812,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   }
 
   const valueControl = createPropsFormValueControl(entry, meta, { editorCompact });
-  if (isPreviewField || isCronScheduleField || isTaxonomyField) {
+  if (isPreviewField || isCronScheduleField || isTaxonomyField || isObjectGroupField) {
     row.append(valueControl);
   } else {
     row.append(head, valueControl);
@@ -101666,7 +102011,412 @@ function renderAgentSchemaSizeChart(ranking = [], totalTopicBytes = 0) {
 }
 
 function renderAgentRoadmapMapView() {
-  // Static copy lives in index.html (#agent-roadmap-map-content); canvas only toggles visibility.
+  if (!agentRoadmapMapHostNode) return;
+  ensureAgentRoadmapMapUiBindings();
+  applyAgentGraphSettingsUi();
+  const renderSeq = ++agentRoadmapMapRenderSeq;
+  agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapDetailNode?.classList.add("hidden");
+  agentRoadmapMapViewportApi = null;
+  agentRoadmapMapZoomNode?.classList.toggle("hidden", agentRoadmapMapSubview === "roadmap");
+  agentRmmShowPreviewsNode
+    ?.closest(".agent-rmm-preview-setting")
+    ?.classList.toggle("hidden", agentRoadmapMapSubview !== "graph");
+
+  if (!currentMenuData) {
+    renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
+    return;
+  }
+
+  applyAgentGraphSettingsUi();
+
+  if (agentRoadmapMapSubview === "graph") {
+    void renderAgentRoadmapMapGraphView(renderSeq);
+    return;
+  }
+  if (agentRoadmapMapSubview === "mindmap") {
+    void renderAgentRoadmapMapMindmapView(renderSeq);
+    return;
+  }
+  void renderAgentRoadmapMapRoadmapView(renderSeq);
+}
+
+let agentRoadmapMapUiBound = false;
+function ensureAgentRoadmapMapUiBindings() {
+  if (agentRoadmapMapUiBound || !agentRoadmapMapPaneNode) return;
+  agentRoadmapMapUiBound = true;
+  agentRoadmapMapPaneNode?.querySelectorAll("[data-rmm-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      agentRoadmapMapPaneNode?.querySelectorAll("[data-rmm-mode]").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      agentRoadmapMapSubview = btn.dataset.rmmMode || "graph";
+      if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
+    });
+  });
+  agentRoadmapMapDepthNode?.addEventListener("change", () => {
+    agentRoadmapMapDepth = agentRoadmapMapDepthNode.value === "deep" ? "deep" : "files";
+    if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
+  });
+  const scratchNotes = document.getElementById("agent-rmm-scratch-notes");
+  const scratchCollapse = scratchNotes?.querySelector(".agent-rmm-scratch-notes-collapse");
+  scratchCollapse?.addEventListener("click", () => {
+    const collapsed = scratchNotes.classList.toggle("is-collapsed");
+    scratchCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    scratchCollapse.textContent = collapsed ? "+" : "−";
+    scratchCollapse.title = collapsed ? "Развернуть" : "Свернуть";
+  });
+}
+
+function setAgentRoadmapMapDetail(title, text) {
+  if (!agentRoadmapMapDetailNode) return;
+  if (!title) {
+    agentRoadmapMapDetailNode.classList.add("hidden");
+    agentRoadmapMapDetailNode.replaceChildren();
+    return;
+  }
+  agentRoadmapMapDetailNode.classList.remove("hidden");
+  agentRoadmapMapDetailNode.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(text || "")}</span>`;
+}
+
+function collectWorkspaceTopicManifestPaths(menu) {
+  const base = getWorkspaceRootMenuTreeNode(menu);
+  return collectFlatMenuEntries(base)
+    .map((entry) => String(entry.path || "").replace(/\\/g, "/"))
+    .filter((path) => path.endsWith("/manifest.md") || path === "manifest.md");
+}
+
+function parseAgentRoadmapMarkdown(content) {
+  const lines = String(content || "").split(/\r?\n/);
+  const stages = [];
+  let current = null;
+  const statusMap = { "не начато": "todo", "в процессе": "progress", "завершено": "done" };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const h2 = trimmed.match(/^##\s+(.+)$/);
+    if (h2) {
+      if (current) stages.push(current);
+      current = { title: h2[1].trim(), status: "todo", description: "" };
+      continue;
+    }
+    if (!current) continue;
+    const st = trimmed.match(/^статус:\s*(.+)$/i);
+    if (st) {
+      current.status = statusMap[st[1].trim().toLowerCase()] || "todo";
+      continue;
+    }
+    if (trimmed && !trimmed.startsWith("#")) {
+      current.description = current.description ? `${current.description} ${trimmed}` : trimmed;
+    }
+  }
+  if (current) stages.push(current);
+  return stages;
+}
+
+function parseMarkdownHeadingStages(content, maxLevel = 2) {
+  const stages = [];
+  for (const line of String(content || "").split(/\r?\n/)) {
+    const m = line.match(/^(#{1,6})\s+(.+)$/);
+    if (!m) continue;
+    const level = m[1].length;
+    if (level > maxLevel) continue;
+    stages.push({ title: m[2].trim(), status: "todo", description: `H${level}`, level });
+  }
+  return stages;
+}
+
+async function fetchTopicRoadmapMarkdown(manifestPath) {
+  const apiPath = resolveManifestPathForNodeApi(manifestPath) || manifestPath;
+  try {
+    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
+    if (!response.ok) return "";
+    const data = await response.json();
+    return String(data.content || "");
+  } catch {
+    return "";
+  }
+}
+
+async function collectWorkspaceRoadmapColumns(menu, depth) {
+  const manifests = collectWorkspaceTopicManifestPaths(menu);
+  const columns = [];
+  for (const manifestPath of manifests) {
+    const label = getLabelFromPath(manifestPath.replace(/\/manifest\.md$/i, ""));
+    const md = await fetchTopicRoadmapMarkdown(manifestPath);
+    let stages = md ? parseAgentRoadmapMarkdown(md) : [];
+    if (!stages.length && depth === "files") {
+      stages = [{ title: label, status: "todo", description: "Нет roadmap.md — только тема в меню" }];
+    }
+    if (depth === "deep" && md) {
+      const deepHeads = parseMarkdownHeadingStages(md, 3).filter((s) => s.level >= 3);
+      if (deepHeads.length) stages = [...stages, ...deepHeads];
+    }
+    if (depth === "deep" && !md) {
+      try {
+        const payload = await fetchAgentContentIndexPayload(manifestPath);
+        const firstMd = (payload?.liteEntries || []).find((e) => /\.md$/i.test(String(e.path || "")));
+        if (firstMd) {
+          stages = parseMarkdownHeadingStages(
+            `# ${label}\n## ${firstMd.title || firstMd.path}\n`,
+            2
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (stages.length) {
+      columns.push({ topic: label, manifestPath, stages });
+    }
+  }
+  return columns;
+}
+
+function renderAgentRoadmapMapRoadmapStrip(container, columns) {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-rmm-roadmap-scroll";
+  for (const block of columns) {
+    const col = document.createElement("div");
+    col.className = "agent-rmm-roadmap-topic";
+    const head = document.createElement("div");
+    head.className = "agent-rmm-roadmap-topic-title";
+    head.textContent = block.topic;
+    col.appendChild(head);
+    for (const stage of block.stages) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = `agent-rmm-roadmap-stage is-${stage.status || "todo"}`;
+      card.innerHTML = `<span class="agent-rmm-roadmap-stage-title">${escapeHtml(stage.title)}</span><span class="agent-rmm-roadmap-stage-desc">${escapeHtml(stage.description || "")}</span>`;
+      card.addEventListener("click", () => setAgentRoadmapMapDetail(stage.title, stage.description || block.topic));
+      col.appendChild(card);
+    }
+    wrap.appendChild(col);
+  }
+  container.appendChild(wrap);
+}
+
+async function renderAgentRoadmapMapRoadmapView(renderSeq) {
+  renderListEmptyMessage(agentRoadmapMapHostNode, "Сборка roadmap по темам…");
+  const columns = await collectWorkspaceRoadmapColumns(currentMenuData, agentRoadmapMapDepth);
+  if (renderSeq !== agentRoadmapMapRenderSeq) return;
+  agentRoadmapMapHostNode.replaceChildren();
+  if (!columns.length) {
+    renderListEmptyMessage(
+      agentRoadmapMapHostNode,
+      "Нет roadmap.md в темах. Добавьте слот roadmap-single или файл roadmap.md."
+    );
+    return;
+  }
+  renderAgentRoadmapMapRoadmapStrip(agentRoadmapMapHostNode, columns);
+}
+
+async function enrichMindmapTreeWithContentFiles(tree, manifestPath) {
+  if (!tree || agentRoadmapMapDepth !== "deep") return tree;
+  try {
+    const payload = await fetchAgentContentIndexPayload(manifestPath);
+    const files = (payload?.liteEntries || []).filter((e) => /\.md$/i.test(String(e.path || ""))).slice(0, 12);
+    for (const file of files) {
+      tree.children.push({
+        id: `${tree.id}::${file.path}`,
+        label: file.title || file.path.split("/").pop(),
+        kind: "leaf",
+        targetPath: manifestPath,
+        children: []
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  return tree;
+}
+
+async function buildWorkspaceMindmapTree(menu) {
+  const baseTree = getWorkspaceRootMenuTreeNode(menu);
+  const rootPath = baseTree.indexPath || "manifest.md";
+  const tree = buildMindmapTreeForNodePath(rootPath, getAgentTreeTitle());
+  if (!tree) return null;
+  if (agentRoadmapMapDepth === "deep") {
+    const manifests = collectWorkspaceTopicManifestPaths(menu).slice(0, 8);
+    for (const child of tree.children || []) {
+      if (!child.targetPath) continue;
+      await enrichMindmapTreeWithContentFiles(child, child.targetPath);
+    }
+    for (const mp of manifests) {
+      const sub = buildMindmapTreeForNodePath(mp, getLabelFromPath(mp));
+      if (sub?.children?.length) {
+        tree.children.push(...sub.children.slice(0, 6));
+      }
+    }
+  }
+  return tree;
+}
+
+function stampMindmapTopicManifestPath(nodes, manifestPath) {
+  for (const node of nodes || []) {
+    if (node && manifestPath) node.topicManifestPath = manifestPath;
+    stampMindmapTopicManifestPath(node?.children, manifestPath);
+  }
+}
+
+async function buildWorkspaceKnowledgeMindmapTreeV2(menu) {
+  const manifests = collectWorkspaceTopicManifestPaths(menu);
+  if (!manifests.length) return null;
+
+  const externalByManifest = await Promise.all(
+    manifests.map(async (manifestPath) => ({
+      manifestPath,
+      externalData: await fetchExternalFilesForNavigation(manifestPath)
+    }))
+  );
+
+  const topicChildren = [];
+  for (const { manifestPath, externalData } of externalByManifest) {
+    const topicLabel = getLabelFromPath(manifestPath.replace(/\/manifest\.md$/i, ""));
+    const subtree = buildTopicKnowledgeMindmapTreeV2({ heroTitle: topicLabel, externalData });
+    if (!subtree?.children?.length) continue;
+
+    const idPrefix = `ws:${manifestPath.replace(/\\/g, "/")}`;
+    const children = remapMindmapNodeIds(subtree.children, idPrefix);
+    stampMindmapTopicManifestPath(children, manifestPath);
+
+    topicChildren.push({
+      id: idPrefix,
+      label: topicLabel,
+      kind: "topic",
+      targetPath: manifestPath,
+      topicManifestPath: manifestPath,
+      children
+    });
+  }
+
+  if (!topicChildren.length) return null;
+
+  return {
+    id: "workspace-knowledge-map-v2",
+    label: getAgentTreeTitle(),
+    kind: "root",
+    targetPath: null,
+    children: topicChildren
+  };
+}
+
+function bindAgentRoadmapMapMindmapViewportZoom(api) {
+  agentRoadmapMapViewportApi = api;
+  if (!agentRoadmapMapZoomNode) return;
+  if (agentRoadmapMapZoomNode._rmmMindmapHandler) {
+    agentRoadmapMapZoomNode.removeEventListener("click", agentRoadmapMapZoomNode._rmmMindmapHandler);
+  }
+  const handler = (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+    if (button.dataset.action === "reset") api.reset();
+    else if (button.dataset.action === "zoom-in") api.zoomIn();
+    else if (button.dataset.action === "zoom-out") api.zoomOut();
+  };
+  agentRoadmapMapZoomNode._rmmMindmapHandler = handler;
+  agentRoadmapMapZoomNode.addEventListener("click", handler);
+}
+
+function handleAgentRoadmapMapKnowledgeNodeClick(node) {
+  if (!node) return;
+  const manifestPath = node.topicManifestPath || null;
+  const menuPath =
+    node.targetPath && /\/manifest\.md$/i.test(String(node.targetPath)) ? node.targetPath : manifestPath;
+  const filePath = node.filePath || (node.kind === "leaf" ? node.targetPath : null);
+
+  if (filePath) {
+    setAgentRoadmapMapDetail(node.label, filePath);
+    const openFile = () => {
+      if (activeContentMode !== "external") setContentMode("external");
+      void openExternalFile(filePath, { memoryEntryCloseTargetView: captureMemoryEntryCloseTargetView() });
+    };
+    if (menuPath && normalizeMenuNodePath(getResolvedNodePath(activePath)) !== normalizeMenuNodePath(menuPath)) {
+      void openNodeFromMenu(getLabelFromPath(menuPath), menuPath, { contentMode: "external" }).then(openFile);
+    } else {
+      openFile();
+    }
+    return;
+  }
+
+  if (menuPath) {
+    setAgentRoadmapMapDetail(node.label, menuPath);
+    void openNodeFromMenu(getLabelFromPath(menuPath), menuPath);
+  }
+}
+
+async function renderAgentRoadmapMapMindmapView(renderSeq) {
+  renderListEmptyMessage(agentRoadmapMapHostNode, "Сборка карты знаний…");
+  let tree = await buildWorkspaceKnowledgeMindmapTreeV2(currentMenuData);
+  let variant = "knowledge-map-v2";
+  if (!tree) {
+    tree = await buildWorkspaceMindmapTree(currentMenuData);
+    variant = "";
+  }
+  if (renderSeq !== agentRoadmapMapRenderSeq) return;
+  agentRoadmapMapHostNode.replaceChildren();
+  if (!tree) {
+    renderListEmptyMessage(
+      agentRoadmapMapHostNode,
+      "Нет записей многофайловой памяти с метаданными карты знаний. Заполните awn-viz-mindmap у записей или используйте дерево тем."
+    );
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "node-navigation-elements-nav-mindmap-shell";
+  const host = document.createElement("div");
+  host.className = "node-navigation-elements-nav-mindmap-host";
+  shell.appendChild(host);
+  agentRoadmapMapHostNode.appendChild(shell);
+
+  const rerender = () => {
+    if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
+  };
+  let viewportApi = null;
+  const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
+
+  renderMindmapTreeCanvas(host, tree, {
+    collapsedIds: agentRoadmapMapMindmapCollapsedIds,
+    activeTarget: activeResolved,
+    variant,
+    onNodeClick: (node) => handleAgentRoadmapMapKnowledgeNodeClick(node),
+    onRerender: rerender,
+    onViewportReady: (api) => {
+      viewportApi = api;
+      bindAgentRoadmapMapMindmapViewportZoom(api);
+    }
+  });
+  appendEmbeddedMindmapControls(host, rerender, () => viewportApi);
+}
+
+async function renderAgentRoadmapMapGraphView(renderSeq) {
+  renderListEmptyMessage(agentRoadmapMapHostNode, "Загрузка графа…");
+  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
+    loadAgentGraphRepositoriesPayload(),
+    loadAgentGraphAwnDataPayload(),
+    fetchAgentWorkspacePageIndexPayload()
+  ]);
+  if (renderSeq !== agentRoadmapMapRenderSeq) return;
+  const graph = buildGraphDataFromAgentMenu(currentMenuData, {
+    repositoriesPayload,
+    awnDataPayload,
+    pageIndexPayload
+  });
+  agentRoadmapMapHostNode.replaceChildren();
+  if (graph.nodes.length <= 1) {
+    renderListEmptyMessage(agentRoadmapMapHostNode, "В workspace пока нет узлов для графа");
+    return;
+  }
+  renderGraphCanvas(agentRoadmapMapHostNode, graph, {
+    ariaLabel: "Граф хранилища workspace",
+    fullViewport: true,
+    showPreviews: getAgentGraphSettings().showPreviews,
+    controlsHost: agentRoadmapMapZoomNode,
+    isNodeClickable: (node) => Boolean(node.nodePath || node.graphTarget),
+    onNodeClick: (node) => {
+      setAgentRoadmapMapDetail(node.label || node.id, node.nodePath || node.graphTarget?.path || "");
+      handleAgentGraphNodeClick(node);
+    }
+  });
 }
 
 function renderAgentSchemaView() {
@@ -101902,35 +102652,156 @@ function resolveGraphNodeGlyph(node) {
   return "";
 }
 
-function appendGraphNodeLabel(group, ns, node, x, y, radius, previewSize) {
+async function fetchAgentWorkspacePageIndexPayload() {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function buildGraphManifestMetaMap(pageIndexPayload) {
+  const map = new Map();
+  for (const entry of pageIndexPayload?.entries || []) {
+    const linkPath = normalizeMenuNodePath(entry.linkPath || entry.path || "");
+    const displayPath = normalizeMenuNodePath(entry.path || "");
+    const props = entry.properties && typeof entry.properties === "object" ? entry.properties : {};
+    const meta = {
+      awnId: normalizeAwnIdDisplayValue(entry.awnId || props["awn-id"]),
+      status: String(props["awn-status"] || entry.status || "").trim() || null
+    };
+    if (linkPath) map.set(linkPath, meta);
+    if (displayPath && displayPath !== linkPath) map.set(displayPath, meta);
+  }
+  return map;
+}
+
+function resolveGraphManifestMeta(metaMap, manifestPath) {
+  if (!metaMap || !manifestPath) return null;
+  const norm = normalizeMenuNodePath(manifestPath);
+  return (
+    metaMap.get(norm) ||
+    metaMap.get(stripAgentContentPrefixFromRelPath(norm)) ||
+    null
+  );
+}
+
+function applyGraphNodeRecordMeta(nodeFields, { manifestPath, entry, metaMap }) {
+  const meta = resolveGraphManifestMeta(metaMap, manifestPath);
+  const status = meta?.status || entry?.status || null;
+  if (status) nodeFields.graphStatus = status;
+  if (meta?.awnId) nodeFields.graphAwnId = meta.awnId;
+}
+
+function resolveGraphNodeCardMetaLines(node) {
+  const lines = [];
+  const statusRaw = String(node?.graphStatus || "").trim();
+  if (statusRaw) {
+    const pres = resolveAwnStatusPresentation(statusRaw);
+    const label = pres?.label || resolveAwnStatusLabel(statusRaw) || statusRaw;
+    const emoji = pres?.emoji ? `${pres.emoji} ` : "";
+    lines.push(`Статус: ${emoji}${label}`.trim());
+  }
+  const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
+  if (awnId) lines.push(`awn-id: ${awnId}`);
+  return lines;
+}
+
+function countGraphNodeLabelSubLines(node) {
+  let count = node?.graphSubLabel ? 1 : 0;
+  count += resolveGraphNodeCardMetaLines(node).length;
+  return count;
+}
+
+function getGraphNodeLabelYOffset(radius, previewSize, subLineCount) {
   const baseOffset = previewSize ? previewSize / 2 + 10 : radius + 11;
+  if (!subLineCount) return baseOffset;
+  return baseOffset + 8 + Math.max(0, subLineCount - 1) * 10;
+}
+
+function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
+  const statusRaw = String(node?.graphStatus || "").trim();
+  const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
+  if (!statusRaw && !awnId) return null;
+
+  const bandHeight = statusRaw && awnId ? 40 : 28;
+  const group = document.createElementNS(ns, "g");
+  group.setAttribute("class", "external-graph-preview-meta");
+
+  const bg = document.createElementNS(ns, "rect");
+  bg.setAttribute("width", String(previewSize));
+  bg.setAttribute("height", String(bandHeight));
+  bg.setAttribute("y", String(previewSize - bandHeight));
+  bg.setAttribute("rx", "4");
+  bg.setAttribute("class", "external-graph-preview-meta-bg");
+  group.appendChild(bg);
+
+  let lineY = previewSize - bandHeight + 14;
+  if (statusRaw) {
+    const pres = resolveAwnStatusPresentation(statusRaw);
+    const label = pres?.label || resolveAwnStatusLabel(statusRaw) || statusRaw;
+    const statusLine = document.createElementNS(ns, "text");
+    statusLine.setAttribute("x", String(previewSize / 2));
+    statusLine.setAttribute("y", String(lineY));
+    statusLine.setAttribute("text-anchor", "middle");
+    statusLine.setAttribute("class", "external-graph-preview-meta-line external-graph-preview-meta-status");
+    statusLine.textContent = `Статус: ${pres?.emoji ? `${pres.emoji} ` : ""}${label}`.trim();
+    group.appendChild(statusLine);
+    lineY += 14;
+  }
+  if (awnId) {
+    const idLine = document.createElementNS(ns, "text");
+    idLine.setAttribute("x", String(previewSize / 2));
+    idLine.setAttribute("y", String(lineY));
+    idLine.setAttribute("text-anchor", "middle");
+    idLine.setAttribute("class", "external-graph-preview-meta-line external-graph-preview-meta-id");
+    idLine.textContent = `awn-id: ${awnId}`;
+    group.appendChild(idLine);
+  }
+
+  previewGroup.appendChild(group);
+  return group;
+}
+
+function appendGraphNodeLabel(group, ns, node, x, y, radius, previewSize) {
+  const subLines = [];
+  if (node.graphSubLabel) subLines.push(node.graphSubLabel);
+  subLines.push(...resolveGraphNodeCardMetaLines(node));
+  const labelSubLineCount = subLines.length;
+  const labelOffset = getGraphNodeLabelYOffset(radius, previewSize, labelSubLineCount);
+
   const label = document.createElementNS(ns, "text");
   label.setAttribute("x", String(x));
-  label.setAttribute("y", String(y + baseOffset + (node.graphSubLabel ? 8 : 0)));
+  label.setAttribute("y", String(y + labelOffset));
   label.setAttribute("text-anchor", "middle");
   label.setAttribute("class", "external-graph-label");
 
   let labelTitle = null;
   let labelSub = null;
-  if (node.graphSubLabel) {
+  if (subLines.length) {
     labelTitle = document.createElementNS(ns, "tspan");
     labelTitle.setAttribute("class", "external-graph-label-title");
     labelTitle.setAttribute("x", String(x));
     labelTitle.setAttribute("dy", "0");
     labelTitle.textContent = node.label;
     label.appendChild(labelTitle);
-    labelSub = document.createElementNS(ns, "tspan");
-    labelSub.setAttribute("class", "external-graph-label-sub");
-    labelSub.setAttribute("x", String(x));
-    labelSub.setAttribute("dy", "1.15em");
-    labelSub.textContent = node.graphSubLabel;
-    label.appendChild(labelSub);
+    for (const subLine of subLines) {
+      const tspan = document.createElementNS(ns, "tspan");
+      tspan.setAttribute("class", "external-graph-label-sub");
+      tspan.setAttribute("x", String(x));
+      tspan.setAttribute("dy", labelSub ? "1.15em" : "1.15em");
+      tspan.textContent = subLine;
+      label.appendChild(tspan);
+      if (!labelSub) labelSub = tspan;
+    }
   } else {
     label.textContent = node.label;
   }
 
   group.appendChild(label);
-  return { label, labelTitle, labelSub, labelOffset: baseOffset + (node.graphSubLabel ? 8 : 0) };
+  return { label, labelTitle, labelSub, labelOffset, labelSubLineCount };
 }
 
 function appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, repositoriesPayload }) {
@@ -102126,7 +102997,11 @@ function resolveGraphIntermediateFolderLabel(entries, relPath, fallback, scopePr
   return fallback;
 }
 
-function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnDataPayload = null } = {}) {
+function buildGraphDataFromAgentMenu(
+  menu,
+  { repositoriesPayload = null, awnDataPayload = null, pageIndexPayload = null } = {}
+) {
+  const manifestMetaMap = buildGraphManifestMetaMap(pageIndexPayload);
   const baseTree = getWorkspaceRootMenuTreeNode(menu);
   const workspaceEntries = collectFlatMenuEntries(baseTree);
   const serviceEntries = menu?.serviceTree
@@ -102157,16 +103032,16 @@ function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnData
   }
 
   const rootId = "agent-root";
-  const nodes = [
-    {
-      id: rootId,
-      label: getAgentTreeTitle(),
-      type: "folder",
-      depth: 0,
-      nodePath: baseTree.indexPath || null,
-      previewUrl: baseTree.hasPreview ? baseTree.previewUrl || null : null
-    }
-  ];
+  const rootNode = {
+    id: rootId,
+    label: getAgentTreeTitle(),
+    type: "folder",
+    depth: 0,
+    nodePath: baseTree.indexPath || null,
+    previewUrl: baseTree.hasPreview ? baseTree.previewUrl || null : null
+  };
+  applyGraphNodeRecordMeta(rootNode, { manifestPath: baseTree.indexPath, metaMap: manifestMetaMap });
+  const nodes = [rootNode];
   const edges = [];
   const folderIds = new Map([["", rootId]]);
   const nodeIds = new Set([rootId]);
@@ -102190,6 +103065,10 @@ function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnData
       nodePath: serviceManifestPath || null,
       previewUrl: menu.serviceTree.hasPreview ? menu.serviceTree.previewUrl || null : null
     });
+    applyGraphNodeRecordMeta(nodes[nodes.length - 1], {
+      manifestPath: serviceManifestPath,
+      metaMap: manifestMetaMap
+    });
     edges.push({ from: rootId, to: serviceRootId });
     folderIds.set("service/", serviceRootId);
     nodeIds.add(serviceRootId);
@@ -102209,6 +103088,10 @@ function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnData
       depth: 1,
       nodePath: containerManifestPath || null,
       previewUrl: menu.containerTree.hasPreview ? menu.containerTree.previewUrl || null : null
+    });
+    applyGraphNodeRecordMeta(nodes[nodes.length - 1], {
+      manifestPath: containerManifestPath,
+      metaMap: manifestMetaMap
     });
     edges.push({ from: rootId, to: containerRootId });
     folderIds.set("container/", containerRootId);
@@ -102275,14 +103158,16 @@ function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnData
 
       const nodeId = `node:${normalizeMenuNodePath(entry.path)}`;
       if (!nodeIds.has(nodeId)) {
-        nodes.push({
+        const nodeFields = {
           id: nodeId,
           label: resolveGraphEntryLabel(entry),
           type: entry.isFolder ? "folder" : "file",
           depth: Math.max((scopePrefix ? 1 : 0) + parts.length, scopePrefix ? 2 : 1),
           nodePath: entry.path,
           previewUrl: entry.previewUrl || null
-        });
+        };
+        applyGraphNodeRecordMeta(nodeFields, { manifestPath: entry.path, entry, metaMap: manifestMetaMap });
+        nodes.push(nodeFields);
         nodeIds.add(nodeId);
       }
       edges.push({ from: parentId, to: nodeId });
@@ -103361,12 +104246,17 @@ async function renderAgentGraphView() {
 
   renderListEmptyMessage(agentGraphContentNode, "Загрузка графа…");
 
-  const [repositoriesPayload, awnDataPayload] = await Promise.all([
+  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
     loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload()
+    loadAgentGraphAwnDataPayload(),
+    fetchAgentWorkspacePageIndexPayload()
   ]);
 
-  const graph = buildGraphDataFromAgentMenu(currentMenuData, { repositoriesPayload, awnDataPayload });
+  const graph = buildGraphDataFromAgentMenu(currentMenuData, {
+    repositoriesPayload,
+    awnDataPayload,
+    pageIndexPayload
+  });
   if (graph.nodes.length <= 1) {
     renderListEmptyMessage(agentGraphContentNode, "В workspace пока нет тем для графа");
     return;
@@ -118714,12 +119604,11 @@ menuTreeMaxDepthNode?.addEventListener("change", () => {
 });
 
 agentGraphShowPreviewsNode?.addEventListener("change", () => {
-  saveAgentGraphSettings(activeAgentId, {
-    showPreviews: Boolean(agentGraphShowPreviewsNode.checked)
-  });
-  if (agentWorkspaceView === "graph") {
-    renderAgentGraphView();
-  }
+  saveAgentGraphShowPreviewsFromUi(agentGraphShowPreviewsNode.checked);
+});
+
+agentRmmShowPreviewsNode?.addEventListener("change", () => {
+  saveAgentGraphShowPreviewsFromUi(agentRmmShowPreviewsNode.checked);
 });
 
 document.addEventListener("click", (event) => {
