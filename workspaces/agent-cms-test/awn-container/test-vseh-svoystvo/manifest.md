@@ -104,7 +104,9 @@ field-1: ""
 items: ""
 awn-update: 2026-09-26T07:57:49.087Z
 awn-version: 23
+awn-id: 39
 ---
+
 
 # All Field Types — демонстрация типов полей
 

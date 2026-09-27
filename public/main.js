@@ -15979,6 +15979,10 @@ const NAVIGATION_LIST_SORT_SCOPES = new Set(["external", "media", "assets", "fol
 const NAVIGATION_LIST_SORT_UI_KEY_PREFIX = "navigation_list_sort_";
 const navigationListSortByScope = {};
 const navigationListSortByTopicPath = new Map();
+const NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES = new Set(["media", "assets"]);
+const NAVIGATION_MEDIA_IMAGES_LAYOUT_UI_KEY_PREFIX = "navigation_media_images_layout_";
+const navigationMediaImagesLayoutByScope = {};
+const navigationMediaImagesLayoutByTopicPath = new Map();
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let lastNonTocEntryOverviewContext = null;
 
@@ -16116,7 +16120,7 @@ let activeFolderBrowsePath = null;
 let activeFolderBrowseFilePath = null;
 let folderBrowseExpandedPagePath = null;
 let folderBrowseImagesColumns = loadFolderBrowseImagesColumns();
-let navigationMediaImagesLayout = loadNavigationMediaImagesLayout();
+let navigationMediaImagesLayout = 3;
 let folderBrowseSelectedPaths = new Set();
 let folderBrowseSelectionAnchor = null;
 
@@ -20342,6 +20346,7 @@ function setCachedNodeConfig(nodePath, payload, agentId = activeAgentId) {
     defaultLandingMode: payload?.defaultLandingMode || null
   });
   hydrateNavigationListSortFromNodeConfig(nodePath, payload?.content || "");
+  hydrateNavigationMediaImagesLayoutFromNodeConfig(nodePath, payload?.content || "");
 }
 
 function invalidateNodeConfigCache(nodePath, agentId = activeAgentId) {
@@ -66950,7 +66955,12 @@ function createNavigationSectionHead(title, options = {}) {
   }
 
   if (options.imageColumnsToggle) {
-    head.appendChild(createNavigationMediaImagesLayoutToggle());
+    const layoutScope =
+      options.imageColumnsScope ||
+      (options.viewModeId === "media" || options.viewModeId === "assets" ? options.viewModeId : null) ||
+      (options.badgeModeId === "media" || options.badgeModeId === "assets" ? options.badgeModeId : "media");
+    navigationMediaImagesLayout = loadNavigationMediaImagesLayout(layoutScope);
+    head.appendChild(createNavigationMediaImagesLayoutToggle(layoutScope));
   }
 
   if (viewModeId) {
@@ -67206,6 +67216,159 @@ function saveNavigationListSort(scope, mode) {
   } catch {
     // ignore storage errors
   }
+}
+
+function navigationMediaImagesLayoutUiKey(scope) {
+  return `${NAVIGATION_MEDIA_IMAGES_LAYOUT_UI_KEY_PREFIX}${String(scope || "").trim().replace(/-/g, "_")}`;
+}
+
+function normalizeNavigationMediaImagesLayout(value) {
+  if (value === "strip") return "strip";
+  const columns = Number(value);
+  return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(columns) ? columns : 3;
+}
+
+function getNavigationMediaImagesLayoutCacheForTopic(topicPath) {
+  const key = String(topicPath || "").replace(/\\/g, "/");
+  if (!key) return navigationMediaImagesLayoutByScope;
+  if (!navigationMediaImagesLayoutByTopicPath.has(key)) {
+    navigationMediaImagesLayoutByTopicPath.set(key, {});
+  }
+  return navigationMediaImagesLayoutByTopicPath.get(key);
+}
+
+function parseNavigationMediaImagesLayoutFromAwnUi(awnUi = {}) {
+  const result = {};
+  if (!awnUi || typeof awnUi !== "object") return result;
+  for (const scope of NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES) {
+    const raw = awnUi[navigationMediaImagesLayoutUiKey(scope)];
+    if (raw === "strip" || raw === 1 || raw === 3 || raw === 5 || raw === "1" || raw === "3" || raw === "5") {
+      result[scope] = normalizeNavigationMediaImagesLayout(raw);
+    }
+  }
+  return result;
+}
+
+function readLegacyNavigationMediaImagesLayout() {
+  const stored = readStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY);
+  if (stored == null || stored === "") return null;
+  if (stored === "strip") return "strip";
+  const columns = Number(stored);
+  return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(columns) ? columns : null;
+}
+
+function hydrateNavigationMediaImagesLayoutFromNodeConfig(topicPath, content, { migrateLegacy = true } = {}) {
+  const path = String(topicPath || "").replace(/\\/g, "/");
+  if (!path) return;
+  const cache = getNavigationMediaImagesLayoutCacheForTopic(path);
+  const parsed = parseNavigationMediaImagesLayoutFromAwnUi(
+    NodeConfigBundle.parseNodeConfigBundle(content || "").awn_ui
+  );
+  let hasConfig = false;
+  for (const [scope, layout] of Object.entries(parsed)) {
+    cache[scope] = layout;
+    hasConfig = true;
+  }
+  if (hasConfig || !migrateLegacy) return;
+
+  const legacy = readLegacyNavigationMediaImagesLayout();
+  if (legacy == null) return;
+
+  let migrated = false;
+  for (const scope of NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES) {
+    if (cache[scope]) continue;
+    cache[scope] = legacy;
+    migrated = true;
+  }
+  if (migrated) {
+    void persistAllNavigationMediaImagesLayoutToNodeConfig(path);
+  }
+}
+
+async function persistAllNavigationMediaImagesLayoutToNodeConfig(topicPath) {
+  const path = String(topicPath || "").replace(/\\/g, "/");
+  if (!path || !isNodeMdPath(path)) return;
+  const cache = getNavigationMediaImagesLayoutCacheForTopic(topicPath);
+  const patch = {};
+  for (const scope of NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES) {
+    if (cache[scope] != null) patch[navigationMediaImagesLayoutUiKey(scope)] = cache[scope];
+  }
+  if (!Object.keys(patch).length) return;
+  try {
+    const current = await loadNodeConfig(path, { force: true });
+    const content = NodeConfigBundle.applyAwnUiToConfig(current.content || "", patch);
+    await saveNodeConfigContent(path, content);
+  } catch {
+    // ignore save errors
+  }
+}
+
+async function persistNavigationMediaImagesLayoutToNodeConfig(topicPath, scope, layout) {
+  const path = String(topicPath || "").replace(/\\/g, "/");
+  const key = String(scope || "").trim();
+  if (!path || !isNodeMdPath(path) || !key || !NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES.has(key)) return;
+  const normalized = normalizeNavigationMediaImagesLayout(layout);
+  try {
+    const current = await loadNodeConfig(path, { force: true });
+    const content = NodeConfigBundle.applyAwnUiToConfig(current.content || "", {
+      [navigationMediaImagesLayoutUiKey(key)]: normalized
+    });
+    await saveNodeConfigContent(path, content);
+  } catch {
+    // ignore save errors
+  }
+}
+
+function resolveNavigationMediaImagesLayoutScope(scope) {
+  const explicit = String(scope || "").trim();
+  if (NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES.has(explicit)) return explicit;
+  const ctx = String(activeEntryOverviewContext?.memoryKind || "").trim();
+  if (NAVIGATION_MEDIA_IMAGES_LAYOUT_SCOPES.has(ctx)) return ctx;
+  return "media";
+}
+
+function loadNavigationMediaImagesLayout(scope) {
+  const key = resolveNavigationMediaImagesLayoutScope(scope);
+  const topicPath = getNavigationListSortTopicPath();
+  if (topicPath) {
+    const topicCache = getNavigationMediaImagesLayoutCacheForTopic(topicPath);
+    if (topicCache[key] != null) return topicCache[key];
+
+    const nodeConfig = getCachedNodeConfig(topicPath);
+    if (nodeConfig?.content) {
+      hydrateNavigationMediaImagesLayoutFromNodeConfig(topicPath, nodeConfig.content);
+      if (topicCache[key] != null) return topicCache[key];
+    }
+
+    if (!nodeConfig) {
+      void loadNodeConfig(topicPath).catch(() => null);
+    }
+  }
+
+  if (navigationMediaImagesLayoutByScope[key] != null) return navigationMediaImagesLayoutByScope[key];
+
+  const legacy = readLegacyNavigationMediaImagesLayout();
+  const layout = legacy != null ? legacy : 3;
+  if (topicPath) {
+    getNavigationMediaImagesLayoutCacheForTopic(topicPath)[key] = layout;
+  } else {
+    navigationMediaImagesLayoutByScope[key] = layout;
+  }
+  return layout;
+}
+
+function saveNavigationMediaImagesLayoutSetting(scope, layout) {
+  const key = resolveNavigationMediaImagesLayoutScope(scope);
+  const normalized = normalizeNavigationMediaImagesLayout(layout);
+  const topicPath = getNavigationListSortTopicPath();
+  if (topicPath) {
+    getNavigationMediaImagesLayoutCacheForTopic(topicPath)[key] = normalized;
+    void persistNavigationMediaImagesLayoutToNodeConfig(topicPath, key, normalized);
+    return;
+  }
+
+  navigationMediaImagesLayoutByScope[key] = normalized;
+  writeStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY, String(normalized));
 }
 
 function getNavigationItemSortName(item) {
@@ -71673,8 +71836,8 @@ function appendRecordPartsNavigationImageStrip(parent, assetItems, rootFolderPat
     moreBtn.title = "Показать все изображения";
     moreBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      navigationMediaImagesLayout = navigationMediaImagesLayout === "strip" ? 3 : "strip";
-      saveNavigationMediaImagesLayout(navigationMediaImagesLayout);
+      const nextLayout = navigationMediaImagesLayout === "strip" ? 3 : "strip";
+      setNavigationMediaImagesLayout(nextLayout, "assets");
       const preview = parent.closest(".navigation-media-images-preview");
       if (preview) {
         preview.replaceChildren();
@@ -72292,7 +72455,10 @@ function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false }
   const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
   const mediaCols =
     !slotFolderMissing && (context?.memoryKind === "media" || context?.memoryKind === "assets")
-      ? createNavigationMediaImagesLayoutToggle()
+      ? (() => {
+          navigationMediaImagesLayout = loadNavigationMediaImagesLayout(context.memoryKind);
+          return createNavigationMediaImagesLayoutToggle(context.memoryKind);
+        })()
       : null;
   const sortScope =
     !slotFolderMissing &&
@@ -75005,8 +75171,8 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
       img.remove();
       applyNavigationFileIconToElement(preview, item, "🖼", {
         className: "node-entry-overview-media-item-preview-icon material-file-icon",
-        width: 32,
-        height: 32
+        width: 20,
+        height: 20
       });
     });
     preview.appendChild(img);
@@ -75014,8 +75180,8 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
     preview.classList.add("is-icon");
     applyNavigationFileIconToElement(preview, item, getMediaIconForItem(item), {
       className: "node-entry-overview-media-item-preview-icon material-file-icon",
-      width: 32,
-      height: 32
+      width: 20,
+      height: 20
     });
   }
 
@@ -75458,6 +75624,10 @@ async function renderEntryOverview() {
     entries = await enrichEntryOverviewPropertiesWithSchema(entries, context);
   }
   if (isStale()) return;
+
+  if (context.memoryKind === "media" || context.memoryKind === "assets") {
+    navigationMediaImagesLayout = loadNavigationMediaImagesLayout(context.memoryKind);
+  }
 
   syncEntryOverviewKindClass(getEntryOverviewKindClass(context.entryKind));
   const mediaAssetKind =
@@ -82533,21 +82703,11 @@ function loadFolderBrowseImagesColumns() {
   return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(stored) ? stored : 3;
 }
 
-function loadNavigationMediaImagesLayout() {
-  const stored = readStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY);
-  if (stored === "strip") return "strip";
-  const columns = Number(stored);
-  return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(columns) ? columns : 3;
-}
-
-function saveNavigationMediaImagesLayout(layout) {
-  writeStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY, String(layout));
-}
-
-function setNavigationMediaImagesLayout(layout) {
+function setNavigationMediaImagesLayout(layout, scope = null) {
   if (layout !== "strip" && !FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(layout)) return;
+  const layoutScope = resolveNavigationMediaImagesLayoutScope(scope);
   navigationMediaImagesLayout = layout;
-  saveNavigationMediaImagesLayout(layout);
+  saveNavigationMediaImagesLayoutSetting(layoutScope, layout);
   syncNavigationMediaImagesLayoutUi();
   syncFolderBrowseImagesColumnUi();
 
@@ -82585,7 +82745,9 @@ function createNavigationMediaImagesLayoutStripIcon() {
   return icon;
 }
 
-function createNavigationMediaImagesLayoutToggle() {
+function createNavigationMediaImagesLayoutToggle(scope = "media") {
+  const layoutScope = resolveNavigationMediaImagesLayoutScope(scope);
+  navigationMediaImagesLayout = loadNavigationMediaImagesLayout(layoutScope);
   const control = document.createElement("div");
   control.className = "folder-browse-images-cols-control navigation-media-images-layout-control";
   const label = document.createElement("span");
@@ -82604,7 +82766,7 @@ function createNavigationMediaImagesLayoutToggle() {
   stripBtn.setAttribute("aria-label", "Лента превью");
   stripBtn.appendChild(createNavigationMediaImagesLayoutStripIcon());
   stripBtn.addEventListener("click", () => {
-    setNavigationMediaImagesLayout("strip");
+    setNavigationMediaImagesLayout("strip", layoutScope);
   });
   toggle.appendChild(stripBtn);
 
@@ -82616,7 +82778,7 @@ function createNavigationMediaImagesLayoutToggle() {
     btn.textContent = String(cols);
     btn.title = cols === 1 ? "1 колонка" : `${cols} колонки`;
     btn.addEventListener("click", () => {
-      setNavigationMediaImagesLayout(cols);
+      setNavigationMediaImagesLayout(cols, layoutScope);
     });
     toggle.appendChild(btn);
   }

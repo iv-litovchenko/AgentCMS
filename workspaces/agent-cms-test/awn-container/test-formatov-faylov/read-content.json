@@ -1,5 +1,9 @@
 {
   "paths": [
+    "media/documents/example.doc",
+    "media/documents/example.docx",
+    "media/documents/example.rtf",
+    "media/documents/manifest.md",
     "media/sample.7z",
     "media/sample.css",
     "media/sample.csv",
@@ -10,5 +14,5 @@
     "media/sample.rtf",
     "media/sample.wav"
   ],
-  "updatedAt": "2026-09-27T09:30:12.971Z"
+  "updatedAt": "2026-09-27T09:48:32.503Z"
 }
