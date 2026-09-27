@@ -97782,7 +97782,7 @@ function applyAgentWorkspaceCanvasUi() {
   updateDocumentTitle();
 }
 
-function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
+function setAgentWorkspaceView(view, { skipRouteSync = false, persistWorkspaceConfig = true } = {}) {
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
@@ -97813,7 +97813,9 @@ function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
   }
   agentWorkspaceView = view;
   saveAgentWorkspaceView(view);
-  void persistAgentWorkspaceViewToWorkspaceConfig(view);
+  if (persistWorkspaceConfig) {
+    void persistAgentWorkspaceViewToWorkspaceConfig(view);
+  }
 
   if (activePath || activeSystemFile) {
     showHomeView();
@@ -105256,7 +105258,7 @@ function setupAwnDashboardsUi() {
     escapeHtml,
     getActiveAgentId: () => activeAgentId,
     getTodoFileName: () => ROOT_SYSTEM_TODO_FILE,
-    setWorkspaceView: (view) => setAgentWorkspaceView(view),
+    setWorkspaceView: (view) => setAgentWorkspaceView(view, { persistWorkspaceConfig: false }),
     openFolderBrowse: (label, folderPath, options = {}) =>
       openFolderBrowseFromMenu(label, folderPath, options),
     contentHostNode: home3ContentNode,
