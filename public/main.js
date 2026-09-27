@@ -107131,8 +107131,11 @@ function createEntryOverviewMediaAssetToolbar(context, entries = []) {
   const toolbar = document.createElement("div");
   toolbar.className = "node-entry-overview-media-asset-toolbar";
 
+  const row = document.createElement("div");
+  row.className = "node-entry-overview-media-asset-toolbar-row";
+
   const manifestPath = getActiveNodeApiPath() || context.relPath || activePath;
-  toolbar.appendChild(
+  row.appendChild(
     createGoogleDriveSyncBar({
       scope: "file",
       manifestPath,
@@ -107141,10 +107144,31 @@ function createEntryOverviewMediaAssetToolbar(context, entries = []) {
   );
 
   if (isEntryOverviewOcrCandidate(context.relativePath)) {
-    toolbar.appendChild(createEntryOverviewOcrBar(context, entries));
+    row.appendChild(createEntryOverviewOcrBar(context, entries));
   }
 
+  toolbar.append(row, createEntryOverviewFileHubSendButton(context));
   return toolbar;
+}
+
+function createEntryOverviewFileHubSendButton(context = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "node-entry-overview-file-hub-send-btn";
+  button.textContent = "Отправить в файлообменник";
+  button.title = "Заготовка: позже файл попадёт в Shell «Файлообменник»";
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const shellApp = window.shellApp || window.parent?.shellApp;
+    if (typeof shellApp?.openFileHub === "function") {
+      shellApp.openFileHub();
+      showToast("Файлообменник открыт — отправка файла скоро", "info");
+      return;
+    }
+    showToast("Файлообменник: заготовка, скоро", "info");
+  });
+  return button;
 }
 
 function createGoogleDriveSyncBar(initialConfig = {}) {
