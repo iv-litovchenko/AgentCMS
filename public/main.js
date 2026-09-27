@@ -32566,6 +32566,14 @@ const nodeOverviewEmbeddedMindmapCollapsedIds = new Set();
 const NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY = "agentcms.nodeNavTopicOverviewView.v1";
 const NODE_NAV_TOPIC_OVERVIEW_OPEN_STORAGE_KEY = "agentcms.nodeNavTopicOverviewOpen.v1";
 const NODE_NAV_TOPIC_GRAPH_VIEW_ENABLED = false;
+/** Панель и счётчик «Активы» на hub-странице навигации темы. */
+const NODE_NAVIGATION_ASSETS_PANEL_ENABLED = false;
+
+function filterNavigationHubAssetsSlots(slots = []) {
+  if (NODE_NAVIGATION_ASSETS_PANEL_ENABLED) return slots;
+  return slots.filter((slot) => slot?.id !== "assets" && slot?.spec?.key !== "assets");
+}
+
 const MINDMAP_LAYOUT_LEVEL_GAP = 210;
 const MINDMAP_LAYOUT_ROW_GAP = 42;
 const MINDMAP_MAX_DEPTH = 6;
@@ -85381,7 +85389,9 @@ function buildNodeNavigationMemoryPanelsWrap({
       renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
       slotsDisabled ? null : renderNavigationMediaPart(mediaData),
-      slotsDisabled ? null : renderNavigationAssetsPart(assetsData)
+      slotsDisabled || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+        ? null
+        : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
     for (const panel of panels) {
       panelsWrap.appendChild(panel);
@@ -85416,7 +85426,9 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          slotsDisabled || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
   return { isArea: isInlineNavHub, slotsDisabled, internalData, externalData, tabularData, mediaData, assetsData, todoData };
@@ -85457,19 +85469,21 @@ async function appendNodeNavigationSplitRail(
   if (isStale()) return false;
 
   try {
-    const assetsData =
-      prefetched.assetsData ??
-      (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null));
+    const assetsData = NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      ? prefetched.assetsData ??
+        (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null))
+      : null;
     if (isStale()) return false;
 
     const flatNavigationIndexes =
       prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
     if (isStale()) return false;
 
-    const assetsSlotPreview = topicSlotCounters.find((slot) => slot.id === "assets")?.assetsPreview || null;
+    const hubSlotCounters = filterNavigationHubAssetsSlots(topicSlotCounters);
+    const assetsSlotPreview = hubSlotCounters.find((slot) => slot.id === "assets")?.assetsPreview || null;
 
     const rail = renderNavigationHubRail(
-      topicSlotCounters.map((slot) => ({
+      hubSlotCounters.map((slot) => ({
         ...slot,
         modeId: slot.spec?.defaultMode || slot.id
       })),
@@ -85579,7 +85593,7 @@ async function renderNodeNavigation() {
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
           slotsDisabled ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          slotsDisabled
+          slotsDisabled || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null)
@@ -85652,10 +85666,11 @@ async function renderNodeNavigation() {
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
-  const topicSlotCounters =
+  const topicSlotCountersRaw =
     isInlineNavHub || slotsDisabled
       ? []
       : await buildEntryOverviewDataSlotCounters(nodePath, navigationPrefetch);
+  const topicSlotCounters = filterNavigationHubAssetsSlots(topicSlotCountersRaw);
   if (isInlineNavHub || slotsDisabled) {
     navigationPrefetch.topicSlotCounters = [];
   } else {

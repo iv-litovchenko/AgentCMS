@@ -1,34 +1,35 @@
 ---
-awn-attachments: []
 awn-status: open
 awn-emoji: ""
 awn-sort: 0
-awn-slots-disabled: false
-awn-main: true
+awn-main: false
+awn-focus: false
 awn-runtime-load-always: false
+awn-runtime-heartbeat: false
 awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: false
 awn-runtime-commands: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: "#000000"
 awn-tags: []
+awn-id: 34
 awn-type: awn.page.topic
 awn-create: "2026-06-09T02:18"
+awn-owner: ""
+awn-attachments: []
+awn-category: ""
+awn-color: "#000000"
 awn-description: Описание
-awn-name: PHP
-awn-mindmap-enabled: true
-awn-mindmap-type: milestone
 awn-mindmap-color: blue
-awn-mindmap-size: large
 awn-mindmap-direction: down
+awn-mindmap-enabled: true
+awn-mindmap-size: large
+awn-mindmap-type: milestone
+awn-name: PHP
 awn-preview: awn-storage/assets/preview/20260624202540.png
+awn-priority: ""
+awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-08-10T16:32:31.177Z
-awn-version: 13
-awn-id: 34
+awn-update: 2026-09-27T08:29:52.437Z
+awn-version: 17
 ---
 
 
