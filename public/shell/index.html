@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=590" />
+    <link rel="stylesheet" href="/shell/shell.css?v=597" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -70,6 +70,7 @@
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -2461,6 +2462,20 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-compose-dock" id="shell-compose-dock">
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
+          <div class="shell-compose-file-hub-row">
+            <button
+              type="button"
+              class="shell-file-hub-launch"
+              id="shell-file-hub-open"
+              aria-expanded="false"
+              aria-controls="shell-file-hub"
+              title="Файлообменник — файлы туда сюда"
+            >
+              <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
+              <span class="shell-file-hub-launch-label">Файлообменник</span>
+              <span class="shell-file-hub-launch-tag">Файлы туда сюда</span>
+            </button>
+          </div>
           <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
             <div class="shell-compose-options">
             <button
@@ -2860,6 +2875,55 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
       </section>
 
+
+      <section
+        class="shell-file-hub"
+        id="shell-file-hub"
+        hidden
+        aria-label="Файлообменник"
+        aria-modal="true"
+        role="dialog"
+      >
+        <div class="shell-file-hub-backdrop" data-file-hub-close tabindex="-1" aria-hidden="true"></div>
+        <div class="shell-file-hub-panel">
+          <header class="shell-file-hub-header">
+            <div class="shell-file-hub-title-block">
+              <div class="shell-file-hub-title-row">
+                <h2 class="shell-file-hub-title">Файлообменник</h2>
+                <span class="shell-file-hub-todo">TODO</span>
+              </div>
+              <p class="shell-file-hub-tagline">Файлы туда сюда</p>
+            </div>
+            <button type="button" class="shell-file-hub-close" data-file-hub-close aria-label="Закрыть файлообменник">
+              ✕
+            </button>
+          </header>
+          <p class="shell-file-hub-lead">
+            Сюда — после скачивания. Отсюда — в письмо Gmail или Yandex. Меньше прыжков между окнами.
+          </p>
+          <div class="shell-file-hub-search-wrap">
+            <label class="shell-file-hub-search-label" for="shell-file-hub-search">Поиск</label>
+            <input
+              type="search"
+              class="shell-file-hub-search"
+              id="shell-file-hub-search"
+              data-file-hub-search
+              placeholder="Имя файла, тема или папка в workspace…"
+              autocomplete="off"
+            />
+          </div>
+          <div class="shell-file-hub-drop" data-file-hub-drop>
+            <div class="shell-file-hub-drop-inner" data-file-hub-drop-inner>
+              <span class="shell-file-hub-drop-ico" aria-hidden="true">📥</span>
+              <p class="shell-file-hub-drop-title">Перетащите файлы сюда</p>
+              <p class="shell-file-hub-drop-hint">Скачали в браузере — бросьте в окно. Или перетащите из списка в форму письма.</p>
+            </div>
+          </div>
+          <p class="shell-file-hub-empty" data-file-hub-empty hidden>По запросу ничего не нашлось</p>
+          <ul class="shell-file-hub-list" data-file-hub-list aria-label="Файлы в обменнике"></ul>
+          <p class="shell-file-hub-footnote">Заготовка: позже — привязка к workspace и умный поиск по темам.</p>
+        </div>
+      </section>
 
       </div>
 

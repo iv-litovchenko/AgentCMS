@@ -5,6 +5,7 @@
   const retryBtn = document.getElementById("retry-btn");
   const openTabBtn = document.getElementById("open-tab-btn");
   const optionsLink = document.getElementById("options-link");
+  const fileHubBtn = document.getElementById("file-hub-btn");
   const urlLabel = document.getElementById("shell-url-label");
 
   let lastVoiceUrl = "";
@@ -200,6 +201,20 @@
   optionsLink?.addEventListener("click", (event) => {
     event.preventDefault();
     chrome.runtime.openOptionsPage?.();
+  });
+
+  fileHubBtn?.addEventListener("click", () => {
+    postToVoiceFrame({ type: "agent-cms-voice:file-hub", action: "toggle" });
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== frame?.contentWindow) return;
+    const data = event.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type !== "agent-cms-voice:file-hub-state") return;
+    const open = Boolean(data.open);
+    fileHubBtn?.classList.toggle("is-active", open);
+    fileHubBtn?.setAttribute("aria-pressed", open ? "true" : "false");
   });
 
   if (globalThis.CompanionStorage?.onChanged) {

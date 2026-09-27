@@ -40,7 +40,7 @@ awn_settings:
   voice-stt-whisper-model: base
   voice-stt-elevenlabs-model: scribe_v2
   voice-tts-enabled: false
-  voice-tts-playback-mode: dialog
+  voice-tts-playback-mode: reading
   voice-tts-prompt: |
     Каждый ответ пользователю используй в формате (строго, в таком порядке):
     

@@ -1707,6 +1707,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-main-view {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -13867,5 +13868,315 @@ body.shell-maintenance-active .shell-agent-gate {
   gap: 10px;
   justify-content: center;
   margin-top: 4px;
+}
+
+/* —— Файлообменник (заглушка) —— */
+.shell-compose-file-hub-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shell-file-hub-launch {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px 10px 2px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #ecfdf5;
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 48%, #15803d 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  transition: filter 0.12s ease;
+}
+
+.shell-file-hub-launch:hover {
+  filter: brightness(1.06);
+}
+
+.shell-file-hub-launch:active {
+  filter: brightness(0.96);
+}
+
+.shell-file-hub-launch-ico {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.shell-file-hub-launch-tag {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.88;
+  letter-spacing: 0.01em;
+}
+
+/* Внутри #shell-main-view — ширина колонки Shell; поверх compose (40) и dock (1200) */
+.shell-file-hub {
+  position: absolute;
+  inset: 0;
+  z-index: 13100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 12px var(--shell-surface-inset-x, 16px);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+
+.shell-file-hub:not([hidden]) {
+  display: flex;
+  pointer-events: auto;
+}
+
+.shell-app[data-compact="1"][data-file-hub="1"] .shell-main-view > #shell-file-hub:not([hidden]) {
+  display: flex !important;
+}
+
+body.shell-file-hub-open .shell-main-view > :not(#shell-file-hub) {
+  pointer-events: none;
+}
+
+body.shell-file-hub-open {
+  overflow: hidden;
+}
+
+body.shell-file-hub-open .shell-path-header {
+  pointer-events: auto;
+}
+
+.shell-file-hub-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.shell-file-hub-panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 100%);
+  max-height: min(92%, 720px);
+  padding: 16px 18px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(134, 239, 172, 0.35);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(34, 197, 94, 0.18) 0%, transparent 55%),
+    linear-gradient(165deg, rgba(15, 23, 42, 0.97) 0%, rgba(6, 78, 59, 0.92) 100%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  overflow: auto;
+}
+
+.shell-file-hub-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.shell-file-hub-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shell-file-hub-title {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: #ecfdf5;
+}
+
+.shell-file-hub-todo {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.shell-file-hub-tagline {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #86efac;
+}
+
+.shell-file-hub-close {
+  appearance: none;
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.shell-file-hub-lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.shell-file-hub-search-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell-file-hub-search-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.shell-file-hub-search {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  font: inherit;
+  font-size: 14px;
+}
+
+.shell-file-hub-drop {
+  border-radius: 12px;
+  border: 2px dashed rgba(74, 222, 128, 0.45);
+  background: rgba(6, 78, 59, 0.25);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.shell-file-hub-drop.is-dragover {
+  border-color: #4ade80;
+  background: rgba(22, 163, 74, 0.35);
+}
+
+.shell-file-hub-drop-inner {
+  padding: 18px 14px;
+  text-align: center;
+}
+
+.shell-file-hub-drop-ico {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.shell-file-hub-drop-title {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ecfdf5;
+}
+
+.shell-file-hub-drop-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(203, 213, 225, 0.85);
+}
+
+.shell-file-hub-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell-file-hub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+  cursor: grab;
+}
+
+.shell-file-hub-item.is-dragging {
+  opacity: 0.55;
+}
+
+.shell-file-hub-item-grip {
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 14px;
+}
+
+.shell-file-hub-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.shell-file-hub-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-file-hub-item-meta {
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-file-hub-item-size {
+  font-size: 11px;
+  color: rgba(134, 239, 172, 0.95);
+  flex-shrink: 0;
+}
+
+.shell-file-hub-empty {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(248, 113, 113, 0.95);
+  text-align: center;
+}
+
+.shell-file-hub-footnote {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.75);
 }
 

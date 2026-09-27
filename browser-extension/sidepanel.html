@@ -84,6 +84,17 @@
       #shell-frame {
         height: calc(100% - 40px);
       }
+      .sidepanel-bar button.sidepanel-file-hub-btn {
+        border-color: rgba(74, 222, 128, 0.55);
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.45), rgba(34, 197, 94, 0.28));
+        color: #ecfdf5;
+      }
+      .sidepanel-bar button.sidepanel-file-hub-btn:hover:not(:disabled) {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.62), rgba(34, 197, 94, 0.4));
+      }
+      .sidepanel-bar button.sidepanel-file-hub-btn.is-active {
+        box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.45);
+      }
     </style>
   </head>
   <body>
@@ -157,6 +168,30 @@
           ></path>
         </svg>
         Настройки
+      </button>
+      <button
+        id="file-hub-btn"
+        type="button"
+        class="sidepanel-file-hub-btn"
+        title="Файлообменник — файлы туда сюда"
+        aria-label="Файлообменник"
+        aria-pressed="false"
+      >
+        <svg
+          class="sidepanel-action-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          <path d="M12 11v6"></path>
+          <path d="M9 14h6"></path>
+        </svg>
+        Файлообменник
       </button>
     </div>
     <script src="companion-urls-global.js"></script>

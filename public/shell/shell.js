@@ -70,6 +70,7 @@ import { initShellUserQuestion } from "@shell/user-question";
 import { initShellMobileLink } from "@shell/mobile-link";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
+import { bindShellFileHubBridge, initShellFileHub } from "@shell/file-hub";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { initComposeTemplates, expandComposeTemplateMarkers } from "@shell/compose-templates";
 import { wrapSttVoiceBlock } from "@shell/stt-format";
@@ -2205,6 +2206,8 @@ const nodes = {
   dialogEmptyStarter: document.getElementById("shell-dialog-empty-starter"),
   composePanel: document.getElementById("shell-compose-panel"),
   composeDock: document.getElementById("shell-compose-dock"),
+  fileHub: document.getElementById("shell-file-hub"),
+  fileHubOpen: document.getElementById("shell-file-hub-open"),
   messageQueue: document.getElementById("shell-message-queue"),
   messageQueueActive: document.getElementById("shell-message-queue-active"),
   messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
@@ -2559,6 +2562,7 @@ const shellCompactQa = createShellCompactQa({
 });
 
 let shellSession = null;
+let shellFileHub = null;
 let shellProactive = null;
 const shellDebug = createShellDebugLog({ storageKey: SHELL_STORAGE.debugLog });
 
@@ -6102,7 +6106,7 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   const pressed = compact ? "true" : "false";
   nodes.windowCompact?.setAttribute("aria-pressed", pressed);
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
-  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Двойной клик — компактный режим");
+  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Один клик — компактный режим");
   syncCompactSensorUi(compact);
   syncCompactQa();
 }
@@ -12670,25 +12674,31 @@ function bindUi() {
     void takeManualScreenshot();
   });
 
-  nodes.agentAvatar?.addEventListener("dblclick", (event) => {
+  nodes.agentAvatar?.addEventListener("click", (event) => {
     event.preventDefault();
     if (shellEmbedMode || isWindowCompactEnabled()) return;
     setWindowCompactMode(true);
   });
   nodes.agentAvatar?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.altKey && !isWindowCompactEnabled()) {
-      event.preventDefault();
-      setWindowCompactMode(true);
-    }
+    if (shellEmbedMode || isWindowCompactEnabled()) return;
+    event.preventDefault();
+    setWindowCompactMode(true);
   });
   if (nodes.agentAvatar && !nodes.agentAvatar.getAttribute("title")) {
-    nodes.agentAvatar.setAttribute("title", "Двойной клик — компактный режим");
-    nodes.agentAvatar.setAttribute("aria-label", "Двойной клик — компактный режим");
+    nodes.agentAvatar.setAttribute("title", "Один клик — компактный режим");
+    nodes.agentAvatar.setAttribute("aria-label", "Один клик — компактный режим");
   }
 
   initCompactSensor();
   bindCompactStageUi();
+  shellFileHub = initShellFileHub({ shellApp: window, nodes, embedMode: shellEmbedMode });
+  bindShellFileHubBridge(shellFileHub, { embedMode: shellEmbedMode });
+  if (window.shellApp) {
+    window.shellApp.openFileHub = () => shellFileHub?.open?.();
+    window.shellApp.closeFileHub = () => shellFileHub?.close?.();
+    window.shellApp.toggleFileHub = () => shellFileHub?.toggleOpen?.();
+  }
 
   bindRuntimeSelectUi(nodes.messageTarget);
   bindRoutePanelUi();
