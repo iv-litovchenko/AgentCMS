@@ -44,6 +44,7 @@ const appFooterJournalTypeSelectNode = document.getElementById("app-footer-journ
 const appFooterJournalNotifyInputNode = document.getElementById("app-footer-journal-notify-input");
 const appFooterJournalBodyInputNode = document.getElementById("app-footer-journal-body-input");
 const appFooterJournalSubmitBtn = document.getElementById("app-footer-journal-submit-btn");
+const appFooterVoiceCmdBtn = document.getElementById("app-footer-voice-cmd-btn");
 const menuAwnDataBandNode = document.getElementById("menu-awn-databases-band");
 const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-databases-band-toggle");
 const menuAwnDataBandBodyNode = document.getElementById("menu-awn-databases-band-body");
@@ -104630,6 +104631,7 @@ function positionAppFooterIdeasPopover() {
 function openAppFooterIdeasPopover() {
   if (!appFooterIdeasPopoverNode || !appFooterIdeasBtn) return;
   if (!isAppFooterWorkspaceToolsContextActive()) return;
+  window.AppFooterVoiceCmdPopover?.close?.();
   appFooterIdeasOpen = true;
   appFooterIdeasPopoverNode.classList.remove("hidden");
   appFooterIdeasBtn.setAttribute("aria-expanded", "true");
@@ -115586,9 +115588,12 @@ function syncAppFooterWorkspaceToolsAvailability() {
   appFooterIdeasBtn?.closest(".app-footer-ideas-wrap")?.classList.toggle("hidden", !active);
   if (appFooterJournalBtn) appFooterJournalBtn.hidden = !active;
   appFooterJournalBtn?.closest(".app-footer-journal-wrap")?.classList.toggle("hidden", !active);
+  if (appFooterVoiceCmdBtn) appFooterVoiceCmdBtn.hidden = !active;
+  appFooterVoiceCmdBtn?.closest(".app-footer-voice-cmd-wrap")?.classList.toggle("hidden", !active);
   if (!active) {
     closeAppFooterIdeasPopover();
     closeAppFooterJournalPopover();
+    window.AppFooterVoiceCmdPopover?.close?.();
   }
 }
 
@@ -115647,6 +115652,7 @@ function positionAppFooterJournalPopover() {
 function openAppFooterJournalPopover() {
   if (!appFooterJournalPopoverNode || !appFooterJournalBtn || !isAppFooterWorkspaceToolsContextActive()) return;
   closeAppFooterIdeasPopover();
+  window.AppFooterVoiceCmdPopover?.close?.();
   appFooterJournalOpen = true;
   appFooterJournalContextCache = null;
   appFooterJournalContextResolving = true;
