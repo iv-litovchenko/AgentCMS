@@ -271,7 +271,15 @@
     return `\`\`\`awn-marker-${slug}`;
   }
 
-  function renderMarkerBlockHtml(block, renderMarkdownFragment) {
+  function formatMarkerCounter(index, total) {
+    const n = Math.max(1, Number(total) || 1);
+    const i = Math.min(Math.max(1, Number(index) || 1), n);
+    const pad = n >= 100 ? 3 : 2;
+    const fmt = (v) => String(v).padStart(pad, "0");
+    return `${fmt(i)} / ${fmt(n)}`;
+  }
+
+  function renderMarkerBlockHtml(block, renderMarkdownFragment, counter) {
     const slug = block.blockSlug || "note";
     const ui = MARKER_BLOCK_UI[slug] || { icon: "•", label: slug, typeClass: "moe-zametka" };
     const typeClass = ui.typeClass || "moe-zametka";
@@ -281,15 +289,21 @@
         : `<p>${escapeHtml(block.text)}</p>`;
     const chips = renderMetaChips(block.meta);
     const syntaxHint = markerSyntaxHint(slug, block.syntax);
-    const inlineMeta = chips
-      ? `<span class="md-marker-block-inline-meta">${chips}</span>`
-      : "";
+    const index = counter?.index ?? 1;
+    const total = counter?.total ?? 1;
+    const counterLabel = formatMarkerCounter(index, total);
+    const inlineMeta = chips ? `<span class="md-marker-block-inline-meta">${chips}</span>` : "";
+    const counterHtml =
+      `<span class="md-marker-block-counter markdown-preview-image-counter" aria-label="Маркер ${index} из ${total}">` +
+      `${escapeHtml(counterLabel)}</span>`;
+    const titleAside =
+      `<span class="md-marker-block-title-aside">${inlineMeta}${counterHtml}</span>`;
     return (
-      `<div class="md-marker-block md-marker-block--${escapeHtml(slug)}" data-marker-type="${escapeHtml(slug)}">` +
+      `<div class="md-marker-block md-marker-block--${escapeHtml(slug)}" data-marker-type="${escapeHtml(slug)}" data-marker-index="${index}" data-marker-total="${total}">` +
       `<div class="md-marker-block-title">` +
       `<span class="md-marker-block-icon type-icon type-${escapeHtml(typeClass)}" aria-hidden="true">${escapeHtml(ui.icon)}</span>` +
       `<span class="md-marker-block-label" title="${escapeHtml(syntaxHint)}">${escapeHtml(ui.label)}</span>` +
-      inlineMeta +
+      titleAside +
       `</div>` +
       `<div class="md-marker-block-body">${innerHtml}</div>` +
       `</div>`
@@ -307,12 +321,17 @@
     const blocks = parseMarkerBlocks(lines);
     if (!blocks.length) return text;
 
+    const total = blocks.length;
+    let markerIndex = 0;
     const out = [];
     for (let i = 0; i < lines.length; i++) {
       const block = blocks.find((b) => b.lineStart - 1 === i);
       if (block) {
+        markerIndex += 1;
         if (out.length && out[out.length - 1] !== "") out.push("");
-        out.push(renderMarkerBlockHtml(block, renderMarkdownFragment));
+        out.push(
+          renderMarkerBlockHtml(block, renderMarkdownFragment, { index: markerIndex, total })
+        );
         out.push("");
         i = block.lineEnd;
         continue;

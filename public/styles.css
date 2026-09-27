@@ -50105,13 +50105,25 @@ button.node-navigation-memory-title:focus-visible {
   cursor: default;
 }
 
+.file-content-preview .md-marker-block-title-aside {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-weight: 400;
+}
+
 .file-content-preview .md-marker-block-inline-meta {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  margin-left: auto;
-  font-weight: 400;
+}
+
+.file-content-preview .md-marker-block-counter {
+  flex-shrink: 0;
 }
 
 .file-content-preview .md-marker-chip {
