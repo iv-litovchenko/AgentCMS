@@ -1464,6 +1464,7 @@ function writeStorageItem(key, value) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
+const AWN_UI_DEFAULT_WORKSPACE_VIEW_KEY = "default_workspace_view";
 const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
@@ -2485,7 +2486,8 @@ async function applyChpuResolvedRoute(resolved) {
       showAgentHomeView();
       return;
     }
-    agentWorkspaceView = normalizeVisibleAgentWorkspaceView("dashboard");
+    const configView = await readAgentWorkspaceViewFromWorkspaceConfig(resolved?.agentId || activeAgentId);
+    agentWorkspaceView = normalizeVisibleAgentWorkspaceView(configView || loadAgentWorkspaceView());
     saveAgentWorkspaceView(agentWorkspaceView);
     showAgentHomeView();
     return;
@@ -97471,6 +97473,126 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
   }
 }
 
+function parseDefaultWorkspaceViewFromAwnUi(awnUi) {
+  const raw = awnUi?.[AWN_UI_DEFAULT_WORKSPACE_VIEW_KEY];
+  if (raw === undefined || raw === null || raw === "") return null;
+  const view = normalizeVisibleAgentWorkspaceView(String(raw).trim());
+  return isAcceptedAgentWorkspaceView(view) ? view : null;
+}
+
+function isAcceptedAgentWorkspaceView(view) {
+  return (
+    view === "dashboard" ||
+    view === "dashboard2" ||
+    view === "dashboard3" ||
+    view === "git" ||
+    view === "journal" ||
+    view === "project-settings" ||
+    view === "large-files" ||
+    view === "broken-links" ||
+    view === "run-scripts" ||
+    view === "todo-list" ||
+    view === "module-catalog" ||
+    view === "runtime-registry" ||
+    view === "awn-types" ||
+    view === "map" ||
+    view === "map2" ||
+    view === "map3" ||
+    view === "schema" ||
+    view === "vault" ||
+    view === "graph" ||
+    view === "storage" ||
+    view === "table" ||
+    view === "timeline" ||
+    view === "timeline-axis" ||
+    view === "timeline-vertical"
+  );
+}
+
+function shouldPersistAgentWorkspaceViewToConfig(view) {
+  return (
+    view !== "git" &&
+    view !== "awn-types" &&
+    view !== "large-files" &&
+    view !== "broken-links" &&
+    view !== "run-scripts" &&
+    view !== "todo-list" &&
+    view !== "module-catalog" &&
+    view !== "runtime-registry"
+  );
+}
+
+function shouldApplyAgentWorkspaceViewFromConfig() {
+  if (activePath || activeSystemFile || activeFolderBrowsePath) return false;
+  const route = parseAppRoute(location.pathname);
+  if (route.type === "agentHome") {
+    return !route.view;
+  }
+  if (route.type === "chpu") {
+    const chpuPath = String(route.chpuPath || "").replace(/^\/+/, "");
+    if (!chpuPath) return true;
+    const first = chpuPath.split("/").filter(Boolean)[0] || "";
+    if (first.startsWith("~") && CHPU_WORKSPACE_MODULE_VIEW_IDS.has(first.slice(1))) return false;
+    return true;
+  }
+  return false;
+}
+
+async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
+  const manifestPath = getAgentWorkspaceRootManifestPath();
+  if (!manifestPath || !agentId) return null;
+  try {
+    const data = await loadNodeConfig(manifestPath, { agentId, force: false });
+    const awnUi = NodeConfigBundle.parseNodeConfigBundle(data.content || "").awn_ui;
+    return parseDefaultWorkspaceViewFromAwnUi(awnUi);
+  } catch {
+    return null;
+  }
+}
+
+let persistAgentWorkspaceViewToConfigPromise = null;
+
+async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = activeAgentId) {
+  if (!shouldPersistAgentWorkspaceViewToConfig(view)) return;
+  const manifestPath = getAgentWorkspaceRootManifestPath();
+  if (!manifestPath || !agentId || !isNodeMdPath(manifestPath)) return;
+  const normalized = normalizeVisibleAgentWorkspaceView(view);
+  if (!isAcceptedAgentWorkspaceView(normalized)) return;
+
+  const run = async () => {
+    try {
+      const current = await loadNodeConfig(manifestPath, { agentId, force: true });
+      const content = NodeConfigBundle.applyAwnUiToConfig(current.content || "", {
+        [AWN_UI_DEFAULT_WORKSPACE_VIEW_KEY]: normalized
+      });
+      await saveNodeConfigContent(manifestPath, content, agentId);
+    } catch {
+      // ignore config save errors for workspace view
+    }
+  };
+
+  persistAgentWorkspaceViewToConfigPromise = run();
+  await persistAgentWorkspaceViewToConfigPromise;
+  persistAgentWorkspaceViewToConfigPromise = null;
+}
+
+async function syncAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
+  if (agentId !== activeAgentId || !shouldApplyAgentWorkspaceViewFromConfig()) return;
+  const configView = await readAgentWorkspaceViewFromWorkspaceConfig(agentId);
+  if (!configView) return;
+  const normalized = normalizeVisibleAgentWorkspaceView(configView);
+  if (normalized === agentWorkspaceView) {
+    syncAgentWorkspaceViewButtons();
+    return;
+  }
+  agentWorkspaceView = normalized;
+  saveAgentWorkspaceView(normalized);
+  syncAgentWorkspaceViewButtons();
+  if (isAgentWorkspaceCanvasVisible()) {
+    applyAgentWorkspaceCanvasUi();
+  }
+}
+
 function loadAgentWorkspaceView() {
   try {
     const saved = localStorage.getItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY);
@@ -97691,6 +97813,7 @@ function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
   }
   agentWorkspaceView = view;
   saveAgentWorkspaceView(view);
+  void persistAgentWorkspaceViewToWorkspaceConfig(view);
 
   if (activePath || activeSystemFile) {
     showHomeView();
@@ -116180,9 +116303,11 @@ async function refreshMenu(options = {}) {
   });
   if (agentId === activeAgentId) {
     updateActiveButton();
-    if (isAgentWorkspaceCanvasVisible()) {
-      applyAgentWorkspaceCanvasUi();
-    }
+    void syncAgentWorkspaceViewFromWorkspaceConfig(agentId).then(() => {
+      if (agentId === activeAgentId && isAgentWorkspaceCanvasVisible()) {
+        applyAgentWorkspaceCanvasUi();
+      }
+    });
   }
   if (
     createModalAgentId === agentId &&

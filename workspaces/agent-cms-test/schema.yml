@@ -1,0 +1,9 @@
+version: 1
+layer: workspace
+
+awn_schema:
+  settings:
+    fields:
+      field-1:
+        type: awn.field.string
+        sort: 10

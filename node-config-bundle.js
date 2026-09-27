@@ -1,7 +1,7 @@
 const { parseTypeYaml } = require("./awn-yaml-utils");
 
 const NODE_CONFIG_SECTION_KEYS = ["awn_schema", "awn_ui", "awn_settings"];
-const NODE_CONFIG_LEGACY_UI_KEYS = new Set(["default_landing_mode"]);
+const NODE_CONFIG_LEGACY_UI_KEYS = new Set(["default_landing_mode", "default_workspace_view"]);
 const NODE_CONFIG_UI_RUNTIME_KEY_PREFIXES = ["navigation_list_sort_", "navigation_media_images_layout_"];
 const NODE_CONFIG_RESERVED_ROOT_KEYS = new Set([
   ...NODE_CONFIG_SECTION_KEYS,
