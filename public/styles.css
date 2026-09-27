@@ -20615,6 +20615,11 @@ a.header-tool-btn {
   color: #047857;
 }
 
+.workspace-notification-source.is-external {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
 .workspace-notification-label {
   font-size: 13px;
   font-weight: 600;

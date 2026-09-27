@@ -1379,6 +1379,7 @@ const workspaceNotificationsMuteBtn = document.getElementById("workspace-notific
 const workspaceNotificationsClearBtn = document.getElementById("workspace-notifications-clear-btn");
 const workspaceNotificationsJournalBtn = document.getElementById("workspace-notifications-journal-btn");
 const WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX = "yamlcms.workspaceNotificationsSeenId";
+const WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX = "yamlcms.workspaceNotificationsHiddenBeforeId";
 const WORKSPACE_NOTIFICATIONS_FILTER_COOKIE = "yamlcms.notificationsFilter";
 const WORKSPACE_NOTIFICATIONS_MUTED_COOKIE = "yamlcms.notificationsMuted";
 const WORKSPACE_NOTIFICATIONS_FETCH_LIMIT = 100;
@@ -1386,6 +1387,7 @@ const WORKSPACE_NOTIFICATIONS_FILTER_VALUES = new Set(["all", "mcp", "ui", "noti
 let workspaceNotificationsEvents = [];
 let workspaceNotificationsLatestId = 0;
 let workspaceNotificationsSeenId = 0;
+let workspaceNotificationsHiddenBeforeId = 0;
 let workspaceNotificationsOpen = false;
 let workspaceNotificationsPollTimer = null;
 let workspaceNotificationsTruncated = false;
@@ -14295,6 +14297,7 @@ async function switchActiveAgent(nextAgentId) {
     workspaceNotificationsInitialLoadDone = false;
     workspaceNotificationsAnnouncedUpToId = 0;
     loadWorkspaceNotificationsSeenId(nextAgentId);
+    loadWorkspaceNotificationsHiddenBeforeId(nextAgentId);
     void refreshWorkspaceNotifications(false);
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
@@ -79624,12 +79627,48 @@ const WORKSPACE_NOTIFICATION_SOURCE_LABELS = {
   mcp: "MCP",
   ui: "UI",
   api: "API",
+  external: "диск",
   system: "система",
   journal: "журнал"
 };
 
 function getWorkspaceNotificationsSeenStorageKey(agentId = activeAgentId) {
   return agentId ? `${WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX}.${agentId}` : WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX;
+}
+
+function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+  try {
+    const raw = localStorage.getItem(getWorkspaceNotificationsHiddenStorageKey(agentId));
+    const parsed = Number(raw);
+    workspaceNotificationsHiddenBeforeId = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  } catch {
+    workspaceNotificationsHiddenBeforeId = 0;
+  }
+}
+
+function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+  try {
+    localStorage.setItem(
+      getWorkspaceNotificationsHiddenStorageKey(agentId),
+      String(workspaceNotificationsHiddenBeforeId)
+    );
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getWorkspaceNotificationsHiddenStorageKey(agentId = activeAgentId) {
+  return agentId
+    ? `${WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX}.${agentId}`
+    : WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX;
+}
+
+function isWorkspaceNotificationVisibleInBell(event) {
+  return Number(event?.id) > workspaceNotificationsHiddenBeforeId;
+}
+
+function getWorkspaceNotificationBellEvents() {
+  return workspaceNotificationsEvents.filter((event) => isWorkspaceNotificationVisibleInBell(event));
 }
 
 function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
@@ -79748,7 +79787,9 @@ function matchesWorkspaceNotificationFilter(event, filter = workspaceNotificatio
 }
 
 function getFilteredWorkspaceNotificationEvents() {
-  return workspaceNotificationsEvents.filter((event) => matchesWorkspaceNotificationFilter(event));
+  return getWorkspaceNotificationBellEvents().filter((event) =>
+    matchesWorkspaceNotificationFilter(event)
+  );
 }
 
 function syncWorkspaceNotificationsFilterUi() {
@@ -79767,11 +79808,15 @@ function reconcileWorkspaceNotificationsSeenId() {
     workspaceNotificationsSeenId = 0;
     saveWorkspaceNotificationsSeenId();
   }
+  if (workspaceNotificationsHiddenBeforeId > workspaceNotificationsLatestId) {
+    workspaceNotificationsHiddenBeforeId = 0;
+    saveWorkspaceNotificationsHiddenBeforeId();
+  }
 }
 
 function syncWorkspaceNotificationsFooter() {
   if (workspaceNotificationsClearBtn) {
-    workspaceNotificationsClearBtn.disabled = getWorkspaceNotificationUnreadCount() <= 0;
+    workspaceNotificationsClearBtn.disabled = getWorkspaceNotificationBellEvents().length <= 0;
   }
 }
 
@@ -79799,8 +79844,9 @@ function syncWorkspaceNotificationsHint() {
     const countLabel =
       filteredCount === 0
         ? "пусто"
-        : workspaceNotificationsFilter !== "all" && filteredCount !== workspaceNotificationsEvents.length
-          ? `${filteredCount}/${workspaceNotificationsEvents.length}`
+        : workspaceNotificationsFilter !== "all" &&
+            filteredCount !== getWorkspaceNotificationBellEvents().length
+          ? `${filteredCount}/${getWorkspaceNotificationBellEvents().length}`
           : String(filteredCount);
     const mutedSuffix = workspaceNotificationsMuted ? " · выкл" : "";
     workspaceNotificationsMetaNode.textContent = `${filterLabel} · ${countLabel} · до ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT}${mutedSuffix}`;
@@ -79818,7 +79864,9 @@ function syncWorkspaceNotificationsHint() {
 }
 
 function getWorkspaceNotificationUnreadCount() {
-  return workspaceNotificationsEvents.filter((event) => event.id > workspaceNotificationsSeenId).length;
+  return getWorkspaceNotificationBellEvents().filter(
+    (event) => event.id > workspaceNotificationsSeenId
+  ).length;
 }
 
 function formatWorkspaceNotificationAction(action) {
@@ -80099,7 +80147,7 @@ function renderWorkspaceNotificationsList() {
   if (!filtered.length) {
     const empty = document.createElement("p");
     empty.className = "workspace-notifications-empty";
-    empty.textContent = workspaceNotificationsEvents.length
+    empty.textContent = getWorkspaceNotificationBellEvents().length
       ? "Нет уведомлений для выбранного фильтра."
       : "Пока пусто. Записи с notify попадают сюда из журнала workspace.";
     workspaceNotificationsListNode.appendChild(empty);
@@ -80122,7 +80170,8 @@ function renderWorkspaceNotificationsList() {
 
 async function clearWorkspaceNotifications() {
   if (!activeAgentId) return;
-  if (workspaceNotificationsEvents.length) {
+  const visible = getWorkspaceNotificationBellEvents();
+  if (visible.length) {
     const confirmed = await askConfirm(
       "Все текущие уведомления будут помечены как прочитанные и скрыты из колокольчика.",
       {
@@ -80138,11 +80187,16 @@ async function clearWorkspaceNotifications() {
     if (!confirmed) return;
   }
   try {
-    workspaceNotificationsSeenId = workspaceNotificationsLatestId;
-    workspaceNotificationsAnnouncedUpToId = workspaceNotificationsLatestId;
+    const maxVisibleId = visible.reduce((max, event) => Math.max(max, Number(event.id) || 0), 0);
+    const nextHidden = Math.max(workspaceNotificationsLatestId, maxVisibleId);
+    workspaceNotificationsHiddenBeforeId = nextHidden;
+    workspaceNotificationsSeenId = nextHidden;
+    workspaceNotificationsAnnouncedUpToId = nextHidden;
+    saveWorkspaceNotificationsHiddenBeforeId();
     saveWorkspaceNotificationsSeenId();
     syncWorkspaceNotificationsBadge();
     syncWorkspaceNotificationsHint();
+    syncWorkspaceNotificationsFooter();
     renderWorkspaceNotificationsList();
     showToast("Уведомления отмечены прочитанными", "info");
   } catch (error) {
@@ -80394,7 +80448,7 @@ function maybeAnnounceWorkspaceNotifications() {
     return;
   }
 
-  const freshEvents = workspaceNotificationsEvents.filter(
+  const freshEvents = getWorkspaceNotificationBellEvents().filter(
     (event) => event.id > workspaceNotificationsAnnouncedUpToId
   );
   if (!freshEvents.length) return;
@@ -80468,6 +80522,7 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
     syncWorkspaceNotificationsBadge();
     syncWorkspaceNotificationsHint();
     syncWorkspaceNotificationsMuteUi();
+    syncWorkspaceNotificationsFooter();
     if (workspaceNotificationsOpen) renderWorkspaceNotificationsList();
 
     if (!wasInitialLoadDone) {
@@ -80484,6 +80539,7 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
 
 function initWorkspaceNotifications() {
   loadWorkspaceNotificationsSeenId();
+  loadWorkspaceNotificationsHiddenBeforeId();
   loadWorkspaceNotificationsFilter();
   loadWorkspaceNotificationsMuted();
   syncWorkspaceNotificationsFilterUi();

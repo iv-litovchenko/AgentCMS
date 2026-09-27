@@ -1155,7 +1155,7 @@ function scheduleWorkspaceExternalActivity(agentRoot, relPath) {
         manifestPath: resolveOwningManifestRelFromNodePath(normalized),
         label: path.posix.basename(normalized) || normalized,
         fileKind: inferWorkspaceActivityFileKind(normalized),
-        source: "mcp"
+        source: "external"
       });
     }, 500)
   );
@@ -1178,7 +1178,7 @@ function noteWorkspaceRevisionMtimes(agentRoot, revisions = {}) {
       manifestPath: resolveOwningManifestRelFromNodePath(normalized),
       label: path.posix.basename(normalized) || normalized,
       fileKind: inferWorkspaceActivityFileKind(normalized),
-      source: "mcp"
+      source: "external"
     });
   }
 }
@@ -2084,6 +2084,15 @@ function getWorkspaceFactsService() {
   return workspaceFactsService;
 }
 
+function mapWorkspaceActivitySourceToJournalMeta(source) {
+  const normalized = String(source || "system").toLowerCase();
+  if (normalized === "ui") return { type: "ui", author: "user" };
+  if (normalized === "mcp") return { type: "system", author: "agent" };
+  if (normalized === "external") return { type: "external", author: "user" };
+  if (normalized === "api") return { type: "system", author: "system" };
+  return { type: "system", author: "system" };
+}
+
 function bridgeWorkspaceActivityToJournal(event) {
   if (!event) return;
   const source = String(event.source || "").toLowerCase();
@@ -2102,11 +2111,15 @@ function bridgeWorkspaceActivityToJournal(event) {
     event.message ||
     `${actionLabels[actionName] || actionName}: ${event.recordName || event.label || event.path || "—"}`;
 
+  const journalMeta = isNotify
+    ? { type: "action", author: "agent" }
+    : mapWorkspaceActivitySourceToJournalMeta(source);
+
   void getWorkspaceJournalService()
     .appendJournalEntry({
       body,
-      type: isNotify ? "action" : source === "ui" ? "ui" : "system",
-      author: source === "ui" ? "user" : "agent",
+      type: journalMeta.type,
+      author: journalMeta.author,
       path: event.path || "",
       topic: event.manifestPath || "",
       notify: isNotify,

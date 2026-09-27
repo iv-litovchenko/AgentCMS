@@ -24,6 +24,8 @@ awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: []
 awn-materials: ""
+awn-id: 13
 ---
+
 
 # Edit вместо write  - проверить как перезаписываются файлы сейчас

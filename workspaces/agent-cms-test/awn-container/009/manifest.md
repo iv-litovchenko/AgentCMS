@@ -18,16 +18,12 @@ awn-index-exclude-subtree: false
 awn-tags: []
 awn-taxonomy: {}
 awn-type: awn.page.topic
-awn-create: "2026-08-26T15:48"
+awn-create: "2026-09-27T11:18"
 awn-owner: ""
-awn-category: ""
-awn-color: ""
-awn-description: ауцауцауц
-awn-name: Финансы
+awn-description: шошщощш
+awn-name: 9
 awn-preview: ""
-awn-priority: ""
-awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-09-27T08:16:53.109Z
-awn-version: 3
+awn-update: 2026-09-27T08:18:54.998Z
+awn-version: 2
 ---

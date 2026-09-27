@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const { rel } = require("./paths/agent-cms");
 
 const JOURNAL_DIR = rel.journal.dir;
-const JOURNAL_TYPES = new Set(["life", "action", "ui", "system"]);
+const JOURNAL_TYPES = new Set(["life", "action", "ui", "system", "external"]);
 const JOURNAL_AUTHORS = new Set(["user", "agent", "system"]);
 
 function normalizeRelPath(value) {
@@ -89,7 +89,8 @@ function journalEntryToNotificationId(entry) {
 function resolveJournalNotificationSource(entry) {
   const type = String(entry.type || "action").toLowerCase();
   const author = String(entry.author || "agent").toLowerCase();
-  if (author === "user" || type === "ui") return "ui";
+  if (type === "external") return "external";
+  if (type === "ui") return "ui";
   if (author === "agent") return "mcp";
   if (entry.notify) return "journal";
   return "system";
