@@ -532,6 +532,7 @@ const agentMap2NodesNode = document.getElementById("agent-map2-nodes");
 const agentMap2ControlsNode = document.getElementById("agent-map2-controls");
 const agentSchemaPaneNode = document.getElementById("agent-schema-pane");
 const agentSchemaContentNode = document.getElementById("agent-schema-content");
+const agentRoadmapMapPaneNode = document.getElementById("agent-roadmap-map-pane");
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
 const topicSchemaTitleNode = topicSchemaPanelNode?.querySelector(".topic-schema-title");
 const topicSchemaTargetTabsNode = document.getElementById("topic-schema-target-tabs");
@@ -1326,8 +1327,7 @@ const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const sidebarRoadmapGlobeBtn = document.getElementById("sidebar-roadmap-globe-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
-const SIDEBAR_ROADMAP_GLOBE_PATH =
-  "/agent-cms-core/zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy";
+const AGENT_ROADMAP_MAP_WORKSPACE_VIEW = "roadmap-map";
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
 const agentPreviewSlideCounterNode = document.getElementById("agent-preview-slide-counter");
@@ -25397,36 +25397,78 @@ function createBrokenLinksMarkerSvg() {
 function createGlobeMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("class", "menu-marker-svg sidebar-roadmap-globe-svg");
   svg.setAttribute("aria-hidden", "true");
 
-  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  circle.setAttribute("cx", "12");
-  circle.setAttribute("cy", "12");
-  circle.setAttribute("r", "9");
-  circle.setAttribute("fill", "none");
-  circle.setAttribute("stroke", "currentColor");
-  circle.setAttribute("stroke-width", "1.8");
-  svg.appendChild(circle);
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const oceanGrad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+  oceanGrad.setAttribute("id", "sidebar-globe-ocean");
+  oceanGrad.setAttribute("x1", "4");
+  oceanGrad.setAttribute("y1", "3");
+  oceanGrad.setAttribute("x2", "20");
+  oceanGrad.setAttribute("y2", "21");
+  const oceanA = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+  oceanA.setAttribute("offset", "0%");
+  oceanA.setAttribute("stop-color", "#38bdf8");
+  const oceanB = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+  oceanB.setAttribute("offset", "100%");
+  oceanB.setAttribute("stop-color", "#2563eb");
+  oceanGrad.appendChild(oceanA);
+  oceanGrad.appendChild(oceanB);
+  defs.appendChild(oceanGrad);
+  svg.appendChild(defs);
+
+  const ocean = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  ocean.setAttribute("cx", "12");
+  ocean.setAttribute("cy", "12");
+  ocean.setAttribute("r", "9");
+  ocean.setAttribute("fill", "url(#sidebar-globe-ocean)");
+  ocean.setAttribute("stroke", "#1d4ed8");
+  ocean.setAttribute("stroke-width", "1.2");
+  svg.appendChild(ocean);
+
+  const landA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  landA.setAttribute(
+    "d",
+    "M8.2 7.4c1.1-.6 2.4-.9 3.8-.7.8.1 1.5.5 2.1 1-.5.3-1 .5-1.6.5-.9 0-1.7-.3-2.4-.7-.4-.4-.7-.8-1.9-1.1z"
+  );
+  landA.setAttribute("fill", "#4ade80");
+  svg.appendChild(landA);
+
+  const landB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  landB.setAttribute(
+    "d",
+    "M14.8 9.2c.9.2 1.7.7 2.3 1.4.4.5.6 1.1.5 1.7-.8.2-1.5 0-2.1-.4-.7-.5-1.1-1.2-1.4-2-.1-.3-.1-.5.7-.7z"
+  );
+  landB.setAttribute("fill", "#22c55e");
+  svg.appendChild(landB);
+
+  const landC = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  landC.setAttribute(
+    "d",
+    "M6.8 13.1c.5-.8 1.2-1.4 2.1-1.7 1-.4 2.1-.3 3 .1-.6.9-1.5 1.6-2.6 1.9-1 .3-2 .1-2.5-.3z"
+  );
+  landC.setAttribute("fill", "#16a34a");
+  svg.appendChild(landC);
 
   const meridian = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
   meridian.setAttribute("cx", "12");
   meridian.setAttribute("cy", "12");
-  meridian.setAttribute("rx", "4");
+  meridian.setAttribute("rx", "4.2");
   meridian.setAttribute("ry", "9");
   meridian.setAttribute("fill", "none");
-  meridian.setAttribute("stroke", "currentColor");
-  meridian.setAttribute("stroke-width", "1.8");
+  meridian.setAttribute("stroke", "rgba(255,255,255,0.55)");
+  meridian.setAttribute("stroke-width", "1");
   svg.appendChild(meridian);
 
-  const parallel = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  parallel.setAttribute("x1", "3");
-  parallel.setAttribute("y1", "12");
-  parallel.setAttribute("x2", "21");
-  parallel.setAttribute("y2", "12");
-  parallel.setAttribute("stroke", "currentColor");
-  parallel.setAttribute("stroke-width", "1.8");
-  parallel.setAttribute("stroke-linecap", "round");
+  const parallel = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+  parallel.setAttribute("cx", "12");
+  parallel.setAttribute("cy", "12");
+  parallel.setAttribute("rx", "9");
+  parallel.setAttribute("ry", "3.2");
+  parallel.setAttribute("fill", "none");
+  parallel.setAttribute("stroke", "rgba(255,255,255,0.45)");
+  parallel.setAttribute("stroke-width", "1");
   svg.appendChild(parallel);
 
   return svg;
@@ -31067,6 +31109,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   map2: "Структура",
   map3: "Карта 3",
   schema: "Карта",
+  "roadmap-map": "Карта и роадмап",
   "awn-types": "Реестр типов, модулей, компонентов и расширений",
   vault: "Каталог",
   graph: "Граф связей и знаний",
@@ -97574,6 +97617,7 @@ function isAcceptedAgentWorkspaceView(view) {
     view === "map2" ||
     view === "map3" ||
     view === "schema" ||
+    view === "roadmap-map" ||
     view === "vault" ||
     view === "graph" ||
     view === "storage" ||
@@ -97586,6 +97630,7 @@ function isAcceptedAgentWorkspaceView(view) {
 
 function shouldPersistAgentWorkspaceViewToConfig(view) {
   return (
+    view !== "roadmap-map" &&
     view !== "git" &&
     view !== "awn-types" &&
     view !== "large-files" &&
@@ -97679,6 +97724,7 @@ function loadAgentWorkspaceView() {
       saved === "map2" ||
       saved === "map3" ||
       saved === "schema" ||
+      saved === "roadmap-map" ||
       saved === "vault" ||
       saved === "graph" ||
       saved === "storage" ||
@@ -97779,6 +97825,10 @@ function applyAgentWorkspaceCanvasUi() {
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
   agentMap3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map3");
   agentSchemaPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "schema");
+  agentRoadmapMapPaneNode?.classList.toggle(
+    "hidden",
+    !showCanvas || agentWorkspaceView !== AGENT_ROADMAP_MAP_WORKSPACE_VIEW
+  );
   agentVaultPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "vault");
   agentGraphPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "graph");
   agentTablePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "table");
@@ -97828,6 +97878,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentMap3View();
   } else if (agentWorkspaceView === "schema") {
     renderAgentSchemaView();
+  } else if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) {
+    renderAgentRoadmapMapView();
   } else if (agentWorkspaceView === "vault") {
     renderAgentVaultView();
   } else if (agentWorkspaceView === "graph") {
@@ -97877,6 +97929,7 @@ function setAgentWorkspaceView(view, { skipRouteSync = false, persistWorkspaceCo
     view !== "map2" &&
     view !== "map3" &&
     view !== "schema" &&
+    view !== "roadmap-map" &&
     view !== "vault" &&
     view !== "graph" &&
     view !== "storage" &&
@@ -98841,26 +98894,25 @@ function syncAwnDashboardsToolbarUi() {
 }
 
 function isSidebarRoadmapGlobePageActive() {
-  const normalizedPath = decodeURIComponent(String(location.pathname || ""))
-    .replace(/\/+$/, "")
-    .toLowerCase();
-  const target = SIDEBAR_ROADMAP_GLOBE_PATH.replace(/\/+$/, "").toLowerCase();
-  if (normalizedPath === target) return true;
-  const rel = normalizeLinkFilePath(activePath || "").toLowerCase();
-  return rel.endsWith("mindmapkarta-roudmapy.md");
+  return agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW && isAgentWorkspaceCanvasVisible();
 }
 
 function syncSidebarRoadmapGlobeToolbarUi() {
   sidebarRoadmapGlobeBtn?.classList.toggle("is-active", isSidebarRoadmapGlobePageActive());
 }
 
-async function openSidebarRoadmapGlobePage() {
+function openSidebarRoadmapGlobePage() {
   closeAgentsPickerPopover();
-  const href = `${location.origin}${SIDEBAR_ROADMAP_GLOBE_PATH}`;
-  const opened = await tryOpenSameOriginAppUrl(href);
-  if (!opened) {
-    location.href = href;
+  if (!activeAgentId) {
+    showAppLandingView();
+    return;
   }
+  if (activePath || activeSystemFile || activeFolderBrowsePath) {
+    showAgentHomeView();
+  } else if (!isAgentWorkspaceCanvasVisible()) {
+    showAgentHomeView();
+  }
+  setAgentWorkspaceView(AGENT_ROADMAP_MAP_WORKSPACE_VIEW, { persistWorkspaceConfig: false });
   syncSidebarRoadmapGlobeToolbarUi();
 }
 
@@ -98869,7 +98921,7 @@ function initSidebarRoadmapGlobeToolbar() {
   mountAgentToolbarBtnIcon(sidebarRoadmapGlobeBtn, createGlobeMarkerSvg(), "sidebar-roadmap-globe-btn-icon");
   syncSidebarRoadmapGlobeToolbarUi();
   sidebarRoadmapGlobeBtn.addEventListener("click", () => {
-    void openSidebarRoadmapGlobePage();
+    openSidebarRoadmapGlobePage();
   });
 }
 
@@ -101613,6 +101665,10 @@ function renderAgentSchemaSizeChart(ranking = [], totalTopicBytes = 0) {
   return section;
 }
 
+function renderAgentRoadmapMapView() {
+  // Static copy lives in index.html (#agent-roadmap-map-content); canvas only toggles visibility.
+}
+
 function renderAgentSchemaView() {
   if (!agentSchemaContentNode) return;
   agentSchemaContentNode.innerHTML = "";
@@ -103353,6 +103409,7 @@ function hideAllAgentCanvasPanes() {
   agentMap2PaneNode?.classList.add("hidden");
   agentMap3PaneNode?.classList.add("hidden");
   agentSchemaPaneNode?.classList.add("hidden");
+  agentRoadmapMapPaneNode?.classList.add("hidden");
   agentVaultPaneNode?.classList.add("hidden");
   agentGraphPaneNode?.classList.add("hidden");
   agentTablePaneNode?.classList.add("hidden");

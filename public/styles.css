@@ -10416,6 +10416,26 @@ body.app-locked {
     linear-gradient(180deg, #f8fafc 0%, #fff 100%);
 }
 
+.agent-roadmap-map-prose {
+  margin: 0;
+  padding: 18px 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  font-size: 14px;
+  line-height: 1.65;
+  color: #334155;
+}
+
+.agent-roadmap-map-prose p {
+  margin: 0 0 14px;
+}
+
+.agent-roadmap-map-prose p:last-child {
+  margin-bottom: 0;
+}
+
 .agent-table-pane {
   align-items: stretch;
   justify-content: flex-start;
@@ -21243,30 +21263,48 @@ a.header-tool-btn {
   gap: 8px;
 }
 
+.sidebar-agent-toolbar:has(.sidebar-agent-row--roadmap-globe) {
+  gap: 4px;
+}
+
+.sidebar-agent-row--roadmap-globe {
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
 .sidebar-agent-controls--globe-row {
   justify-content: flex-end;
 }
 
 .sidebar-roadmap-globe-btn {
-  color: #0d9488;
+  color: #1d4ed8;
+  overflow: hidden;
 }
 
 .sidebar-roadmap-globe-btn:hover {
-  color: #0f766e;
-  border-color: #5eead4;
-  background: #f0fdfa;
+  border-color: #93c5fd;
+  background: #eff6ff;
 }
 
 .sidebar-roadmap-globe-btn.is-active {
-  border-color: #0d9488;
-  background: #ccfbf1;
-  color: #115e59;
-  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.25);
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.28);
 }
 
-.sidebar-roadmap-globe-btn-icon svg {
-  width: 15px;
-  height: 15px;
+.sidebar-roadmap-globe-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar-roadmap-globe-btn-icon svg,
+.sidebar-roadmap-globe-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .agent-select-wrap--sr-only,
