@@ -1324,8 +1324,8 @@ const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const agentSelectNode = document.getElementById("agent-select");
 const sidebarAgentAvatarBtn = document.getElementById("sidebar-agent-avatar-btn");
 const sidebarAgentAvatarMountNode = document.getElementById("sidebar-agent-avatar-mount");
-const sidebarAgentAvatarHoverPreviewNode = document.getElementById("sidebar-agent-avatar-hover-preview");
-const sidebarAgentAvatarHoverPreviewImgNode = document.getElementById("sidebar-agent-avatar-hover-preview-img");
+let agentSliderAvatarHoverActive = false;
+let agentSliderIndexBeforeAvatarHover = 0;
 const headerUserProfileBtn = document.getElementById("header-user-profile-btn");
 const headerUserProfileAvatarMountNode = document.getElementById("header-user-profile-avatar-mount");
 const headerProfileWrapNode = document.querySelector(".header-profile-wrap");
@@ -6271,7 +6271,7 @@ function openSelectedAgentWorkspaceView() {
   if (!view) return;
   const option = agentViewSelect.querySelector(`option[value="${view}"]`);
   if (option?.disabled || option?.hidden) return;
-  setAgentWorkspaceView(view);
+  setAgentWorkspaceView(view, { persistWorkspaceConfig: false, saveSessionView: false });
 }
 
 function syncAgentPreviewOpenUi() {
@@ -6398,7 +6398,10 @@ function syncAgentPreviewSlideCounter() {
     agentSliderPlaybackOrder.length;
   const currentSlide = agentSliderPlaybackOrder[playbackIndex];
   const catalogIndex = catalogFiles.findIndex(
-    (file) => file.mediaFile === currentSlide?.mediaFile || file.name === currentSlide?.name
+    (file) =>
+      (file.isAvatarSlide && currentSlide?.isAvatarSlide) ||
+      file.mediaFile === currentSlide?.mediaFile ||
+      file.name === currentSlide?.name
   );
   const currentNum = catalogIndex >= 0 ? catalogIndex + 1 : playbackIndex + 1;
   agentPreviewSlideCounterNode.textContent = `${currentNum} / ${total}`;
@@ -6428,7 +6431,10 @@ function buildAgentSliderLightboxGallery() {
       agentSliderPlaybackOrder.length;
     const currentSlide = agentSliderPlaybackOrder[playbackIndex];
     const catalogIndex = files.findIndex(
-      (file) => file.mediaFile === currentSlide?.mediaFile || file.name === currentSlide?.name
+      (file) =>
+        (file.isAvatarSlide && currentSlide?.isAvatarSlide) ||
+        file.mediaFile === currentSlide?.mediaFile ||
+        file.name === currentSlide?.name
     );
     if (catalogIndex >= 0) index = catalogIndex;
   }
@@ -6517,8 +6523,7 @@ function syncAgentPreview(previewMeta = null, options = {}) {
 
     syncAgentPreviewSlideCounter();
     syncAgentPreviewOpenUi();
-    maybeRebuildAgentSliderWorkspaceFallback();
-    syncSidebarAvatarHoverPreview();
+    maybeRebuildAgentSliderPlayback();
     return;
   }
 
@@ -6536,43 +6541,27 @@ function syncAgentPreview(previewMeta = null, options = {}) {
   syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
   syncAgentPreviewSlideCounter();
   syncAgentPreviewOpenUi();
-  maybeRebuildAgentSliderWorkspaceFallback();
-  syncSidebarAvatarHoverPreview();
-}
-
-function syncSidebarAvatarHoverPreview() {
-  if (!sidebarAgentAvatarHoverPreviewNode || !sidebarAgentAvatarHoverPreviewImgNode) return;
-  const thumb = agentPreviewThumbNode;
-  const previewReady =
-    thumb &&
-    agentPreviewWrapNode &&
-    !agentPreviewWrapNode.classList.contains("hidden") &&
-    Boolean(thumb.getAttribute("src") || thumb.src);
-  if (!previewReady) {
-    hideSidebarAvatarHoverPreview();
-    return;
-  }
-  const nextSrc = thumb.src || thumb.getAttribute("src") || "";
-  if (sidebarAgentAvatarHoverPreviewImgNode.getAttribute("src") !== nextSrc) {
-    sidebarAgentAvatarHoverPreviewImgNode.src = nextSrc;
-  }
-  const fullSrc = thumb.dataset.fullSrc || "";
-  if (fullSrc) sidebarAgentAvatarHoverPreviewImgNode.dataset.fullSrc = fullSrc;
+  maybeRebuildAgentSliderPlayback();
 }
 
 function showSidebarAvatarHoverPreview() {
-  syncSidebarAvatarHoverPreview();
-  if (!sidebarAgentAvatarHoverPreviewNode || !sidebarAgentAvatarHoverPreviewImgNode?.src) return;
-  sidebarAgentAvatarHoverPreviewNode.classList.remove("hidden");
-  sidebarAgentAvatarHoverPreviewNode.classList.add("is-visible");
-  sidebarAgentAvatarHoverPreviewNode.setAttribute("aria-hidden", "false");
+  const agent = getActiveAgentMeta();
+  if (!agent?.id || agentSliderCatalog.loadedForAgentId !== agent.id) return;
+  if (!agentSliderPlaybackOrder.length || !agentSliderPlaybackOrder[0]?.isAvatarSlide) return;
+  if (agentSliderAvatarHoverActive) return;
+  agentSliderAvatarHoverActive = true;
+  agentSliderIndexBeforeAvatarHover = agentSliderIndex;
+  agentSliderIndex = 0;
+  agentPreviewWrapNode?.classList.add("is-avatar-slide-preview");
+  syncAgentPreview();
 }
 
 function hideSidebarAvatarHoverPreview() {
-  if (!sidebarAgentAvatarHoverPreviewNode) return;
-  sidebarAgentAvatarHoverPreviewNode.classList.remove("is-visible");
-  sidebarAgentAvatarHoverPreviewNode.classList.add("hidden");
-  sidebarAgentAvatarHoverPreviewNode.setAttribute("aria-hidden", "true");
+  if (!agentSliderAvatarHoverActive) return;
+  agentSliderAvatarHoverActive = false;
+  agentSliderIndex = agentSliderIndexBeforeAvatarHover;
+  agentPreviewWrapNode?.classList.remove("is-avatar-slide-preview");
+  syncAgentPreview();
 }
 
 let agentTodoPreviewSeq = 0;
@@ -7323,12 +7312,13 @@ function getAgentSliderCatalogFiles() {
   return Array.isArray(agentSliderCatalog.files) ? agentSliderCatalog.files : [];
 }
 
-function buildAgentSliderWorkspaceFallbackSlide() {
+function buildAgentSliderAvatarSlide() {
   const workspacePreview = resolveWorkspaceAgentPreviewMeta();
   if (!workspacePreview.hasPreview || !workspacePreview.previewUrl) return null;
   return {
-    name: "Превью workspace",
+    name: "Аватар",
     mediaFile: "",
+    isAvatarSlide: true,
     isWorkspacePreview: true,
     previewUrl: workspacePreview.previewUrl
   };
@@ -7336,15 +7326,14 @@ function buildAgentSliderWorkspaceFallbackSlide() {
 
 function getAgentSliderPlaybackSourceSlides() {
   const files = getAgentSliderCatalogFiles();
-  if (files.length) return files;
-  const fallback = buildAgentSliderWorkspaceFallbackSlide();
-  return fallback ? [fallback] : [];
+  const avatar = buildAgentSliderAvatarSlide();
+  if (!avatar) return files;
+  return [avatar, ...files];
 }
 
-function maybeRebuildAgentSliderWorkspaceFallback() {
+function maybeRebuildAgentSliderPlayback() {
   const agent = getActiveAgentMeta();
   if (!agent?.id || agentSliderCatalog.loadedForAgentId !== agent.id) return;
-  if (getAgentSliderCatalogFiles().length) return;
   const sourceSlides = getAgentSliderPlaybackSourceSlides();
   if (!sourceSlides.length) {
     if (agentSliderPlaybackOrder.length) {
@@ -7354,18 +7343,28 @@ function maybeRebuildAgentSliderWorkspaceFallback() {
     }
     return;
   }
-  if (!agentSliderPlaybackOrder.length) {
-    rebuildAgentSliderPlaybackOrder({ resetIndex: true });
+  const needsRebuild =
+    !agentSliderPlaybackOrder.length ||
+    agentSliderPlaybackOrder.length !== sourceSlides.length ||
+    Boolean(agentSliderPlaybackOrder[0]?.isAvatarSlide) !== Boolean(sourceSlides[0]?.isAvatarSlide);
+  if (needsRebuild) {
+    rebuildAgentSliderPlaybackOrder({ resetIndex: !agentSliderPlaybackOrder.length });
     restartAgentSliderRotation();
   }
 }
 
 function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
-  agentSliderPlaybackOrder = shuffleAgentSliderFiles(getAgentSliderPlaybackSourceSlides());
+  const slides = getAgentSliderPlaybackSourceSlides();
+  if (!slides.length) {
+    agentSliderPlaybackOrder = [];
+    agentSliderIndex = 0;
+    return;
+  }
+  const avatar = slides[0]?.isAvatarSlide ? slides[0] : null;
+  const rest = avatar ? slides.slice(1) : slides;
+  agentSliderPlaybackOrder = avatar ? [avatar, ...shuffleAgentSliderFiles(rest)] : shuffleAgentSliderFiles(rest);
   if (resetIndex) {
-    agentSliderIndex = agentSliderPlaybackOrder.length
-      ? Math.floor(Math.random() * agentSliderPlaybackOrder.length)
-      : 0;
+    agentSliderIndex = agentSliderPlaybackOrder.length > 1 ? 1 : 0;
     return;
   }
   if (agentSliderIndex >= agentSliderPlaybackOrder.length) {
@@ -7390,9 +7389,14 @@ function restartAgentSliderRotation() {
   stopAgentSliderRotation();
   if (agentSliderPlaybackOrder.length < 2) return;
   agentSliderRotateTimer = setInterval(() => {
+    if (agentSliderAvatarHoverActive) return;
     agentSliderIndex = (agentSliderIndex + 1) % agentSliderPlaybackOrder.length;
-    if (agentSliderIndex === 0) {
-      agentSliderPlaybackOrder = shuffleAgentSliderFiles(getAgentSliderPlaybackSourceSlides());
+    if (agentSliderIndex === 0 && agentSliderPlaybackOrder.length > 1) {
+      const avatar = agentSliderPlaybackOrder[0]?.isAvatarSlide ? agentSliderPlaybackOrder[0] : null;
+      const rest = avatar ? agentSliderPlaybackOrder.slice(1) : agentSliderPlaybackOrder;
+      agentSliderPlaybackOrder = avatar
+        ? [avatar, ...shuffleAgentSliderFiles(rest)]
+        : shuffleAgentSliderFiles(rest);
     }
     syncAgentPreview();
   }, AGENT_SLIDER_ROTATE_MS);
@@ -98489,7 +98493,10 @@ function applyAgentWorkspaceCanvasUi() {
   updateDocumentTitle();
 }
 
-function setAgentWorkspaceView(view, { skipRouteSync = false, persistWorkspaceConfig = true } = {}) {
+function setAgentWorkspaceView(
+  view,
+  { skipRouteSync = false, persistWorkspaceConfig = true, saveSessionView = true } = {}
+) {
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
@@ -98520,13 +98527,19 @@ function setAgentWorkspaceView(view, { skipRouteSync = false, persistWorkspaceCo
     return;
   }
   agentWorkspaceView = view;
-  saveAgentWorkspaceView(view);
+  if (saveSessionView) {
+    saveAgentWorkspaceView(view);
+  }
   if (persistWorkspaceConfig) {
     void persistAgentWorkspaceViewToWorkspaceConfig(view);
   }
 
   if (activePath || activeSystemFile) {
     showHomeView();
+    applyAgentWorkspaceCanvasUi();
+    if (!skipRouteSync) {
+      syncAppRouteToUrl({ replace: true });
+    }
     return;
   }
 
