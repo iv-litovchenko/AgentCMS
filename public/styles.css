@@ -62375,6 +62375,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f5f3ff;
 }
 
+.menu-static-section--glossary {
+  border: 1px solid #e9d5ff;
+  background: #fdf4ff;
+}
+
 .menu-static-section--awn-temp {
   border: 1px solid #fcd34d;
   background: #fffbeb;
@@ -67727,6 +67732,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-title--storage-schemes,
 .menu-static-title--awn-dialogs,
 .menu-static-title--awn-facts,
+.menu-static-title--glossary,
 .menu-static-title--vendor,
 .menu-static-title--settings,
 .menu-static-title--server-sync,
