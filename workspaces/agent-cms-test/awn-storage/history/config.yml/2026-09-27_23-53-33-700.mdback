@@ -1,0 +1,8 @@
+# Agent CMS — page bundle (awn_ui, landing). Настройки агента → settings.yml
+
+awn_ui:
+  default_workspace_view: graph
+
+awn_settings:
+  awn-mask-file: ""
+  field-1: 99

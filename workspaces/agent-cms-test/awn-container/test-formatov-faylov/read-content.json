@@ -1,5 +1,6 @@
 {
   "paths": [
+    "media/audio/example.opus",
     "media/documents/example.doc",
     "media/documents/example.docx",
     "media/documents/example.rtf",
@@ -14,5 +15,5 @@
     "media/sample.rtf",
     "media/sample.wav"
   ],
-  "updatedAt": "2026-09-27T09:53:00.922Z"
+  "updatedAt": "2026-09-27T20:58:57.400Z"
 }

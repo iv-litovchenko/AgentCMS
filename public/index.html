@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.941" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.946" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -3777,7 +3777,11 @@
               <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Интеллект-карта</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Дорожная карта</button>
             </div>
-            <label class="agent-rmm-depth-label" for="agent-rmm-depth">
+          </div>
+        </div>
+        <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
+          <div id="agent-rmm-view-chrome" class="agent-rmm-view-chrome">
+            <label class="agent-rmm-depth-label agent-rmm-depth-on-canvas" for="agent-rmm-depth">
               <span class="agent-rmm-depth-label-text">Глубина</span>
               <select id="agent-rmm-depth" aria-label="Глубина данных">
                 <option value="files">Темы и файлы</option>
@@ -3785,13 +3789,22 @@
               </select>
             </label>
           </div>
-        </div>
-        <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
           <div id="agent-rmm-graph-chrome" class="agent-rmm-graph-chrome hidden" aria-hidden="true">
-            <label class="agent-graph-setting agent-rmm-preview-setting" for="agent-rmm-show-previews">
-              <input id="agent-rmm-show-previews" type="checkbox" checked />
-              <span>Превью на темах</span>
-            </label>
+            <div class="agent-rmm-graph-chrome-top-left">
+              <label class="agent-graph-setting agent-rmm-preview-setting" for="agent-rmm-show-previews">
+                <input id="agent-rmm-show-previews" type="checkbox" checked />
+                <span>Превью на темах</span>
+              </label>
+              <button
+                type="button"
+                id="agent-rmm-refresh-graph-index"
+                class="agent-rmm-graph-index-btn"
+                disabled
+                title="Coming soon: rebuild workspace INDEX.GRAPH"
+              >
+                Refresh INDEX.GRAPH index
+              </button>
+            </div>
             <div class="agent-rmm-graph-chrome-bottom-left">
               <div id="agent-rmm-graph-theme" class="agent-rmm-graph-theme-toggle" role="group" aria-label="Тема графа">
                 <button
@@ -6739,7 +6752,7 @@
     <script src="/awn-dashboards.js?v=6"></script>
     <script src="/platform-status.js"></script>
     <script src="/marker-blocks-preview.js?v=10"></script>
-    <script src="/main.js?v=0.5.938"></script>
+    <script src="/main.js?v=0.5.941"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>
     <script src="/page-picker-extract.js?v=0.5.5"></script>

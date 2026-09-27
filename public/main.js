@@ -31985,8 +31985,10 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
       nodeState.previewSize,
       nodeState.labelSubLineCount || 0
     );
-    nodeState.glow.setAttribute("cx", String(node.x));
-    nodeState.glow.setAttribute("cy", String(node.y));
+    if (nodeState.glow) {
+      nodeState.glow.setAttribute("cx", String(node.x));
+      nodeState.glow.setAttribute("cy", String(node.y));
+    }
     nodeState.circle.setAttribute("cx", String(node.x));
     nodeState.circle.setAttribute("cy", String(node.y));
     if (nodeState.dotIdLabel) {
@@ -32006,9 +32008,11 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
       nodeState.dotStatusEmoji.setAttribute("y", String(my + 0.5));
     }
     if (nodeState.previewGroup) {
+      const barH = nodeState.previewBarH || getGraphPreviewChromeBarHeight(nodeState.previewSize);
+      const cardH = nodeState.previewSize + barH;
       nodeState.previewGroup.setAttribute(
         "transform",
-        `translate(${node.x - nodeState.previewSize / 2} ${node.y - nodeState.previewSize / 2})`
+        `translate(${node.x - nodeState.previewSize / 2} ${node.y - cardH / 2})`
       );
     }
     if (nodeState.glyph) {
@@ -32039,6 +32043,14 @@ function getGraphNodePreviewSize(node, showPreviews = false) {
   return isGraphFolderLikeType(node.type) ? 56 : 46;
 }
 
+function getGraphPreviewChromeBarHeight(previewSize) {
+  return Math.max(20, Math.round(previewSize * 0.2));
+}
+
+function getGraphPreviewCardHeight(previewSize) {
+  return previewSize + getGraphPreviewChromeBarHeight(previewSize);
+}
+
 function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
   if (!group || !nodeState || group.classList.contains("preview-missing")) return;
   group.classList.remove("has-preview");
@@ -32050,6 +32062,17 @@ function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
   const fallbackRadius = getGraphNodeRadius(node, degrees, false);
   nodeState.radius = fallbackRadius;
   nodeState.previewSize = 0;
+  if (!nodeState.glow) {
+    const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    glow.setAttribute("cx", String(node.x));
+    glow.setAttribute("cy", String(node.y));
+    glow.setAttribute(
+      "class",
+      `external-graph-glow ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}`.trim()
+    );
+    group.insertBefore(glow, group.firstChild);
+    nodeState.glow = glow;
+  }
   nodeState.glow.setAttribute("r", String(fallbackRadius + 7));
   nodeState.circle.setAttribute("r", String(fallbackRadius));
   if (nodeState.glyph) {
@@ -32060,7 +32083,7 @@ function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
 
 function getGraphNodeRadius(node, degrees, showPreviews = false) {
   const previewSize = getGraphNodePreviewSize(node, showPreviews);
-  if (previewSize) return previewSize / 2 + 2;
+  if (previewSize) return getGraphPreviewCardHeight(previewSize) / 2 + 2;
   const degree = degrees.get(node.id) || 1;
   if (node.id === "root" || node.id === "agent-root") return 5 + Math.min(4, degree * 0.35);
   if (node.isSatelliteRoot) return 11 + Math.min(3, Math.sqrt(degree) * 0.35);
@@ -32571,15 +32594,18 @@ function renderGraphCanvas(container, graph, options = {}) {
     );
     group.style.cursor = clickable ? "pointer" : "grab";
 
-    const glow = document.createElementNS(ns, "circle");
-    glow.setAttribute("cx", String(node.x));
-    glow.setAttribute("cy", String(node.y));
-    glow.setAttribute("r", String((previewSize || radius * 2) / 2 + (node.isSatelliteRoot ? 9 : 7)));
-    glow.setAttribute(
-      "class",
-      `external-graph-glow ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}${isActive ? " active" : ""}`.trim()
-    );
-    group.appendChild(glow);
+    let glow = null;
+    if (!previewSize) {
+      glow = document.createElementNS(ns, "circle");
+      glow.setAttribute("cx", String(node.x));
+      glow.setAttribute("cy", String(node.y));
+      glow.setAttribute("r", String(radius + (node.isSatelliteRoot ? 9 : 7)));
+      glow.setAttribute(
+        "class",
+        `external-graph-glow ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}${isActive ? " active" : ""}`.trim()
+      );
+      group.appendChild(glow);
+    }
 
     let previewFrame = null;
     let previewImage = null;
@@ -32611,6 +32637,8 @@ function renderGraphCanvas(container, graph, options = {}) {
 
     if (previewSize) {
       circle.setAttribute("visibility", "hidden");
+      const barH = getGraphPreviewChromeBarHeight(previewSize);
+      const cardH = getGraphPreviewCardHeight(previewSize);
       const clipId = `graph-preview-${sanitizeGraphDomId(node.id)}`;
       const clipPath = document.createElementNS(ns, "clipPath");
       clipPath.setAttribute("id", clipId);
@@ -32625,10 +32653,27 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewGroup.setAttribute("class", "external-graph-preview-group");
       previewGroup.setAttribute(
         "transform",
-        `translate(${node.x - previewSize / 2} ${node.y - previewSize / 2})`
+        `translate(${node.x - previewSize / 2} ${node.y - cardH / 2})`
       );
 
+      const haloPad = 6;
+      const haloRx = isGraphFolderLikeType(node.type) ? 8 : 6;
+      const previewHalo = document.createElementNS(ns, "rect");
+      previewHalo.setAttribute("x", String(-haloPad));
+      previewHalo.setAttribute("y", String(-haloPad));
+      previewHalo.setAttribute("width", String(previewSize + haloPad * 2));
+      previewHalo.setAttribute("height", String(cardH + haloPad * 2));
+      previewHalo.setAttribute("rx", String(haloRx));
+      previewHalo.setAttribute(
+        "class",
+        `external-graph-preview-halo ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}${isActive ? " active" : ""}`.trim()
+      );
+      previewGroup.appendChild(previewHalo);
+
+      appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize);
+
       previewFrame = document.createElementNS(ns, "rect");
+      previewFrame.setAttribute("y", String(barH));
       previewFrame.setAttribute("width", String(previewSize));
       previewFrame.setAttribute("height", String(previewSize));
       previewFrame.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
@@ -32639,6 +32684,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewGroup.appendChild(previewFrame);
 
       previewImage = document.createElementNS(ns, "image");
+      previewImage.setAttribute("y", String(barH));
       previewImage.setAttribute("href", resolveGraphPreviewUrl(node));
       previewImage.setAttribute("width", String(previewSize));
       previewImage.setAttribute("height", String(previewSize));
@@ -32646,7 +32692,6 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewImage.setAttribute("preserveAspectRatio", "xMidYMid slice");
       previewImage.setAttribute("class", "external-graph-preview-image");
       previewGroup.appendChild(previewImage);
-      appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize);
       group.appendChild(previewGroup);
     }
 
@@ -32677,6 +32722,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       labelSubLineCount,
       radius,
       previewSize,
+      previewBarH: previewSize ? getGraphPreviewChromeBarHeight(previewSize) : 0,
       previewGroup,
       previewFrame,
       previewImage,
@@ -102784,7 +102830,7 @@ function countGraphNodeLabelSubLines(node) {
 }
 
 function getGraphNodeLabelYOffset(radius, previewSize, subLineCount) {
-  const baseOffset = previewSize ? previewSize / 2 + 10 : radius + 11;
+  const baseOffset = previewSize ? getGraphPreviewCardHeight(previewSize) / 2 + 10 : radius + 11;
   if (!subLineCount) return baseOffset;
   return baseOffset + 8 + Math.max(0, subLineCount - 1) * 10;
 }
@@ -102817,7 +102863,7 @@ function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
     group.setAttribute("aria-label", hintParts.join(" · "));
   }
 
-  const barH = Math.max(20, Math.round(previewSize * 0.2));
+  const barH = getGraphPreviewChromeBarHeight(previewSize);
   const bar = document.createElementNS(ns, "rect");
   bar.setAttribute("width", String(previewSize));
   bar.setAttribute("height", String(barH));
