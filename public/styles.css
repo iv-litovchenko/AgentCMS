@@ -41505,18 +41505,19 @@ img.is-svg-media,
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-navigation-memory-title--with-icon {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
 }
 
-.node-navigation-memory-head-title-wrap:has(.node-navigation-memory-title--with-comment) {
+.node-navigation-memory-title--with-icon.node-navigation-memory-title--with-comment {
   align-items: flex-start;
-}
-
-.node-navigation-memory-head-title-wrap > .node-navigation-memory-title {
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 .node-navigation-memory-title-icon {
@@ -41526,11 +41527,19 @@ img.is-svg-media,
   text-align: center;
 }
 
-.node-navigation-memory-title--with-comment {
+.node-navigation-memory-title-label,
+.node-navigation-memory-title-text {
+  min-width: 0;
+}
+
+.node-navigation-memory-title-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.node-navigation-memory-title--with-comment {
   white-space: normal;
 }
 
@@ -54504,6 +54513,42 @@ button.node-navigation-memory-title:focus-visible {
   color: #1e3a8a;
 }
 
+.node-entry-overview-media-asset-actions .media-action-btn.media-action-btn--entry-overview-preview,
+.media-action-btn.media-action-btn--entry-overview-preview {
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  color: #fff;
+  border-color: #dc2626;
+  background: #ef4444;
+}
+
+.node-entry-overview-media-asset-actions .media-action-btn.media-action-btn--entry-overview-preview:hover,
+.media-action-btn.media-action-btn--entry-overview-preview:hover {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.media-action-btn.media-action-btn--entry-overview-preview .media-action-btn-icon,
+.media-action-btn.media-action-btn--entry-overview-preview .media-action-btn-icon svg {
+  color: #fff;
+  stroke: #fff;
+}
+
+.media-action-btn.media-action-btn--entry-overview-preview .media-action-btn-text {
+  height: auto;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #fff;
+}
+
 .media-sidecar-back-btn,
 .external-memory-back-btn {
   margin-right: 8px;
@@ -58829,12 +58874,50 @@ button.node-navigation-memory-title:focus-visible {
   flex-shrink: 0;
 }
 
+.document-viewer-toolbar .ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.document-viewer-toolbar .ghost-btn:hover {
+  background: var(--bg);
+  border-color: #cbd5e1;
+  color: var(--text);
+}
+
+.document-viewer-toolbar .ghost-btn:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+
 .document-viewer-body {
   position: relative;
-  min-height: min(70vh, 640px);
-  max-height: min(78vh, 760px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
-  background: #f8fafc;
+  background: #f1f5f9;
+  -webkit-overflow-scrolling: touch;
+}
+
+.document-viewer-body:has(.document-viewer-iframe:not(.hidden)),
+.document-viewer-body:has(.document-viewer-loading:not(.hidden)) {
+  min-height: min(62vh, 560px);
 }
 
 .document-viewer-loading {
@@ -58854,14 +58937,34 @@ button.node-navigation-memory-title:focus-visible {
   background: #fff;
 }
 
+.document-viewer-body:has(.document-viewer-content:not(.hidden)) {
+  padding: 0;
+  background: #fff;
+}
+
 .document-viewer-content {
-  padding: 16px 20px 24px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .document-viewer-content--docx {
+  padding: 0;
   background: #fff;
   color: #0f172a;
   line-height: 1.55;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.document-viewer-content--sheet {
+  max-width: none;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .document-viewer-content--docx p {
@@ -58883,11 +58986,15 @@ button.node-navigation-memory-title:focus-visible {
 
 .document-viewer-content--text {
   padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
 }
 
 .document-viewer-text {
   margin: 0;
-  padding: 16px 20px 24px;
+  padding: 0;
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;

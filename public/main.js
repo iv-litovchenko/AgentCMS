@@ -40740,7 +40740,7 @@ function appendEntryOverviewMediaAssetActionButtons(target, item, context, entri
   if (focusBtn) buttons.push(focusBtn);
   const mainBtn = createEntryOverviewMediaMainButton(context, entries);
   if (mainBtn) buttons.push(mainBtn);
-  buttons.push(createMediaOpenButton(item), createMediaRevealInFinderButton(item));
+  buttons.push(createMediaOpenButton(item, { entryOverviewPreview: true }), createMediaRevealInFinderButton(item));
   target.append(...buttons);
 }
 
@@ -40954,13 +40954,26 @@ function createMediaSidecarEditButton(item, { label = "Редактироват�
   return btn;
 }
 
-function createMediaOpenButton(item) {
+function createMediaOpenButton(item, options = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "media-action-btn media-action-btn-icon-only";
-  btn.title = "Просмотр / открыть файл";
-  btn.setAttribute("aria-label", "Просмотр / открыть файл");
-  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_OPEN));
+  const entryOverviewPreview = Boolean(options.entryOverviewPreview);
+  const previewLabel = "Предпросмотр";
+  if (entryOverviewPreview) {
+    btn.className = "media-action-btn media-action-btn--entry-overview-preview";
+    btn.title = previewLabel;
+    btn.setAttribute("aria-label", previewLabel);
+    btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_OPEN));
+    const label = document.createElement("span");
+    label.className = "media-action-btn-text";
+    label.textContent = previewLabel;
+    btn.appendChild(label);
+  } else {
+    btn.className = "media-action-btn media-action-btn-icon-only";
+    btn.title = "Просмотр / открыть файл";
+    btn.setAttribute("aria-label", "Просмотр / открыть файл");
+    btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_OPEN));
+  }
   btn.addEventListener("click", (event) => {
     guardMediaActionClick(event, () => {
       openMediaAsset(item.path);
@@ -66828,23 +66841,35 @@ function createDocumentContextMeter(text) {
   return meter;
 }
 
-function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "") {
+function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titleIcon = "") {
   const comment = String(titleComment || "").trim();
+  const icon = String(titleIcon || "").trim();
   titleNode.replaceChildren();
+  titleNode.classList.toggle("node-navigation-memory-title--with-icon", Boolean(icon));
+  titleNode.classList.toggle("node-navigation-memory-title--with-comment", Boolean(comment));
+
+  if (icon) {
+    titleNode.appendChild(createNavigationMemoryTitleIcon(icon));
+  }
+
   if (!comment) {
-    titleNode.textContent = title;
-    titleNode.classList.remove("node-navigation-memory-title--with-comment");
+    const label = document.createElement("span");
+    label.className = "node-navigation-memory-title-label";
+    label.textContent = title;
+    titleNode.appendChild(label);
     return;
   }
 
-  titleNode.classList.add("node-navigation-memory-title--with-comment");
+  const textWrap = document.createElement("span");
+  textWrap.className = "node-navigation-memory-title-text";
   const main = document.createElement("span");
   main.className = "node-navigation-memory-title-main";
   main.textContent = title;
   const note = document.createElement("span");
   note.className = "node-navigation-memory-title-comment";
   note.textContent = comment;
-  titleNode.append(main, note);
+  textWrap.append(main, note);
+  titleNode.appendChild(textWrap);
 }
 
 function resolveNavigationMemoryPanelIcon(viewModeId) {
@@ -66885,7 +66910,8 @@ function createNavigationSectionHead(title, options = {}) {
       openNavigationHubSlotPreview(viewModeId);
     });
   }
-  fillNavigationMemoryTitleNode(titleNode, title, titleComment);
+  const titleIcon = String(options.icon || (viewModeId ? resolveNavigationMemoryPanelIcon(viewModeId) : "")).trim();
+  fillNavigationMemoryTitleNode(titleNode, title, titleComment, titleIcon);
 
   const rule = document.createElement("span");
   rule.className = "node-navigation-memory-rule";
@@ -66893,12 +66919,7 @@ function createNavigationSectionHead(title, options = {}) {
 
   const titleWrap = document.createElement("div");
   titleWrap.className = "node-navigation-memory-head-title-wrap";
-  const titleIcon = String(options.icon || (viewModeId ? resolveNavigationMemoryPanelIcon(viewModeId) : "")).trim();
-  if (titleIcon) {
-    titleWrap.append(createNavigationMemoryTitleIcon(titleIcon), titleNode);
-  } else {
-    titleWrap.appendChild(titleNode);
-  }
+  titleWrap.appendChild(titleNode);
 
   head.append(titleWrap, rule);
 
