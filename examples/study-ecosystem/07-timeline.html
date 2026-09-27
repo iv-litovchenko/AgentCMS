@@ -6,29 +6,222 @@
   <title>7. Таймлайн</title>
   <link rel="stylesheet" href="ecosystem.css">
   <style>
-    .tl-filters { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
-    #timeline { position: relative; padding-left: 2rem; }
-    #timeline::before {
-      content: ""; position: absolute; left: 0.55rem; top: 0; bottom: 0;
-      width: 2px; background: linear-gradient(var(--accent), var(--layer-me));
+    .content.tl-canvas {
+      background:
+        radial-gradient(ellipse 50% 40% at 100% 0%, rgba(14, 165, 233, 0.12), transparent 55%),
+        radial-gradient(ellipse 40% 30% at 0% 100%, rgba(167, 139, 250, 0.1), transparent 50%),
+        var(--bg);
+      padding: 1.25rem 1.5rem 2rem;
     }
-    .tl-item { position: relative; margin-bottom: 1.25rem; }
-    .tl-dot {
-      position: absolute; left: -1.55rem; top: 0.85rem;
-      width: 12px; height: 12px; border-radius: 50%;
-      background: var(--border); border: 2px solid var(--bg);
+
+    .tl-feed-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
     }
-    .kind-release .tl-dot { background: var(--layer-road); }
-    .kind-personal .tl-dot, .kind-now .tl-dot { background: var(--layer-me); }
-    .kind-now .tl-dot { box-shadow: 0 0 0 4px rgba(167,139,250,0.3); }
-    .tl-card {
-      padding: 0.85rem 1rem; border-radius: 10px;
-      background: var(--surface); border: 1px solid var(--border);
+
+    .tl-feed-head h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
-    .tl-item.is-highlight .tl-card { border-color: #f59e0b; }
-    .tl-card time { font-size: 0.72rem; color: var(--muted); }
-    .tl-card h3 { margin: 0.2rem 0; font-size: 0.95rem; }
-    .tl-card p { margin: 0; font-size: 0.82rem; color: var(--muted); }
+
+    .tl-feed-head p {
+      margin: 0.25rem 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .tl-filters { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+
+    .tl-filters button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .tl-filters button:hover { border-color: var(--accent); }
+    .tl-filters button.is-active {
+      border-color: var(--accent);
+      background: #1e3a5f;
+      color: #93c5fd;
+    }
+
+    #timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding-bottom: 1rem;
+    }
+
+    .tl-era-title {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 0 0 0.5rem;
+      padding: 0.45rem 0;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(45, 58, 79, 0.8);
+      background: rgba(10, 14, 20, 0.92);
+      backdrop-filter: blur(8px);
+    }
+
+    .tl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+      padding-left: 1.25rem;
+    }
+
+    .tl-list::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.35rem;
+      bottom: 0.35rem;
+      width: 2px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--layer-road), var(--layer-me));
+      opacity: 0.85;
+    }
+
+    .tl-row {
+      display: grid;
+      grid-template-columns: 5.5rem minmax(0, 1fr);
+      gap: 0.75rem 1rem;
+      align-items: start;
+      padding: 0.75rem 0.9rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      position: relative;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+
+    .tl-row::before {
+      content: "";
+      position: absolute;
+      left: -1.05rem;
+      top: 1.15rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--layer-road);
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.25);
+    }
+
+    .tl-row.kind-personal::before,
+    .tl-row.kind-now::before {
+      background: var(--layer-me);
+      box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35);
+    }
+
+    .tl-row:hover {
+      border-color: rgba(59, 130, 246, 0.45);
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .tl-row.is-highlight {
+      border-color: rgba(245, 158, 11, 0.55);
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, var(--surface) 35%);
+    }
+
+    .tl-row.is-now {
+      border-color: rgba(167, 139, 250, 0.55);
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.12) 0%, var(--surface) 32%);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .tl-row.is-now::before {
+      width: 12px;
+      height: 12px;
+      left: -1.15rem;
+      box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.35);
+    }
+
+    .tl-when {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #94a3b8;
+      line-height: 1.35;
+      padding-top: 0.15rem;
+    }
+
+    .tl-when span {
+      display: block;
+      font-size: 0.62rem;
+      font-weight: 500;
+      color: #64748b;
+      margin-top: 0.15rem;
+    }
+
+    .tl-body-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .tl-body-top h3 {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .tl-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .tl-badge.kind-release {
+      background: rgba(14, 165, 233, 0.15);
+      border-color: rgba(14, 165, 233, 0.35);
+      color: #7dd3fc;
+    }
+
+    .tl-badge.kind-personal,
+    .tl-badge.kind-now {
+      background: rgba(167, 139, 250, 0.15);
+      border-color: rgba(167, 139, 250, 0.35);
+      color: #c4b5fd;
+    }
+
+    .tl-row p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 520px) {
+      .tl-row { grid-template-columns: 1fr; }
+      .tl-when { padding-top: 0; }
+    }
   </style>
 </head>
 <body>
@@ -48,13 +241,19 @@
 1995-05 | Java 1.0 | Публичный релиз
 2026-01 | Вы начали | Первый конспект</pre>
       </aside>
-      <div class="content">
-        <div class="tl-filters">
-          <button type="button" data-tl-filter="all" class="is-active">Все</button>
-          <button type="button" data-tl-filter="releases">Релизы Java</button>
-          <button type="button" data-tl-filter="personal">Мой путь</button>
+      <div class="content tl-canvas">
+        <div class="tl-feed-head">
+          <div>
+            <h2>Лента</h2>
+            <p>Релизы платформы и ваши вехи на одной оси</p>
+          </div>
+          <div class="tl-filters">
+            <button type="button" data-tl-filter="all" class="is-active">Все</button>
+            <button type="button" data-tl-filter="releases">Релизы Java</button>
+            <button type="button" data-tl-filter="personal">Мой путь</button>
+          </div>
         </div>
-        <div id="timeline"></div>
+        <div id="timeline" class="tl-feed"></div>
       </div>
     </main>
   </div>

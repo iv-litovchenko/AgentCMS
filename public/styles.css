@@ -58917,17 +58917,19 @@ button.node-navigation-memory-title:focus-visible {
   flex-shrink: 0;
 }
 
-.document-viewer-toolbar .ghost-btn {
+.document-viewer-toolbar .ghost-btn,
+.document-viewer-fallback-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
   color: var(--text);
   font-size: 13px;
+  font-weight: 600;
   font-family: inherit;
   line-height: 1.2;
   white-space: nowrap;
@@ -58935,18 +58937,26 @@ button.node-navigation-memory-title:focus-visible {
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.document-viewer-toolbar .ghost-btn:hover {
+.document-viewer-toolbar .ghost-btn:hover,
+.document-viewer-fallback-btn:hover {
   background: var(--bg);
   border-color: #cbd5e1;
   color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
-.document-viewer-toolbar .ghost-btn:focus-visible {
+.document-viewer-toolbar .ghost-btn:focus-visible,
+.document-viewer-fallback-btn:focus-visible {
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: 2px;
+}
+
+.document-viewer-fallback-btn {
+  margin-top: 4px;
 }
 
 .document-viewer-body {

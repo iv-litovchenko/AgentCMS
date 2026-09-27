@@ -1,5 +1,5 @@
 awn_ui:
-  navigation_list_sort_media: name
+  navigation_list_sort_media: created
   navigation_media_images_layout_media: 1
   navigation_media_images_layout_assets: 3
 
