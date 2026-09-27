@@ -1324,6 +1324,8 @@ const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const agentSelectNode = document.getElementById("agent-select");
 const sidebarAgentAvatarBtn = document.getElementById("sidebar-agent-avatar-btn");
 const sidebarAgentAvatarMountNode = document.getElementById("sidebar-agent-avatar-mount");
+const sidebarAgentAvatarHoverPreviewNode = document.getElementById("sidebar-agent-avatar-hover-preview");
+const sidebarAgentAvatarHoverPreviewImgNode = document.getElementById("sidebar-agent-avatar-hover-preview-img");
 const headerUserProfileBtn = document.getElementById("header-user-profile-btn");
 const headerUserProfileAvatarMountNode = document.getElementById("header-user-profile-avatar-mount");
 const headerProfileWrapNode = document.querySelector(".header-profile-wrap");
@@ -6359,6 +6361,13 @@ function resolveSidebarAgentPreviewMeta(previewMeta = null, { preferWorkspacePre
     agentSliderCatalog.loadedForAgentId === agent.id
   ) {
     const slide = agentSliderPlaybackOrder[agentSliderIndex % agentSliderPlaybackOrder.length];
+    if (slide?.isWorkspacePreview && slide.previewUrl) {
+      return {
+        hasPreview: true,
+        previewUrl: slide.previewUrl,
+        source: "slider"
+      };
+    }
     if (slide?.mediaFile) {
       return {
         hasPreview: true,
@@ -6376,7 +6385,7 @@ function syncAgentPreviewSlideCounter() {
   if (!agentPreviewSlideCounterNode) return;
   const agent = getActiveAgentMeta();
   const catalogFiles =
-    agent?.id && agentSliderCatalog.loadedForAgentId === agent.id ? agentSliderCatalog.files || [] : [];
+    agent?.id && agentSliderCatalog.loadedForAgentId === agent.id ? getAgentSliderPlaybackSourceSlides() : [];
   const total = catalogFiles.length;
   const showingSlider = agentSliderPlaybackOrder.length > 0 && total > 0;
   if (!showingSlider) {
@@ -6398,12 +6407,20 @@ function syncAgentPreviewSlideCounter() {
 
 function buildAgentSliderLightboxGallery() {
   const agentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
-  const files = agentSliderCatalog.files || [];
+  const files = getAgentSliderPlaybackSourceSlides();
   if (!files.length) return null;
-  const images = files.map((file) => ({
-    src: appendCacheBuster(buildAgentSliderMediaApiUrl(file.mediaFile, agentId)),
-    alt: file.name || "Слайд"
-  }));
+  const images = files.map((file) => {
+    if (file.isWorkspacePreview && file.previewUrl) {
+      return {
+        src: appendCacheBuster(appendAgentToApiUrl(file.previewUrl, agentId)),
+        alt: file.name || "Превью workspace"
+      };
+    }
+    return {
+      src: appendCacheBuster(buildAgentSliderMediaApiUrl(file.mediaFile, agentId)),
+      alt: file.name || "Слайд"
+    };
+  });
   let index = 0;
   if (agentSliderPlaybackOrder.length) {
     const playbackIndex =
@@ -6500,6 +6517,8 @@ function syncAgentPreview(previewMeta = null, options = {}) {
 
     syncAgentPreviewSlideCounter();
     syncAgentPreviewOpenUi();
+    maybeRebuildAgentSliderWorkspaceFallback();
+    syncSidebarAvatarHoverPreview();
     return;
   }
 
@@ -6517,6 +6536,43 @@ function syncAgentPreview(previewMeta = null, options = {}) {
   syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
   syncAgentPreviewSlideCounter();
   syncAgentPreviewOpenUi();
+  maybeRebuildAgentSliderWorkspaceFallback();
+  syncSidebarAvatarHoverPreview();
+}
+
+function syncSidebarAvatarHoverPreview() {
+  if (!sidebarAgentAvatarHoverPreviewNode || !sidebarAgentAvatarHoverPreviewImgNode) return;
+  const thumb = agentPreviewThumbNode;
+  const previewReady =
+    thumb &&
+    agentPreviewWrapNode &&
+    !agentPreviewWrapNode.classList.contains("hidden") &&
+    Boolean(thumb.getAttribute("src") || thumb.src);
+  if (!previewReady) {
+    hideSidebarAvatarHoverPreview();
+    return;
+  }
+  const nextSrc = thumb.src || thumb.getAttribute("src") || "";
+  if (sidebarAgentAvatarHoverPreviewImgNode.getAttribute("src") !== nextSrc) {
+    sidebarAgentAvatarHoverPreviewImgNode.src = nextSrc;
+  }
+  const fullSrc = thumb.dataset.fullSrc || "";
+  if (fullSrc) sidebarAgentAvatarHoverPreviewImgNode.dataset.fullSrc = fullSrc;
+}
+
+function showSidebarAvatarHoverPreview() {
+  syncSidebarAvatarHoverPreview();
+  if (!sidebarAgentAvatarHoverPreviewNode || !sidebarAgentAvatarHoverPreviewImgNode?.src) return;
+  sidebarAgentAvatarHoverPreviewNode.classList.remove("hidden");
+  sidebarAgentAvatarHoverPreviewNode.classList.add("is-visible");
+  sidebarAgentAvatarHoverPreviewNode.setAttribute("aria-hidden", "false");
+}
+
+function hideSidebarAvatarHoverPreview() {
+  if (!sidebarAgentAvatarHoverPreviewNode) return;
+  sidebarAgentAvatarHoverPreviewNode.classList.remove("is-visible");
+  sidebarAgentAvatarHoverPreviewNode.classList.add("hidden");
+  sidebarAgentAvatarHoverPreviewNode.setAttribute("aria-hidden", "true");
 }
 
 let agentTodoPreviewSeq = 0;
@@ -7263,8 +7319,49 @@ function shuffleAgentSliderFiles(files) {
   return shuffled;
 }
 
+function getAgentSliderCatalogFiles() {
+  return Array.isArray(agentSliderCatalog.files) ? agentSliderCatalog.files : [];
+}
+
+function buildAgentSliderWorkspaceFallbackSlide() {
+  const workspacePreview = resolveWorkspaceAgentPreviewMeta();
+  if (!workspacePreview.hasPreview || !workspacePreview.previewUrl) return null;
+  return {
+    name: "Превью workspace",
+    mediaFile: "",
+    isWorkspacePreview: true,
+    previewUrl: workspacePreview.previewUrl
+  };
+}
+
+function getAgentSliderPlaybackSourceSlides() {
+  const files = getAgentSliderCatalogFiles();
+  if (files.length) return files;
+  const fallback = buildAgentSliderWorkspaceFallbackSlide();
+  return fallback ? [fallback] : [];
+}
+
+function maybeRebuildAgentSliderWorkspaceFallback() {
+  const agent = getActiveAgentMeta();
+  if (!agent?.id || agentSliderCatalog.loadedForAgentId !== agent.id) return;
+  if (getAgentSliderCatalogFiles().length) return;
+  const sourceSlides = getAgentSliderPlaybackSourceSlides();
+  if (!sourceSlides.length) {
+    if (agentSliderPlaybackOrder.length) {
+      agentSliderPlaybackOrder = [];
+      agentSliderIndex = 0;
+      stopAgentSliderRotation();
+    }
+    return;
+  }
+  if (!agentSliderPlaybackOrder.length) {
+    rebuildAgentSliderPlaybackOrder({ resetIndex: true });
+    restartAgentSliderRotation();
+  }
+}
+
 function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
-  agentSliderPlaybackOrder = shuffleAgentSliderFiles(agentSliderCatalog.files || []);
+  agentSliderPlaybackOrder = shuffleAgentSliderFiles(getAgentSliderPlaybackSourceSlides());
   if (resetIndex) {
     agentSliderIndex = agentSliderPlaybackOrder.length
       ? Math.floor(Math.random() * agentSliderPlaybackOrder.length)
@@ -7295,7 +7392,7 @@ function restartAgentSliderRotation() {
   agentSliderRotateTimer = setInterval(() => {
     agentSliderIndex = (agentSliderIndex + 1) % agentSliderPlaybackOrder.length;
     if (agentSliderIndex === 0) {
-      agentSliderPlaybackOrder = shuffleAgentSliderFiles(agentSliderCatalog.files || []);
+      agentSliderPlaybackOrder = shuffleAgentSliderFiles(getAgentSliderPlaybackSourceSlides());
     }
     syncAgentPreview();
   }, AGENT_SLIDER_ROTATE_MS);
@@ -14344,6 +14441,8 @@ async function switchActiveAgent(nextAgentId) {
     renderAgentSelect();
     syncIdentityToolbarAvatars(activeAgentId);
     await loadUserSettingsForAgent(nextAgentId).catch(() => {});
+    reloadWorkspaceIdleScreensaverSettings(nextAgentId);
+    syncWorkspaceIdleScreensaverEligibility();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     closeMenuSettingsPopover();
@@ -20781,6 +20880,7 @@ async function isMaintenanceApiResponse(response) {
 function showMaintenanceView() {
   if (platformMaintenanceViewActive) return;
   platformMaintenanceViewActive = true;
+  syncWorkspaceIdleScreensaverEligibility();
   platformUiSettings.maintenanceMode = true;
   hideAppSplash();
   hideAppLandingView();
@@ -20816,6 +20916,7 @@ function hideMaintenanceView() {
   platformUiSettings.maintenanceMode = false;
   appRootNode?.classList.remove("maintenance-view");
   maintenancePaneNode?.classList.add("hidden");
+  syncWorkspaceIdleScreensaverEligibility();
 }
 
 function syncPlatformMaintenanceUi() {
@@ -20845,6 +20946,41 @@ async function loadPlatformUiSettings() {
     // ignore
   }
   return platformUiSettings;
+}
+
+let workspaceIdleScreensaverReady = false;
+
+function isWorkspaceIdleScreensaverEligible() {
+  return (
+    Boolean(activeAgentId) &&
+    !appRootNode?.classList.contains("app-landing-view") &&
+    !platformMaintenanceViewActive
+  );
+}
+
+function setupWorkspaceIdleScreensaver() {
+  if (workspaceIdleScreensaverReady || !window.WorkspaceIdleScreensaver?.init) return;
+  workspaceIdleScreensaverReady = true;
+  window.WorkspaceIdleScreensaver.init({
+    isEligible: isWorkspaceIdleScreensaverEligible,
+    getAgentId: () => activeAgentId || "main"
+  });
+}
+
+function reloadWorkspaceIdleScreensaverSettings(agentId = activeAgentId) {
+  setupWorkspaceIdleScreensaver();
+  if (!agentId || !window.WorkspaceIdleScreensaver?.reloadForAgent) return;
+  void window.WorkspaceIdleScreensaver.reloadForAgent(agentId);
+}
+
+function syncWorkspaceIdleScreensaverEligibility() {
+  window.WorkspaceIdleScreensaver?.syncEligibility?.();
+}
+
+function applyWorkspaceIdleScreensaverFromCache(cache = getNodeSettingsCache()) {
+  if (!cache || cache.settingsScope !== "local") return;
+  const entry = (cache.entries || []).find((item) => item.key === "workspace-idle-screensaver-minutes");
+  window.WorkspaceIdleScreensaver?.applyMinutes?.(entry?.value);
 }
 
 function setupMaintenancePaneUi() {
@@ -46430,6 +46566,9 @@ async function saveProjectSettingsFormContent() {
       commitEditorSaveBaseline();
       if (isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
         void loadPlatformUiSettings();
+      }
+      if (isProjectSettingsLocalScope(getNodeSettingsManifestPath())) {
+        applyWorkspaceIdleScreensaverFromCache(getNodeSettingsCache());
       }
     }
     syncProjectSettingsSaveButtonState();
@@ -104516,6 +104655,7 @@ function hideAppLandingView() {
   closeHeaderWelcomePopover();
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
+  syncWorkspaceIdleScreensaverEligibility();
 }
 
 function showAppLandingView(hint = "") {
@@ -104565,6 +104705,7 @@ function showAppLandingView(hint = "") {
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
+  syncWorkspaceIdleScreensaverEligibility();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
@@ -118046,6 +118187,8 @@ async function init() {
     await loadAgents();
     window.WorkspaceIndexPanel?.refreshStatus?.();
     if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
+    setupWorkspaceIdleScreensaver();
+    if (activeAgentId) reloadWorkspaceIdleScreensaverSettings(activeAgentId);
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 
@@ -118118,6 +118261,18 @@ agentsManageBtn?.addEventListener("click", () => {
 agentsPickerBtn?.addEventListener("click", () => openAgentsPickerPopover());
 sidebarAgentAvatarBtn?.addEventListener("click", () => {
   openSelectedAgentWorkspaceView();
+});
+sidebarAgentAvatarBtn?.addEventListener("mouseenter", () => {
+  showSidebarAvatarHoverPreview();
+});
+sidebarAgentAvatarBtn?.addEventListener("mouseleave", () => {
+  hideSidebarAvatarHoverPreview();
+});
+sidebarAgentAvatarBtn?.addEventListener("focus", () => {
+  showSidebarAvatarHoverPreview();
+});
+sidebarAgentAvatarBtn?.addEventListener("blur", () => {
+  hideSidebarAvatarHoverPreview();
 });
 headerUserProfileBtn?.addEventListener("click", (event) => {
   event.stopPropagation();

@@ -195,6 +195,27 @@ fields:
     group: general
     sort: 12
 
+  workspace-idle-screensaver-minutes:
+    type: awn.field.choice.one
+    title: Заставка при бездействии
+    description: >
+      Полноэкранная заставка, если вы не взаимодействуете с этим хранилищем.
+      «Выключено» — таймер не запускается (один отложенный таймер в браузере, без опроса).
+    default: "3"
+    enum:
+      - key: off
+        name: Выключено
+      - key: "3"
+        name: 3 минуты
+      - key: "5"
+        name: 5 минут
+      - key: "10"
+        name: 10 минут
+      - key: "30"
+        name: 30 минут
+    group: general
+    sort: 13
+
   awn-id-next:
     type: awn.field.number.integer
     title: Следующий id

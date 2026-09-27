@@ -70,6 +70,7 @@ const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   "agent-language": "ru",
   "response-style": "agents-md",
   "notify-on-complete": false,
+  "workspace-idle-screensaver-minutes": "3",
   [WORKSPACE_AWN_ID_COUNTER_KEYS.next]: 1,
   [WORKSPACE_AWN_ID_COUNTER_KEYS.issued]: 0,
   [WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt]: "",

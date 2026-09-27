@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.947" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.948" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -303,6 +303,37 @@
         <p class="not-found-footnote app-mobile-blocker-footnote">
           Workspaces / *.md — «Ширина экрана — тоже намерение.»
         </p>
+      </div>
+    </div>
+
+    <div
+      id="workspace-idle-screensaver"
+      class="workspace-idle-screensaver hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="workspace-idle-screensaver-title"
+      aria-hidden="true"
+    >
+      <div class="workspace-idle-screensaver-bg" aria-hidden="true">
+        <div class="workspace-idle-screensaver-aurora workspace-idle-screensaver-aurora--a"></div>
+        <div class="workspace-idle-screensaver-aurora workspace-idle-screensaver-aurora--b"></div>
+        <div class="workspace-idle-screensaver-grid" aria-hidden="true"></div>
+      </div>
+      <div class="workspace-idle-screensaver-panel">
+        <p class="workspace-idle-screensaver-eyebrow">
+          <span class="workspace-idle-screensaver-eyebrow-clover home-title-clover" aria-hidden="true">☘️</span>
+          <span class="workspace-idle-screensaver-eyebrow-label">Agent CMS</span>
+        </p>
+        <p id="workspace-idle-screensaver-clock" class="workspace-idle-screensaver-clock" aria-live="off">00:00</p>
+        <h2 id="workspace-idle-screensaver-title" class="workspace-idle-screensaver-title">Хранилище ждёт вас</h2>
+        <p class="workspace-idle-screensaver-lead">Пауза в работе — нормально. Нажмите «Продолжить», когда будете готовы.</p>
+        <button
+          id="workspace-idle-screensaver-continue"
+          type="button"
+          class="workspace-idle-screensaver-continue"
+        >
+          Продолжить
+        </button>
       </div>
     </div>
 
@@ -1408,6 +1439,18 @@
               >
                 <span id="sidebar-agent-avatar-mount" class="sidebar-agent-toolbar-avatar-mount" aria-hidden="true"></span>
               </button>
+              <div
+                id="sidebar-agent-avatar-hover-preview"
+                class="sidebar-agent-avatar-hover-preview hidden"
+                aria-hidden="true"
+              >
+                <img
+                  id="sidebar-agent-avatar-hover-preview-img"
+                  class="sidebar-agent-avatar-hover-preview-img"
+                  alt=""
+                  draggable="false"
+                />
+              </div>
               <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Слайдер вдохновения">
                 <div class="agent-preview-frame">
                   <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
@@ -5194,6 +5237,15 @@
           </div>
           <div class="app-footer-actions">
             <button
+              id="app-footer-idle-screensaver-hint"
+              class="app-footer-idle-screensaver-hint hidden"
+              type="button"
+              aria-hidden="true"
+              title="Показать заставку"
+            >
+              <span id="app-footer-idle-screensaver-hint-label" class="app-footer-idle-screensaver-hint-label">—</span>
+            </button>
+            <button
               id="app-footer-toggle-btn"
               class="app-footer-toggle-btn"
               type="button"
@@ -6739,6 +6791,7 @@
     <script src="/vendor/material-file-icons/map.js?v=1"></script>
     <script src="/material-file-icons.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
+    <script src="/workspace-idle-screensaver.js?v=4"></script>
     <script src="/connection-status.js?v=1"></script>
     <script src="/semantic-index-panel.js?v=22"></script>
     <script src="/languagetool-panel.js?v=2"></script>
