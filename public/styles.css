@@ -26424,7 +26424,7 @@ a.header-tool-btn {
   margin: 0;
   padding: 2px 8px 8px;
   box-sizing: border-box;
-  background: linear-gradient(180deg, transparent 28%, rgba(15, 23, 42, 0.78));
+  background: transparent;
   pointer-events: none;
 }
 
