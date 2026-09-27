@@ -100,12 +100,12 @@ fields:
     enum:
       - key: new
         name: 🔵 Новая
-      - key: planned
-        name: 🟣 Запланирована
       - key: draft
         name: 🟡 Черновик
       - key: open
         name: 🟢 Открыта
+      - key: planned
+        name: 🟣 Запланирована
       - key: in-progress
         name: 🟠 В работе
       - key: done

@@ -49137,10 +49137,11 @@ button.node-navigation-memory-title:focus-visible {
   flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
   scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
 }
 
@@ -49181,6 +49182,11 @@ button.node-navigation-memory-title:focus-visible {
 
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar {
   width: 10px;
+  -webkit-appearance: none;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.22);
 }
 
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden))::-webkit-scrollbar-thumb {
@@ -49274,10 +49280,11 @@ button.node-navigation-memory-title:focus-visible {
   flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
   scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
 }
 

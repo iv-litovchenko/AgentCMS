@@ -9221,7 +9221,7 @@ async function refreshAllFocusPanels() {
   if (isAppLandingViewActive()) {
     tasks.push(loadGlobalMainItems(), loadGlobalFlowItems());
   } else if (activeAgentId) {
-    tasks.push(loadAgentFocusItems(activeAgentId));
+    tasks.push(loadAgentFocusItems(activeAgentId), loadGlobalMainItems());
   }
   if (tasks.length) await Promise.all(tasks);
 }
@@ -21696,6 +21696,11 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
     }
 
     await refreshAllFocusPanels();
+    const activeApi = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+    const savedApi = normalizeMenuNodePath(apiPath || "");
+    if (activeApi && savedApi && activeApi === savedApi) {
+      await loadPropertiesForActivePath().catch(() => null);
+    }
     updateNodeOverviewHeroActionStates();
     showToast(enabled ? successOn || `«${label}» включено` : successOff || `«${label}» выключено`, "success");
     return true;
