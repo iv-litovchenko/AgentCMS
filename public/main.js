@@ -66847,6 +66847,23 @@ function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "") {
   titleNode.append(main, note);
 }
 
+function resolveNavigationMemoryPanelIcon(viewModeId) {
+  const mode = String(viewModeId || "").trim();
+  if (!mode) return "";
+  const spec = DATA_STORAGE_SLOT_SPECS.find(
+    (item) => item.defaultMode === mode || item.modes?.has(mode)
+  );
+  return spec?.icon || "";
+}
+
+function createNavigationMemoryTitleIcon(iconText) {
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-memory-title-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = String(iconText || "").trim();
+  return icon;
+}
+
 function createNavigationSectionHead(title, options = {}) {
   const variant = [1, 2, 3].includes(options.titleVariant) ? options.titleVariant : 1;
   const viewModeId = options.viewModeId;
@@ -66876,7 +66893,12 @@ function createNavigationSectionHead(title, options = {}) {
 
   const titleWrap = document.createElement("div");
   titleWrap.className = "node-navigation-memory-head-title-wrap";
-  titleWrap.appendChild(titleNode);
+  const titleIcon = String(options.icon || (viewModeId ? resolveNavigationMemoryPanelIcon(viewModeId) : "")).trim();
+  if (titleIcon) {
+    titleWrap.append(createNavigationMemoryTitleIcon(titleIcon), titleNode);
+  } else {
+    titleWrap.appendChild(titleNode);
+  }
 
   head.append(titleWrap, rule);
 

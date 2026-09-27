@@ -38,6 +38,7 @@
     "main/primery-koda/Пример-1.md",
     "main/primery-koda/Пример-3-REST.md",
     "main/README.md",
+    "media/gd_61baf013.docx",
     "references/laravel-docs.md",
     "references/php-net-manual.md",
     "references/psr-4-autoloading.md",
@@ -48,5 +49,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-09-27T08:34:55.846Z"
+  "updatedAt": "2026-09-27T08:55:37.798Z"
 }
