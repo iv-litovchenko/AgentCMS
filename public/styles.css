@@ -21265,11 +21265,15 @@ a.header-tool-btn {
 
 .sidebar-agent-toolbar:has(.sidebar-agent-row--roadmap-globe) {
   gap: 8px;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .sidebar-agent-row--roadmap-globe {
   flex-shrink: 0;
+}
+
+.sidebar-agent-row--roadmap-globe .sidebar-agent-controls--globe-row {
+  min-height: 28px;
 }
 
 .sidebar-agent-controls--globe-row {
@@ -25740,6 +25744,12 @@ a.header-tool-btn {
   box-sizing: border-box;
   background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.72));
   pointer-events: none;
+}
+
+.sidebar-agent-select-block:has(.agent-preview-wrap:not(.hidden))
+  .sidebar-agent-toolbar:has(.sidebar-agent-row--roadmap-globe) {
+  gap: 8px;
+  padding: 2px 8px 8px;
 }
 
 .sidebar-agent-select-block:has(.agent-preview-wrap:not(.hidden)) .agent-todo-preview-wrap {
