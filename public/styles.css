@@ -10492,7 +10492,7 @@ body.app-locked {
 .agent-timeline-content {
   width: 100%;
   margin: 0;
-  padding: 0 4px 48px;
+  padding: 0 8px 48px;
   box-sizing: border-box;
 }
 
@@ -10501,6 +10501,112 @@ body.app-locked {
   flex-direction: column;
   gap: 4px;
   padding-bottom: 16px;
+}
+
+.agent-timeline-pane .agent-activity-board {
+  gap: 1.25rem;
+}
+
+.agent-timeline-era {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.agent-timeline-era-list {
+  --tl-axis: 14px;
+  --tl-gutter: 2.25rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.15rem 0 0.25rem var(--tl-gutter);
+}
+
+.agent-timeline-era-list::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--tl-axis) - 1px);
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #0ea5e9 0%, #6366f1 55%, #a78bfa 100%);
+  opacity: 0.8;
+}
+
+.agent-timeline-pane .agent-timeline-feed-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6.25rem minmax(0, 1fr);
+  gap: 0.65rem 1rem;
+  align-items: start;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.agent-timeline-pane .agent-timeline-feed-row::after {
+  --tl-dot-r: 5px;
+  content: "";
+  position: absolute;
+  left: calc(var(--tl-axis) - var(--tl-gutter) - var(--tl-dot-r));
+  top: 50%;
+  width: calc(var(--tl-dot-r) * 2);
+  height: calc(var(--tl-dot-r) * 2);
+  border-radius: 50%;
+  background: #6366f1;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.28);
+  transform: translateY(-50%);
+  box-sizing: border-box;
+}
+
+.agent-timeline-pane .agent-timeline-feed-row.is-latest::after {
+  --tl-dot-r: 6px;
+  background: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.22);
+}
+
+.agent-timeline-pane .agent-timeline-feed-row:hover,
+.agent-timeline-pane .agent-timeline-feed-row:focus-visible {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+
+.agent-timeline-feed-when {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-top: 0.2rem;
+  min-width: 0;
+}
+
+.agent-timeline-feed-when-main {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.agent-timeline-feed-when-sub {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.agent-timeline-feed-main {
+  min-width: 0;
+}
+
+.agent-timeline-feed-lead {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
 .agent-activity-list {
@@ -10735,6 +10841,18 @@ body.app-locked {
   .agent-activity-row {
     grid-template-columns: 36px minmax(0, 1fr);
     grid-template-rows: auto auto;
+  }
+
+  .agent-timeline-pane .agent-timeline-feed-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-timeline-feed-when {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.5rem;
+    padding-top: 0;
   }
 
   .agent-activity-meta {

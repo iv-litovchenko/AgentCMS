@@ -53,6 +53,14 @@
     .tool-link.tool-priority:hover { border-color: #86efac; }
     .tool-link.tool-priority strong { color: #bbf7d0; }
     .tool-link.tool-priority em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #86efac; font-style: normal; font-weight: 500; }
+    .tool-link.tool-adopted {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, #1a2332 0%, #1e3a5f 100%);
+      box-shadow: 0 0 0 1px #3b82f644;
+    }
+    .tool-link.tool-adopted:hover { border-color: #93c5fd; }
+    .tool-link.tool-adopted strong { color: #bfdbfe; }
+    .tool-link.tool-adopted em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #93c5fd; font-style: normal; font-weight: 500; }
     .tool-link strong { display: block; margin-bottom: 0.2rem; }
     .tool-link span { font-size: 0.82rem; color: var(--muted); }
     .grid-tools { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
@@ -104,7 +112,7 @@
     <p class="section-title">Слой 2 · Roadmap</p>
     <div class="grid-tools">
       <a class="tool-link" href="../roadmap/04-roadmap.html"><strong>4. Roadmap из markdown</strong><span>Этапы и статусы</span></a>
-      <a class="tool-link" href="07-timeline.html"><strong>7. Таймлайн</strong><span>Релизы и личные вехи</span></a>
+      <a class="tool-link tool-adopted" href="07-timeline.html"><strong>★ 7. Таймлайн</strong><span>Релизы и личные вехи</span><em>↳ забрали идею — «Лента» в CMS</em></a>
       <a class="tool-link" href="10-roadmap-mermaid.html"><strong>10. Roadmap v2 — Mermaid</strong><span>Граф + YAML статусы</span></a>
     </div>
 

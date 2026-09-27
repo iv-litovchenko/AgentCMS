@@ -102085,7 +102085,7 @@ function sortTimelineEventsChronological(events) {
 function createAgentFeedEventRow(event, options = {}) {
   const row = document.createElement("button");
   row.type = "button";
-  row.className = "agent-activity-row";
+  row.className = "agent-activity-row agent-timeline-feed-row";
   if (options.isLatest) row.classList.add("is-latest");
   row.setAttribute("role", "listitem");
 
@@ -102094,6 +102094,29 @@ function createAgentFeedEventRow(event, options = {}) {
   const modeId = mapTimelineFileKindToModeId(event.fileKind);
   row.title = `${formatNodeMetaDateTime(event.updatedAt)} — ${topicTitle} — ${fileSubtitle}`;
 
+  const whenCol = document.createElement("span");
+  whenCol.className = "agent-timeline-feed-when";
+
+  const time = document.createElement("time");
+  time.className = "agent-activity-time agent-timeline-feed-when-main";
+  time.dateTime = event.updatedAt || "";
+  time.textContent = formatTimelineRelativeTime(event.updatedAt);
+  time.title = formatNodeMetaDateTime(event.updatedAt);
+  whenCol.appendChild(time);
+
+  const timeSub = document.createElement("span");
+  timeSub.className = "agent-timeline-feed-when-sub";
+  timeSub.textContent = formatNodeMetaDateTime(event.updatedAt);
+  whenCol.appendChild(timeSub);
+
+  row.appendChild(whenCol);
+
+  const mainCol = document.createElement("span");
+  mainCol.className = "agent-timeline-feed-main";
+
+  const lead = document.createElement("span");
+  lead.className = "agent-timeline-feed-lead";
+
   const previewUrl = getTimelineEventPreviewUrl(event);
   if (previewUrl) {
     const thumb = document.createElement("img");
@@ -102101,13 +102124,13 @@ function createAgentFeedEventRow(event, options = {}) {
     thumb.src = previewUrl;
     thumb.alt = "";
     thumb.loading = "lazy";
-    row.appendChild(thumb);
+    lead.appendChild(thumb);
   } else {
     const icon = document.createElement("span");
     icon.className = `agent-activity-icon is-${modeId || "other"}`;
     const ext = getTimelineFileExtension(event);
     icon.textContent = ext || formatAgentTimelineFileKind(event.fileKind).slice(0, 3).toUpperCase();
-    row.appendChild(icon);
+    lead.appendChild(icon);
   }
 
   const body = document.createElement("span");
@@ -102126,6 +102149,13 @@ function createAgentFeedEventRow(event, options = {}) {
   kind.textContent = formatAgentTimelineFileKind(event.fileKind);
   top.appendChild(kind);
 
+  if (options.isLatest) {
+    const badge = document.createElement("span");
+    badge.className = "agent-activity-latest";
+    badge.textContent = "Свежее";
+    top.appendChild(badge);
+  }
+
   body.appendChild(top);
 
   const fileLabel = document.createElement("span");
@@ -102133,26 +102163,9 @@ function createAgentFeedEventRow(event, options = {}) {
   fileLabel.textContent = fileSubtitle;
   body.appendChild(fileLabel);
 
-  row.appendChild(body);
-
-  const meta = document.createElement("span");
-  meta.className = "agent-activity-meta";
-
-  const time = document.createElement("time");
-  time.className = "agent-activity-time";
-  time.dateTime = event.updatedAt || "";
-  time.textContent = formatTimelineRelativeTime(event.updatedAt);
-  time.title = formatNodeMetaDateTime(event.updatedAt);
-  meta.appendChild(time);
-
-  if (options.isLatest) {
-    const badge = document.createElement("span");
-    badge.className = "agent-activity-latest";
-    badge.textContent = "Свежее";
-    meta.appendChild(badge);
-  }
-
-  row.appendChild(meta);
+  lead.appendChild(body);
+  mainCol.appendChild(lead);
+  row.appendChild(mainCol);
 
   row.addEventListener("click", () => {
     openNodeFromMenu(event.label || getLabelFromPath(event.manifestPath), event.manifestPath);
@@ -102633,24 +102646,26 @@ async function renderAgentTimelineView(forceRefresh = false) {
     const board = document.createElement("div");
     board.className = "agent-activity-board";
 
-    const list = document.createElement("div");
-    list.className = "agent-activity-list";
-    list.setAttribute("role", "list");
-
     let lastDayKey = "";
+    let currentList = null;
     events.forEach((event, index) => {
       const dayKey = getTimelineDayKey(event.updatedAt);
       if (dayKey !== lastDayKey) {
         lastDayKey = dayKey;
+        const era = document.createElement("section");
+        era.className = "agent-timeline-era";
         const dayHead = document.createElement("h3");
-        dayHead.className = "agent-activity-day";
+        dayHead.className = "agent-activity-day agent-timeline-era-title";
         dayHead.textContent = dayKey;
-        list.appendChild(dayHead);
+        era.appendChild(dayHead);
+        currentList = document.createElement("div");
+        currentList.className = "agent-timeline-era-list";
+        currentList.setAttribute("role", "list");
+        era.appendChild(currentList);
+        board.appendChild(era);
       }
-      list.appendChild(createAgentFeedEventRow(event, { isLatest: index === 0 }));
+      currentList.appendChild(createAgentFeedEventRow(event, { isLatest: index === 0 }));
     });
-
-    board.appendChild(list);
     agentTimelineContentNode.appendChild(board);
   } catch {
     if (requestId !== agentTimelineRequestId) return;
