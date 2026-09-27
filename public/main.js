@@ -23977,7 +23977,7 @@ function toggleBookmark(nodePath) {
     updateActiveButton();
   } else {
     updateBookmarkButtonStates();
-    updateNodeOverviewHeroActionStates();
+    updateNodeOverviewBookmarkButtonStates();
   }
 }
 
@@ -62367,19 +62367,53 @@ function syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries = null) {
   btn.setAttribute("aria-pressed", on ? "true" : "false");
 }
 
+function normalizeHeroActionNodePath(nodePath) {
+  return normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath || "");
+}
+
+function resolveHeroActionPropEntriesForButtonPath(nodePath) {
+  const target = normalizeHeroActionNodePath(nodePath);
+  const active = normalizeHeroActionNodePath(activePath);
+  if (!target || !active || target !== active) return null;
+  const entries = resolveNodeOverviewPropsEntries();
+  return entries.length ? entries : null;
+}
+
+function updateNodeOverviewBookmarkButtonStates() {
+  const root = appRootNode || document;
+  for (const btn of root.querySelectorAll(".node-overview-bookmark-btn")) {
+    syncNodeOverviewBookmarkButton(btn, btn.dataset.path || "");
+  }
+}
+
 function updateNodeOverviewHeroActionStates() {
   const root = appRootNode || document;
   for (const btn of root.querySelectorAll(".node-overview-bookmark-btn")) {
     syncNodeOverviewBookmarkButton(btn, btn.dataset.path || "");
   }
   for (const btn of root.querySelectorAll(".node-overview-focus-btn")) {
-    syncNodeOverviewFocusButton(btn, btn.dataset.path || "", null);
+    const nodePath = btn.dataset.path || "";
+    syncNodeOverviewFocusButton(
+      btn,
+      nodePath,
+      resolveHeroActionPropEntriesForButtonPath(nodePath)
+    );
   }
   for (const btn of root.querySelectorAll(".node-overview-main-btn")) {
-    syncNodeOverviewMainButton(btn, btn.dataset.path || "", null);
+    const nodePath = btn.dataset.path || "";
+    syncNodeOverviewMainButton(
+      btn,
+      nodePath,
+      resolveHeroActionPropEntriesForButtonPath(nodePath)
+    );
   }
   for (const btn of root.querySelectorAll(".node-overview-shared-slot-btn")) {
-    syncNodeOverviewSharedSlotButton(btn, btn.dataset.path || "", null);
+    const nodePath = btn.dataset.path || "";
+    syncNodeOverviewSharedSlotButton(
+      btn,
+      nodePath,
+      resolveHeroActionPropEntriesForButtonPath(nodePath)
+    );
   }
 }
 

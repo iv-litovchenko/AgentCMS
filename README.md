@@ -130,3 +130,10 @@ flowchart TD
 ## Ссылки
 - Сайт: https://agent-cms.ru/
 - GitHub: https://github.com/iv-litovchenko/AgentCMS
+
+## Справочники для агентов и индексации
+
+Глобальные markdown-файлы платформы — чтобы модели (RAG, always-context, локальное дообучение) видели единую документацию по Agent CMS:
+
+- [GLOBAL_MCP_DOC.md](workspaces/agent-cms-core/GLOBAL_MCP_DOC.md) — карта MCP, workspace, правила работы с хранилищем
+- [GLOBAL_MARKDOWN_SHOWCASE.md](workspaces/agent-cms-core/GLOBAL_MARKDOWN_SHOWCASE.md) — поддерживаемая разметка в preview редактора
