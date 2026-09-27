@@ -48996,6 +48996,30 @@ button.node-navigation-memory-title:focus-visible {
 .awn-wysiwyg-highlight-tone-swatch--orange { background: #fed7aa; }
 .awn-wysiwyg-highlight-tone-swatch--purple { background: #e9d5ff; }
 
+.awn-wysiwyg-highlight-clear-btn {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.awn-wysiwyg-highlight-clear-btn:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: #fff;
+}
+
+.awn-wysiwyg-highlight-clear-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .editor-wysiwyg-wrap .toastui-editor-main {
   flex: 1;
   min-height: 0;

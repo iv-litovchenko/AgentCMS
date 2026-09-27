@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Сканирует markdown-конспекты и собирает личные пометки:
- * [мое повторить], [мое вопрос], [мое заметка], [мое важно], [мое ошибка], [мое идея]
+ * [мое повторить], … и блоки [marker:question] … [/marker]
  *
  *   node collect-markers.js --input sample-notes/
  *   node collect-markers.js --input sample-notes/oop.md --type "мое вопрос"
@@ -10,8 +10,16 @@
 
 const fs = require("fs");
 const path = require("path");
-const { KNOWN_TYPES, metaFor, serializeGrouped, sortGrouped, TYPE_ORDER } = require("./marker-types");
+const {
+  KNOWN_TYPES,
+  metaFor,
+  serializeGrouped,
+  sortGrouped,
+  TYPE_ORDER,
+  typeFromBlockSlug,
+} = require("./marker-types");
 const { parseFileRecord, parseMarkerMetaAfter } = require("./parse-meta");
+const { parseMarkerBlocks, lineInBlockRanges } = require("./parse-marker-blocks");
 
 const MARKER_RE = /^\[([^\]]+)\]:\s*(.+)$/;
 const HEADING_RE = /^(#{1,6})\s+(.+)$/;
@@ -49,53 +57,108 @@ function collectFiles(target) {
     .sort();
 }
 
+function listHeadings(lines) {
+  const all = [];
+  for (let i = 0; i < lines.length; i++) {
+    const hm = lines[i].match(HEADING_RE);
+    if (!hm) continue;
+    all.push({
+      level: hm[1].length,
+      title: hm[2].trim(),
+      slug: slugify(hm[2].trim()),
+      line: i + 1,
+    });
+  }
+  return all;
+}
+
+function sectionAtLine(allHeadings, lineNo) {
+  const active = [];
+  for (const h of allHeadings) {
+    if (h.line > lineNo) break;
+    while (active.length && active[active.length - 1].level >= h.level) active.pop();
+    active.push(h);
+  }
+  if (!active.length) {
+    return {
+      section: "(начало файла)",
+      sectionTitle: null,
+      anchor: `#L${lineNo}`,
+    };
+  }
+  const last = active[active.length - 1];
+  return {
+    section: active.map((h) => h.title).join(" → "),
+    sectionTitle: last.title,
+    anchor: `#${last.slug}`,
+  };
+}
+
+function hrefFor(filePath, anchor) {
+  return `sample-notes/${path.basename(filePath)}${anchor}`;
+}
+
+function pushMarker(markers, filePath, fileRecord, allHeadings, lineNo, type, text, meta, source, blockSlug) {
+  const ctx = sectionAtLine(allHeadings, lineNo);
+  markers.push({
+    type,
+    text,
+    file: filePath,
+    fileName: path.basename(filePath),
+    line: lineNo,
+    section: ctx.section,
+    sectionTitle: ctx.sectionTitle,
+    anchor: ctx.anchor,
+    href: hrefFor(filePath, ctx.anchor),
+    meta: meta && Object.keys(meta).length ? meta : null,
+    fileRecord: fileRecord || null,
+    source: source || "line",
+    blockSlug: blockSlug || null,
+  });
+}
+
 function parseFile(filePath) {
   const content = fs.readFileSync(filePath, "utf8");
   const lines = content.split(/\r?\n/);
-  const headings = [];
   const markers = [];
   const fileRecord = parseFileRecord(lines);
+  const allHeadings = listHeadings(lines);
+  const markerBlocks = parseMarkerBlocks(lines);
+
+  for (const block of markerBlocks) {
+    const type = typeFromBlockSlug(block.blockSlug);
+    if (!type) {
+      console.warn(`⚠ неизвестный [marker:${block.blockSlug}] в ${path.basename(filePath)}:${block.lineStart}`);
+      continue;
+    }
+    pushMarker(
+      markers,
+      filePath,
+      fileRecord,
+      allHeadings,
+      block.lineStart,
+      type,
+      block.text,
+      block.meta,
+      "block",
+      block.blockSlug
+    );
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNo = i + 1;
 
-    const hm = line.match(HEADING_RE);
-    if (hm) {
-      const level = hm[1].length;
-      const title = hm[2].trim();
-      while (headings.length && headings[headings.length - 1].level >= level) {
-        headings.pop();
-      }
-      headings.push({ level, title, slug: slugify(title), line: lineNo });
-      continue;
-    }
+    if (lineInBlockRanges(lineNo, markerBlocks)) continue;
 
     const mm = line.match(MARKER_RE);
     if (!mm) continue;
 
     const type = mm[1].trim().toLowerCase();
     const text = mm[2].trim();
-    const section = headings.length ? headings[headings.length - 1] : null;
-    const anchor = section ? `#${section.slug}` : `#L${lineNo}`;
-
     const markerMeta = parseMarkerMetaAfter(lines, i);
 
-    markers.push({
-      type,
-      text,
-      file: filePath,
-      fileName: path.basename(filePath),
-      line: lineNo,
-      section: section
-        ? headings.map((h) => h.title).join(" → ")
-        : "(начало файла)",
-      sectionTitle: section?.title ?? null,
-      anchor,
-      href: `sample-notes/${path.basename(filePath)}${anchor}`,
-      meta: markerMeta || null,
-      fileRecord: fileRecord || null,
-    });
+    pushMarker(markers, filePath, fileRecord, allHeadings, lineNo, type, text, markerMeta, "line");
   }
 
   return markers;

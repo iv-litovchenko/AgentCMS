@@ -1,0 +1,16 @@
+id: awn.block.marker-todo
+name: Marker · Задачи
+kind: block
+group: markers
+status: active
+sort: 7
+icon: "☐"
+description: Блок [marker:todo] — чеклист в конспекте
+template: |
+  [marker:todo]
+  awn-status: открыто
+  ---
+  - [ ] первый пункт
+  - [ ] второй пункт
+
+  [/marker]

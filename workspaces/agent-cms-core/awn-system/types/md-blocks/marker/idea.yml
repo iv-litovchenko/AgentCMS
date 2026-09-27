@@ -1,0 +1,15 @@
+id: awn.block.marker-idea
+name: Marker · Идея
+kind: block
+group: markers
+status: active
+sort: 6
+icon: "★"
+description: Блок [marker:idea] — идея на потом
+template: |
+  [marker:idea]
+  awn-status: отложено
+  ---
+  Описание идеи.
+
+  [/marker]

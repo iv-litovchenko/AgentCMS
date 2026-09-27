@@ -89,12 +89,17 @@ header p {
   background: #1e3a5f;
 }
 
+.toolbar button.is-empty {
+  opacity: 0.55;
+}
+
 .filter-moe-povtorit.is-active { border-color: #f59e0b; background: #422006; color: #fcd34d; }
 .filter-moe-vopros.is-active { border-color: #a78bfa; background: #2e1065; color: #c4b5fd; }
 .filter-moe-zametka.is-active { border-color: #3b82f6; background: #1e3a5f; color: #93c5fd; }
 .filter-moe-vazhno.is-active { border-color: #ef4444; background: #7f1d1d; color: #fca5a5; }
 .filter-moe-oshibka.is-active { border-color: #dc2626; background: #450a0a; color: #f87171; }
 .filter-moe-ideya.is-active { border-color: #10b981; background: #064e3b; color: #6ee7b7; }
+.filter-moe-todo.is-active { border-color: #94a3b8; background: #1e293b; color: #e2e8f0; }
 
 main {
   display: grid;
@@ -187,6 +192,7 @@ aside pre {
 .type-moe-vazhno { background: #7f1d1d; color: #fca5a5; }
 .type-moe-oshibka { background: #450a0a; color: #f87171; }
 .type-moe-ideya { background: #064e3b; color: #6ee7b7; }
+.type-moe-todo { background: #1e293b; color: #e2e8f0; }
 
 .file-group {
   margin-bottom: 1.25rem;
@@ -272,11 +278,31 @@ aside pre {
 .date-status.status-открыто { border-color: #1e3a5f; color: #93c5fd; }
 .date-status.status-закрыто { border-color: #064e3b; color: #6ee7b7; }
 .date-status.status-отложено { border-color: #422006; color: #fcd34d; }
+.date-extra { border-color: #334155; color: #94a3b8; font-size: 0.65rem; }
+
+.marker-source {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  color: #93c5fd;
+  background: #1e3a5f;
+  vertical-align: middle;
+}
+
+.marker-item.is-block {
+  border-left: 3px solid #3b82f6;
+}
 
 .marker-text {
   margin: 0 0 0.5rem;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.marker-text.is-multiline {
+  white-space: pre-wrap;
 }
 
 .marker-link {

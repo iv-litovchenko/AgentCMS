@@ -1,7 +1,7 @@
 id: awn.block.desc
 name: Краткое описание
 kind: block
-group: awn
+group: misc
 sort: 1
 icon: "🏷️"
 description: Превью + полный текст

@@ -19,6 +19,8 @@
     return `<span class="file-dates">${escapeHtml(parts.join(" · "))}</span>`;
   }
 
+  const KNOWN_META_KEYS = new Set(["added", "updated", "review", "status", "created", "topic"]);
+
   function renderMarkerDates(meta) {
     if (!meta) return "";
     const chips = [];
@@ -29,6 +31,10 @@
       const slug = String(meta.status).toLowerCase().replace(/\s+/g, "-");
       chips.push(`<span class="date-chip date-status status-${escapeHtml(slug)}">${escapeHtml(meta.status)}</span>`);
     }
+    for (const [key, value] of Object.entries(meta)) {
+      if (KNOWN_META_KEYS.has(key)) continue;
+      chips.push(`<span class="date-chip date-extra" title="${escapeHtml(key)}">${escapeHtml(key)}: ${escapeHtml(value)}</span>`);
+    }
     if (!chips.length) return "";
     return `<div class="marker-dates">${chips.join("")}</div>`;
   }
@@ -36,16 +42,23 @@
   function renderMarkerList(markers) {
     return markers
       .map(
-        (m) => `
-      <li class="marker-item">
+        (m) => {
+        const multiline = m.text.includes("\n");
+        const sourceBadge =
+          m.source === "block"
+            ? `<span class="marker-source">[marker:${escapeHtml(m.blockSlug || "…")}]</span>`
+            : "";
+        return `
+      <li class="marker-item${m.source === "block" ? " is-block" : ""}">
         <div class="marker-meta">
           <span class="section">${escapeHtml(m.section)}</span>
-          <span class="line">стр. ${m.line}</span>
+          <span class="line">стр. ${m.line}${sourceBadge}</span>
         </div>
         ${renderMarkerDates(m.meta)}
-        <p class="marker-text">${escapeHtml(m.text)}</p>
+        <p class="marker-text${multiline ? " is-multiline" : ""}">${escapeHtml(m.text)}</p>
         <a class="marker-link" href="${escapeHtml(m.href)}">перейти к месту →</a>
-      </li>`
+      </li>`;
+      }
       )
       .join("");
   }
@@ -98,12 +111,11 @@
   function buildFilterButtons(container, grouped, markers) {
     if (!container) return;
 
-    const normalized = normalizeGrouped(grouped, markers);
     let html = `<button type="button" data-filter="all" class="is-active">Все</button>`;
     for (const t of MARKER_TYPES) {
-      const hasItems = normalized.some(([type]) => type === t.type);
-      if (!hasItems) continue;
-      html += `<button type="button" data-filter="${escapeHtml(t.type)}" class="filter-${t.slug}">${t.icon} ${escapeHtml(t.short)}</button>`;
+      const count = markers.filter((m) => m.type === t.type).length;
+      const emptyClass = count === 0 ? " is-empty" : "";
+      html += `<button type="button" data-filter="${escapeHtml(t.type)}" class="filter-${t.slug}${emptyClass}" title="${count ? `${count} пометок` : "Пока нет пометок"}">${t.icon} ${escapeHtml(t.short)}</button>`;
     }
     container.innerHTML = html;
 

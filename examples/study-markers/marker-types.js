@@ -1,11 +1,21 @@
 const MARKER_TYPES = [
-  { type: "мое повторить", slug: "moe-povtorit", icon: "↻", short: "Повторить" },
-  { type: "мое вопрос", slug: "moe-vopros", icon: "?", short: "Вопрос" },
-  { type: "мое заметка", slug: "moe-zametka", icon: "✎", short: "Заметка" },
-  { type: "мое важно", slug: "moe-vazhno", icon: "!", short: "Важно" },
-  { type: "мое ошибка", slug: "moe-oshibka", icon: "✕", short: "Ошибка" },
-  { type: "мое идея", slug: "moe-ideya", icon: "★", short: "Идея" },
+  { type: "мое повторить", slug: "moe-povtorit", icon: "↻", short: "Повторить", block: "repeat" },
+  { type: "мое вопрос", slug: "moe-vopros", icon: "?", short: "Вопрос", block: "question" },
+  { type: "мое заметка", slug: "moe-zametka", icon: "✎", short: "Заметка", block: "note" },
+  { type: "мое важно", slug: "moe-vazhno", icon: "!", short: "Важно", block: "important" },
+  { type: "мое ошибка", slug: "moe-oshibka", icon: "✕", short: "Ошибка", block: "mistake" },
+  { type: "мое идея", slug: "moe-ideya", icon: "★", short: "Идея", block: "idea" },
+  { type: "мое todo", slug: "moe-todo", icon: "☐", short: "Задачи", block: "todo" },
 ];
+
+const BLOCK_SLUG_TO_TYPE = Object.fromEntries(
+  MARKER_TYPES.filter((t) => t.block).map((t) => [t.block, t.type])
+);
+
+function typeFromBlockSlug(slug) {
+  const key = String(slug || "").trim().toLowerCase();
+  return BLOCK_SLUG_TO_TYPE[key] || null;
+}
 
 const KNOWN_TYPES = new Set(MARKER_TYPES.map((t) => t.type));
 const TYPE_ORDER = MARKER_TYPES.map((t) => t.type);
@@ -59,6 +69,8 @@ const api = {
   MARKER_TYPES,
   KNOWN_TYPES,
   TYPE_ORDER,
+  BLOCK_SLUG_TO_TYPE,
+  typeFromBlockSlug,
   metaFor,
   sortGrouped,
   serializeGrouped,

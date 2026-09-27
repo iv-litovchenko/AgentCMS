@@ -30,7 +30,7 @@ Fields: awn-system/types/fields/{slug}.yml (node scripts/scaffold-type.js field 
 
 if (kind === "block") {
   console.error(
-    "Markdown-блоки — awn-system/types/md-blocks/{slug}.yml (node scripts/scaffold-type.js block <slug>)."
+    "Markdown-блоки — awn-system/types/md-blocks/ или подпапки marker/, mermaid/ (node scripts/scaffold-type.js block <slug>)."
   );
   process.exit(1);
 }

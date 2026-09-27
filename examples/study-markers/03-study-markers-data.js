@@ -19,7 +19,9 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое важно",
@@ -40,7 +42,9 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое вопрос",
@@ -60,7 +64,9 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое повторить",
@@ -82,7 +88,9 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое ошибка",
@@ -103,7 +111,9 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое идея",
@@ -124,7 +134,112 @@ window.MARKERS_DATA = {
         "created": "2026-02-01",
         "updated": "2026-09-18",
         "topic": "Java / БД"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
+    },
+    {
+      "type": "мое вопрос",
+      "text": "Почему `HashMap` не гарантирует порядок итерации?\n\nНужно сравнить с `LinkedHashMap` и `TreeMap` на одном примере.",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 10,
+      "section": "Длинный конспект с блоками",
+      "sectionTitle": "Длинный конспект с блоками",
+      "anchor": "#длинный-конспект-с-блоками",
+      "href": "sample-notes/marker-blocks-demo.md#длинный-конспект-с-блоками",
+      "meta": {
+        "status": "открыто",
+        "added": "2026-09-20",
+        "review": "2026-10-15"
+      },
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "block",
+      "blockSlug": "question"
+    },
+    {
+      "type": "мое повторить",
+      "text": "Жизненный цикл `Connection` — схема:\n\n1. пул создаёт соединение  \n2. приложение берёт из пула  \n3. close() возвращает в пул, а не рвёт TCP",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 26,
+      "section": "Длинный конспект с блоками → JDBC",
+      "sectionTitle": "JDBC",
+      "anchor": "#jdbc",
+      "href": "sample-notes/marker-blocks-demo.md#jdbc",
+      "meta": {
+        "status": "открыто",
+        "added": "2026-09-25",
+        "updated": "2026-09-25",
+        "review": "2026-10-01"
+      },
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "block",
+      "blockSlug": "repeat"
+    },
+    {
+      "type": "мое todo",
+      "text": "- [ ] перечитать раздел про пулы\n- [ ] добавить пример в проект",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 39,
+      "section": "Длинный конспект с блоками → JDBC",
+      "sectionTitle": "JDBC",
+      "anchor": "#jdbc",
+      "href": "sample-notes/marker-blocks-demo.md#jdbc",
+      "meta": {
+        "status": "открыто"
+      },
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "block",
+      "blockSlug": "todo"
+    },
+    {
+      "type": "мое идея",
+      "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 46,
+      "section": "Длинный конспект с блоками → JDBC",
+      "sectionTitle": "JDBC",
+      "anchor": "#jdbc",
+      "href": "sample-notes/marker-blocks-demo.md#jdbc",
+      "meta": {
+        "status": "отложено"
+      },
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "block",
+      "blockSlug": "idea"
+    },
+    {
+      "type": "мое важно",
+      "text": "не забывать try-with-resources",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 24,
+      "section": "Длинный конспект с блоками → JDBC",
+      "sectionTitle": "JDBC",
+      "anchor": "#jdbc",
+      "href": "sample-notes/marker-blocks-demo.md#jdbc",
+      "meta": null,
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое вопрос",
@@ -144,7 +259,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое идея",
@@ -165,7 +282,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое повторить",
@@ -186,7 +305,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое повторить",
@@ -208,7 +329,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое вопрос",
@@ -228,7 +351,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое заметка",
@@ -249,7 +374,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-20",
         "updated": "2026-09-05",
         "topic": "Java / ООП"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое повторить",
@@ -271,7 +398,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое важно",
@@ -292,7 +421,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое вопрос",
@@ -312,7 +443,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое заметка",
@@ -332,7 +465,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое повторить",
@@ -353,7 +488,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     },
     {
       "type": "мое ошибка",
@@ -374,7 +511,9 @@ window.MARKERS_DATA = {
         "created": "2026-01-10",
         "updated": "2026-09-15",
         "topic": "Java / синтаксис"
-      }
+      },
+      "source": "line",
+      "blockSlug": null
     }
   ],
   "grouped": [
@@ -403,7 +542,9 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             },
             {
               "type": "мое повторить",
@@ -425,7 +566,37 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
+            }
+          ]
+        ],
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое повторить",
+              "text": "Жизненный цикл `Connection` — схема:\n\n1. пул создаёт соединение  \n2. приложение берёт из пула  \n3. close() возвращает в пул, а не рвёт TCP",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 26,
+              "section": "Длинный конспект с блоками → JDBC",
+              "sectionTitle": "JDBC",
+              "anchor": "#jdbc",
+              "href": "sample-notes/marker-blocks-demo.md#jdbc",
+              "meta": {
+                "status": "открыто",
+                "added": "2026-09-25",
+                "updated": "2026-09-25",
+                "review": "2026-10-01"
+              },
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "block",
+              "blockSlug": "repeat"
             }
           ]
         ],
@@ -451,7 +622,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             },
             {
               "type": "мое повторить",
@@ -473,7 +646,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ],
@@ -500,7 +675,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             },
             {
               "type": "мое повторить",
@@ -521,7 +698,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ]
@@ -551,7 +730,36 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
+            }
+          ]
+        ],
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое вопрос",
+              "text": "Почему `HashMap` не гарантирует порядок итерации?\n\nНужно сравнить с `LinkedHashMap` и `TreeMap` на одном примере.",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 10,
+              "section": "Длинный конспект с блоками",
+              "sectionTitle": "Длинный конспект с блоками",
+              "anchor": "#длинный-конспект-с-блоками",
+              "href": "sample-notes/marker-blocks-demo.md#длинный-конспект-с-блоками",
+              "meta": {
+                "status": "открыто",
+                "added": "2026-09-20",
+                "review": "2026-10-15"
+              },
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "block",
+              "blockSlug": "question"
             }
           ]
         ],
@@ -576,7 +784,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             },
             {
               "type": "мое вопрос",
@@ -596,7 +806,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ],
@@ -621,7 +833,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ]
@@ -652,7 +866,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ],
@@ -677,7 +893,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ]
@@ -708,7 +926,32 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
+            }
+          ]
+        ],
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое важно",
+              "text": "не забывать try-with-resources",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 24,
+              "section": "Длинный конспект с блоками → JDBC",
+              "sectionTitle": "JDBC",
+              "anchor": "#jdbc",
+              "href": "sample-notes/marker-blocks-demo.md#jdbc",
+              "meta": null,
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ],
@@ -734,7 +977,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ]
@@ -765,7 +1010,9 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ],
@@ -791,7 +1038,9 @@ window.MARKERS_DATA = {
                 "created": "2026-01-10",
                 "updated": "2026-09-15",
                 "topic": "Java / синтаксис"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
             }
           ]
         ]
@@ -822,7 +1071,34 @@ window.MARKERS_DATA = {
                 "created": "2026-02-01",
                 "updated": "2026-09-18",
                 "topic": "Java / БД"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
+            }
+          ]
+        ],
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое идея",
+              "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 46,
+              "section": "Длинный конспект с блоками → JDBC",
+              "sectionTitle": "JDBC",
+              "anchor": "#jdbc",
+              "href": "sample-notes/marker-blocks-demo.md#jdbc",
+              "meta": {
+                "status": "отложено"
+              },
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "block",
+              "blockSlug": "idea"
             }
           ]
         ],
@@ -848,7 +1124,39 @@ window.MARKERS_DATA = {
                 "created": "2026-01-20",
                 "updated": "2026-09-05",
                 "topic": "Java / ООП"
-              }
+              },
+              "source": "line",
+              "blockSlug": null
+            }
+          ]
+        ]
+      ]
+    ],
+    [
+      "мое todo",
+      [
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое todo",
+              "text": "- [ ] перечитать раздел про пулы\n- [ ] добавить пример в проект",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 39,
+              "section": "Длинный конспект с блоками → JDBC",
+              "sectionTitle": "JDBC",
+              "anchor": "#jdbc",
+              "href": "sample-notes/marker-blocks-demo.md#jdbc",
+              "meta": {
+                "status": "открыто"
+              },
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "block",
+              "blockSlug": "todo"
             }
           ]
         ]

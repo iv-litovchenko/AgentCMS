@@ -18429,8 +18429,8 @@ const DOC_CONTENT_BLOCK_GROUPS_FALLBACK = [
     ]
   },
   {
-    id: "awn",
-    title: "AWN",
+    id: "misc",
+    title: "Прочее",
     blocks: [
       {
         id: "awn-desc",
@@ -34750,11 +34750,12 @@ function insertMarkdownAtWysiwygCursor(snippet) {
       const current = String(editor.getMarkdown() || "");
       const safeStart = Math.max(0, Math.min(start, current.length));
       const safeEnd = Math.max(safeStart, Math.min(end, current.length));
-      const next = `${current.slice(0, safeStart)}${text}${current.slice(safeEnd)}`;
+      const prepared = prepareDocBlockInsertSnippet(text, safeStart, current);
+      const next = `${current.slice(0, safeStart)}${prepared}${current.slice(safeEnd)}`;
       editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
       syncSourceFromWysiwygEditor();
       const exported = normalizeWysiwygExportedMarkdown(editor.getMarkdown());
-      setWysiwygCursorAtMarkdownOffset(exported, safeStart + text.length);
+      setWysiwygCursorAtMarkdownOffset(exported, safeStart + prepared.length);
       return true;
     };
 
@@ -34783,6 +34784,30 @@ function insertMarkdownAtWysiwygCursor(snippet) {
   });
 }
 
+function ensureDocBlockInsertTrailingBlankLine(snippet) {
+  let text = String(snippet || "");
+  if (!text) return "";
+  if (!text.endsWith("\n")) text += "\n";
+  if (!text.endsWith("\n\n")) text += "\n";
+  return text;
+}
+
+function normalizeDocBlockTemplateSnippet(snippet) {
+  let text = String(snippet || "").replace(/^\n+/, "");
+  return ensureDocBlockInsertTrailingBlankLine(text);
+}
+
+/** Палитра md-blocks: одна новая строка перед блоком (только если курсор в середине строки), без пустой строки сверху. */
+function prepareDocBlockInsertSnippet(snippet, insertOffset, documentText) {
+  let text = normalizeDocBlockTemplateSnippet(snippet);
+  const offset = Math.max(0, Number(insertOffset) || 0);
+  const before = String(documentText || "").slice(0, offset);
+  if (before.length && !before.endsWith("\n")) {
+    text = `\n${text}`;
+  }
+  return text;
+}
+
 function resolveDocBlockSnippet(blockOrText) {
   if (typeof blockOrText === "string") return blockOrText;
   const raw = blockOrText?.template ?? blockOrText?.text ?? "";
@@ -34791,7 +34816,7 @@ function resolveDocBlockSnippet(blockOrText) {
 
 function insertMarkdownAtEditorCursor(text) {
   const snippet = resolveDocBlockSnippet(text);
-  if (!snippet) return false;
+  if (!String(snippet || "").trim()) return false;
   if (!(canInsertDocContentBlocks() || canPasteMarkdownAttachment())) {
     showToast("Вставка доступна только в режиме редактирования", "error");
     return false;
@@ -34809,9 +34834,25 @@ function insertMarkdownAtEditorCursor(text) {
     }
   }
 
-  insertTextAtEditorCursor(snippet);
-  scheduleDocOutlineRefresh();
-  return true;
+  return withPreservedEditorScroll(() => {
+    const saved = lastSourceEditorSelection;
+    const start =
+      saved?.start ?? fileContentInputNode.selectionStart ?? fileContentInputNode.value.length;
+    const end = saved?.end ?? fileContentInputNode.selectionEnd ?? start;
+    const doc = fileContentInputNode.value;
+    const prepared = prepareDocBlockInsertSnippet(snippet, start, doc);
+    const before = doc.slice(0, start);
+    const after = doc.slice(end);
+    fileContentInputNode.value = `${before}${prepared}${after}`;
+    const cursor = start + prepared.length;
+    fileContentInputNode.selectionStart = cursor;
+    fileContentInputNode.selectionEnd = cursor;
+    lastSourceEditorSelection = { start: cursor, end: cursor };
+    fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+    fileContentInputNode.focus({ preventScroll: true });
+    scheduleDocOutlineRefresh();
+    return true;
+  });
 }
 
 const HIGHLIGHT_TONE_SET = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
@@ -34840,6 +34881,59 @@ function buildHighlightMarkdown(inner, tone = "yellow") {
   const safeTone = normalizeHighlightTone(tone);
   if (safeTone === "yellow") return `==${text}==`;
   return `=={${safeTone}}${text}==`;
+}
+
+function stripHighlightMarkdown(segment) {
+  return String(segment || "").replace(HIGHLIGHT_MARKDOWN_REGEX, (match, tone, inner) => inner);
+}
+
+function findHighlightRemovalRange(markdown, start, end) {
+  const text = String(markdown || "");
+  const s = Math.max(0, Math.min(start, text.length));
+  const e = Math.max(s, Math.min(end, text.length));
+
+  if (s < e) {
+    const slice = text.slice(s, e);
+    const stripped = stripHighlightMarkdown(slice);
+    if (stripped !== slice) {
+      return { start: s, end: e, replacement: stripped };
+    }
+  }
+
+  const re = /==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/gi;
+  let match;
+  while ((match = re.exec(text))) {
+    const mStart = match.index;
+    const mEnd = match.index + match[0].length;
+    const inner = match[2];
+    const overlaps = s < e ? s < mEnd && e > mStart : s > mStart && s < mEnd;
+    if (!overlaps) continue;
+    if (s < e && s >= mStart && e <= mEnd) {
+      return { start: mStart, end: mEnd, replacement: inner };
+    }
+    if (s === e && s > mStart && s < mEnd) {
+      return { start: mStart, end: mEnd, replacement: inner };
+    }
+  }
+  return null;
+}
+
+function replaceWysiwygMarkdownRange(start, end, replacement) {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return false;
+  return withPreservedEditorScroll(() => {
+    const current = String(editor.getMarkdown() || "");
+    const safeStart = Math.max(0, Math.min(start, current.length));
+    const safeEnd = Math.max(safeStart, Math.min(end, current.length));
+    const repl = String(replacement ?? "");
+    const next = `${current.slice(0, safeStart)}${repl}${current.slice(safeEnd)}`;
+    editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+    syncSourceFromWysiwygEditor();
+    const exported = normalizeWysiwygExportedMarkdown(editor.getMarkdown());
+    setWysiwygCursorAtMarkdownOffset(exported, safeStart + repl.length);
+    syncSaveButtonLamp();
+    return true;
+  });
 }
 
 function captureWysiwygHighlightSelection() {
@@ -35004,6 +35098,60 @@ function setEditorHighlightTone(tone) {
   }
 }
 
+function removeEditorTextHighlight() {
+  if (!canInsertDocContentBlocks()) {
+    showToast("Выделение доступно только в режиме редактирования", "error");
+    return false;
+  }
+
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    const editor = wysiwygEditorInstance;
+    const current = String(editor.getMarkdown() || "");
+    const selection =
+      cloneWysiwygMarkdownSelection(lastWysiwygHighlightCapture?.selection) ||
+      cloneWysiwygMarkdownSelection(editor.getSelection?.()) ||
+      lastWysiwygMarkdownSelection;
+    const { start, end } = resolveWysiwygMarkdownSelection(current, selection);
+    const span = findHighlightRemovalRange(current, start, end);
+    if (!span) {
+      showToast("Нет подсветки в выделении", "error");
+      return false;
+    }
+    const ok = replaceWysiwygMarkdownRange(span.start, span.end, span.replacement);
+    if (ok) {
+      lastWysiwygHighlightCapture = null;
+      scheduleDocOutlineRefresh();
+    } else {
+      showToast("Не удалось снять выделение", "error");
+    }
+    return ok;
+  }
+
+  const doc = fileContentInputNode?.value || "";
+  const { start, end } = getEditorSelectionSlice();
+  const span = findHighlightRemovalRange(doc, start, end);
+  if (!span) {
+    showToast("Нет подсветки в выделении", "error");
+    return false;
+  }
+
+  const ok = withPreservedEditorScroll(() => {
+    const before = doc.slice(0, span.start);
+    const after = doc.slice(span.end);
+    fileContentInputNode.value = `${before}${span.replacement}${after}`;
+    const cursor = span.start + span.replacement.length;
+    fileContentInputNode.selectionStart = cursor;
+    fileContentInputNode.selectionEnd = cursor;
+    lastSourceEditorSelection = { start: cursor, end: cursor };
+    fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+    fileContentInputNode.focus({ preventScroll: true });
+    syncSaveButtonLamp();
+    return true;
+  });
+  if (ok) scheduleDocOutlineRefresh();
+  return ok;
+}
+
 function applyEditorTextHighlight(tone = editorHighlightTone) {
   const safeTone = normalizeHighlightTone(tone);
   setEditorHighlightTone(safeTone);
@@ -35072,7 +35220,7 @@ function buildWysiwygHighlightToolbarItem() {
   popover.className = "awn-wysiwyg-highlight-popover hidden";
   popover.setAttribute("role", "menu");
   popover.setAttribute("aria-label", "Цвет выделения");
-  popover.innerHTML = HIGHLIGHT_TONE_OPTIONS.map(
+  popover.innerHTML = `${HIGHLIGHT_TONE_OPTIONS.map(
     ({ tone, label }) => `
       <button
         type="button"
@@ -35085,7 +35233,14 @@ function buildWysiwygHighlightToolbarItem() {
         <span class="awn-wysiwyg-highlight-tone-swatch awn-wysiwyg-highlight-tone-swatch--${tone}"></span>
       </button>
     `
-  ).join("");
+  ).join("")}
+    <button
+      type="button"
+      class="awn-wysiwyg-highlight-clear-btn"
+      role="menuitem"
+      title="Снять выделение"
+      aria-label="Снять выделение"
+    >Снять выделение</button>`;
 
   wrap.append(mainBtn, menuBtn, popover);
 
@@ -35118,6 +35273,12 @@ function buildWysiwygHighlightToolbarItem() {
     });
 
     popover.addEventListener("click", (event) => {
+      const clearBtn = event.target.closest(".awn-wysiwyg-highlight-clear-btn");
+      if (clearBtn) {
+        removeEditorTextHighlight();
+        closeWysiwygHighlightPopover();
+        return;
+      }
       const toneBtn = event.target.closest(".awn-wysiwyg-highlight-tone-btn");
       if (!toneBtn) return;
       applyEditorTextHighlight(toneBtn.dataset.highlightTone || "yellow");
@@ -35125,11 +35286,14 @@ function buildWysiwygHighlightToolbarItem() {
     });
   };
 
+  const clearBtn = popover.querySelector(".awn-wysiwyg-highlight-clear-btn");
+
   wysiwygHighlightToolbarRefs = {
     wrap,
     mainBtn,
     menuBtn,
     popover,
+    clearBtn,
     menuSwatch: menuBtn.querySelector(".awn-wysiwyg-highlight-swatch")
   };
 
@@ -35145,6 +35309,9 @@ function buildWysiwygHighlightToolbarItem() {
       popover.querySelectorAll(".awn-wysiwyg-highlight-tone-btn").forEach((btn) => {
         btn.disabled = Boolean(disabled);
       });
+      if (wysiwygHighlightToolbarRefs?.clearBtn) {
+        wysiwygHighlightToolbarRefs.clearBtn.disabled = Boolean(disabled);
+      }
       if (disabled) closeWysiwygHighlightPopover();
     }
   };
