@@ -5,13 +5,13 @@ group: markers
 status: active
 sort: 8
 icon: "↻"
-description: Блок [marker:repeat] — spaced repetition
+description: Блок awn-marker-repeat — spaced repetition
 template: |
-  [marker:repeat]
+  ```awn-marker-repeat
   awn-status: открыто
   awn-create: 2026-09-27
   awn-repeat: 2026-10-01
   ---
   Что нужно повторить.
 
-  [/marker]
+  ```

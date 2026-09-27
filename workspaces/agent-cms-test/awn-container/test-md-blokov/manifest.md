@@ -29,59 +29,59 @@ awn-version: 8
 ---
 
 111
-[marker:idea]
+```awn-marker-idea
 awn-status: отложено
 ---
 Описание идеи.
 
-[/marker]
+```
 
-[marker:important]
+```awn-marker-important
 awn-status: открыто
 ---
 Кратко, что важно запомнить.
 
-[/marker]
+```
 
-[marker:note]
+```awn-marker-note
 awn-status: открыто
 ---
 Текст заметки.
 
-[/marker]
+```
 
-[marker:todo]
+```awn-marker-todo
 awn-status: открыто
 ---
 - [ ] первый пункт
 - [ ] второй пункт
 
-[/marker]
+```
 
-[marker:question]
+```awn-marker-question
 awn-status: открыто
 awn-create: 2026-10-01
 ---
 Текст вопроса.
 
-[/marker]
+```
 
-[marker:mistake]
+```awn-marker-mistake
 awn-status: открыто
 awn-update: 2026-09-27
 ---
 В чём ошибка и как правильно.
 
-[/marker]
+```
 
-[marker:term]
+```awn-marker-term
 awn-status: открыто
 ---
 **Термин** — краткое определение своими словами.
 
-[/marker]
+```
 
-[marker:repeat]
+```awn-marker-repeat
 awn-status: открыто
 awn-create: 2026-09-27
 awn-repeat: 2026-10-01
@@ -89,5 +89,5 @@ awn-repeat: 2026-10-01
 ---
 Что нужно повторить.
 
-[/marker]
+```
 

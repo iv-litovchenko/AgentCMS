@@ -5,12 +5,12 @@ group: markers
 status: active
 sort: 4
 icon: "✓"
-description: Блок [marker:todo] — чеклист в конспекте
+description: Блок awn-marker-todo — чеклист в конспекте
 template: |
-  [marker:todo]
+  ```awn-marker-todo
   awn-status: открыто
   ---
   - [ ] первый пункт
   - [ ] второй пункт
 
-  [/marker]
+  ```

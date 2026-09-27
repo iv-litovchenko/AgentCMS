@@ -46,7 +46,7 @@
         const multiline = m.text.includes("\n");
         const sourceBadge =
           m.source === "block"
-            ? `<span class="marker-source">[marker:${escapeHtml(m.blockSlug || "…")}]</span>`
+            ? `<span class="marker-source">awn-marker-${escapeHtml(m.blockSlug || "…")}</span>`
             : "";
         return `
       <li class="marker-item${m.source === "block" ? " is-block" : ""}">

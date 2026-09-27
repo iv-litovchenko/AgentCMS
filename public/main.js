@@ -87584,7 +87584,10 @@ function renderMarkdownToHtml(markdown, { nodePath, hideFrontmatter = false } = 
 
   try {
     let bodyText = String(body || "").trim();
-    if (typeof convertMarkerBlocksForPreview === "function" && bodyText.includes("[marker:")) {
+    if (
+      typeof convertMarkerBlocksForPreview === "function" &&
+      (bodyText.includes("awn-marker-") || bodyText.includes("[marker:"))
+    ) {
       bodyText = convertMarkerBlocksForPreview(bodyText, (fragment) =>
         md.render(String(fragment || "").trim(), renderEnv)
       );

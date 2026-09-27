@@ -5,11 +5,11 @@ group: markers
 status: active
 sort: 1
 icon: "★"
-description: Блок [marker:idea] — идея на потом
+description: Блок awn-marker-idea — идея на потом
 template: |
-  [marker:idea]
+  ```awn-marker-idea
   awn-status: отложено
   ---
   Описание идеи.
 
-  [/marker]
+  ```

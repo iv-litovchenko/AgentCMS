@@ -5,11 +5,11 @@ group: markers
 status: active
 sort: 7
 icon: "§"
-description: Блок [marker:term] — определение термина в конспекте
+description: Блок awn-marker-term — определение термина
 template: |
-  [marker:term]
+  ```awn-marker-term
   awn-status: открыто
   ---
   **Термин** — краткое определение своими словами.
 
-  [/marker]
+  ```

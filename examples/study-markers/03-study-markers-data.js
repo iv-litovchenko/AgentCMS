@@ -225,7 +225,7 @@ window.MARKERS_DATA = {
     },
     {
       "type": "мое идея",
-      "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
+      "text": "Вынести блоки `awn-marker-*` в палитру md-blocks редактора.",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
       "line": 52,
@@ -573,7 +573,7 @@ window.MARKERS_DATA = {
           [
             {
               "type": "мое идея",
-              "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
+              "text": "Вынести блоки `awn-marker-*` в палитру md-blocks редактора.",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
               "line": 52,

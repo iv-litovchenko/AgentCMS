@@ -128,7 +128,7 @@ function parseFile(filePath) {
   for (const block of markerBlocks) {
     const type = typeFromBlockSlug(block.blockSlug);
     if (!type) {
-      console.warn(`⚠ неизвестный [marker:${block.blockSlug}] в ${path.basename(filePath)}:${block.lineStart}`);
+      console.warn(`⚠ неизвестный awn-marker-${block.blockSlug} в ${path.basename(filePath)}:${block.lineStart}`);
       continue;
     }
     pushMarker(

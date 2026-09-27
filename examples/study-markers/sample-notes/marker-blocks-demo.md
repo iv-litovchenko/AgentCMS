@@ -7,21 +7,21 @@
 
 Обычный текст раздела. Ниже — пометка блоком внутри материала.
 
-[marker:term]
+```awn-marker-term
 awn-status: открыто
 ---
 **Инвариант** — условие, которое остаётся истинным на всём протяжении работы программы или цикла.
-[/marker]
+```
 
-[marker:question]
+```awn-marker-question
 awn-status: открыто
 awn-create: 2026-09-20
-повторить: 2026-10-15
+awn-repeat: 2026-10-15
 ---
 Почему `HashMap` не гарантирует порядок итерации?
 
 Нужно сравнить с `LinkedHashMap` и `TreeMap` на одном примере.
-[/marker]
+```
 
 ## JDBC
 
@@ -29,28 +29,28 @@ awn-create: 2026-09-20
 
 [мое важно]: не забывать try-with-resources
 
-[marker:repeat]
+```awn-marker-repeat
 awn-status: открыто
 awn-create: 2026-09-25
 awn-update: 2026-09-25
-повторить: 2026-10-01
+awn-repeat: 2026-10-01
 ---
 Жизненный цикл `Connection` — схема:
 
 1. пул создаёт соединение  
 2. приложение берёт из пула  
 3. close() возвращает в пул, а не рвёт TCP
-[/marker]
+```
 
-[marker:todo]
+```awn-marker-todo
 awn-status: открыто
 ---
 - [ ] перечитать раздел про пулы
 - [ ] добавить пример в проект
-[/marker]
+```
 
-[marker:idea]
+```awn-marker-idea
 awn-status: отложено
 ---
-Вынести блоки `[marker:*]` в палитру md-blocks редактора.
-[/marker]
+Вынести блоки `awn-marker-*` в палитру md-blocks редактора.
+```

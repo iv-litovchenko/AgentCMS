@@ -5,12 +5,12 @@ group: markers
 status: active
 sort: 5
 icon: "?"
-description: Блок [marker:question] в тексте конспекта
+description: Блок awn-marker-question в тексте конспекта
 template: |
-  [marker:question]
+  ```awn-marker-question
   awn-status: открыто
-  awn-create: 2026-10-01
+  awn-create: 2026-09-27
   ---
   Текст вопроса.
 
-  [/marker]
+  ```
