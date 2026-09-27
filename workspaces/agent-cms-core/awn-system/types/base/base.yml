@@ -105,9 +105,9 @@ fields:
       - key: open
         name: 🟢 Открыта
       - key: planned
-        name: 🟣 Запланирована
+        name: 🟠 Запланирована
       - key: in-progress
-        name: 🟠 В работе
+        name: 🟣 В работе
       - key: done
         name: ✅ Готова
       - key: closed
