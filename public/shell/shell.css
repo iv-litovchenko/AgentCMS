@@ -13195,6 +13195,9 @@ body.shell-embed.shell-keyboard-open.shell-layout-mobile .shell-dialog-scroll {
 }
 
 .shell-compose-dock-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   border-radius: 20px 20px 0 0;
   overflow: hidden;
 }
@@ -13871,11 +13874,19 @@ body.shell-maintenance-active .shell-agent-gate {
 }
 
 /* —— Файлообменник (заглушка) —— */
-.shell-compose-file-hub-row {
+.shell-compose-dock-inner > .shell-compose-file-hub-row {
   display: flex;
   justify-content: center;
-  padding: 4px 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  padding: 0 10px;
+  margin: 0 0 -1px;
+  position: relative;
+  z-index: 3;
+}
+
+.shell-compose-dock-inner > .shell-compose-file-hub-row + .shell-compose-field {
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 }
 
 .shell-file-hub-launch {

@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=597" />
+    <link rel="stylesheet" href="/shell/shell.css?v=599" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -2461,21 +2461,21 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
         <div class="shell-compose-dock" id="shell-compose-dock">
           <div class="shell-compose-dock-inner">
+        <div class="shell-compose-file-hub-row">
+          <button
+            type="button"
+            class="shell-file-hub-launch"
+            id="shell-file-hub-open"
+            aria-expanded="false"
+            aria-controls="shell-file-hub"
+            title="Файлообменник — файлы туда сюда"
+          >
+            <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
+            <span class="shell-file-hub-launch-label">Файлообменник</span>
+            <span class="shell-file-hub-launch-tag">Файлы туда сюда</span>
+          </button>
+        </div>
         <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
-          <div class="shell-compose-file-hub-row">
-            <button
-              type="button"
-              class="shell-file-hub-launch"
-              id="shell-file-hub-open"
-              aria-expanded="false"
-              aria-controls="shell-file-hub"
-              title="Файлообменник — файлы туда сюда"
-            >
-              <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
-              <span class="shell-file-hub-launch-label">Файлообменник</span>
-              <span class="shell-file-hub-launch-tag">Файлы туда сюда</span>
-            </button>
-          </div>
           <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
             <div class="shell-compose-options">
             <button
