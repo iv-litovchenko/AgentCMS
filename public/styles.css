@@ -56774,7 +56774,6 @@ button.node-navigation-memory-title:focus-visible {
 .agent-visualization-pane .agent-rmm-graph-chrome {
   position: absolute;
   inset: 10px;
-  height: 0;
   z-index: 4;
   pointer-events: none;
 }
@@ -56785,8 +56784,9 @@ button.node-navigation-memory-title:focus-visible {
 
 .agent-visualization-pane .agent-rmm-graph-chrome-bottom-left {
   position: absolute;
-  bottom: 0;
   left: 0;
+  bottom: 0;
+  z-index: 1;
   pointer-events: auto;
 }
 
@@ -56833,6 +56833,7 @@ button.node-navigation-memory-title:focus-visible {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1;
   pointer-events: auto;
   margin: 0;
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
