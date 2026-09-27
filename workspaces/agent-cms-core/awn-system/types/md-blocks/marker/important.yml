@@ -3,7 +3,7 @@ name: Marker · Важно
 kind: block
 group: markers
 status: active
-sort: 4
+sort: 5
 icon: "!"
 description: Блок [marker:important] — выделить важное
 template: |

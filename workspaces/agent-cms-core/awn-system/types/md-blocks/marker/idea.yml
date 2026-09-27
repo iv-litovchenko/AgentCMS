@@ -3,7 +3,7 @@ name: Marker · Идея
 kind: block
 group: markers
 status: active
-sort: 6
+sort: 7
 icon: "★"
 description: Блок [marker:idea] — идея на потом
 template: |

@@ -1,0 +1,15 @@
+id: awn.block.marker-term
+name: Marker · Термин
+kind: block
+group: markers
+status: active
+sort: 4
+icon: "§"
+description: Блок [marker:term] — определение термина в конспекте
+template: |
+  [marker:term]
+  awn-status: открыто
+  ---
+  **Термин** — краткое определение своими словами.
+
+  [/marker]

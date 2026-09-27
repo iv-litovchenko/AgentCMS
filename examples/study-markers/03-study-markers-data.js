@@ -139,11 +139,31 @@ window.MARKERS_DATA = {
       "blockSlug": null
     },
     {
+      "type": "мое термин",
+      "text": "**Инвариант** — условие, которое остаётся истинным на всём протяжении работы программы или цикла.",
+      "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+      "fileName": "marker-blocks-demo.md",
+      "line": 10,
+      "section": "Длинный конспект с блоками",
+      "sectionTitle": "Длинный конспект с блоками",
+      "anchor": "#длинный-конспект-с-блоками",
+      "href": "sample-notes/marker-blocks-demo.md#длинный-конспект-с-блоками",
+      "meta": {
+        "status": "открыто"
+      },
+      "fileRecord": {
+        "created": "2026-09-27",
+        "topic": "Marker blocks — прототип"
+      },
+      "source": "block",
+      "blockSlug": "term"
+    },
+    {
       "type": "мое вопрос",
       "text": "Почему `HashMap` не гарантирует порядок итерации?\n\nНужно сравнить с `LinkedHashMap` и `TreeMap` на одном примере.",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
-      "line": 10,
+      "line": 16,
       "section": "Длинный конспект с блоками",
       "sectionTitle": "Длинный конспект с блоками",
       "anchor": "#длинный-конспект-с-блоками",
@@ -165,7 +185,7 @@ window.MARKERS_DATA = {
       "text": "Жизненный цикл `Connection` — схема:\n\n1. пул создаёт соединение  \n2. приложение берёт из пула  \n3. close() возвращает в пул, а не рвёт TCP",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
-      "line": 26,
+      "line": 32,
       "section": "Длинный конспект с блоками → JDBC",
       "sectionTitle": "JDBC",
       "anchor": "#jdbc",
@@ -188,7 +208,7 @@ window.MARKERS_DATA = {
       "text": "- [ ] перечитать раздел про пулы\n- [ ] добавить пример в проект",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
-      "line": 39,
+      "line": 45,
       "section": "Длинный конспект с блоками → JDBC",
       "sectionTitle": "JDBC",
       "anchor": "#jdbc",
@@ -208,7 +228,7 @@ window.MARKERS_DATA = {
       "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
-      "line": 46,
+      "line": 52,
       "section": "Длинный конспект с блоками → JDBC",
       "sectionTitle": "JDBC",
       "anchor": "#jdbc",
@@ -228,7 +248,7 @@ window.MARKERS_DATA = {
       "text": "не забывать try-with-resources",
       "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
       "fileName": "marker-blocks-demo.md",
-      "line": 24,
+      "line": 30,
       "section": "Длинный конспект с блоками → JDBC",
       "sectionTitle": "JDBC",
       "anchor": "#jdbc",
@@ -580,7 +600,7 @@ window.MARKERS_DATA = {
               "text": "Жизненный цикл `Connection` — схема:\n\n1. пул создаёт соединение  \n2. приложение берёт из пула  \n3. close() возвращает в пул, а не рвёт TCP",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
-              "line": 26,
+              "line": 32,
               "section": "Длинный конспект с блоками → JDBC",
               "sectionTitle": "JDBC",
               "anchor": "#jdbc",
@@ -744,7 +764,7 @@ window.MARKERS_DATA = {
               "text": "Почему `HashMap` не гарантирует порядок итерации?\n\nНужно сравнить с `LinkedHashMap` и `TreeMap` на одном примере.",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
-              "line": 10,
+              "line": 16,
               "section": "Длинный конспект с блоками",
               "sectionTitle": "Длинный конспект с блоками",
               "anchor": "#длинный-конспект-с-блоками",
@@ -902,6 +922,36 @@ window.MARKERS_DATA = {
       ]
     ],
     [
+      "мое термин",
+      [
+        [
+          "marker-blocks-demo.md",
+          [
+            {
+              "type": "мое термин",
+              "text": "**Инвариант** — условие, которое остаётся истинным на всём протяжении работы программы или цикла.",
+              "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
+              "fileName": "marker-blocks-demo.md",
+              "line": 10,
+              "section": "Длинный конспект с блоками",
+              "sectionTitle": "Длинный конспект с блоками",
+              "anchor": "#длинный-конспект-с-блоками",
+              "href": "sample-notes/marker-blocks-demo.md#длинный-конспект-с-блоками",
+              "meta": {
+                "status": "открыто"
+              },
+              "fileRecord": {
+                "created": "2026-09-27",
+                "topic": "Marker blocks — прототип"
+              },
+              "source": "block",
+              "blockSlug": "term"
+            }
+          ]
+        ]
+      ]
+    ],
+    [
       "мое важно",
       [
         [
@@ -940,7 +990,7 @@ window.MARKERS_DATA = {
               "text": "не забывать try-with-resources",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
-              "line": 24,
+              "line": 30,
               "section": "Длинный конспект с блоками → JDBC",
               "sectionTitle": "JDBC",
               "anchor": "#jdbc",
@@ -1085,7 +1135,7 @@ window.MARKERS_DATA = {
               "text": "Вынести блоки `[marker:*]` в палитру md-blocks редактора.",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
-              "line": 46,
+              "line": 52,
               "section": "Длинный конспект с блоками → JDBC",
               "sectionTitle": "JDBC",
               "anchor": "#jdbc",
@@ -1143,7 +1193,7 @@ window.MARKERS_DATA = {
               "text": "- [ ] перечитать раздел про пулы\n- [ ] добавить пример в проект",
               "file": "/Users/macbook/Desktop/YamlCMS/examples/study-markers/sample-notes/marker-blocks-demo.md",
               "fileName": "marker-blocks-demo.md",
-              "line": 39,
+              "line": 45,
               "section": "Длинный конспект с блоками → JDBC",
               "sectionTitle": "JDBC",
               "anchor": "#jdbc",

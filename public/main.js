@@ -38801,7 +38801,11 @@ function supportsNavigationHubRailSectionCreate(targetMode) {
 }
 
 function supportsNavigationHubRailRecordCreate(targetMode) {
-  return targetMode === "external" || FLAT_STORAGE_SECTION_MODES.has(targetMode);
+  return (
+    targetMode === "external" ||
+    FLAT_STORAGE_SECTION_MODES.has(targetMode) ||
+    isMediaLibraryContentMode(targetMode)
+  );
 }
 
 const NAVIGATION_HUB_BROWSE_ACTION_ICON_SECTION =
@@ -39272,15 +39276,28 @@ function canCreateExternalMemoryNow() {
 
 function getActiveSlotRecordCreateFolder() {
   if (navigationHubRailSlotCreateState?.targetMode === "external") return "main";
-  if (navigationHubRailSlotCreateState?.targetMode && FLAT_STORAGE_SECTION_MODES.has(navigationHubRailSlotCreateState.targetMode)) {
-    return getFlatStorageSectionFolderName(navigationHubRailSlotCreateState.targetMode);
+  const railMode = navigationHubRailSlotCreateState?.targetMode;
+  if (railMode && isMediaLibraryContentMode(railMode)) {
+    return getMediaLibraryStorageSubfolder(railMode);
+  }
+  if (railMode && FLAT_STORAGE_SECTION_MODES.has(railMode)) {
+    return getFlatStorageSectionFolderName(railMode);
   }
   if (activeContentMode === "external") return "main";
   if (entryOverviewExternalCreateActive || isEntryOverviewExternalMemory()) return "main";
+  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
+    return getMediaLibraryStorageSubfolder();
+  }
   if (isFlatStorageSectionMode() && isFlatStorageListMode()) {
     return getFlatStorageSectionFolderName(activeContentMode);
   }
   return null;
+}
+
+function getActiveSlotRecordCreateParentFolder(createMode, folder) {
+  if (folder === "main") return getActiveExternalSectionParentForCreate();
+  if (isMediaLibraryContentMode(createMode)) return getActiveMediaSectionParentForCreate();
+  return getActiveFlatStorageSectionParentForCreate(createMode);
 }
 
 function getActiveSlotRecordCreateMode() {
@@ -61471,10 +61488,8 @@ function closeCreateMemoryModal() {
 async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOverride = null) {
   const folder = folderOverride || getActiveSlotRecordCreateFolder();
   if (!folder) throw new Error("No active storage slot");
-  const parentFolder =
-    folder === "main"
-      ? getActiveExternalSectionParentForCreate()
-      : getActiveFlatStorageSectionParentForCreate(getActiveSlotRecordCreateMode());
+  const createMode = getActiveSlotRecordCreateMode();
+  const parentFolder = getActiveSlotRecordCreateParentFolder(createMode, folder);
   const requestBody = {
     path: getActiveNodeApiPath(),
     folder,
@@ -61504,10 +61519,7 @@ async function createSlotRecordFile(displayName, slug, folderOverride = null) {
   const folder = folderOverride || getActiveSlotRecordCreateFolder();
   if (!folder) throw new Error("No active storage slot");
   const createMode = getActiveSlotRecordCreateMode();
-  const parentFolder =
-    folder === "main"
-      ? getActiveExternalSectionParentForCreate()
-      : getActiveFlatStorageSectionParentForCreate(createMode);
+  const parentFolder = getActiveSlotRecordCreateParentFolder(createMode, folder);
   const requestBody = {
     path: getActiveNodeApiPath(),
     folder,

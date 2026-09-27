@@ -2,6 +2,7 @@ const MARKER_TYPES = [
   { type: "мое повторить", slug: "moe-povtorit", icon: "↻", short: "Повторить", block: "repeat" },
   { type: "мое вопрос", slug: "moe-vopros", icon: "?", short: "Вопрос", block: "question" },
   { type: "мое заметка", slug: "moe-zametka", icon: "✎", short: "Заметка", block: "note" },
+  { type: "мое термин", slug: "moe-termin", icon: "§", short: "Термин", block: "term" },
   { type: "мое важно", slug: "moe-vazhno", icon: "!", short: "Важно", block: "important" },
   { type: "мое ошибка", slug: "moe-oshibka", icon: "✕", short: "Ошибка", block: "mistake" },
   { type: "мое идея", slug: "moe-ideya", icon: "★", short: "Идея", block: "idea" },
