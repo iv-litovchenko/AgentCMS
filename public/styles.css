@@ -10479,6 +10479,74 @@ body.app-locked {
   border: none;
   border-radius: 0;
   background: transparent;
+  position: relative;
+}
+
+.agent-rmm-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 55% at 50% 42%, rgba(30, 41, 59, 0.55) 0%, rgba(15, 23, 42, 0.88) 100%);
+}
+
+.agent-rmm-loading-visual {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.agent-rmm-loading-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(148, 163, 184, 0.18);
+  border-top-color: rgba(56, 189, 248, 0.95);
+  border-right-color: rgba(167, 139, 250, 0.85);
+  animation: agent-rmm-loading-spin 0.85s cubic-bezier(0.45, 0.05, 0.25, 0.95) infinite;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.22);
+}
+
+.agent-rmm-loading-core {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e0f2fe 0%, #6366f1 42%, #312e81 100%);
+  opacity: 0.92;
+  animation: agent-rmm-loading-pulse 1.6s ease-in-out infinite;
+}
+
+.agent-rmm-loading-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(226, 232, 240, 0.88);
+  text-align: center;
+}
+
+@keyframes agent-rmm-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes agent-rmm-loading-pulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .agent-visualization-pane .agent-rmm-detail {
@@ -10520,6 +10588,7 @@ body.app-locked {
   position: absolute;
   right: 12px;
   bottom: 12px;
+  top: auto;
   z-index: 6;
   width: min(300px, calc(100% - 24px));
   max-height: min(44vh, 300px);
@@ -10551,7 +10620,8 @@ body.app-locked {
   flex-shrink: 0;
 }
 
-.agent-rmm-scratch-notes-head strong {
+.agent-rmm-scratch-notes-head strong,
+.agent-rmm-scratch-notes-title {
   flex: 1;
   min-width: 0;
   font-size: 11px;
@@ -56701,28 +56771,168 @@ button.node-navigation-memory-title:focus-visible {
   transition: opacity 0.2s ease;
 }
 
-.external-graph-preview-meta-bg {
-  fill: rgba(15, 23, 42, 0.82);
-}
-
-.external-graph-preview-meta-line {
-  fill: rgba(255, 255, 255, 0.88);
-  font-size: 9px;
-  font-weight: 600;
+.agent-visualization-pane .agent-rmm-graph-chrome {
+  position: absolute;
+  inset: 10px;
+  height: 0;
+  z-index: 4;
   pointer-events: none;
 }
 
-.external-graph-preview-meta-id {
-  fill: rgba(167, 139, 250, 0.95);
-  font-size: 8px;
-  font-weight: 650;
-  letter-spacing: 0.03em;
+.agent-visualization-pane .agent-rmm-graph-chrome.hidden {
+  display: none;
 }
 
-.external-graph-preview-meta-status {
-  fill: rgba(255, 255, 255, 0.78);
+.agent-visualization-pane .agent-rmm-graph-chrome-bottom-left {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  pointer-events: auto;
+}
+
+.agent-rmm-graph-theme-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+}
+
+.agent-rmm-graph-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.agent-rmm-graph-theme-btn.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.agent-rmm-graph-theme-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.agent-visualization-pane .agent-rmm-graph-chrome .agent-rmm-preview-setting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  margin: 0;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+}
+
+.agent-visualization-pane .agent-rmm-content:has(.external-graph-wrap.is-light) .agent-rmm-graph-theme-toggle {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.42);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+.agent-visualization-pane .agent-rmm-content:has(.external-graph-wrap.is-light) .agent-rmm-graph-theme-btn {
+  color: #64748b;
+}
+
+.agent-visualization-pane .agent-rmm-content:has(.external-graph-wrap.is-light) .agent-rmm-graph-theme-btn.is-active {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22);
+}
+
+.agent-visualization-pane .agent-rmm-graph-chrome .agent-rmm-zoom {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: auto;
+  bottom: auto;
+  pointer-events: auto;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.external-graph-controls--embed {
+  position: static;
+  flex-direction: row;
+  gap: 4px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.external-graph-preview-chrome-bar {
+  fill: rgba(15, 23, 42, 0.72);
+}
+
+.external-graph-preview-chrome-id {
+  fill: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.external-graph-dot-id {
+  fill: rgba(248, 250, 252, 0.92);
   font-size: 8px;
-  font-weight: 550;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.external-graph-dot-status {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 1.25;
+  pointer-events: none;
+}
+
+.external-graph-dot-status-emoji {
+  font-size: 6px;
+  pointer-events: none;
+}
+
+.external-graph-preview-id-bg {
+  display: none;
+}
+
+.external-graph-preview-id-text {
+  display: none;
+}
+
+.external-graph-preview-status-dot {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.external-graph-preview-status-emoji {
+  fill: #fff;
+  font-size: 7px;
+  pointer-events: none;
+}
+
+.external-graph-preview-meta-bg {
+  display: none;
+}
+
+.external-graph-preview-meta-line {
+  display: none;
 }
 
 .external-graph-node.hovered .external-graph-preview-image,
@@ -56787,6 +56997,119 @@ button.node-navigation-memory-title:focus-visible {
 
 .external-graph-node.disabled .external-graph-label {
   fill: rgba(255, 255, 255, 0.34);
+}
+
+.external-graph-wrap.is-light {
+  background: #f3f6fb;
+  border-color: rgba(148, 163, 184, 0.38);
+}
+
+.external-graph-wrap.is-light .external-graph-space-bg {
+  background: linear-gradient(168deg, #fcfdff 0%, #f3f7fc 42%, #e9f0f8 100%);
+}
+
+.external-graph-wrap.is-light .external-graph-space-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(100, 116, 139, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 116, 139, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.85;
+  mask-image: radial-gradient(ellipse 88% 78% at 50% 44%, #000 18%, transparent 100%);
+}
+
+.external-graph-wrap.is-light .external-graph-space-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 55% 42% at 18% 22%, rgba(59, 130, 246, 0.07) 0%, transparent 72%),
+    radial-gradient(ellipse 48% 40% at 82% 78%, rgba(14, 165, 233, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 36% 30% at 52% 58%, rgba(99, 102, 241, 0.05) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+.external-graph-wrap.is-light .external-graph-nebula {
+  opacity: 0.42;
+  filter: blur(56px);
+}
+
+.external-graph-wrap.is-light .external-graph-nebula--violet {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, rgba(79, 70, 229, 0.05) 48%, transparent 74%);
+}
+
+.external-graph-wrap.is-light .external-graph-nebula--blue {
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(59, 130, 246, 0.04) 50%, transparent 76%);
+}
+
+.external-graph-wrap.is-light .external-graph-nebula--cyan {
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(14, 165, 233, 0.04) 52%, transparent 74%);
+}
+
+.external-graph-wrap.is-light .external-graph-star {
+  background: rgba(59, 130, 246, 0.28);
+  box-shadow: 0 0 2px rgba(37, 99, 235, 0.2);
+  opacity: 0.55;
+}
+
+.external-graph-wrap.is-light .external-graph-label {
+  fill: #475569;
+}
+
+.external-graph-wrap.is-light .external-graph-node.hovered .external-graph-label,
+.external-graph-wrap.is-light .external-graph-node.active .external-graph-label,
+.external-graph-wrap.is-light .external-graph-node.highlighted .external-graph-label {
+  fill: #0f172a;
+}
+
+.external-graph-wrap.is-light .external-graph-dot-id {
+  fill: #334155;
+}
+
+.external-graph-wrap.is-light .external-graph-preview-chrome-bar {
+  fill: rgba(241, 245, 249, 0.92);
+}
+
+.external-graph-wrap.is-light .external-graph-preview-chrome-id {
+  fill: #1e293b;
+}
+
+.external-graph-wrap.is-light .external-graph-preview-frame {
+  fill: rgba(255, 255, 255, 0.55);
+}
+
+.external-graph-wrap.is-light .external-graph-link {
+  stroke: rgba(59, 130, 246, 0.28);
+}
+
+.external-graph-wrap.is-light .external-graph-link-weak {
+  stroke: rgba(148, 163, 184, 0.32);
+}
+
+.external-graph-wrap.is-light .external-graph-node.disabled .external-graph-label {
+  fill: rgba(100, 116, 139, 0.45);
+}
+
+.external-graph-wrap.is-light .external-graph-label-title {
+  fill: rgba(30, 41, 59, 0.88);
+}
+
+.external-graph-wrap.is-light .external-graph-label-sub {
+  fill: rgba(71, 85, 105, 0.62);
+}
+
+.external-graph-wrap.is-light .external-graph-node.hovered .external-graph-label-title,
+.external-graph-wrap.is-light .external-graph-node.active .external-graph-label-title,
+.external-graph-wrap.is-light .external-graph-node.highlighted .external-graph-label-title {
+  fill: #0f172a;
+}
+
+.external-graph-wrap.is-light .external-graph-node.hovered .external-graph-label-sub,
+.external-graph-wrap.is-light .external-graph-node.active .external-graph-label-sub,
+.external-graph-wrap.is-light .external-graph-node.highlighted .external-graph-label-sub {
+  fill: rgba(51, 65, 85, 0.78);
 }
 
 .external-graph-controls {

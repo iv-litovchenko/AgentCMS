@@ -4,9 +4,9 @@ awn_settings:
   agent-language: ru
   response-style: agents-md
   notify-on-complete: false
-  awn-id-next: 41
-  awn-id-issued: 40
-  awn-id-updated-at: "2026-09-27T09:44:51.710Z"
+  awn-id-next: 42
+  awn-id-issued: 41
+  awn-id-updated-at: "2026-09-27T19:01:15.462Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0

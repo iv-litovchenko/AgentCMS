@@ -20894,7 +20894,8 @@ function loadAgentGraphSettingsByAgent() {
 function getAgentGraphSettings(agentId = activeAgentId) {
   const stored = agentGraphSettingsByAgent[agentId] || {};
   return {
-    showPreviews: stored.showPreviews !== false
+    showPreviews: stored.showPreviews !== false,
+    canvasTheme: stored.canvasTheme === "light" ? "light" : "dark"
   };
 }
 
@@ -20915,6 +20916,31 @@ function applyAgentGraphSettingsUi(agentId = activeAgentId) {
   }
   if (agentRmmShowPreviewsNode) {
     agentRmmShowPreviewsNode.checked = settings.showPreviews;
+  }
+  applyAgentGraphCanvasThemeUi(settings.canvasTheme);
+}
+
+function applyAgentGraphCanvasThemeUi(theme = getAgentGraphSettings().canvasTheme) {
+  const resolved = theme === "light" ? "light" : "dark";
+  document.querySelectorAll("[data-graph-theme]").forEach((btn) => {
+    const isActive = btn.dataset.graphTheme === resolved;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function setAgentGraphCanvasTheme(theme) {
+  const resolved = theme === "light" ? "light" : "dark";
+  saveAgentGraphSettings(activeAgentId, { canvasTheme: resolved });
+  applyAgentGraphCanvasThemeUi(resolved);
+  document.querySelectorAll(".external-graph-wrap").forEach((wrap) => {
+    wrap.classList.toggle("is-light", resolved === "light");
+    wrap.classList.toggle("is-dark", resolved !== "light");
+  });
+  if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW && agentRoadmapMapSubview === "graph") {
+    renderAgentRoadmapMapView();
+  } else if (agentWorkspaceView === "graph") {
+    renderAgentGraphView();
   }
 }
 
@@ -31963,6 +31989,22 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
     nodeState.glow.setAttribute("cy", String(node.y));
     nodeState.circle.setAttribute("cx", String(node.x));
     nodeState.circle.setAttribute("cy", String(node.y));
+    if (nodeState.dotIdLabel) {
+      nodeState.dotIdLabel.setAttribute("x", String(node.x));
+      nodeState.dotIdLabel.setAttribute("y", String(node.y - nodeState.radius - 5));
+    }
+    if (nodeState.dotStatusMark) {
+      const mx = node.x + nodeState.radius * 0.78;
+      const my = node.y + nodeState.radius * 0.78;
+      nodeState.dotStatusMark.setAttribute("cx", String(mx));
+      nodeState.dotStatusMark.setAttribute("cy", String(my));
+    }
+    if (nodeState.dotStatusEmoji) {
+      const mx = node.x + nodeState.radius * 0.78;
+      const my = node.y + nodeState.radius * 0.78;
+      nodeState.dotStatusEmoji.setAttribute("x", String(mx));
+      nodeState.dotStatusEmoji.setAttribute("y", String(my + 0.5));
+    }
     if (nodeState.previewGroup) {
       nodeState.previewGroup.setAttribute(
         "transform",
@@ -31994,7 +32036,7 @@ function getGraphNodePreviewSize(node, showPreviews = false) {
   if (!showPreviews || !node.previewUrl) return 0;
   const nodePath = node.nodePath || node.filePath || "";
   if (isBrokenImageSrc(node.previewUrl, nodePath)) return 0;
-  return isGraphFolderLikeType(node.type) ? 28 : 22;
+  return isGraphFolderLikeType(node.type) ? 56 : 46;
 }
 
 function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
@@ -32462,6 +32504,8 @@ function renderGraphCanvas(container, graph, options = {}) {
 
   const wrap = document.createElement("div");
   wrap.className = "external-graph-wrap node-graph-wrap";
+  const canvasTheme = getAgentGraphSettings().canvasTheme;
+  wrap.classList.add(canvasTheme === "light" ? "is-light" : "is-dark");
   if (showPreviews) wrap.classList.add("external-graph-wrap--previews");
   appendCosmicGraphBackground(wrap);
 
@@ -32608,6 +32652,8 @@ function renderGraphCanvas(container, graph, options = {}) {
 
     group.appendChild(circle);
 
+    const dotMeta = !previewSize ? appendGraphNodeDotMeta(group, ns, node, node.x, node.y, radius, circle) : null;
+
     const { label, labelTitle, labelSub, labelOffset, labelSubLineCount } = appendGraphNodeLabel(
       group,
       ns,
@@ -32634,6 +32680,9 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewGroup,
       previewFrame,
       previewImage,
+      dotIdLabel: dotMeta?.dotIdLabel || null,
+      dotStatusMark: dotMeta?.dotStatusMark || null,
+      dotStatusEmoji: dotMeta?.dotStatusEmoji || null,
       lines
     };
 
@@ -102018,10 +102067,11 @@ function renderAgentRoadmapMapView() {
   agentRoadmapMapHostNode.replaceChildren();
   agentRoadmapMapDetailNode?.classList.add("hidden");
   agentRoadmapMapViewportApi = null;
-  agentRoadmapMapZoomNode?.classList.toggle("hidden", agentRoadmapMapSubview === "roadmap");
-  agentRmmShowPreviewsNode
-    ?.closest(".agent-rmm-preview-setting")
-    ?.classList.toggle("hidden", agentRoadmapMapSubview !== "graph");
+  agentRoadmapMapZoomNode?.classList.remove("hidden");
+  const graphChrome = document.getElementById("agent-rmm-graph-chrome");
+  const showGraphToolbar = agentRoadmapMapSubview === "graph";
+  graphChrome?.classList.toggle("hidden", !showGraphToolbar);
+  graphChrome?.setAttribute("aria-hidden", showGraphToolbar ? "false" : "true");
 
   if (!currentMenuData) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
@@ -102065,6 +102115,33 @@ function ensureAgentRoadmapMapUiBindings() {
     scratchCollapse.textContent = collapsed ? "+" : "−";
     scratchCollapse.title = collapsed ? "Развернуть" : "Свернуть";
   });
+  document.querySelectorAll("#agent-rmm-graph-theme [data-graph-theme]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setAgentGraphCanvasTheme(btn.dataset.graphTheme || "dark");
+    });
+  });
+  applyAgentGraphCanvasThemeUi();
+}
+
+function renderAgentRoadmapMapLoading(container, message = "Загрузка…") {
+  if (!container) return;
+  container.replaceChildren();
+  const root = document.createElement("div");
+  root.className = "agent-rmm-loading";
+  root.setAttribute("role", "status");
+  root.setAttribute("aria-live", "polite");
+  root.setAttribute("aria-busy", "true");
+  const visual = document.createElement("div");
+  visual.className = "agent-rmm-loading-visual";
+  visual.setAttribute("aria-hidden", "true");
+  visual.innerHTML =
+    '<span class="agent-rmm-loading-ring"></span><span class="agent-rmm-loading-core"></span>';
+  const text = document.createElement("p");
+  text.className = "agent-rmm-loading-text";
+  text.textContent = message;
+  root.appendChild(visual);
+  root.appendChild(text);
+  container.appendChild(root);
 }
 
 function setAgentRoadmapMapDetail(title, text) {
@@ -102195,7 +102272,7 @@ function renderAgentRoadmapMapRoadmapStrip(container, columns) {
 }
 
 async function renderAgentRoadmapMapRoadmapView(renderSeq) {
-  renderListEmptyMessage(agentRoadmapMapHostNode, "Сборка roadmap по темам…");
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка дорожной карты…");
   const columns = await collectWorkspaceRoadmapColumns(currentMenuData, agentRoadmapMapDepth);
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
   agentRoadmapMapHostNode.replaceChildren();
@@ -102344,7 +102421,7 @@ function handleAgentRoadmapMapKnowledgeNodeClick(node) {
 }
 
 async function renderAgentRoadmapMapMindmapView(renderSeq) {
-  renderListEmptyMessage(agentRoadmapMapHostNode, "Сборка карты знаний…");
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка карты знаний…");
   let tree = await buildWorkspaceKnowledgeMindmapTreeV2(currentMenuData);
   let variant = "knowledge-map-v2";
   if (!tree) {
@@ -102389,7 +102466,7 @@ async function renderAgentRoadmapMapMindmapView(renderSeq) {
 }
 
 async function renderAgentRoadmapMapGraphView(renderSeq) {
-  renderListEmptyMessage(agentRoadmapMapHostNode, "Загрузка графа…");
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка графа…");
   const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
     loadAgentGraphRepositoriesPayload(),
     loadAgentGraphAwnDataPayload(),
@@ -102696,17 +102773,8 @@ function applyGraphNodeRecordMeta(nodeFields, { manifestPath, entry, metaMap }) 
 }
 
 function resolveGraphNodeCardMetaLines(node) {
-  const lines = [];
-  const statusRaw = String(node?.graphStatus || "").trim();
-  if (statusRaw) {
-    const pres = resolveAwnStatusPresentation(statusRaw);
-    const label = pres?.label || resolveAwnStatusLabel(statusRaw) || statusRaw;
-    const emoji = pres?.emoji ? `${pres.emoji} ` : "";
-    lines.push(`Статус: ${emoji}${label}`.trim());
-  }
-  const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
-  if (awnId) lines.push(`awn-id: ${awnId}`);
-  return lines;
+  void node;
+  return [];
 }
 
 function countGraphNodeLabelSubLines(node) {
@@ -102721,48 +102789,134 @@ function getGraphNodeLabelYOffset(radius, previewSize, subLineCount) {
   return baseOffset + 8 + Math.max(0, subLineCount - 1) * 10;
 }
 
+function resolveGraphStatusDotFill(statusRaw) {
+  const tone = getAwnStatusTone(String(statusRaw || ""));
+  const fills = {
+    open: "#22c55e",
+    draft: "#eab308",
+    closed: "#ef4444",
+    none: "#64748b",
+    default: "#818cf8"
+  };
+  return fills[tone] || fills.default;
+}
+
 function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
   const statusRaw = String(node?.graphStatus || "").trim();
   const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
   if (!statusRaw && !awnId) return null;
 
-  const bandHeight = statusRaw && awnId ? 40 : 28;
   const group = document.createElementNS(ns, "g");
   group.setAttribute("class", "external-graph-preview-meta");
-
-  const bg = document.createElementNS(ns, "rect");
-  bg.setAttribute("width", String(previewSize));
-  bg.setAttribute("height", String(bandHeight));
-  bg.setAttribute("y", String(previewSize - bandHeight));
-  bg.setAttribute("rx", "4");
-  bg.setAttribute("class", "external-graph-preview-meta-bg");
-  group.appendChild(bg);
-
-  let lineY = previewSize - bandHeight + 14;
-  if (statusRaw) {
-    const pres = resolveAwnStatusPresentation(statusRaw);
-    const label = pres?.label || resolveAwnStatusLabel(statusRaw) || statusRaw;
-    const statusLine = document.createElementNS(ns, "text");
-    statusLine.setAttribute("x", String(previewSize / 2));
-    statusLine.setAttribute("y", String(lineY));
-    statusLine.setAttribute("text-anchor", "middle");
-    statusLine.setAttribute("class", "external-graph-preview-meta-line external-graph-preview-meta-status");
-    statusLine.textContent = `Статус: ${pres?.emoji ? `${pres.emoji} ` : ""}${label}`.trim();
-    group.appendChild(statusLine);
-    lineY += 14;
+  const pres = statusRaw ? resolveAwnStatusPresentation(statusRaw) : null;
+  const hintParts = [];
+  if (pres?.label) hintParts.push(pres.label);
+  if (awnId) hintParts.push(`#${awnId}`);
+  if (hintParts.length) {
+    group.setAttribute("role", "img");
+    group.setAttribute("aria-label", hintParts.join(" · "));
   }
+
+  const barH = Math.max(20, Math.round(previewSize * 0.2));
+  const bar = document.createElementNS(ns, "rect");
+  bar.setAttribute("width", String(previewSize));
+  bar.setAttribute("height", String(barH));
+  bar.setAttribute("y", "0");
+  bar.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
+  bar.setAttribute("class", "external-graph-preview-chrome-bar");
+  group.appendChild(bar);
+
   if (awnId) {
-    const idLine = document.createElementNS(ns, "text");
-    idLine.setAttribute("x", String(previewSize / 2));
-    idLine.setAttribute("y", String(lineY));
-    idLine.setAttribute("text-anchor", "middle");
-    idLine.setAttribute("class", "external-graph-preview-meta-line external-graph-preview-meta-id");
-    idLine.textContent = `awn-id: ${awnId}`;
-    group.appendChild(idLine);
+    const idText = document.createElementNS(ns, "text");
+    idText.setAttribute("x", "10");
+    idText.setAttribute("y", String(barH - 6));
+    idText.setAttribute("text-anchor", "start");
+    idText.setAttribute("class", "external-graph-preview-chrome-id");
+    idText.textContent = awnId.length > 6 ? `${awnId.slice(0, 5)}…` : awnId;
+    if (awnId.length > 6) {
+      const title = document.createElementNS(ns, "title");
+      title.textContent = awnId;
+      idText.appendChild(title);
+    }
+    group.appendChild(idText);
+  }
+
+  if (statusRaw) {
+    const dotR = 6;
+    const dotCx = previewSize - dotR - 8;
+    const dotCy = barH / 2;
+    const statusDot = document.createElementNS(ns, "circle");
+    statusDot.setAttribute("cx", String(dotCx));
+    statusDot.setAttribute("cy", String(dotCy));
+    statusDot.setAttribute("r", String(dotR));
+    statusDot.setAttribute("class", "external-graph-preview-status-dot");
+    statusDot.setAttribute("fill", resolveGraphStatusDotFill(statusRaw));
+    group.appendChild(statusDot);
+    if (pres?.emoji) {
+      const emoji = document.createElementNS(ns, "text");
+      emoji.setAttribute("x", String(dotCx));
+      emoji.setAttribute("y", String(dotCy + 0.5));
+      emoji.setAttribute("text-anchor", "middle");
+      emoji.setAttribute("dominant-baseline", "central");
+      emoji.setAttribute("class", "external-graph-preview-status-emoji");
+      emoji.textContent = pres.emoji;
+      group.appendChild(emoji);
+    }
   }
 
   previewGroup.appendChild(group);
   return group;
+}
+
+function appendGraphNodeDotMeta(group, ns, node, x, y, radius, circle) {
+  const statusRaw = String(node?.graphStatus || "").trim();
+  const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
+  if (!statusRaw && !awnId) return null;
+
+  const meta = { dotIdLabel: null, dotStatusMark: null, dotStatusEmoji: null };
+  if (statusRaw) {
+    circle.setAttribute("stroke", resolveGraphStatusDotFill(statusRaw));
+    circle.setAttribute("stroke-width", "2.5");
+    const pres = resolveAwnStatusPresentation(statusRaw);
+    const markR = Math.max(3.5, Math.min(5, radius * 0.55));
+    const mx = x + radius * 0.78;
+    const my = y + radius * 0.78;
+    const mark = document.createElementNS(ns, "circle");
+    mark.setAttribute("cx", String(mx));
+    mark.setAttribute("cy", String(my));
+    mark.setAttribute("r", String(markR));
+    mark.setAttribute("class", "external-graph-dot-status");
+    mark.setAttribute("fill", resolveGraphStatusDotFill(statusRaw));
+    group.appendChild(mark);
+    meta.dotStatusMark = mark;
+    if (pres?.emoji) {
+      const emoji = document.createElementNS(ns, "text");
+      emoji.setAttribute("x", String(mx));
+      emoji.setAttribute("y", String(my + 0.5));
+      emoji.setAttribute("text-anchor", "middle");
+      emoji.setAttribute("dominant-baseline", "central");
+      emoji.setAttribute("class", "external-graph-dot-status-emoji");
+      emoji.textContent = pres.emoji;
+      group.appendChild(emoji);
+      meta.dotStatusEmoji = emoji;
+    }
+  }
+  if (awnId) {
+    const idText = document.createElementNS(ns, "text");
+    idText.setAttribute("x", String(x));
+    idText.setAttribute("y", String(y - radius - 5));
+    idText.setAttribute("text-anchor", "middle");
+    idText.setAttribute("class", "external-graph-dot-id");
+    idText.textContent = awnId.length > 5 ? `${awnId.slice(0, 4)}…` : awnId;
+    if (awnId.length > 5) {
+      const title = document.createElementNS(ns, "title");
+      title.textContent = awnId;
+      idText.appendChild(title);
+    }
+    group.appendChild(idText);
+    meta.dotIdLabel = idText;
+  }
+  return meta;
 }
 
 function appendGraphNodeLabel(group, ns, node, x, y, radius, previewSize) {

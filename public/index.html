@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.920" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.940" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -3773,9 +3773,9 @@
           </div>
           <div class="agent-canvas-head-aside agent-graph-head-actions agent-rmm-head-actions" role="toolbar" aria-label="Режим визуализации">
             <div class="agent-rmm-mode-tabs" role="tablist" aria-label="Тип представления">
-              <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф</button>
-              <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Mind map</button>
-              <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Roadmap</button>
+              <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф связей</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Интеллект-карта</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Дорожная карта</button>
             </div>
             <label class="agent-rmm-depth-label" for="agent-rmm-depth">
               <span class="agent-rmm-depth-label-text">Глубина</span>
@@ -3784,32 +3784,58 @@
                 <option value="deep">Внутри .md</option>
               </select>
             </label>
+          </div>
+        </div>
+        <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
+          <div id="agent-rmm-graph-chrome" class="agent-rmm-graph-chrome hidden" aria-hidden="true">
             <label class="agent-graph-setting agent-rmm-preview-setting" for="agent-rmm-show-previews">
               <input id="agent-rmm-show-previews" type="checkbox" checked />
               <span>Превью на темах</span>
             </label>
-            <div id="agent-rmm-zoom" class="external-graph-controls external-graph-controls--head agent-rmm-zoom hidden" aria-label="Масштаб">
+            <div class="agent-rmm-graph-chrome-bottom-left">
+              <div id="agent-rmm-graph-theme" class="agent-rmm-graph-theme-toggle" role="group" aria-label="Тема графа">
+                <button
+                  type="button"
+                  class="agent-rmm-graph-theme-btn"
+                  data-graph-theme="dark"
+                  title="Тёмное оформление"
+                  aria-label="Тёмная тема"
+                >
+                  <span class="agent-rmm-graph-theme-icon" aria-hidden="true">🌙</span>
+                  <span class="agent-rmm-graph-theme-label">Тёмная</span>
+                </button>
+                <button
+                  type="button"
+                  class="agent-rmm-graph-theme-btn"
+                  data-graph-theme="light"
+                  title="Светлое оформление"
+                  aria-label="Светлая тема"
+                >
+                  <span class="agent-rmm-graph-theme-icon" aria-hidden="true">☀️</span>
+                  <span class="agent-rmm-graph-theme-label">Светлая</span>
+                </button>
+              </div>
+            </div>
+            <div id="agent-rmm-zoom" class="external-graph-controls external-graph-controls--embed agent-rmm-zoom" aria-label="Масштаб">
               <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
               <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
               <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
             </div>
           </div>
-        </div>
-        <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
           <div id="agent-rmm-detail" class="agent-rmm-detail hidden" aria-live="polite"></div>
           <div id="agent-rmm-host" class="agent-rmm-host"></div>
-          <aside id="agent-rmm-scratch-notes" class="agent-rmm-scratch-notes" aria-label="Заметки по картам (временно)">
+          <aside id="agent-rmm-scratch-notes" class="agent-rmm-scratch-notes is-collapsed" aria-label="Шпаргалка по картам">
             <div class="agent-rmm-scratch-notes-head">
-              <span class="agent-rmm-scratch-notes-badge">временно</span>
-              <strong>Mind map · Roadmap · YAML</strong>
+              <span class="agent-rmm-scratch-notes-badge">Шпаргалка</span>
+              <strong class="agent-rmm-scratch-notes-title">О графах и картах</strong>
               <button
                 type="button"
                 class="agent-rmm-scratch-notes-collapse"
-                aria-expanded="true"
+                aria-expanded="false"
                 aria-controls="agent-rmm-scratch-notes-body"
-                title="Свернуть"
+                title="Развернуть"
               >
-                −
+                +
               </button>
             </div>
             <div id="agent-rmm-scratch-notes-body" class="agent-rmm-scratch-notes-body">
@@ -6713,7 +6739,7 @@
     <script src="/awn-dashboards.js?v=6"></script>
     <script src="/platform-status.js"></script>
     <script src="/marker-blocks-preview.js?v=10"></script>
-    <script src="/main.js?v=0.5.933"></script>
+    <script src="/main.js?v=0.5.938"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>
     <script src="/page-picker-extract.js?v=0.5.5"></script>
