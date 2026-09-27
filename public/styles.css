@@ -21264,12 +21264,12 @@ a.header-tool-btn {
 }
 
 .sidebar-agent-toolbar:has(.sidebar-agent-row--roadmap-globe) {
-  gap: 4px;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .sidebar-agent-row--roadmap-globe {
   flex-shrink: 0;
-  margin-bottom: 2px;
 }
 
 .sidebar-agent-controls--globe-row {
