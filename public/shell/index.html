@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=599" />
+    <link rel="stylesheet" href="/shell/shell.css?v=610" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -52,7 +52,7 @@
           "@shell/compose-templates": "/shell/shell-compose-templates.js?v=5",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/help": "/shell/shell-help.js?v=207",
-          "@shell/hints": "/shell/shell-hints.js?v=315",
+          "@shell/hints": "/shell/shell-hints.js?v=316",
           "@shell/image-lightbox": "/shell/shell-image-lightbox.js?v=2",
           "@shell/proactive": "/shell/shell-proactive.js?v=331",
           "@shell/proactive-format": "/shell/proactive-format.js?v=2",
@@ -70,7 +70,7 @@
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
-          "@shell/file-hub": "/shell/shell-file-hub.js?v=4",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=7",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -2898,29 +2898,148 @@ aya_bar_v2 тоже читает те же файлы</pre>
               ✕
             </button>
           </header>
-          <p class="shell-file-hub-lead">
-            Сюда — после скачивания. Отсюда — в письмо Gmail или Yandex. Меньше прыжков между окнами.
-          </p>
-          <div class="shell-file-hub-search-wrap">
-            <label class="shell-file-hub-search-label" for="shell-file-hub-search">Поиск</label>
-            <input
-              type="search"
-              class="shell-file-hub-search"
-              id="shell-file-hub-search"
-              data-file-hub-search
-              placeholder="Имя файла, тема или папка в workspace…"
-              autocomplete="off"
-            />
+          <div class="shell-file-hub-split">
+            <section class="shell-file-hub-pane shell-file-hub-pane--upload" aria-label="Загрузить файлы в хранилище">
+              <header class="shell-file-hub-pane-header">
+                <h3 class="shell-file-hub-pane-title">
+                  <span class="shell-file-hub-pane-title-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3v10"></path>
+                      <path d="M8 9l4 4 4-4"></path>
+                      <path d="M5 21h14"></path>
+                      <path d="M9 17h6"></path>
+                    </svg>
+                  </span>
+                  <span class="shell-file-hub-pane-title-text">Загрузить файлы в хранилище</span>
+                </h3>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-help"
+                  data-hint="Скачали в браузере — перетащите сюда. Укажите, в какую тему положить файл."
+                  aria-label="Подсказка: скачали в браузере — перетащите сюда; укажите тему для файла"
+                >
+                  <span aria-hidden="true">?</span>
+                </button>
+              </header>
+              <label class="shell-file-hub-topic-field">
+                <div class="shell-file-hub-search-box shell-file-hub-search-box--labeled">
+                  <span class="shell-file-hub-search-prefix" aria-hidden="true">
+                    <svg
+                      class="shell-file-hub-search-prefix-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3-3"></path>
+                    </svg>
+                    <span class="shell-file-hub-search-prefix-text">Поиск</span>
+                  </span>
+                  <input
+                    type="search"
+                    class="shell-file-hub-search shell-file-hub-topic-search"
+                    id="shell-file-hub-topic-search"
+                    data-file-hub-topic-search
+                    placeholder="Тема или папка…"
+                    autocomplete="off"
+                    aria-label="Поиск темы"
+                    aria-controls="shell-file-hub-topic-suggest"
+                    aria-expanded="false"
+                    aria-autocomplete="list"
+                    role="combobox"
+                  />
+                  <input type="hidden" id="shell-file-hub-topic" data-file-hub-topic value="inbox" />
+                  <ul
+                    class="shell-file-hub-suggest"
+                    id="shell-file-hub-topic-suggest"
+                    data-file-hub-topic-suggest
+                    role="listbox"
+                    hidden
+                  ></ul>
+                </div>
+              </label>
+              <div class="shell-file-hub-drop" data-file-hub-drop>
+                <div class="shell-file-hub-drop-inner" data-file-hub-drop-inner>
+                  <span class="shell-file-hub-drop-ico" aria-hidden="true">📥</span>
+                  <p class="shell-file-hub-drop-title">Бросьте файлы</p>
+                  <p class="shell-file-hub-drop-hint">Inbox обменника · mock</p>
+                </div>
+              </div>
+            </section>
+            <section class="shell-file-hub-pane shell-file-hub-pane--export" aria-label="Передать файлы из хранилища">
+              <header class="shell-file-hub-pane-header">
+                <h3 class="shell-file-hub-pane-title">
+                  <span class="shell-file-hub-pane-title-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 21V11"></path>
+                      <path d="M8 15l4-4 4 4"></path>
+                      <path d="M5 3h14"></path>
+                      <path d="M9 7h6"></path>
+                    </svg>
+                  </span>
+                  <span class="shell-file-hub-pane-title-text">Передать файлы из хранилища</span>
+                </h3>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-help"
+                  data-hint="Найдите файл и перетащите в письмо Gmail, Yandex или другое окно."
+                  aria-label="Подсказка: найдите файл и перетащите в письмо или другое окно"
+                >
+                  <span aria-hidden="true">?</span>
+                </button>
+              </header>
+              <div class="shell-file-hub-search-wrap">
+                <div class="shell-file-hub-search-box shell-file-hub-search-box--labeled">
+                  <span class="shell-file-hub-search-prefix" aria-hidden="true">
+                    <svg
+                      class="shell-file-hub-search-prefix-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3-3"></path>
+                    </svg>
+                    <span class="shell-file-hub-search-prefix-text">Поиск</span>
+                  </span>
+                  <input
+                    type="search"
+                    class="shell-file-hub-search"
+                    id="shell-file-hub-search"
+                    data-file-hub-search
+                    placeholder="Имя, тема, папка…"
+                    autocomplete="off"
+                    aria-label="Поиск"
+                    aria-controls="shell-file-hub-search-suggest"
+                    aria-expanded="false"
+                    aria-autocomplete="list"
+                    role="combobox"
+                  />
+                  <ul
+                    class="shell-file-hub-suggest"
+                    id="shell-file-hub-search-suggest"
+                    data-file-hub-search-suggest
+                    role="listbox"
+                    hidden
+                  ></ul>
+                </div>
+              </div>
+              <p class="shell-file-hub-empty" data-file-hub-empty hidden>По запросу ничего не нашлось</p>
+              <ul class="shell-file-hub-list" data-file-hub-list aria-label="Файлы для выгрузки"></ul>
+            </section>
           </div>
-          <div class="shell-file-hub-drop" data-file-hub-drop>
-            <div class="shell-file-hub-drop-inner" data-file-hub-drop-inner>
-              <span class="shell-file-hub-drop-ico" aria-hidden="true">📥</span>
-              <p class="shell-file-hub-drop-title">Перетащите файлы сюда</p>
-              <p class="shell-file-hub-drop-hint">Скачали в браузере — бросьте в окно. Или перетащите из списка в форму письма.</p>
-            </div>
-          </div>
-          <p class="shell-file-hub-empty" data-file-hub-empty hidden>По запросу ничего не нашлось</p>
-          <ul class="shell-file-hub-list" data-file-hub-list aria-label="Файлы в обменнике"></ul>
           <p class="shell-file-hub-footnote">Заготовка: позже — привязка к workspace и умный поиск по темам.</p>
         </div>
       </section>

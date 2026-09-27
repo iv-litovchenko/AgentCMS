@@ -1,10 +1,27 @@
 /** Заглушка «Файлообменник» — локальный буфер файлов (mock). */
 
+import { bindShellHintsIn } from "@shell/hints";
+
 const MOCK_SEED = [
   { id: "1", name: "dogovor-2026.pdf", topic: "Договоры", place: "workspace/Юридическое/" },
   { id: "2", name: "screenshot-price.png", topic: "Скриншоты", place: "inbox/загрузки/" },
   { id: "3", name: "presentation-draft.pptx", topic: "Презентации", place: "workspace/Маркетинг/" }
 ];
+
+const FILE_HUB_TOPICS = {
+  inbox: { topic: "Inbox", place: "inbox/загрузки/" },
+  legal: { topic: "Договоры", place: "workspace/Юридическое/" },
+  screenshots: { topic: "Скриншоты", place: "inbox/скриншоты/" },
+  marketing: { topic: "Маркетинг", place: "workspace/Маркетинг/" },
+  media: { topic: "Медиа", place: "workspace/Медиа/" }
+};
+
+const FILE_HUB_TOPIC_LIST = Object.entries(FILE_HUB_TOPICS).map(([key, value]) => ({
+  key,
+  topic: value.topic,
+  place: value.place,
+  label: `${value.topic} · ${value.place}`
+}));
 
 function formatFileSize(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
@@ -19,11 +36,183 @@ function mountFileHubRoot(root, mainView) {
   host.appendChild(root);
 }
 
+function getShellAgentId() {
+  try {
+    const parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+    if (parts[0] === "shell" && parts[1]) return decodeURIComponent(parts[1]);
+    const fromQuery = new URLSearchParams(location.search).get("agent");
+    if (fromQuery) return fromQuery.trim();
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function filterTopicOptions(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return FILE_HUB_TOPIC_LIST;
+  return FILE_HUB_TOPIC_LIST.filter((item) =>
+    [item.label, item.topic, item.place, item.key].some((part) => String(part).toLowerCase().includes(q))
+  );
+}
+
+async function fetchWorkspaceSearch(query) {
+  const q = String(query || "").trim();
+  const agentId = getShellAgentId();
+  if (!q || q.length < 2 || !agentId) return [];
+  try {
+    const url = new URL("/api/search", window.location.origin);
+    url.searchParams.set("agent", agentId);
+    url.searchParams.set("q", q);
+    url.searchParams.set("scope", "filename");
+    url.searchParams.set("limit", "12");
+    const response = await fetch(url.toString());
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (Array.isArray(data.results) ? data.results : []).map((row) => ({
+      kind: "workspace",
+      label: String(row.name || row.title || row.path || "").trim(),
+      meta: String(row.path || row.folderPath || "").trim(),
+      query: q
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function bindInteractiveSearch({
+  input,
+  suggestEl,
+  getOptions,
+  onPick,
+  onInput,
+  fetchRemote,
+  debounceMs = 280
+}) {
+  if (!input || !suggestEl) return;
+
+  let activeIndex = -1;
+  let remoteTimer = null;
+  let remoteOptions = [];
+  let visibleOptions = [];
+
+  const hideSuggest = () => {
+    suggestEl.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    activeIndex = -1;
+  };
+
+  const renderSuggest = () => {
+    const local = getOptions(input.value);
+    const merged = [...local, ...remoteOptions];
+    visibleOptions = merged;
+    suggestEl.replaceChildren();
+    if (!merged.length) {
+      hideSuggest();
+      return;
+    }
+    merged.forEach((option, index) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "shell-file-hub-suggest-item";
+      btn.setAttribute("role", "option");
+      btn.dataset.index = String(index);
+      btn.innerHTML = `
+        <span class="shell-file-hub-suggest-item-label">${escapeHtml(option.label)}</span>
+        ${option.meta ? `<span class="shell-file-hub-suggest-item-meta">${escapeHtml(option.meta)}</span>` : ""}
+      `;
+      btn.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        onPick(option, input);
+        hideSuggest();
+      });
+      li.appendChild(btn);
+      suggestEl.appendChild(li);
+    });
+    suggestEl.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    highlightActive();
+  };
+
+  const highlightActive = () => {
+    const buttons = suggestEl.querySelectorAll(".shell-file-hub-suggest-item");
+    buttons.forEach((btn, index) => {
+      btn.classList.toggle("is-active", index === activeIndex);
+    });
+  };
+
+  const scheduleRemote = () => {
+    if (!fetchRemote) return;
+    clearTimeout(remoteTimer);
+    remoteTimer = setTimeout(() => {
+      void fetchRemote(input.value).then((rows) => {
+        remoteOptions = rows;
+        renderSuggest();
+      });
+    }, debounceMs);
+  };
+
+  input.addEventListener("input", () => {
+    remoteOptions = [];
+    onInput?.(input.value);
+    renderSuggest();
+    scheduleRemote();
+  });
+
+  input.addEventListener("focus", () => {
+    renderSuggest();
+    scheduleRemote();
+  });
+
+  input.addEventListener("blur", () => {
+    window.setTimeout(hideSuggest, 120);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (suggestEl.hidden) return;
+    const max = visibleOptions.length - 1;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      activeIndex = activeIndex >= max ? 0 : activeIndex + 1;
+      highlightActive();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      activeIndex = activeIndex <= 0 ? max : activeIndex - 1;
+      highlightActive();
+    } else if (event.key === "Enter" && activeIndex >= 0) {
+      event.preventDefault();
+      const option = visibleOptions[activeIndex];
+      if (option) onPick(option, input);
+      hideSuggest();
+    } else if (event.key === "Escape") {
+      hideSuggest();
+    }
+  });
+
+  return {
+    refresh: renderSuggest,
+    hide: hideSuggest
+  };
+}
+
 export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   const root = nodes?.fileHub || document.getElementById("shell-file-hub");
   const openBtn = nodes?.fileHubOpen || document.getElementById("shell-file-hub-open");
   const dropZone = root?.querySelector("[data-file-hub-drop]");
   const searchInput = root?.querySelector("[data-file-hub-search]");
+  const searchSuggest = root?.querySelector("[data-file-hub-search-suggest]");
+  const topicInput = root?.querySelector("[data-file-hub-topic-search]");
+  const topicHidden = root?.querySelector("[data-file-hub-topic]");
+  const topicSuggest = root?.querySelector("[data-file-hub-topic-suggest]");
   const listEl = root?.querySelector("[data-file-hub-list]");
   const emptyEl = root?.querySelector("[data-file-hub-empty]");
   const app = nodes?.shellApp || document.getElementById("shell-app");
@@ -32,10 +221,19 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   if (!root) return {};
 
   mountFileHubRoot(root, mainView);
+  bindShellHintsIn(root);
 
   let files = MOCK_SEED.map((item) => ({ ...item }));
   let query = "";
   let open = false;
+
+  function setTopicSelection(key) {
+    const item = FILE_HUB_TOPIC_LIST.find((entry) => entry.key === key) || FILE_HUB_TOPIC_LIST[0];
+    if (topicHidden) topicHidden.value = item.key;
+    if (topicInput) topicInput.value = item.label;
+  }
+
+  setTopicSelection("inbox");
 
   function filteredFiles() {
     const q = query.trim().toLowerCase();
@@ -74,27 +272,85 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     }
   }
 
-  function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+  function readUploadTopic() {
+    const key = String(topicHidden?.value || "inbox").trim();
+    return FILE_HUB_TOPICS[key] || FILE_HUB_TOPICS.inbox;
   }
 
   function ingestFileList(fileList) {
     if (!fileList?.length) return;
+    const { topic, place } = readUploadTopic();
     for (const file of fileList) {
       files.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: file.name,
-        topic: "Inbox",
-        place: "файлообменник/сейчас",
+        topic,
+        place,
         size: file.size
       });
     }
     renderList();
   }
+
+  bindInteractiveSearch({
+    input: topicInput,
+    suggestEl: topicSuggest,
+    getOptions: (value) =>
+      filterTopicOptions(value).map((item) => ({
+        kind: "topic",
+        key: item.key,
+        label: item.topic,
+        meta: item.place
+      })),
+    onPick: (option) => {
+      if (option.key) setTopicSelection(option.key);
+    },
+    onInput: (value) => {
+      const matches = filterTopicOptions(value);
+      if (matches.length === 1 && matches[0].label.toLowerCase() === String(value).trim().toLowerCase()) {
+        setTopicSelection(matches[0].key);
+      }
+    }
+  });
+
+  bindInteractiveSearch({
+    input: searchInput,
+    suggestEl: searchSuggest,
+    getOptions: (value) => {
+      const q = String(value || "").trim().toLowerCase();
+      if (!q) return [];
+      const fromFiles = files
+        .filter((file) =>
+          [file.name, file.topic, file.place].some((part) => String(part || "").toLowerCase().includes(q))
+        )
+        .slice(0, 8)
+        .map((file) => ({
+          kind: "buffer",
+          label: file.name,
+          meta: `${file.topic} · ${file.place}`,
+          query: file.name
+        }));
+      const fromTopics = filterTopicOptions(value)
+        .slice(0, 5)
+        .map((item) => ({
+          kind: "topic",
+          label: item.topic,
+          meta: item.place,
+          query: item.topic
+        }));
+      return [...fromFiles, ...fromTopics];
+    },
+    onPick: (option, inputEl) => {
+      inputEl.value = option.query || option.label || "";
+      query = inputEl.value;
+      renderList();
+    },
+    onInput: (value) => {
+      query = value;
+      renderList();
+    },
+    fetchRemote: fetchWorkspaceSearch
+  });
 
   function setOpen(next) {
     open = Boolean(next);
@@ -135,15 +391,18 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   }
 
   root.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setOpen(false);
+    if (event.key !== "Escape") return;
+    const suggestOpen =
+      (searchSuggest && !searchSuggest.hidden) || (topicSuggest && !topicSuggest.hidden);
+    if (suggestOpen) {
+      if (searchSuggest) searchSuggest.hidden = true;
+      if (topicSuggest) topicSuggest.hidden = true;
+      searchInput?.setAttribute("aria-expanded", "false");
+      topicInput?.setAttribute("aria-expanded", "false");
+      return;
     }
-  });
-
-  searchInput?.addEventListener("input", () => {
-    query = searchInput.value;
-    renderList();
+    event.preventDefault();
+    setOpen(false);
   });
 
   for (const zone of [dropZone, root.querySelector("[data-file-hub-drop-inner]")].filter(Boolean)) {

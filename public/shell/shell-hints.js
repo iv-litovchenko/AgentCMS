@@ -58,7 +58,11 @@ export function updateTtsPlaybackHint() {
   /* подсказки на каждой кнопке — см. bindTtsPlaybackOptionHints */
 }
 
-export function initShellHints() {
+let shellHintUi = null;
+
+function ensureShellHintUi() {
+  if (shellHintUi) return shellHintUi;
+
   let node = document.getElementById("shell-floating-hint");
   if (!node) {
     node = document.createElement("div");
@@ -69,9 +73,11 @@ export function initShellHints() {
   }
 
   let active = null;
+  let pinned = false;
 
   function hide() {
     active = null;
+    pinned = false;
     node.classList.add("hidden");
   }
 
@@ -89,24 +95,48 @@ export function initShellHints() {
     node.style.top = `${Math.round(top)}px`;
   }
 
-  function show(anchor) {
+  function show(anchor, { pin = false } = {}) {
     const text = String(anchor?.dataset?.hint || anchor?.getAttribute("title") || "").trim();
     if (!text) return;
     active = anchor;
+    pinned = pin;
     node.textContent = text;
     positionHint(anchor);
   }
 
-  bindTtsPlaybackOptionHints();
-  bindProactiveModeOptionHints();
+  function bindIn(container) {
+    const root = container instanceof Element ? container : document;
+    root.querySelectorAll("[data-hint]").forEach((el) => {
+      if (el.dataset.hintBound === "1") return;
+      el.dataset.hintBound = "1";
+      el.addEventListener("mouseenter", () => {
+        if (pinned && active !== el) return;
+        show(el);
+      });
+      el.addEventListener("mouseleave", () => {
+        if (pinned) return;
+        hide();
+      });
+      el.addEventListener("focusin", () => show(el));
+      el.addEventListener("focusout", () => {
+        if (pinned) return;
+        hide();
+      });
+      if (el.classList.contains("shell-file-hub-pane-help")) {
+        el.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (active === el && !node.classList.contains("hidden")) hide();
+          else show(el, { pin: true });
+        });
+      }
+    });
+  }
 
-  document.querySelectorAll("[data-hint]").forEach((el) => {
-    if (el.dataset.hintBound === "1") return;
-    el.dataset.hintBound = "1";
-    el.addEventListener("mouseenter", () => show(el));
-    el.addEventListener("mouseleave", hide);
-    el.addEventListener("focusin", () => show(el));
-    el.addEventListener("focusout", hide);
+  document.addEventListener("click", (event) => {
+    if (!pinned || !active) return;
+    if (active.contains(event.target)) return;
+    hide();
   });
 
   window.addEventListener(
@@ -120,5 +150,18 @@ export function initShellHints() {
     if (active) positionHint(active);
   });
 
+  shellHintUi = { bindIn, hide, show, positionHint, node };
+  return shellHintUi;
+}
+
+/** Привязать data-hint внутри контейнера (например, файлообменник после монтирования). */
+export function bindShellHintsIn(container = document) {
+  ensureShellHintUi().bindIn(container);
+}
+
+export function initShellHints() {
+  bindTtsPlaybackOptionHints();
+  bindProactiveModeOptionHints();
+  bindShellHintsIn(document);
   updateVoiceModeHint(document.getElementById("shell-voice-mode")?.value || "hold");
 }
