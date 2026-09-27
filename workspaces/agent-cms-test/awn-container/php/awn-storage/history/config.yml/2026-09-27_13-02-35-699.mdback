@@ -3,10 +3,6 @@
 awn_ui:
   default_landing_mode: navigation
   navigation_list_sort_folder_browse: name
-  navigation_media_images_layout_media: 3
-  navigation_media_images_layout_assets: 3
 
 awn_settings:
   navigation_list_sort_folder_browse: name
-  navigation_media_images_layout_media: 3
-  navigation_media_images_layout_assets: 3
