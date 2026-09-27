@@ -38895,19 +38895,6 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
       });
     }
 
-    if (supportsNavigationHubRailRecordCreate(targetMode)) {
-      appendNavigationHubRailBrowseActionButton(actions, {
-        className: "save-btn external-create-btn",
-        label: "Запись",
-        title: "Создать запись",
-        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD,
-        onClick: () => {
-          beginRailCreate();
-          void openCreateMemoryModal();
-        }
-      });
-    }
-
     if (isMediaLibraryContentMode(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "media-upload-btn node-navigation-hub-rail-upload-btn",
@@ -38917,6 +38904,19 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
         onClick: () => {
           const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: targetMode };
           toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
+        }
+      });
+    }
+
+    if (supportsNavigationHubRailRecordCreate(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "save-btn external-create-btn",
+        label: "Запись",
+        title: "Создать запись",
+        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD,
+        onClick: () => {
+          beginRailCreate();
+          void openCreateMemoryModal();
         }
       });
     }
@@ -39034,11 +39034,11 @@ function populateNavigationHubRailFolderCreatePopover(config) {
   if (supportsNavigationHubRailSectionCreate(targetMode)) {
     appendNavigationHubRailFolderCreatePopoverItem(list, "section", "+ Раздел");
   }
-  if (supportsNavigationHubRailRecordCreate(targetMode)) {
-    appendNavigationHubRailFolderCreatePopoverItem(list, "record", "+ Запись");
-  }
   if (isMediaLibraryContentMode(targetMode)) {
     appendNavigationHubRailFolderCreatePopoverItem(list, "upload", "+ Загрузить");
+  }
+  if (supportsNavigationHubRailRecordCreate(targetMode)) {
+    appendNavigationHubRailFolderCreatePopoverItem(list, "record", "+ Запись");
   }
 
   if (!list.childElementCount) return false;
@@ -72598,6 +72598,18 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
       });
     }
 
+    if (isMediaLibraryContentMode(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+        label: getNavigationHubMediaUploadButtonLabel(false),
+        title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
+        ariaExpanded: false,
+        onClick: () => {
+          toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
+        }
+      });
+    }
+
     if (supportsNavigationHubRailRecordCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "save-btn external-create-btn",
@@ -72607,18 +72619,6 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
         onClick: () => {
           beginCreate();
           void openCreateMemoryModal(targetMode === "external" ? context : null);
-        }
-      });
-    }
-
-    if (isMediaLibraryContentMode(targetMode)) {
-      appendNavigationHubRailBrowseActionButton(actions, {
-        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
-        label: getNavigationHubMediaUploadButtonLabel(false),
-        title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
-        ariaExpanded: false,
-        onClick: () => {
-          toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
         }
       });
     }
