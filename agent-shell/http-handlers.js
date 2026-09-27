@@ -7,7 +7,7 @@ const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 const ttsService = require("./tts-service");
 const sttService = require("./stt-service");
 const sttTranscribe = require("./stt-transcribe");
-const { wrapSttVoiceBlock } = require("./stt-format");
+const { wrapSttVoiceBlock } = require("./stt-format.cjs");
 
 function createShellHandlers(deps) {
   async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {

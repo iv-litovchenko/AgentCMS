@@ -64,7 +64,7 @@
           "@shell/live-dialog": "/shell/shell-live-dialog.js?v=24",
           "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=209",
-          "@shell/stt-format": "/shell/shell-stt-format.js?v=1",
+          "@shell/stt-format": "/shell/shell-stt-format.js?v=3",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
@@ -1243,7 +1243,7 @@
               class="shell-textarea shell-textarea--compact"
               rows="4"
               spellcheck="false"
-              placeholder="Как агент читает блоки [stt]…[/stt] в сообщении (голос + текст). «Вставить заготовку» — шаблон."
+              placeholder="Как агент читает блоки ```awn-stt``` в сообщении (голос + текст). «Вставить заготовку» — шаблон."
             ></textarea>
           </label>
           </div>
@@ -1765,7 +1765,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </tr>
                 <tr>
                   <td><strong>Метка структуры</strong></td>
-                  <td><code>[tts-break]</code>, <code>[stt]…[/stt]</code></td>
+                  <td><code>[tts-break]</code>, <code>```awn-stt```</code></td>
                   <td>«здесь граница блоков»</td>
                   <td>Не трогать, всегда видна в чате</td>
                 </tr>
@@ -1790,7 +1790,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <tr>
                   <td><strong>A. Сейчас</strong></td>
                   <td><code>{{tpl:brief}}</code></td>
-                  <td><code>[tts-break]</code>, <code>[stt]…[/stt]</code></td>
+                  <td><code>[tts-break]</code>, <code>```awn-stt```</code></td>
                   <td>BBCode для голоса, <code>{{…}}</code> — параметры и шаблоны</td>
                   <td>Два семейства синтаксиса</td>
                 </tr>

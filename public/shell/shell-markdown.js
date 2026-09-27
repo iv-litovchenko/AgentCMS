@@ -5,6 +5,7 @@ import {
   unwrapProactiveMessage
 } from "@shell/proactive-format";
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
+import { parseSttMessageSegments, STT_FENCE_OPEN } from "@shell/stt-format";
 import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
 
 let shellMarkdownIt = null;
@@ -126,6 +127,37 @@ function renderProactiveUserAccordion(element, raw) {
   element.append(details);
 }
 
+function appendUserMessageTextWithInlineMarkers(element, text) {
+  const parts = String(text || "").split(SHELL_MARKER_INLINE_RE);
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\{\{(?:tpl:|shell:)/i.test(part) || /^\[(?:tts-break|stt|\/stt)\]$/i.test(part)) {
+      const code = document.createElement("code");
+      code.className = "shell-compose-templates-marker";
+      code.textContent = part;
+      element.appendChild(code);
+    } else {
+      element.appendChild(document.createTextNode(part));
+    }
+  }
+}
+
+function appendUserSttVoiceBlock(element, voiceText) {
+  const wrap = document.createElement("div");
+  wrap.className = "shell-user-stt-block";
+
+  const head = document.createElement("code");
+  head.className = "shell-compose-templates-marker shell-user-stt-block-label";
+  head.textContent = STT_FENCE_OPEN;
+
+  const body = document.createElement("div");
+  body.className = "shell-user-stt-block-body";
+  body.textContent = String(voiceText || "");
+
+  wrap.append(head, body);
+  element.appendChild(wrap);
+}
+
 export function renderUserMessageBody(element, text) {
   if (!element) return;
   const raw = String(text || "");
@@ -137,17 +169,12 @@ export function renderUserMessageBody(element, text) {
     renderProactiveUserAccordion(element, raw);
     return;
   }
-  const parts = raw.split(SHELL_MARKER_INLINE_RE);
-  for (const part of parts) {
-    if (!part) continue;
-    if (/^\{\{(?:tpl:|shell:)/i.test(part) || /^\[(?:tts-break|stt|\/stt)\]$/i.test(part)) {
-      const code = document.createElement("code");
-      code.className = "shell-compose-templates-marker";
-      code.textContent = part;
-      element.appendChild(code);
-    } else {
-      element.appendChild(document.createTextNode(part));
+  for (const segment of parseSttMessageSegments(raw)) {
+    if (segment.kind === "stt") {
+      appendUserSttVoiceBlock(element, segment.text);
+      continue;
     }
+    appendUserMessageTextWithInlineMarkers(element, segment.text);
   }
 }
 
