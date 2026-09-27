@@ -49140,17 +49140,8 @@ button.node-navigation-memory-title:focus-visible {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  --doc-slab-scrollbar-gutter: 10px;
   scrollbar-gutter: stable;
   scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
-}
-
-@supports (scrollbar-gutter: stable) {
-  .app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-slab-main {
-    width: calc(100% + var(--doc-slab-scrollbar-gutter, 10px));
-    max-width: calc(100% + var(--doc-slab-scrollbar-gutter, 10px));
-    box-sizing: border-box;
-  }
 }
 
 .app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-slab-main {

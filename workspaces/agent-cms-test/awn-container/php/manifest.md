@@ -2,8 +2,8 @@
 awn-status: open
 awn-emoji: ""
 awn-sort: 0
-awn-main: false
-awn-focus: false
+awn-main: true
+awn-focus: true
 awn-runtime-load-always: false
 awn-runtime-heartbeat: false
 awn-runtime-cron: false
@@ -28,8 +28,8 @@ awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-priority: ""
 awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-09-27T08:29:52.437Z
-awn-version: 17
+awn-update: 2026-09-27T08:33:10.983Z
+awn-version: 19
 ---
 
 
