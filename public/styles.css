@@ -36698,6 +36698,12 @@ img.is-svg-media,
   font-size: 24px;
 }
 
+.node-entry-overview-media-item-preview-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 .node-entry-overview-media-item-body {
   display: flex;
   flex-direction: column;
@@ -42894,8 +42900,23 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-link-filetype-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   line-height: 1;
+}
+
+.material-file-icon--toc {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  display: block;
+}
+
+.nav-book-toc-tree--rail .material-file-icon--toc {
+  width: 16px;
+  height: 16px;
 }
 
 .nav-book-toc-link-filetype-ext {

@@ -68560,8 +68560,8 @@ function createNavBookTocLinkFileTypeLeading(item) {
 
   const emoji = document.createElement("span");
   emoji.className = "nav-book-toc-link-filetype-emoji";
-  emoji.textContent = getNavigationTocFileIcon(item);
   emoji.setAttribute("aria-hidden", "true");
+  applyNavigationFileIconToElement(emoji, item, getNavigationTocFileIcon(item));
 
   const label = document.createElement("span");
   label.className = "nav-book-toc-link-filetype-ext";
@@ -68587,8 +68587,8 @@ function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { 
     }
     const fallback = document.createElement("span");
     fallback.className = "nav-book-toc-link-filetype-emoji";
-    fallback.textContent = "🖼";
     fallback.setAttribute("aria-hidden", "true");
+    applyNavigationFileIconToElement(fallback, item, "🖼");
     previewWrap.appendChild(fallback);
     return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
   }
@@ -68602,8 +68602,8 @@ function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { 
 
   const emoji = document.createElement("span");
   emoji.className = "nav-book-toc-link-filetype-emoji";
-  emoji.textContent = getMediaIconForItem(item);
   emoji.setAttribute("aria-hidden", "true");
+  applyNavigationFileIconToElement(emoji, item, getMediaIconForItem(item));
   previewWrap.appendChild(emoji);
 
   if (badge) {
@@ -68684,8 +68684,8 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
       ) {
         const fallback = document.createElement("span");
         fallback.className = "nav-book-toc-link-filetype-emoji";
-        fallback.textContent = "🖼";
         fallback.setAttribute("aria-hidden", "true");
+        applyNavigationFileIconToElement(fallback, item, "🖼");
         preview.appendChild(fallback);
       }
     } else {
@@ -68697,8 +68697,8 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
       );
       const emoji = document.createElement("span");
       emoji.className = "nav-book-toc-link-filetype-emoji";
-      emoji.textContent = getMediaIconForItem(item);
       emoji.setAttribute("aria-hidden", "true");
+      applyNavigationFileIconToElement(emoji, item, getMediaIconForItem(item));
       preview.appendChild(emoji);
       if (badge) {
         const label = document.createElement("span");
@@ -74472,6 +74472,20 @@ function buildEntryOverviewMediaAssetKindBadge(kindBadge, relativePath, assetKin
   kindBadge.textContent = `${emoji} ${label}`;
 }
 
+function getNavigationItemMediaPath(item) {
+  return String(item?.path || item?.relativePath || item?.name || "").replace(/\\/g, "/");
+}
+
+function applyNavigationFileIconToElement(element, item, emojiFallback, options = {}) {
+  if (!element) return;
+  const path = getNavigationItemMediaPath(item);
+  if (typeof MaterialFileIcons !== "undefined" && MaterialFileIcons.fillInlineFileIcon) {
+    MaterialFileIcons.fillInlineFileIcon(element, path, emojiFallback, options);
+    return;
+  }
+  element.textContent = emojiFallback;
+}
+
 function syncEntryOverviewMediaAssetKindClass(assetKind = null) {
   if (!nodeOverviewBlockNode) return;
   for (const name of ENTRY_OVERVIEW_MEDIA_ASSET_KIND_CLASS_NAMES) {
@@ -74989,15 +75003,20 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
     img.addEventListener("error", () => {
       preview.classList.add("is-fallback");
       img.remove();
-      const fallback = document.createElement("span");
-      fallback.className = "node-entry-overview-media-item-fallback";
-      fallback.textContent = "🖼";
-      preview.appendChild(fallback);
+      applyNavigationFileIconToElement(preview, item, "🖼", {
+        className: "node-entry-overview-media-item-preview-icon material-file-icon",
+        width: 32,
+        height: 32
+      });
     });
     preview.appendChild(img);
   } else {
     preview.classList.add("is-icon");
-    preview.textContent = getMediaIconForItem(item);
+    applyNavigationFileIconToElement(preview, item, getMediaIconForItem(item), {
+      className: "node-entry-overview-media-item-preview-icon material-file-icon",
+      width: 32,
+      height: 32
+    });
   }
 
   const body = document.createElement("span");

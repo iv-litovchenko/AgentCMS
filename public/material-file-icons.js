@@ -67,10 +67,38 @@
     badge.append(img, document.createTextNode(" "));
   }
 
+  function fillInlineFileIcon(container, relativePath, emojiFallback = "📎", options = {}) {
+    const {
+      className = "material-file-icon material-file-icon--toc",
+      width = 16,
+      height = 16,
+      replaceChildren = true
+    } = options;
+    if (!container) return container;
+    if (replaceChildren) container.replaceChildren();
+    const img = createIconImg(relativePath, {
+      className,
+      alt: "",
+      width,
+      height
+    });
+    img.addEventListener("error", () => {
+      if (replaceChildren) {
+        container.replaceChildren();
+        container.textContent = emojiFallback;
+      } else {
+        img.replaceWith(document.createTextNode(emojiFallback));
+      }
+    });
+    container.appendChild(img);
+    return container;
+  }
+
   global.MaterialFileIcons = {
     resolveIconUrl,
     createIconImg,
     fillFileFallback,
-    appendKindBadgeIcon
+    appendKindBadgeIcon,
+    fillInlineFileIcon
   };
 })(window);
