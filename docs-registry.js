@@ -72,14 +72,13 @@ function countMcpTools(doc) {
 }
 
 function getDocsMeta() {
-  const versions = DOC_VERSIONS.map((id) => ({
+  const versions = [...DOC_VERSIONS].reverse().map((id) => ({
     id,
     label: getVersionOptionLabel(id),
     isCurrent: id === DEFAULT_DOC_VERSION,
     apiEndpointCount: countApiEndpoints(getApiDocs(id)),
     mcpToolCount: countMcpTools(getMcpDocs(id))
   }));
-  versions.sort((a, b) => (b.isCurrent ? 1 : 0) - (a.isCurrent ? 1 : 0));
   return {
     defaultVersion: DEFAULT_DOC_VERSION,
     versions
