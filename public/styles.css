@@ -35258,7 +35258,7 @@ button.node-navigation-hub-rail-slot-summary {
   top: auto;
   align-self: start;
   --nav-rail-slab-max-height: calc(
-    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px)
+    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
   );
   min-height: 0;
   height: min(
@@ -35278,7 +35278,7 @@ button.node-navigation-hub-rail-slot-summary {
   top: auto;
   align-self: start;
   --nav-rail-slab-max-height: calc(
-    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px)
+    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
   );
   min-height: 0 !important;
   height: min(
@@ -35288,6 +35288,8 @@ button.node-navigation-hub-rail-slot-summary {
   max-height: var(--nav-rail-slab-max-height) !important;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   --nav-rail-surface: #f8fafc;
   position: relative;
   isolation: isolate;
@@ -35316,6 +35318,74 @@ button.node-navigation-hub-rail-slot-summary {
     inset 0 -12px 10px -12px rgba(15, 23, 42, 0.07),
     0 0 0 1px rgba(148, 163, 184, 0.2),
     0 10px 28px -16px rgba(15, 23, 42, 0.16);
+  padding: 10px 12px 8px 12px;
+  box-sizing: border-box;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail::-webkit-scrollbar,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 6;
+  margin: 0;
+  min-height: 32px;
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  gap: 0;
+  border-radius: 999px;
+  box-shadow:
+    0 8px 18px rgba(37, 99, 235, 0.28),
+    0 2px 6px rgba(15, 23, 42, 0.1);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn
+  .scroll-top-btn-label,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn
+  .scroll-top-btn-label {
+  display: none;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn
+  .scroll-top-btn-icon,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail
+  > .nav-hub-rail-scroll-down-btn
+  .scroll-top-btn-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .node-overview.is-navigation-split::before,

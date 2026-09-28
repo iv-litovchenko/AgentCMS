@@ -76916,15 +76916,25 @@ function setNavHubRailSlotOpen(nodePath, slotId, open) {
   }
 }
 
+function navigationHubRailUsesDocSlabScroll(rail) {
+  return Boolean(resolveDocSlabForNavigationHubRail(rail));
+}
+
+function getNavigationHubRailDocumentSlot(rail) {
+  return rail?.querySelector(
+    `.node-navigation-hub-rail-slot[data-rail-slot-id="${NAV_HUB_RAIL_DOCUMENT_SLOT_ID}"]`
+  );
+}
+
 function syncNavigationHubRailDocumentSlotState(documentSlot) {
   const rail = documentSlot?.closest(".node-navigation-hub-rail");
   updateNavigationHubRailPanelHeight(rail);
-  bindNavigationHubRailDocumentScrollSpy(rail);
   scheduleWorkspaceScrollChromeSync();
 }
 
 let navigationHubRailDocumentScrollSpy = null;
 let navigationHubRailAsideLayout = null;
+let navigationHubRailScrollDownUi = null;
 let navigationHubSplitGridLayout = null;
 
 function clearNavigationHubSplitGridColumns(hub) {
@@ -76982,7 +76992,8 @@ function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
   if (!rail || !docSlab) return;
   const slabRect = docSlab.getBoundingClientRect();
   const railRect = rail.getBoundingClientRect();
-  const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top));
+  const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
+  const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top - slabPaddingTop));
   const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
   docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
   docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
@@ -77043,6 +77054,76 @@ function updateNavigationHubRailPanelHeight(rail) {
   resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
 }
 
+function ensureNavigationHubRailScrollDownButton() {
+  if (navigationHubRailScrollDownUi?.btn) return navigationHubRailScrollDownUi.btn;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "nav-hub-rail-scroll-down-btn";
+  btn.className = "nav-hub-rail-scroll-down-btn scroll-top-btn scroll-top-btn--docked scroll-down-btn";
+  btn.title = "Листать панель вниз";
+  btn.setAttribute("aria-label", "Прокрутить боковую панель вниз");
+  btn.setAttribute("aria-hidden", "true");
+  btn.tabIndex = -1;
+  btn.innerHTML = `<span class="scroll-top-btn-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14"></path>
+      <path d="M19 12l-7 7-7-7"></path>
+    </svg>
+  </span>`;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const activeRail = navigationHubRailScrollDownUi?.rail;
+    if (!activeRail) return;
+    const step = Math.max(120, Math.floor(activeRail.clientHeight * 0.72));
+    activeRail.scrollBy({ top: step, behavior: "smooth" });
+  });
+  if (!navigationHubRailScrollDownUi) navigationHubRailScrollDownUi = {};
+  navigationHubRailScrollDownUi.btn = btn;
+  return btn;
+}
+
+function syncNavigationHubRailScrollDownButton(rail) {
+  if (!rail || !navigationHubRailUsesDocSlabScroll(rail)) {
+    teardownNavigationHubRailScrollDownButton();
+    return;
+  }
+  const btn = ensureNavigationHubRailScrollDownButton();
+  if (btn.parentElement !== rail) rail.appendChild(btn);
+  navigationHubRailScrollDownUi.rail = rail;
+  const metrics = getScrollMetrics(rail);
+  const show =
+    metrics.scrollable && metrics.scrollTop + rail.clientHeight < metrics.scrollHeight - 8;
+  btn.classList.toggle("is-visible", show);
+  btn.setAttribute("aria-hidden", show ? "false" : "true");
+  btn.tabIndex = show ? 0 : -1;
+}
+
+function bindNavigationHubRailScrollDownButton(rail) {
+  teardownNavigationHubRailScrollDownButton();
+  if (!navigationHubRailUsesDocSlabScroll(rail)) return;
+  const btn = ensureNavigationHubRailScrollDownButton();
+  if (btn.parentElement !== rail) rail.appendChild(btn);
+  const onRailScroll = () => syncNavigationHubRailScrollDownButton(rail);
+  rail.addEventListener("scroll", onRailScroll, { passive: true });
+  navigationHubRailScrollDownUi.rail = rail;
+  navigationHubRailScrollDownUi.onRailScroll = onRailScroll;
+  syncNavigationHubRailScrollDownButton(rail);
+}
+
+function teardownNavigationHubRailScrollDownButton() {
+  if (!navigationHubRailScrollDownUi) return;
+  navigationHubRailScrollDownUi.rail?.removeEventListener(
+    "scroll",
+    navigationHubRailScrollDownUi.onRailScroll
+  );
+  navigationHubRailScrollDownUi.btn?.classList.remove("is-visible");
+  navigationHubRailScrollDownUi.btn?.setAttribute("aria-hidden", "true");
+  if (navigationHubRailScrollDownUi.btn) navigationHubRailScrollDownUi.btn.tabIndex = -1;
+  navigationHubRailScrollDownUi.btn?.remove();
+  navigationHubRailScrollDownUi = null;
+}
+
 function bindNavigationHubRailAsideLayout(rail) {
   teardownNavigationHubRailAsideLayout();
   if (!rail?.closest(".node-navigation-hub--split")) return;
@@ -77056,9 +77137,7 @@ function bindNavigationHubRailAsideLayout(rail) {
       if (!navigationHubRailAsideLayout) return;
       navigationHubRailAsideLayout.raf = 0;
       updateNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
-      if (navigationHubRailDocumentScrollSpy) {
-        syncNavigationHubRailDocumentOutlineActive(navigationHubRailAsideLayout.rail);
-      }
+      syncNavigationHubRailScrollDownButton(navigationHubRailAsideLayout.rail);
       scheduleWorkspaceScrollChromeSync();
     });
   };
@@ -77079,10 +77158,12 @@ function bindNavigationHubRailAsideLayout(rail) {
   }
 
   navigationHubRailAsideLayout = { rail, onResize, scrollElement, resizeObserver, raf: 0 };
+  bindNavigationHubRailScrollDownButton(rail);
   scheduleWorkspaceScrollChromeSync();
 }
 
 function teardownNavigationHubRailAsideLayout() {
+  teardownNavigationHubRailScrollDownButton();
   if (!navigationHubRailAsideLayout) return;
   window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
   navigationHubRailAsideLayout.scrollElement?.removeEventListener(
@@ -77115,7 +77196,7 @@ function scrollNavigationHubRailItemIntoView(container, item) {
 }
 
 function syncNavigationHubRailDocumentOutlineActive(rail) {
-  const documentSlot = rail?.querySelector(".node-navigation-hub-rail-slot--document");
+  const documentSlot = getNavigationHubRailDocumentSlot(rail);
   if (!documentSlot?.open) return;
 
   const scrollElement =
@@ -77156,35 +77237,8 @@ function syncNavigationHubRailDocumentOutlineActive(rail) {
   }
 }
 
-function bindNavigationHubRailDocumentScrollSpy(rail) {
+function bindNavigationHubRailDocumentScrollSpy(_rail) {
   teardownNavigationHubRailDocumentScrollSpy();
-
-  const documentSlot = rail?.querySelector(".node-navigation-hub-rail-slot--document");
-  if (!documentSlot?.open) return;
-
-  const scrollElement = getNavigationHubDocumentScrollElement();
-  if (!scrollElement) return;
-
-  const onScroll = () => {
-    if (!navigationHubRailDocumentScrollSpy) return;
-    if (navigationHubRailDocumentScrollSpy.suppressOutlineSync) return;
-    if (navigationHubRailDocumentScrollSpy.raf) return;
-    navigationHubRailDocumentScrollSpy.raf = requestAnimationFrame(() => {
-      if (!navigationHubRailDocumentScrollSpy) return;
-      navigationHubRailDocumentScrollSpy.raf = 0;
-      syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
-    });
-  };
-
-  scrollElement.addEventListener("scroll", onScroll, { passive: true });
-  navigationHubRailDocumentScrollSpy = {
-    scrollElement,
-    onScroll,
-    raf: 0,
-    rail,
-    suppressOutlineSync: false
-  };
-  syncNavigationHubRailDocumentOutlineActive(rail);
 }
 
 function getNavTocCollapsedOverrides() {
@@ -86515,12 +86569,6 @@ function appendNavigationHubRailBundleHint(body, memoryKind, prefetched = {}) {
   return false;
 }
 
-function filterNavigationHubRailDocumentOutlineHeadings(headings, query) {
-  const q = String(query || "").trim().toLowerCase();
-  if (!q) return headings;
-  return headings.filter((heading) => String(heading.text || "").toLowerCase().includes(q));
-}
-
 function fillNavigationHubRailDocumentOutlineList(list, headings) {
   list.replaceChildren();
   for (const heading of headings) {
@@ -86536,15 +86584,6 @@ function fillNavigationHubRailDocumentOutlineList(list, headings) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (navigationHubRailDocumentScrollSpy) {
-        navigationHubRailDocumentScrollSpy.suppressOutlineSync = true;
-        window.setTimeout(() => {
-          if (navigationHubRailDocumentScrollSpy) {
-            navigationHubRailDocumentScrollSpy.suppressOutlineSync = false;
-            syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
-          }
-        }, 700);
-      }
       scrollToEntryOverviewDocumentHeading(heading);
     });
     item.appendChild(btn);
@@ -86559,7 +86598,8 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   const hasHeadings = headings.length > 0;
 
   const details = document.createElement("details");
-  details.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--document";
+  details.className = "node-navigation-hub-rail-slot";
+  details.dataset.railSlotId = NAV_HUB_RAIL_DOCUMENT_SLOT_ID;
   details.classList.toggle("is-filled", hasHeadings);
   details.classList.toggle("is-empty", !hasHeadings);
   const defaultDocumentOpen = hasHeadings && activeContentMode === NODE_ENTRY_OVERVIEW_MODE;
@@ -86574,7 +86614,7 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
     label: "Оглавление",
     count: headings.length,
     filled: hasHeadings,
-    spec: { icon: "📑" }
+    spec: { icon: "≡" }
   };
 
   let toggleBtn = null;
@@ -86612,51 +86652,9 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
 
     const list = document.createElement("ul");
     list.className = "node-navigation-rail-doc-outline-list";
-    let searchEmptyNode = null;
-    const showDocumentOutlineSearch = headings.length >= 2;
-
-    const applyDocumentOutlineFilter = (query) => {
-      const filtered = filterNavigationHubRailDocumentOutlineHeadings(headings, query);
-      fillNavigationHubRailDocumentOutlineList(list, filtered);
-      const hasQuery = Boolean(String(query || "").trim());
-      if (searchEmptyNode) {
-        searchEmptyNode.classList.toggle("hidden", !hasQuery || filtered.length > 0);
-      }
-      nav.classList.toggle("hidden", hasQuery && filtered.length === 0);
-      syncNavigationHubRailDocumentOutlineActive(
-        details.closest(".node-navigation-hub-rail") || navigationHubRailDocumentScrollSpy?.rail
-      );
-    };
-
-    if (showDocumentOutlineSearch) {
-      bodyNode.appendChild(
-        createNavigationSectionSearchInput({
-          value: getNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID),
-          placeholder: "Поиск по заголовкам...",
-          ariaLabel: "Поиск по заголовкам документа",
-          onInput: (value) => {
-            setNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, value);
-            applyDocumentOutlineFilter(value);
-          }
-        })
-      );
-    }
-
     fillNavigationHubRailDocumentOutlineList(list, headings);
     nav.appendChild(list);
     bodyNode.appendChild(nav);
-
-    if (showDocumentOutlineSearch) {
-      searchEmptyNode = createNavigationHubRailSlotEmptyState({
-        message: "Ничего не найдено",
-        title: "По запросу заголовки не найдены"
-      });
-      searchEmptyNode.classList.add("hidden");
-      bodyNode.appendChild(searchEmptyNode);
-      applyDocumentOutlineFilter(
-        getNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID)
-      );
-    }
   } else {
     bodyNode.appendChild(
       createNavigationHubRailSlotEmptyState({
