@@ -53,6 +53,21 @@
           status: "local"
         },
         {
+          phrases: ["начни помидор", "начни фокус", "запусти помидор"],
+          tools: ["cms:pomodoro(start)"],
+          status: "local"
+        },
+        {
+          phrases: ["останови помидор", "стоп помидор"],
+          tools: ["cms:pomodoro(stop)"],
+          status: "local"
+        },
+        {
+          phrases: ["отдохнули", "отдохнул"],
+          tools: ["cms:pomodoro(break-done)"],
+          status: "local"
+        },
+        {
           phrases: ["где я", "что на экране"],
           tools: ["page-snapshot (Voice ↔ CMS)"],
           status: "local"
@@ -141,6 +156,7 @@
       note: "Обрабатывается Shell до отправки агенту.",
       items: [
         { phrases: ["стоп", "тише", "громче", "повтори"], tools: ["shell:tts / mic"], status: "local" },
+        { phrases: ["помидор", "открой помидор"], tools: ["cms:pomodoro(toggle) · 🍅 в Voice"], status: "local" },
         { phrases: ["отправь", "отмена", "исправь: …"], tools: ["shell:voice-confirm"], status: "local" },
         { phrases: ["открой CMS", "открой голос"], tools: ["CHPU / deep link"], status: "local" }
       ]

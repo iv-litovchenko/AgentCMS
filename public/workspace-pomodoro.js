@@ -264,6 +264,7 @@
     updateFooterBtn();
     updatePopoverUi();
     stopTick();
+    broadcastShellPomodoroState();
   }
 
   function enterWork() {
@@ -274,6 +275,7 @@
     updateFooterBtn();
     updatePopoverUi();
     ensureTick();
+    broadcastShellPomodoroState();
   }
 
   function enterBreak() {
@@ -285,6 +287,7 @@
     updateFooterBtn();
     updatePopoverUi();
     ensureTick();
+    broadcastShellPomodoroState();
   }
 
   function onTick() {
@@ -302,6 +305,7 @@
     }
     updateFooterBtn();
     updatePopoverUi();
+    broadcastShellPomodoroState();
   }
 
   function restoreFromStorage() {
@@ -392,13 +396,68 @@
     void unlockAudio();
     enterIdle();
     closePopover();
+    broadcastShellPomodoroState();
+  }
+
+  function broadcastShellPomodoroState() {
+    try {
+      const iframe = document.getElementById("discuss-shell-iframe");
+      if (!iframe?.contentWindow) return;
+      iframe.contentWindow.postMessage(
+        {
+          type: "agent-cms-voice:cms-pomodoro-state",
+          phase,
+          phaseEndsAt,
+          enabled: featureEnabled,
+          workMinutes
+        },
+        "*"
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleRemoteAction(action) {
+    const a = String(action || "").trim().toLowerCase();
+    if (a === "sync") {
+      broadcastShellPomodoroState();
+      return true;
+    }
+    if (a === "toggle") {
+      if (popoverOpen) closePopover();
+      else openPopover();
+      broadcastShellPomodoroState();
+      return true;
+    }
+    if (a === "start") {
+      void startWorkSession();
+      broadcastShellPomodoroState();
+      return true;
+    }
+    if (a === "stop") {
+      stopSession();
+      broadcastShellPomodoroState();
+      return true;
+    }
+    if (a === "break-done") {
+      completeBreak();
+      return true;
+    }
+    if (a === "break-open" || a === "break_open") {
+      if (phase === "break") showBreakModal();
+      broadcastShellPomodoroState();
+      return true;
+    }
+    return false;
   }
 
   function init(options = {}) {
     if (typeof options.isEligible === "function") isEligible = options.isEligible;
     if (typeof options.getAgentId === "function") getAgentId = options.getAgentId;
+    if (!btn) return;
 
-    btn?.addEventListener("click", (event) => {
+    btn.addEventListener("click", (event) => {
       event.stopPropagation();
       if (phase === "break") {
         showBreakModal();
@@ -437,9 +496,28 @@
 
     window.addEventListener("resize", positionPopover);
 
+    window.addEventListener("message", (event) => {
+      const data = event?.data;
+      if (!data || data.type !== "agent-cms-voice:cms-pomodoro") return;
+      const action = String(data.action || "").trim().toLowerCase();
+      const ok = handleRemoteAction(action);
+      if (data.requestId && event.source && typeof event.source.postMessage === "function") {
+        event.source.postMessage(
+          {
+            type: "agent-cms-voice:cms-pomodoro-done",
+            requestId: data.requestId,
+            action,
+            ok
+          },
+          event.origin || "*"
+        );
+      }
+    });
+
     applyWorkMinutes(workMinutes);
     syncVisibility();
     restoreFromStorage();
+    broadcastShellPomodoroState();
   }
 
   function reloadForAgent(agentId) {
@@ -471,6 +549,8 @@
     applyEnabled,
     parseEnabled,
     applyWorkMinutes,
-    parseWorkMinutes
+    parseWorkMinutes,
+    handleRemoteAction,
+    broadcastShellPomodoroState
   };
 })();

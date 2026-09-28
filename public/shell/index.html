@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=610" />
+    <link rel="stylesheet" href="/shell/shell.css?v=613" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -71,6 +71,7 @@
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
           "@shell/file-hub": "/shell/shell-file-hub.js?v=7",
+          "@shell/pomodoro": "/shell/shell-pomodoro.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -2462,18 +2463,66 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-compose-dock" id="shell-compose-dock">
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-file-hub-row">
-          <button
-            type="button"
-            class="shell-file-hub-launch"
-            id="shell-file-hub-open"
-            aria-expanded="false"
-            aria-controls="shell-file-hub"
-            title="Файлообменник — файлы туда сюда"
-          >
-            <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
-            <span class="shell-file-hub-launch-label">Файлообменник</span>
-            <span class="shell-file-hub-launch-tag">Файлы туда сюда</span>
-          </button>
+          <div class="shell-compose-file-hub-row-tools">
+            <button
+              type="button"
+              class="shell-file-hub-launch shell-file-hub-launch--icon"
+              id="shell-file-hub-open"
+              aria-expanded="false"
+              aria-controls="shell-file-hub"
+              title="Файлообменник — файлы туда сюда"
+              aria-label="Файлообменник"
+            >
+              <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
+              <span class="shell-file-hub-launch-label" aria-hidden="true">Файлообменник</span>
+              <span class="shell-file-hub-launch-tag" aria-hidden="true">Файлы туда сюда</span>
+            </button>
+            <div class="shell-pomodoro-wrap">
+              <button
+                type="button"
+                id="shell-pomodoro-btn"
+                class="shell-pomodoro-launch shell-pomodoro-launch--icon hidden"
+                title="Помидор — фокус"
+                aria-label="Помидор"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="shell-pomodoro-popover"
+                hidden
+              >
+                <span class="shell-pomodoro-launch-ico" aria-hidden="true">🍅</span>
+                <span id="shell-pomodoro-btn-label" class="shell-pomodoro-launch-label" aria-hidden="true"></span>
+              </button>
+              <div
+                id="shell-pomodoro-popover"
+                class="shell-pomodoro-popover hidden"
+                role="dialog"
+                aria-labelledby="shell-pomodoro-popover-title"
+                aria-hidden="true"
+              >
+                <div class="shell-pomodoro-popover-head">
+                  <span id="shell-pomodoro-popover-title" class="shell-pomodoro-popover-title">🍅 Помидор</span>
+                  <button
+                    id="shell-pomodoro-popover-close"
+                    class="shell-pomodoro-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div class="shell-pomodoro-popover-body">
+                  <p id="shell-pomodoro-popover-lead" class="shell-pomodoro-popover-lead">
+                    Метод помидора в Agent CMS Voice: фокус, звук и короткий отдых.
+                  </p>
+                  <p id="shell-pomodoro-status" class="shell-pomodoro-status" aria-live="polite"></p>
+                  <div class="shell-pomodoro-popover-actions">
+                    <button id="shell-pomodoro-start" type="button" class="shell-pomodoro-start">Начать фокус</button>
+                    <button id="shell-pomodoro-stop" type="button" class="shell-pomodoro-stop hidden">Остановить</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
           <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
@@ -3312,6 +3361,26 @@ CMS workspace</pre>
         <div class="shell-maintenance-actions">
           <button type="button" class="shell-btn shell-btn--primary" id="shell-maintenance-retry-btn">Проверить снова</button>
         </div>
+      </div>
+    </div>
+
+    <div
+      id="shell-pomodoro-break"
+      class="shell-pomodoro-break hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shell-pomodoro-break-title"
+      aria-hidden="true"
+    >
+      <div class="shell-pomodoro-break-bg" aria-hidden="true"></div>
+      <div class="shell-pomodoro-break-panel">
+        <p class="shell-pomodoro-break-eyebrow" aria-hidden="true">🍅 Помидор</p>
+        <p id="shell-pomodoro-break-clock" class="shell-pomodoro-break-clock" aria-live="polite">5:00</p>
+        <h2 id="shell-pomodoro-break-title" class="shell-pomodoro-break-title">Время отдохнуть</h2>
+        <p class="shell-pomodoro-break-lead">
+          Короткая пауза после фокуса. Когда будете готовы — нажмите «Отдохнули».
+        </p>
+        <button id="shell-pomodoro-break-done" type="button" class="shell-pomodoro-break-done">Отдохнули</button>
       </div>
     </div>
 

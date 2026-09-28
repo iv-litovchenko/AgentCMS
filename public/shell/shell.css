@@ -13888,6 +13888,18 @@ body.shell-maintenance-active .shell-agent-gate {
   z-index: 3;
 }
 
+.shell-compose-file-hub-row-tools {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.shell-pomodoro-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .shell-compose-dock-inner > .shell-compose-file-hub-row + .shell-compose-field {
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
@@ -13935,6 +13947,17 @@ body.shell-maintenance-active .shell-agent-gate {
   font-weight: 500;
   opacity: 0.88;
   letter-spacing: 0.01em;
+}
+
+.shell-file-hub-launch--icon {
+  gap: 0;
+  padding: 3px 8px;
+  min-width: 28px;
+}
+
+.shell-file-hub-launch--icon .shell-file-hub-launch-label,
+.shell-file-hub-launch--icon .shell-file-hub-launch-tag {
+  display: none;
 }
 
 /* Внутри #shell-main-view — ширина колонки Shell; поверх compose (40) и dock (1200) */
@@ -14488,5 +14511,225 @@ body.shell-file-hub-open .shell-path-header {
   font-size: 11px;
   line-height: 1.4;
   color: rgba(148, 163, 184, 0.75);
+}
+
+.shell-pomodoro-launch {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 0;
+  padding: 3px 10px 2px;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff7ed;
+  background: linear-gradient(135deg, #dc2626 0%, #f97316 48%, #c2410c 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.16) inset;
+  transition: filter 0.12s ease;
+}
+
+.shell-pomodoro-launch:hover {
+  filter: brightness(1.06);
+}
+
+.shell-pomodoro-launch.is-work {
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #ea580c 0%, #fb923c 50%, #c2410c 100%);
+}
+
+.shell-pomodoro-launch.is-break {
+  background: linear-gradient(135deg, #059669 0%, #34d399 50%, #047857 100%);
+  border-color: rgba(52, 211, 153, 0.55);
+}
+
+.shell-pomodoro-launch.hidden {
+  display: none;
+}
+
+.shell-pomodoro-launch-ico {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.shell-pomodoro-launch-label {
+  white-space: nowrap;
+}
+
+.shell-pomodoro-launch--icon {
+  gap: 0;
+  padding: 3px 8px;
+  min-width: 28px;
+}
+
+.shell-pomodoro-launch--icon .shell-pomodoro-launch-label {
+  display: none;
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-pomodoro-launch--icon.is-work .shell-pomodoro-launch-label {
+  display: inline;
+}
+
+.shell-pomodoro-popover {
+  position: fixed;
+  z-index: 10040;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #0f172a;
+  box-shadow: 0 18px 48px rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+}
+
+.shell-pomodoro-popover.hidden {
+  display: none;
+}
+
+.shell-pomodoro-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.shell-pomodoro-popover-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shell-pomodoro-popover-close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.shell-pomodoro-popover-body {
+  padding: 12px 14px 14px;
+}
+
+.shell-pomodoro-popover-lead {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.shell-pomodoro-status {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.shell-pomodoro-popover-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shell-pomodoro-start,
+.shell-pomodoro-stop {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.shell-pomodoro-start {
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #ea580c);
+}
+
+.shell-pomodoro-stop {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.shell-pomodoro-start.hidden,
+.shell-pomodoro-stop.hidden {
+  display: none;
+}
+
+.shell-pomodoro-break {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.shell-pomodoro-break.hidden {
+  display: none;
+}
+
+body.shell-pomodoro-break-active {
+  overflow: hidden;
+}
+
+.shell-pomodoro-break-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 12%, rgba(251, 146, 60, 0.28), transparent 58%),
+    linear-gradient(155deg, #1c1917 0%, #292524 40%, #451a03 100%);
+}
+
+.shell-pomodoro-break-panel {
+  position: relative;
+  z-index: 1;
+  max-width: 400px;
+  width: 100%;
+  padding: 32px 28px;
+  text-align: center;
+  border-radius: 20px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  background: rgba(28, 25, 23, 0.88);
+  color: #ffedd5;
+}
+
+.shell-pomodoro-break-clock {
+  font-size: 2.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0;
+}
+
+.shell-pomodoro-break-title {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.shell-pomodoro-break-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(254, 215, 170, 0.85);
+}
+
+.shell-pomodoro-break-done {
+  margin-top: 16px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #fed7aa, #f97316);
+  color: #431407;
 }
 

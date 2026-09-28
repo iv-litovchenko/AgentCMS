@@ -82,6 +82,12 @@ import {
 import { collectLocalPageSnapshot, createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
+import {
+  initShellPomodoro,
+  reloadShellPomodoroForAgent,
+  handleShellPomodoroVoiceAction,
+  syncShellPomodoroVisibility
+} from "@shell/pomodoro";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
 import { initShellImageLightbox } from "@shell/image-lightbox";
 import {
@@ -2856,6 +2862,7 @@ function syncShellAgentReadyUi() {
   nodes.voiceResponseEnabledRow?.classList.toggle("is-disabled", !messagingReady);
 
   updateSendButtonLabel();
+  syncShellPomodoroVisibility();
 }
 
 function isAgentSelectPopulated(selectEl) {
@@ -7254,6 +7261,7 @@ function navigateToShellAgent(agentId) {
   if (!id) return;
   state.agentId = id;
   localStorage.setItem(SHELL_STORAGE.agent, id);
+  reloadShellPomodoroForAgent(id);
   notifyCompanionAgentSelected(id);
   if (shellVoiceStandalone && isCompanionEmbedRequest()) {
     hideShellAgentGate();
@@ -8314,6 +8322,7 @@ async function resolveShellAgent() {
   updateSettingsSaveHints();
   shellPresenceController?.setAgentId(state.agentId);
   syncShellAgentReadyUi();
+  reloadShellPomodoroForAgent(state.agentId);
 }
 
 async function refreshStatus({ probe = false, sync = false, timeoutMs = 0 } = {}) {
@@ -11901,6 +11910,29 @@ function normalizeCmsVoicePhrase(text) {
     .replace(/\s+/g, " ");
 }
 
+function tryHandleCmsPomodoroVoiceCommand(text) {
+  const phrase = normalizeCmsVoicePhrase(text);
+  if (!phrase) return false;
+
+  let action = null;
+  if (
+    /начни (помидор|фокус)/.test(phrase) ||
+    phrase === "запусти помидор" ||
+    phrase.startsWith("начни фокус")
+  ) {
+    action = "start";
+  } else if (/останови помидор/.test(phrase) || phrase === "стоп помидор") {
+    action = "stop";
+  } else if (/отдохнул|отдохнули/.test(phrase)) {
+    action = "break-done";
+  } else if (phrase === "помидор" || phrase === "открой помидор") {
+    action = "toggle";
+  }
+  if (!action) return false;
+
+  return handleShellPomodoroVoiceAction(action);
+}
+
 function tryHandleCmsIdleScreensaverVoiceCommand(text) {
   const phrase = normalizeCmsVoicePhrase(text);
   if (!phrase) return false;
@@ -11952,6 +11984,12 @@ async function handleVoiceTranscript(text) {
           ? "Экран хранилища заблокирован"
           : "Экран хранилища разблокирован"
       );
+      hapticTap();
+      return;
+    }
+
+    if (tryHandleCmsPomodoroVoiceCommand(trimmed)) {
+      renderPhase("waiting", "Помидор");
       hapticTap();
       return;
     }
@@ -13353,6 +13391,10 @@ async function boot() {
   }
   bindCmsComposeInsertBridge();
   bindCmsPagePickerBridge();
+  initShellPomodoro({
+    getAgentId: () => state.agentId,
+    isEligible: () => Boolean(state.agentId)
+  });
   initShellSurface({ onSurface: renderHeaderHostChip });
   if (!shellEmbedMode) {
     initShellInstallBanner({

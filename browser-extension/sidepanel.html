@@ -95,6 +95,12 @@
       .sidepanel-bar button.sidepanel-file-hub-btn.is-active {
         box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.45);
       }
+      .sidepanel-bar button.sidepanel-icon-btn {
+        justify-content: center;
+        gap: 0;
+        padding: 6px;
+        min-width: 28px;
+      }
     </style>
   </head>
   <body>
@@ -104,6 +110,7 @@
       <button
         id="retry-btn"
         type="button"
+        class="sidepanel-icon-btn"
         title="Обновить диалог (при сбое — перезагрузить панель)"
         aria-label="Обновить диалог"
       >
@@ -122,11 +129,11 @@
           <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"></path>
           <path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"></path>
         </svg>
-        Обновить
       </button>
       <button
         id="open-tab-btn"
         type="button"
+        class="sidepanel-icon-btn"
         title="Открыть Agent Shell в новой вкладке браузера"
         aria-label="Открыть в новом окне"
       >
@@ -144,11 +151,11 @@
           <path d="M10 14 21 3"></path>
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
         </svg>
-        В новом окне
       </button>
       <button
         id="options-link"
         type="button"
+        class="sidepanel-icon-btn"
         title="Настройки Companion — URL сервера и агент"
         aria-label="Настройки"
       >
@@ -167,12 +174,11 @@
             d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
           ></path>
         </svg>
-        Настройки
       </button>
       <button
         id="file-hub-btn"
         type="button"
-        class="sidepanel-file-hub-btn"
+        class="sidepanel-icon-btn sidepanel-file-hub-btn"
         title="Файлообменник — файлы туда сюда"
         aria-label="Файлообменник"
         aria-pressed="false"
@@ -191,7 +197,6 @@
           <path d="M12 11v6"></path>
           <path d="M9 14h6"></path>
         </svg>
-        Файлообменник
       </button>
     </div>
     <script src="companion-urls-global.js"></script>
