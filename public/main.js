@@ -64251,6 +64251,18 @@ async function fetchTodoForOverview(nodePath = activePath) {
   }
 }
 
+async function fetchRoadmapForOverview(nodePath = activePath) {
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function getOverviewMemoryStoragePath(nodePath, driverId, summary) {
   const resolvedPath = getResolvedNodePath(nodePath);
   const driver = summary?.drivers?.[driverId] || {};
@@ -73671,6 +73683,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     mediaData,
     assetsData,
     todoData,
+    roadmapData,
     internalData,
     tabularData,
     assetsPreview,
@@ -73687,6 +73700,9 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
       fetchMediaLibraryOverview(topicPath, "assets").catch(() => ({ groups: {}, sectionManifests: [] }))
     ),
     resolveNavigationPrefetchValue(prefetched, "todoData", () => fetchTodoForOverview(topicPath).catch(() => null)),
+    resolveNavigationPrefetchValue(prefetched, "roadmapData", () =>
+      fetchRoadmapForOverview(topicPath).catch(() => null)
+    ),
     resolveNavigationPrefetchValue(prefetched, "internalData", () =>
       fetchInternalMemoryForNavigation(topicPath).catch(() => null)
     ),
@@ -73708,6 +73724,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     mediaData,
     assetsData,
     todoData,
+    roadmapData,
     internalData,
     tabularData,
     assetsPreview,
@@ -73743,7 +73760,12 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     let prepared = null;
 
     if (spec.sectionKind === "bundle") {
-      bundleMetrics = getBundleMemoryCounterMetrics(spec, { internalData, tabularData, todoData });
+      bundleMetrics = getBundleMemoryCounterMetrics(spec, {
+        internalData,
+        tabularData,
+        todoData,
+        roadmapData
+      });
       if (bundleMetrics) {
         count = bundleMetrics.count;
         filled = bundleMetrics.filled;
@@ -73856,7 +73878,7 @@ function isBundleTodoMemoryFilled(todoData) {
 
 function getBundleMemoryCounterMetrics(
   spec,
-  { internalData = null, tabularData = null, todoData = null } = {}
+  { internalData = null, tabularData = null, todoData = null, roadmapData = null } = {}
 ) {
   if (!isBundleMemoryCounterSlot(spec)) return null;
 
@@ -73900,6 +73922,18 @@ function getBundleMemoryCounterMetrics(
       count: filled ? todoLines.length : 0,
       display: "flag",
       title: filled ? `${spec.label}: ${todoLines.length} пунктов` : `${spec.label}: пусто`
+    };
+  }
+
+  if (memoryKind === "roadmap") {
+    const body = getBundleMemoryMeaningfulBody(roadmapData?.content);
+    const filled = body.length > 0;
+    return {
+      available: true,
+      filled,
+      count: filled ? 1 : 0,
+      display: "flag",
+      title: filled ? `${spec.label}: заполнена` : `${spec.label}: пусто`
     };
   }
 
@@ -77253,7 +77287,7 @@ function isNavigationHubRailSlotEmpty(slot) {
 }
 
 function isNavigationHubRailSlotExpandable(slot, slotIndex) {
-  return slotIndex.kind === "tree" && !isNavigationHubRailSlotEmpty(slot);
+  return slotIndex.kind === "tree" || slotIndex.kind === "bundle";
 }
 
 function getNavigationHubRailSlotEmptyMessage(slot, slotIndex, { searchActive = false } = {}) {
@@ -77296,6 +77330,23 @@ function appendNavigationHubRailSlotTreeEmptyState(treeHost, slot, slotIndex, no
   treeHost.appendChild(createNavigationHubRailSlotEmptyState({ message, title: message }));
 }
 
+const NAVIGATION_HUB_RAIL_FLAG_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 4h10l-2.5 4L15 12H5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" fill-opacity="0.12"/></svg>';
+
+function createNavigationHubRailSlotFlagIndicator(slot) {
+  const wrap = document.createElement("span");
+  wrap.className = "node-navigation-hub-rail-slot-count node-navigation-hub-rail-slot-count--flag";
+  wrap.classList.toggle("is-filled", Boolean(slot.filled));
+  wrap.classList.toggle("is-empty", !slot.filled);
+  wrap.setAttribute("aria-label", slot.filled ? "Заполнено" : "Пусто");
+  const flag = document.createElement("span");
+  flag.className = "node-navigation-hub-rail-slot-flag";
+  flag.setAttribute("aria-hidden", "true");
+  flag.innerHTML = NAVIGATION_HUB_RAIL_FLAG_SVG;
+  wrap.appendChild(flag);
+  return wrap;
+}
+
 function openNavigationHubRailSlotTarget(slot) {
   openNodeNavigationCounterSlot({
     ...slot,
@@ -77329,12 +77380,14 @@ function appendNavigationHubRailSlotSummaryParts(summary, slot, options = {}) {
   }
 
   const count = document.createElement("span");
-  count.className = "node-navigation-hub-rail-slot-count";
-  if (slot.filled || Number(slot.count ?? 0) > 0) count.classList.add("is-filled");
-  count.textContent =
-    slot.display === "flag" ? (slot.filled ? "●" : "—") : String(slot.count ?? 0);
-
-  summary.append(icon, label, count);
+  if (slot.display === "flag") {
+    summary.append(icon, label, createNavigationHubRailSlotFlagIndicator(slot));
+  } else {
+    count.className = "node-navigation-hub-rail-slot-count";
+    if (slot.filled || Number(slot.count ?? 0) > 0) count.classList.add("is-filled");
+    count.textContent = String(slot.count ?? 0);
+    summary.append(icon, label, count);
+  }
 
   let toggleBtn = null;
   if (onToggleClick) {
@@ -86240,16 +86293,22 @@ function mountNavigationHubRailSlotTreeBody(
     }
 
     const treeHasContent = deferTreeMount
-      ? Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind))
+      ? true
       : Boolean(treeHost.childElementCount);
 
-    return (
-      treeHasContent || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind))
-    );
+    return treeHasContent || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind));
   }
 
   if (slotIndex.kind === "bundle") {
-    return mountNavigationHubRailBundlePreview(body, slotIndex.memoryKind, prefetched, nodePath);
+    if (isNavigationHubRailSlotEmpty(slot)) {
+      body.appendChild(
+        createNavigationHubRailSlotEmptyState({
+          message: getNavigationHubRailSlotEmptyMessage(slot, slotIndex),
+          title: getNavigationHubRailSlotEmptyMessage(slot, slotIndex)
+        })
+      );
+    }
+    return true;
   }
 
   return false;
@@ -86415,14 +86474,8 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   details.classList.toggle("is-filled", hasHeadings);
   details.classList.toggle("is-empty", !hasHeadings);
   const defaultDocumentOpen = hasHeadings && activeContentMode === NODE_ENTRY_OVERVIEW_MODE;
-  details.open =
-    hasHeadings &&
-    isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, defaultDocumentOpen);
+  details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, defaultDocumentOpen);
   details.addEventListener("toggle", () => {
-    if (!hasHeadings && details.open) {
-      details.open = false;
-      return;
-    }
     setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
     syncNavigationHubRailSlotToggleButton(toggleBtn, documentSlotMeta, details.open);
     syncNavigationHubRailDocumentSlotState(details);
@@ -86444,20 +86497,14 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
 
   ({ toggleBtn } = appendNavigationHubRailSlotSummaryParts(summary, documentSlotMeta, {
     toggleExpanded: details.open,
-    onToggleClick: hasHeadings
-      ? () => {
-          details.open = !details.open;
-        }
-      : null
+    onToggleClick: () => {
+      details.open = !details.open;
+    }
   }));
 
   if (!hasHeadings) {
     const countEl = summary.querySelector(".node-navigation-hub-rail-slot-count");
     if (countEl) countEl.textContent = "—";
-    const toggleSpacer = document.createElement("span");
-    toggleSpacer.className = "node-navigation-hub-rail-slot-toggle-spacer";
-    toggleSpacer.setAttribute("aria-hidden", "true");
-    summary.appendChild(toggleSpacer);
   }
 
   summary.addEventListener("click", (event) => {
@@ -86550,14 +86597,6 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   details.open = isNavHubRailSlotOpen(nodePath, slot.id, defaultOpen);
   let toggleBtn = null;
   details.addEventListener("toggle", () => {
-    if (isNavigationHubRailSlotEmpty(slot) && details.open) {
-      details.open = false;
-      return;
-    }
-    if (!isNavigationHubRailSlotExpandable(slot, slotIndex) && details.open) {
-      details.open = false;
-      return;
-    }
     setNavHubRailSlotOpen(nodePath, slot.id, details.open);
     syncNavigationHubRailSlotToggleButton(toggleBtn, slot, details.open);
     if (details.open) {

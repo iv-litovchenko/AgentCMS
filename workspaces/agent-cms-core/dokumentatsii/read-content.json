@@ -1,5 +1,6 @@
 {
   "paths": [
+    "internal/main.md",
     "main/1/manifest.md",
     "main/1/user-docs-0.0.0.md",
     "main/1/user-docs-0.0.1.md",
@@ -19,7 +20,10 @@
     "main/opisanie-sistemy-agent-cms.md",
     "main/user-docs-0.0.1.md",
     "main/user-docs-0.0.2.md",
-    "main/user-docs.md"
+    "main/user-docs.md",
+    "roadmap/roadmap.md",
+    "tabular/main.csv",
+    "todo/todo.md"
   ],
-  "updatedAt": "2026-09-28T10:03:30.635Z"
+  "updatedAt": "2026-09-28T10:20:43.949Z"
 }
