@@ -117941,8 +117941,10 @@ function getEditorSurfaceInDocSlabContent(docSlabContent) {
   return docSlabContent?.querySelector(":scope > .doc-slab-main > .editor-surface:not(.hidden)");
 }
 
-function shouldShowWorkspaceEditorScrollTopButton() {
-  return Boolean(getDocEditorScrollTargetsForPropsAside());
+function shouldShowWorkspaceScrollTopButton(scrollElement, hostTarget) {
+  if (!scrollElement) return false;
+  if (getDocEditorScrollTargetsForPropsAside()) return true;
+  return Boolean(isDocBodyMainScrollChromeHost(hostTarget));
 }
 
 function getDocEditorScrollTargetsForPropsAside() {
@@ -118196,7 +118198,7 @@ function syncWorkspaceScrollChrome() {
 
   syncScrollChrome({
     scrollElement,
-    topButton: shouldShowWorkspaceEditorScrollTopButton() ? workspaceScrollTopBtn : null,
+    topButton: shouldShowWorkspaceScrollTopButton(scrollElement, hostTarget) ? workspaceScrollTopBtn : null,
     progressNode: workspaceScrollProgressNode,
     depthNode: workspaceScrollDepthNode,
     chromeNode: workspaceScrollChromeNode
