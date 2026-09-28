@@ -6294,7 +6294,8 @@ body.shell-surface-extension #shell-dialog-refresh {
 }
 
 .shell-compose-toolbar-group--send .shell-compose-send,
-.shell-compose-toolbar-group--send .shell-compose-stop {
+.shell-compose-toolbar-group--send .shell-compose-stop,
+.shell-compose-toolbar-group--send .shell-compose-outbox-spec {
   box-shadow: none;
   margin: 0;
 }
@@ -6305,9 +6306,56 @@ body.shell-surface-extension #shell-dialog-refresh {
 
 .shell-compose-toolbar-group--send .shell-compose-stop {
   margin-left: 0;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shell-compose-toolbar-group--send .shell-compose-outbox-spec {
+  margin-left: 0;
   border-radius: 0 999px 999px 0;
   border: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f87171;
+  opacity: 1;
+}
+
+.shell-compose-toolbar-group--send .shell-compose-outbox-spec:hover:not(:disabled) {
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.shell-compose-outbox-spec-icon {
+  display: block;
+}
+
+.shell-outbox-queue-spec-badge {
+  display: inline-block;
+  margin: 0 0 0.65rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 999px;
+}
+
+.shell-outbox-queue-spec-lead {
+  margin-top: 0.35rem;
+}
+
+.shell-outbox-queue-spec-h3 {
+  margin: 1.1rem 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.shell-outbox-queue-spec-form code {
+  font-size: 0.78em;
 }
 
 body.shell-agent-locked .shell-hero-stt-controls,

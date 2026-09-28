@@ -52,6 +52,7 @@
           "@shell/compose-templates": "/shell/shell-compose-templates.js?v=5",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/help": "/shell/shell-help.js?v=207",
+          "@shell/outbox-queue-spec": "/shell/shell-outbox-queue-spec.js?v=1",
           "@shell/hints": "/shell/shell-hints.js?v=316",
           "@shell/image-lightbox": "/shell/shell-image-lightbox.js?v=2",
           "@shell/proactive": "/shell/shell-proactive.js?v=331",
@@ -2853,6 +2854,33 @@ aya_bar_v2 тоже читает те же файлы</pre>
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">⏹</span>
               </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-outbox-spec shell-compose-tool--sm"
+                id="shell-outbox-queue-spec-btn"
+                aria-label="Очередь сохранения сообщений и голосовых"
+                title="Очередь сохранения — задача на будущее"
+              >
+                <svg
+                  class="shell-compose-outbox-spec-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M8 6h13" />
+                  <path d="M8 12h13" />
+                  <path d="M8 18h13" />
+                  <path d="M3 6h.01" />
+                  <path d="M3 12h.01" />
+                  <path d="M3 18h.01" />
+                </svg>
+              </button>
             </div>
           </div>
           </div>
@@ -3214,6 +3242,76 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <button type="button" class="shell-btn shell-btn--compact" id="shell-voice-send">Отправить</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-outbox-queue-spec-dialog">
+      <div class="shell-dialog-form shell-outbox-queue-spec-form">
+        <p class="shell-outbox-queue-spec-badge">Важная задача на будущее</p>
+        <h2 id="shell-outbox-queue-spec-title">Очередь сохранения сообщений и голосовых</h2>
+        <p class="shell-dialog-note shell-outbox-queue-spec-lead">
+          Сейчас очередь в Voice работает только при связи с сервером (Mac / Agent CMS). Задача —
+          <strong>не терять</strong> набранный текст и голосовые при обрыве сети и
+          <strong>догонять отправку</strong>, когда связь вернётся (как исходящие в Telegram, но на нашей базе).
+        </p>
+
+        <h3 class="shell-outbox-queue-spec-h3">Что уже есть</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Очередь на сервере</strong> — <code>enqueueShellMessage</code>, файлы
+            <code>awn-dialogs/…/queue/*.json</code>.
+          </li>
+          <li>
+            <strong>UI очереди</strong> — блок «сейчас» + ожидающие, редактирование и удаление pending через
+            <code>/api/shell/queue</code>.
+          </li>
+          <li>
+            <strong>Несколько сообщений подряд</strong> — пока агент занят, кнопка «В очередь · N»; каждая отправка —
+            <code>POST /api/shell/message</code> (ответ <code>202 accepted</code>).
+          </li>
+          <li>
+            <strong>Голос после STT</strong> — тот же путь, что и текст (<code>voice: true</code>).
+          </li>
+        </ul>
+
+        <h3 class="shell-outbox-queue-spec-h3">Чего не хватает (суть задачи)</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Клиентский outbox</strong> — сначала сохранить локально, потом отправить при
+            <code>online</code> / успешном <code>apiFetch</code>; серверную очередь не дублировать логикой, а
+            подключать после доставки на CMS.
+          </li>
+          <li>
+            <strong>Текст</strong> — <code>localStorage</code> или IndexedDB: pending → тот же POST → удалить при
+            успехе.
+          </li>
+          <li>
+            <strong>Голос</strong> — сложнее: blob + метаданные локально, при сети STT как сейчас → POST; либо
+            отложенная загрузка аудио, если появится endpoint.
+          </li>
+        </ul>
+
+        <h3 class="shell-outbox-queue-spec-h3">Если «нет интернета»</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Нет связи с сервером Voice</strong> (<code>Failed to fetch</code>) — в дисковую очередь ничего не
+            попадает; текст может мелькнуть только в памяти вкладки. Черновик compose тоже на сервере.
+          </li>
+          <li>
+            <strong>Сервер есть, модель недоступна</strong> — сообщения уже в очереди на диске; при ошибке модели
+            элемент снимается с ошибкой (<code>message_error</code>), это не «ждёт сеть», а сбой хода.
+          </li>
+        </ul>
+
+        <p class="shell-dialog-note">
+          Ограничение: без доступа к Mac/CMS агент всё равно не ответит — outbox спасает
+          <em>ваши</em> сообщения, а не работу без сервера. Реализация в основном на клиенте; сервер уже умеет
+          принимать очередь.
+        </p>
+
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-outbox-queue-spec-close">Понятно</button>
+        </div>
+      </div>
     </dialog>
 
     <dialog class="shell-dialog shell-dialog--wide" id="shell-help-dialog">

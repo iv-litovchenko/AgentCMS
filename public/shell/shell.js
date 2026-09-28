@@ -84,6 +84,7 @@ import {
 import { collectLocalPageSnapshot, createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
+import { initShellOutboxQueueSpec } from "@shell/outbox-queue-spec";
 import {
   initShellPomodoro,
   reloadShellPomodoroForAgent,
@@ -2118,6 +2119,9 @@ const nodes = {
   composeDraftPath: document.getElementById("shell-compose-draft-path"),
   sendBtn: document.getElementById("shell-send-btn"),
   sendStopBtn: document.getElementById("shell-send-stop"),
+  outboxQueueSpecBtn: document.getElementById("shell-outbox-queue-spec-btn"),
+  outboxQueueSpecDialog: document.getElementById("shell-outbox-queue-spec-dialog"),
+  outboxQueueSpecClose: document.getElementById("shell-outbox-queue-spec-close"),
   permissionBanner: document.getElementById("shell-permission-banner"),
   micDialog: document.getElementById("shell-mic-dialog"),
   toolPermissionDialog: document.getElementById("shell-tool-permission-dialog"),
@@ -13189,6 +13193,11 @@ function bindShellInteractiveUi() {
       helpClose: nodes.helpClose,
       micHelpLink: nodes.helpMicLink,
       onMicHelp: showMicPermissionDialog
+    });
+    initShellOutboxQueueSpec({
+      openBtn: nodes.outboxQueueSpecBtn,
+      dialog: nodes.outboxQueueSpecDialog,
+      closeBtn: nodes.outboxQueueSpecClose
     });
     initShellHints();
     initShellImageLightbox();
