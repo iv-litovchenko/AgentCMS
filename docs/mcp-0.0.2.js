@@ -300,68 +300,68 @@ module.exports = {
       ]
     },
     {
-      id: "iblock-frame",
-      title: "Каркас инфоблоков (iblock_frame_*)",
+      id: "database-frame",
+      title: "Каркас awn-databases (database_frame_*)",
       tools: [
-        { name: "iblock_frame_list", description: "Список frames (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
-        { name: "iblock_frame_get", description: "Один frame: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
+        { name: "database_frame_list", description: "Список frames (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
+        { name: "database_frame_get", description: "Один frame: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
-          name: "iblock_frame_read_index",
+          name: "database_frame_read_index",
           description: "Оглавление frames (awn-databases/index.md).",
           parameters: "—",
           http: "GET /api/agent/awn-databases-index"
         },
         {
-          name: "iblock_frame_refresh_index",
-          description: "Обновить awn-databases/index.md из iblock_frame_list.",
+          name: "database_frame_refresh_index",
+          description: "Обновить awn-databases/index.md из database_frame_list.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"
         },
         {
-          name: "iblock_frame_create",
+          name: "database_frame_create",
           description: "Создать frame: group/collection/single.",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
         },
-        { name: "iblock_frame_delete", description: "Удалить frame (store).", parameters: "store", http: "DELETE /api/awn-databases/stores" },
-        { name: "iblock_frame_rename", description: "Переименовать/переместить frame.", parameters: "store, newStore", http: "POST /api/awn-databases/stores/rename" },
+        { name: "database_frame_delete", description: "Удалить frame (store).", parameters: "store", http: "DELETE /api/awn-databases/stores" },
+        { name: "database_frame_rename", description: "Переименовать/переместить frame.", parameters: "store, newStore", http: "POST /api/awn-databases/stores/rename" },
         {
-          name: "iblock_frame_read_schema",
+          name: "database_frame_read_schema",
           description: "Кастомные поля instance в schema.yml (не каталог типов).",
           parameters: "store",
           http: "GET /api/awn-databases/store-schema"
         },
         {
-          name: "iblock_frame_write_schema",
+          name: "database_frame_write_schema",
           description: "Записать кастомные поля в schema.yml.",
           parameters: "store, content? | awnSchema? | fields? | tabs?",
           http: "POST /api/awn-databases/store-schema"
         },
-        { name: "iblock_frame_read_properties", description: "Frontmatter manifest frame.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
-        { name: "iblock_frame_write_properties", description: "Patch manifest frame.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
-        { name: "iblock_frame_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
-        { name: "iblock_frame_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
+        { name: "database_frame_read_properties", description: "Frontmatter manifest frame.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
+        { name: "database_frame_write_properties", description: "Patch manifest frame.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
+        { name: "database_frame_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
+        { name: "database_frame_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
       ]
     },
     {
-      id: "iblock-content",
-      title: "Элементы инфоблоков (iblock_content_*)",
+      id: "database-element",
+      title: "Элементы awn-databases (database_element_*)",
       tools: [
-        { name: "iblock_content_list", description: "Лёгкий список записей/разделов.", parameters: "store, parent?", http: "GET /api/awn-databases/records" },
+        { name: "database_element_list", description: "Лёгкий список записей/разделов.", parameters: "store, parent?", http: "GET /api/awn-databases/records" },
         {
-          name: "iblock_content_create",
+          name: "database_element_create",
           description: "Добавить запись или раздел.",
           parameters: "store, name?, slug?, isSection?, id?, title?, parent?",
           http: "POST /api/awn-databases/records"
         },
-        { name: "iblock_content_delete", description: "Удалить запись или раздел.", parameters: "store, record", http: "DELETE /api/awn-databases/records" },
-        { name: "iblock_content_rename", description: "Переименовать запись/раздел.", parameters: "store, record, newRecord", http: "POST /api/awn-databases/records/rename" },
-        { name: "iblock_content_read_body", description: "Тело markdown записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-body" },
-        { name: "iblock_content_write_body", description: "Записать тело markdown.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-body" },
-        { name: "iblock_content_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-properties" },
-        { name: "iblock_content_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-properties" },
-        { name: "iblock_content_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-databases/record-properties?key=" },
-        { name: "iblock_content_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-databases/record-properties" }
+        { name: "database_element_delete", description: "Удалить запись или раздел.", parameters: "store, record", http: "DELETE /api/awn-databases/records" },
+        { name: "database_element_rename", description: "Переименовать запись/раздел.", parameters: "store, record, newRecord", http: "POST /api/awn-databases/records/rename" },
+        { name: "database_element_read_body", description: "Тело markdown записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-body" },
+        { name: "database_element_write_body", description: "Записать тело markdown.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-body" },
+        { name: "database_element_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-properties" },
+        { name: "database_element_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-properties" },
+        { name: "database_element_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-databases/record-properties?key=" },
+        { name: "database_element_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-databases/record-properties" }
       ]
     },
     {

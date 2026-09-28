@@ -801,16 +801,16 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 
 | Слой | Префикс | Типы | Про что |
 |------|---------|------|---------|
-| Каркас (frame) | `iblock_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
-| Элементы | `iblock_content_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
+| Каркас (frame) | `database_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
+| Элементы | `database_element_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
 
-Старые `iblock_*` (без `frame`) — deprecated-алиасы на `iblock_frame_*`.
+`iblock_frame_*`, `iblock_content_*` и короткие `iblock_*` — deprecated-алиасы.
 
-Папка `awn-databases/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `iblock_frame_list` только frames** — не путать с element-записями внутри store.
+Папка `awn-databases/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `database_frame_list` только frames** — не путать с element-записями внутри store.
 
 **Типовой flow (3 шага):**
-1. `iblock_frame_list` → `iblock_frame_get({ store })`
-2. поля записи: `iblock_content_read_properties` / `iblock_content_write_properties`
+1. `database_frame_list` → `database_frame_get({ store })`
+2. поля записи: `database_element_read_properties` / `database_element_write_properties`
 3. базовые поля типа: `get_type({ id: "awn.infoblock.element.record" })`; для **md-lite** → `…record-lite`; для **csv** / **csv-files** → `…record-csv` (category/sidecar — свои id)
 
 **Тип коллекции (`awn-collection-type` в manifest frame):**
@@ -833,15 +833,15 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 
 - типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
 - типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`, `…record-lite`, `…record-csv`
-- оглавление frames: `iblock_frame_read_index` / `iblock_frame_refresh_index` → `awn-databases/index.md`
-- **бриф frame** — тело `manifest.md` (после frontmatter); в `iblock_frame_get` → `manifestMarkdown`
-- **кастомные поля instance** (не весь тип): `iblock_frame_read_schema` / `iblock_frame_write_schema` — только доп. поля в `schema.yml`
-- свойства frame: `iblock_frame_read_properties` / `iblock_frame_write_properties`
-- список элементов (лёгкий): `iblock_content_list({ store })`
-- новый элемент: `iblock_content_create({ store, name, slug, isSection? })` — как в UI
+- оглавление frames: `database_frame_read_index` / `database_frame_refresh_index` → `awn-databases/index.md`
+- **бриф frame** — тело `manifest.md` (после frontmatter); в `database_frame_get` → `manifestMarkdown`
+- **кастомные поля instance** (не весь тип): `database_frame_read_schema` / `database_frame_write_schema` — только доп. поля в `schema.yml`
+- свойства frame: `database_frame_read_properties` / `database_frame_write_properties`
+- список элементов (лёгкий): `database_element_list({ store })`
+- новый элемент: `database_element_create({ store, name, slug, isSection? })` — как в UI
 - раздел = папка с `manifest.md` под `awn-storage/data/{section}/`, тип `awn.infoblock.element.category`
-- тело записи: `iblock_content_read_body` / `iblock_content_write_body`
-- удаление: `iblock_frame_delete`, `iblock_content_delete`; rename: `iblock_frame_rename`, `iblock_content_rename`
+- тело записи: `database_element_read_body` / `database_element_write_body`
+- удаление: `database_frame_delete`, `database_element_delete`; rename: `database_frame_rename`, `database_element_rename`
 
 ---
 
