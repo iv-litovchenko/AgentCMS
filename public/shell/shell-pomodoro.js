@@ -10,7 +10,7 @@ const TICK_MS = 1000;
 const STORAGE_KEY = "shell-pomodoro.v1";
 const SETTING_ENABLED_KEY = "workspace-pomodoro-enabled";
 const SETTING_WORK_KEY = "workspace-pomodoro-work-minutes";
-const ALLOWED_WORK_MINUTES = [5, 25, 45, 60];
+const ALLOWED_WORK_MINUTES = [1, 5, 25, 45, 60];
 
 let getAgentId = () => "main";
 let isEligible = () => true;

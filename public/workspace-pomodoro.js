@@ -6,7 +6,7 @@
   const STORAGE_KEY = "workspace-pomodoro.v1";
   const SETTING_ENABLED_KEY = "workspace-pomodoro-enabled";
   const SETTING_WORK_KEY = "workspace-pomodoro-work-minutes";
-  const ALLOWED_WORK_MINUTES = [5, 25, 45, 60];
+  const ALLOWED_WORK_MINUTES = [1, 5, 25, 45, 60];
 
   const btn = document.getElementById("app-footer-pomodoro-btn");
   const btnLabel = document.getElementById("app-footer-pomodoro-btn-label");
