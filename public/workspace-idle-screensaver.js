@@ -2,6 +2,7 @@
   "use strict";
 
   const SETTING_KEY = "workspace-idle-screensaver-minutes";
+  const BREAKS_API_PATH = "/api/workspace/idle-screensaver/breaks";
   const ACTIVITY_THROTTLE_MS = 1200;
   const FOOTER_TICK_MS = 10_000;
   const FOOTER_DISPLAY_STEP_SEC = 10;
@@ -13,6 +14,8 @@
   const continueBtn = document.getElementById("workspace-idle-screensaver-continue");
   const clockNode = document.getElementById("workspace-idle-screensaver-clock");
   const titleNode = document.getElementById("workspace-idle-screensaver-title");
+  const breaksRowNode = document.getElementById("workspace-idle-screensaver-breaks");
+  const breaksCountNode = document.getElementById("workspace-idle-screensaver-breaks-count");
 
   let isEligible = () => false;
   let getAgentId = () => "main";
@@ -26,6 +29,88 @@
   let lastActivityBump = 0;
   let settingsAgentId = null;
   let settingsLoadPromise = null;
+  let breaksCountToday = 0;
+  let breaksPersistPromise = null;
+
+  function localDateKey(now = new Date()) {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function buildBreaksApiUrl(agentId) {
+    const id = String(agentId || getAgentId() || "main").trim() || "main";
+    return `${BREAKS_API_PATH}?agent=${encodeURIComponent(id)}`;
+  }
+
+  function parseBreaksRecord(record) {
+    const today = localDateKey();
+    if (!record || typeof record !== "object") {
+      return { date: today, count: 0 };
+    }
+    const date = String(record.date || "").trim();
+    const count = Number(record.count);
+    if (date === today && Number.isFinite(count) && count >= 0) {
+      return { date, count: Math.floor(count) };
+    }
+    return { date: today, count: 0 };
+  }
+
+  function renderBreaksCounter() {
+    if (!breaksCountNode) return;
+    const label = String(breaksCountToday);
+    breaksCountNode.textContent = label;
+    if (breaksRowNode) {
+      breaksRowNode.setAttribute("aria-label", `Перерывов сегодня: ${label}`);
+    }
+  }
+
+  async function loadBreaksForAgent(agentId) {
+    const today = localDateKey();
+    try {
+      const response = await fetch(buildBreaksApiUrl(agentId), { credentials: "same-origin" });
+      if (!response.ok) {
+        breaksCountToday = 0;
+        renderBreaksCounter();
+        return breaksCountToday;
+      }
+      const data = await response.json();
+      const parsed = parseBreaksRecord(data?.breaks);
+      breaksCountToday = parsed.date === today ? parsed.count : 0;
+    } catch {
+      breaksCountToday = 0;
+    }
+    renderBreaksCounter();
+    return breaksCountToday;
+  }
+
+  async function persistBreaksCount(agentId, count) {
+    const response = await fetch(buildBreaksApiUrl(agentId), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: localDateKey(),
+        count: Math.max(0, Math.floor(count))
+      })
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return !data?.error;
+  }
+
+  function recordBreakDismissed() {
+    breaksCountToday += 1;
+    renderBreaksCounter();
+    const agentId = settingsAgentId || getAgentId();
+    const nextCount = breaksCountToday;
+    breaksPersistPromise = Promise.resolve(breaksPersistPromise)
+      .catch(() => {})
+      .then(() => persistBreaksCount(agentId, nextCount))
+      .catch(() => false);
+    return breaksPersistPromise;
+  }
 
   function parseIdleMinutes(value) {
     if (value != null && typeof value === "object" && "key" in value) {
@@ -118,6 +203,23 @@
     showScreensaver();
   }
 
+  function lockStorageScreen(options = {}) {
+    if (visible) return false;
+    if (document.body.classList.contains("app-locked")) return false;
+    const force = options.force === true;
+    if (!force && (!armed || idleMs <= 0 || !isEligible())) return false;
+    if (!isEligible()) return false;
+    clearWakeTimer();
+    showScreensaver();
+    return visible;
+  }
+
+  function unlockStorageScreen() {
+    if (!visible) return false;
+    dismissScreensaver();
+    return true;
+  }
+
   function ensureFooterTick() {
     if (footerTickTimer) return;
     footerTickTimer = window.setInterval(updateFooterIdleHint, FOOTER_TICK_MS);
@@ -167,6 +269,7 @@
       titleNode.textContent = "Хранилище ждёт вас";
     }
     startClock();
+    renderBreaksCounter();
     updateFooterIdleHint();
     continueBtn?.focus({ preventScroll: true });
   }
@@ -228,6 +331,7 @@
   }
 
   function dismissScreensaver() {
+    if (visible) recordBreakDismissed();
     hideScreensaver();
     bumpActivity();
     scheduleWake();
@@ -242,6 +346,7 @@
       armIfNeeded();
       return idleMs;
     });
+    void loadBreaksForAgent(nextAgent);
     return settingsLoadPromise;
   }
 
@@ -295,6 +400,29 @@
     });
 
     window.addEventListener("pagehide", () => clearWakeTimer());
+
+    window.addEventListener("message", (event) => {
+      const data = event?.data;
+      if (!data || data.type !== "agent-cms-voice:cms-idle-screensaver") return;
+      const action = String(data.action || "").trim().toLowerCase();
+      let ok = false;
+      if (action === "lock") ok = lockStorageScreen({ force: true });
+      else if (action === "unlock") ok = unlockStorageScreen();
+      if (data.requestId && event.source && typeof event.source.postMessage === "function") {
+        event.source.postMessage(
+          {
+            type: "agent-cms-voice:cms-idle-screensaver-done",
+            requestId: data.requestId,
+            action,
+            ok
+          },
+          event.origin || "*"
+        );
+      }
+    });
+
+    renderBreaksCounter();
+    void loadBreaksForAgent(getAgentId());
   }
 
   function syncEligibility() {
@@ -315,6 +443,9 @@
     reloadForAgent,
     applyMinutes,
     syncEligibility,
-    parseIdleMinutes
+    parseIdleMinutes,
+    lockStorageScreen,
+    unlockStorageScreen,
+    triggerNow: triggerScreensaverNow
   };
 })();

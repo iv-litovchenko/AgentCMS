@@ -43,6 +43,16 @@
           status: "planned"
         },
         {
+          phrases: ["заблокируй экран хранилища", "заблокируй хранилище", "покажи заставку"],
+          tools: ["cms:idle-screensaver(lock)"],
+          status: "local"
+        },
+        {
+          phrases: ["разблокируй экран хранилища", "разблокируй хранилище", "сними заставку"],
+          tools: ["cms:idle-screensaver(unlock)"],
+          status: "local"
+        },
+        {
           phrases: ["где я", "что на экране"],
           tools: ["page-snapshot (Voice ↔ CMS)"],
           status: "local"

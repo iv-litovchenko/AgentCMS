@@ -370,6 +370,10 @@ const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-
 const { createExistsApi } = require("./exists-api");
 const { createContentSchemaApi } = require("./content-schema-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
+const {
+  readIdleScreensaverBreaks,
+  writeIdleScreensaverBreaks
+} = require("./idle-screensaver-rest-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const {
   normalizePlatformAgentSettings,
@@ -20987,6 +20991,38 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, status, {
         error: "Failed to reset settings",
         details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/idle-screensaver/breaks") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readIdleScreensaverBreaks(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read idle screensaver breaks",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/idle-screensaver/breaks") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await writeIdleScreensaverBreaks(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 400, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save idle screensaver breaks",
+        details: String(error.message || error)
       });
     }
   }

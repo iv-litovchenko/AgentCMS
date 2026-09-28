@@ -335,6 +335,39 @@ body.workspace-idle-screensaver-active {
   outline-offset: 3px;
 }
 
+.workspace-idle-screensaver-breaks {
+  margin: 10px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(203, 213, 225, 0.78);
+}
+
+.workspace-idle-screensaver-breaks-label {
+  font-weight: 500;
+}
+
+.workspace-idle-screensaver-breaks-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: linear-gradient(180deg, #f87171 0%, #dc2626 100%);
+  box-shadow:
+    0 0 0 1px rgba(127, 29, 29, 0.45),
+    0 4px 14px rgba(220, 38, 38, 0.45);
+}
+
 @keyframes workspace-idle-screensaver-aurora {
   0%,
   100% {

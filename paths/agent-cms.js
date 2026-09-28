@@ -45,6 +45,10 @@ const rel = {
     shell: `${ROOT}/state/shell.json`,
     composeDraft: `${ROOT}/state/compose-draft.md`
   },
+  rest: {
+    dir: `${ROOT}/rest`,
+    idleScreensaverBreaks: `${ROOT}/rest/breaks.json`
+  },
   digest: {
     dir: `${ROOT}/digest`,
     workspaceDigest: `${ROOT}/digest/workspace-digest.md`

@@ -11893,6 +11893,45 @@ async function sendVoiceMessage(text) {
   await sendMessage(wrapSttVoiceBlock(text), { fromCompose: false, voice: true });
 }
 
+function normalizeCmsVoicePhrase(text) {
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ");
+}
+
+function tryHandleCmsIdleScreensaverVoiceCommand(text) {
+  const phrase = normalizeCmsVoicePhrase(text);
+  if (!phrase) return false;
+
+  let action = null;
+  if (
+    /заблокируй (экран )?хранилищ/.test(phrase) ||
+    phrase === "покажи заставку" ||
+    phrase.startsWith("покажи заставку")
+  ) {
+    action = "lock";
+  } else if (/разблокируй (экран )?хранилищ/.test(phrase) || /сними заставк/.test(phrase)) {
+    action = "unlock";
+  }
+  if (!action) return false;
+
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage(
+      { type: "agent-cms-voice:cms-idle-screensaver", action, requestId: `idle-ss-${Date.now()}` },
+      "*"
+    );
+    return true;
+  }
+
+  const api = window.WorkspaceIdleScreensaver;
+  if (!api) return false;
+  if (action === "lock") api.lockStorageScreen?.({ force: true });
+  else api.unlockStorageScreen?.();
+  return true;
+}
+
 async function handleVoiceTranscript(text) {
   if (!isVoiceSttProcessing()) {
     setVoiceSttProcessing(true);
@@ -11906,6 +11945,17 @@ async function handleVoiceTranscript(text) {
   }
 
   try {
+    if (tryHandleCmsIdleScreensaverVoiceCommand(trimmed)) {
+      renderPhase(
+        "waiting",
+        /заблокируй|покажи заставку/i.test(trimmed)
+          ? "Экран хранилища заблокирован"
+          : "Экран хранилища разблокирован"
+      );
+      hapticTap();
+      return;
+    }
+
     if (shouldSendVoiceImmediately()) {
       await sendVoiceMessage(trimmed);
       return;
