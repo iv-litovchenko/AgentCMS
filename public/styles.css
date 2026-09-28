@@ -35244,6 +35244,12 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 /* Overview scrolls on doc-slab-content: rail scrolls with page, height = visible slab, body scrolls inside */
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split),
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split) {
+  container-type: size;
+  container-name: doc-slab-viewport;
+}
+
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
   .node-navigation-hub-rail-resize-bar,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
@@ -35251,15 +35257,15 @@ button.node-navigation-hub-rail-slot-summary {
   position: static;
   top: auto;
   align-self: start;
-  height: var(
-    --nav-rail-sticky-height,
-    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
-  );
-  max-height: var(
-    --nav-rail-sticky-height,
-    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  --nav-rail-slab-max-height: calc(
+    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px)
   );
   min-height: 0;
+  height: min(
+    var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height)),
+    var(--nav-rail-slab-max-height)
+  );
+  max-height: var(--nav-rail-slab-max-height);
 }
 
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
@@ -35271,17 +35277,45 @@ button.node-navigation-hub-rail-slot-summary {
   position: static;
   top: auto;
   align-self: start;
-  height: var(
-    --nav-rail-sticky-height,
-    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  --nav-rail-slab-max-height: calc(
+    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px)
   );
-  max-height: var(
-    --nav-rail-sticky-height,
-    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
-  );
-  min-height: 0;
+  min-height: 0 !important;
+  height: min(
+    var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height)),
+    var(--nav-rail-slab-max-height)
+  ) !important;
+  max-height: var(--nav-rail-slab-max-height) !important;
   overflow-y: auto;
   overscroll-behavior: contain;
+  --nav-rail-surface: #f8fafc;
+  position: relative;
+  isolation: isolate;
+  border-radius: 10px;
+  background-color: var(--nav-rail-surface);
+  background-image:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.14) 0%, rgba(15, 23, 42, 0) 100%),
+    linear-gradient(0deg, rgba(15, 23, 42, 0.14) 0%, rgba(15, 23, 42, 0) 100%),
+    linear-gradient(180deg, var(--nav-rail-surface) 15%, rgba(248, 250, 252, 0) 100%),
+    linear-gradient(0deg, var(--nav-rail-surface) 15%, rgba(248, 250, 252, 0) 100%);
+  background-size:
+    100% 10px,
+    100% 10px,
+    100% 32px,
+    100% 32px;
+  background-position:
+    0 0,
+    0 100%,
+    0 0,
+    0 100%;
+  background-repeat: no-repeat;
+  background-attachment: scroll, scroll, local, local;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 12px 10px -12px rgba(15, 23, 42, 0.07),
+    inset 0 -12px 10px -12px rgba(15, 23, 42, 0.07),
+    0 0 0 1px rgba(148, 163, 184, 0.2),
+    0 10px 28px -16px rgba(15, 23, 42, 0.16);
 }
 
 .node-overview.is-navigation-split::before,

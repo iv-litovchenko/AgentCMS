@@ -76969,41 +76969,61 @@ function clearNavigationHubRailPanelHeight(rail) {
   resizeBar?.style.removeProperty("--nav-rail-panel-height");
 }
 
-function resolveNavigationHubRailStickyHeight(rail) {
-  const insetTop = 0;
-  const insetBottom = 12;
-  const docSlab = getDocSlabContentNode() || rail?.closest(".doc-slab-content") || null;
+function resolveDocSlabForNavigationHubRail(rail) {
+  return (
+    rail?.closest(".doc-slab-content") ||
+    nodeOverviewContentNode?.closest(".doc-slab-content") ||
+    getDocSlabContentNode() ||
+    document.querySelector("#doc-body-grid .doc-slab-content")
+  );
+}
 
-  if (docSlab) {
+function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
+  if (!rail || !docSlab) return;
+  const slabRect = docSlab.getBoundingClientRect();
+  const railRect = rail.getBoundingClientRect();
+  const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top));
+  const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
+  docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
+  docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
+}
+
+function resolveNavigationHubRailBottomOffset(rail) {
+  let bottomOffset = 12;
+  const overviewContent =
+    rail?.closest("#node-overview-content") || nodeOverviewContentNode || null;
+  if (!overviewContent || !rail) return bottomOffset;
+  const cardTopGap = Math.round(
+    rail.getBoundingClientRect().top - overviewContent.getBoundingClientRect().top
+  );
+  if (cardTopGap > 0) bottomOffset = cardTopGap;
+  return bottomOffset;
+}
+
+function resolveNavigationHubRailStickyHeight(rail) {
+  const docSlab = resolveDocSlabForNavigationHubRail(rail);
+
+  if (docSlab && rail) {
     const slabRect = docSlab.getBoundingClientRect();
     const railRect = rail.getBoundingClientRect();
     const slabStyles = getComputedStyle(docSlab);
     const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
     const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
-    const slabInnerTop = slabRect.top + slabPaddingTop;
-    const slabInnerBottom = slabRect.bottom - slabPaddingBottom;
-
-    const topInsetSlab = Math.max(0, Math.round(railRect.top - slabRect.top));
-    const overviewContent = rail.closest("#node-overview-content");
-    let bottomInset = topInsetSlab;
-    if (overviewContent) {
-      const contentRect = overviewContent.getBoundingClientRect();
-      const cardTopGap = Math.round(railRect.top - contentRect.top);
-      if (cardTopGap > 0) bottomInset = cardTopGap;
-      bottomInset += parseFloat(getComputedStyle(overviewContent).paddingBottom) || 0;
-    }
-
-    const railTop = Math.max(slabInnerTop, railRect.top);
-    const heightFromSlabBottom = slabInnerBottom - bottomInset - railTop;
-    const heightFromViewport = slabRect.height - topInsetSlab - bottomInset;
-    return Math.max(240, Math.floor(Math.min(heightFromSlabBottom, heightFromViewport)));
+    const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
+    const slabVisibleBottom = slabRect.bottom - slabPaddingBottom;
+    const heightFromCoords = slabVisibleBottom - bottomOffset - railRect.top;
+    const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top - slabPaddingTop));
+    const heightFromViewport = docSlab.clientHeight - topOffset - bottomOffset;
+    return Math.max(240, Math.floor(Math.min(heightFromCoords, heightFromViewport)));
   }
 
+  const insetBottom = 12;
+  const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
   const overview = rail?.closest("#node-overview-block");
-  let height = Math.max(240, window.innerHeight - insetTop - insetBottom);
+  let height = Math.max(240, window.innerHeight - insetBottom - bottomOffset);
   if (overview) {
-    const top = Math.max(overview.getBoundingClientRect().top, insetTop);
-    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom));
+    const top = Math.max(overview.getBoundingClientRect().top, 0);
+    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom - bottomOffset));
   }
   return height;
 }
@@ -77016,6 +77036,8 @@ function updateNavigationHubRailPanelHeight(rail) {
     return;
   }
 
+  const docSlab = resolveDocSlabForNavigationHubRail(rail);
+  syncNavigationHubRailSlabOffsetVars(rail, docSlab);
   const heightValue = `${resolveNavigationHubRailStickyHeight(rail)}px`;
   rail.style.setProperty("--nav-rail-sticky-height", heightValue);
   resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
