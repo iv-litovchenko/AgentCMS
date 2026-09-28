@@ -12,7 +12,7 @@ awn_settings:
   default-slot: main
   awn-temp-ttl-days: 0
   hooks-rules: []
-  voice-route-runtime: codex
+  voice-route-runtime: qwenpaw
   voice-route-claude-cli-path: claude
   voice-route-claude-model: sonnet
   voice-route-claude-session-id: dca6bc90-3700-43de-a741-391ae93091d9

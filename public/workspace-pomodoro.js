@@ -30,6 +30,12 @@
   let featureEnabled = true;
   let workMinutes = 25;
   let workMs = 25 * 60_000;
+  let workspacePersistTimer = null;
+  let workspacePersistInFlight = false;
+
+  function pomodoroStateApi() {
+    return window.PomodoroStateApi;
+  }
 
   function parseWorkMinutes(value) {
     if (value != null && typeof value === "object" && "key" in value) {
@@ -107,7 +113,7 @@
     return `${STORAGE_KEY}:${id}`;
   }
 
-  function loadPersisted() {
+  function loadLocalSnapshot() {
     try {
       const raw = sessionStorage.getItem(storageKey());
       if (!raw) return null;
@@ -117,22 +123,65 @@
       const endsAt = Number(data.phaseEndsAt);
       if (!endsAt || !Number.isFinite(endsAt)) return null;
       if (p !== "work" && p !== "break") return null;
-      return { phase: p, phaseEndsAt: endsAt };
+      return {
+        phase: p,
+        phaseEndsAt: endsAt,
+        workMinutes: data.workMinutes != null ? data.workMinutes : null,
+        updatedAt: Number(data.updatedAt) || 0
+      };
     } catch {
       return null;
     }
   }
 
+  function stopWorkspacePersistInterval() {
+    if (!workspacePersistTimer) return;
+    clearInterval(workspacePersistTimer);
+    workspacePersistTimer = null;
+  }
+
+  function startWorkspacePersistInterval() {
+    const api = pomodoroStateApi();
+    if (!api || workspacePersistTimer) return;
+    workspacePersistTimer = window.setInterval(() => {
+      if (phase === "idle") {
+        stopWorkspacePersistInterval();
+        return;
+      }
+      void flushWorkspaceState();
+    }, api.POMODORO_WORKSPACE_PERSIST_MS || 15_000);
+  }
+
+  async function flushWorkspaceState(optionalSnap) {
+    const api = pomodoroStateApi();
+    if (!api) return;
+    if (workspacePersistInFlight) return;
+    const snap =
+      optionalSnap ||
+      (phase === "idle"
+        ? null
+        : { phase, phaseEndsAt, workMinutes, updatedAt: Date.now() });
+    workspacePersistInFlight = true;
+    try {
+      await api.writePomodoroWorkspaceState(getAgentId(), snap);
+    } finally {
+      workspacePersistInFlight = false;
+    }
+  }
+
   function persistState() {
+    const now = Date.now();
     try {
       if (phase === "idle") {
         sessionStorage.removeItem(storageKey());
+        stopWorkspacePersistInterval();
+        void flushWorkspaceState(null);
         return;
       }
-      sessionStorage.setItem(
-        storageKey(),
-        JSON.stringify({ phase, phaseEndsAt, updatedAt: Date.now() })
-      );
+      const snap = { phase, phaseEndsAt, workMinutes, updatedAt: now };
+      sessionStorage.setItem(storageKey(), JSON.stringify(snap));
+      startWorkspacePersistInterval();
+      void flushWorkspaceState(snap);
     } catch {
       // ignore quota / private mode
     }
@@ -308,14 +357,22 @@
     broadcastShellPomodoroState();
   }
 
-  function restoreFromStorage() {
-    const saved = loadPersisted();
+  function applyPersistedSnapshot(saved) {
     if (!saved) {
-      enterIdle();
+      phase = "idle";
+      phaseEndsAt = 0;
+      hideBreakModal();
+      stopTick();
+      stopWorkspacePersistInterval();
+      updateFooterBtn();
+      updatePopoverUi();
       return;
     }
     phase = saved.phase;
     phaseEndsAt = saved.phaseEndsAt;
+    if (saved.workMinutes != null) {
+      applyWorkMinutes(saved.workMinutes);
+    }
     if (phaseEndsAt <= Date.now()) {
       if (phase === "work") {
         enterBreak();
@@ -329,6 +386,14 @@
     updatePopoverUi();
     ensureTick();
     onTick();
+  }
+
+  async function restoreCombinedState() {
+    const api = pomodoroStateApi();
+    const remote = api ? await api.readPomodoroWorkspaceState(getAgentId()) : null;
+    const local = loadLocalSnapshot();
+    const saved = api ? api.pickNewestPomodoroSnapshot(local, remote) : local;
+    applyPersistedSnapshot(saved);
   }
 
   function syncVisibility() {
@@ -496,6 +561,10 @@
 
     window.addEventListener("resize", positionPopover);
 
+    window.addEventListener("pagehide", () => {
+      if (phase !== "idle") void flushWorkspaceState();
+    });
+
     window.addEventListener("message", (event) => {
       const data = event?.data;
       if (!data || data.type !== "agent-cms-voice:cms-pomodoro") return;
@@ -516,8 +585,7 @@
 
     applyWorkMinutes(workMinutes);
     syncVisibility();
-    restoreFromStorage();
-    broadcastShellPomodoroState();
+    void restoreCombinedState().then(() => broadcastShellPomodoroState());
   }
 
   function reloadForAgent(agentId) {
@@ -526,11 +594,14 @@
       applyWorkspaceSettings(settings);
     });
     stopTick();
+    stopWorkspacePersistInterval();
     hideBreakModal();
     phase = "idle";
     phaseEndsAt = 0;
-    restoreFromStorage();
-    syncVisibility();
+    void restoreCombinedState().then(() => {
+      syncVisibility();
+      broadcastShellPomodoroState();
+    });
   }
 
   function syncEligibility() {

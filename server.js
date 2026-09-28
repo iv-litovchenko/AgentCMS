@@ -374,6 +374,7 @@ const {
   readIdleScreensaverBreaks,
   writeIdleScreensaverBreaks
 } = require("./idle-screensaver-rest-api");
+const { readPomodoroState, writePomodoroState } = require("./pomodoro-rest-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const {
   normalizePlatformAgentSettings,
@@ -21022,6 +21023,38 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save idle screensaver breaks",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/pomodoro/state") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readPomodoroState(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read pomodoro state",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/pomodoro/state") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await writePomodoroState(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 400, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save pomodoro state",
         details: String(error.message || error)
       });
     }

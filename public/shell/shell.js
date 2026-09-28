@@ -68,6 +68,7 @@ import {
 import { initShellToolPermission } from "@shell/tool-permission";
 import { initShellUserQuestion } from "@shell/user-question";
 import { initShellMobileLink } from "@shell/mobile-link";
+import { buildEditorWorkspaceUrl } from "./shell-ports.js";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { bindShellFileHubBridge, initShellFileHub } from "@shell/file-hub";
@@ -13085,8 +13086,8 @@ function bindUi() {
   });
 
   nodes.openCmsBtn?.addEventListener("click", () => {
-    const url = state.agentId ? `/${encodeURIComponent(state.agentId)}/` : "/";
-    window.open(url, "_blank");
+    const url = buildEditorWorkspaceUrl(state.agentId);
+    window.open(url, "_blank", "noopener,noreferrer");
     if (window.shellApp?.positionWindowBottomCenter) {
       void window.shellApp.positionWindowBottomCenter();
     }

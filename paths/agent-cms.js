@@ -47,7 +47,8 @@ const rel = {
   },
   rest: {
     dir: `${ROOT}/rest`,
-    idleScreensaverBreaks: `${ROOT}/rest/breaks.json`
+    idleScreensaverBreaks: `${ROOT}/rest/breaks.json`,
+    pomodoroState: `${ROOT}/rest/pomodoro.json`
   },
   digest: {
     dir: `${ROOT}/digest`,

@@ -1,3 +1,10 @@
+import {
+  POMODORO_WORKSPACE_PERSIST_MS,
+  pickNewestPomodoroSnapshot,
+  readPomodoroWorkspaceState,
+  writePomodoroWorkspaceState
+} from "/pomodoro-state-api.js?v=1";
+
 const BREAK_MS = 5 * 60_000;
 const TICK_MS = 1000;
 const STORAGE_KEY = "shell-pomodoro.v1";
@@ -129,22 +136,80 @@ function createLocalController() {
   let featureEnabled = true;
   let workMinutes = 25;
   let workMs = 25 * 60_000;
+  let workspacePersistTimer = null;
+  let workspacePersistInFlight = false;
 
   function storageKey() {
     const id = String(getAgentId() || "main").trim() || "main";
     return `${STORAGE_KEY}:${id}`;
   }
 
+  function loadLocalSnapshot() {
+    try {
+      const raw = sessionStorage.getItem(storageKey());
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return null;
+      const p = String(data.phase || "").trim();
+      const endsAt = Number(data.phaseEndsAt);
+      if (!endsAt || !Number.isFinite(endsAt)) return null;
+      if (p !== "work" && p !== "break") return null;
+      return {
+        phase: p,
+        phaseEndsAt: endsAt,
+        workMinutes: data.workMinutes != null ? data.workMinutes : null,
+        updatedAt: Number(data.updatedAt) || 0
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function stopWorkspacePersistInterval() {
+    if (!workspacePersistTimer) return;
+    clearInterval(workspacePersistTimer);
+    workspacePersistTimer = null;
+  }
+
+  function startWorkspacePersistInterval() {
+    if (workspacePersistTimer) return;
+    workspacePersistTimer = window.setInterval(() => {
+      if (phase === "idle") {
+        stopWorkspacePersistInterval();
+        return;
+      }
+      void flushWorkspaceState();
+    }, POMODORO_WORKSPACE_PERSIST_MS);
+  }
+
+  async function flushWorkspaceState(optionalSnap) {
+    if (workspacePersistInFlight) return;
+    const snap =
+      optionalSnap ||
+      (phase === "idle"
+        ? null
+        : { phase, phaseEndsAt, workMinutes, updatedAt: Date.now() });
+    workspacePersistInFlight = true;
+    try {
+      await writePomodoroWorkspaceState(getAgentId(), snap);
+    } finally {
+      workspacePersistInFlight = false;
+    }
+  }
+
   function persistState() {
+    const now = Date.now();
     try {
       if (phase === "idle") {
         sessionStorage.removeItem(storageKey());
+        stopWorkspacePersistInterval();
+        void flushWorkspaceState(null);
         return;
       }
-      sessionStorage.setItem(
-        storageKey(),
-        JSON.stringify({ phase, phaseEndsAt, updatedAt: Date.now() })
-      );
+      const snap = { phase, phaseEndsAt, workMinutes, updatedAt: now };
+      sessionStorage.setItem(storageKey(), JSON.stringify(snap));
+      startWorkspacePersistInterval();
+      void flushWorkspaceState(snap);
     } catch {
       // ignore
     }
@@ -291,29 +356,43 @@ function createLocalController() {
     updatePopoverUi();
   }
 
-  function restoreFromStorage() {
-    try {
-      const raw = sessionStorage.getItem(storageKey());
-      if (!raw) {
-        enterIdle();
-        return;
-      }
-      const data = JSON.parse(raw);
-      phase = data.phase;
-      phaseEndsAt = data.phaseEndsAt;
-      if (phaseEndsAt <= Date.now()) {
-        if (phase === "work") enterBreak();
-        else enterIdle();
-        return;
-      }
-      if (phase === "break") showBreakModal();
+  function applyPersistedSnapshot(saved) {
+    if (!saved) {
+      phase = "idle";
+      phaseEndsAt = 0;
+      hideBreakModal();
+      stopTick();
+      stopWorkspacePersistInterval();
       updateLaunchBtn();
       updatePopoverUi();
-      ensureTick();
-      onTick();
-    } catch {
-      enterIdle();
+      return;
     }
+    phase = saved.phase;
+    phaseEndsAt = saved.phaseEndsAt;
+    if (saved.workMinutes != null) {
+      workMinutes = parseWorkMinutes(saved.workMinutes);
+      workMs = workMinutes * 60_000;
+    }
+    if (phaseEndsAt <= Date.now()) {
+      if (phase === "work") {
+        enterBreak();
+        return;
+      }
+      enterIdle();
+      return;
+    }
+    if (phase === "break") showBreakModal();
+    updateLaunchBtn();
+    updatePopoverUi();
+    ensureTick();
+    onTick();
+  }
+
+  async function restoreCombinedState() {
+    const remote = await readPomodoroWorkspaceState(getAgentId());
+    const local = loadLocalSnapshot();
+    const saved = pickNewestPomodoroSnapshot(local, remote);
+    applyPersistedSnapshot(saved);
   }
 
   function syncVisibility() {
@@ -419,16 +498,20 @@ function createLocalController() {
   });
 
   window.addEventListener("resize", positionPopover);
+  window.addEventListener("pagehide", () => {
+    if (phase !== "idle") void flushWorkspaceState();
+  });
 
   return {
     applyWorkspaceSettings,
     reloadForAgent(agentId) {
       void fetchWorkspacePomodoroSettings(agentId).then(applyWorkspaceSettings);
       stopTick();
+      stopWorkspacePersistInterval();
       hideBreakModal();
       phase = "idle";
       phaseEndsAt = 0;
-      restoreFromStorage();
+      void restoreCombinedState();
       syncVisibility();
     },
     handleRemoteAction(action) {
@@ -463,8 +546,7 @@ function createLocalController() {
           `Метод помидора: <strong>${workMinutesLabel(workMinutes)}</strong> фокуса в Voice, затем отдых и звук.`;
       }
       syncVisibility();
-      restoreFromStorage();
-      updatePopoverUi();
+      void restoreCombinedState();
     }
   };
 }
