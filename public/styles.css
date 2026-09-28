@@ -30372,6 +30372,18 @@ a.header-tool-btn {
   color: #1e40af;
 }
 
+.create-node-action-btn--container.create-node-action-btn--container-required:not(:disabled) {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.22);
+}
+
+.create-node-action-btn--container.create-node-action-btn--container-required:not(:disabled):hover {
+  border-color: #dc2626;
+  background: #fee2e2;
+}
+
 .create-node-root-system-wrap {
   margin-top: 10px;
 }
@@ -35229,6 +35241,47 @@ button.node-navigation-hub-rail-slot-summary {
 .doc-slab-content .doc-slab-main > .node-overview.is-navigation-split,
 .doc-slab-content .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split {
   overflow: visible;
+}
+
+/* Overview scrolls on doc-slab-content: rail scrolls with page, height = visible slab, body scrolls inside */
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub-rail-resize-bar,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub-rail-resize-bar {
+  position: static;
+  top: auto;
+  align-self: start;
+  height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  );
+  max-height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  );
+  min-height: 0;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail {
+  position: static;
+  top: auto;
+  align-self: start;
+  height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  );
+  max-height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top, 0px) - 12px)
+  );
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .node-overview.is-navigation-split::before,

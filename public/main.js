@@ -29169,6 +29169,22 @@ function shouldShowNestedGitContainerScaffold(agentId = getCreateModalAgentId())
   return normalized === gitRoot || normalized.startsWith(`${gitRoot}/`);
 }
 
+function shouldGateManualCreateUntilContainer(agentId = getCreateModalAgentId()) {
+  if (isCreateAdoptFolderContext()) return false;
+  if (shouldShowNestedGitContainerScaffold(agentId)) {
+    const gitRoot = getGitRepoRootForMenuPath(createModalBaseParentPath || ".", agentId);
+    return Boolean(gitRoot) && !hasContainerForGitRoot(gitRoot, agentId);
+  }
+  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
+  if (normalized !== ".") return false;
+  if (!shouldShowReservedFoldersInCreateModal(agentId)) return false;
+  return !isAgentContainerFolderPresent(agentId);
+}
+
+function getGateManualCreateUntilContainerHint() {
+  return `Сначала создайте ${CONTAINER_FOLDER_DEFAULT}`;
+}
+
 function resolveNestedGitContainerScaffoldParentPath(agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
   const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
@@ -29247,6 +29263,10 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
     if (containerTitleNode) {
       containerTitleNode.textContent = `Создать ${CONTAINER_FOLDER_DEFAULT}`;
     }
+    createNodeContainerScaffoldBtn.classList.toggle(
+      "create-node-action-btn--container-required",
+      !containerExists
+    );
   }
   if (createNodeSharedScaffoldBtn) {
     createNodeSharedScaffoldBtn.disabled = sharedExists;
@@ -29993,6 +30013,22 @@ function syncCreateNodeActionsUi() {
         : inContainerTree
           ? "Например: sport"
           : "Например: Плавание";
+  }
+  const gateManualUntilContainer = shouldGateManualCreateUntilContainer();
+  const gateManualHint = getGateManualCreateUntilContainerHint();
+  const manualCreateButtons = [createFolderBtn, createFileBtn, createFreeMemoryBtn, createManifestBtn];
+  for (const btn of manualCreateButtons) {
+    if (!btn) continue;
+    const blocked = gateManualUntilContainer && !btn.classList.contains("hidden");
+    btn.disabled = blocked;
+    btn.setAttribute("aria-disabled", blocked ? "true" : "false");
+    if (blocked) {
+      btn.title = gateManualHint;
+    } else if (btn === createFolderBtn) {
+      btn.title = "Новая папка с манифестом области";
+    } else if (btn === createFreeMemoryBtn) {
+      btn.title = "Папка без manifest.md — для файлов и черновиков";
+    }
   }
   syncCreateNodeContainerTargetUi();
   syncCreateNodeServicePresetsUi();
@@ -76933,6 +76969,45 @@ function clearNavigationHubRailPanelHeight(rail) {
   resizeBar?.style.removeProperty("--nav-rail-panel-height");
 }
 
+function resolveNavigationHubRailStickyHeight(rail) {
+  const insetTop = 0;
+  const insetBottom = 12;
+  const docSlab = getDocSlabContentNode() || rail?.closest(".doc-slab-content") || null;
+
+  if (docSlab) {
+    const slabRect = docSlab.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    const slabStyles = getComputedStyle(docSlab);
+    const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
+    const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
+    const slabInnerTop = slabRect.top + slabPaddingTop;
+    const slabInnerBottom = slabRect.bottom - slabPaddingBottom;
+
+    const topInsetSlab = Math.max(0, Math.round(railRect.top - slabRect.top));
+    const overviewContent = rail.closest("#node-overview-content");
+    let bottomInset = topInsetSlab;
+    if (overviewContent) {
+      const contentRect = overviewContent.getBoundingClientRect();
+      const cardTopGap = Math.round(railRect.top - contentRect.top);
+      if (cardTopGap > 0) bottomInset = cardTopGap;
+      bottomInset += parseFloat(getComputedStyle(overviewContent).paddingBottom) || 0;
+    }
+
+    const railTop = Math.max(slabInnerTop, railRect.top);
+    const heightFromSlabBottom = slabInnerBottom - bottomInset - railTop;
+    const heightFromViewport = slabRect.height - topInsetSlab - bottomInset;
+    return Math.max(240, Math.floor(Math.min(heightFromSlabBottom, heightFromViewport)));
+  }
+
+  const overview = rail?.closest("#node-overview-block");
+  let height = Math.max(240, window.innerHeight - insetTop - insetBottom);
+  if (overview) {
+    const top = Math.max(overview.getBoundingClientRect().top, insetTop);
+    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom));
+  }
+  return height;
+}
+
 function updateNavigationHubRailPanelHeight(rail) {
   const hub = rail?.closest(".node-navigation-hub--split");
   const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
@@ -76941,16 +77016,7 @@ function updateNavigationHubRailPanelHeight(rail) {
     return;
   }
 
-  const overview = rail.closest("#node-overview-block");
-  const insetTop = 0;
-  const insetBottom = 12;
-  let height = Math.max(240, window.innerHeight - insetTop - insetBottom);
-  if (overview) {
-    const top = Math.max(overview.getBoundingClientRect().top, insetTop);
-    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom));
-  }
-
-  const heightValue = `${height}px`;
+  const heightValue = `${resolveNavigationHubRailStickyHeight(rail)}px`;
   rail.style.setProperty("--nav-rail-sticky-height", heightValue);
   resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
 }
@@ -76983,7 +77049,8 @@ function bindNavigationHubRailAsideLayout(rail) {
   scrollElement?.addEventListener("scroll", onResize, { passive: true });
 
   let resizeObserver = null;
-  const layoutRoot = rail.closest("#node-overview-block");
+  const layoutRoot =
+    getDocSlabContentNode() || rail.closest(".doc-body-main") || rail.closest("#node-overview-block");
   if (layoutRoot && typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(layoutRoot);
