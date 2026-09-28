@@ -1367,19 +1367,40 @@
                 <div class="header-profile-menu-divider" role="separator" aria-hidden="true"></div>
                 <div class="header-profile-menu-section" role="group" aria-label="Документация">
                   <div class="header-profile-menu-section-title">Документация</div>
+                  <button id="user-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Руководства Agent CMS">Руководства</button>
                   <button id="api-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация HTTP API">HTTP API</button>
                   <button id="mcp-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация MCP-сервера">MCP Server</button>
-                  <button id="user-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация Agent CMS">Руководство</button>
-                  <button id="best-practices-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Best Practices по организации агента">Best Practices</button>
-                  <button id="md-showcase-btn" class="header-profile-menu-item" type="button" role="menuitem" title="GLOBAL_MARKDOWN_SHOWCASE.md — справочник поддерживаемой markdown-разметки">Markdown разметка</button>
+                </div>
+                <div class="header-profile-menu-divider" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-section" role="group" aria-label="Workspace">
+                  <div class="header-profile-menu-section-title">Workspace</div>
                   <button
-                    id="components-ideas-btn"
+                    id="header-profile-journal-btn"
                     class="header-profile-menu-item"
                     type="button"
                     role="menuitem"
-                    title="Идеи и компоненты системы (My Graph ORM)"
+                    title="Бортовой журнал workspace"
                   >
-                    Идеи · компоненты
+                    Бортовой журнал
+                  </button>
+                  <button
+                    id="header-profile-env-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="Настройки и параметры проекта"
+                  >
+                    Настройки и параметры
+                  </button>
+                  <button
+                    id="header-profile-system-info-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="О системе — окружение и версия"
+                    aria-controls="menu-agent-stats-env-popover"
+                  >
+                    О системе
                   </button>
                 </div>
                 <div class="header-profile-menu-footer" role="group" aria-label="Ссылки">
@@ -2633,25 +2654,6 @@
               </div>
             </section>
             <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
-            <div
-              id="menu-agent-stats-env-popover"
-              class="menu-agent-stats-env-popover hidden"
-              role="dialog"
-              aria-label="О системе"
-              aria-modal="false"
-            >
-              <div class="menu-agent-stats-env-popover-head">
-                <span id="menu-agent-stats-env-popover-title" class="menu-agent-stats-env-popover-title">О системе</span>
-                <span id="menu-agent-stats-env-popover-subtitle" class="menu-agent-stats-env-popover-subtitle hidden"></span>
-              </div>
-              <div
-                id="menu-agent-stats-env-popover-grid"
-                class="menu-system-environment-grid is-popover"
-              ></div>
-              <div id="menu-agent-stats-env-popover-footer" class="menu-agent-stats-env-popover-footer hidden">
-                <span id="menu-agent-stats-env-popover-version" class="menu-agent-stats-env-popover-version"></span>
-              </div>
-            </div>
           </div>
         </section>
       </aside>
@@ -6527,18 +6529,47 @@
       </div>
     </div>
 
+    <div id="menu-agent-stats-env-overlay" class="menu-agent-stats-env-overlay hidden" aria-hidden="true">
+      <div
+        id="menu-agent-stats-env-popover"
+        class="menu-agent-stats-env-popover"
+        role="dialog"
+        aria-label="О системе"
+        aria-modal="true"
+      >
+        <div class="menu-agent-stats-env-popover-head">
+          <div class="menu-agent-stats-env-popover-head-copy">
+            <span id="menu-agent-stats-env-popover-title" class="menu-agent-stats-env-popover-title">О системе</span>
+            <span id="menu-agent-stats-env-popover-subtitle" class="menu-agent-stats-env-popover-subtitle hidden"></span>
+          </div>
+          <button
+            id="menu-agent-stats-env-popover-close-btn"
+            class="menu-agent-stats-env-popover-close modal-close-btn"
+            type="button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          id="menu-agent-stats-env-popover-grid"
+          class="menu-system-environment-grid is-popover"
+        ></div>
+        <div id="menu-agent-stats-env-popover-footer" class="menu-agent-stats-env-popover-footer hidden">
+          <span id="menu-agent-stats-env-popover-version" class="menu-agent-stats-env-popover-version"></span>
+        </div>
+      </div>
+    </div>
+
     <div id="user-docs-modal" class="modal-overlay hidden">
       <div class="modal-card md-showcase-card">
         <div class="md-showcase-header docs-modal-header">
           <div>
-            <div class="modal-message" id="user-docs-title">Документация</div>
-            <p id="user-docs-subtitle" class="md-showcase-subtitle">Agent CMS · руководство пользователя</p>
+            <div class="modal-message" id="user-docs-title">Руководства</div>
+            <p id="user-docs-subtitle" class="md-showcase-subtitle">Agent CMS · выберите документ</p>
           </div>
           <div class="docs-modal-toolbar">
-            <select id="user-docs-version-select" class="docs-version-select" aria-label="Версия документации">
-              <option value="0.0.2" selected>Актуальная (0.0.2)</option>
-              <option value="0.0.1">Предыдущая (0.0.1)</option>
-              <option value="0.0.0">Предыдущая (0.0.0)</option>
+            <select id="user-docs-version-select" class="docs-version-select" aria-label="Выбор документа">
             </select>
             <button id="user-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
           </div>

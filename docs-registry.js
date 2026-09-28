@@ -44,7 +44,118 @@ function getMcpDocs(version) {
   return mcpByVersion[v]();
 }
 
+function splitMarkdownFrontmatter(markdown) {
+  const raw = String(markdown ?? "");
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\s*([\s\S]*)$/);
+  if (!match) return { frontmatter: "", body: raw };
+  return { frontmatter: match[1], body: match[2] };
+}
+
+function getYamlScalarFromFrontmatter(frontmatter, key) {
+  const fm = String(frontmatter || "");
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = fm.match(
+    new RegExp(`^${escaped}:\\s*(?:"([^"]*)"|'([^']*)'|([^\\n#]*))`, "m")
+  );
+  if (!match) return "";
+  return String(match[1] ?? match[2] ?? match[3] ?? "").trim();
+}
+
+function normalizeUserGuideRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return "";
+  if (!/\.md$/i.test(normalized)) return "";
+  if (/(?:^|\/)comments\//i.test(normalized)) return "";
+  if (/(?:^|\/)history\//i.test(normalized)) return "";
+  return normalized;
+}
+
+function humanizeGuideFileName(fileName) {
+  return String(fileName || "")
+    .replace(/\.md$/i, "")
+    .replace(/[-_]+/g, " ")
+    .trim();
+}
+
+async function walkUserGuideMdRelPaths(dirAbs, relPrefix = "") {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbs, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const paths = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (/^(comments|history|node_modules)$/i.test(entry.name)) continue;
+      paths.push(...(await walkUserGuideMdRelPaths(path.join(dirAbs, entry.name), rel)));
+      continue;
+    }
+    if (entry.isFile() && /\.md$/i.test(entry.name)) {
+      paths.push(rel);
+    }
+  }
+  return paths;
+}
+
+const DEFAULT_USER_GUIDE_PATH = "user-docs-0.0.2.md";
+
+async function getUserDocsIndex() {
+  const relPaths = await walkUserGuideMdRelPaths(USER_DOCS_DIR);
+  const guides = [];
+  for (const relPath of relPaths) {
+    const abs = path.join(USER_DOCS_DIR, relPath);
+    let markdown = "";
+    try {
+      markdown = await fs.readFile(abs, "utf8");
+    } catch {
+      continue;
+    }
+    const { frontmatter } = splitMarkdownFrontmatter(markdown);
+    const awnName =
+      getYamlScalarFromFrontmatter(frontmatter, "awn-name") ||
+      humanizeGuideFileName(path.basename(relPath));
+    guides.push({ path: relPath, awnName });
+  }
+  guides.sort((a, b) => a.awnName.localeCompare(b.awnName, "ru"));
+  const nameCounts = new Map();
+  for (const guide of guides) {
+    nameCounts.set(guide.awnName, (nameCounts.get(guide.awnName) || 0) + 1);
+  }
+  for (const guide of guides) {
+    guide.label =
+      (nameCounts.get(guide.awnName) || 0) > 1
+        ? `${guide.awnName} · ${guide.path}`
+        : guide.awnName;
+  }
+  const defaultPath = guides.some((g) => g.path === DEFAULT_USER_GUIDE_PATH)
+    ? DEFAULT_USER_GUIDE_PATH
+    : guides[0]?.path || "";
+  return {
+    model: "user-docs-index",
+    dir: USER_DOCS_DIR.replace(/\\/g, "/"),
+    defaultPath,
+    guideCount: guides.length,
+    guides
+  };
+}
+
+async function getUserGuideMarkdown(relPath) {
+  const rel = normalizeUserGuideRelPath(relPath);
+  if (!rel) throw new Error("Invalid guide path");
+  const abs = path.join(USER_DOCS_DIR, rel);
+  const root = path.resolve(USER_DOCS_DIR);
+  const resolved = path.resolve(abs);
+  if (!resolved.startsWith(root)) throw new Error("Invalid guide path");
+  return fs.readFile(resolved, "utf8");
+}
+
 async function getUserDocsMarkdown(version) {
+  const pathParam = normalizeUserGuideRelPath(version);
+  if (pathParam) return getUserGuideMarkdown(pathParam);
   const v = normalizeDocVersion(version);
   const filePath = path.join(USER_DOCS_DIR, `user-docs-${v}.md`);
   try {
@@ -117,6 +228,9 @@ module.exports = {
   getApiDocs,
   getMcpDocs,
   getUserDocsMarkdown,
+  getUserGuideMarkdown,
+  getUserDocsIndex,
+  DEFAULT_USER_GUIDE_PATH,
   getDocsMeta,
   getVersionOptionLabel,
   getPublicImagesDir,

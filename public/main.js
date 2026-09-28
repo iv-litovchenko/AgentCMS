@@ -13,7 +13,9 @@ const workspaceScrollProgressNode = document.getElementById("workspace-scroll-pr
 const workspaceScrollDepthNode = document.getElementById("workspace-scroll-depth");
 const workspaceScrollChromeNode = document.querySelector("#workspace-scroll-chrome-store .workspace-scroll-chrome");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
+const menuAgentStatsEnvOverlayNode = document.getElementById("menu-agent-stats-env-overlay");
 const menuAgentStatsEnvPopoverNode = document.getElementById("menu-agent-stats-env-popover");
+const menuAgentStatsEnvPopoverCloseBtn = document.getElementById("menu-agent-stats-env-popover-close-btn");
 const menuAgentStatsEnvPopoverTitleNode = document.getElementById("menu-agent-stats-env-popover-title");
 const menuAgentStatsEnvPopoverSubtitleNode = document.getElementById("menu-agent-stats-env-popover-subtitle");
 const menuAgentStatsEnvPopoverGridNode = document.getElementById("menu-agent-stats-env-popover-grid");
@@ -1331,6 +1333,9 @@ const headerUserProfileAvatarMountNode = document.getElementById("header-user-pr
 const headerProfileWrapNode = document.querySelector(".header-profile-wrap");
 const headerProfileMenuNode = document.getElementById("header-profile-menu");
 const headerProfileWorkspaceBtn = document.getElementById("header-profile-workspace-btn");
+const headerProfileJournalBtn = document.getElementById("header-profile-journal-btn");
+const headerProfileEnvBtn = document.getElementById("header-profile-env-btn");
+const headerProfileSystemInfoBtn = document.getElementById("header-profile-system-info-btn");
 const headerProfileAgentBtn = document.getElementById("header-profile-agent-btn");
 const headerProfileSettingsBtn = document.getElementById("header-profile-settings-btn");
 const webSiteBtn = document.getElementById("web-site-btn");
@@ -1439,8 +1444,10 @@ function normalizeDocVersionClient(version, fallback = DEFAULT_DOC_VERSION) {
 const DOCUMENTATION_AGENT_ID = "agent-cms-core";
 const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
 const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
-const userDocsCacheByVersion = Object.create(null);
-let userDocsVersion = DEFAULT_DOC_VERSION;
+const USER_GUIDE_STORAGE_KEY = "yamlcms.userGuidePath";
+const userDocsCacheByPath = Object.create(null);
+let userDocsIndexCache = null;
+let userDocsSelectedPath = "";
 let docsMetaCache = null;
 const bestPracticesBtn = document.getElementById("best-practices-btn");
 const bestPracticesModalNode = document.getElementById("best-practices-modal");
@@ -1823,6 +1830,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "entry-overview": "preview",
   "m-git": "module-git",
   "m-settings": "module-settings",
+  "m-journal": "module-journal",
   "m-awn-types": "module-awn-types",
   "m-registry": "module-registry",
   "m-large-files": "module-large-files",
@@ -3047,6 +3055,16 @@ function buildAppPathFromState() {
     !activeFolderBrowsePath
   ) {
     return buildAgentModuleChpuPath(agentId, PROJECT_SETTINGS_MODULE_CHPU);
+  }
+
+  if (
+    agentWorkspaceView === "journal" &&
+    !activePath &&
+    !activeSystemFile &&
+    !activeFolderBrowsePath &&
+    !awnDataViewStoreRel
+  ) {
+    return buildAgentModuleChpuPath(agentId, WORKSPACE_JOURNAL_MODULE_CHPU);
   }
 
   if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) {
@@ -16516,7 +16534,13 @@ const NODE_WORKSPACE_DOMAIN_JOURNAL = "journal";
 const NODE_WORKSPACE_DOMAIN_HOOKS = "hooks";
 const WORKSPACE_JOURNAL_FOLDER = ".agent-cms/journal";
 
+const WORKSPACE_JOURNAL_MODULE_CHPU = "module-journal";
+
 const WORKSPACE_TOOL_MODULE_META = {
+  [WORKSPACE_JOURNAL_MODULE_CHPU]: {
+    title: "Бортовой журнал",
+    lead: "События, действия и заметки workspace. Один файл на ISO-неделю."
+  },
   [WORKSPACE_JOURNAL_FOLDER]: {
     title: "Бортовой журнал",
     lead: "События, действия и заметки workspace. Один файл на ISO-неделю."
@@ -25035,7 +25059,7 @@ async function applyNodeWorkspaceDomainChange(domain) {
   if (domain === NODE_WORKSPACE_DOMAIN_JOURNAL) {
     nodeMemoryViewActive = false;
     nodeSettingsViewActive = false;
-    setContentMode(NODE_JOURNAL_MODE);
+    await openWorkspaceJournalModule({ push: true });
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
@@ -46817,9 +46841,11 @@ async function openWorkspaceJournalModule(options = {}) {
   activeLabel = "Бортовой журнал";
   activeFolderBrowsePath = null;
   activeFolderBrowseFilePath = null;
-  if (activeContentMode === PROJECT_SETTINGS_MODE) {
+  if (activeContentMode === PROJECT_SETTINGS_MODE || activeContentMode === NODE_JOURNAL_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
+
+  closeMenuAgentStatsEnvPopover();
 
   showAgentHomeView();
   agentWorkspaceView = "journal";
@@ -46827,6 +46853,7 @@ async function openWorkspaceJournalModule(options = {}) {
   applyAgentWorkspaceCanvasUi();
 
   updateActiveButton();
+  syncMenuAgentStatsModuleBtnState();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
   }
@@ -95235,53 +95262,37 @@ function getMenuSystemEnvironmentItems(payload, { loading = false } = {}) {
 }
 
 function isMenuAgentStatsEnvPopoverOpen() {
-  return Boolean(menuAgentStatsEnvPopoverNode && !menuAgentStatsEnvPopoverNode.classList.contains("hidden"));
-}
-
-function resetMenuAgentStatsEnvPopoverPosition() {
-  if (!menuAgentStatsEnvPopoverNode) return;
-  for (const prop of ["top", "left", "width", "maxHeight", "overflowY"]) {
-    menuAgentStatsEnvPopoverNode.style.removeProperty(prop);
-  }
+  return Boolean(menuAgentStatsEnvOverlayNode && !menuAgentStatsEnvOverlayNode.classList.contains("hidden"));
 }
 
 function positionMenuAgentStatsEnvPopover() {
-  const popover = menuAgentStatsEnvPopoverNode;
-  const anchor = document.getElementById("menu-agent-stats-settings-btn");
-  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  /* centered via .menu-agent-stats-env-overlay flex */
+}
 
-  const rect = anchor.getBoundingClientRect();
-  const width = Math.min(320, Math.max(Math.round(rect.width + 220), 260));
-  const left = Math.min(
-    Math.max(12, Math.round(rect.right - width)),
-    Math.max(12, window.innerWidth - width - 12)
-  );
-  const top = Math.round(rect.top - popover.offsetHeight - 8);
-  const fallbackTop = Math.round(rect.bottom + 8);
-  const resolvedTop = top >= 12 ? top : fallbackTop;
-  const maxHeight = Math.max(140, window.innerHeight - resolvedTop - 12);
-
-  popover.style.top = `${resolvedTop}px`;
-  popover.style.left = `${left}px`;
-  popover.style.width = `${width}px`;
-  popover.style.maxHeight = `${maxHeight}px`;
-  popover.style.overflowY = "auto";
+function setMenuAgentStatsEnvPopoverExpanded(expanded) {
+  const value = expanded ? "true" : "false";
+  document.getElementById("menu-agent-stats-settings-btn")?.setAttribute("aria-expanded", value);
+  headerProfileSystemInfoBtn?.setAttribute("aria-expanded", value);
 }
 
 function closeMenuAgentStatsEnvPopover() {
-  menuAgentStatsEnvPopoverNode?.classList.add("hidden");
-  document.getElementById("menu-agent-stats-settings-btn")?.setAttribute("aria-expanded", "false");
-  resetMenuAgentStatsEnvPopoverPosition();
+  menuAgentStatsEnvOverlayNode?.classList.add("hidden");
+  menuAgentStatsEnvOverlayNode?.setAttribute("aria-hidden", "true");
+  setMenuAgentStatsEnvPopoverExpanded(false);
+}
+
+function openMenuAgentStatsEnvPopover() {
+  if (!menuAgentStatsEnvOverlayNode) return;
+  void syncMenuSystemEnvironment();
+  menuAgentStatsEnvOverlayNode.classList.remove("hidden");
+  menuAgentStatsEnvOverlayNode.setAttribute("aria-hidden", "false");
+  setMenuAgentStatsEnvPopoverExpanded(true);
 }
 
 function toggleMenuAgentStatsEnvPopover() {
-  if (!menuAgentStatsEnvPopoverNode) return;
-  const willOpen = menuAgentStatsEnvPopoverNode.classList.contains("hidden");
-  if (willOpen) {
-    void syncMenuSystemEnvironment();
-    menuAgentStatsEnvPopoverNode.classList.remove("hidden");
-    document.getElementById("menu-agent-stats-settings-btn")?.setAttribute("aria-expanded", "true");
-    positionMenuAgentStatsEnvPopover();
+  if (!menuAgentStatsEnvOverlayNode) return;
+  if (menuAgentStatsEnvOverlayNode.classList.contains("hidden")) {
+    openMenuAgentStatsEnvPopover();
     return;
   }
   closeMenuAgentStatsEnvPopover();
@@ -95346,11 +95357,6 @@ function createMenuAgentStatsJournalButton() {
     '<path d="M6 4h12v16H6z" stroke="currentColor" stroke-width="2"/>' +
     '<path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
     "</svg>";
-  button.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void openWorkspaceJournalModule();
-  });
   return button;
 }
 
@@ -95524,9 +95530,6 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
     grid.appendChild(chip);
   }
 
-  if (isMenuAgentStatsEnvPopoverOpen()) {
-    positionMenuAgentStatsEnvPopover();
-  }
 }
 
 async function syncMenuSystemEnvironment({ force = false } = {}) {
@@ -98502,14 +98505,21 @@ function applyAgentWorkspaceCanvasUi() {
 
 function setAgentWorkspaceView(
   view,
-  { skipRouteSync = false, persistWorkspaceConfig = true, saveSessionView = true } = {}
+  { skipRouteSync = false, persistWorkspaceConfig = true, saveSessionView = true, push = false } = {}
 ) {
+  if (view === "journal") {
+    void openWorkspaceJournalModule({ skipRouteSync, push });
+    return;
+  }
+  if (view === "project-settings") {
+    void openProjectSettingsHub({ skipRouteSync, push });
+    return;
+  }
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
     view !== "dashboard3" &&
     view !== "git" &&
-    view !== "journal" &&
     view !== "project-settings" &&
     view !== "large-files" &&
     view !== "broken-links" &&
@@ -106618,6 +106628,7 @@ function setupMenuStaticFooterGroup() {
     if (journalBtn) {
       event.preventDefault();
       event.stopPropagation();
+      closeMenuAgentStatsEnvPopover();
       void openWorkspaceJournalModule();
       return;
     }
@@ -118569,10 +118580,14 @@ function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION,
   selectNode.value = version;
 }
 
-function syncAllDocVersionSelects(version = DEFAULT_DOC_VERSION) {
+function syncApiMcpDocVersionSelects(version = DEFAULT_DOC_VERSION) {
   fillDocVersionSelect(apiDocsVersionSelectNode, version, "api");
   fillDocVersionSelect(mcpDocsVersionSelectNode, version, "mcp");
-  fillDocVersionSelect(userDocsVersionSelectNode, version);
+}
+
+/** @deprecated use syncApiMcpDocVersionSelects */
+function syncAllDocVersionSelects(version = DEFAULT_DOC_VERSION) {
+  syncApiMcpDocVersionSelects(version);
 }
 
 async function fetchApiDocs(version, force = false) {
@@ -118928,23 +118943,89 @@ function closeComponentsIdeasModal() {
   componentsIdeasModalNode?.classList.add("hidden");
 }
 
-async function fetchUserDocs(version, force = false) {
-  const v = normalizeDocVersionClient(version);
-  if (force) delete userDocsCacheByVersion[v];
-  if (!userDocsCacheByVersion[v]) {
-    const response = await fetch(`/api/user-docs?version=${encodeURIComponent(v)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    userDocsCacheByVersion[v] = await response.text();
-  }
-  return userDocsCacheByVersion[v];
+async function fetchUserDocsIndex(force = false) {
+  if (userDocsIndexCache && !force) return userDocsIndexCache;
+  const response = await fetch("/api/user-docs-index", { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  userDocsIndexCache = await response.json();
+  return userDocsIndexCache;
 }
 
-function syncUserDocsSubtitle(version) {
+function readStoredUserGuidePath() {
+  try {
+    return String(localStorage.getItem(USER_GUIDE_STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function storeUserGuidePath(relPath) {
+  try {
+    localStorage.setItem(USER_GUIDE_STORAGE_KEY, String(relPath || "").trim());
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveUserGuidePath(index, preferred = "") {
+  const guides = index?.guides || [];
+  if (!guides.length) return "";
+  const candidates = [
+    String(preferred || "").trim(),
+    readStoredUserGuidePath(),
+    String(index.defaultPath || "").trim()
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (guides.some((guide) => guide.path === candidate)) return candidate;
+  }
+  return guides[0].path;
+}
+
+function fillUserDocsGuideSelect(selectNode, index, selectedPath = "") {
+  if (!selectNode) return;
+  const guides = index?.guides || [];
+  selectNode.replaceChildren();
+  for (const guide of guides) {
+    const option = document.createElement("option");
+    option.value = guide.path;
+    option.textContent = guide.label || guide.awnName || guide.path;
+    if (guide.path === selectedPath) option.selected = true;
+    selectNode.appendChild(option);
+  }
+}
+
+async function fetchUserGuideMarkdown(relPath, force = false) {
+  const path = String(relPath || "").trim();
+  if (!path) throw new Error("Не выбран документ");
+  if (force) delete userDocsCacheByPath[path];
+  if (!userDocsCacheByPath[path]) {
+    const response = await fetch(`/api/user-docs?path=${encodeURIComponent(path)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    userDocsCacheByPath[path] = await response.text();
+  }
+  return userDocsCacheByPath[path];
+}
+
+function syncUserDocsSubtitleForGuide(index, relPath) {
   if (!userDocsSubtitleNode) return;
-  const item = docsMetaCache?.versions?.find((entry) => entry.id === version);
-  userDocsSubtitleNode.textContent = item
-    ? `Agent CMS · ${item.label}`
-    : `Agent CMS · v${normalizeDocVersionClient(version)}`;
+  const guide = (index?.guides || []).find((entry) => entry.path === relPath);
+  userDocsSubtitleNode.textContent = guide
+    ? `Agent CMS · ${guide.awnName}`
+    : "Agent CMS · руководства";
+}
+
+async function loadUserGuideIntoModal(relPath, index, { force = false } = {}) {
+  const path = resolveUserGuidePath(index, relPath);
+  if (!path || !userDocsContentNode) throw new Error("Нет доступных руководств");
+  userDocsSelectedPath = path;
+  storeUserGuidePath(path);
+  fillUserDocsGuideSelect(userDocsVersionSelectNode, index, path);
+  syncUserDocsSubtitleForGuide(index, path);
+  setMarkdownPreviewHtml(
+    userDocsContentNode,
+    await fetchUserGuideMarkdown(path, force),
+    HEADER_DOC_PREVIEW_OPTIONS
+  );
 }
 
 async function applyDocVersionChange(version) {
@@ -118952,21 +119033,13 @@ async function applyDocVersionChange(version) {
   syncAllDocVersionSelects(v);
   apiDocsVersion = v;
   mcpDocsVersion = v;
-  userDocsVersion = v;
 }
 
 async function openUserDocsModal() {
   if (!userDocsModalNode || !userDocsContentNode) return;
   try {
-    await fetchDocsMeta();
-    userDocsVersion = DEFAULT_DOC_VERSION;
-    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
-    syncUserDocsSubtitle(DEFAULT_DOC_VERSION);
-    setMarkdownPreviewHtml(
-      userDocsContentNode,
-      await fetchUserDocs(DEFAULT_DOC_VERSION),
-      HEADER_DOC_PREVIEW_OPTIONS
-    );
+    const index = await fetchUserDocsIndex();
+    await loadUserGuideIntoModal(userDocsSelectedPath, index);
     userDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
@@ -119019,14 +119092,9 @@ userDocsBtn?.addEventListener("click", () => {
 userDocsVersionSelectNode?.addEventListener("change", () => {
   void (async () => {
     try {
-      const version = getSelectedDocVersion(userDocsVersionSelectNode);
-      await applyDocVersionChange(version);
-      syncUserDocsSubtitle(version);
-      setMarkdownPreviewHtml(
-        userDocsContentNode,
-        await fetchUserDocs(version, true),
-        HEADER_DOC_PREVIEW_OPTIONS
-      );
+      const index = await fetchUserDocsIndex();
+      const path = String(userDocsVersionSelectNode?.value || "").trim();
+      await loadUserGuideIntoModal(path, index, { force: true });
     } catch (error) {
       showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
     }
@@ -119074,6 +119142,27 @@ apiDocsModalNode?.addEventListener("click", (event) => {
 mcpDocsBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openMcpDocsModal();
+});
+headerProfileJournalBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  void openWorkspaceJournalModule();
+});
+headerProfileEnvBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  closeMenuAgentStatsEnvPopover();
+  void openProjectSettingsHub();
+});
+headerProfileSystemInfoBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  openMenuAgentStatsEnvPopover();
+});
+menuAgentStatsEnvPopoverCloseBtn?.addEventListener("click", () => {
+  closeMenuAgentStatsEnvPopover();
+});
+menuAgentStatsEnvOverlayNode?.addEventListener("click", (event) => {
+  if (event.target === menuAgentStatsEnvOverlayNode) {
+    closeMenuAgentStatsEnvPopover();
+  }
 });
 webSiteBtn?.addEventListener("click", closeHeaderProfileMenu);
 appLockLogoutBtn?.addEventListener("click", closeHeaderProfileMenu);
@@ -119904,9 +119993,6 @@ menuSettingsBtn?.addEventListener("click", (event) => {
 window.addEventListener("resize", () => {
   if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
   positionMenuSettingsPopover();
-  if (isMenuAgentStatsEnvPopoverOpen()) {
-    positionMenuAgentStatsEnvPopover();
-  }
 });
 
 document.getElementById("menu")?.addEventListener(
@@ -120069,8 +120155,9 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("click", (event) => {
   if (!isMenuAgentStatsEnvPopoverOpen()) return;
-  if (event.target.closest("#menu-agent-stats-env-popover")) return;
+  if (event.target.closest("#menu-agent-stats-env-overlay")) return;
   if (event.target.closest("#menu-agent-stats-settings-btn")) return;
+  if (event.target.closest("#header-profile-system-info-btn")) return;
   closeMenuAgentStatsEnvPopover();
 });
 
@@ -120123,7 +120210,7 @@ initCreateMemorySlugControllers();
 initCreateDisplayNameHints();
 initCreateMemoryFormatPicker();
 void fetchDocsMeta()
-  .then(() => syncAllDocVersionSelects(DEFAULT_DOC_VERSION))
+  .then(() => syncApiMcpDocVersionSelects(DEFAULT_DOC_VERSION))
   .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
   setMediaViewMode(mediaViewSelectNode?.value || "dashboard");

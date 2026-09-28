@@ -28233,10 +28233,25 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, enrichMcpDocsForClient(docs, reqHost, { projectRoot: getProjectRoot() }));
   }
 
+  if (req.method === "GET" && url.pathname === "/api/user-docs-index") {
+    try {
+      const index = await docsRegistry.getUserDocsIndex();
+      res.setHeader("Cache-Control", "no-store");
+      return sendJson(res, 200, index);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load user docs index",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/user-docs") {
     try {
-      const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
-      const markdown = await docsRegistry.getUserDocsMarkdown(version);
+      const pathParam = String(url.searchParams.get("path") || "").trim();
+      const versionParam = url.searchParams.get("version");
+      const ref = pathParam || docsRegistry.normalizeDocVersion(versionParam);
+      const markdown = await docsRegistry.getUserDocsMarkdown(ref);
       res.writeHead(200, {
         "Content-Type": "text/markdown; charset=utf-8",
         "Cache-Control": "no-store"

@@ -137,6 +137,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "entry-overview": "preview",
   "m-git": "module-git",
   "m-settings": "module-settings",
+  "m-journal": "module-journal",
   "m-awn-types": "module-awn-types",
   "m-registry": "module-registry",
   "m-large-files": "module-large-files",

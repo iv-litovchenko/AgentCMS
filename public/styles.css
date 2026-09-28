@@ -27408,18 +27408,34 @@ a.header-tool-btn {
   height: 15px;
 }
 
+.menu-agent-stats-env-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.menu-agent-stats-env-overlay.hidden {
+  display: none;
+}
+
 .menu-agent-stats-env-popover {
   --notebook-cover: #6b4428;
   --notebook-cover-deep: #4a2e1c;
   --notebook-paper: #fffef7;
   --notebook-ink: #3d2b1f;
   --notebook-grid: rgba(176, 132, 84, 0.11);
-  position: fixed;
-  z-index: 1000;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 0;
-  width: min(320px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(85vh, 560px);
   padding: 0;
   border: 1px solid rgba(74, 46, 28, 0.42);
   border-radius: 14px;
@@ -27430,18 +27446,15 @@ a.header-tool-btn {
   overflow: hidden;
 }
 
-.menu-agent-stats-env-popover.hidden {
-  display: none;
-}
-
 .menu-agent-stats-env-popover-head {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
-  gap: 3px;
+  justify-content: space-between;
+  gap: 10px;
   min-width: 0;
-  padding: 12px 14px 11px 24px;
+  padding: 12px 12px 11px 24px;
   background:
     linear-gradient(180deg, rgba(255, 236, 210, 0.14) 0%, transparent 42%),
     linear-gradient(180deg, #7a4f31 0%, var(--notebook-cover) 55%, var(--notebook-cover-deep) 100%);
@@ -27474,6 +27487,28 @@ a.header-tool-btn {
   height: 6px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), transparent);
   pointer-events: none;
+}
+
+.menu-agent-stats-env-popover-head-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.menu-agent-stats-env-popover-close {
+  flex-shrink: 0;
+  margin-top: -2px;
+  color: #fff6e8;
+  border-color: rgba(255, 246, 232, 0.35);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.menu-agent-stats-env-popover-close:hover {
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
 }
 
 .menu-agent-stats-env-popover-title {
@@ -27531,6 +27566,12 @@ a.header-tool-btn {
   text-align: center;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.menu-agent-stats-env-popover .menu-system-environment-grid.is-popover {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .menu-system-environment-grid.is-popover {
