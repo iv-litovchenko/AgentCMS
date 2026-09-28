@@ -76929,7 +76929,22 @@ function getNavigationHubRailDocumentSlot(rail) {
 function syncNavigationHubRailDocumentSlotState(documentSlot) {
   const rail = documentSlot?.closest(".node-navigation-hub-rail");
   updateNavigationHubRailPanelHeight(rail);
+  bindNavigationHubRailScrollDownButton(rail);
+  syncNavigationHubRailDocumentOutlineActive(rail);
   scheduleWorkspaceScrollChromeSync();
+}
+
+function resolveNavigationHubRailScrollSurface(rail) {
+  if (!rail) return null;
+  const documentSlot = getNavigationHubRailDocumentSlot(rail);
+  if (documentSlot?.open) {
+    return documentSlot.querySelector(".node-navigation-hub-rail-slot-body") || rail;
+  }
+  for (const details of rail.querySelectorAll(".node-navigation-hub-rail-slot[open]")) {
+    const body = details.querySelector(":scope > .node-navigation-hub-rail-slot-body");
+    if (body && getScrollMetrics(body).scrollable) return body;
+  }
+  return rail;
 }
 
 let navigationHubRailDocumentScrollSpy = null;
@@ -77011,22 +77026,46 @@ function resolveDocSlabForNavigationHubRail(rail) {
   );
 }
 
+function getOffsetTopWithinScrollContainer(element, scrollContainer) {
+  if (!element || !scrollContainer || !scrollContainer.contains(element)) return 0;
+  const elementRect = element.getBoundingClientRect();
+  const containerRect = scrollContainer.getBoundingClientRect();
+  return elementRect.top - containerRect.top + scrollContainer.scrollTop;
+}
+
+function getNavigationHubRailLayoutAnchor(rail) {
+  return rail?.closest(".node-navigation-hub-rail-aside") || rail;
+}
+
 function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
   if (!rail || !docSlab) return;
-  const slabRect = docSlab.getBoundingClientRect();
-  const railRect = rail.getBoundingClientRect();
+  const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
   const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
-  const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top - slabPaddingTop));
-  const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
+  const topOffset = Math.max(
+    0,
+    Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
+  );
+  const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
   docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
   docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
 }
 
-function resolveNavigationHubRailBottomOffset(rail) {
+function resolveNavigationHubRailBottomOffset(rail, docSlab = null) {
   let bottomOffset = 12;
   const overviewContent =
     rail?.closest("#node-overview-content") || nodeOverviewContentNode || null;
   if (!overviewContent || !rail) return bottomOffset;
+
+  const scrollContainer = docSlab || resolveDocSlabForNavigationHubRail(rail);
+  if (scrollContainer && navigationHubRailUsesDocSlabScroll(rail)) {
+    const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
+    const overviewTop = getOffsetTopWithinScrollContainer(overviewContent, scrollContainer);
+    const railTop = getOffsetTopWithinScrollContainer(layoutAnchor, scrollContainer);
+    const cardTopGap = Math.max(0, Math.round(railTop - overviewTop));
+    if (cardTopGap > 0) bottomOffset = cardTopGap;
+    return bottomOffset;
+  }
+
   const cardTopGap = Math.round(
     rail.getBoundingClientRect().top - overviewContent.getBoundingClientRect().top
   );
@@ -77038,17 +77077,15 @@ function resolveNavigationHubRailStickyHeight(rail) {
   const docSlab = resolveDocSlabForNavigationHubRail(rail);
 
   if (docSlab && rail) {
-    const slabRect = docSlab.getBoundingClientRect();
-    const railRect = rail.getBoundingClientRect();
-    const slabStyles = getComputedStyle(docSlab);
-    const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
-    const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
-    const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
-    const slabVisibleBottom = slabRect.bottom - slabPaddingBottom;
-    const heightFromCoords = slabVisibleBottom - bottomOffset - railRect.top;
-    const topOffset = Math.max(0, Math.round(railRect.top - slabRect.top - slabPaddingTop));
+    const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
+    const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
+    const topOffset = Math.max(
+      0,
+      Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
+    );
+    const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
     const heightFromViewport = docSlab.clientHeight - topOffset - bottomOffset;
-    return Math.max(240, Math.floor(Math.min(heightFromCoords, heightFromViewport)));
+    return Math.max(240, Math.floor(heightFromViewport));
   }
 
   const insetBottom = 12;
@@ -77103,10 +77140,11 @@ function ensureNavigationHubRailScrollDownButton() {
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const activeRail = navigationHubRailScrollDownUi?.rail;
-    if (!activeRail) return;
-    const step = Math.max(120, Math.floor(activeRail.clientHeight * 0.72));
-    activeRail.scrollBy({ top: step, behavior: "smooth" });
+    const scrollSurface =
+      navigationHubRailScrollDownUi?.scrollSurface || navigationHubRailScrollDownUi?.rail;
+    if (!scrollSurface) return;
+    const step = Math.max(120, Math.floor(scrollSurface.clientHeight * 0.72));
+    scrollSurface.scrollBy({ top: step, behavior: "smooth" });
   });
   if (!navigationHubRailScrollDownUi) navigationHubRailScrollDownUi = {};
   navigationHubRailScrollDownUi.btn = btn;
@@ -77120,10 +77158,15 @@ function syncNavigationHubRailScrollDownButton(rail) {
   }
   const btn = ensureNavigationHubRailScrollDownButton();
   if (btn.parentElement !== rail) rail.appendChild(btn);
-  navigationHubRailScrollDownUi.rail = rail;
-  const metrics = getScrollMetrics(rail);
+  const scrollSurface = resolveNavigationHubRailScrollSurface(rail);
+  if (navigationHubRailScrollDownUi) {
+    navigationHubRailScrollDownUi.rail = rail;
+    navigationHubRailScrollDownUi.scrollSurface = scrollSurface;
+  }
+  const metrics = getScrollMetrics(scrollSurface);
+  const viewportHeight = scrollSurface.clientHeight || rail.clientHeight;
   const show =
-    metrics.scrollable && metrics.scrollTop + rail.clientHeight < metrics.scrollHeight - 8;
+    metrics.scrollable && metrics.scrollTop + viewportHeight < metrics.scrollHeight - 8;
   btn.classList.toggle("is-visible", show);
   btn.setAttribute("aria-hidden", show ? "false" : "true");
   btn.tabIndex = show ? 0 : -1;
@@ -77131,21 +77174,31 @@ function syncNavigationHubRailScrollDownButton(rail) {
 
 function bindNavigationHubRailScrollDownButton(rail) {
   teardownNavigationHubRailScrollDownButton();
-  if (!navigationHubRailUsesDocSlabScroll(rail)) return;
+  if (!rail || !navigationHubRailUsesDocSlabScroll(rail)) return;
   const btn = ensureNavigationHubRailScrollDownButton();
   if (btn.parentElement !== rail) rail.appendChild(btn);
-  const onRailScroll = () => syncNavigationHubRailScrollDownButton(rail);
-  rail.addEventListener("scroll", onRailScroll, { passive: true });
-  navigationHubRailScrollDownUi.rail = rail;
-  navigationHubRailScrollDownUi.onRailScroll = onRailScroll;
+  const scrollSurface = resolveNavigationHubRailScrollSurface(rail);
+  const onScroll = () => syncNavigationHubRailScrollDownButton(rail);
+  scrollSurface.addEventListener("scroll", onScroll, { passive: true });
+  navigationHubRailScrollDownUi = {
+    rail,
+    scrollSurface,
+    onScroll,
+    btn
+  };
   syncNavigationHubRailScrollDownButton(rail);
+  requestAnimationFrame(() => syncNavigationHubRailScrollDownButton(rail));
 }
 
 function teardownNavigationHubRailScrollDownButton() {
   if (!navigationHubRailScrollDownUi) return;
+  navigationHubRailScrollDownUi.scrollSurface?.removeEventListener(
+    "scroll",
+    navigationHubRailScrollDownUi.onScroll
+  );
   navigationHubRailScrollDownUi.rail?.removeEventListener(
     "scroll",
-    navigationHubRailScrollDownUi.onRailScroll
+    navigationHubRailScrollDownUi.onScroll
   );
   navigationHubRailScrollDownUi.btn?.classList.remove("is-visible");
   navigationHubRailScrollDownUi.btn?.setAttribute("aria-hidden", "true");
@@ -77176,12 +77229,7 @@ function bindNavigationHubRailAsideLayout(rail) {
 
   window.addEventListener("resize", onResize, { passive: true });
 
-  const scrollElement = getNavigationHubDocumentScrollElement();
-  scrollElement?.addEventListener("scroll", onResize, { passive: true });
   const docSlab = resolveDocSlabForNavigationHubRail(rail);
-  if (docSlab && docSlab !== scrollElement) {
-    docSlab.addEventListener("scroll", onResize, { passive: true });
-  }
 
   let resizeObserver = null;
   const layoutRoot =
@@ -77194,8 +77242,6 @@ function bindNavigationHubRailAsideLayout(rail) {
   navigationHubRailAsideLayout = {
     rail,
     onResize,
-    scrollElement,
-    docSlabScrollElement: docSlab && docSlab !== scrollElement ? docSlab : null,
     resizeObserver,
     raf: 0
   };
@@ -77207,14 +77253,6 @@ function teardownNavigationHubRailAsideLayout() {
   teardownNavigationHubRailScrollDownButton();
   if (!navigationHubRailAsideLayout) return;
   window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
-  navigationHubRailAsideLayout.scrollElement?.removeEventListener(
-    "scroll",
-    navigationHubRailAsideLayout.onResize
-  );
-  navigationHubRailAsideLayout.docSlabScrollElement?.removeEventListener(
-    "scroll",
-    navigationHubRailAsideLayout.onResize
-  );
   navigationHubRailAsideLayout.resizeObserver?.disconnect();
   if (navigationHubRailAsideLayout.raf) {
     cancelAnimationFrame(navigationHubRailAsideLayout.raf);
@@ -77269,9 +77307,9 @@ function syncNavigationHubRailDocumentOutlineActive(rail) {
   let activeLink = null;
 
   links.forEach((link) => {
-    const matches = activeSlug
-      ? link.dataset.slug === activeSlug
-      : Number(link.dataset.headingIndex) === activeIndex;
+    const slugMatch = Boolean(activeSlug && link.dataset.slug === activeSlug);
+    const indexMatch = Number(link.dataset.headingIndex) === activeIndex;
+    const matches = slugMatch || indexMatch;
     link.classList.toggle("is-current", matches);
     if (matches) activeLink = link;
   });
@@ -77282,8 +77320,42 @@ function syncNavigationHubRailDocumentOutlineActive(rail) {
   }
 }
 
-function bindNavigationHubRailDocumentScrollSpy(_rail) {
+function setNavigationHubRailDocumentOutlineCurrentLink(documentSlot, activeLink) {
+  if (!documentSlot || !activeLink) return;
+  documentSlot.querySelectorAll(".node-navigation-rail-doc-outline-link").forEach((link) => {
+    link.classList.toggle("is-current", link === activeLink);
+  });
+}
+
+function bindNavigationHubRailDocumentScrollSpy(rail) {
   teardownNavigationHubRailDocumentScrollSpy();
+  if (!rail) return;
+
+  const scrollElement = getNavigationHubDocumentScrollElement();
+  if (!scrollElement) return;
+
+  const scheduleSync = () => {
+    if (!navigationHubRailDocumentScrollSpy) return;
+    if (navigationHubRailDocumentScrollSpy.raf) return;
+    navigationHubRailDocumentScrollSpy.raf = requestAnimationFrame(() => {
+      if (!navigationHubRailDocumentScrollSpy) return;
+      navigationHubRailDocumentScrollSpy.raf = 0;
+      syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
+    });
+  };
+
+  const onScroll = () => scheduleSync();
+  scrollElement.addEventListener("scroll", onScroll, { passive: true });
+
+  navigationHubRailDocumentScrollSpy = {
+    rail,
+    scrollElement,
+    onScroll,
+    raf: 0,
+    suppressOutlineSync: false
+  };
+  syncNavigationHubRailDocumentOutlineActive(rail);
+  requestAnimationFrame(() => syncNavigationHubRailDocumentOutlineActive(rail));
 }
 
 function getNavTocCollapsedOverrides() {
@@ -77521,6 +77593,9 @@ function appendNavigationHubRailSlotTreeEmptyState(treeHost, slot, slotIndex, no
 const NAVIGATION_HUB_RAIL_FLAG_SVG =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 4h10l-2.5 4L15 12H5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" fill-opacity="0.12"/></svg>';
 
+const NAVIGATION_HUB_RAIL_TOC_ICON_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>';
+
 function createNavigationHubRailSlotFlagIndicator(slot) {
   const wrap = document.createElement("span");
   wrap.className = "node-navigation-hub-rail-slot-count node-navigation-hub-rail-slot-count--flag";
@@ -77542,6 +77617,17 @@ function openNavigationHubRailSlotTarget(slot) {
   });
 }
 
+function applyNavigationHubRailSlotCountPresentation(countEl, slot) {
+  const countValue = Number(slot.count ?? 0);
+  countEl.classList.remove("is-filled", "is-status-dot", "is-empty-dot");
+  if (slot.filled || countValue > 0) {
+    countEl.classList.add("is-filled");
+  } else {
+    countEl.classList.add("is-status-dot", "is-empty-dot");
+  }
+  countEl.textContent = String(slot.count ?? 0);
+}
+
 function appendNavigationHubRailSlotSummaryParts(summary, slot, options = {}) {
   const {
     onLabelClick = null,
@@ -77552,7 +77638,12 @@ function appendNavigationHubRailSlotSummaryParts(summary, slot, options = {}) {
   const icon = document.createElement("span");
   icon.className = "node-navigation-hub-rail-slot-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = slot.spec?.icon || "📁";
+  if (slot.spec?.iconSvg) {
+    icon.classList.add("node-navigation-hub-rail-slot-icon--svg");
+    icon.innerHTML = slot.spec.iconSvg;
+  } else {
+    icon.textContent = slot.spec?.icon || "📁";
+  }
 
   const label = document.createElement("span");
   label.className = "node-navigation-hub-rail-slot-label";
@@ -77572,8 +77663,7 @@ function appendNavigationHubRailSlotSummaryParts(summary, slot, options = {}) {
     summary.append(icon, label, createNavigationHubRailSlotFlagIndicator(slot));
   } else {
     count.className = "node-navigation-hub-rail-slot-count";
-    if (slot.filled || Number(slot.count ?? 0) > 0) count.classList.add("is-filled");
-    count.textContent = String(slot.count ?? 0);
+    applyNavigationHubRailSlotCountPresentation(count, slot);
     summary.append(icon, label, count);
   }
 
@@ -86633,6 +86723,9 @@ function fillNavigationHubRailDocumentOutlineList(list, headings) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      const rail = btn.closest(".node-navigation-hub-rail");
+      const documentSlot = getNavigationHubRailDocumentSlot(rail);
+      setNavigationHubRailDocumentOutlineCurrentLink(documentSlot, btn);
       scrollToEntryOverviewDocumentHeading(heading);
     });
     item.appendChild(btn);
@@ -86663,7 +86756,7 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
     label: "Оглавление",
     count: headings.length,
     filled: hasHeadings,
-    spec: { icon: "≡" }
+    spec: { iconSvg: NAVIGATION_HUB_RAIL_TOC_ICON_SVG }
   };
 
   let toggleBtn = null;
@@ -86739,6 +86832,7 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
       const bodyNode = details.querySelector(".node-navigation-hub-rail-slot-body");
       if (bodyNode) mountDeferredNavigationHubRailSlotTree(bodyNode);
     }
+    bindNavigationHubRailScrollDownButton(details.closest(".node-navigation-hub-rail"));
   });
   details.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
   details.classList.toggle("is-filled", Boolean(slot.filled));

@@ -2,6 +2,22 @@
   "paths": [
     "inbox/312.md",
     "inbox/agent.voice.tts manifest.md",
+    "inbox/awn-framework/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png",
+    "inbox/awn-framework/assets/4ab7aa81-5883-4232-bf44-aca52390d8b2.png",
+    "inbox/awn-framework/assets/8da24847-5bc2-4ee0-9d87-33168723d63c.png",
+    "inbox/awn-framework/assets/8da24847-5bc2-4ee0-9d87-33168723d63c.png.md",
+    "inbox/awn-framework/assets/16afb84c-6f96-4a1e-8519-e79421bd1d27.png",
+    "inbox/awn-framework/assets/3593354e-2c7d-45c9-859f-8adc1b3f7477.png",
+    "inbox/awn-framework/assets/a6917985-53fa-4c50-b577-f5f450d673ec.png",
+    "inbox/awn-framework/assets/FirstWords.jpg",
+    "inbox/awn-framework/assets/IMG_9403.jpg",
+    "inbox/awn-framework/assets/manifest.md",
+    "inbox/awn-framework/ideas/claude/changelog.md",
+    "inbox/awn-framework/ideas/claude/identity.node.md",
+    "inbox/awn-framework/ideas/claude/node-creator.node.md",
+    "inbox/awn-framework/ideas/grok/AGENTS.v.1.1.md",
+    "inbox/awn-framework/ideas/grok/Nodes/Core/DecisionMaking.node.md",
+    "inbox/awn-framework/ideas/grok/Nodes/Core/SelfDevelopment.node.md",
     "inbox/awn-framework/ideas/petr/Снимок экрана 2026-05-03 в 17.54.48.png",
     "inbox/awn-framework/ideas/petr/Снимок экрана 2026-05-03 в 17.55.36.png",
     "inbox/awn-framework/ideas/petr/Снимок экрана 2026-05-03 в 18.01.57.png",
@@ -56,6 +72,7 @@
     "main/ideya-hranit-sekretnye-dannye-paroli.md",
     "main/ideya-integratsiya-s-vneshnimi-servisami.md",
     "main/ideya-mode-readonly-dlya-agent-cms-mcp.md",
+    "main/kopilot-v-brauzere/manifest.md",
     "main/kopilot-v-brauzere/obschie-idei-chto-esche-mozhet-byt.md",
     "main/mcp-instrument-i-knopka-registratsiya-md-fayla.md",
     "main/mindmap-intellektualnye-karty.md",
@@ -90,5 +107,5 @@
     "media/8da24847-5bc2-4ee0-9d87-33168723d63c.png",
     "topic-index-generated/zadachi-plany-i-idei/index.md"
   ],
-  "updatedAt": "2026-09-28T10:36:55.426Z"
+  "updatedAt": "2026-09-28T12:23:55.041Z"
 }
