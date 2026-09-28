@@ -32004,22 +32004,10 @@ body.workspace-pomodoro-break-active {
 }
 
 #doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked {
-  display: none !important;
-}
-
-.doc-stack .editor-surface > .workspace-scroll-host {
-  position: relative;
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked {
   position: absolute;
-  right: calc(12px + var(--scroll-top-shift-x, 0px));
-  bottom: calc(12px + var(--scroll-top-shift-y, 0px));
-  z-index: 30;
+  right: calc(10px + var(--scroll-top-shift-x, 0px));
+  bottom: calc((var(--doc-body-status-bar-height, 34px) - 32px) / 2 + var(--scroll-top-shift-y, 0px));
+  z-index: 41;
   margin: 0;
   min-height: 32px;
   min-width: 32px;
@@ -32033,6 +32021,22 @@ body.workspace-pomodoro-break-active {
     0 2px 6px rgba(15, 23, 42, 0.1);
 }
 
+.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked {
+  display: none !important;
+}
+
+.doc-stack .editor-surface > .workspace-scroll-host {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked {
+  display: none !important;
+}
+
 .doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked .scroll-top-btn-icon {
   width: 16px;
   height: 16px;
@@ -32044,7 +32048,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .scroll-top-btn--docked {
-  display: none !important;
+  bottom: calc((var(--doc-body-status-bar-height, 34px) - 32px) / 2 + var(--scroll-top-shift-y, 0px));
 }
 
 #doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked .scroll-top-btn-icon {
@@ -32995,6 +32999,19 @@ body.workspace-pomodoro-break-active {
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .topic-schema-panel:not(.hidden))::-webkit-scrollbar-thumb:hover {
   background: rgba(51, 65, 85, 0.82);
   background-clip: padding-box;
+}
+
+/* Редактор с боковой панелью: скролл на doc-slab-content */
+#doc-body-grid.has-props-aside .doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden)) {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(71, 85, 105, 0.78) rgba(148, 163, 184, 0.22);
 }
 
 /* Редактор / просмотр / исходник: doc-body-grid уже на всю ширину — без второго бокового inset */

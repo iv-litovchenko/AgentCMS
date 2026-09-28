@@ -62847,6 +62847,9 @@ function runEditorInputSideEffects() {
   } else {
     scheduleDocOutlineRefresh();
   }
+  if (shouldUseEditorAutoHeight()) {
+    applySourceEditorAutoHeightUi();
+  }
   refreshPropsAttachmentsUsageState();
   syncDocBodyStatusBar();
 }
@@ -89693,6 +89696,9 @@ function shouldUseEditorAutoHeight() {
   if (nodeOverviewBlockNode && !nodeOverviewBlockNode.classList.contains("hidden")) return false;
   if (listViewBlockNode && !listViewBlockNode.classList.contains("hidden")) return false;
   if (graphViewBlockNode && !graphViewBlockNode.classList.contains("hidden")) return false;
+  if (isDocPropsAsideVisible() && (editorViewMode === "source" || editorViewMode === "preview" || editorViewMode === "wysiwyg")) {
+    return true;
+  }
   if (editorViewMode === "source") return false;
   return editorViewMode === "wysiwyg" || editorViewMode === "preview";
 }
@@ -117943,6 +117949,13 @@ function getDocEditorScrollTargetsForPropsAside() {
   if (!isDocPropsAsideVisible()) return null;
   const docSlabContent = getDocSlabContentNode();
   if (!docSlabContent || !getEditorSurfaceInDocSlabContent(docSlabContent)) return null;
+  const hostTarget = getOverviewDocSlabChromeHost(docSlabContent);
+
+  if (editorViewMode === "preview" || editorViewMode === "source" || editorViewMode === "wysiwyg") {
+    if (shouldUseEditorAutoHeight()) {
+      return { scrollElement: docSlabContent, hostTarget };
+    }
+  }
 
   if (
     editorViewMode === "preview" &&
@@ -118032,6 +118045,7 @@ function isDocBodyMainScrollChromeHost(hostTarget) {
     if (!docSlabContent) return false;
     if (getOverviewNodeInDocSlabContent(docSlabContent)) return true;
     if (getTopicSchemaNodeInDocSlabContent(docSlabContent)) return true;
+    if (getDocEditorScrollTargetsForPropsAside()) return true;
     return Boolean(getDocBodyMainEditorScrollTargets());
   }
   return Boolean(
