@@ -35339,11 +35339,11 @@ button.node-navigation-hub-rail-slot-summary {
     calc(100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px)
   );
   min-height: 0 !important;
-  height: min(
-    var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height)),
-    var(--nav-rail-slab-max-height)
+  height: var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height)) !important;
+  max-height: max(
+    var(--nav-rail-slab-max-height),
+    var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height))
   ) !important;
-  max-height: var(--nav-rail-slab-max-height) !important;
   box-sizing: border-box;
 }
 

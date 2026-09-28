@@ -77115,21 +77115,31 @@ function getNavigationHubRailLayoutAnchor(rail) {
   return rail?.closest(".node-navigation-hub-rail-aside") || rail;
 }
 
-function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
-  if (!rail || !docSlab) return;
+const NAV_HUB_RAIL_MIN_HEIGHT_PX = 240;
+
+function computeNavigationHubRailSlabOffsets(rail, docSlab) {
   const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
-  const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
-  const slabPaddingBottom = parseFloat(getComputedStyle(docSlab).paddingBottom) || 0;
+  const slabStyles = getComputedStyle(docSlab);
+  const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
+  const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
   const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
   let topOffset = Math.max(
     0,
     Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
   );
   const slabInnerHeight = Math.max(0, docSlab.clientHeight - slabPaddingTop - slabPaddingBottom);
-  const minRailHeight = 240;
-  if (slabInnerHeight > minRailHeight) {
-    topOffset = Math.min(topOffset, Math.max(0, slabInnerHeight - minRailHeight - bottomOffset));
+  if (slabInnerHeight > NAV_HUB_RAIL_MIN_HEIGHT_PX) {
+    topOffset = Math.min(
+      topOffset,
+      Math.max(0, slabInnerHeight - NAV_HUB_RAIL_MIN_HEIGHT_PX - bottomOffset)
+    );
   }
+  return { layoutAnchor, slabPaddingTop, slabPaddingBottom, bottomOffset, topOffset, slabInnerHeight };
+}
+
+function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
+  if (!rail || !docSlab) return;
+  const { topOffset, bottomOffset } = computeNavigationHubRailSlabOffsets(rail, docSlab);
   docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
   docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
 }
@@ -77156,32 +77166,35 @@ function resolveNavigationHubRailStickyHeight(rail) {
   const docSlab = resolveDocSlabForNavigationHubRail(rail);
 
   if (docSlab && rail) {
-    const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
-    const slabStyles = getComputedStyle(docSlab);
-    const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
-    const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
-    const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
-    const topOffset = Math.max(
-      0,
-      Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
-    );
+    const { layoutAnchor, slabPaddingTop, slabPaddingBottom, bottomOffset, topOffset } =
+      computeNavigationHubRailSlabOffsets(rail, docSlab);
 
     const slabRect = docSlab.getBoundingClientRect();
     const anchorRect = layoutAnchor.getBoundingClientRect();
     const heightFromVisible =
       slabRect.bottom - slabPaddingBottom - anchorRect.top - bottomOffset;
     const heightFromLayout = docSlab.clientHeight - topOffset - bottomOffset;
+    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+    const stickyTop = Math.max(anchorRect.top, slabRect.top + slabPaddingTop);
+    const heightFromViewport = viewportHeight - stickyTop - bottomOffset;
 
-    return Math.max(240, Math.floor(Math.max(heightFromVisible, heightFromLayout)));
+    return Math.max(
+      NAV_HUB_RAIL_MIN_HEIGHT_PX,
+      Math.floor(Math.max(heightFromVisible, heightFromLayout, heightFromViewport))
+    );
   }
 
   const insetBottom = 12;
   const bottomOffset = resolveNavigationHubRailBottomOffset(rail);
   const overview = rail?.closest("#node-overview-block");
-  let height = Math.max(240, window.innerHeight - insetBottom - bottomOffset);
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  let height = Math.max(NAV_HUB_RAIL_MIN_HEIGHT_PX, viewportHeight - insetBottom - bottomOffset);
   if (overview) {
     const top = Math.max(overview.getBoundingClientRect().top, 0);
-    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom - bottomOffset));
+    height = Math.max(
+      NAV_HUB_RAIL_MIN_HEIGHT_PX,
+      Math.floor(viewportHeight - top - insetBottom - bottomOffset)
+    );
   }
   return height;
 }
@@ -77296,9 +77309,10 @@ function teardownNavigationHubRailScrollDownButton() {
 }
 
 function bindNavigationHubRailAsideLayout(rail) {
-  teardownNavigationHubRailAsideLayout();
+  teardownNavigationHubRailAsideLayout({ preserveHeightFor: rail });
   if (!rail?.closest(".node-navigation-hub--split")) return;
 
+  flushPendingWorkspaceScrollToTop();
   updateNavigationHubRailPanelHeight(rail);
 
   const scheduleLayoutSync = () => {
@@ -77307,6 +77321,7 @@ function bindNavigationHubRailAsideLayout(rail) {
     navigationHubRailAsideLayout.raf = requestAnimationFrame(() => {
       if (!navigationHubRailAsideLayout) return;
       navigationHubRailAsideLayout.raf = 0;
+      flushPendingWorkspaceScrollToTop();
       updateNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
       syncNavigationHubRailScrollDownButton(navigationHubRailAsideLayout.rail);
       scheduleWorkspaceScrollChromeSync();
@@ -77337,7 +77352,7 @@ function bindNavigationHubRailAsideLayout(rail) {
   scheduleWorkspaceScrollChromeSync();
 }
 
-function teardownNavigationHubRailAsideLayout() {
+function teardownNavigationHubRailAsideLayout({ preserveHeightFor = null } = {}) {
   teardownNavigationHubRailScrollDownButton();
   if (!navigationHubRailAsideLayout) return;
   window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
@@ -77345,7 +77360,12 @@ function teardownNavigationHubRailAsideLayout() {
   if (navigationHubRailAsideLayout.raf) {
     cancelAnimationFrame(navigationHubRailAsideLayout.raf);
   }
-  clearNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
+  if (
+    navigationHubRailAsideLayout.rail &&
+    navigationHubRailAsideLayout.rail !== preserveHeightFor
+  ) {
+    clearNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
+  }
   navigationHubRailAsideLayout = null;
 }
 
@@ -86163,7 +86183,6 @@ function mountNavigationHubRailToggle(hub) {
 
   bar.replaceChildren();
   bar.style.removeProperty("--nav-rail-panel-height");
-  bar.style.removeProperty("--nav-rail-sticky-height");
 
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
@@ -86194,10 +86213,16 @@ function syncNavigationHubSplitRailChrome(hub) {
 
 function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  syncNodeOverviewNavigationSplitClass(true);
+  flushPendingWorkspaceScrollToTop();
   syncNavigationHubSplitRailChrome(hub);
   requestAnimationFrame(() => {
+    flushPendingWorkspaceScrollToTop();
     syncNavigationHubSplitRailChrome(hub);
-    requestAnimationFrame(() => syncNavigationHubSplitRailChrome(hub));
+    requestAnimationFrame(() => {
+      flushPendingWorkspaceScrollToTop();
+      syncNavigationHubSplitRailChrome(hub);
+    });
   });
 }
 
@@ -87125,7 +87150,6 @@ async function appendNodeNavigationSplitRail(
     if (isStale()) return false;
     if (rail) {
       hub.appendChild(rail);
-      syncNodeOverviewNavigationSplitClass(true);
       return true;
     }
     hub.classList.remove("node-navigation-hub--split");
@@ -87169,7 +87193,6 @@ async function appendNodeNavigationSplitRail(
     if (isStale()) return false;
     if (rail) {
       hub.appendChild(rail);
-      syncNodeOverviewNavigationSplitClass(true);
       return true;
     }
   } catch (railError) {
