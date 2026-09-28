@@ -574,6 +574,8 @@ fields:
         name: Голосовое
       - key: fn_button
         name: По кнопке Shift
+      - key: lego_button
+        name: По кнопке Lego (todo)
     group: voice-client
     subgroup: voice-stt
     sort: 51

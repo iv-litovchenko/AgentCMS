@@ -1,6 +1,6 @@
 /** Режимы голосового ввода Shell (voiceInputMode). */
 
-export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button"];
+export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button", "lego_button"];
 
 /** Что слушать (захват аудио). */
 export const STT_CAPTURE_IDS = ["microphone", "system", "mix"];
@@ -91,6 +91,7 @@ const LEGACY_MODE_MAP = {
   always: "live",
   wake_name: "live",
   fn_button: "fn_button",
+  lego_button: "lego_button",
   disabled: "disabled"
 };
 
@@ -98,31 +99,38 @@ export const VOICE_MODE_LABELS = {
   live: "Живой диалог",
   meeting: "Запись встречи",
   hold: "Голосовое",
-  fn_button: "Shift"
+  fn_button: "Shift",
+  lego_button: "Lego"
 };
 
 export const VOICE_MODE_COMPACT_LABELS = {
   live: "Живой",
   meeting: "Встреча",
   hold: "Голос",
-  fn_button: "Shift"
+  fn_button: "Shift",
+  lego_button: "Lego"
 };
 
 /** Порядок и подписи режима 🎤 в compose. */
-export const COMPOSE_VOICE_MODE_ORDER = ["live", "meeting", "hold", "fn_button"];
+export const COMPOSE_VOICE_MODE_ORDER = ["live", "meeting", "hold", "fn_button", "lego_button"];
 
 /** Живой диалог v1 — Web Speech + пауза + barge-in. */
 export const LIVE_VOICE_MODE_ENABLED = true;
 
+/** Внешняя PTT-кнопка (Bluetooth HID / LEGO) — пока только пункт меню. */
+export const LEGO_VOICE_MODE_ENABLED = false;
+
 export function isComposeVoiceModeDisabled(mode) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "live" && !LIVE_VOICE_MODE_ENABLED) return true;
+  if (m === "lego_button" && !LEGO_VOICE_MODE_ENABLED) return true;
   return false;
 }
 
 export function composeVoiceModeSelectLabel(mode) {
   const m = normalizeVoiceInputMode(mode);
   const base = COMPOSE_VOICE_MODE_LABELS[m] || VOICE_MODE_LABELS[m] || m;
+  if (m === "lego_button" && !LEGO_VOICE_MODE_ENABLED) return base;
   if (isComposeVoiceModeDisabled(m)) return `${base} (скоро)`;
   return base;
 }
@@ -131,21 +139,24 @@ export const COMPOSE_VOICE_MODE_LABELS = {
   live: "Живой диалог",
   meeting: "Встреча (запись)",
   hold: "Голосовое",
-  fn_button: "По кнопке Shift"
+  fn_button: "По кнопке Shift",
+  lego_button: "По кнопке Lego (todo)"
 };
 
 export const VOICE_MODE_OPTION_LABELS = {
   live: "Живой диалог — речь по паузе → агенту",
   meeting: "Запись встречи — 🎤 старт / стоп",
   hold: "Голосовое — удерживать 🎤",
-  fn_button: "Shift — удерживать клавишу"
+  fn_button: "Shift — удерживать клавишу",
+  lego_button: "Lego — нажать кнопку в руке (todo)"
 };
 
 export const VOICE_MODE_HINTS = {
   live: "Постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS.",
   meeting: "🎤 — старт/стоп длинной записи. Аудио и текст сохраняются в awn-dialogs/audio/stt/.",
   hold: "Зажмите 🎤 — говорите — отпустите.",
-  fn_button: "Удерживайте Shift (вне поля ввода)."
+  fn_button: "Удерживайте Shift (вне поля ввода).",
+  lego_button: "Внешняя кнопка: зажали — говорите, отпустили — ввод (в разработке)."
 };
 
 export function normalizeVoiceInputMode(mode) {
@@ -286,7 +297,7 @@ export function voiceModeMicAction(mode, context = {}) {
   if (m === "meeting") return "toggle-meeting";
   if (m === "live") return "toggle-live";
 
-  if (m === "fn_button") return "hint";
+  if (m === "fn_button" || m === "lego_button") return "hint";
   return "hold";
 }
 
@@ -296,6 +307,7 @@ export function voiceModeMicLabel(mode, { meetingRecording = false, liveDialogAc
   if (m === "hold") return "Говорить";
   if (m === "live") return liveDialogActive ? "Стоп живого диалога" : "Живой диалог";
   if (m === "fn_button") return "Shift";
+  if (m === "lego_button") return "Lego";
   return "Говорить";
 }
 

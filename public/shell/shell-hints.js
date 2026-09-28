@@ -17,7 +17,8 @@ export function updateVoiceModeHint(
     live: "Живой диалог — фраза по паузе",
     meeting: "Встреча — 🎤 старт / стоп записи",
     hold: "Голосовое — удерживать 🎤",
-    fn_button: "Shift — удерживать клавишу или 🎤"
+    fn_button: "Shift — удерживать клавишу или 🎤",
+    lego_button: "Lego — кнопка в руке (todo)"
   };
   let hint = modeHints[mode] || modeHints.hold;
   void resolvedSource;
@@ -26,7 +27,8 @@ export function updateVoiceModeHint(
     live: hint,
     meeting: hint,
     hold: hint,
-    fn_button: hint
+    fn_button: hint,
+    lego_button: hint
   };
   const next = hints[mode] ? mode : "hold";
   hintEl.dataset.hint = hints[next];

@@ -206,7 +206,7 @@ const DEFAULT_STATE = {
 };
 
 const SIDECAR_TTL_MS = 8000;
-const VOICE_INPUT_MODES = new Set(["live", "meeting", "hold", "fn_button"]);
+const VOICE_INPUT_MODES = new Set(["live", "meeting", "hold", "fn_button", "lego_button"]);
 const {
   appendShellDialogChat,
   appendShellDialogTool,

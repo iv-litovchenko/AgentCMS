@@ -12212,7 +12212,9 @@ function handleMicPress() {
       "waiting",
       mode === "fn_button"
         ? "Удерживайте Shift для записи (не в поле ввода)"
-        : "Удерживайте 🎤 для записи"
+        : mode === "lego_button"
+          ? "Кнопка Lego — в разработке (todo)"
+          : "Удерживайте 🎤 для записи"
     );
     return;
   }

@@ -14,7 +14,7 @@ awn_settings:
   default-slot: main
   awn-temp-ttl-days: 0
   hooks-rules: []
-  voice-route-runtime: qwenpaw
+  voice-route-runtime: claude
   voice-route-claude-cli-path: claude
   voice-route-claude-model: sonnet
   voice-route-claude-session-id: dca6bc90-3700-43de-a741-391ae93091d9
@@ -25,7 +25,7 @@ awn_settings:
   voice-route-qwenpaw-user-id: default
   voice-route-qwenpaw-agent-id: default
   voice-route-qwenpaw-approval-level: AUTO
-  voice-input-enabled: false
+  voice-input-enabled: true
   voice-input-mode: fn_button
   voice-input-response-enabled: false
   voice-input-capture: microphone
