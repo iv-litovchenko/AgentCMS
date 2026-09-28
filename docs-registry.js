@@ -20,6 +20,18 @@ const DOCS_AGENT_FOLDER = "agent-cms-core";
 const DOCS_TOPIC_DIR = "dokumentatsii";
 const DOCS_MAIN_SLOT = "awn-storage/main";
 const USER_DOCS_DIR = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER, DOCS_TOPIC_DIR, DOCS_MAIN_SLOT);
+const PLATFORM_AGENT_ROOT = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER);
+const PLATFORM_GLOBAL_GUIDE_PREFIX = "platform-global:";
+const PLATFORM_GLOBAL_USER_GUIDE_FILES = [
+  "GLOBAL_MCP_DOC.md",
+  "GLOBAL_RESPONSE_STYLE.md",
+  "GLOBAL_MARKDOWN_SHOWCASE.md"
+];
+const PLATFORM_GLOBAL_USER_GUIDE_LABELS = {
+  "GLOBAL_MCP_DOC.md": "GLOBAL MCP Doc",
+  "GLOBAL_RESPONSE_STYLE.md": "GLOBAL Response Style",
+  "GLOBAL_MARKDOWN_SHOWCASE.md": "Markdown Showcase"
+};
 const PUBLIC_IMAGES_DIR = path.join(
   __dirname,
   "workspaces",
@@ -64,10 +76,47 @@ function getYamlScalarFromFrontmatter(frontmatter, key) {
 function normalizeUserGuideRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
+  if (normalized.startsWith(PLATFORM_GLOBAL_GUIDE_PREFIX)) {
+    const fileName = normalized.slice(PLATFORM_GLOBAL_GUIDE_PREFIX.length).trim();
+    return PLATFORM_GLOBAL_USER_GUIDE_FILES.includes(fileName) ? normalized : "";
+  }
   if (!/\.md$/i.test(normalized)) return "";
   if (/(?:^|\/)comments\//i.test(normalized)) return "";
   if (/(?:^|\/)history\//i.test(normalized)) return "";
   return normalized;
+}
+
+function parsePlatformGlobalGuideFile(relPath) {
+  const normalized = normalizeUserGuideRelPath(relPath);
+  if (!normalized || !normalized.startsWith(PLATFORM_GLOBAL_GUIDE_PREFIX)) return "";
+  return normalized.slice(PLATFORM_GLOBAL_GUIDE_PREFIX.length).trim();
+}
+
+async function loadPlatformGlobalUserGuides() {
+  const guides = [];
+  for (const fileName of PLATFORM_GLOBAL_USER_GUIDE_FILES) {
+    const abs = path.join(PLATFORM_AGENT_ROOT, fileName);
+    let markdown = "";
+    try {
+      markdown = await fs.readFile(abs, "utf8");
+    } catch {
+      continue;
+    }
+    const { frontmatter, body } = splitMarkdownFrontmatter(markdown);
+    const fromFm = getYamlScalarFromFrontmatter(frontmatter, "awn-name");
+    const h1 = String(body || "").match(/^#\s+(.+)$/m);
+    const fromTitle = h1 ? String(h1[1]).trim() : "";
+    const awnName =
+      fromFm ||
+      PLATFORM_GLOBAL_USER_GUIDE_LABELS[fileName] ||
+      humanizeGuideFileName(fileName);
+    guides.push({
+      path: `${PLATFORM_GLOBAL_GUIDE_PREFIX}${fileName}`,
+      awnName,
+      label: PLATFORM_GLOBAL_USER_GUIDE_LABELS[fileName] || awnName
+    });
+  }
+  return guides;
 }
 
 function humanizeGuideFileName(fileName) {
@@ -104,8 +153,9 @@ async function walkUserGuideMdRelPaths(dirAbs, relPrefix = "") {
 const DEFAULT_USER_GUIDE_PATH = "user-docs-0.0.2.md";
 
 async function getUserDocsIndex() {
+  const platformGuides = await loadPlatformGlobalUserGuides();
   const relPaths = await walkUserGuideMdRelPaths(USER_DOCS_DIR);
-  const guides = [];
+  const guides = [...platformGuides];
   for (const relPath of relPaths) {
     const abs = path.join(USER_DOCS_DIR, relPath);
     let markdown = "";
@@ -126,6 +176,7 @@ async function getUserDocsIndex() {
     nameCounts.set(guide.awnName, (nameCounts.get(guide.awnName) || 0) + 1);
   }
   for (const guide of guides) {
+    if (guide.path.startsWith(PLATFORM_GLOBAL_GUIDE_PREFIX)) continue;
     guide.label =
       (nameCounts.get(guide.awnName) || 0) > 1
         ? `${guide.awnName} · ${guide.path}`
@@ -146,6 +197,14 @@ async function getUserDocsIndex() {
 async function getUserGuideMarkdown(relPath) {
   const rel = normalizeUserGuideRelPath(relPath);
   if (!rel) throw new Error("Invalid guide path");
+  const platformFile = parsePlatformGlobalGuideFile(rel);
+  if (platformFile) {
+    const abs = path.join(PLATFORM_AGENT_ROOT, platformFile);
+    const root = path.resolve(PLATFORM_AGENT_ROOT);
+    const resolved = path.resolve(abs);
+    if (!resolved.startsWith(root)) throw new Error("Invalid guide path");
+    return fs.readFile(resolved, "utf8");
+  }
   const abs = path.join(USER_DOCS_DIR, rel);
   const root = path.resolve(USER_DOCS_DIR);
   const resolved = path.resolve(abs);
