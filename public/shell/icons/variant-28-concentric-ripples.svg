@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent Shell variant 28 concentric ripples">
+  <defs>
+    <linearGradient id="bg-v28" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f4bff" />
+      <stop offset="100%" stop-color="#9b59ff" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-v28)" />
+  <path d="M 8 42 A 24 24 0 0 1 56 42" fill="none" stroke="#eef0ff" stroke-width="2" stroke-linecap="round" opacity="0.35" />
+  <path d="M 12 38 A 20 20 0 0 1 52 38" fill="none" stroke="#eef0ff" stroke-width="2.5" stroke-linecap="round" opacity="0.55" />
+  <path d="M 16 34 A 16 16 0 0 1 48 34" fill="none" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.75" />
+  <path d="M 20 30 A 12 12 0 0 1 44 30" fill="none" stroke="#eef0ff" stroke-width="3.5" stroke-linecap="round" opacity="0.95" />
+</svg>

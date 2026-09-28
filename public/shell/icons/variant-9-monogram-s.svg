@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent Shell variant 9 monogram S">
+  <defs>
+    <linearGradient id="bg-v9" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f4bff" />
+      <stop offset="100%" stop-color="#9b59ff" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-v9)" />
+  <path
+    d="M 40 20 C 40 20 28 20 28 28 C 28 34 36 34 36 34 C 36 34 28 34 28 42 C 28 48 40 48 40 48"
+    fill="none"
+    stroke="#eef0ff"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+</svg>

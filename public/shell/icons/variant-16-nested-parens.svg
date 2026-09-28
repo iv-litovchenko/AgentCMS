@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent Shell variant 16 nested parens">
+  <defs>
+    <linearGradient id="bg-v16" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f4bff" />
+      <stop offset="100%" stop-color="#9b59ff" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-v16)" />
+  <path d="M 26 14 C 14 32 14 32 26 50" fill="none" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.45" />
+  <path d="M 38 14 C 50 32 50 32 38 50" fill="none" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.45" />
+  <path d="M 28 18 C 18 32 18 32 28 46" fill="none" stroke="#eef0ff" stroke-width="4" stroke-linecap="round" opacity="0.95" />
+  <path d="M 36 18 C 46 32 46 32 36 46" fill="none" stroke="#eef0ff" stroke-width="4" stroke-linecap="round" opacity="0.95" />
+</svg>
