@@ -35334,8 +35334,9 @@ button.node-navigation-hub-rail-slot-summary {
   top: var(--nav-rail-sticky-top);
   align-self: start;
   z-index: 3;
-  --nav-rail-slab-max-height: calc(
-    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
+  --nav-rail-slab-max-height: max(
+    240px,
+    calc(100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px)
   );
   min-height: 0 !important;
   height: min(

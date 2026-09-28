@@ -77041,11 +77041,22 @@ function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
   if (!rail || !docSlab) return;
   const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
   const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
-  const topOffset = Math.max(
+  const slabPaddingBottom = parseFloat(getComputedStyle(docSlab).paddingBottom) || 0;
+  const slabInnerHeight = Math.max(0, docSlab.clientHeight - slabPaddingTop - slabPaddingBottom);
+  let topOffset = Math.max(
     0,
     Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
   );
-  const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
+  let bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
+  const minRailHeight = 240;
+  if (slabInnerHeight > minRailHeight) {
+    const maxTop = Math.max(0, slabInnerHeight - minRailHeight);
+    topOffset = Math.min(topOffset, maxTop);
+    bottomOffset = Math.min(
+      bottomOffset,
+      Math.max(12, slabInnerHeight - topOffset - minRailHeight)
+    );
+  }
   docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
   docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
 }
@@ -77100,6 +77111,7 @@ function resolveNavigationHubRailStickyHeight(rail) {
 }
 
 function updateNavigationHubRailPanelHeight(rail) {
+  if (!rail?.isConnected) return;
   const hub = rail?.closest(".node-navigation-hub--split");
   const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
   if (!hub || !rail) {
@@ -86092,10 +86104,21 @@ function mountNavigationHubRailToggle(hub) {
   syncNavigationHubRailCollapsedUi(hub);
 }
 
-function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
+function syncNavigationHubSplitRailChrome(hub) {
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
   ensureNavigationHubRailAsideWrap(hub);
+  mountNavigationHubRailToggle(hub);
   bindNavigationHubSplitGridLayout(hub);
+  const rail = hub.querySelector(".node-navigation-hub-rail");
+  if (!rail) return;
+  bindNavigationHubRailAsideLayout(rail);
+  bindNavigationHubRailDocumentScrollSpy(rail);
+}
+
+function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
+  if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  syncNavigationHubSplitRailChrome(hub);
+  requestAnimationFrame(() => syncNavigationHubSplitRailChrome(hub));
 }
 
 function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
@@ -86932,11 +86955,6 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 
   if (slotsWrap.childElementCount) rail.appendChild(slotsWrap);
 
-  if (rail.childElementCount) {
-    bindNavigationHubRailAsideLayout(rail);
-    bindNavigationHubRailDocumentScrollSpy(rail);
-  }
-
   return rail.childElementCount ? rail : null;
 }
 
@@ -87023,7 +87041,6 @@ async function appendNodeNavigationSplitRail(
     if (isStale()) return false;
     if (rail) {
       hub.appendChild(rail);
-      mountNavigationHubRailToggle(hub);
       syncNodeOverviewNavigationSplitClass(true);
       return true;
     }
@@ -87068,7 +87085,6 @@ async function appendNodeNavigationSplitRail(
     if (isStale()) return false;
     if (rail) {
       hub.appendChild(rail);
-      mountNavigationHubRailToggle(hub);
       syncNodeOverviewNavigationSplitClass(true);
       return true;
     }
