@@ -216,6 +216,33 @@ fields:
     group: general
     sort: 13
 
+  workspace-pomodoro-enabled:
+    type: awn.field.boolean
+    title: Метод помидора
+    description: >
+      Кнопка 🍅 в футере: интервал фокуса, звуковой сигнал и окно короткого отдыха.
+      Не связано с заставкой при бездействии. Выключите, если таймер не нужен.
+    default: true
+    group: general
+    sort: 14
+
+  workspace-pomodoro-work-minutes:
+    type: awn.field.choice.one
+    title: Интервал помидора
+    description: Длительность фокуса до звонка и перерыва (кнопка 🍅 в футере).
+    default: "25"
+    enum:
+      - key: "5"
+        name: 5 минут
+      - key: "25"
+        name: 25 минут
+      - key: "45"
+        name: 45 минут
+      - key: "60"
+        name: 60 минут
+    group: general
+    sort: 15
+
   awn-id-next:
     type: awn.field.number.integer
     title: Следующий id
