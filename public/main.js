@@ -14471,6 +14471,8 @@ async function switchActiveAgent(nextAgentId) {
     await loadUserSettingsForAgent(nextAgentId).catch(() => {});
     reloadWorkspaceIdleScreensaverSettings(nextAgentId);
     syncWorkspaceIdleScreensaverEligibility();
+    reloadWorkspacePomodoroForAgent(nextAgentId);
+    syncWorkspacePomodoroEligibility();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     closeMenuSettingsPopover();
@@ -20915,6 +20917,7 @@ function showMaintenanceView() {
   if (platformMaintenanceViewActive) return;
   platformMaintenanceViewActive = true;
   syncWorkspaceIdleScreensaverEligibility();
+  syncWorkspacePomodoroEligibility();
   platformUiSettings.maintenanceMode = true;
   hideAppSplash();
   hideAppLandingView();
@@ -20951,6 +20954,7 @@ function hideMaintenanceView() {
   appRootNode?.classList.remove("maintenance-view");
   maintenancePaneNode?.classList.add("hidden");
   syncWorkspaceIdleScreensaverEligibility();
+  syncWorkspacePomodoroEligibility();
 }
 
 function syncPlatformMaintenanceUi() {
@@ -20992,6 +20996,35 @@ function isWorkspaceIdleScreensaverEligible() {
   );
 }
 
+let workspacePomodoroReady = false;
+
+function isWorkspacePomodoroEligible() {
+  return (
+    Boolean(activeAgentId) &&
+    !appRootNode?.classList.contains("app-landing-view") &&
+    !platformMaintenanceViewActive
+  );
+}
+
+function setupWorkspacePomodoro() {
+  if (workspacePomodoroReady || !window.WorkspacePomodoro?.init) return;
+  workspacePomodoroReady = true;
+  window.WorkspacePomodoro.init({
+    isEligible: isWorkspacePomodoroEligible,
+    getAgentId: () => activeAgentId || "main"
+  });
+}
+
+function reloadWorkspacePomodoroForAgent(agentId = activeAgentId) {
+  setupWorkspacePomodoro();
+  if (!agentId || !window.WorkspacePomodoro?.reloadForAgent) return;
+  window.WorkspacePomodoro.reloadForAgent(agentId);
+}
+
+function syncWorkspacePomodoroEligibility() {
+  window.WorkspacePomodoro?.syncEligibility?.();
+}
+
 function setupWorkspaceIdleScreensaver() {
   if (workspaceIdleScreensaverReady || !window.WorkspaceIdleScreensaver?.init) return;
   workspaceIdleScreensaverReady = true;
@@ -21015,6 +21048,15 @@ function applyWorkspaceIdleScreensaverFromCache(cache = getNodeSettingsCache()) 
   if (!cache || cache.settingsScope !== "local") return;
   const entry = (cache.entries || []).find((item) => item.key === "workspace-idle-screensaver-minutes");
   window.WorkspaceIdleScreensaver?.applyMinutes?.(entry?.value);
+}
+
+function applyWorkspacePomodoroFromCache(cache = getNodeSettingsCache()) {
+  if (!cache || cache.settingsScope !== "local") return;
+  const entries = cache.entries || [];
+  const enabledEntry = entries.find((item) => item.key === "workspace-pomodoro-enabled");
+  const workEntry = entries.find((item) => item.key === "workspace-pomodoro-work-minutes");
+  window.WorkspacePomodoro?.applyEnabled?.(enabledEntry?.value);
+  window.WorkspacePomodoro?.applyWorkMinutes?.(workEntry?.value);
 }
 
 function setupMaintenancePaneUi() {
@@ -46647,6 +46689,7 @@ async function saveProjectSettingsFormContent() {
       }
       if (isProjectSettingsLocalScope(getNodeSettingsManifestPath())) {
         applyWorkspaceIdleScreensaverFromCache(getNodeSettingsCache());
+        applyWorkspacePomodoroFromCache(getNodeSettingsCache());
       }
     }
     syncProjectSettingsSaveButtonState();
@@ -105193,6 +105236,7 @@ function hideAppLandingView() {
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
   syncWorkspaceIdleScreensaverEligibility();
+  syncWorkspacePomodoroEligibility();
 }
 
 function showAppLandingView(hint = "") {
@@ -105243,6 +105287,7 @@ function showAppLandingView(hint = "") {
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
   syncWorkspaceIdleScreensaverEligibility();
+  syncWorkspacePomodoroEligibility();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
@@ -118728,7 +118773,9 @@ async function init() {
     window.WorkspaceIndexPanel?.refreshStatus?.();
     if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
     setupWorkspaceIdleScreensaver();
+    setupWorkspacePomodoro();
     if (activeAgentId) reloadWorkspaceIdleScreensaverSettings(activeAgentId);
+    if (activeAgentId) reloadWorkspacePomodoroForAgent(activeAgentId);
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 

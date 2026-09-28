@@ -349,6 +349,28 @@
       </div>
     </div>
 
+    <div
+      id="workspace-pomodoro-break"
+      class="workspace-pomodoro-break hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="workspace-pomodoro-break-title"
+      aria-hidden="true"
+    >
+      <div class="workspace-pomodoro-break-bg" aria-hidden="true"></div>
+      <div class="workspace-pomodoro-break-panel">
+        <p class="workspace-pomodoro-break-eyebrow" aria-hidden="true">🍅 Помидор</p>
+        <p id="workspace-pomodoro-break-clock" class="workspace-pomodoro-break-clock" aria-live="polite">5:00</p>
+        <h2 id="workspace-pomodoro-break-title" class="workspace-pomodoro-break-title">Время отдохнуть</h2>
+        <p class="workspace-pomodoro-break-lead">
+          Короткая пауза после фокуса: встаньте, разомнитесь, отведите взгляд от экрана. Когда будете готовы — нажмите «Отдохнули».
+        </p>
+        <button id="workspace-pomodoro-break-done" type="button" class="workspace-pomodoro-break-done">
+          Отдохнули
+        </button>
+      </div>
+    </div>
+
     <div id="app-root" class="app">
       <header class="app-header">
         <div class="app-header-brand">
@@ -5238,15 +5260,65 @@
             <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
           </div>
           <div class="app-footer-actions">
-            <button
-              id="app-footer-idle-screensaver-hint"
-              class="app-footer-idle-screensaver-hint hidden"
-              type="button"
-              aria-hidden="true"
-              title="Показать заставку"
-            >
-              <span id="app-footer-idle-screensaver-hint-label" class="app-footer-idle-screensaver-hint-label">—</span>
-            </button>
+            <div class="app-footer-focus-timers">
+              <div class="app-footer-pomodoro-wrap">
+                <button
+                  id="app-footer-pomodoro-btn"
+                  class="app-footer-pomodoro-btn hidden"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                  aria-controls="app-footer-pomodoro-popover"
+                  aria-hidden="true"
+                  title="Помидор — фокус"
+                >
+                  <span id="app-footer-pomodoro-btn-label" class="app-footer-pomodoro-btn-label" aria-hidden="true">🍅</span>
+                </button>
+                <div
+                  id="app-footer-pomodoro-popover"
+                  class="app-footer-pomodoro-popover hidden"
+                  role="dialog"
+                  aria-labelledby="app-footer-pomodoro-popover-title"
+                  aria-hidden="true"
+                >
+                  <div class="app-footer-pomodoro-popover-head">
+                    <span id="app-footer-pomodoro-popover-title" class="app-footer-pomodoro-popover-title">🍅 Помидор</span>
+                    <button
+                      id="app-footer-pomodoro-popover-close"
+                      class="app-footer-pomodoro-popover-close"
+                      type="button"
+                      aria-label="Закрыть"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div class="app-footer-pomodoro-popover-body">
+                    <p id="app-footer-pomodoro-popover-lead" class="app-footer-pomodoro-popover-lead">
+                      Метод помидора: сосредоточенная работа, затем короткий отдых и приятный звуковой сигнал.
+                      Отдельно от заставки при бездействии.
+                    </p>
+                    <p id="app-footer-pomodoro-status" class="app-footer-pomodoro-status" aria-live="polite"></p>
+                    <div class="app-footer-pomodoro-popover-actions">
+                      <button id="app-footer-pomodoro-start" type="button" class="app-footer-pomodoro-start">
+                        Начать фокус
+                      </button>
+                      <button id="app-footer-pomodoro-stop" type="button" class="app-footer-pomodoro-stop hidden">
+                        Остановить
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                id="app-footer-idle-screensaver-hint"
+                class="app-footer-idle-screensaver-hint hidden"
+                type="button"
+                aria-hidden="true"
+                title="Показать заставку"
+              >
+                <span id="app-footer-idle-screensaver-hint-label" class="app-footer-idle-screensaver-hint-label">—</span>
+              </button>
+            </div>
             <button
               id="app-footer-toggle-btn"
               class="app-footer-toggle-btn"
@@ -6938,6 +7010,7 @@
     <script src="/material-file-icons.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
     <script src="/workspace-idle-screensaver.js?v=7"></script>
+    <script src="/workspace-pomodoro.js?v=3"></script>
     <script src="/connection-status.js?v=1"></script>
     <script src="/semantic-index-panel.js?v=22"></script>
     <script src="/languagetool-panel.js?v=2"></script>
