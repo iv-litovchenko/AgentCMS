@@ -13949,17 +13949,6 @@ body.shell-maintenance-active .shell-agent-gate {
   letter-spacing: 0.01em;
 }
 
-.shell-file-hub-launch--icon {
-  gap: 0;
-  padding: 3px 8px;
-  min-width: 28px;
-}
-
-.shell-file-hub-launch--icon .shell-file-hub-launch-label,
-.shell-file-hub-launch--icon .shell-file-hub-launch-tag {
-  display: none;
-}
-
 /* Внутри #shell-main-view — ширина колонки Shell; поверх compose (40) и dock (1200) */
 .shell-file-hub {
   position: absolute;
