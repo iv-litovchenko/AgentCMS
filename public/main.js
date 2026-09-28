@@ -29127,8 +29127,7 @@ function shouldOfferCreateInContainerCheckbox(agentId = getCreateModalAgentId())
 }
 
 function shouldUseContainerCreateTarget(agentId = getCreateModalAgentId()) {
-  if (!shouldOfferCreateInContainerCheckbox(agentId)) return false;
-  return createNodeContainerTargetNode?.checked !== false;
+  return shouldOfferCreateInContainerCheckbox(agentId);
 }
 
 function syncCreateNodeContainerTargetUi() {
@@ -29136,10 +29135,19 @@ function syncCreateNodeContainerTargetUi() {
   const showTarget = shouldOfferCreateInContainerCheckbox(agentId);
 
   createNodeContainerTargetWrapNode?.classList.toggle("hidden", !showTarget);
-  createNodeContainerTargetWrapNode?.classList.remove("is-disabled");
+  createNodeContainerTargetWrapNode?.classList.toggle("is-disabled", showTarget);
+  if (createNodeContainerTargetWrapNode) {
+    if (showTarget) {
+      createNodeContainerTargetWrapNode.title = `Создание только в ${CONTAINER_FOLDER_DEFAULT}`;
+    } else {
+      createNodeContainerTargetWrapNode.removeAttribute("title");
+    }
+  }
 
   if (createNodeContainerTargetNode) {
-    createNodeContainerTargetNode.disabled = false;
+    createNodeContainerTargetNode.checked = true;
+    createNodeContainerTargetNode.disabled = showTarget;
+    createNodeContainerTargetNode.setAttribute("aria-disabled", showTarget ? "true" : "false");
   }
 
   if (createNodeContainerTargetLabelNode) {

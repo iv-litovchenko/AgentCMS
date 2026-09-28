@@ -5543,8 +5543,13 @@
             </div>
             <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
           </div>
-          <label id="create-node-container-target-wrap" class="create-node-vault-option hidden" for="create-node-container-target">
-            <input id="create-node-container-target" type="checkbox" checked />
+          <label
+            id="create-node-container-target-wrap"
+            class="create-node-vault-option hidden is-disabled"
+            for="create-node-container-target"
+            title="Создание только в awn-container"
+          >
+            <input id="create-node-container-target" type="checkbox" checked disabled aria-disabled="true" />
             <span id="create-node-container-target-label">Создать в awn-container</span>
           </label>
           <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
