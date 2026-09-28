@@ -2,7 +2,9 @@
   "use strict";
 
   const SESSION_KEY = "agentcms.appLock.unlocked.v1";
+  const REMEMBER_KEY = "agentcms.appLock.remember.v1";
   const DEFAULT_LOGIN = "admin";
+  const FETCH_OPTS = { credentials: "same-origin" };
 
   const lockNode = document.getElementById("app-lock");
   const leadNode = document.getElementById("app-lock-lead");
@@ -16,7 +18,9 @@
   const submitNode = document.getElementById("app-lock-submit");
   const biometricBtn = document.getElementById("app-lock-biometric-btn");
   const biometricLabelNode = document.getElementById("app-lock-biometric-label");
-  const logoutBtn = document.getElementById("app-lock-logout-btn");
+  const logoutButtons = () => document.querySelectorAll("[data-app-lock-logout]");
+  const rememberFieldNode = document.getElementById("app-lock-remember-field");
+  const rememberNode = document.getElementById("app-lock-remember");
 
   let unlockResolve = null;
   let mode = "login";
@@ -65,6 +69,76 @@
     } catch {
       // ignore
     }
+  }
+
+  function encodeStoredSecret(text) {
+    try {
+      return btoa(unescape(encodeURIComponent(String(text || ""))));
+    } catch {
+      return "";
+    }
+  }
+
+  function decodeStoredSecret(encoded) {
+    try {
+      return decodeURIComponent(escape(atob(String(encoded || ""))));
+    } catch {
+      return "";
+    }
+  }
+
+  function readRememberedCredentials() {
+    try {
+      const raw = localStorage.getItem(REMEMBER_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || data.remember !== true) return null;
+      const login = String(data.login || "").trim();
+      const password = decodeStoredSecret(data.password);
+      if (!login || !password) return null;
+      return { login, password, remember: true };
+    } catch {
+      return null;
+    }
+  }
+
+  function writeRememberedCredentials(login, password, remember) {
+    try {
+      if (!remember) {
+        localStorage.removeItem(REMEMBER_KEY);
+        return;
+      }
+      localStorage.setItem(
+        REMEMBER_KEY,
+        JSON.stringify({
+          remember: true,
+          login: String(login || "").trim(),
+          password: encodeStoredSecret(password)
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  function isRememberChecked() {
+    if (!rememberNode) return true;
+    return rememberNode.checked;
+  }
+
+  function applyRememberedToForm() {
+    const saved = readRememberedCredentials();
+    if (rememberNode) {
+      rememberNode.checked = saved ? true : rememberNode.checked;
+    }
+    if (!saved || mode !== "login") return;
+    if (loginNode && !loginNode.value.trim()) loginNode.value = saved.login;
+    if (passwordNode && !passwordNode.value) passwordNode.value = saved.password;
+  }
+
+  function updateRememberFieldVisibility() {
+    if (!rememberFieldNode) return;
+    rememberFieldNode.classList.toggle("hidden", mode === "setup");
   }
 
   function bufferToBase64URL(buffer) {
@@ -148,9 +222,10 @@
   }
 
   function updateLogoutButton() {
-    if (!logoutBtn) return;
     const show = lockActive && mode === "login" && isSessionUnlocked();
-    logoutBtn.classList.toggle("hidden", !show);
+    for (const btn of logoutButtons()) {
+      btn.classList.toggle("hidden", !show);
+    }
   }
 
   function updateBiometricButton() {
@@ -219,6 +294,8 @@
     setBiometricSubmitting(false);
     updateLogoutButton();
     updateBiometricButton();
+    updateRememberFieldVisibility();
+    if (mode === "login") applyRememberedToForm();
   }
 
   function hideLockScreen() {
@@ -243,6 +320,8 @@
     document.getElementById("shell-app")?.setAttribute("inert", "");
     updateLogoutButton();
     updateBiometricButton();
+    updateRememberFieldVisibility();
+    applyRememberedToForm();
     window.setTimeout(() => {
       if (passkeyRegistered && biometricBtn && !biometricBtn.classList.contains("hidden")) {
         biometricBtn.focus();
@@ -262,30 +341,38 @@
     }
   }
 
-  function logout() {
+  async function logout() {
     if (!lockActive || mode === "setup") return;
+    try {
+      await fetch("/api/app-lock/logout", { method: "POST", ...FETCH_OPTS });
+    } catch {
+      // ignore
+    }
     clearSessionUnlocked();
-    if (loginNode) loginNode.value = "";
-    if (passwordNode) passwordNode.value = "";
+    const saved = readRememberedCredentials();
+    if (loginNode) loginNode.value = saved?.login || "";
+    if (passwordNode) passwordNode.value = saved?.password || "";
     if (confirmNode) confirmNode.value = "";
+    if (rememberNode) rememberNode.checked = Boolean(saved?.remember);
     setError("");
     setMode("login");
     showLockScreen();
   }
 
   async function fetchLockStatus() {
-    const response = await fetch("/api/app-lock/status", { cache: "no-store" });
+    const response = await fetch("/api/app-lock/status", { cache: "no-store", ...FETCH_OPTS });
     if (!response.ok) {
       throw new Error(`Request failed with ${response.status}`);
     }
     return response.json();
   }
 
-  async function verifyCredentials(login, password) {
+  async function verifyCredentials(login, password, remember) {
     const response = await fetch("/api/app-lock/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login, password })
+      ...FETCH_OPTS,
+      body: JSON.stringify({ login, password, remember })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -294,11 +381,12 @@
     return data;
   }
 
-  async function setupCredentials(login, password, confirm) {
+  async function setupCredentials(login, password, confirm, remember) {
     const response = await fetch("/api/app-lock/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login, password, confirm })
+      ...FETCH_OPTS,
+      body: JSON.stringify({ login, password, confirm, remember })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -393,7 +481,11 @@
       const verifyResponse = await fetch("/api/app-lock/passkey/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentialToJSON(credential))
+        ...FETCH_OPTS,
+        body: JSON.stringify({
+          remember: isRememberChecked(),
+          ...credentialToJSON(credential)
+        })
       });
       const verifyData = await verifyResponse.json().catch(() => ({}));
       if (!verifyResponse.ok) {
@@ -421,6 +513,7 @@
     const login = String(loginNode?.value || "").trim();
     const password = String(passwordNode?.value || "");
     const confirm = String(confirmNode?.value || "");
+    const remember = isRememberChecked();
 
     if (!login) {
       setError("Введите логин");
@@ -447,11 +540,12 @@
 
       setSubmitting(true);
       try {
-        await setupCredentials(login, password, confirm);
+        await setupCredentials(login, password, confirm, remember);
+        writeRememberedCredentials(login, password, remember);
         lockActive = true;
         setMode("login");
-        if (loginNode) loginNode.value = "";
-        if (passwordNode) passwordNode.value = "";
+        if (loginNode) loginNode.value = remember ? login : "";
+        if (passwordNode) passwordNode.value = remember ? password : "";
         if (confirmNode) confirmNode.value = "";
         await maybeOfferPasskeyRegistration(login, password);
         completeUnlock();
@@ -466,10 +560,11 @@
 
     setSubmitting(true);
     try {
-      await verifyCredentials(login, password);
+      await verifyCredentials(login, password, remember);
+      writeRememberedCredentials(login, password, remember);
       await maybeOfferPasskeyRegistration(login, password);
-      if (loginNode) loginNode.value = "";
-      if (passwordNode) passwordNode.value = "";
+      if (loginNode) loginNode.value = remember ? login : "";
+      if (passwordNode) passwordNode.value = remember ? password : "";
       completeUnlock();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Ошибка входа");
@@ -492,9 +587,11 @@
       void handleSubmit(event);
     });
 
-    logoutBtn?.addEventListener("click", () => {
-      logout();
-    });
+    for (const btn of logoutButtons()) {
+      btn.addEventListener("click", () => {
+        void logout();
+      });
+    }
 
     try {
       const status = await fetchLockStatus();
@@ -517,7 +614,7 @@
 
       setMode("login");
 
-      if (isSessionUnlocked() || inheritParentUnlockSession()) {
+      if (status?.sessionActive || isSessionUnlocked() || inheritParentUnlockSession()) {
         completeUnlock();
         return;
       }

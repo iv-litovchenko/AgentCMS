@@ -10893,7 +10893,7 @@ function createAppLandingPlatformAgentScene() {
 
   const caption = document.createElement("p");
   caption.className = "app-landing-platform-agent-scene-caption";
-  caption.textContent = "Цифровая память для агента и человека";
+  caption.textContent = "Цифровая память для агента и человека — оцифровываем важное!";
 
   copy.append(eyebrow, title, tags, caption);
 
@@ -119722,6 +119722,7 @@ menuAgentStatsEnvOverlayNode?.addEventListener("click", (event) => {
 });
 webSiteBtn?.addEventListener("click", closeHeaderProfileMenu);
 appLockLogoutBtn?.addEventListener("click", closeHeaderProfileMenu);
+document.getElementById("header-app-lock-logout-btn")?.addEventListener("click", closeHeaderProfileMenu);
 mcpDocsVersionSelectNode?.addEventListener("change", () => {
   void (async () => {
     try {

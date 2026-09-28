@@ -140,6 +140,88 @@ body.shell-desktop .app-lock a {
   display: none;
 }
 
+.app-lock-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(237, 233, 254, 0.78);
+  cursor: pointer;
+  user-select: none;
+}
+
+.app-lock-remember.hidden {
+  display: none;
+}
+
+.app-lock-remember-input {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.app-lock-remember-check {
+  position: relative;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(167, 139, 250, 0.45);
+  background: rgba(17, 12, 32, 0.65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.app-lock-remember-check::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid transparent;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0.6);
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.app-lock-remember:hover .app-lock-remember-check {
+  border-color: rgba(192, 132, 252, 0.8);
+  background: rgba(30, 20, 48, 0.85);
+}
+
+.app-lock-remember-input:checked + .app-lock-remember-check {
+  border-color: #c084fc;
+  background: linear-gradient(145deg, #a855f7, #7c3aed);
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.5);
+}
+
+.app-lock-remember-input:checked + .app-lock-remember-check::after {
+  border-color: #fff;
+  opacity: 1;
+  transform: rotate(45deg) scale(1);
+}
+
+.app-lock-remember-input:focus-visible + .app-lock-remember-check {
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.38);
+}
+
+.app-lock-remember-text {
+  flex: 1 1 auto;
+  padding-top: 1px;
+}
+
 .app-lock-submit {
   margin-top: 4px;
   padding: 10px 14px;

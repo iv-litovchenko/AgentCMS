@@ -514,6 +514,88 @@ body.workspace-idle-screensaver-active {
   display: none;
 }
 
+.app-lock-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(226, 232, 240, 0.78);
+  cursor: pointer;
+  user-select: none;
+}
+
+.app-lock-remember.hidden {
+  display: none;
+}
+
+.app-lock-remember-input {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.app-lock-remember-check {
+  position: relative;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.app-lock-remember-check::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid transparent;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0.6);
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.app-lock-remember:hover .app-lock-remember-check {
+  border-color: rgba(129, 140, 248, 0.75);
+  background: rgba(30, 41, 59, 0.75);
+}
+
+.app-lock-remember-input:checked + .app-lock-remember-check {
+  border-color: #818cf8;
+  background: linear-gradient(145deg, #6366f1, #4f46e5);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.45);
+}
+
+.app-lock-remember-input:checked + .app-lock-remember-check::after {
+  border-color: #fff;
+  opacity: 1;
+  transform: rotate(45deg) scale(1);
+}
+
+.app-lock-remember-input:focus-visible + .app-lock-remember-check {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.app-lock-remember-text {
+  flex: 1 1 auto;
+  padding-top: 1px;
+}
+
 .app-lock-submit {
   margin-top: 4px;
   padding: 10px 14px;
@@ -19410,7 +19492,8 @@ ol .live-diff-preview-removed {
 }
 
 .header-tool-btn--author,
-.header-tool-btn--settings {
+.header-tool-btn--settings,
+.header-tool-btn--logout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -19430,6 +19513,19 @@ ol .live-diff-preview-removed {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: #0f172a;
+}
+
+.header-tool-btn--logout:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.header-logout-btn-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .header-tool-btn--settings.is-open {
@@ -24910,10 +25006,26 @@ body.workspace-pomodoro-break-active {
   display: none;
 }
 
+.app-footer-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
 .app-footer-title {
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
+  line-height: 1.35;
+}
+
+.app-footer-tagline {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #64748b;
 }
 
 .app-project-version-badge,

@@ -120,6 +120,11 @@
               <input id="app-lock-confirm" class="app-lock-input" type="password" name="confirm" placeholder="Повторите пароль" autocomplete="new-password" />
             </label>
             <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
+            <label id="app-lock-remember-field" class="app-lock-remember">
+              <input id="app-lock-remember" class="app-lock-remember-input" type="checkbox" name="remember" checked />
+              <span class="app-lock-remember-check" aria-hidden="true"></span>
+              <span class="app-lock-remember-text">Запомнить вход на этом устройстве</span>
+            </label>
             <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
           </form>
           <button id="app-lock-biometric-btn" class="app-lock-biometric-btn hidden" type="button" disabled title="Скоро">
@@ -242,10 +247,20 @@
                 type="button"
                 class="shell-path-action-btn shell-path-action-btn--exit hidden"
                 id="app-lock-logout-btn"
-                title="Выход из Agent CMS Voice"
-                aria-label="Выход из Agent CMS Voice"
+                data-app-lock-logout
+                title="Выйти из Agent CMS Voice"
+                aria-label="Выйти из Agent CMS Voice"
               >
-                ✕
+                <svg class="shell-path-logout-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"
+                  />
+                </svg>
               </button>
             </div>
           </div>
@@ -3394,7 +3409,7 @@ CMS workspace</pre>
       <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
     </div>
 
-    <script src="/app-lock.js?v=14"></script>
+    <script src="/app-lock.js?v=15"></script>
     <script src="/platform-status.js"></script>
     <script src="/shell/shell.js?v=667" type="module"></script>
   </body>

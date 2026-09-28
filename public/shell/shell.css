@@ -1187,6 +1187,18 @@ body.shell-desktop .shell-path-header textarea {
 
 .shell-path-action-btn--exit {
   font-size: 13px;
+  color: #fca5a5;
+}
+
+.shell-path-action-btn--exit:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.shell-path-logout-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .shell-path-action-btn--exit.hidden {

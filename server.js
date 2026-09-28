@@ -114,6 +114,11 @@ const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
 const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
 const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
+const {
+  getValidAppLockSession,
+  issueAppLockSession,
+  buildSessionClearCookie
+} = require("./lib/app-lock-session");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
   READ_STATE_FILE,
@@ -1056,8 +1061,12 @@ function getFingerprintScannerService() {
   return fingerprintScannerService;
 }
 
-function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(res, statusCode, payload, extraHeaders = null) {
+  const headers = { "Content-Type": "application/json; charset=utf-8" };
+  if (extraHeaders && typeof extraHeaders === "object") {
+    Object.assign(headers, extraHeaders);
+  }
+  res.writeHead(statusCode, headers);
   res.end(JSON.stringify(payload, null, 2));
 }
 
@@ -27859,10 +27868,22 @@ async function handleApi(req, res, url) {
     try {
       const status = await getAppLockStatus();
       const passkeyStatus = await getAppLockPasskeyService().getStatus();
-      return sendJson(res, 200, { ...status, ...passkeyStatus });
+      const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
+      return sendJson(res, 200, { ...status, ...passkeyStatus, sessionActive });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read app lock config",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/logout") {
+    try {
+      return sendJson(res, 200, { ok: true }, { "Set-Cookie": buildSessionClearCookie(req) });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear app lock session",
         details: String(error?.message || error)
       });
     }
@@ -27873,6 +27894,7 @@ async function handleApi(req, res, url) {
       const payload = await readJsonBody(req, 32_000);
       const login = String(payload?.login || "").trim();
       const password = String(payload?.password || "");
+      const remember = payload?.remember !== false;
       if (!login || !password) {
         return sendJson(res, 400, { error: "Missing login or password" });
       }
@@ -27880,7 +27902,9 @@ async function handleApi(req, res, url) {
       if (!ok) {
         return sendJson(res, 401, { error: "Неверный логин или пароль" });
       }
-      return sendJson(res, 200, { ok: true });
+      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
+      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
+      return sendJson(res, 200, { ok: true, remember }, headers);
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to verify app lock credentials",
@@ -27909,7 +27933,10 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: "Пароли не совпадают" });
       }
       await saveAppLockCredentials(login, password);
-      return sendJson(res, 200, { ok: true });
+      const remember = payload?.remember !== false;
+      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
+      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
+      return sendJson(res, 200, { ok: true, remember }, headers);
     } catch (error) {
       return sendJson(res, 500, {
         error: "Не удалось сохранить пароль",
@@ -27969,8 +27996,11 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/app-lock/passkey/auth/verify") {
     try {
       const payload = await readJsonBody(req, 128_000);
+      const remember = payload?.remember !== false;
       const result = await getAppLockPasskeyService().verifyAuthentication(req, payload);
-      return sendJson(res, 200, result);
+      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
+      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
+      return sendJson(res, 200, { ...result, remember }, headers);
     } catch (error) {
       return sendJson(res, error?.statusCode || 500, {
         error: error?.message || "Failed to verify passkey authentication",
