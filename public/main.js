@@ -62796,11 +62796,21 @@ function getEditorSavePayload() {
   });
 }
 
-function syncSaveButtonLamp() {
+function syncSaveButtonLamp(options = {}) {
+  const forceFull = options.forceFull === true;
   const buttons = [saveContentBtn, saveSystemFileBtn, projectSettingsSaveBtnNode].filter(Boolean);
   const trackingActive = isEditorSaveTrackingActive();
-  const dirty =
-    trackingActive && savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
+  let dirty = false;
+  if (trackingActive && savedEditorSnapshot !== null) {
+    if (forceFull || !editorSaveDirtyHint) {
+      dirty = getEditorSavePayload() !== savedEditorSnapshot;
+      editorSaveDirtyHint = dirty;
+    } else {
+      dirty = true;
+    }
+  } else {
+    editorSaveDirtyHint = false;
+  }
 
   for (const btn of buttons) {
     btn.classList.remove("is-dirty", "is-saved");
@@ -62819,14 +62829,47 @@ function syncSaveButtonLamp() {
   }
 }
 
+function scheduleEditorSaveLampVerify() {
+  if (!isEditorSaveTrackingActive() || savedEditorSnapshot === null) return;
+  editorSaveDirtyHint = true;
+  syncSaveButtonLamp();
+  window.clearTimeout(editorSaveLampVerifyTimer);
+  editorSaveLampVerifyTimer = window.setTimeout(() => {
+    editorSaveLampVerifyTimer = null;
+    syncSaveButtonLamp({ forceFull: true });
+  }, EDITOR_SAVE_LAMP_VERIFY_DEBOUNCE_MS);
+}
+
+function runEditorInputSideEffects() {
+  syncEditorLineNumbers();
+  if (editorViewMode === "preview") {
+    renderPreviewFromEditor();
+  } else {
+    scheduleDocOutlineRefresh();
+  }
+  refreshPropsAttachmentsUsageState();
+  syncDocBodyStatusBar();
+}
+
+function scheduleEditorInputSideEffects() {
+  window.clearTimeout(editorInputSideEffectsTimer);
+  editorInputSideEffectsTimer = window.setTimeout(() => {
+    editorInputSideEffectsTimer = null;
+    runEditorInputSideEffects();
+  }, EDITOR_INPUT_SIDE_EFFECTS_DEBOUNCE_MS);
+}
+
 function commitEditorSaveBaseline() {
+  editorSaveDirtyHint = false;
+  window.clearTimeout(editorSaveLampVerifyTimer);
+  editorSaveLampVerifyTimer = null;
   if (!isEditorSaveTrackingActive()) {
     savedEditorSnapshot = null;
-    syncSaveButtonLamp();
+    syncSaveButtonLamp({ forceFull: true });
     return;
   }
   savedEditorSnapshot = getEditorSavePayload();
-  syncSaveButtonLamp();
+  syncSaveButtonLamp({ forceFull: true });
   void markLiveSyncOwnSaveForActivePath();
   window.dispatchEvent(new CustomEvent("workspace-index-file-saved"));
 }
@@ -79759,6 +79802,33 @@ let liveSyncOwnSaveUntilByPath = new Map();
 let liveSyncInlineDiffState = null;
 let liveSyncLoadedSnapshotByPath = new Map();
 const LIVE_SYNC_OWN_SAVE_GRACE_MS = 4000;
+const EDITOR_INPUT_SIDE_EFFECTS_DEBOUNCE_MS = 280;
+const EDITOR_SAVE_LAMP_VERIFY_DEBOUNCE_MS = 320;
+let editorSaveDirtyHint = false;
+let editorSaveLampVerifyTimer = null;
+let editorInputSideEffectsTimer = null;
+
+function isEditorSaveDirtyFull() {
+  return (
+    isEditorSaveTrackingActive() &&
+    savedEditorSnapshot !== null &&
+    getEditorSavePayload() !== savedEditorSnapshot
+  );
+}
+
+function isEditorFieldFocusedForLiveSyncPause() {
+  const active = document.activeElement;
+  if (!active) return false;
+  if (active === fileContentInputNode) return true;
+  if (titleInputNode && active === titleInputNode) return true;
+  return Boolean(editorWysiwygWrapNode?.contains(active));
+}
+
+function shouldPauseLiveSyncWhileEditing() {
+  if (!isEditorSaveTrackingActive()) return false;
+  if (editorSaveDirtyHint || isEditorSaveDirtyFull()) return true;
+  return isEditorFieldFocusedForLiveSyncPause();
+}
 
 function rememberLiveSyncLoadedSnapshot(pathValue, content) {
   const key = normalizeLiveSyncPath(pathValue);
@@ -80881,12 +80951,6 @@ function showLiveFileUpdateBanner(change) {
   liveSyncPendingChange = change;
 
   const label = formatLiveSyncPathLabel(change.path);
-  const bannerDiffPayload = resolveLiveDiffBannerPayload(
-    change.diff?.entries ? { diff: change.diff } : liveSyncInlineDiffState?.diffPayload,
-    change.path
-  );
-  const visibleStats = resolveLiveDiffVisibleStats(bannerDiffPayload);
-  const statsText = formatLiveSyncDiffStats(visibleStats);
   const dirty = Boolean(change.dirty);
   const external = change.kind === "external" || change.source === "external";
 
@@ -80908,25 +80972,19 @@ function showLiveFileUpdateBanner(change) {
     liveFileUpdateBannerPathNode.textContent = label;
   }
   if (liveFileUpdateBannerStatsNode) {
-    liveFileUpdateBannerStatsNode.innerHTML = renderLiveSyncDiffStatsMarkup(visibleStats);
-    liveFileUpdateBannerStatsNode.classList.toggle(
-      "hidden",
-      !visibleStats.added && !visibleStats.removed
-    );
+    liveFileUpdateBannerStatsNode.innerHTML = "";
+    liveFileUpdateBannerStatsNode.classList.add("hidden");
   }
   if (liveFileUpdateBannerDetailNode) {
     const sourceHint = external ? "Cursor или другой редактор" : "агент";
     liveFileUpdateBannerDetailNode.textContent = dirty
-      ? `Изменение от ${sourceHint}. Обновление перезапишет несохранённые правки.`
-      : `Изменения уже применены (${statsText}). Откройте «Показать изменения», чтобы посмотреть diff.`;
-    liveFileUpdateBannerDetailNode.classList.toggle("hidden", dirty);
+      ? `Изменение от ${sourceHint}. «Перезагрузить» подтянет версию с диска и сотрёт несохранённые правки.`
+      : `Версия от ${sourceHint} уже подтянута в редактор.`;
+    liveFileUpdateBannerDetailNode.classList.remove("hidden");
   }
 
   liveFileUpdateReloadBtn?.classList.toggle("hidden", !dirty);
-  liveFileUpdateShowDiffBtn?.classList.toggle(
-    "hidden",
-    !visibleStats.added && !visibleStats.removed
-  );
+  liveFileUpdateShowDiffBtn?.classList.add("hidden");
 
   liveFileUpdateBannerNode.classList.remove("hidden");
   syncLiveFileDiffToggleUi();
@@ -81065,46 +81123,26 @@ async function applyLiveFileReload(change) {
 async function presentLiveFileChange(change, diffPayload = null) {
   if (!change?.path) return;
 
-  const diffData =
-    diffPayload ||
-    (change.diff ? { diff: change.diff, oldContent: change.oldContent, newContent: change.newContent } : null);
-
   if (!change.dirty) {
     await applyLiveFileReload(change);
-    if (diffData?.newContent != null) {
-      rememberLiveSyncLoadedSnapshot(change.path, diffData.newContent);
+    if (diffPayload?.newContent != null) {
+      rememberLiveSyncLoadedSnapshot(change.path, diffPayload.newContent);
     }
   }
 
-  if (liveSyncDiffHasVisibleChanges(diffData, change.path)) {
-    setLiveSyncInlineDiffState(diffData, change.path);
-  } else {
-    clearLiveSyncInlineDiffState();
-  }
-
+  clearLiveSyncInlineDiffState();
   void markLiveSyncOwnSaveForActivePath();
 
   showLiveFileUpdateBanner(change);
   hideLiveFileDiffPanel();
-  refreshLiveSyncInlineDiffView();
 }
 
 async function handleLiveFileChange(event) {
   const pathValue = String(event.path || "").replace(/\\/g, "/").trim();
   if (!pathValue || isLiveSyncEventAcknowledged(pathValue, event.id)) return;
+  if (shouldPauseLiveSyncWhileEditing()) return;
 
-  let diffPayload = null;
-  try {
-    // Agent/MCP writes snapshot server history before save — use that baseline.
-    diffPayload = await fetchLiveFileDiff(pathValue);
-  } catch {
-    diffPayload = null;
-  }
-
-  const dirty =
-    isEditorSaveTrackingActive() &&
-    savedEditorSnapshot !== null &&
-    getEditorSavePayload() !== savedEditorSnapshot;
+  const dirty = isEditorSaveDirtyFull();
 
   await presentLiveFileChange(
     {
@@ -81112,10 +81150,10 @@ async function handleLiveFileChange(event) {
       eventId: event.id,
       path: pathValue,
       source: event.source,
-      diff: diffPayload?.diff || null,
+      diff: null,
       dirty
     },
-    diffPayload
+    null
   );
 }
 
@@ -81127,34 +81165,12 @@ async function handleExternalLiveFileChange(pathValue, revision) {
     setLiveSyncMtimeBaseline(pathValue, mtime);
     return;
   }
+  if (shouldPauseLiveSyncWhileEditing()) return;
 
   const previousMtime = liveSyncMtimeByPath.get(normalizeLiveSyncPath(pathValue));
   if (previousMtime && previousMtime === mtime) return;
 
-  const baselineContent = getLiveSyncDiffBaselineContent(pathValue);
-  let diffPayload = null;
-  try {
-    diffPayload =
-      typeof baselineContent === "string"
-        ? await fetchLiveFileDiff(pathValue, baselineContent)
-        : await fetchLiveFileDiff(pathValue);
-  } catch {
-    diffPayload = null;
-  }
-
-  if (
-    !diffPayload?.changed &&
-    typeof baselineContent === "string" &&
-    baselineContent === (diffPayload?.newContent ?? baselineContent)
-  ) {
-    setLiveSyncMtimeBaseline(pathValue, mtime);
-    return;
-  }
-
-  const dirty =
-    isEditorSaveTrackingActive() &&
-    savedEditorSnapshot !== null &&
-    getEditorSavePayload() !== savedEditorSnapshot;
+  const dirty = isEditorSaveDirtyFull();
 
   await presentLiveFileChange(
     {
@@ -81163,10 +81179,10 @@ async function handleExternalLiveFileChange(pathValue, revision) {
       mtime,
       path: pathValue,
       source: "external",
-      diff: diffPayload?.diff || null,
+      diff: null,
       dirty
     },
-    diffPayload
+    null
   );
 }
 
@@ -81213,6 +81229,7 @@ async function syncLiveFileExternalRevisions(watchPaths) {
 
 async function syncLiveFileUpdates() {
   if (liveSyncInFlight || document.hidden || !activeAgentId) return;
+  if (shouldPauseLiveSyncWhileEditing()) return;
   liveSyncInFlight = true;
   try {
     const watchPaths = getActiveLiveSyncWatchPaths();
@@ -89676,7 +89693,8 @@ function shouldUseEditorAutoHeight() {
   if (nodeOverviewBlockNode && !nodeOverviewBlockNode.classList.contains("hidden")) return false;
   if (listViewBlockNode && !listViewBlockNode.classList.contains("hidden")) return false;
   if (graphViewBlockNode && !graphViewBlockNode.classList.contains("hidden")) return false;
-  return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
+  if (editorViewMode === "source") return false;
+  return editorViewMode === "wysiwyg" || editorViewMode === "preview";
 }
 
 function getEditorAutoHeightScrollHostTarget() {
@@ -90727,9 +90745,8 @@ function initWysiwygEditor() {
   wysiwygEditorInstance.on("change", () => {
     if (editorViewMode !== "wysiwyg") return;
     syncSourceFromWysiwygEditor();
-    syncSaveButtonLamp();
-    refreshPropsAttachmentsUsageState();
-    syncDocBodyStatusBar();
+    scheduleEditorSaveLampVerify();
+    scheduleEditorInputSideEffects();
   });
 
   syncSaveButtonLamp();
@@ -120094,16 +120111,8 @@ fileContentInputNode.addEventListener("drop", (event) => {
 });
 
 fileContentInputNode.addEventListener("input", () => {
-  syncEditorLineNumbers();
-  if (editorViewMode === "preview") {
-    renderPreviewFromEditor();
-  } else {
-    scheduleDocOutlineRefresh();
-  }
-  applySourceEditorAutoHeightUi();
-  syncSaveButtonLamp();
-  refreshPropsAttachmentsUsageState();
-  syncDocBodyStatusBar();
+  scheduleEditorSaveLampVerify();
+  scheduleEditorInputSideEffects();
 });
 
 fileContentInputNode.addEventListener("scroll", syncEditorLineNumbersScroll);
