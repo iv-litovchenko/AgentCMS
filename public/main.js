@@ -10893,7 +10893,7 @@ function createAppLandingPlatformAgentScene() {
 
   const caption = document.createElement("p");
   caption.className = "app-landing-platform-agent-scene-caption";
-  caption.textContent = "Цифровая память для агента и человека — оцифровываем важное!";
+  caption.textContent = "Цифровая память для человека и его агентов — оцифровываем важное!";
 
   copy.append(eyebrow, title, tags, caption);
 

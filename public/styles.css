@@ -25014,6 +25014,16 @@ body.workspace-pomodoro-break-active {
   flex: 1 1 220px;
 }
 
+.app-footer-title,
+.app-footer-tagline {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-footer-title {
   font-size: 13px;
   font-weight: 700;
