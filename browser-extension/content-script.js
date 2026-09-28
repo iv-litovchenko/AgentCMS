@@ -146,12 +146,12 @@
 
   const brand = document.createElement("div");
   brand.className = "asc-brand";
-  brand.title = "Открыть боковую панель · перетащите, чтобы переместить";
+  brand.title = "Двойной клик — боковая панель · перетащите, чтобы переместить";
   brand.setAttribute("role", "button");
   brand.tabIndex = 0;
   brand.setAttribute(
     "aria-label",
-    "Agent CMS — открыть боковую панель, перетащить панель инструментов"
+    "Agent CMS — двойной клик открывает боковую панель, перетащите для перемещения"
   );
   brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
 
@@ -1791,19 +1791,20 @@
   function onPointerUp(event) {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
     const moved = dragState.moved;
-    const onBrand = isBrandTarget(event.target);
     dragState = null;
     root.classList.remove("is-dragging");
-    if (moved) {
-      applyOffset({ x: offsetX, y: offsetY }, true);
-      return;
-    }
-    if (onBrand) openPanel();
+    if (moved) applyOffset({ x: offsetX, y: offsetY }, true);
   }
 
   expandBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     setExpanded(true);
+  });
+
+  brand.addEventListener("dblclick", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    openPanel();
   });
 
   brand.addEventListener("keydown", (event) => {
