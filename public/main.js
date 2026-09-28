@@ -117900,7 +117900,6 @@ function syncDocBodyStatusBar(scrollMetrics = null) {
   const windowTokens = getDocumentContextMeterWindowTokens();
   const stats = analyzeDocumentContextStats(getDocBodyStatusBarSourceText(), windowTokens);
   const fillPct = Math.round(stats.fillRatio * 100);
-  const windowLabel = formatDocumentContextWindowLabel(stats.windowTokens);
 
   docBodyStatusBarNode.classList.remove(
     "doc-body-status-bar--comfort",
@@ -117915,7 +117914,7 @@ function syncDocBodyStatusBar(scrollMetrics = null) {
     `${stats.chars.toLocaleString("ru-RU")} симв.`,
     formatDocumentContextByteSize(stats.bytes),
     formatDocumentContextTokenEstimate(stats.tokensEstimate),
-    `${fillPct}% окна ${windowLabel}`
+    `${fillPct}% окна`
   ].join(" · ");
 
   const windowSelect = ensureDocBodyStatusBarWindowSelect();
@@ -117925,12 +117924,7 @@ function syncDocBodyStatusBar(scrollMetrics = null) {
 
   if (docBodyStatusMetaNode) {
     docBodyStatusMetaNode.className = `doc-body-status-bar-meta doc-body-status-bar-meta--${stats.level}`;
-    const metrics = scrollMetrics || getScrollMetrics(getWorkspaceScrollElement());
-    if (metrics.scrollable && metrics.percent > 0) {
-      docBodyStatusMetaNode.textContent = `${metrics.percent}% прокр.`;
-    } else {
-      docBodyStatusMetaNode.textContent = getDocumentContextMeterStatusLabel(stats.level);
-    }
+    docBodyStatusMetaNode.textContent = getDocumentContextMeterStatusLabel(stats.level);
   }
 }
 
@@ -117939,13 +117933,25 @@ function getEditorSurfaceInDocSlabContent(docSlabContent) {
 }
 
 function getDocBodyMainEditorScrollTargets() {
-  if (!shouldUseEditorAutoHeight()) return null;
   const docSlabContent = getDocSlabContentNode();
   if (!docSlabContent || !getEditorSurfaceInDocSlabContent(docSlabContent)) return null;
-  return {
-    scrollElement: docSlabContent,
-    hostTarget: getOverviewDocSlabChromeHost(docSlabContent)
-  };
+  const hostTarget = getOverviewDocSlabChromeHost(docSlabContent);
+
+  if (shouldUseEditorAutoHeight()) {
+    return {
+      scrollElement: docSlabContent,
+      hostTarget
+    };
+  }
+
+  if (isDocPropsAsideVisible() && editorViewMode === "source" && fileContentInputNode) {
+    return {
+      scrollElement: fileContentInputNode,
+      hostTarget
+    };
+  }
+
+  return null;
 }
 
 function teardownOverviewDocSlabScrollHost() {

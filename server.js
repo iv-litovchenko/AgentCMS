@@ -1945,13 +1945,49 @@ function getOcrIndexService() {
 function queueWorkspaceIndexFileSync(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return;
-  void syncWorkspaceIndexFile(
-    getSemanticSearchService(),
-    getStorageIndexService(),
-    getFulltextSearchService(),
-    normalized,
-    getLinkIndexService()
-  ).catch(() => {});
+  scheduleWorkspaceIndexFileSync(normalized);
+}
+
+const workspaceIndexFileSyncPending = new Set();
+let workspaceIndexFileSyncTimer = null;
+let workspaceIndexFileSyncRunning = false;
+const WORKSPACE_INDEX_FILE_SYNC_DEBOUNCE_MS = 450;
+
+function scheduleWorkspaceIndexFileSync(relPath) {
+  workspaceIndexFileSyncPending.add(relPath);
+  if (workspaceIndexFileSyncTimer) return;
+  workspaceIndexFileSyncTimer = setTimeout(() => {
+    workspaceIndexFileSyncTimer = null;
+    kickWorkspaceIndexFileSyncWorker();
+  }, WORKSPACE_INDEX_FILE_SYNC_DEBOUNCE_MS);
+}
+
+function kickWorkspaceIndexFileSyncWorker() {
+  if (workspaceIndexFileSyncRunning) return;
+  if (!workspaceIndexFileSyncPending.size) return;
+  workspaceIndexFileSyncRunning = true;
+  setImmediate(() => {
+    void drainWorkspaceIndexFileSyncQueue()
+      .catch(() => {})
+      .finally(() => {
+        workspaceIndexFileSyncRunning = false;
+        if (workspaceIndexFileSyncPending.size) kickWorkspaceIndexFileSyncWorker();
+      });
+  });
+}
+
+async function drainWorkspaceIndexFileSyncQueue() {
+  const paths = [...workspaceIndexFileSyncPending];
+  workspaceIndexFileSyncPending.clear();
+  for (const relPath of paths) {
+    await syncWorkspaceIndexFile(
+      getSemanticSearchService(),
+      getStorageIndexService(),
+      getFulltextSearchService(),
+      relPath,
+      getLinkIndexService()
+    ).catch(() => {});
+  }
 }
 
 async function getActiveIndexPolicy() {

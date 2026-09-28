@@ -32020,7 +32020,8 @@ body.workspace-pomodoro-break-active {
 }
 
 .doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .scroll-top-btn--docked {
-  bottom: calc(var(--doc-body-status-bar-height, 34px) + 8px + var(--scroll-top-shift-y, 0px));
+  bottom: calc((var(--doc-body-status-bar-height, 34px) - 32px) / 2 + var(--scroll-top-shift-y, 0px));
+  right: calc(10px + var(--scroll-top-shift-x, 0px));
 }
 
 #doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked .scroll-top-btn-icon {
