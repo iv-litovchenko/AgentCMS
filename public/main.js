@@ -118740,6 +118740,7 @@ async function fetchMcpDocs(version, force = false) {
 async function openMcpDocsModal() {
   if (!mcpDocsModalNode) return;
   try {
+    window.resetMcpDocsHelpView?.();
     await fetchDocsMeta();
     mcpDocsVersion = readStoredDocVersion();
     syncAllDocVersionSelects(mcpDocsVersion);
@@ -118751,6 +118752,7 @@ async function openMcpDocsModal() {
 }
 
 function closeMcpDocsModal() {
+  window.resetMcpDocsHelpView?.();
   mcpDocsModalNode?.classList.add("hidden");
 }
 

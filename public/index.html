@@ -6754,6 +6754,9 @@
             <p id="mcp-docs-subtitle" class="api-docs-subtitle"></p>
           </div>
           <div class="docs-modal-toolbar">
+            <button id="mcp-docs-help-btn" class="ghost-btn mcp-docs-help-btn" type="button" aria-expanded="false">
+              Помощь
+            </button>
             <select id="mcp-docs-version-select" class="docs-version-select" aria-label="Версия документации">
               <option value="0.0.1" selected>Актуальная (0.0.1)</option>
               <option value="0.0.0">Предыдущая (0.0.0)</option>
@@ -6763,6 +6766,82 @@
         </div>
         <div id="mcp-docs-notes" class="api-docs-notes mcp-docs-notes"></div>
         <pre id="mcp-docs-config" class="mcp-docs-config hidden" aria-label="Скопируй агенту: подключение MCP и JSON конфиг"></pre>
+        <div id="mcp-docs-help-panel" class="api-docs-content mcp-docs-help-panel hidden" hidden>
+          <p class="mcp-docs-help-lead">
+            Model Context Protocol (MCP) — способ подключить внешний сервер к IDE (Cursor, Claude Desktop). Ниже — виды
+            возможностей по спецификации. В Agent CMS сейчас реализованы в основном <strong>Tools</strong>; остальное —
+            для понимания протокола.
+          </p>
+          <section class="api-docs-group">
+            <h3 class="api-docs-group-title">Виды возможностей MCP</h3>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-mcp">TOOL</span>
+                <code class="api-docs-path">tools / tools/call</code>
+              </div>
+              <p class="api-docs-desc">
+                Действия: вызов функции с аргументами и ответом (JSON или текст). Агент сам решает, когда вызвать.
+                Список ниже в этой модалке — это tools Agent CMS (<code>list_workspaces</code>,
+                <code>database_frame_get</code>, …).
+              </p>
+            </article>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-resource">RESOURCE</span>
+                <code class="api-docs-path">resources / read</code>
+              </div>
+              <p class="api-docs-desc">
+                Чтение данных по URI без «команды»: документ, индекс, снимок контекста. Клиент подтягивает resource в чат,
+                когда нужно. У Agent CMS пока не exposed; аналог — HTTP <code>/api/mcp-docs</code> или tools вроде
+                <code>get_session_context</code>.
+              </p>
+            </article>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-prompt">PROMPT</span>
+                <code class="api-docs-path">prompts / get</code>
+              </div>
+              <p class="api-docs-desc">
+                Готовые шаблоны сообщений с параметрами — обычно пункты меню в IDE («разбери inbox», «настрой workspace»).
+                Не заменяют tools; ускоряют старт сценария для человека.
+              </p>
+            </article>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-cap">CAPABILITY</span>
+                <code class="api-docs-path">initialize</code>
+              </div>
+              <p class="api-docs-desc">
+                Не отдельная кнопка для пользователя: сервер при подключении сообщает, что умеет (tools, resources, prompts,
+                версии). Клиент строит список доступного.
+              </p>
+            </article>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-root">ROOT</span>
+                <code class="api-docs-path">roots</code>
+              </div>
+              <p class="api-docs-desc">
+                Границы файловой системы: какие папки MCP-серверу разрешены. Нужно для file-based серверов; у Agent CMS доступ
+                идёт через API workspace и <code>agentId</code>, не через прямой диск IDE.
+              </p>
+            </article>
+            <article class="api-docs-endpoint mcp-docs-tool">
+              <div class="api-docs-endpoint-head">
+                <span class="api-docs-method api-docs-method-sample">SAMPLING</span>
+                <code class="api-docs-path">sampling</code>
+              </div>
+              <p class="api-docs-desc">
+                Сервер просит клиент сделать мини-запрос к модели (ответ LLM через IDE). Редко нужно, если вся логика в чате
+                пользователя.
+              </p>
+            </article>
+          </section>
+          <p class="mcp-docs-help-foot">
+            Подсказки в жёлтой полосе выше и JSON для Cursor — для людей при настройке. Модель в чате по умолчанию видит
+            описания tools из MCP, а не эту модалку.
+          </p>
+        </div>
         <div id="mcp-docs-content" class="api-docs-content"></div>
       </div>
     </div>
@@ -6793,6 +6872,7 @@
     <script src="/awn-dashboards.js?v=6"></script>
     <script src="/platform-status.js"></script>
     <script src="/marker-blocks-preview.js?v=10"></script>
+    <script src="/mcp-docs-primitives-help.js?v=1"></script>
     <script src="/main.js?v=0.5.942"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>

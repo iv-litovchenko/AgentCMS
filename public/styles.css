@@ -58907,6 +58907,53 @@ button.node-navigation-memory-title:focus-visible {
   flex-shrink: 0;
 }
 
+.mcp-docs-help-btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mcp-docs-help-lead,
+.mcp-docs-help-foot {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.mcp-docs-help-foot {
+  margin-top: 14px;
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.api-docs-method-resource {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.api-docs-method-prompt {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.api-docs-method-cap {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.api-docs-method-root {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.api-docs-method-sample {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
 .docs-version-select {
   height: 28px;
   min-width: 148px;
