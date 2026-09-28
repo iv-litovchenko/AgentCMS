@@ -8546,7 +8546,8 @@ function composeBlockSeparator(current, join = "space") {
 function appendVoiceToCompose(text, options = {}) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !nodes.message) return;
-  const wrapStt = options.wrapStt !== false;
+  // ```awn-stt``` — только явная вставка после STT (wrapStt: true), не панель/страница/шаблоны.
+  const wrapStt = options.wrapStt === true;
   const voiceBlock = wrapStt ? wrapSttVoiceBlock(trimmed) : trimmed;
   const current = String(nodes.message.value || "").trimEnd();
   const useNewline = wrapStt || options.join !== "space";
@@ -8577,7 +8578,7 @@ function bindCmsComposeInsertBridge() {
     const data = event.data;
     if (!data || typeof data !== "object") return;
     if (data.type === "agent-cms-voice:compose-insert") {
-      appendVoiceToCompose(data.text, { join: data.join });
+      appendVoiceToCompose(data.text, { join: data.join, wrapStt: false });
       return;
     }
     if (data.type === "agent-cms-voice:page-snapshot-response") {
@@ -12017,7 +12018,7 @@ async function handleVoiceTranscript(text) {
     }
 
     if (outcome.action === "insert") {
-      appendVoiceToCompose(outcome.text);
+      appendVoiceToCompose(outcome.text, { wrapStt: true });
       renderPhase("waiting", "Текст в поле ввода — отправьте вручную");
       hapticTap();
       return;
