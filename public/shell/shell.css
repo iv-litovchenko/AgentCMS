@@ -2134,6 +2134,48 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   overflow: visible;
 }
 
+/* Превью агента вместо «лица» облачка; размер кнопки не меняем */
+.shell-hero-agent-preview {
+  position: absolute;
+  inset: 18px;
+  z-index: 1;
+  width: calc(100% - 36px);
+  height: calc(100% - 36px);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 22%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:not(:hover):not(:focus-visible)
+  .shell-hero-agent-preview {
+  opacity: 1;
+}
+
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:not(:hover):not(:focus-visible)
+  .shell-compact-cloud-face,
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:not(:hover):not(:focus-visible)
+  .shell-compact-cloud-eye,
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:not(:hover):not(:focus-visible)
+  .shell-compact-cloud-mouth,
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:not(:hover):not(:focus-visible)
+  .shell-compact-cloud-glow {
+  opacity: 0;
+}
+
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:hover
+  .shell-hero-agent-preview,
+.shell-agent-avatar.has-agent-preview[data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]:focus-visible
+  .shell-hero-agent-preview {
+  opacity: 0;
+}
+
+.shell-agent-avatar:not([data-phase="waiting"][data-activity="idle"][data-hero-state="idle"]) .shell-hero-agent-preview {
+  display: none !important;
+}
+
 .shell-hero-sensor.shell-compact-sensor {
   flex-shrink: 0;
   overflow: visible;

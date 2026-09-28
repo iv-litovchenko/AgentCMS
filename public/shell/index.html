@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=615" />
+    <link rel="stylesheet" href="/shell/shell.css?v=617" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -2262,6 +2262,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
               data-activity="idle"
               aria-label="Ожидаю"
             >
+              <img
+                id="shell-hero-agent-preview"
+                class="shell-hero-agent-preview"
+                alt=""
+                draggable="false"
+                hidden
+              />
               <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
               <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
               <span class="shell-compact-sensor-ring" aria-hidden="true"></span>
@@ -3419,6 +3426,6 @@ CMS workspace</pre>
     <script src="/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/app-lock.js?v=15"></script>
     <script src="/platform-status.js"></script>
-    <script src="/shell/shell.js?v=668" type="module"></script>
+    <script src="/shell/shell.js?v=669" type="module"></script>
   </body>
 </html>

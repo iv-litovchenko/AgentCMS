@@ -1,4 +1,5 @@
 import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/shared/agent-select.js";
+import { syncShellHeroAgentPreview } from "/shell/shell-hero-agent-preview.js?v=1";
 import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";
 import { renderShellReplyMarkdown, renderShellReplyBody, preloadShellMarkdown } from "@shell/markdown";
@@ -2211,6 +2212,7 @@ const nodes = {
   mainView: document.getElementById("shell-main-view"),
   subtitle: document.getElementById("shell-subtitle"),
   agentAvatar: document.getElementById("shell-agent-avatar"),
+  heroAgentPreview: document.getElementById("shell-hero-agent-preview"),
   characterStage: document.getElementById("shell-character-stage"),
   characterToggle: document.getElementById("shell-character-toggle"),
   characterPickerWrap: document.getElementById("shell-character-picker-wrap"),
@@ -3353,6 +3355,10 @@ function pickThinkingSound(id) {
     return;
   }
   void previewShellProcessingAmbient(id);
+}
+
+function refreshHeroAgentPreview(agentHint = null) {
+  void syncShellHeroAgentPreview(nodes.agentAvatar, nodes.heroAgentPreview, state.agentId, agentHint);
 }
 
 function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false, phrase = "" } = {}) {
@@ -7246,6 +7252,7 @@ function navigateToShellAgent(agentId) {
   state.agentId = id;
   localStorage.setItem(SHELL_STORAGE.agent, id);
   reloadShellPomodoroForAgent(id);
+  refreshHeroAgentPreview();
   notifyCompanionAgentSelected(id);
   if (shellVoiceStandalone && isCompanionEmbedRequest()) {
     hideShellAgentGate();
@@ -8307,6 +8314,7 @@ async function resolveShellAgent() {
   shellPresenceController?.setAgentId(state.agentId);
   syncShellAgentReadyUi();
   reloadShellPomodoroForAgent(state.agentId);
+  refreshHeroAgentPreview(agent);
 }
 
 async function refreshStatus({ probe = false, sync = false, timeoutMs = 0 } = {}) {
