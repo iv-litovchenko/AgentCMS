@@ -35291,7 +35291,7 @@ button.node-navigation-hub-rail-slot-summary {
   --nav-rail-surface: #f8fafc;
   position: relative;
   isolation: isolate;
-  border-radius: 10px;
+  border-radius: 10px 10px 0 0;
   background-color: var(--nav-rail-surface);
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.14) 0%, rgba(15, 23, 42, 0) 100%),
