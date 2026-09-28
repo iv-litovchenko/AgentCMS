@@ -130,7 +130,6 @@
   let offsetY = 0;
   let dragState = null;
   let expandBtn = null;
-  let panelBtn = null;
 
   function createBtn(key, label, title) {
     const btn = document.createElement("button");
@@ -147,17 +146,16 @@
 
   const brand = document.createElement("div");
   brand.className = "asc-brand";
-  brand.title = "Перетащить панель";
-  brand.setAttribute("aria-label", "Agent CMS · перетащить панель");
-  brand.innerHTML = `<span class="asc-brand-icon">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
+  brand.innerHTML = `<span class="asc-brand-icon" title="Перетащить панель" aria-label="Перетащить панель">${BRAND_ICON_SVG}</span><span class="asc-brand-label" role="button" tabindex="0">Agent CMS</span>`;
+
+  const brandLabel = brand.querySelector(".asc-brand-label");
+  brandLabel.title = "Открыть боковую панель Agent CMS";
+  brandLabel.setAttribute("aria-label", "Agent CMS — открыть боковую панель");
 
   expandBtn = createBtn("expand", "Развернуть", "Развернуть панель инструментов");
   expandBtn.classList.add("asc-btn--expand", "asc-btn--icon-only");
 
-  panelBtn = createBtn("panel", "Панель", "Открыть боковую панель Agent CMS");
-  panelBtn.classList.add("asc-btn--panel", "asc-btn--icon-only");
-
-  brandCluster.append(brand, panelBtn, expandBtn);
+  brandCluster.append(brand, expandBtn);
 
   function closeMenus(except) {
     for (const menu of menus) {
@@ -1757,7 +1755,7 @@
 
   function isDragHandle(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest(".asc-brand"));
+    return Boolean(target.closest(".asc-brand-icon"));
   }
 
   function onPointerDown(event) {
@@ -1800,7 +1798,13 @@
     setExpanded(true);
   });
 
-  panelBtn.addEventListener("click", (event) => {
+  brandLabel.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openPanel();
+  });
+  brandLabel.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
     event.stopPropagation();
     openPanel();
   });

@@ -98,6 +98,19 @@
   line-height: 1;
   letter-spacing: 0.01em;
   color: #f5f3ff;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 2px;
+}
+
+.asc-brand-label:hover {
+  color: #ffffff;
+  background: rgba(167, 139, 250, 0.22);
+}
+
+.asc-brand-label:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.95);
+  outline-offset: 1px;
 }
 
 .asc-brand {
