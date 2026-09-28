@@ -33,7 +33,7 @@ awn-mindmap-color: slate
 awn-mindmap-size: auto
 awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
-awn-name: "Глобальные документации"
+awn-name: "Глобальные документации для агентов"
 ---
 
 > Описание раздела.

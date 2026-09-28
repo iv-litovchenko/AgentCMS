@@ -77256,6 +77256,46 @@ function isNavigationHubRailSlotExpandable(slot, slotIndex) {
   return slotIndex.kind === "tree" && !isNavigationHubRailSlotEmpty(slot);
 }
 
+function getNavigationHubRailSlotEmptyMessage(slot, slotIndex, { searchActive = false } = {}) {
+  if (searchActive) return "Ничего не найдено";
+  if (slot?.folderExists === false) return "Папка слота ещё не создана";
+  const memoryKind = String(slotIndex?.memoryKind || slot?.spec?.sectionKind || "").toLowerCase();
+  if (memoryKind === "external") return "В слоте пока нет файлов";
+  if (memoryKind === "media") return "Медиа пока не добавлены";
+  if (memoryKind === "assets") return "Вложения пока не добавлены";
+  if (memoryKind === "inbox") return "Входящие пусты";
+  if (slotIndex?.kind === "bundle") return "Содержимое пусто";
+  return "Пока пусто";
+}
+
+function createNavigationHubRailSlotEmptyState(options = {}) {
+  const message = String(options.message || "Пока пусто").trim() || "Пока пусто";
+  const title = String(options.title || message).trim() || message;
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hub-rail-slot-empty-state";
+  wrap.title = title;
+  wrap.setAttribute("aria-label", title);
+
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-hub-rail-slot-empty-icon";
+  icon.setAttribute("aria-hidden", "true");
+  wrap.appendChild(icon);
+
+  const text = document.createElement("p");
+  text.className = "node-navigation-hub-rail-slot-empty-text";
+  text.textContent = message;
+  wrap.appendChild(text);
+
+  return wrap;
+}
+
+function appendNavigationHubRailSlotTreeEmptyState(treeHost, slot, slotIndex, nodePath) {
+  if (!treeHost) return;
+  const searchActive = Boolean(getNavigationHubRailSlotSearchQuery(nodePath, slot.id).trim());
+  const message = getNavigationHubRailSlotEmptyMessage(slot, slotIndex, { searchActive });
+  treeHost.appendChild(createNavigationHubRailSlotEmptyState({ message, title: message }));
+}
+
 function openNavigationHubRailSlotTarget(slot) {
   openNodeNavigationCounterSlot({
     ...slot,
@@ -86088,6 +86128,9 @@ function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, a
         nodePath
       );
     }
+    if (!treeHost.childElementCount) {
+      appendNavigationHubRailSlotTreeEmptyState(treeHost, slot, slotIndex, nodePath);
+    }
     return;
   }
 
@@ -86095,6 +86138,8 @@ function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, a
     const hintWrap = document.createElement("div");
     if (appendNavigationHubRailBundleHint(hintWrap, slotIndex.memoryKind, prefetched)) {
       treeHost.appendChild(hintWrap);
+    } else {
+      appendNavigationHubRailSlotTreeEmptyState(treeHost, slot, slotIndex, nodePath);
     }
   }
 }
@@ -86322,6 +86367,43 @@ function appendNavigationHubRailBundleHint(body, memoryKind, prefetched = {}) {
   return false;
 }
 
+function filterNavigationHubRailDocumentOutlineHeadings(headings, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return headings;
+  return headings.filter((heading) => String(heading.text || "").toLowerCase().includes(q));
+}
+
+function fillNavigationHubRailDocumentOutlineList(list, headings) {
+  list.replaceChildren();
+  for (const heading of headings) {
+    const item = document.createElement("li");
+    item.className = `node-navigation-rail-doc-outline-item node-navigation-rail-doc-outline-h${heading.level}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-rail-link node-navigation-rail-doc-outline-link";
+    btn.dataset.slug = heading.slug || "";
+    btn.dataset.headingIndex = String(heading.index);
+    btn.textContent = heading.text;
+    btn.title = heading.text;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (navigationHubRailDocumentScrollSpy) {
+        navigationHubRailDocumentScrollSpy.suppressOutlineSync = true;
+        window.setTimeout(() => {
+          if (navigationHubRailDocumentScrollSpy) {
+            navigationHubRailDocumentScrollSpy.suppressOutlineSync = false;
+            syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
+          }
+        }, 700);
+      }
+      scrollToEntryOverviewDocumentHeading(heading);
+    });
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+}
+
 function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   const { body } = splitFrontmatter(String(markdown || ""));
   const content = stripAwnDescCallouts(body).trim();
@@ -86342,33 +86424,46 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
       return;
     }
     setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
+    syncNavigationHubRailSlotToggleButton(toggleBtn, documentSlotMeta, details.open);
     syncNavigationHubRailDocumentSlotState(details);
   });
 
+  const documentSlotMeta = {
+    label: "Оглавление",
+    count: headings.length,
+    filled: hasHeadings,
+    spec: { icon: "📑" }
+  };
+
+  let toggleBtn = null;
   const summary = document.createElement("summary");
   summary.className = "node-navigation-hub-rail-slot-summary";
   if (!hasHeadings) {
-    summary.title = "В документе нет заголовков для навигации";
-    summary.addEventListener("click", (event) => {
-      event.preventDefault();
-    });
+    summary.title = "В документе нет заголовков для навигации. Перетащите в чат Agent CMS Voice или редактор для ссылки";
   }
 
-  const icon = document.createElement("span");
-  icon.className = "node-navigation-hub-rail-slot-icon";
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "📄";
+  ({ toggleBtn } = appendNavigationHubRailSlotSummaryParts(summary, documentSlotMeta, {
+    toggleExpanded: details.open,
+    onToggleClick: hasHeadings
+      ? () => {
+          details.open = !details.open;
+        }
+      : null
+  }));
 
-  const label = document.createElement("span");
-  label.className = "node-navigation-hub-rail-slot-label";
-  label.textContent = "Навигация";
+  if (!hasHeadings) {
+    const countEl = summary.querySelector(".node-navigation-hub-rail-slot-count");
+    if (countEl) countEl.textContent = "—";
+    const toggleSpacer = document.createElement("span");
+    toggleSpacer.className = "node-navigation-hub-rail-slot-toggle-spacer";
+    toggleSpacer.setAttribute("aria-hidden", "true");
+    summary.appendChild(toggleSpacer);
+  }
 
-  const count = document.createElement("span");
-  count.className = "node-navigation-hub-rail-slot-count";
-  if (hasHeadings) count.classList.add("is-filled");
-  count.textContent = hasHeadings ? String(headings.length) : "—";
-
-  summary.append(icon, label, count);
+  summary.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
+  syncNavigationHubRailSlotToggleButton(toggleBtn, documentSlotMeta, details.open);
   details.appendChild(summary);
 
   const bodyNode = document.createElement("div");
@@ -86381,42 +86476,58 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
 
     const list = document.createElement("ul");
     list.className = "node-navigation-rail-doc-outline-list";
+    let searchEmptyNode = null;
+    const showDocumentOutlineSearch = headings.length >= 2;
 
-    for (const heading of headings) {
-      const item = document.createElement("li");
-      item.className = `node-navigation-rail-doc-outline-item node-navigation-rail-doc-outline-h${heading.level}`;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "node-navigation-rail-link node-navigation-rail-doc-outline-link";
-      btn.dataset.slug = heading.slug || "";
-      btn.dataset.headingIndex = String(heading.index);
-      btn.textContent = heading.text;
-      btn.title = heading.text;
-      btn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (navigationHubRailDocumentScrollSpy) {
-          navigationHubRailDocumentScrollSpy.suppressOutlineSync = true;
-          window.setTimeout(() => {
-            if (navigationHubRailDocumentScrollSpy) {
-              navigationHubRailDocumentScrollSpy.suppressOutlineSync = false;
-              syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
-            }
-          }, 700);
-        }
-        scrollToEntryOverviewDocumentHeading(heading);
-      });
-      item.appendChild(btn);
-      list.appendChild(item);
+    const applyDocumentOutlineFilter = (query) => {
+      const filtered = filterNavigationHubRailDocumentOutlineHeadings(headings, query);
+      fillNavigationHubRailDocumentOutlineList(list, filtered);
+      const hasQuery = Boolean(String(query || "").trim());
+      if (searchEmptyNode) {
+        searchEmptyNode.classList.toggle("hidden", !hasQuery || filtered.length > 0);
+      }
+      nav.classList.toggle("hidden", hasQuery && filtered.length === 0);
+      syncNavigationHubRailDocumentOutlineActive(
+        details.closest(".node-navigation-hub-rail") || navigationHubRailDocumentScrollSpy?.rail
+      );
+    };
+
+    if (showDocumentOutlineSearch) {
+      bodyNode.appendChild(
+        createNavigationSectionSearchInput({
+          value: getNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID),
+          placeholder: "Поиск по заголовкам...",
+          ariaLabel: "Поиск по заголовкам документа",
+          onInput: (value) => {
+            setNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, value);
+            applyDocumentOutlineFilter(value);
+          }
+        })
+      );
     }
 
+    fillNavigationHubRailDocumentOutlineList(list, headings);
     nav.appendChild(list);
     bodyNode.appendChild(nav);
+
+    if (showDocumentOutlineSearch) {
+      searchEmptyNode = createNavigationHubRailSlotEmptyState({
+        message: "Ничего не найдено",
+        title: "По запросу заголовки не найдены"
+      });
+      searchEmptyNode.classList.add("hidden");
+      bodyNode.appendChild(searchEmptyNode);
+      applyDocumentOutlineFilter(
+        getNavigationHubRailSlotSearchQuery(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID)
+      );
+    }
   } else {
-    const empty = document.createElement("p");
-    empty.className = "node-navigation-hub-rail-empty";
-    empty.textContent = "Нет заголовков для навигации";
-    bodyNode.appendChild(empty);
+    bodyNode.appendChild(
+      createNavigationHubRailSlotEmptyState({
+        message: "Нет заголовков для навигации",
+        title: "В документе нет заголовков для навигации"
+      })
+    );
   }
 
   details.appendChild(bodyNode);
@@ -86491,10 +86602,12 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   );
 
   if (!hasContent && !slotActions) {
-    const empty = document.createElement("p");
-    empty.className = "node-navigation-hub-rail-empty";
-    empty.textContent = "Пусто";
-    body.appendChild(empty);
+    body.appendChild(
+      createNavigationHubRailSlotEmptyState({
+        message: getNavigationHubRailSlotEmptyMessage(slot, slotIndex),
+        title: getNavigationHubRailSlotEmptyMessage(slot, slotIndex)
+      })
+    );
   }
 
   details.appendChild(body);
@@ -86511,22 +86624,23 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
   const subsections = renderNavigationHubRailSubsections(childEntries, activeCtx);
   if (subsections) rail.appendChild(subsections);
 
-  rail.appendChild(
-    renderNavigationHubRailDocumentOutline(options.documentMarkdown ?? "", nodePath)
+  const documentOutline = renderNavigationHubRailDocumentOutline(
+    options.documentMarkdown ?? "",
+    nodePath
   );
 
+  const slotsWrap = document.createElement("div");
+  slotsWrap.className = "node-navigation-hub-rail-slots";
   if (options.sharedSlotMode) {
-    const slotsWrap = document.createElement("div");
-    slotsWrap.className = "node-navigation-hub-rail-slots node-navigation-hub-rail-slots--flexible";
-    const flexSlot = renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx);
-    if (flexSlot) slotsWrap.appendChild(flexSlot);
-    if (slotsWrap.childElementCount) rail.appendChild(slotsWrap);
+    slotsWrap.classList.add("node-navigation-hub-rail-slots--flexible");
   }
 
-  if (topicSlotCounters.length && !options.sharedSlotMode) {
-    const slotsWrap = document.createElement("div");
-    slotsWrap.className = "node-navigation-hub-rail-slots";
+  if (documentOutline) slotsWrap.appendChild(documentOutline);
 
+  if (options.sharedSlotMode) {
+    const flexSlot = renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx);
+    if (flexSlot) slotsWrap.appendChild(flexSlot);
+  } else if (topicSlotCounters.length) {
     for (const slot of topicSlotCounters) {
       const slotIndex = prepareNavigationHubRailSlotIndex(slot.id, nodePath, {
         ...prefetched,
@@ -86545,9 +86659,9 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
         )
       );
     }
-
-    rail.appendChild(slotsWrap);
   }
+
+  if (slotsWrap.childElementCount) rail.appendChild(slotsWrap);
 
   if (rail.childElementCount) {
     bindNavigationHubRailAsideLayout(rail);
