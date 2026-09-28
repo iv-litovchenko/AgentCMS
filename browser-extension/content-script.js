@@ -146,11 +146,14 @@
 
   const brand = document.createElement("div");
   brand.className = "asc-brand";
-  brand.innerHTML = `<span class="asc-brand-icon" title="Перетащить панель" aria-label="Перетащить панель">${BRAND_ICON_SVG}</span><span class="asc-brand-label" role="button" tabindex="0">Agent CMS</span>`;
-
-  const brandLabel = brand.querySelector(".asc-brand-label");
-  brandLabel.title = "Открыть боковую панель Agent CMS";
-  brandLabel.setAttribute("aria-label", "Agent CMS — открыть боковую панель");
+  brand.title = "Открыть боковую панель · перетащите, чтобы переместить";
+  brand.setAttribute("role", "button");
+  brand.tabIndex = 0;
+  brand.setAttribute(
+    "aria-label",
+    "Agent CMS — открыть боковую панель, перетащить панель инструментов"
+  );
+  brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
 
   expandBtn = createBtn("expand", "Развернуть", "Развернуть панель инструментов");
   expandBtn.classList.add("asc-btn--expand", "asc-btn--icon-only");
@@ -1753,14 +1756,14 @@
     }
   }
 
-  function isDragHandle(target) {
+  function isBrandTarget(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest(".asc-brand-icon"));
+    return Boolean(target.closest(".asc-brand"));
   }
 
   function onPointerDown(event) {
     if (event.button !== 0) return;
-    if (!isDragHandle(event.target)) return;
+    if (!isBrandTarget(event.target)) return;
     dragState = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -1788,9 +1791,14 @@
   function onPointerUp(event) {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
     const moved = dragState.moved;
+    const onBrand = isBrandTarget(event.target);
     dragState = null;
     root.classList.remove("is-dragging");
-    if (moved) applyOffset({ x: offsetX, y: offsetY }, true);
+    if (moved) {
+      applyOffset({ x: offsetX, y: offsetY }, true);
+      return;
+    }
+    if (onBrand) openPanel();
   }
 
   expandBtn.addEventListener("click", (event) => {
@@ -1798,11 +1806,7 @@
     setExpanded(true);
   });
 
-  brandLabel.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openPanel();
-  });
-  brandLabel.addEventListener("keydown", (event) => {
+  brand.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     event.stopPropagation();
