@@ -306,8 +306,8 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 |----------|-------------------|---------------|
 | Страница | `read_page_properties` / `write_page_properties` | `read_page_property` / `write_page_property` |
 | Контент | `read_content_properties` / `write_content_properties` | `read_content_property` / `write_content_property` |
-| Frame (manifest) | `iblock_frame_read_properties` / `iblock_frame_write_properties` | `iblock_frame_read_property` / `iblock_frame_write_property` |
-| Элемент | `iblock_content_read_properties` / `iblock_content_write_properties` | `iblock_content_read_property` / `iblock_content_write_property` |
+| Frame инфоблока (manifest) | `database_frame_read_properties` / `database_frame_write_properties` | `database_frame_read_property` / `database_frame_write_property` |
+| Элемент инфоблока | `database_element_read_properties` / `database_element_write_properties` | `database_element_read_property` / `database_element_write_property` |
 
 `write_*_properties` — **merge**: шли только изменённые ключи. Для записей `awn-updated` дописывается автоматически.
 
@@ -317,7 +317,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 |-------|----------|------------|
 | `write_page_properties` | patch YAML (`awn-status: closed`) | — |
 | `write_content_properties` | patch YAML | — |
-| `write_data_store_schema` | **полный** YAML/`fields` накопителя | без полного read потеряешь поля |
+| `database_frame_write_schema` | **полный** YAML/`fields` накопителя | без полного read потеряешь поля |
 
 Тело (`write_page_body` / `write_content_body`) frontmatter **не трогает**.
 
@@ -338,7 +338,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 **Секреты** — корневой `.env` репо (platform), не в yaml. **Runtime** workspace — `.agent-cms/` (`settings/`, `cache/indexes/`, `cache/`, `state/`, `journal/`).
 
-**Не agent settings:** `schema.yml` / `config.yml` / `.env` у **тем и инфоблоков** — через `read_page_config`, `iblock_frame_*`, не через `write_setting`.
+**Не agent settings:** `schema.yml` / `config.yml` / `.env` у **тем и инфоблоков** — у тем: `read_page_config` / `read_page_schema`; у инфоблоков (`awn-databases`, каркас frame): `database_frame_*`, не через `write_setting`.
 
 ### MCP — три tool
 
@@ -388,14 +388,14 @@ write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-
 |-----|------|-------|-------|
 | Поля страницы / слотов | `schema.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
-| Поля записей накопителя | `schema.yml` в awn-databases | `iblock_frame_read_schema` / `iblock_frame_write_schema` | Схема awn-databases |
+| Поля записей накопителя | `schema.yml` в awn-databases | `database_frame_read_schema` / `database_frame_write_schema` | Схема awn-databases |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
 - схема (`*_schema`) — **описание** полей формы  
 - тип (`get_type`) — база из awn-system; `schema.yml` — локальный override поверх типа  
 
-**Схема для агента:** базовые поля типа — один раз `get_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.
+**Схема для агента:** базовые поля типа — один раз `get_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `database_frame_write_schema` — полный актуальный YAML/`fields` для store.
 
 ---
 
@@ -782,7 +782,7 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 | **Где живёт** | Дерево меню WS → Area → Topic; файлы в слотах (`main`, `inbox`, `media`…) или path-based FS в `awn-storage/` | Папка `awn-databases/` **вне** дерева Page · Slot · Content |
 | **Форма** | Markdown, медиа, код, произвольные папки; frontmatter по желанию | Коллекции `{id}.md`, CSV-таблицы, **единая схема** (`schema.yml`) на все записи |
 | **Когда выбирать** | Документы, заметки, планы, обсуждения, статьи, черновики, контекст темы, wikilinks | Справочники, реестры, задачи с полями, enum/taxonomies, финансы по строкам, любые **однотипные сущности** с фильтрацией и CRUD |
-| **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `iblock_frame_list`, `iblock_frame_get`, `iblock_content_create`, `iblock_frame_read_schema` |
+| **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `database_frame_list`, `database_frame_get`, `database_element_create`, `database_frame_read_schema` |
 | **UI** | Темы, слоты, overview темы | «Накопители информации (инфоблоки)» |
 
 **Примеры → Page · Slot · Content:** протокол встречи, README темы, inbox-заметка, медиафайл, гибкая папка в `awn-storage/` без жёстких колонок.
@@ -797,14 +797,14 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 
 **Терминология:** `awn-databases` — **структурированные данные** (таблицы, коллекции со схемой). В UI: **«Накопители информации (инфоблоки)»**. Не путать со слотами темы. См. также раздел «Страницы и контент vs awn-databases» выше.
 
-**MCP — два слоя (frame / content):**
+**MCP — два слоя инфоблока (frame / element):**
 
-| Слой | Префикс | Типы | Про что |
-|------|---------|------|---------|
-| Каркас (frame) | `database_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
-| Элементы | `database_element_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
+| Слой | Префикс MCP | Типы | Про что |
+|------|-------------|------|---------|
+| Каркас инфоблока (frame) | `database_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
+| Элементы инфоблока | `database_element_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
 
-`iblock_frame_*`, `iblock_content_*` и короткие `iblock_*` — deprecated-алиасы.
+`database_*` — канонические имена MCP для **инфоблоков** (`awn-databases`). `iblock_frame_*`, `iblock_content_*` и короткие `iblock_*` — deprecated-алиасы.
 
 Папка `awn-databases/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п. **В меню и `database_frame_list` только frames** — не путать с element-записями внутри store.
 
@@ -1098,7 +1098,7 @@ recall_workspace_facts({
 - поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })` (или `…record-lite` / `…record-csv`)
 - CSV в теме (`main-single-csv`) → `get_type({ id: "awn.content.record-csv" })`
 
-**Не типы** (экземпляр / override): `read_page_schema`, `iblock_frame_read_schema` — локальные schema.yml, не справочник.
+**Не типы** (экземпляр / override): `read_page_schema`, `database_frame_read_schema` — локальные schema.yml, не справочник.
 
 - всегда **`id`**, не path: `{ "id": "awn.infoblock.frame.collection" }` ✅
 - алиасы legacy: `awn.data.*` → `awn.infoblock.*`; `awn.infoblock.collection` → `awn.infoblock.frame.collection`
@@ -1110,7 +1110,7 @@ recall_workspace_facts({
 1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-flexible: true` (тогда — произвольная структура в `awn-storage/`).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
-4. `awn-databases` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `iblock_frame_*` + `iblock_content_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-databases»).
+4. `awn-databases` (инфоблок / информационный накопитель) ≠ слот страницы; структурированный реестр → `database_frame_*` + `database_element_*`, свободный текст → Page · Slot · Content (см. «Страницы и контент vs awn-databases»).
 5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `discussion` (не устаревшие `note` / `script` / `thread` / `dialogs`).
 7. Комментарии / дискуссия — свои tools (`list_comments`, `append_comment`, `read_discussion`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-content`, `mark-done`, `set-status`).
