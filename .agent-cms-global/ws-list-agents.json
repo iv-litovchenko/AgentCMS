@@ -47,6 +47,16 @@
       "id": "000",
       "path": "workspaces/000",
       "environment": "local"
+    },
+    {
+      "id": "test-claude",
+      "path": "workspaces/test-claude",
+      "environment": "local"
+    },
+    {
+      "id": "test-2",
+      "path": "workspaces/test-2",
+      "environment": "local"
     }
   ]
 }

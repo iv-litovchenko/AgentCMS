@@ -55,9 +55,10 @@ const agentContext = new AsyncLocalStorage();
 
 function joinNodeFrontmatter(frontmatter, body) {
   const fm = String(frontmatter ?? "").trim();
-  const mdBody = String(body ?? "");
+  let mdBody = String(body ?? "");
   if (!fm) return mdBody;
-  if (!mdBody) return `---\n${fm}\n---\n`;
+  if (!mdBody.trim()) return `---\n${fm}\n---\n`;
+  mdBody = mdBody.replace(/^\r?\n+/, "");
   return `---\n${fm}\n---\n\n${mdBody}`;
 }
 
@@ -1507,16 +1508,30 @@ function saveAgentsRegistry(rawAgents) {
     const workspaceAbsolute = directoryState.exists ? directoryState.absolute : absolute;
     const manifest = directoryState.exists ? readWorkspaceManifestSync(workspaceAbsolute) : null;
 
-    if (
-      directoryState.exists &&
-      manifest &&
-      (entry?.name !== undefined || entry?.comment !== undefined || entry?.active !== undefined)
-    ) {
-      updateWorkspaceReginfoFields(agentPath, {
-        name: entry?.name,
-        comment: entry?.comment,
-        active: entry?.active
-      });
+    if (directoryState.exists && manifest) {
+      const manifestPatch = {};
+      if (entry?.name !== undefined) {
+        const nextName = String(entry.name ?? "").trim();
+        if (nextName && nextName !== String(manifest.name || "").trim()) {
+          manifestPatch.name = nextName;
+        }
+      }
+      if (entry?.comment !== undefined) {
+        const nextComment = String(entry.comment ?? "").trim();
+        if (nextComment !== String(manifest.comment ?? "").trim()) {
+          manifestPatch.comment = nextComment;
+        }
+      }
+      if (entry?.active !== undefined) {
+        const wantActive = entry.active !== false;
+        const manifestActive = isWorkspaceActiveFromStatus(manifest.status);
+        if (wantActive !== manifestActive) {
+          manifestPatch.active = wantActive;
+        }
+      }
+      if (Object.keys(manifestPatch).length) {
+        updateWorkspaceReginfoFields(agentPath, manifestPatch);
+      }
     }
 
     const id = deriveAgentIdFromPath(agentPath, index);
