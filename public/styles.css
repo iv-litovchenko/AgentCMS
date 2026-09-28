@@ -31907,7 +31907,7 @@ body.workspace-pomodoro-break-active {
   justify-content: space-between;
   gap: 10px;
   min-height: var(--doc-body-status-bar-height);
-  padding: 0 52px 0 12px;
+  padding: 0 12px;
   border-top: 1px solid rgba(148, 163, 184, 0.28);
   background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
   box-sizing: border-box;
@@ -31923,6 +31923,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .doc-body-status-bar-stats {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -31937,6 +31938,7 @@ body.workspace-pomodoro-break-active {
   gap: 8px;
   flex-shrink: 0;
   min-width: 0;
+  margin-left: auto;
 }
 
 .doc-body-status-bar-window-wrap {
@@ -32002,10 +32004,22 @@ body.workspace-pomodoro-break-active {
 }
 
 #doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked {
+  display: none !important;
+}
+
+.doc-stack .editor-surface > .workspace-scroll-host {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked {
   position: absolute;
-  right: calc(10px + var(--scroll-top-shift-x, 0px));
-  bottom: calc(10px + var(--scroll-top-shift-y, 0px));
-  z-index: 41;
+  right: calc(12px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(12px + var(--scroll-top-shift-y, 0px));
+  z-index: 30;
   margin: 0;
   min-height: 32px;
   min-width: 32px;
@@ -32019,9 +32033,18 @@ body.workspace-pomodoro-break-active {
     0 2px 6px rgba(15, 23, 42, 0.1);
 }
 
+.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked .scroll-top-btn-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.doc-stack .editor-surface > .workspace-scroll-host > .scroll-top-btn--docked .scroll-top-btn-label {
+  display: none;
+}
+
 .doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .scroll-top-btn--docked {
-  bottom: calc((var(--doc-body-status-bar-height, 34px) - 32px) / 2 + var(--scroll-top-shift-y, 0px));
-  right: calc(10px + var(--scroll-top-shift-x, 0px));
+  display: none !important;
 }
 
 #doc-body-grid.has-props-aside .doc-body-main > .scroll-top-btn--docked .scroll-top-btn-icon {

@@ -90846,6 +90846,7 @@ function applyEditorViewMode() {
     renderPreviewFromEditor();
     applyPropsFormViewMode();
     syncDocAsideTabAvailability();
+    scheduleWorkspaceScrollChromeSync();
     return;
   }
 
@@ -90855,6 +90856,7 @@ function applyEditorViewMode() {
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
     initWysiwygEditor();
+    scheduleWorkspaceScrollChromeSync();
     return;
   }
 
@@ -90863,6 +90865,7 @@ function applyEditorViewMode() {
     syncEditorLineNumbers();
     applySourceEditorAutoHeightUi();
   }
+  scheduleWorkspaceScrollChromeSync();
 }
 
 function setEditorViewMode(mode, options = {}) {
@@ -117932,6 +117935,35 @@ function getEditorSurfaceInDocSlabContent(docSlabContent) {
   return docSlabContent?.querySelector(":scope > .doc-slab-main > .editor-surface:not(.hidden)");
 }
 
+function shouldShowWorkspaceEditorScrollTopButton() {
+  return Boolean(getDocEditorScrollTargetsForPropsAside());
+}
+
+function getDocEditorScrollTargetsForPropsAside() {
+  if (!isDocPropsAsideVisible()) return null;
+  const docSlabContent = getDocSlabContentNode();
+  if (!docSlabContent || !getEditorSurfaceInDocSlabContent(docSlabContent)) return null;
+
+  if (
+    editorViewMode === "preview" &&
+    fileContentPreviewNode &&
+    !fileContentPreviewNode.classList.contains("hidden")
+  ) {
+    return { scrollElement: fileContentPreviewNode, hostTarget: fileContentPreviewNode };
+  }
+
+  if (
+    editorViewMode === "source" &&
+    fileContentInputNode &&
+    editorCodeWrapNode &&
+    !editorCodeWrapNode.classList.contains("hidden")
+  ) {
+    return { scrollElement: fileContentInputNode, hostTarget: editorCodeWrapNode };
+  }
+
+  return null;
+}
+
 function getDocBodyMainEditorScrollTargets() {
   const docSlabContent = getDocSlabContentNode();
   if (!docSlabContent || !getEditorSurfaceInDocSlabContent(docSlabContent)) return null;
@@ -117940,13 +117972,6 @@ function getDocBodyMainEditorScrollTargets() {
   if (shouldUseEditorAutoHeight()) {
     return {
       scrollElement: docSlabContent,
-      hostTarget
-    };
-  }
-
-  if (isDocPropsAsideVisible() && editorViewMode === "source" && fileContentInputNode) {
-    return {
-      scrollElement: fileContentInputNode,
       hostTarget
     };
   }
@@ -118028,16 +118053,15 @@ function getWorkspaceScrollContext() {
   const topicSchemaTargets = getWorkspaceTopicSchemaScrollTargets();
   if (topicSchemaTargets) return topicSchemaTargets;
 
+  const docEditorScrollTargets = getDocEditorScrollTargetsForPropsAside();
+  if (docEditorScrollTargets) return docEditorScrollTargets;
+
   const docBodyMainEditorTargets = getDocBodyMainEditorScrollTargets();
   if (docBodyMainEditorTargets) return docBodyMainEditorTargets;
 
   const autoHeightHostTarget = getEditorAutoHeightScrollHostTarget();
   if (autoHeightHostTarget) {
     return { scrollElement: workspacePaneNode, hostTarget: autoHeightHostTarget };
-  }
-
-  if (fileContentPreviewNode && !fileContentPreviewNode.classList.contains("hidden")) {
-    return { scrollElement: fileContentPreviewNode, hostTarget: fileContentPreviewNode };
   }
 
   const wysiwygWrap = workspacePaneNode.querySelector("#editor-wysiwyg-wrap:not(.hidden)");
@@ -118158,7 +118182,7 @@ function syncWorkspaceScrollChrome() {
 
   syncScrollChrome({
     scrollElement,
-    topButton: workspaceScrollTopBtn,
+    topButton: shouldShowWorkspaceEditorScrollTopButton() ? workspaceScrollTopBtn : null,
     progressNode: workspaceScrollProgressNode,
     depthNode: workspaceScrollDepthNode,
     chromeNode: workspaceScrollChromeNode
