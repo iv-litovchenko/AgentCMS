@@ -459,8 +459,8 @@
 
   function completeBreak() {
     void unlockAudio();
-    enterIdle();
     closePopover();
+    enterWork();
     broadcastShellPomodoroState();
   }
 

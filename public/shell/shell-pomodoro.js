@@ -444,9 +444,10 @@ function createLocalController() {
     enterIdle();
   }
 
-  function completeBreak() {
-    enterIdle();
+  async function completeBreak() {
+    await unlockAudio();
     closePopover();
+    enterWork();
   }
 
   function applyWorkspaceSettings(settings) {
