@@ -19,6 +19,15 @@
   const breakRoot = document.getElementById("workspace-pomodoro-break");
   const breakClock = document.getElementById("workspace-pomodoro-break-clock");
   const breakDoneBtn = document.getElementById("workspace-pomodoro-break-done");
+  const breakBreaksRow = document.getElementById("workspace-pomodoro-break-breaks");
+  const breakBreaksCount = document.getElementById("workspace-pomodoro-break-breaks-count");
+
+  const breaksCounter =
+    globalThis.IdleScreensaverBreaksClient?.createCounter?.({
+      getAgentId: () => getAgentId(),
+      countNode: breakBreaksCount,
+      rowNode: breakBreaksRow
+    }) || null;
 
   let isEligible = () => false;
   let getAgentId = () => "main";
@@ -283,6 +292,7 @@
     breakRoot.classList.remove("hidden");
     breakRoot.setAttribute("aria-hidden", "false");
     document.body.classList.add("workspace-pomodoro-break-active");
+    void breaksCounter?.load?.(getAgentId());
     breakDoneBtn?.focus({ preventScroll: true });
   }
 
@@ -458,6 +468,7 @@
   }
 
   function completeBreak() {
+    breaksCounter?.recordDismissed?.();
     void unlockAudio();
     closePopover();
     enterWork();
@@ -585,6 +596,7 @@
 
     applyWorkMinutes(workMinutes);
     syncVisibility();
+    void breaksCounter?.load?.(getAgentId());
     void restoreCombinedState().then(() => broadcastShellPomodoroState());
   }
 
@@ -598,6 +610,7 @@
     hideBreakModal();
     phase = "idle";
     phaseEndsAt = 0;
+    void breaksCounter?.load?.(nextAgent);
     void restoreCombinedState().then(() => {
       syncVisibility();
       broadcastShellPomodoroState();

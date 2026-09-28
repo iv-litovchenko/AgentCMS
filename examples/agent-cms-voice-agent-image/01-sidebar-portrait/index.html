@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>01 · Сайдбар — #agent-preview-thumb</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <header class="demo-top">
+    <div>
+      <h1>01 · Сайдбар Editor (как сейчас)</h1>
+      <p>
+        <code>img#agent-preview-thumb</code> в <code>.sidebar-agent-avatar-block</code>, ~279×148,
+        API <span data-api-snippet>/api/agents/workspace-preview?path=workspaces%2F…&amp;thumb=1&amp;max=800</span>
+      </p>
+    </div>
+    <nav><a href="../index.html">← Все варианты</a></nav>
+  </header>
+  <div class="demo-stage">
+    <p class="hint-pill">Фиолетовая рамка — текущая production-точка вставки preview workspace</p>
+    <div class="app-mock" style="width: var(--sidebar-w); height: 380px;">
+      <aside class="sidebar-mock">
+        <section class="sidebar-slab-agent">
+          <div id="agent-preview-wrap" class="agent-preview-wrap is-target">
+            <div class="agent-preview-frame">
+              <img class="agent-preview-thumb" src="../_agent-thumb.svg" alt="" />
+              <span class="agent-preview-shine" aria-hidden="true"></span>
+              <span class="agent-preview-label">agent-preview-thumb</span>
+            </div>
+          </div>
+          <div class="sidebar-agent-toolbar">
+            <div class="fake-select">agent-cms-test ▾</div>
+            <div class="fake-select" style="opacity:0.6">≡ Workspace</div>
+          </div>
+        </section>
+        <div class="main-mock" style="flex:1;border-top:1px solid var(--border);font-size:10px">дерево…</div>
+      </aside>
+    </div>
+  </div>
+  <script src="../shared.js"></script>
+</body>
+</html>

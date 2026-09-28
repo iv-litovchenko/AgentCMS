@@ -71,7 +71,7 @@
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
           "@shell/file-hub": "/shell/shell-file-hub.js?v=7",
-          "@shell/pomodoro": "/shell/shell-pomodoro.js?v=6",
+          "@shell/pomodoro": "/shell/shell-pomodoro.js?v=7",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -3409,6 +3409,10 @@ CMS workspace</pre>
           <span>🚵</span>
         </div>
         <button id="shell-pomodoro-break-done" type="button" class="shell-pomodoro-break-done">Отдохнули</button>
+        <p id="shell-pomodoro-break-breaks" class="shell-pomodoro-break-breaks" aria-live="polite">
+          <span class="shell-pomodoro-break-breaks-label">Перерывы сегодня</span>
+          <span id="shell-pomodoro-break-breaks-count" class="shell-pomodoro-break-breaks-badge" aria-hidden="true">0</span>
+        </p>
       </div>
     </div>
 
@@ -3423,8 +3427,9 @@ CMS workspace</pre>
       <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
     </div>
 
+    <script src="/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/app-lock.js?v=15"></script>
     <script src="/platform-status.js"></script>
-    <script src="/shell/shell.js?v=667" type="module"></script>
+    <script src="/shell/shell.js?v=668" type="module"></script>
   </body>
 </html>

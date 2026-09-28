@@ -41,6 +41,10 @@
     }
     if (event.source === window.parent && isVoiceRelayMessage(event.data)) {
       frame.contentWindow?.postMessage(event.data, "*");
+      return;
+    }
+    if (event.source === frame.contentWindow && event.data?.type === "agent-cms-voice:refresh-dialog-done") {
+      window.parent.postMessage(event.data, "*");
     }
   });
 

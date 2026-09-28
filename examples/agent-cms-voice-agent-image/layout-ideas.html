@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>15 идей — композиция картинки агента</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      body { background: #f1f5f9; }
+      .page-head {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 16px 8px;
+      }
+      .page-head h1 { margin: 0 0 8px; font-size: 22px; }
+      .page-head p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 720px; }
+      .page-head a { color: #4338ca; font-weight: 600; text-decoration: none; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <header class="page-head">
+      <h1>15 идей — как посадить персонажа в рамке</h1>
+      <p>
+        Один и тот же <code>workspace-preview</code>, разные CSS-приёмы. Подбирайте под зону UI из
+        <a href="index.html">10 макетов размещения</a>.
+      </p>
+      <p style="margin-top: 10px"><a href="index.html">← Каталог точек в UI</a></p>
+    </header>
+    <div class="ideas-grid">
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center 20%" /></div>
+        <h3>01 · Лицо в верхней трети</h3>
+        <p><code>cover; center 20%</code> — сайдбар и портреты.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center 28%;height:120px" /></div>
+        <h3>02 · Полоса Voice 120px</h3>
+        <p>Как <code>.discuss-agent-preview-wrap</code> в проде.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center 45%" /></div>
+        <h3>03 · Широкий баннер</h3>
+        <p>Акцент на плечи и фон, лицо не обрезать слишком низко.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center 12%;max-height:100%" /></div>
+        <h3>04 · Постер 3:4 в герое</h3>
+        <p>Высокий кадр по центру экрана Voice.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame idea-frame--circle"><img src="_agent-thumb.svg" alt="" style="object-position:center 22%" /></div>
+        <h3>05 · Круглый аватар</h3>
+        <p>Шапка Shell, сообщения чата.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame idea-frame--contain"><img src="_agent-thumb.svg" alt="" /></div>
+        <h3>06 · Contain целиком</h3>
+        <p>Pet и PNG с прозрачностью — без обрезки.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame idea-frame--blur"><img src="_agent-thumb.svg" alt="" /></div>
+        <h3>07 · Blur + чёткий центр</h3>
+        <p>Фон окна Voice, низкая opacity.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame idea-frame--fade"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center 25%" /></div>
+        <h3>08 · Fade вниз в чат</h3>
+        <p>Градиент поверх картинки к цвету панели.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame" style="display:flex;gap:4px;padding:8px;background:#1e293b">
+          <img src="_agent-thumb.svg" alt="" style="width:33%;height:100%;object-fit:cover;border-radius:6px;opacity:1" />
+          <img src="_agent-thumb.svg" alt="" style="width:33%;height:100%;object-fit:cover;border-radius:6px;opacity:0.55" />
+          <img src="_agent-thumb.svg" alt="" style="width:33%;height:100%;object-fit:cover;border-radius:6px;opacity:0.55" />
+        </div>
+        <h3>09 · Слайдер эмоций</h3>
+        <p>Несколько файлов в <code>slider/</code>.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;transform:scale(1.08);animation:kb 6s ease-in-out infinite alternate" /></div>
+        <h3>10 · Лёгкий zoom (Ken Burns)</h3>
+        <p>Как анимация orbit/shine в сайдбаре.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:center bottom" /></div>
+        <h3>11 · Якорь снизу</h3>
+        <p>Персонаж «стоит» над панелью микрофона.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:22% center" /></div>
+        <h3>12 · Профиль влево</h3>
+        <p>Смотрит на ленту сообщений справа.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;object-position:78% center" /></div>
+        <h3>13 · Профиль вправо</h3>
+        <p>Зеркально для другого layout чата.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame"><img src="_agent-thumb.svg" alt="" style="object-fit:cover;filter:grayscale(1) contrast(1.1);opacity:0.85" /></div>
+        <h3>14 · Silhouette / mono</h3>
+        <p>Компакт-режим, меньше отвлекает от текста.</p>
+      </article>
+      <article class="idea-card">
+        <div class="idea-frame" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px">
+          <img src="_agent-thumb.svg" alt="" style="height:100%;object-fit:cover;border-radius:8px" />
+          <div style="background:#312e81;border-radius:8px;display:grid;place-items:center;color:#e0e7ff;font-size:10px;text-align:center;padding:8px">full-src<br />без thumb=1</div>
+        </div>
+        <h3>15 · Thumb + lightbox</h3>
+        <p>Миниатюра → <code>data-full-src</code> по клику.</p>
+      </article>
+    </div>
+    <style>
+      @keyframes kb {
+        from { transform: scale(1); }
+        to { transform: scale(1.12); }
+      }
+    </style>
+  </body>
+</html>

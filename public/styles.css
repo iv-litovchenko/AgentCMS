@@ -337,10 +337,11 @@ body.workspace-idle-screensaver-active {
 
 .workspace-idle-screensaver-breaks {
   margin: 10px 0 0;
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 13px;
   line-height: 1;
   color: rgba(203, 213, 225, 0.78);
@@ -24585,6 +24586,40 @@ body.workspace-pomodoro-break-active {
 .workspace-pomodoro-break-done:focus-visible {
   outline: 2px solid #fb923c;
   outline-offset: 3px;
+}
+
+.workspace-pomodoro-break-breaks {
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(254, 215, 170, 0.82);
+}
+
+.workspace-pomodoro-break-breaks-label {
+  font-weight: 500;
+}
+
+.workspace-pomodoro-break-breaks-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  box-shadow:
+    0 0 0 1px rgba(154, 52, 18, 0.45),
+    0 4px 14px rgba(234, 88, 12, 0.45);
 }
 
 .app-footer-toggle-btn,

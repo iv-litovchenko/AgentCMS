@@ -100,6 +100,26 @@
     return buildExtensionShellUrl(DEFAULT_VOICE_BASE_URL, agentId);
   }
 
+  function stripReloadNonce(url) {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.delete("_asc_reload");
+      return parsed.toString();
+    } catch {
+      return String(url || "");
+    }
+  }
+
+  function withReloadNonce(url) {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.set("_asc_reload", String(Date.now()));
+      return parsed.toString();
+    } catch {
+      return String(url || "");
+    }
+  }
+
   async function loadShellFrame(force = false) {
     if (!frame) return;
 
@@ -111,10 +131,20 @@
       urlLabel.title = shellUrl;
     }
 
-    const currentSrc = frame.getAttribute("src") || "";
-    if (!force && currentSrc === shellUrl) return;
+    const currentSrc = stripReloadNonce(frame.getAttribute("src") || "");
+    if (force) {
+      frame.src = withReloadNonce(shellUrl);
+      return;
+    }
+    if (currentSrc === shellUrl) return;
 
     frame.src = shellUrl;
+  }
+
+  function releaseRetryBtnBusy() {
+    if (!retryBtn) return;
+    retryBtn.disabled = false;
+    retryBtn.classList.remove("is-busy");
   }
 
   function announceSurfaceHost() {
@@ -147,51 +177,26 @@
     const url = await resolveVoiceTabUrl();
     if (globalThis.CompanionStorage?.hasRuntimeMessaging?.()) {
       try {
-        await sendRuntimeMessage({ type: "COMPANION_OPEN_VOICE_TAB" });
-        return;
+        const response = await sendRuntimeMessage({ type: "COMPANION_OPEN_VOICE_TAB" });
+        if (response?.ok !== false) return;
       } catch {
         // fall through
       }
     }
-    chrome.tabs?.create?.({ url, active: true });
-  }
-
-  async function refreshDialogInFrame() {
-    if (!frame?.contentWindow) return false;
-
-    return new Promise((resolve) => {
-      let settled = false;
-      const onMessage = (event) => {
-        if (event.source !== frame.contentWindow) return;
-        if (event.data?.type !== "agent-cms-voice:refresh-dialog-done") return;
-        settled = true;
-        window.removeEventListener("message", onMessage);
-        resolve(Boolean(event.data.ok));
-      };
-
-      window.addEventListener("message", onMessage);
-      frame.contentWindow.postMessage({ type: "agent-cms-voice:refresh-dialog" }, "*");
-      window.setTimeout(() => {
-        if (settled) return;
-        window.removeEventListener("message", onMessage);
-        resolve(false);
-      }, 2500);
-    });
+    try {
+      await chrome.tabs.create({ url, active: true });
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   }
 
   retryBtn?.addEventListener("click", () => {
     if (retryBtn.disabled) return;
     retryBtn.disabled = true;
     retryBtn.classList.add("is-busy");
-    void (async () => {
-      try {
-        const refreshed = await refreshDialogInFrame();
-        if (!refreshed) void loadShellFrame(true);
-      } finally {
-        retryBtn.disabled = false;
-        retryBtn.classList.remove("is-busy");
-      }
-    })();
+    void loadShellFrame(true).catch(() => {
+      releaseRetryBtnBusy();
+    });
   });
 
   openTabBtn?.addEventListener("click", () => {
@@ -342,7 +347,10 @@
     }
   });
 
-  frame?.addEventListener("load", announceSurfaceHost);
+  frame?.addEventListener("load", () => {
+    announceSurfaceHost();
+    releaseRetryBtnBusy();
+  });
 
   void registerPanelTab();
   void loadShellFrame();

@@ -126,6 +126,15 @@ function createLocalController() {
   const breakRoot = $("shell-pomodoro-break");
   const breakClock = $("shell-pomodoro-break-clock");
   const breakDoneBtn = $("shell-pomodoro-break-done");
+  const breakBreaksRow = $("shell-pomodoro-break-breaks");
+  const breakBreaksCount = $("shell-pomodoro-break-breaks-count");
+
+  const breaksCounter =
+    globalThis.IdleScreensaverBreaksClient?.createCounter?.({
+      getAgentId: () => getAgentId(),
+      countNode: breakBreaksCount,
+      rowNode: breakBreaksRow
+    }) || null;
 
   if (!btn) return null;
 
@@ -286,6 +295,7 @@ function createLocalController() {
     breakRoot.classList.remove("hidden");
     breakRoot.setAttribute("aria-hidden", "false");
     document.body.classList.add("shell-pomodoro-break-active");
+    void breaksCounter?.load?.(getAgentId());
     breakDoneBtn?.focus({ preventScroll: true });
   }
 
@@ -445,6 +455,7 @@ function createLocalController() {
   }
 
   async function completeBreak() {
+    breaksCounter?.recordDismissed?.();
     await unlockAudio();
     closePopover();
     enterWork();
@@ -512,6 +523,7 @@ function createLocalController() {
       hideBreakModal();
       phase = "idle";
       phaseEndsAt = 0;
+      void breaksCounter?.load?.(agentId);
       void restoreCombinedState();
       syncVisibility();
     },
@@ -547,6 +559,7 @@ function createLocalController() {
           `Метод помидора: <strong>${workMinutesLabel(workMinutes)}</strong> фокуса в Voice, затем отдых и звук.`;
       }
       syncVisibility();
+      void breaksCounter?.load?.(getAgentId());
       void restoreCombinedState();
     }
   };

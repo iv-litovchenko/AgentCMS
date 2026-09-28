@@ -1083,7 +1083,9 @@ fields:
   voice-window-compact-mode:
     type: awn.field.boolean
     title: Компактный режим
-    description: Маленькое окно-облачко вместо полного hero. В Shell включается кликом по облачку.
+    description: >
+      Облачко вместо полного hero при открытии Voice. В Shell — клик по аватару включает,
+      кнопка «Свернуть компакт» выключает; то же значение, что эта настройка.
     default: false
     group: voice-client
     subgroup: voice-window

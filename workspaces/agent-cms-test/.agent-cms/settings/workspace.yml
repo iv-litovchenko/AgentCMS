@@ -5,6 +5,8 @@ awn_settings:
   response-style: agents-md
   notify-on-complete: false
   workspace-idle-screensaver-minutes: 3
+  workspace-pomodoro-enabled: true
+  workspace-pomodoro-work-minutes: 1
   awn-id-next: 42
   awn-id-issued: 41
   awn-id-updated-at: "2026-09-27T19:01:15.462Z"
@@ -66,21 +68,12 @@ awn_settings:
   voice-window-background: wallpaper
   voice-window-processing-sound: off
   voice-window-compact-mode: false
-  voice-window-dialog-auto-scroll: false
+  voice-window-dialog-auto-scroll: true
   voice-compose-templates:
     - "[object Object]"
     - "[object Object]"
     - "[object Object]"
-  dependencies-columns:
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
-    - "[object Object]"
+  dependencies-columns: []
   ws-static-example-1: значение 1
   ws-static-example-2: значение 2
   ws-static-example-3: значение 3

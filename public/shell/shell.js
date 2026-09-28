@@ -679,6 +679,13 @@ migrateVoiceHostQueryToPath();
 function isShellEmbedMode() {
   try {
     if (new URLSearchParams(window.location.search).get("embed") === "1") return true;
+    if (new URLSearchParams(window.location.search).get("companion") === "1") {
+      try {
+        if (window.parent !== window) return true;
+      } catch {
+        return true;
+      }
+    }
     if (isVoiceStandaloneAppLocation()) {
       return isEmbeddedVoiceHost(readVoiceSurfaceHostFromLocation());
     }
@@ -6148,10 +6155,6 @@ function toggleCompactMode() {
 }
 
 function exitCompactMode() {
-  if (shellEmbedMode && document.body.dataset.shellEmbedCompact === "1") {
-    clearEmbedCompactAppearance();
-    return;
-  }
   setWindowCompactMode(false);
 }
 
@@ -6289,25 +6292,6 @@ function onShellPhaseChange(nextState) {
   state.previousPhase = next;
 }
 
-function applyEmbedCompactAppearance() {
-  if (!shellEmbedMode) return;
-  document.body.dataset.shellEmbedCompact = "1";
-  applyWindowAppearance({
-    ...(state.windowSettings || {}),
-    windowCompact: true
-  });
-  syncCompactActionUi(true);
-  setShellView("main");
-  void shellDialog.refreshHistory?.().then(() => syncCompactQa());
-}
-
-function clearEmbedCompactAppearance() {
-  if (document.body.dataset.shellEmbedCompact !== "1") return;
-  delete document.body.dataset.shellEmbedCompact;
-  applyWindowAppearance(state.windowSettings || {});
-  syncCompactActionUi(Boolean(state.windowSettings?.windowCompact));
-}
-
 function applyWindowAppearance(settings) {
   const ws = settings || state.windowSettings || {};
   const transparent = Boolean(ws.windowTransparent);
@@ -6338,7 +6322,6 @@ function applyWindowAppearance(settings) {
 }
 
 function isWindowCompactEnabled() {
-  if (document.body.dataset.shellEmbedCompact === "1") return true;
   return Boolean(state.windowSettings?.windowCompact);
 }
 
@@ -8595,20 +8578,34 @@ function bindCmsComposeInsertBridge() {
       return;
     }
     if (data.type === "agent-cms-voice:refresh-dialog") {
+      const replyTarget = "*";
+      const replyTo = (payload) => {
+        try {
+          if (event.source && typeof event.source.postMessage === "function") {
+            event.source.postMessage(payload, replyTarget);
+          }
+        } catch {
+          // ignore
+        }
+        if (shellHostedInIframe && window.parent && window.parent !== event.source) {
+          try {
+            window.parent.postMessage(payload, replyTarget);
+          } catch {
+            // ignore
+          }
+        }
+      };
       void shellDialog
         .refreshDialog?.()
         .then(() => {
-          event.source.postMessage({ type: "agent-cms-voice:refresh-dialog-done", ok: true }, event.origin || "*");
+          replyTo({ type: "agent-cms-voice:refresh-dialog-done", ok: true });
         })
         .catch((error) => {
-          event.source.postMessage(
-            {
-              type: "agent-cms-voice:refresh-dialog-done",
-              ok: false,
-              error: String(error?.message || error || "refresh failed")
-            },
-            event.origin || "*"
-          );
+          replyTo({
+            type: "agent-cms-voice:refresh-dialog-done",
+            ok: false,
+            error: String(error?.message || error || "refresh failed")
+          });
         });
       return;
     }
@@ -12765,12 +12762,12 @@ function bindUi() {
 
   nodes.agentAvatar?.addEventListener("click", (event) => {
     event.preventDefault();
-    if (shellEmbedMode || isWindowCompactEnabled()) return;
+    if (isWindowCompactEnabled()) return;
     setWindowCompactMode(true);
   });
   nodes.agentAvatar?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (shellEmbedMode || isWindowCompactEnabled()) return;
+    if (isWindowCompactEnabled()) return;
     event.preventDefault();
     setWindowCompactMode(true);
   });
@@ -13451,9 +13448,6 @@ async function bootShellAgentLayer() {
     }).catch(() => {});
     await loadShellPromptTemplates();
     await loadWindowSettings();
-    if (shellEmbedMode) {
-      applyEmbedCompactAppearance();
-    }
   } catch (error) {
     shellLog("error", "Ошибка инициализации агента", error.message);
     renderPhase("waiting", error.message);
