@@ -34250,6 +34250,49 @@ a.header-tool-btn {
   justify-self: stretch;
 }
 
+.node-navigation-hub--split > .node-navigation-hub-rail-aside {
+  grid-column: 2 / 4;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar-resize-bar-width, 28px) minmax(0, var(--nav-hub-rail-width, 300px));
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+  --nav-rail-sticky-top: 0px;
+  position: sticky;
+  top: var(--nav-rail-sticky-top);
+  align-self: start;
+  z-index: 3;
+  box-sizing: border-box;
+  min-height: 0;
+  height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top) - 12px)
+  );
+  max-height: var(
+    --nav-rail-sticky-height,
+    calc(100dvh - var(--nav-rail-sticky-top) - 12px)
+  );
+}
+
+.node-navigation-hub--split > .node-navigation-hub-rail-aside > .node-navigation-hub-rail-resize-bar {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.node-navigation-hub--split > .node-navigation-hub-rail-aside > .node-navigation-hub-rail {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
 .node-navigation-hub--split > .node-navigation-hub-rail-resize-bar {
   grid-column: 2;
   grid-row: 1;
@@ -34263,8 +34306,20 @@ a.header-tool-btn {
   max-width: var(--nav-hub-rail-width, 300px);
 }
 
+.node-navigation-hub--split > .node-navigation-hub-rail-aside > .node-navigation-hub-rail-resize-bar,
+.node-navigation-hub--split > .node-navigation-hub-rail-aside > .node-navigation-hub-rail {
+  grid-column: auto;
+  grid-row: auto;
+  max-width: none;
+}
+
 .node-navigation-hub--split.node-navigation-hub--rail-collapsed {
   grid-template-columns: minmax(0, 1fr) var(--sidebar-resize-bar-width, 28px);
+}
+
+.node-navigation-hub--split.node-navigation-hub--rail-collapsed > .node-navigation-hub-rail-aside {
+  grid-column: 2;
+  grid-template-columns: var(--sidebar-resize-bar-width, 28px);
 }
 
 .node-navigation-hub--split.node-navigation-hub--rail-collapsed .node-navigation-hub-rail {
@@ -35251,31 +35306,11 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
-  .node-navigation-hub-rail-resize-bar,
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
-  .node-navigation-hub-rail-resize-bar {
-  --nav-rail-sticky-top: 0px;
-  position: sticky;
-  top: var(--nav-rail-sticky-top);
-  align-self: start;
-  z-index: 3;
-  --nav-rail-slab-max-height: calc(
-    100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
-  );
-  min-height: 0;
-  height: min(
-    var(--nav-rail-sticky-height, var(--nav-rail-slab-max-height)),
-    var(--nav-rail-slab-max-height)
-  );
-  max-height: var(--nav-rail-slab-max-height);
-}
-
-.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
   .node-navigation-hub--split
-  > .node-navigation-hub-rail,
+  > .node-navigation-hub-rail-aside,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
   .node-navigation-hub--split
-  > .node-navigation-hub-rail {
+  > .node-navigation-hub-rail-aside {
   --nav-rail-sticky-top: 0px;
   position: sticky;
   top: var(--nav-rail-sticky-top);
@@ -35290,6 +35325,39 @@ button.node-navigation-hub-rail-slot-summary {
     var(--nav-rail-slab-max-height)
   ) !important;
   max-height: var(--nav-rail-slab-max-height) !important;
+  box-sizing: border-box;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail-aside
+  > .node-navigation-hub-rail-resize-bar,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail-aside
+  > .node-navigation-hub-rail-resize-bar {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail-aside
+  > .node-navigation-hub-rail,
+.doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
+  .node-navigation-hub--split
+  > .node-navigation-hub-rail-aside
+  > .node-navigation-hub-rail {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;

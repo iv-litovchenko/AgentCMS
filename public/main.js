@@ -76973,10 +76973,33 @@ function getNavigationHubDocumentScrollElement() {
 function clearNavigationHubRailPanelHeight(rail) {
   const hub = rail?.closest(".node-navigation-hub--split");
   const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
+  const aside = hub?.querySelector(":scope > .node-navigation-hub-rail-aside");
   rail?.style.removeProperty("--nav-rail-sticky-height");
   rail?.style.removeProperty("--nav-rail-panel-height");
   resizeBar?.style.removeProperty("--nav-rail-sticky-height");
   resizeBar?.style.removeProperty("--nav-rail-panel-height");
+  aside?.style.removeProperty("--nav-rail-sticky-height");
+  aside?.style.removeProperty("--nav-rail-panel-height");
+}
+
+function ensureNavigationHubRailAsideWrap(hub) {
+  if (!hub?.classList.contains("node-navigation-hub--split")) return null;
+  const rail =
+    hub.querySelector(":scope > .node-navigation-hub-rail-aside > .node-navigation-hub-rail") ||
+    hub.querySelector(":scope > .node-navigation-hub-rail");
+  if (!rail) return null;
+  const bar = hub.querySelector(".node-navigation-hub-rail-resize-bar");
+  let aside = hub.querySelector(":scope > .node-navigation-hub-rail-aside");
+  if (!aside) {
+    aside = document.createElement("div");
+    aside.className = "node-navigation-hub-rail-aside";
+  }
+  if (bar && bar.parentElement !== aside) {
+    aside.insertBefore(bar, rail.parentElement === aside ? rail : null);
+  }
+  if (rail.parentElement !== aside) aside.appendChild(rail);
+  if (!aside.parentElement) hub.appendChild(aside);
+  return aside;
 }
 
 function resolveDocSlabForNavigationHubRail(rail) {
@@ -77050,8 +77073,15 @@ function updateNavigationHubRailPanelHeight(rail) {
   const docSlab = resolveDocSlabForNavigationHubRail(rail);
   syncNavigationHubRailSlabOffsetVars(rail, docSlab);
   const heightValue = `${resolveNavigationHubRailStickyHeight(rail)}px`;
-  rail.style.setProperty("--nav-rail-sticky-height", heightValue);
-  resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
+  const aside = hub.querySelector(":scope > .node-navigation-hub-rail-aside");
+  if (aside) {
+    aside.style.setProperty("--nav-rail-sticky-height", heightValue);
+    rail.style.removeProperty("--nav-rail-sticky-height");
+    resizeBar?.style.removeProperty("--nav-rail-sticky-height");
+  } else {
+    rail.style.setProperty("--nav-rail-sticky-height", heightValue);
+    resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
+  }
 }
 
 function ensureNavigationHubRailScrollDownButton() {
@@ -85941,12 +85971,15 @@ function mountNavigationHubRailToggle(hub) {
   getDocSlabContentNode()?.classList.remove("is-navigation-rail-split");
   hub.querySelector(".node-navigation-hub-rail-handle")?.remove();
 
+  ensureNavigationHubRailAsideWrap(hub);
+
   let bar = hub.querySelector(".node-navigation-hub-rail-resize-bar");
   if (!bar) {
     bar = document.createElement("div");
     bar.className = "node-navigation-hub-rail-resize-bar";
     bar.setAttribute("aria-label", "Боковая панель");
-    hub.insertBefore(bar, rail);
+    const aside = ensureNavigationHubRailAsideWrap(hub);
+    (aside || hub).insertBefore(bar, rail);
   }
 
   bar.replaceChildren();
@@ -85971,6 +86004,7 @@ function mountNavigationHubRailToggle(hub) {
 
 function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  ensureNavigationHubRailAsideWrap(hub);
   bindNavigationHubSplitGridLayout(hub);
 }
 
