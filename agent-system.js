@@ -32,8 +32,10 @@ const SYSTEM_DOMAIN_LABELS = {
   views: "Views",
   mixins: "Mixins",
   settings: "Settings",
+  database: "Инфоблоки (awn-databases)",
+  /** @deprecated use database */
   infoblock: "Инфоблоки (awn-databases)",
-  /** @deprecated use infoblock */
+  /** @deprecated use database */
   data: "Инфоблоки (awn-databases)"
 };
 
@@ -162,7 +164,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
         ? `awn-databases/${DOMAIN_TYPE_STORES[domain]}`
         : `${configRel}/${domain}`;
 
-    if (domain === "infoblock" || domain === "data") {
+    if (domain === "database" || domain === "infoblock" || domain === "data") {
       const foundations = [];
       const containers = [];
       const elements = [];

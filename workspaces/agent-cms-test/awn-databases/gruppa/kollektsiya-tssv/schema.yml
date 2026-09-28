@@ -3,13 +3,13 @@ layer: awn-databases-store
 
 awn_schema:
   frame:
-    extends: awn.infoblock.frame.collection
+    extends: awn.database.frame.collection
   category:
-    extends: awn.infoblock.element.category
+    extends: awn.database.element.category
   record:
-    extends: awn.infoblock.element.record
+    extends: awn.database.element.record
   record-csv:
-    extends: awn.infoblock.element.record-csv
+    extends: awn.database.element.record-csv
     fields:
       field-1:
         type: awn.field.string
@@ -30,4 +30,4 @@ awn_schema:
         sort: 30
         title: пку4
   sidecar:
-    extends: awn.infoblock.element.sidecar
+    extends: awn.database.element.sidecar

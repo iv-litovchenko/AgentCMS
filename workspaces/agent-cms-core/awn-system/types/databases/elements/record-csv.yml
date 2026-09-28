@@ -1,7 +1,7 @@
-id: awn.infoblock.element.record-csv
+id: awn.database.element.record-csv
 name: Запись CSV накопителя
 kind: element
-domain: infoblock
+domain: database
 status: active
 extends: awn.content.record-csv
 description: Строка csv / csv-files коллекции или main.csv — минимальные системные колонки

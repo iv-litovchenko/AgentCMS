@@ -29,8 +29,8 @@ fields:
     type: awn.field.string
     title: Тип
     description: >
-      Тип узла в иерархии (например awn.infoblock.element.record-csv,
-      awn.infoblock.element.category). Для агента и контекста CSV.
+      Тип узла в иерархии (например awn.database.element.record-csv,
+      awn.database.element.category). Для агента и контекста CSV.
     sort: 2
 
   awn-name:

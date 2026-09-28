@@ -1,9 +1,9 @@
-id: awn.infoblock.frame.taxonomy-collection
+id: awn.database.frame.taxonomy-collection
 name: Справочник таксономии
 kind: frame
-domain: infoblock
+domain: database
 status: active
-extends: awn.infoblock.frame.collection
+extends: awn.database.frame.collection
 description: CSV-коллекция в awn-taxonomies; ключ в awn-taxonomy берётся из slug папки
 manifest-pattern: manifest.md
 

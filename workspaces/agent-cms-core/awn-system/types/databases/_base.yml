@@ -1,7 +1,7 @@
-id: awn.infoblock.base
+id: awn.database.base
 name: База накопителя
 kind: base
-domain: infoblock
+domain: database
 status: active
 extends: awn.base
 description: >

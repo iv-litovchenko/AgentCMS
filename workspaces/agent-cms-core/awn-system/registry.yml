@@ -11,7 +11,7 @@ domains:
   - pages
   - slots
   - mixins
-  - infoblock
+  - database
   - md-blocks
   - presets
   - id: settings

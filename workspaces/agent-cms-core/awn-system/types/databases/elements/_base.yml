@@ -1,7 +1,7 @@
-id: awn.infoblock.element.base
+id: awn.database.element.base
 name: База записи накопителя
 kind: element-base
-domain: infoblock
+domain: database
 status: active
 extends: awn.base
 description: Общие поля записи внутри frame collection/single (awn-storage/data/)

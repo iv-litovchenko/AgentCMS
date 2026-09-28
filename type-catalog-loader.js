@@ -81,45 +81,75 @@ const TYPE_ID_ALIASES = {
   "awn.slot.thread": "awn.slot.discussion",
   "awn.slot.dialogs": "awn.slot.discussion",
   "awn.slot.quick-notes": "awn.slot.note",
-  "awn.data.singleton": "awn.infoblock.frame.single",
-  "awn.data.single": "awn.infoblock.frame.single",
-  "awn.data.group": "awn.infoblock.frame.group",
-  "awn.data.collection": "awn.infoblock.frame.collection",
-  "awn.infoblock.group": "awn.infoblock.frame.group",
-  "awn.infoblock.collection": "awn.infoblock.frame.collection",
-  "awn.infoblock.single": "awn.infoblock.frame.single",
-  "awn.infoblock.singleton": "awn.infoblock.frame.single",
-  "awn.data.base": "awn.infoblock.base",
-  "awn.data.element.base": "awn.infoblock.element.base",
-  "awn.data.element.default": "awn.infoblock.element.record",
-  "awn.infoblock.element.default": "awn.infoblock.element.record",
-  "awn-databases/cms-base/data-elements/default.md": "awn.infoblock.element.record",
-  "awn.data.element.record": "awn.infoblock.element.record",
-  "awn.data.element.record-lite": "awn.infoblock.element.record-lite",
-  "awn.data.element.record-csv": "awn.infoblock.element.record-csv",
-  "awn.data.record": "awn.infoblock.element.record",
-  "awn.data.record-lite": "awn.infoblock.element.record-lite",
-  "awn.data.record-csv": "awn.infoblock.element.record-csv",
-  "awn.infoblock.record": "awn.infoblock.element.record",
-  "awn.infoblock.record-lite": "awn.infoblock.element.record-lite",
-  "awn.infoblock.record-csv": "awn.infoblock.element.record-csv",
-  "awn.infoblock.element.record-lite": "awn.infoblock.element.record-lite",
-  "awn.infoblock.element.record-csv": "awn.infoblock.element.record-csv",
+  "awn.data.singleton": "awn.database.frame.single",
+  "awn.data.single": "awn.database.frame.single",
+  "awn.data.group": "awn.database.frame.group",
+  "awn.data.collection": "awn.database.frame.collection",
+  "awn.database.group": "awn.database.frame.group",
+  "awn.database.collection": "awn.database.frame.collection",
+  "awn.database.single": "awn.database.frame.single",
+  "awn.database.singleton": "awn.database.frame.single",
+  "awn.data.base": "awn.database.base",
+  "awn.data.element.base": "awn.database.element.base",
+  "awn.data.element.default": "awn.database.element.record",
+  "awn.database.element.default": "awn.database.element.record",
+  "awn-databases/cms-base/data-elements/default.md": "awn.database.element.record",
+  "awn.data.element.record": "awn.database.element.record",
+  "awn.data.element.record-lite": "awn.database.element.record-lite",
+  "awn.data.element.record-csv": "awn.database.element.record-csv",
+  "awn.data.record": "awn.database.element.record",
+  "awn.data.record-lite": "awn.database.element.record-lite",
+  "awn.data.record-csv": "awn.database.element.record-csv",
+  "awn.database.record": "awn.database.element.record",
+  "awn.database.record-lite": "awn.database.element.record-lite",
+  "awn.database.record-csv": "awn.database.element.record-csv",
+  "awn.database.element.record-lite": "awn.database.element.record-lite",
+  "awn.database.element.record-csv": "awn.database.element.record-csv",
   "awn.content.record-csv": "awn.content.record-csv",
-  "awn.data.category": "awn.infoblock.element.category",
-  "awn.infoblock.category": "awn.infoblock.element.category",
-  "awn.data.sidecar": "awn.infoblock.element.sidecar",
-  "awn.infoblock.sidecar": "awn.infoblock.element.sidecar",
-  "awn.data.comment": "awn.infoblock.element.comment",
-  "awn.infoblock.comment": "awn.infoblock.element.comment",
-  "awn.infoblock.content.base": "awn.infoblock.element.base",
-  "awn.infoblock.content.record": "awn.infoblock.element.record",
-  "awn.infoblock.content.category": "awn.infoblock.element.category",
-  "awn.infoblock.content.sidecar": "awn.infoblock.element.sidecar",
-  "awn.infoblock.content.comment": "awn.infoblock.element.comment",
-  "awn-databases/cms-base/data-containers/group.md": "awn.infoblock.frame.group",
-  "awn-databases/cms-base/data-containers/collection.md": "awn.infoblock.frame.collection",
-  "awn-databases/cms-base/data-containers/single.md": "awn.infoblock.frame.single"
+  "awn.data.category": "awn.database.element.category",
+  "awn.database.category": "awn.database.element.category",
+  "awn.data.sidecar": "awn.database.element.sidecar",
+  "awn.database.sidecar": "awn.database.element.sidecar",
+  "awn.data.comment": "awn.database.element.comment",
+  "awn.database.comment": "awn.database.element.comment",
+  "awn.database.content.base": "awn.database.element.base",
+  "awn.database.content.record": "awn.database.element.record",
+  "awn.database.content.category": "awn.database.element.category",
+  "awn.database.content.sidecar": "awn.database.element.sidecar",
+  "awn.database.content.comment": "awn.database.element.comment",
+  "awn-databases/cms-base/data-containers/group.md": "awn.database.frame.group",
+  "awn-databases/cms-base/data-containers/collection.md": "awn.database.frame.collection",
+  "awn-databases/cms-base/data-containers/single.md": "awn.database.frame.single",
+  // Legacy infoblock type ids (manifests / schema.yml до rename)
+  "awn.infoblock.base": "awn.database.base",
+  "awn.infoblock.frame.base": "awn.database.frame.base",
+  "awn.infoblock.frame.group": "awn.database.frame.group",
+  "awn.infoblock.frame.collection": "awn.database.frame.collection",
+  "awn.infoblock.frame.single": "awn.database.frame.single",
+  "awn.infoblock.frame.taxonomy-collection": "awn.database.frame.taxonomy-collection",
+  "awn.infoblock.group": "awn.database.frame.group",
+  "awn.infoblock.collection": "awn.database.frame.collection",
+  "awn.infoblock.single": "awn.database.frame.single",
+  "awn.infoblock.singleton": "awn.database.frame.single",
+  "awn.infoblock.element.base": "awn.database.element.base",
+  "awn.infoblock.element.record": "awn.database.element.record",
+  "awn.infoblock.element.record-lite": "awn.database.element.record-lite",
+  "awn.infoblock.element.record-csv": "awn.database.element.record-csv",
+  "awn.infoblock.element.category": "awn.database.element.category",
+  "awn.infoblock.element.sidecar": "awn.database.element.sidecar",
+  "awn.infoblock.element.comment": "awn.database.element.comment",
+  "awn.infoblock.element.default": "awn.database.element.record",
+  "awn.infoblock.record": "awn.database.element.record",
+  "awn.infoblock.record-lite": "awn.database.element.record-lite",
+  "awn.infoblock.record-csv": "awn.database.element.record-csv",
+  "awn.infoblock.category": "awn.database.element.category",
+  "awn.infoblock.sidecar": "awn.database.element.sidecar",
+  "awn.infoblock.comment": "awn.database.element.comment",
+  "awn.infoblock.content.base": "awn.database.element.base",
+  "awn.infoblock.content.record": "awn.database.element.record",
+  "awn.infoblock.content.category": "awn.database.element.category",
+  "awn.infoblock.content.sidecar": "awn.database.element.sidecar",
+  "awn.infoblock.content.comment": "awn.database.element.comment"
 };
 
 function normalizeLegacyCatalogPath(catalogPath) {
@@ -166,8 +196,10 @@ const BUILTIN_DOMAIN_META = {
   "md-blocks": { label: "Markdown blocks", kind: "block" },
   taxonomies: { label: "Taxonomies", kind: "taxonomy" },
   mixins: { label: "Mixins", kind: "mixin" },
+  database: { label: "Инфоблоки / databases (awn-databases)", kind: "data-container" },
+  /** @deprecated use database */
   infoblock: { label: "Инфоблоки (awn-databases)", kind: "data-container" },
-  /** @deprecated use infoblock */
+  /** @deprecated use database */
   data: { label: "Инфоблоки (awn-databases)", kind: "data-container" }
 };
 
@@ -419,7 +451,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-databases"];
-  const platformExtraDomains = ["mixins", "settings", "md-blocks", "infoblock", "presets"];
+  const platformExtraDomains = ["mixins", "settings", "md-blocks", "database", "presets"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {
@@ -471,6 +503,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   }
 
   applyTypeAliases(byId);
+  aliasLegacyTypeDomains(byDomain);
 
   return {
     coreRoot,
@@ -480,6 +513,21 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
     byId,
     byDomain
   };
+}
+
+/** Legacy domain filters / menus still use infoblock | data. */
+function aliasLegacyTypeDomains(byDomain) {
+  const db = byDomain.database;
+  if (Array.isArray(db) && db.length) {
+    if (!byDomain.infoblock?.length) byDomain.infoblock = db;
+    if (!byDomain.data?.length) byDomain.data = db;
+  }
+}
+
+function normalizeTypeDomainFilter(domain) {
+  const d = String(domain || "").trim();
+  if (d === "infoblock" || d === "data") return "database";
+  return d;
 }
 
 function applyTypeAliases(byId) {
@@ -707,7 +755,7 @@ const SLOT_CONTENT_TYPE_IDS = new Set([
 ]);
 
 function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", options = {}) {
-  const domainFilter = String(options.domain || "").trim();
+  const domainFilter = normalizeTypeDomainFilter(options.domain);
   const kindFilter = String(options.kind || "").trim();
   const preset = String(options.filter || "").trim().toLowerCase();
   const index = getTypeCatalogIndexPayload(projectRoot, agentRoot);
@@ -750,7 +798,8 @@ function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", option
         t.kind === "frame" ||
         t.kind === "frame-base" ||
         t.kind === "data-container" ||
-        (t.domain === "infoblock" && String(t.id || "").startsWith("awn.infoblock.frame."))
+        ((t.domain === "database" || t.domain === "infoblock") &&
+          String(t.id || "").startsWith("awn.database.frame."))
     );
     return {
       specVersion: "1.0",
@@ -768,6 +817,7 @@ function getTypesListPayload(projectRoot = process.cwd(), agentRoot = "", option
         t.kind === "element" ||
         t.kind === "element-base" ||
         t.kind === "data-element" ||
+        String(t.id || "").startsWith("awn.database.element.") ||
         String(t.id || "").startsWith("awn.infoblock.element.")
     );
     return {
@@ -1021,12 +1071,15 @@ function getTypeUsage(entry, merged, byId) {
       }
       break;
     }
+    case "database":
     case "infoblock":
     case "data": {
       const storeKind =
         merged["awn-store-kind"] ||
         merged["store-kind"] ||
-        (String(entry.id || "").match(/^awn\.infoblock\.(group|collection|single)$/) || [])[1];
+        (String(entry.id || "").match(/^awn\.(?:database|infoblock)\.(?:frame\.)?(group|collection|single)$/) ||
+          [])[2] ||
+        (String(entry.id || "").match(/^awn\.(?:database|infoblock)\.(group|collection|single)$/) || [])[1];
       if (storeKind) {
         consumers.push(`database_frame_create (${storeKind})`);
         wired = true;
@@ -1139,7 +1192,7 @@ function loadPageTypesFromCatalog(projectRoot, agentRoot = "") {
   const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const types = {};
 
-  for (const domain of ["pages", "content", "infoblock"]) {
+  for (const domain of ["pages", "content", "database", "infoblock"]) {
     for (const entry of byDomain[domain] || []) {
       if (!isTypeActive(entry)) continue;
       const def = toRecordTypeDef(entry, byId);

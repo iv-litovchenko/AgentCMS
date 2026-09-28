@@ -20,7 +20,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: ""
-awn-type: awn.infoblock.element.category
+awn-type: awn.database.element.category
 awn-create: 2026-09-25T21:00:44.733Z
 awn-update: 2026-09-25T21:00:44.733Z
 awn-version: 1

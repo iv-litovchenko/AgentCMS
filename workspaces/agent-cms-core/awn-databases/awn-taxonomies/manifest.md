@@ -19,7 +19,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: ""
-awn-type: awn.infoblock.frame.group
+awn-type: awn.database.frame.group
 awn-id: taxonomies
 awn-create: 2026-09-20T12:00:00.000Z
 awn-update: 2026-09-24T12:00:00.000Z
@@ -45,6 +45,6 @@ awn-taxonomy:
 | [categories/](./categories/manifest.md) | `category` | one |
 | [colors/](./colors/manifest.md) | `color` | many |
 
-Метаданные словаря (тип `awn.infoblock.frame.taxonomy-collection`): `awn-taxonomy-cardinality` (`one`/`many`), `awn-taxonomy-hierarchy`. Ключ в `awn-taxonomy.*` — из slug папки.
+Метаданные словаря (тип `awn.database.frame.taxonomy-collection`): `awn-taxonomy-cardinality` (`one`/`many`), `awn-taxonomy-hierarchy`. Ключ в `awn-taxonomy.*` — из slug папки.
 
 `awn-status` — отдельное поле (не часть `awn-taxonomy`).

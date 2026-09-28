@@ -1,7 +1,7 @@
-id: awn.infoblock.element.record-lite
+id: awn.database.element.record-lite
 name: Лёгкая запись накопителя
 kind: element
-domain: infoblock
+domain: database
 status: active
 extends: awn.entity
 description: >

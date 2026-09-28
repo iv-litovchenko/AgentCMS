@@ -3,5 +3,5 @@ layer: awn-databases-store
 
 awn_schema:
   record:
-    extends: awn.infoblock.element.record
+    extends: awn.database.element.record
     fields:

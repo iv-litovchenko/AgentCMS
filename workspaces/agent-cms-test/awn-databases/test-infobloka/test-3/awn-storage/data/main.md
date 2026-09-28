@@ -1,5 +1,5 @@
 ---
-awn-type: awn.infoblock.element.record
+awn-type: awn.database.element.record
 awn-store: test-infobloka/test-3
 awn-create: 2026-09-23T23:28:54.780Z
 awn-update: 2026-09-23T23:28:54.780Z

@@ -1,7 +1,7 @@
-id: awn.infoblock.element.record
+id: awn.database.element.record
 name: Запись накопителя
 kind: element
-domain: infoblock
+domain: database
 status: active
 extends: awn.content.record
 description: Обычная запись в collection/single frame (*.md или строка CSV)

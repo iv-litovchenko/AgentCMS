@@ -19,7 +19,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: ""
-awn-type: awn.infoblock.frame.taxonomy-collection
+awn-type: awn.database.frame.taxonomy-collection
 awn-id: taxonomies.colors
 awn-create: 2026-09-20T12:00:00.000Z
 awn-update: 2026-09-24T12:00:00.000Z

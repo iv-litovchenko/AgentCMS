@@ -135,10 +135,10 @@ function isSystemStoreFile(name) {
 }
 
 const FRAME_TYPE_ID = {
-  group: "awn.infoblock.frame.group",
-  collection: "awn.infoblock.frame.collection",
-  taxonomyCollection: "awn.infoblock.frame.taxonomy-collection",
-  single: "awn.infoblock.frame.single"
+  group: "awn.database.frame.group",
+  collection: "awn.database.frame.collection",
+  taxonomyCollection: "awn.database.frame.taxonomy-collection",
+  single: "awn.database.frame.single"
 };
 
 const AWN_PROP_TYPE_TO_KIND = {
@@ -146,14 +146,14 @@ const AWN_PROP_TYPE_TO_KIND = {
   [FRAME_TYPE_ID.taxonomyCollection]: "collection",
   [FRAME_TYPE_ID.single]: "single",
   [FRAME_TYPE_ID.group]: "group",
-  "awn.infoblock.frame.singleton": "single",
-  "awn.infoblock.collection": "collection",
-  "awn.infoblock.single": "single",
-  "awn.infoblock.singleton": "single",
-  "awn.infoblock.group": "group",
-  "awn.infoblock.base": "collection",
-  "awn.infoblock.mixin": "collection",
-  "awn.infoblock.entity": "collection",
+  "awn.database.frame.singleton": "single",
+  "awn.database.collection": "collection",
+  "awn.database.single": "single",
+  "awn.database.singleton": "single",
+  "awn.database.group": "group",
+  "awn.database.base": "collection",
+  "awn.database.mixin": "collection",
+  "awn.database.entity": "collection",
   "awn.data.collection": "collection",
   "awn.data.single": "single",
   "awn.data.singleton": "single",
@@ -174,7 +174,7 @@ const KIND_TO_AWN_PROP_TYPE = {
   group: FRAME_TYPE_ID.group
 };
 
-/** Canonical infoblock frame type ids (awn-system/types/infoblocks/frames/). */
+/** Canonical database frame type ids (awn-system/types/databases/frames/). */
 const CONTAINER_TYPE_ID = FRAME_TYPE_ID;
 /** @deprecated legacy MD paths — use CONTAINER_TYPE_ID */
 const DATA_CONTAINERS_PREFIX = `${AWN_DATA_DIR}/cms-base/data-containers/`;
@@ -183,14 +183,14 @@ const CONTAINER_SUPERTYPE = {
   group: `${DATA_CONTAINERS_PREFIX}group.md`,
   single: `${DATA_CONTAINERS_PREFIX}single.md`
 };
-const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.infoblock.element.default";
-const ELEMENT_TYPE_RECORD = "awn.infoblock.element.record";
-const ELEMENT_TYPE_RECORD_LITE = "awn.infoblock.element.record-lite";
-const ELEMENT_TYPE_RECORD_CSV = "awn.infoblock.element.record-csv";
-const ELEMENT_TYPE_CATEGORY = "awn.infoblock.element.category";
-const ELEMENT_TYPE_SIDECAR = "awn.infoblock.element.sidecar";
-const ELEMENT_TYPE_COMMENT = "awn.infoblock.element.comment";
-const ELEMENT_TYPE_PREFIXES = ["awn.infoblock.element.", "awn.infoblock.content."];
+const DEFAULT_ELEMENT_SCHEMA_TYPE = "awn.database.element.default";
+const ELEMENT_TYPE_RECORD = "awn.database.element.record";
+const ELEMENT_TYPE_RECORD_LITE = "awn.database.element.record-lite";
+const ELEMENT_TYPE_RECORD_CSV = "awn.database.element.record-csv";
+const ELEMENT_TYPE_CATEGORY = "awn.database.element.category";
+const ELEMENT_TYPE_SIDECAR = "awn.database.element.sidecar";
+const ELEMENT_TYPE_COMMENT = "awn.database.element.comment";
+const ELEMENT_TYPE_PREFIXES = ["awn.database.element.", "awn.database.content."];
 const DEFAULT_RECORD_ELEMENT_TYPE = ELEMENT_TYPE_RECORD;
 const AWN_DATA_SCHEMA_TARGETS = ["frame", "category", "record", "record-csv", "sidecar"];
 const AWN_DATA_SCHEMA_TARGET_EXTENDS = {
@@ -232,15 +232,15 @@ const LEGACY_EXTENDS_TO_TYPE_ID = {
   [`${AWN_DATA_DIR}/cms-base/data-containers/collection.md`]: FRAME_TYPE_ID.collection,
   [`${AWN_DATA_DIR}/cms-base/data-containers/group.md`]: FRAME_TYPE_ID.group,
   [`${AWN_DATA_DIR}/cms-base/data-containers/single.md`]: FRAME_TYPE_ID.single,
-  "awn.infoblock.collection": FRAME_TYPE_ID.collection,
-  "awn.infoblock.single": FRAME_TYPE_ID.single,
-  "awn.infoblock.singleton": FRAME_TYPE_ID.single,
-  "awn.infoblock.group": FRAME_TYPE_ID.group,
-  "awn.infoblock.content.record": ELEMENT_TYPE_RECORD,
-  "awn.infoblock.content.category": ELEMENT_TYPE_CATEGORY,
-  "awn.infoblock.content.sidecar": ELEMENT_TYPE_SIDECAR,
-  "awn.infoblock.content.comment": ELEMENT_TYPE_COMMENT,
-  "awn.infoblock.element.default": ELEMENT_TYPE_RECORD
+  "awn.database.collection": FRAME_TYPE_ID.collection,
+  "awn.database.single": FRAME_TYPE_ID.single,
+  "awn.database.singleton": FRAME_TYPE_ID.single,
+  "awn.database.group": FRAME_TYPE_ID.group,
+  "awn.database.content.record": ELEMENT_TYPE_RECORD,
+  "awn.database.content.category": ELEMENT_TYPE_CATEGORY,
+  "awn.database.content.sidecar": ELEMENT_TYPE_SIDECAR,
+  "awn.database.content.comment": ELEMENT_TYPE_COMMENT,
+  "awn.database.element.default": ELEMENT_TYPE_RECORD
 };
 
 function normalizeStoreKind(kind) {
@@ -2122,7 +2122,7 @@ function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "")
 }
 
 const BASE_SCHEMA_TEMPLATE = `---
-awn-type: awn.infoblock.base
+awn-type: awn.database.base
 awn-layer: awn-databases-base
 awn-fields:
   awn-id:
@@ -2276,7 +2276,7 @@ function buildStoreManifestContent(schema, body = "", options = {}) {
     schema.supertype ||
     KIND_TO_AWN_PROP_TYPE[kind] ||
     CONTAINER_TYPE_ID.collection ||
-    "awn.infoblock.collection";
+    "awn.database.collection";
   const agentRoot = options.agentRoot || "";
   const projectRoot = options.projectRoot || process.cwd();
   const displayName = String(schema.name || schema.id || "").trim();

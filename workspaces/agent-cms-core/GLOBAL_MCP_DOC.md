@@ -10,6 +10,16 @@
 Мы ведём его вместе: ты пишешь и правишь через MCP, человек — через UI; оба видят одно и то же.  
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
+### Словарь: инфоблок ↔ `database`
+
+| В разговоре / UI | В репозитории | В MCP |
+|------------------|---------------|--------|
+| **инфоблок**, «Накопители информации» | каталог `awn-databases/`, типы `awn.database.*` | `database_frame_*`, `database_element_*` |
+| каркас store (group / collection / single) | `awn.database.frame.*` | `database_frame_*` |
+| запись / раздел внутри store | `awn.database.element.*` | `database_element_*` |
+
+Устаревшие синонимы: домен `infoblock` / id `awn.infoblock.*` / MCP `iblock_*` — алиасы на канон выше.
+
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
 Этот файл — шпаргалка (**87 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
@@ -801,8 +811,8 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 
 | Слой | Префикс MCP | Типы | Про что |
 |------|-------------|------|---------|
-| Каркас инфоблока (frame) | `database_frame_*` | `awn.infoblock.frame.*` | group/collection/single в `awn-databases/{slug}/` |
-| Элементы инфоблока | `database_element_*` | `awn.infoblock.element.*` | записи и разделы в `awn-storage/data/` |
+| Каркас инфоблока (frame) | `database_frame_*` | `awn.database.frame.*` | group/collection/single в `awn-databases/{slug}/` |
+| Элементы инфоблока | `database_element_*` | `awn.database.element.*` | записи и разделы в `awn-storage/data/` |
 
 `database_*` — канонические имена MCP для **инфоблоков** (`awn-databases`). `iblock_frame_*`, `iblock_content_*` и короткие `iblock_*` — deprecated-алиасы.
 
@@ -811,35 +821,35 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 **Типовой flow (3 шага):**
 1. `database_frame_list` → `database_frame_get({ store })`
 2. поля записи: `database_element_read_properties` / `database_element_write_properties`
-3. базовые поля типа: `get_type({ id: "awn.infoblock.element.record" })`; для **md-lite** → `…record-lite`; для **csv** / **csv-files** → `…record-csv` (category/sidecar — свои id)
+3. базовые поля типа: `get_type({ id: "awn.database.element.record" })`; для **md-lite** → `…record-lite`; для **csv** / **csv-files** → `…record-csv` (category/sidecar — свои id)
 
 **Тип коллекции (`awn-collection-type` в manifest frame):**
 
 | Значение | Хранение | Схема записи | Когда |
 |----------|----------|--------------|-------|
-| `md` | `{id}.md` | `awn.infoblock.element.record` (полная) | Задачи, документы, сущности с полями |
-| `md-lite` | `{id}.md` | `awn.infoblock.element.record-lite` (минимум) | Простые списки: тексты, слоганы, UI-строки |
-| `csv` | `main.csv` | `awn.infoblock.element.record-csv` | Табличный реестр |
-| `csv-files` | `{id}.csv` | `awn.infoblock.element.record-csv` | Отдельная таблица на запись |
-| `files` | файлы в `data/` | `awn.infoblock.element.record` | Загрузка файлов |
+| `md` | `{id}.md` | `awn.database.element.record` (полная) | Задачи, документы, сущности с полями |
+| `md-lite` | `{id}.md` | `awn.database.element.record-lite` (минимум) | Простые списки: тексты, слоганы, UI-строки |
+| `csv` | `main.csv` | `awn.database.element.record-csv` | Табличный реестр |
+| `csv-files` | `{id}.csv` | `awn.database.element.record-csv` | Отдельная таблица на запись |
+| `files` | файлы в `data/` | `awn.database.element.record` | Загрузка файлов |
 
-`md-lite` = тот же формат файлов, что `md`, но **лёгкий frontmatter**. В `schema.yml`: `awn_schema.record.extends: awn.infoblock.element.record-lite`.
+`md-lite` = тот же формат файлов, что `md`, но **лёгкий frontmatter**. В `schema.yml`: `awn_schema.record.extends: awn.database.element.record-lite`.
 
-`csv` / `csv-files` = **лёгкие системные колонки** (`awn-id`, `awn-name`, `awn-description`, `awn-code`, `awn-sort`) + пользовательские колонки в `schema.yml`. База: `awn_schema.record.extends: awn.infoblock.element.record-csv`. Слот темы `main-single-csv` → `awn.content.record-csv` (вкладка «Запись csv» в schema темы).
+`csv` / `csv-files` = **лёгкие системные колонки** (`awn-id`, `awn-name`, `awn-description`, `awn-code`, `awn-sort`) + пользовательские колонки в `schema.yml`. База: `awn_schema.record.extends: awn.database.element.record-csv`. Слот темы `main-single-csv` → `awn.content.record-csv` (вкладка «Запись csv» в schema темы).
 
 **Имена полей в `schema.yml` и CSV:**
 - **`awn-*`** — только **системные** поля платформы (из типа `record` / `record-lite` / `record-csv`).
 - **Пользовательские** колонки и поля instance — **без префикса** `awn-` (`amount`, `label`, `color`, `status`…). Не дублируйте системные ключи в `schema.yml`.
 
-- типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
-- типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })`, `…record-lite`, `…record-csv`
+- типы каркаса: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.database.frame.collection" })`
+- типы элементов: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.database.element.record" })`, `…record-lite`, `…record-csv`
 - оглавление frames: `database_frame_read_index` / `database_frame_refresh_index` → `awn-databases/index.md`
 - **бриф frame** — тело `manifest.md` (после frontmatter); в `database_frame_get` → `manifestMarkdown`
 - **кастомные поля instance** (не весь тип): `database_frame_read_schema` / `database_frame_write_schema` — только доп. поля в `schema.yml`
 - свойства frame: `database_frame_read_properties` / `database_frame_write_properties`
 - список элементов (лёгкий): `database_element_list({ store })`
 - новый элемент: `database_element_create({ store, name, slug, isSection? })` — как в UI
-- раздел = папка с `manifest.md` под `awn-storage/data/{section}/`, тип `awn.infoblock.element.category`
+- раздел = папка с `manifest.md` под `awn-storage/data/{section}/`, тип `awn.database.element.category`
 - тело записи: `database_element_read_body` / `database_element_write_body`
 - удаление: `database_frame_delete`, `database_element_delete`; rename: `database_frame_rename`, `database_element_rename`
 
@@ -1094,14 +1104,14 @@ recall_workspace_facts({
 Примеры:
 - create_page → `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 - контент в слоте → `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
-- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.infoblock.frame.collection" })`
-- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.infoblock.element.record" })` (или `…record-lite` / `…record-csv`)
+- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.database.frame.collection" })`
+- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.database.element.record" })` (или `…record-lite` / `…record-csv`)
 - CSV в теме (`main-single-csv`) → `get_type({ id: "awn.content.record-csv" })`
 
 **Не типы** (экземпляр / override): `read_page_schema`, `database_frame_read_schema` — локальные schema.yml, не справочник.
 
-- всегда **`id`**, не path: `{ "id": "awn.infoblock.frame.collection" }` ✅
-- алиасы legacy: `awn.data.*` → `awn.infoblock.*`; `awn.infoblock.collection` → `awn.infoblock.frame.collection`
+- всегда **`id`**, не path: `{ "id": "awn.database.frame.collection" }` ✅
+- алиасы legacy: `awn.data.*` → `awn.database.*`; `awn.database.collection` → `awn.database.frame.collection`
 
 ---
 

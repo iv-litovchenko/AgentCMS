@@ -22008,7 +22008,7 @@ function isContentRecordOverviewEntry(contextOrKind) {
   return (
     normalized === normalizeAwnTypeName("awn.content.record") ||
     normalized === normalizeAwnTypeName("awn.record") ||
-    normalized === normalizeAwnTypeName("awn.infoblock.element.record")
+    normalized === normalizeAwnTypeName("awn.database.element.record")
   );
 }
 
@@ -47329,23 +47329,23 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
     }
   }
   if (
-    normalized === "awn.infoblock.element.category" ||
-    typeName === "awn.infoblock.category" ||
-    typeName === "awn.infoblock.content.category"
+    normalized === "awn.database.element.category" ||
+    typeName === "awn.database.category" ||
+    typeName === "awn.database.content.category"
   ) {
     return "category";
   }
   if (
-    normalized === "awn.infoblock.element.record" ||
-    typeName === "awn.infoblock.record" ||
-    typeName === "awn.infoblock.content.record"
+    normalized === "awn.database.element.record" ||
+    typeName === "awn.database.record" ||
+    typeName === "awn.database.content.record"
   ) {
     return "record";
   }
-  if (normalized === "awn.infoblock.element.sidecar" || typeName === "awn.infoblock.content.sidecar") {
+  if (normalized === "awn.database.element.sidecar" || typeName === "awn.database.content.sidecar") {
     return "sidecar";
   }
-  if (String(typeName || "").startsWith("awn.infoblock.frame.")) return "frame";
+  if (String(typeName || "").startsWith("awn.database.frame.")) return "frame";
   return "topic";
 }
 
@@ -51255,8 +51255,8 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   if (/^(?:awn-databases|awn-data)\/.+\/awn-storage\/data\//i.test(normalized)) {
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared) return normalizeAwnTypeName(declared);
-    if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.infoblock.element.category");
-    return normalizeAwnTypeName("awn.infoblock.element.record");
+    if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.database.element.category");
+    return normalizeAwnTypeName("awn.database.element.record");
   }
 
   if (/^(?:awn-databases|awn-data)\/.+\/manifest\.md$/i.test(normalized)) {
@@ -51273,10 +51273,10 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
         ? awnDataViewStoreCache
         : null);
     const kind = String(store?.kind || "").trim().toLowerCase();
-    if (kind === "group") return normalizeAwnTypeName("awn.infoblock.group");
-    if (kind === "single") return normalizeAwnTypeName("awn.infoblock.single");
-    if (kind === "collection") return normalizeAwnTypeName("awn.infoblock.collection");
-    return normalizeAwnTypeName("awn.infoblock.collection");
+    if (kind === "group") return normalizeAwnTypeName("awn.database.group");
+    if (kind === "single") return normalizeAwnTypeName("awn.database.single");
+    if (kind === "collection") return normalizeAwnTypeName("awn.database.collection");
+    return normalizeAwnTypeName("awn.database.collection");
   }
 
   if (isNodeManifestPath(normalized)) {
@@ -64960,9 +64960,10 @@ function resolveTypeCatalogOverviewContext(nodePath) {
   const domainRules = [
     [/awn-system\/types\/fields(\/|$)/, "fields"],
     [/awn-system\/types\/md-blocks(\/|$)/, "md-blocks"],
-    [/awn-system\/types\/infoblocks(\/|$)/, "infoblock"],
-    [/awn-system\/types\/infoblock(\/|$)/, "infoblock"],
-    [/awn-system\/types\/data(\/|$)/, "infoblock"],
+    [/awn-system\/types\/databases(\/|$)/, "database"],
+    [/awn-system\/types\/infoblocks(\/|$)/, "database"],
+    [/awn-system\/types\/infoblock(\/|$)/, "database"],
+    [/awn-system\/types\/data(\/|$)/, "database"],
     [/awn-system\/types\/pages(\/|$)/, "pages"],
     [/awn-system\/types\/content(\/|$)/, "content"],
     [/awn-system\/types\/slots(\/|$)/, "slots"],
@@ -106733,10 +106734,10 @@ const AWN_DATA_SCHEMA_TARGET_LABELS = {
   sidecar: "Sidecar"
 };
 const AWN_DATA_SCHEMA_TARGET_TYPES = {
-  category: "awn.infoblock.element.category",
-  record: "awn.infoblock.element.record",
-  "record-csv": "awn.infoblock.element.record-csv",
-  sidecar: "awn.infoblock.element.sidecar"
+  category: "awn.database.element.category",
+  record: "awn.database.element.record",
+  "record-csv": "awn.database.element.record-csv",
+  sidecar: "awn.database.element.sidecar"
 };
 
 function resolveAwnDataSchemaTargetsForStore(cache) {
@@ -108303,7 +108304,7 @@ function appendAwnDataSchemaMetaRow(tbody, key, value, context) {
 
 function collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup) {
   if (isGroup) {
-    const typeId = String(schema?.typeId || schema?.supertype || viewStore?.schema?.typeId || "awn.infoblock.group").trim();
+    const typeId = String(schema?.typeId || schema?.supertype || viewStore?.schema?.typeId || "awn.database.group").trim();
     const fieldCount = Object.keys(schema?.fields || viewStore?.schema?.fields || {}).length;
     const rows = [["kind", "group"]];
     if (typeId) rows.push(["typeId", typeId]);
@@ -108451,19 +108452,19 @@ function isAwnDatabaseSchemaContext(nodePath) {
 function resolveAwnDatabaseSchemaTargetForElementType(awnType, nodePath = "") {
   const normalized = normalizeAwnTypeName(String(awnType || "").trim());
   if (
-    normalized === "awn.infoblock.element.category" ||
-    normalized === "awn.infoblock.category" ||
-    normalized === "awn.infoblock.content.category"
+    normalized === "awn.database.element.category" ||
+    normalized === "awn.database.category" ||
+    normalized === "awn.database.content.category"
   ) {
     return "category";
   }
-  if (normalized === "awn.infoblock.element.sidecar" || normalized === "awn.infoblock.content.sidecar") {
+  if (normalized === "awn.database.element.sidecar" || normalized === "awn.database.content.sidecar") {
     return "sidecar";
   }
   if (
-    normalized === "awn.infoblock.element.record" ||
-    normalized === "awn.infoblock.record" ||
-    normalized === "awn.infoblock.content.record"
+    normalized === "awn.database.element.record" ||
+    normalized === "awn.database.record" ||
+    normalized === "awn.database.content.record"
   ) {
     return "record";
   }
@@ -111020,8 +111021,8 @@ function isAwnDataSectionRecord(record) {
   if (/\/awn-storage\/data\/[^/]+\/manifest\.md$/i.test(relPath)) return true;
   const awnType = String(record?.frontmatter?.["awn-type"] || "").trim();
   if (
-    awnType === "awn.infoblock.element.category" ||
-    awnType === "awn.infoblock.category"
+    awnType === "awn.database.element.category" ||
+    awnType === "awn.database.category"
   ) {
     return true;
   }
@@ -111039,11 +111040,11 @@ function resolveAwnDataRecordTypeLabel(record, store = awnDataViewStoreCache) {
   const fm = record?.frontmatter && typeof record.frontmatter === "object" ? record.frontmatter : {};
   const explicit = String(fm["awn-type"] || "").trim();
   if (explicit) return explicit;
-  if (isAwnDataSectionRecord(record)) return "awn.infoblock.element.category";
+  if (isAwnDataSectionRecord(record)) return "awn.database.element.category";
   if (isAwnDataSingleCsvStore(store) || isAwnDataCsvFilesStore(store)) {
-    return "awn.infoblock.element.record";
+    return "awn.database.element.record";
   }
-  return "awn.infoblock.element.record";
+  return "awn.database.element.record";
 }
 
 function getAwnDataStoreSections(store) {
@@ -111294,7 +111295,7 @@ function syncAwnDataViewSectionPanelNotices(store = awnDataViewStoreCache) {
   host.classList.remove("hidden");
   const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
   appendSectionReadmeOffer(host, sectionFolder, {
-    categoryType: "awn.infoblock.element.category",
+    categoryType: "awn.database.element.category",
     onCreate: () => void ensureAwnDataSectionReadme(record, store)
   });
   const issue = getAwnDataViewSectionSlugIssue(store);

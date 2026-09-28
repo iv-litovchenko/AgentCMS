@@ -53,10 +53,10 @@ function splitManifest(raw) {
 
 function frontmatterToSchema(fm) {
   const kindMap = {
-    "awn.infoblock.collection": "collection",
-    "awn.infoblock.single": "single",
-    "awn.infoblock.singleton": "single",
-    "awn.infoblock.group": "group",
+    "awn.database.collection": "collection",
+    "awn.database.single": "single",
+    "awn.database.singleton": "single",
+    "awn.database.group": "group",
     "awn.data.collection": "collection",
     "awn.data.single": "single",
     "awn.data.singleton": "single",

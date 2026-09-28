@@ -1,9 +1,9 @@
-id: awn.infoblock.frame.base
+id: awn.database.frame.base
 name: База каркаса инфоблока
 kind: frame-base
-domain: infoblock
+domain: database
 status: active
-extends: awn.infoblock.base
+extends: awn.database.base
 description: Каркас инфоблока в awn-databases/ — manifest.md, schema.yml, без собственных записей content
 
 fields:

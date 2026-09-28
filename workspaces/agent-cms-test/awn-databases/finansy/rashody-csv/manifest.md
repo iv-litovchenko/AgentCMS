@@ -1,5 +1,5 @@
 ---
-awn-type: awn.infoblock.collection
+awn-type: awn.database.collection
 awn-name: Расходы (таблица)
 awn-record-id-mode: numeric
 awn-record-file: "{id}.md"
