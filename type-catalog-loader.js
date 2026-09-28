@@ -1028,7 +1028,7 @@ function getTypeUsage(entry, merged, byId) {
         merged["store-kind"] ||
         (String(entry.id || "").match(/^awn\.infoblock\.(group|collection|single)$/) || [])[1];
       if (storeKind) {
-        consumers.push(`iblock_create (${storeKind})`);
+        consumers.push(`database_frame_create (${storeKind})`);
         wired = true;
       }
       if (entry.kind === "data-element") {

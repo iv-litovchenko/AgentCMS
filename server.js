@@ -12518,7 +12518,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → iblock_frame_read_index / iblock_frame_list."
+      hint: "Краткий каталог awn-databases. Полный → database_frame_read_index / database_frame_list."
     };
   }
 
@@ -12535,7 +12535,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → iblock_frame_read_index; детали store → iblock_frame_get / iblock_frame_list.",
+      "Полный оглавление → database_frame_read_index; детали store → database_frame_get / database_frame_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -12582,9 +12582,12 @@ async function buildAgentAwnDataIndex() {
       "Оглавление накопителей awn-databases (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-databases.",
     whenToUse: {
-      iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
-      iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов)."
+      database_frame_read_index:
+        "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
+      database_frame_refresh_index:
+        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов).",
+      iblock_read_index: "Deprecated alias → database_frame_read_index.",
+      iblock_refresh_index: "Deprecated alias → database_frame_refresh_index."
     },
     path: manifestPath,
     indexFile: {
@@ -12649,7 +12652,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   return {
     version: 1,
     model: "awn-databases-index-write",
-    hint: "index.md обновлён в awn-databases/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-databases-index.",
+    hint: "index.md обновлён в awn-databases/. Просмотр без записи → database_frame_read_index / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
     path: indexPath,
     overwrite,

@@ -20,7 +20,7 @@ import {
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
-import { registerIblockTools } from "./lib/iblock-tools.js";
+import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
@@ -171,9 +171,9 @@ function createServer() {
   registerFactsTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── Infoblocks (awn-databases): iblock_frame_* + iblock_content_* ─────────────
+  // ── awn-databases: database_frame_* + database_element_* (iblock_* deprecated) ─
 
-  registerIblockTools(reg, client);
+  registerDatabaseTools(reg, client);
 
   // ── Page / Slot / Content / Types ──────────────────────────────────────────
 

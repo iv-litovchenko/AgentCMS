@@ -10,43 +10,54 @@ const recordRef = z
   .optional()
   .describe("Record id or rel path (e.g. 1, section/2). Omit for single stores (main.md).");
 
-const deprecatedPrefix = "[deprecated] Use iblock_frame_";
+const deprecatedFrame = "[deprecated] Use database_frame_";
+const deprecatedElement = "[deprecated] Use database_element_";
 
-function registerFrameTool(reg, client, { legacyName, name, description, schema, handler }) {
-  const frameName = `iblock_frame_${name}`;
-  reg(frameName, description, schema, handler);
+function registerFrameTool(reg, { legacyName, name, description, schema, handler }) {
+  const canonical = `database_frame_${name}`;
+  reg(canonical, description, schema, handler);
+  reg(`iblock_frame_${name}`, `${deprecatedFrame}${name}. ${description}`, schema, handler);
   if (legacyName) {
-    reg(legacyName, `${deprecatedPrefix}${name}. ${description}`, schema, handler);
+    reg(legacyName, `${deprecatedFrame}${name}. ${description}`, schema, handler);
   }
 }
 
-export function registerIblockTools(reg, client) {
-  // ── Infoblock frame (iblock_frame_*) ───────────────────────────────────────
+function registerFrameToolOnce(reg, { name, description, schema, handler }) {
+  registerFrameTool(reg, { name, description, schema, handler });
+}
 
-  registerFrameTool(reg, client, {
+function registerElementTool(reg, name, description, schema, handler) {
+  const canonical = `database_element_${name}`;
+  reg(canonical, description, schema, handler);
+  reg(`iblock_content_${name}`, `${deprecatedElement}${name}. ${description}`, schema, handler);
+}
+
+export function registerDatabaseTools(reg, client) {
+  // ── Database frame (database_frame_*) ───────────────────────────────────────
+
+  registerFrameTool(reg, {
     legacyName: "iblock_list",
     name: "list",
-    description:
-      "List infoblock frames in awn-databases (group/collection/single only — not element records).",
+    description: "List database frames in awn-databases (group/collection/single only — not element records).",
     schema: z.object({}),
     handler: () => client.get("/api/awn-databases")
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_get",
     name: "get",
-    description: "One infoblock frame with schema, records and tree (MD or CSV).",
+    description: "One database frame with schema, records and tree (MD or CSV).",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. awn-taxonomies/tags, tasks")
     }),
     handler: ({ store }) => client.get("/api/awn-databases", { store })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_create",
     name: "create",
     description:
-      "Create infoblock frame: group, collection (MD/md-lite/CSV/files), or single. csv/csv-files use record-csv schema (minimal awn-* columns). md-lite → record-lite. Custom schema fields without awn- prefix.",
+      "Create database frame: group, collection (MD/md-lite/CSV/files), or single. csv/csv-files use record-csv schema (minimal awn-* columns). md-lite → record-lite. Custom schema fields without awn- prefix.",
     schema: z.object({
       kind: z
         .enum(["group", "collection", "single", "singleton"])
@@ -76,20 +87,20 @@ export function registerIblockTools(reg, client) {
       })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_read_index",
     name: "read_index",
     description:
-      "Quick TOC for all infoblock frames: kind, group, path, title, description, recordCount (awn-databases/index.md).",
+      "Quick TOC for all database frames: kind, group, path, title, description, recordCount (awn-databases/index.md).",
     schema: z.object({}),
     handler: () => client.get("/api/agent/awn-databases-index")
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_refresh_index",
     name: "refresh_index",
     description:
-      "Refresh awn-databases/index.md from iblock_frame_list. overwrite=false skips if file exists.",
+      "Refresh awn-databases/index.md from database_frame_list. overwrite=false skips if file exists.",
     schema: z.object({
       overwrite: z
         .boolean()
@@ -102,7 +113,7 @@ export function registerIblockTools(reg, client) {
       })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_read_schema",
     name: "read_schema",
     description:
@@ -130,27 +141,33 @@ export function registerIblockTools(reg, client) {
       ...(fields ? { fields } : {}),
       ...(tabs ? { tabs } : {})
     });
-  reg("iblock_frame_write_schema", writeSchemaDescription, writeSchemaSchema, writeSchemaHandler);
+  reg("database_frame_write_schema", writeSchemaDescription, writeSchemaSchema, writeSchemaHandler);
+  reg(
+    "iblock_frame_write_schema",
+    `${deprecatedFrame}write_schema. ${writeSchemaDescription}`,
+    writeSchemaSchema,
+    writeSchemaHandler
+  );
   reg(
     "iblock_write_schema",
-    `${deprecatedPrefix}write_schema. ${writeSchemaDescription}`,
+    `${deprecatedFrame}write_schema. ${writeSchemaDescription}`,
     writeSchemaSchema,
     writeSchemaHandler
   );
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_read_properties",
     name: "read_properties",
-    description: "Read full YAML frontmatter of infoblock manifest.md.",
+    description: "Read full YAML frontmatter of database manifest.md.",
     schema: z.object({ store: storePath }),
     handler: ({ store }) => client.get("/api/awn-databases/store-properties", { store })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_write_properties",
     name: "write_properties",
     description:
-      "Patch YAML frontmatter of infoblock manifest.md. Send only keys to change — existing keys on disk are preserved.",
+      "Patch YAML frontmatter of database manifest.md. Send only keys to change — existing keys on disk are preserved.",
     schema: z.object({
       store: storePath,
       content: z.string().describe("YAML patch, e.g. awn-name: Задачи")
@@ -158,10 +175,10 @@ export function registerIblockTools(reg, client) {
     handler: ({ store, content }) => client.post("/api/awn-databases/store-properties", { store, content })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_read_property",
     name: "read_property",
-    description: "Read one property from infoblock manifest.md (e.g. awn-name, awn-description).",
+    description: "Read one property from database manifest.md (e.g. awn-name, awn-description).",
     schema: z.object({
       store: storePath,
       key: z.string().min(1)
@@ -169,10 +186,10 @@ export function registerIblockTools(reg, client) {
     handler: ({ store, key }) => client.get("/api/awn-databases/store-properties", { store, key })
   });
 
-  registerFrameTool(reg, client, {
+  registerFrameTool(reg, {
     legacyName: "iblock_write_property",
     name: "write_property",
-    description: "Set one property on infoblock manifest.md. Other keys preserved.",
+    description: "Set one property on database manifest.md. Other keys preserved.",
     schema: z.object({
       store: storePath,
       key: z.string().min(1),
@@ -181,29 +198,30 @@ export function registerIblockTools(reg, client) {
     handler: ({ store, key, value }) => client.post("/api/awn-databases/store-properties", { store, key, value })
   });
 
-  reg(
-    "iblock_frame_delete",
-    "Delete infoblock frame folder (group must be empty).",
-    z.object({
+  registerFrameToolOnce(reg, {
+    name: "delete",
+    description: "Delete database frame folder (group must be empty).",
+    schema: z.object({
       store: storePath
     }),
-    ({ store }) => client.delete("/api/awn-databases/stores", { store })
-  );
+    handler: ({ store }) => client.delete("/api/awn-databases/stores", { store })
+  });
 
-  reg(
-    "iblock_frame_rename",
-    "Rename/move infoblock frame folder under awn-databases/.",
-    z.object({
+  registerFrameToolOnce(reg, {
+    name: "rename",
+    description: "Rename/move database frame folder under awn-databases/.",
+    schema: z.object({
       store: storePath,
       slug: z.string().min(1).describe("New store relPath slug")
     }),
-    ({ store, slug }) => client.post("/api/awn-databases/stores/rename", { store, slug })
-  );
+    handler: ({ store, slug }) => client.post("/api/awn-databases/stores/rename", { store, slug })
+  });
 
-  // ── Infoblock content / elements (iblock_content_*) ───────────────────────
+  // ── Database elements (database_element_*) ──────────────────────────────────
 
-  reg(
-    "iblock_content_list",
+  registerElementTool(
+    reg,
+    "list",
     "Lightweight list of records/sections in a store (includes fileName and fileExtension; no full schema payload).",
     z.object({
       store: storePath
@@ -211,9 +229,10 @@ export function registerIblockTools(reg, client) {
     ({ store }) => client.get("/api/awn-databases/records", { store })
   );
 
-  reg(
-    "iblock_content_create",
-    "Add element to infoblock: record (*.md; md-lite stores get minimal frontmatter), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
+  registerElementTool(
+    reg,
+    "create",
+    "Add element to database: record (*.md; md-lite stores get minimal frontmatter), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. awn-taxonomies/tags"),
       name: z.string().optional().describe("Display name (awn-name)"),
@@ -243,9 +262,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_read_body",
-    "Read infoblock element body. For .md: markdown below frontmatter. For .py/.html/…: full file text.",
+  registerElementTool(
+    reg,
+    "read_body",
+    "Read database element body. For .md: markdown below frontmatter. For .py/.html/…: full file text.",
     z.object({
       store: storePath,
       record: recordRef
@@ -257,9 +277,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_write_body",
-    "Write infoblock element body. For .md frontmatter is preserved; for .py/.html/… overwrites file text.",
+  registerElementTool(
+    reg,
+    "write_body",
+    "Write database element body. For .md frontmatter is preserved; for .py/.html/… overwrites file text.",
     z.object({
       store: storePath,
       record: recordRef,
@@ -273,9 +294,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_delete",
-    "Delete infoblock element record or section folder.",
+  registerElementTool(
+    reg,
+    "delete",
+    "Delete database element record or section folder.",
     z.object({
       store: storePath,
       record: z.string().min(1)
@@ -283,9 +305,10 @@ export function registerIblockTools(reg, client) {
     ({ store, record }) => client.delete("/api/awn-databases/records", { store, record })
   );
 
-  reg(
-    "iblock_content_rename",
-    "Rename or move infoblock element (slug and/or parent section).",
+  registerElementTool(
+    reg,
+    "rename",
+    "Rename or move database element (slug and/or parent section).",
     z.object({
       store: storePath,
       record: z.string().min(1),
@@ -301,9 +324,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_read_properties",
-    "Read full YAML frontmatter of infoblock record ({id}.md or single main.md).",
+  registerElementTool(
+    reg,
+    "read_properties",
+    "Read full YAML frontmatter of database record ({id}.md or single main.md).",
     z.object({
       store: storePath,
       record: recordRef
@@ -315,9 +339,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_write_properties",
-    "Patch YAML frontmatter of infoblock record. Send only keys to change — body and other keys preserved; awn-updated bumped when present.",
+  registerElementTool(
+    reg,
+    "write_properties",
+    "Patch YAML frontmatter of database record. Send only keys to change — body and other keys preserved; awn-updated bumped when present.",
     z.object({
       store: storePath,
       record: recordRef,
@@ -331,9 +356,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_read_property",
-    "Read one property from infoblock record.",
+  registerElementTool(
+    reg,
+    "read_property",
+    "Read one property from database record.",
     z.object({
       store: storePath,
       record: recordRef,
@@ -347,9 +373,10 @@ export function registerIblockTools(reg, client) {
       })
   );
 
-  reg(
-    "iblock_content_write_property",
-    "Set one property on infoblock record. Body and other keys preserved; awn-updated bumped when present.",
+  registerElementTool(
+    reg,
+    "write_property",
+    "Set one property on database record. Body and other keys preserved; awn-updated bumped when present.",
     z.object({
       store: storePath,
       record: recordRef,
@@ -365,3 +392,6 @@ export function registerIblockTools(reg, client) {
       })
   );
 }
+
+/** @deprecated Use registerDatabaseTools */
+export const registerIblockTools = registerDatabaseTools;
