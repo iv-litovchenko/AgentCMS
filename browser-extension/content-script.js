@@ -99,22 +99,40 @@
     { key: "prompt-task", label: "Задача" }
   ];
 
-  const SCREENSHOT_ROWS = [
-    { id: "fullpage", label: "Страница", hint: "Вся страница" },
-    { id: "screen", label: "Экран", hint: "Видимая область" },
-    { id: "region", label: "Область", hint: "Выделить прямоугольник" },
-    { id: "element", label: "Блок", hint: "Клик по элементу" }
+  const SCREENSHOT_KINDS = [
+    { id: "fullpage", label: "Вся страница", hint: "Длинный скрин всей страницы" },
+    { id: "screen", label: "Видимая область", hint: "То, что сейчас видно на экране" },
+    { id: "region", label: "Выбранная область", hint: "Нарисуйте прямоугольник на странице" },
+    { id: "element", label: "Выбранный блок", hint: "Клик по элементу на странице" }
   ];
 
-  const SCREENSHOT_COLS = [
-    { id: "compose", icon: "compose", title: "В чат", label: "Чат" },
-    { id: "clipboard", icon: "clipboard", title: "В буфер", label: "Буфер" },
-    { id: "download", icon: "download", title: "Скачать PNG", label: "Файл" }
+  const SCREENSHOT_TARGETS = [
+    {
+      id: "compose",
+      icon: "compose",
+      headerLabel: "В чат",
+      actionLabel: "Вставить",
+      hint: "Вставить в чат Agent CMS"
+    },
+    {
+      id: "clipboard",
+      icon: "clipboard",
+      headerLabel: "В буфер",
+      actionLabel: "Скопировать",
+      hint: "Скопировать картинку в буфер"
+    },
+    {
+      id: "download",
+      icon: "download",
+      headerLabel: "PNG",
+      actionLabel: "Скачать",
+      hint: "Сохранить PNG на диск"
+    }
   ];
 
-  function screenshotActionKey(rowId, colId) {
-    const base = rowId === "screen" ? "screenshot" : `screenshot-${rowId}`;
-    return `${base}-${colId}`;
+  function screenshotActionKey(kindId, targetId) {
+    const base = kindId === "screen" ? "screenshot" : `screenshot-${kindId}`;
+    return `${base}-${targetId}`;
   }
 
   const root = document.createElement("div");
@@ -220,7 +238,7 @@
   function createScreenshotMenu() {
     const wrap = document.createElement("div");
     wrap.className = "asc-menu asc-menu--screenshot";
-    const btn = createBtn("screenshot", "Скриншот", "Скриншот");
+    const btn = createBtn("screenshot", "Скриншот", "Скриншот: что снять и куда");
     btn.classList.add("asc-btn--menu");
     btn.setAttribute("aria-haspopup", "menu");
     btn.setAttribute("aria-expanded", "false");
@@ -229,44 +247,55 @@
     pop.className = "asc-menu-pop asc-menu-pop--screenshot";
     pop.setAttribute("role", "menu");
 
-    const grid = document.createElement("div");
-    grid.className = "asc-shot-grid";
-
-    grid.append(document.createElement("div"));
-
-    for (const col of SCREENSHOT_COLS) {
-      const head = document.createElement("div");
-      head.className = "asc-shot-col";
-      head.title = col.title;
-      head.innerHTML = `${ICONS[col.icon]}<span class="asc-shot-col-label">${col.label}</span>`;
-      grid.append(head);
+    const head = document.createElement("div");
+    head.className = "asc-shot-compact-head";
+    const headSpacer = document.createElement("span");
+    headSpacer.className = "asc-shot-compact-head-spacer";
+    head.append(headSpacer);
+    for (const target of SCREENSHOT_TARGETS) {
+      const col = document.createElement("span");
+      col.className = "asc-shot-compact-col";
+      col.innerHTML =
+        `<span class="asc-shot-compact-col-ico" aria-hidden="true">${ICONS[target.icon]}</span>` +
+        `<span class="asc-shot-compact-col-label">${target.headerLabel}</span>`;
+      head.append(col);
     }
+    pop.append(head);
 
-    for (const row of SCREENSHOT_ROWS) {
-      const rowLabel = document.createElement("div");
-      rowLabel.className = "asc-shot-row";
-      rowLabel.textContent = row.label;
-      rowLabel.title = row.hint;
-      grid.append(rowLabel);
+    const body = document.createElement("div");
+    body.className = "asc-shot-compact";
 
-      for (const col of SCREENSHOT_COLS) {
-        const key = screenshotActionKey(row.id, col.id);
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "asc-shot-cell";
-        cell.title = `${row.hint} → ${col.title}`;
-        cell.setAttribute("role", "menuitem");
-        cell.innerHTML = ICONS[col.icon];
-        cell.addEventListener("click", (event) => {
+    for (const kind of SCREENSHOT_KINDS) {
+      const row = document.createElement("div");
+      row.className = "asc-shot-compact-row";
+      const label = document.createElement("span");
+      label.className = "asc-shot-compact-label";
+      label.textContent = kind.label;
+      label.title = kind.hint;
+      row.append(label);
+
+      for (const target of SCREENSHOT_TARGETS) {
+        const key = screenshotActionKey(kind.id, target.id);
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "asc-shot-compact-btn";
+        action.innerHTML =
+          `<span class="asc-shot-compact-btn-ico" aria-hidden="true">${ICONS[target.icon]}</span>` +
+          `<span class="asc-shot-compact-btn-text">${target.actionLabel}</span>`;
+        action.title = `${kind.hint} → ${target.hint}`;
+        action.setAttribute("role", "menuitem");
+        action.setAttribute("aria-label", `${kind.label}: ${target.actionLabel}`);
+        action.addEventListener("click", (event) => {
           event.stopPropagation();
           closeMenus();
           handleMenuAction(key);
         });
-        grid.append(cell);
+        row.append(action);
       }
+      body.append(row);
     }
 
-    pop.append(grid);
+    pop.append(body);
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
       const open = !wrap.classList.contains("is-open");
