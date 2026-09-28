@@ -21,6 +21,23 @@
   const breakDoneBtn = document.getElementById("workspace-pomodoro-break-done");
   const breakBreaksRow = document.getElementById("workspace-pomodoro-break-breaks");
   const breakBreaksCount = document.getElementById("workspace-pomodoro-break-breaks-count");
+  const breakEmojiNode = document.getElementById("workspace-pomodoro-break-emoji");
+  let breakEmojiRotator = null;
+  let breakEmojiRotatorPromise = null;
+
+  function getBreakEmojiRotator() {
+    if (breakEmojiRotator) return Promise.resolve(breakEmojiRotator);
+    if (!breakEmojiNode) return Promise.resolve(null);
+    if (!breakEmojiRotatorPromise) {
+      breakEmojiRotatorPromise = import("/pomodoro-break-emoji.js?v=1")
+        .then((mod) => {
+          breakEmojiRotator = mod.createPomodoroBreakEmojiRotator(breakEmojiNode, { intervalMs: 3000 });
+          return breakEmojiRotator;
+        })
+        .catch(() => null);
+    }
+    return breakEmojiRotatorPromise;
+  }
 
   const breaksCounter =
     globalThis.IdleScreensaverBreaksClient?.createCounter?.({
@@ -292,12 +309,14 @@
     breakRoot.classList.remove("hidden");
     breakRoot.setAttribute("aria-hidden", "false");
     document.body.classList.add("workspace-pomodoro-break-active");
+    void getBreakEmojiRotator().then((rot) => rot?.start());
     void breaksCounter?.load?.(getAgentId());
     breakDoneBtn?.focus({ preventScroll: true });
   }
 
   function hideBreakModal() {
     if (!breakRoot) return;
+    breakEmojiRotator?.stop();
     breakRoot.classList.add("hidden");
     breakRoot.setAttribute("aria-hidden", "true");
     document.body.classList.remove("workspace-pomodoro-break-active");

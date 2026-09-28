@@ -4,6 +4,7 @@ import {
   readPomodoroWorkspaceState,
   writePomodoroWorkspaceState
 } from "/pomodoro-state-api.js?v=1";
+import { createPomodoroBreakEmojiRotator } from "/pomodoro-break-emoji.js?v=1";
 
 const BREAK_MS = 5 * 60_000;
 const TICK_MS = 1000;
@@ -128,6 +129,9 @@ function createLocalController() {
   const breakDoneBtn = $("shell-pomodoro-break-done");
   const breakBreaksRow = $("shell-pomodoro-break-breaks");
   const breakBreaksCount = $("shell-pomodoro-break-breaks-count");
+  const breakEmojiRotator = createPomodoroBreakEmojiRotator($("shell-pomodoro-break-emoji"), {
+    intervalMs: 3000
+  });
 
   const breaksCounter =
     globalThis.IdleScreensaverBreaksClient?.createCounter?.({
@@ -295,12 +299,14 @@ function createLocalController() {
     breakRoot.classList.remove("hidden");
     breakRoot.setAttribute("aria-hidden", "false");
     document.body.classList.add("shell-pomodoro-break-active");
+    breakEmojiRotator.start();
     void breaksCounter?.load?.(getAgentId());
     breakDoneBtn?.focus({ preventScroll: true });
   }
 
   function hideBreakModal() {
     if (!breakRoot) return;
+    breakEmojiRotator.stop();
     breakRoot.classList.add("hidden");
     breakRoot.setAttribute("aria-hidden", "true");
     document.body.classList.remove("shell-pomodoro-break-active");

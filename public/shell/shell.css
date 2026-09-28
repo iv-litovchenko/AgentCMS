@@ -14725,62 +14725,21 @@ body.shell-pomodoro-break-active {
 
 .shell-pomodoro-break-emoji {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px 14px;
-  margin-top: 10px;
-  font-size: clamp(1.35rem, 5vw, 1.75rem);
-  line-height: 1;
+  margin-top: 14px;
+  min-height: 4.75rem;
 }
 
-.shell-pomodoro-break-emoji span {
+.shell-pomodoro-break-emoji-icon {
   display: inline-block;
+  font-size: clamp(3rem, 16vw, 4.25rem);
+  line-height: 1;
   animation: shell-pomodoro-break-emoji-bounce 2.4s ease-in-out infinite;
 }
 
-.shell-pomodoro-break-emoji span:nth-child(2) {
-  animation-delay: 0.12s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(3) {
-  animation-delay: 0.24s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(4) {
-  animation-delay: 0.36s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(5) {
-  animation-delay: 0.48s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(6) {
-  animation-delay: 0.6s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(7) {
-  animation-delay: 0.72s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(8) {
-  animation-delay: 0.84s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(9) {
-  animation-delay: 0.96s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(10) {
-  animation-delay: 1.08s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(11) {
-  animation-delay: 1.2s;
-}
-
-.shell-pomodoro-break-emoji span:nth-child(12) {
-  animation-delay: 1.32s;
+.shell-pomodoro-break-emoji-icon.is-swap {
+  animation: shell-pomodoro-break-emoji-pop 0.38s ease-out;
 }
 
 @keyframes shell-pomodoro-break-emoji-bounce {
@@ -14789,12 +14748,23 @@ body.shell-pomodoro-break-active {
     transform: translateY(0);
   }
   40% {
-    transform: translateY(-7px);
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes shell-pomodoro-break-emoji-pop {
+  0% {
+    transform: scale(0.82);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shell-pomodoro-break-emoji span {
+  .shell-pomodoro-break-emoji-icon {
     animation: none !important;
   }
 }
