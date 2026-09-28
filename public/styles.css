@@ -35243,7 +35243,7 @@ button.node-navigation-hub-rail-slot-summary {
   overflow: visible;
 }
 
-/* Overview scrolls on doc-slab-content: rail scrolls with page, height = visible slab, body scrolls inside */
+/* Overview scrolls on doc-slab-content: rail + resize bar sticky in viewport, inner scroll in rail */
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .node-overview.is-navigation-split),
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split) {
   container-type: size;
@@ -35254,9 +35254,11 @@ button.node-navigation-hub-rail-slot-summary {
   .node-navigation-hub-rail-resize-bar,
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
   .node-navigation-hub-rail-resize-bar {
-  position: static;
-  top: auto;
+  --nav-rail-sticky-top: 0px;
+  position: sticky;
+  top: var(--nav-rail-sticky-top);
   align-self: start;
+  z-index: 3;
   --nav-rail-slab-max-height: calc(
     100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
   );
@@ -35274,9 +35276,11 @@ button.node-navigation-hub-rail-slot-summary {
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-navigation-split)
   .node-navigation-hub--split
   > .node-navigation-hub-rail {
-  position: static;
-  top: auto;
+  --nav-rail-sticky-top: 0px;
+  position: sticky;
+  top: var(--nav-rail-sticky-top);
   align-self: start;
+  z-index: 3;
   --nav-rail-slab-max-height: calc(
     100cqh - var(--nav-rail-slab-top-offset, 33px) - var(--nav-rail-slab-bottom-offset, 21px) + 2px
   );
@@ -35291,7 +35295,6 @@ button.node-navigation-hub-rail-slot-summary {
   scrollbar-width: none;
   -ms-overflow-style: none;
   --nav-rail-surface: #f8fafc;
-  position: relative;
   isolation: isolate;
   border-radius: 10px 10px 0 0;
   background-color: var(--nav-rail-surface);

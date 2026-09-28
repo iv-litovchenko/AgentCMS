@@ -77148,16 +77148,27 @@ function bindNavigationHubRailAsideLayout(rail) {
 
   const scrollElement = getNavigationHubDocumentScrollElement();
   scrollElement?.addEventListener("scroll", onResize, { passive: true });
+  const docSlab = resolveDocSlabForNavigationHubRail(rail);
+  if (docSlab && docSlab !== scrollElement) {
+    docSlab.addEventListener("scroll", onResize, { passive: true });
+  }
 
   let resizeObserver = null;
   const layoutRoot =
-    getDocSlabContentNode() || rail.closest(".doc-body-main") || rail.closest("#node-overview-block");
+    docSlab || getDocSlabContentNode() || rail.closest(".doc-body-main") || rail.closest("#node-overview-block");
   if (layoutRoot && typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(layoutRoot);
   }
 
-  navigationHubRailAsideLayout = { rail, onResize, scrollElement, resizeObserver, raf: 0 };
+  navigationHubRailAsideLayout = {
+    rail,
+    onResize,
+    scrollElement,
+    docSlabScrollElement: docSlab && docSlab !== scrollElement ? docSlab : null,
+    resizeObserver,
+    raf: 0
+  };
   bindNavigationHubRailScrollDownButton(rail);
   scheduleWorkspaceScrollChromeSync();
 }
@@ -77167,6 +77178,10 @@ function teardownNavigationHubRailAsideLayout() {
   if (!navigationHubRailAsideLayout) return;
   window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
   navigationHubRailAsideLayout.scrollElement?.removeEventListener(
+    "scroll",
+    navigationHubRailAsideLayout.onResize
+  );
+  navigationHubRailAsideLayout.docSlabScrollElement?.removeEventListener(
     "scroll",
     navigationHubRailAsideLayout.onResize
   );
