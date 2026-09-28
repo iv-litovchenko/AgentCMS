@@ -63,11 +63,21 @@ function getVersionOptionLabel(id) {
   return `Предыдущая (${id})`;
 }
 
+function countApiEndpoints(doc) {
+  return (doc?.groups || []).reduce((total, group) => total + (group.endpoints || []).length, 0);
+}
+
+function countMcpTools(doc) {
+  return (doc?.groups || []).reduce((total, group) => total + (group.tools || []).length, 0);
+}
+
 function getDocsMeta() {
   const versions = DOC_VERSIONS.map((id) => ({
     id,
     label: getVersionOptionLabel(id),
-    isCurrent: id === DEFAULT_DOC_VERSION
+    isCurrent: id === DEFAULT_DOC_VERSION,
+    apiEndpointCount: countApiEndpoints(getApiDocs(id)),
+    mcpToolCount: countMcpTools(getMcpDocs(id))
   }));
   versions.sort((a, b) => (b.isCurrent ? 1 : 0) - (a.isCurrent ? 1 : 0));
   return {

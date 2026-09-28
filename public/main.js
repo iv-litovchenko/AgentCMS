@@ -1429,7 +1429,13 @@ const userDocsContentNode = document.getElementById("user-docs-content");
 const userDocsVersionSelectNode = document.getElementById("user-docs-version-select");
 const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
 const DEFAULT_DOC_VERSION = "0.0.2";
+const DOC_VERSION_IDS = new Set(["0.0.0", "0.0.1", "0.0.2"]);
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
+
+function normalizeDocVersionClient(version, fallback = DEFAULT_DOC_VERSION) {
+  const value = String(version ?? fallback).trim();
+  return DOC_VERSION_IDS.has(value) ? value : fallback;
+}
 const DOCUMENTATION_AGENT_ID = "agent-cms-core";
 const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
 const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
@@ -118500,49 +118506,60 @@ function createApiDocsEndpointNode(endpoint) {
   }
 
   node.append(headNode, descNode, metaNode);
+  node.dataset.apiDocsSearch = [
+    endpoint.path,
+    endpoint.method,
+    endpoint.description,
+    endpoint.body,
+    endpoint.response,
+    ...(Array.isArray(endpoint.query) ? endpoint.query : [])
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
   return node;
 }
 
 function getSelectedDocVersion(selectNode, fallback = DEFAULT_DOC_VERSION) {
-  const value = String(selectNode?.value || fallback).trim();
-  return value === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  return normalizeDocVersionClient(selectNode?.value, fallback);
 }
 
 function readStoredDocVersion() {
-  try {
-    const stored = localStorage.getItem(DOC_VERSION_STORAGE_KEY);
-    return stored === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
-  } catch {
-    return DEFAULT_DOC_VERSION;
-  }
+  return DEFAULT_DOC_VERSION;
 }
 
 function storeDocVersion(version) {
   try {
-    localStorage.setItem(DOC_VERSION_STORAGE_KEY, version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION);
+    localStorage.setItem(DOC_VERSION_STORAGE_KEY, normalizeDocVersionClient(version));
   } catch {
     /* ignore */
   }
 }
 
-async function fetchDocsMeta() {
-  if (docsMetaCache) return docsMetaCache;
-  const response = await fetch("/api/docs-meta");
+async function fetchDocsMeta(force = false) {
+  if (docsMetaCache && !force) return docsMetaCache;
+  const response = await fetch("/api/docs-meta", { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   docsMetaCache = await response.json();
   return docsMetaCache;
 }
 
-function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION) {
+function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION, countKind = null) {
   if (!selectNode) return;
-  const version = selectedVersion === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  const version = normalizeDocVersionClient(selectedVersion);
   const meta = docsMetaCache;
   if (meta?.versions?.length) {
     selectNode.replaceChildren();
     for (const item of meta.versions) {
       const option = document.createElement("option");
       option.value = item.id;
-      option.textContent = item.label;
+      let label = item.label;
+      if (countKind === "api" && Number.isFinite(item.apiEndpointCount)) {
+        label += ` — ${item.apiEndpointCount} методов`;
+      } else if (countKind === "mcp" && Number.isFinite(item.mcpToolCount)) {
+        label += ` — ${item.mcpToolCount} методов`;
+      }
+      option.textContent = label;
       if (item.id === version) option.selected = true;
       selectNode.appendChild(option);
     }
@@ -118551,14 +118568,14 @@ function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION)
   selectNode.value = version;
 }
 
-function syncAllDocVersionSelects(version = readStoredDocVersion()) {
-  fillDocVersionSelect(apiDocsVersionSelectNode, version);
-  fillDocVersionSelect(mcpDocsVersionSelectNode, version);
+function syncAllDocVersionSelects(version = DEFAULT_DOC_VERSION) {
+  fillDocVersionSelect(apiDocsVersionSelectNode, version, "api");
+  fillDocVersionSelect(mcpDocsVersionSelectNode, version, "mcp");
   fillDocVersionSelect(userDocsVersionSelectNode, version);
 }
 
 async function fetchApiDocs(version, force = false) {
-  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  const v = normalizeDocVersionClient(version);
   if (force) delete apiDocsCacheByVersion[v];
   if (!apiDocsCacheByVersion[v]) {
     const response = await fetch(`/api/docs?version=${encodeURIComponent(v)}`);
@@ -118580,27 +118597,47 @@ function renderApiDocsModal(data) {
   }
   if (!apiDocsContentNode) return;
   apiDocsContentNode.innerHTML = "";
-  for (const group of data.groups || []) {
-    const groupNode = document.createElement("section");
-    groupNode.className = "api-docs-group";
-    const titleNode = document.createElement("h3");
-    titleNode.className = "api-docs-group-title";
-    titleNode.textContent = group.title;
-    groupNode.appendChild(titleNode);
-    for (const endpoint of group.endpoints || []) {
-      groupNode.appendChild(createApiDocsEndpointNode(endpoint));
+  const groups = data.groups || [];
+  groups.forEach((group, index) => {
+    const endpoints = group.endpoints || [];
+    const accordion = document.createElement("details");
+    accordion.className = "api-docs-accordion";
+    accordion.open = false;
+    accordion.dataset.apiDocsGroup = String(group.title || "").toLowerCase();
+
+    const summary = document.createElement("summary");
+    summary.className = "api-docs-accordion-summary";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "api-docs-group-title";
+    titleSpan.textContent = group.title || "";
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "api-docs-accordion-count";
+    countSpan.textContent = String(endpoints.length);
+
+    summary.append(titleSpan, countSpan);
+
+    const body = document.createElement("div");
+    body.className = "api-docs-accordion-body";
+    for (const endpoint of endpoints) {
+      body.appendChild(createApiDocsEndpointNode(endpoint));
     }
-    apiDocsContentNode.appendChild(groupNode);
-  }
+
+    accordion.append(summary, body);
+    apiDocsContentNode.appendChild(accordion);
+  });
+  window.resetApiDocsSearch?.();
 }
 
 async function openApiDocsModal() {
   if (!apiDocsModalNode) return;
   try {
+    window.resetApiDocsSearch?.();
     await fetchDocsMeta();
-    apiDocsVersion = readStoredDocVersion();
-    syncAllDocVersionSelects(apiDocsVersion);
-    renderApiDocsModal(await fetchApiDocs(apiDocsVersion));
+    apiDocsVersion = DEFAULT_DOC_VERSION;
+    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
+    renderApiDocsModal(await fetchApiDocs(DEFAULT_DOC_VERSION));
     apiDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить API docs: ${error.message}`, "error");
@@ -118652,6 +118689,7 @@ function createMcpDocsToolNode(tool) {
   }
 
   node.append(headNode, descNode, metaNode);
+  node.dataset.apiDocsSearch = [tool.name, tool.description, tool.parameters, tool.http].filter(Boolean).join(" ").toLowerCase();
   return node;
 }
 
@@ -118713,21 +118751,39 @@ function renderMcpDocsModal(data) {
   if (!mcpDocsContentNode) return;
   mcpDocsContentNode.innerHTML = "";
   for (const group of data.groups || []) {
-    const groupNode = document.createElement("section");
-    groupNode.className = "api-docs-group";
-    const titleNode = document.createElement("h3");
-    titleNode.className = "api-docs-group-title";
-    titleNode.textContent = group.title;
-    groupNode.appendChild(titleNode);
-    for (const tool of group.tools || []) {
-      groupNode.appendChild(createMcpDocsToolNode(tool));
+    const tools = group.tools || [];
+    const accordion = document.createElement("details");
+    accordion.className = "api-docs-accordion";
+    accordion.open = false;
+    accordion.dataset.apiDocsGroup = String(group.title || "").toLowerCase();
+
+    const summary = document.createElement("summary");
+    summary.className = "api-docs-accordion-summary";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "api-docs-group-title";
+    titleSpan.textContent = group.title || "";
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "api-docs-accordion-count";
+    countSpan.textContent = String(tools.length);
+
+    summary.append(titleSpan, countSpan);
+
+    const body = document.createElement("div");
+    body.className = "api-docs-accordion-body";
+    for (const tool of tools) {
+      body.appendChild(createMcpDocsToolNode(tool));
     }
-    mcpDocsContentNode.appendChild(groupNode);
+
+    accordion.append(summary, body);
+    mcpDocsContentNode.appendChild(accordion);
   }
+  window.resetMcpDocsSearch?.();
 }
 
 async function fetchMcpDocs(version, force = false) {
-  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  const v = normalizeDocVersionClient(version);
   if (force) delete mcpDocsCacheByVersion[v];
   if (!mcpDocsCacheByVersion[v]) {
     const response = await fetch(`/api/mcp-docs?version=${encodeURIComponent(v)}`);
@@ -118741,10 +118797,11 @@ async function openMcpDocsModal() {
   if (!mcpDocsModalNode) return;
   try {
     window.resetMcpDocsHelpView?.();
+    window.resetMcpDocsSearch?.();
     await fetchDocsMeta();
-    mcpDocsVersion = readStoredDocVersion();
-    syncAllDocVersionSelects(mcpDocsVersion);
-    renderMcpDocsModal(await fetchMcpDocs(mcpDocsVersion, true));
+    mcpDocsVersion = DEFAULT_DOC_VERSION;
+    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
+    renderMcpDocsModal(await fetchMcpDocs(DEFAULT_DOC_VERSION, true));
     mcpDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");
@@ -118871,7 +118928,7 @@ function closeComponentsIdeasModal() {
 }
 
 async function fetchUserDocs(version, force = false) {
-  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  const v = normalizeDocVersionClient(version);
   if (force) delete userDocsCacheByVersion[v];
   if (!userDocsCacheByVersion[v]) {
     const response = await fetch(`/api/user-docs?version=${encodeURIComponent(v)}`);
@@ -118886,29 +118943,27 @@ function syncUserDocsSubtitle(version) {
   const item = docsMetaCache?.versions?.find((entry) => entry.id === version);
   userDocsSubtitleNode.textContent = item
     ? `Agent CMS · ${item.label}`
-    : version === "0.0.0"
-      ? "Agent CMS · Предыдущая (0.0.0)"
-      : "Agent CMS · Актуальная (0.0.1)";
+    : `Agent CMS · v${normalizeDocVersionClient(version)}`;
 }
 
 async function applyDocVersionChange(version) {
-  storeDocVersion(version);
-  syncAllDocVersionSelects(version);
-  apiDocsVersion = version;
-  mcpDocsVersion = version;
-  userDocsVersion = version;
+  const v = normalizeDocVersionClient(version);
+  syncAllDocVersionSelects(v);
+  apiDocsVersion = v;
+  mcpDocsVersion = v;
+  userDocsVersion = v;
 }
 
 async function openUserDocsModal() {
   if (!userDocsModalNode || !userDocsContentNode) return;
   try {
     await fetchDocsMeta();
-    userDocsVersion = readStoredDocVersion();
-    syncAllDocVersionSelects(userDocsVersion);
-    syncUserDocsSubtitle(userDocsVersion);
+    userDocsVersion = DEFAULT_DOC_VERSION;
+    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
+    syncUserDocsSubtitle(DEFAULT_DOC_VERSION);
     setMarkdownPreviewHtml(
       userDocsContentNode,
-      await fetchUserDocs(userDocsVersion),
+      await fetchUserDocs(DEFAULT_DOC_VERSION),
       HEADER_DOC_PREVIEW_OPTIONS
     );
     userDocsModalNode.classList.remove("hidden");
@@ -120067,7 +120122,7 @@ initCreateMemorySlugControllers();
 initCreateDisplayNameHints();
 initCreateMemoryFormatPicker();
 void fetchDocsMeta()
-  .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
+  .then(() => syncAllDocVersionSelects(DEFAULT_DOC_VERSION))
   .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
   setMediaViewMode(mediaViewSelectNode?.value || "dashboard");

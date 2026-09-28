@@ -6575,7 +6575,21 @@
           </div>
         </div>
         <div id="api-docs-notes" class="api-docs-notes"></div>
-        <div id="api-docs-content" class="api-docs-content"></div>
+        <div class="api-docs-body">
+          <div class="api-docs-search-bar">
+            <input
+              id="api-docs-search"
+              class="docs-search-input"
+              type="search"
+              placeholder="Поиск: путь, метод, описание…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Поиск по HTTP API"
+            />
+            <p id="api-docs-search-empty" class="api-docs-search-empty hidden" role="status">Ничего не найдено</p>
+          </div>
+          <div id="api-docs-content" class="api-docs-content"></div>
+        </div>
       </div>
     </div>
 
@@ -6754,7 +6768,7 @@
             <p id="mcp-docs-subtitle" class="api-docs-subtitle"></p>
           </div>
           <div class="docs-modal-toolbar">
-            <button id="mcp-docs-help-btn" class="ghost-btn mcp-docs-help-btn" type="button" aria-expanded="false">
+            <button id="mcp-docs-help-btn" class="docs-toolbar-btn" type="button" aria-expanded="false">
               Помощь
             </button>
             <select id="mcp-docs-version-select" class="docs-version-select" aria-label="Версия документации">
@@ -6766,6 +6780,21 @@
         </div>
         <div id="mcp-docs-notes" class="api-docs-notes mcp-docs-notes"></div>
         <pre id="mcp-docs-config" class="mcp-docs-config hidden" aria-label="Скопируй агенту: подключение MCP и JSON конфиг"></pre>
+        <div id="mcp-docs-tools-wrap" class="api-docs-body">
+          <div class="api-docs-search-bar">
+            <input
+              id="mcp-docs-search"
+              class="docs-search-input"
+              type="search"
+              placeholder="Поиск: tool, описание, HTTP…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Поиск по MCP tools"
+            />
+            <p id="mcp-docs-search-empty" class="api-docs-search-empty hidden" role="status">Ничего не найдено</p>
+          </div>
+          <div id="mcp-docs-content" class="api-docs-content"></div>
+        </div>
         <div id="mcp-docs-help-panel" class="api-docs-content mcp-docs-help-panel hidden" hidden>
           <p class="mcp-docs-help-lead">
             Model Context Protocol (MCP) — способ подключить внешний сервер к IDE (Cursor, Claude Desktop). Ниже — виды
@@ -6842,7 +6871,6 @@
             описания tools из MCP, а не эту модалку.
           </p>
         </div>
-        <div id="mcp-docs-content" class="api-docs-content"></div>
       </div>
     </div>
 
@@ -6873,7 +6901,8 @@
     <script src="/platform-status.js"></script>
     <script src="/marker-blocks-preview.js?v=10"></script>
     <script src="/mcp-docs-primitives-help.js?v=1"></script>
-    <script src="/main.js?v=0.5.942"></script>
+    <script src="/api-docs-ui.js?v=2"></script>
+    <script src="/main.js?v=0.5.944"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/privacy-mode.js?v=3"></script>
     <script src="/page-picker-extract.js?v=0.5.5"></script>

@@ -58907,12 +58907,37 @@ button.node-navigation-memory-title:focus-visible {
   flex-shrink: 0;
 }
 
-.mcp-docs-help-btn {
+.docs-toolbar-btn {
   height: 28px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--panel);
+  color: var(--text);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.docs-toolbar-btn:hover {
+  background-color: var(--panel-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.docs-toolbar-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.docs-toolbar-btn[aria-expanded="true"] {
+  background-color: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .mcp-docs-help-lead,
@@ -58956,7 +58981,8 @@ button.node-navigation-memory-title:focus-visible {
 
 .docs-version-select {
   height: 28px;
-  min-width: 148px;
+  min-width: 200px;
+  max-width: min(280px, 42vw);
   padding: 4px 28px 4px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -59005,6 +59031,48 @@ button.node-navigation-memory-title:focus-visible {
   margin-bottom: 0;
 }
 
+.api-docs-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.api-docs-search-bar {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.docs-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.docs-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.docs-search-input::placeholder {
+  color: var(--muted);
+}
+
+.api-docs-search-empty {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .api-docs-content {
   padding: 12px 16px 16px;
   overflow: auto;
@@ -59012,16 +59080,102 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
 }
 
-.api-docs-group + .api-docs-group {
-  margin-top: 18px;
+.api-docs-accordion {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.api-docs-accordion:last-child {
+  margin-bottom: 0;
+}
+
+.api-docs-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: var(--panel-soft);
+}
+
+.api-docs-accordion-summary:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel-soft));
+}
+
+.api-docs-accordion[open] > .api-docs-accordion-summary {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-soft));
+  border-bottom: 1px solid var(--border);
+}
+
+.api-docs-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.api-docs-accordion-summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--muted);
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+
+.api-docs-accordion[open] > .api-docs-accordion-summary::before {
+  transform: rotate(90deg);
 }
 
 .api-docs-group-title {
-  margin: 0 0 8px;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
   font-size: 13px;
   font-weight: 700;
   color: #1e3a8a;
   letter-spacing: 0.03em;
+}
+
+.api-docs-accordion-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.api-docs-accordion-body {
+  padding: 10px 12px 12px;
+  background: #f8fafc;
+  border-top: none;
+}
+
+.api-docs-accordion-body > .api-docs-endpoint:first-child {
+  margin-top: 10px;
+}
+
+.api-docs-group + .api-docs-group {
+  margin-top: 18px;
+}
+
+.api-docs-accordion-body .api-docs-endpoint {
+  border: 1px solid color-mix(in srgb, var(--border) 85%, #94a3b8);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .api-docs-endpoint {
