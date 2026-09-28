@@ -11474,7 +11474,10 @@ function buildIndexExcludeEntityDisplayPath(entity) {
     const slotPrefix = entity.slot ? `${entity.slot}/` : "";
     return `${base} → ${slotPrefix}${entity.ref}`;
   }
-  if (entity.entityKind === "infoblock-record" && entity.ref) {
+  if (
+    (entity.entityKind === "database-record" || entity.entityKind === "infoblock-record") &&
+    entity.ref
+  ) {
     const base = entity.displayPath || entity.label || entity.manifestPath;
     return `${base} → ${entity.ref}`;
   }
@@ -11630,7 +11633,7 @@ async function collectAllIndexExcludeEntities() {
   const manifestRels = [];
   await walkWorkspaceManifestFiles(databasesRoot, "awn-databases", manifestRels);
   for (const manifestRel of manifestRels) {
-    await collectIndexExcludeEntitiesFromManifest(manifestRel, "infoblock", entities);
+    await collectIndexExcludeEntitiesFromManifest(manifestRel, "database", entities);
 
     const manifestAbsolute = normalizeWorkspacePath(manifestRel);
     if (!manifestAbsolute) continue;
@@ -11659,7 +11662,7 @@ async function collectAllIndexExcludeEntities() {
       if (!recordFlags.indexExcludeRecord) continue;
       const recordName = getYamlScalar(recordFrontmatter, "awn-name") || file.name.replace(/\.md$/i, "");
       entities.push({
-        entityKind: "infoblock-record",
+        entityKind: "database-record",
         manifestPath: manifestRel,
         slot: null,
         ref,
@@ -11686,7 +11689,7 @@ async function buildAgentIndexExcludeRegistry() {
     model: "index-exclude-registry",
     hint:
       "Реестр исключений из индексации: awn-index-exclude-record и awn-index-exclude-subtree " +
-      "на темах, инфоблоках и записях.",
+      "на темах, awn-databases (инфоблоках) и записях store.",
     items,
     itemCount: items.length,
     recordCount: items.filter((item) => item.indexExcludeRecord).length,
