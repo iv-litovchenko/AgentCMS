@@ -62971,8 +62971,78 @@ function normalizeMarkdownHeadingCompareText(text) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[*_`~]/g, "")
     .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
     .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findEntryOverviewMarkdownPreview(root = nodeOverviewContentNode) {
+  if (!root) return null;
+  return (
+    root.querySelector(".node-entry-overview-manifest .file-content-preview") ||
+    root.querySelector(".node-navigation-manifest .file-content-preview") ||
+    root.querySelector(".node-navigation-hub-main .file-content-preview") ||
+    root.querySelector("#node-overview-content .file-content-preview")
+  );
+}
+
+function findEntryOverviewDocumentScrollElement(preview) {
+  return (
+    getNavigationHubDocumentScrollElement() ||
+    preview?.closest(".doc-slab-content") ||
+    getDocSlabContentNode() ||
+    document.querySelector("#doc-body-grid .doc-slab-content")
+  );
+}
+
+function resolveEntryOverviewPreviewHeadingTarget(preview, heading) {
+  if (!preview || !heading) return null;
+  const slug = String(heading.slug || "").trim();
+  const domHeadings = [...preview.querySelectorAll("h1,h2,h3,h4,h5,h6")];
+
+  if (slug) {
+    const bySlug = preview.querySelector(`#${CSS.escape(slug)}`);
+    if (bySlug) return bySlug;
+    const slugLower = slug.toLowerCase();
+    const byIdMatch = domHeadings.find((el) => String(el.id || "").toLowerCase() === slugLower);
+    if (byIdMatch) return byIdMatch;
+  }
+
+  const index = Number(heading.index);
+  if (Number.isFinite(index) && index >= 0 && index < domHeadings.length) {
+    return domHeadings[index];
+  }
+
+  const normalizedText = normalizeMarkdownHeadingCompareText(heading.text || "");
+  if (normalizedText) {
+    const byText = domHeadings.find(
+      (el) => normalizeMarkdownHeadingCompareText(el.textContent || "") === normalizedText
+    );
+    if (byText) return byText;
+  }
+
+  const looseText = String(heading.text || "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .trim()
     .toLowerCase();
+  if (looseText.length >= 3) {
+    const byPartial = domHeadings.find((el) =>
+      String(el.textContent || "")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .trim()
+        .toLowerCase()
+        .includes(looseText)
+    );
+    if (byPartial) return byPartial;
+  }
+
+  return null;
+}
+
+function prepareEntryOverviewDocumentMarkdown(rawMarkdown, heroTitle = "") {
+  const { body } = splitFrontmatter(String(rawMarkdown || ""));
+  return stripLeadingDuplicateMarkdownHeading(stripAwnDescCallouts(body).trim(), heroTitle).trim();
 }
 
 function stripLeadingDuplicateMarkdownHeading(markdown, heroTitle) {
@@ -72067,11 +72137,7 @@ function renderEntryOverviewOcrEmptyNotice() {
 }
 
 function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null, heroTitle = "") {
-  const { body } = splitFrontmatter(String(rawContent || ""));
-  const content = stripLeadingDuplicateMarkdownHeading(
-    stripAwnDescCallouts(body).trim(),
-    heroTitle
-  ).trim();
+  const content = prepareEntryOverviewDocumentMarkdown(rawContent, heroTitle);
   if (!content) return null;
 
   const wrap = document.createElement("div");
@@ -76822,7 +76888,11 @@ async function renderEntryOverview() {
     if (isStale()) return;
     hub.appendChild(hubMain);
     if (useSplitLayout) {
-      await appendNodeNavigationSplitRail(hub, topicPath, memoryBundle, { isStale, documentMarkdown });
+      await appendNodeNavigationSplitRail(hub, topicPath, memoryBundle, {
+          isStale,
+          documentMarkdown,
+          documentHeroTitle: title
+        });
     } else {
       syncNodeOverviewNavigationSplitClass(false);
     }
@@ -77042,40 +77112,30 @@ function syncNavigationHubRailSlabOffsetVars(rail, docSlab) {
   const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
   const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
   const slabPaddingBottom = parseFloat(getComputedStyle(docSlab).paddingBottom) || 0;
-  const slabInnerHeight = Math.max(0, docSlab.clientHeight - slabPaddingTop - slabPaddingBottom);
+  const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
   let topOffset = Math.max(
     0,
     Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
   );
-  let bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
+  const slabInnerHeight = Math.max(0, docSlab.clientHeight - slabPaddingTop - slabPaddingBottom);
   const minRailHeight = 240;
   if (slabInnerHeight > minRailHeight) {
-    const maxTop = Math.max(0, slabInnerHeight - minRailHeight);
-    topOffset = Math.min(topOffset, maxTop);
-    bottomOffset = Math.min(
-      bottomOffset,
-      Math.max(12, slabInnerHeight - topOffset - minRailHeight)
-    );
+    topOffset = Math.min(topOffset, Math.max(0, slabInnerHeight - minRailHeight - bottomOffset));
   }
   docSlab.style.setProperty("--nav-rail-slab-top-offset", `${topOffset}px`);
   docSlab.style.setProperty("--nav-rail-slab-bottom-offset", `${bottomOffset}px`);
 }
 
 function resolveNavigationHubRailBottomOffset(rail, docSlab = null) {
+  const scrollContainer = docSlab || resolveDocSlabForNavigationHubRail(rail);
+  if (scrollContainer && navigationHubRailUsesDocSlabScroll(rail)) {
+    return 12;
+  }
+
   let bottomOffset = 12;
   const overviewContent =
     rail?.closest("#node-overview-content") || nodeOverviewContentNode || null;
   if (!overviewContent || !rail) return bottomOffset;
-
-  const scrollContainer = docSlab || resolveDocSlabForNavigationHubRail(rail);
-  if (scrollContainer && navigationHubRailUsesDocSlabScroll(rail)) {
-    const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
-    const overviewTop = getOffsetTopWithinScrollContainer(overviewContent, scrollContainer);
-    const railTop = getOffsetTopWithinScrollContainer(layoutAnchor, scrollContainer);
-    const cardTopGap = Math.max(0, Math.round(railTop - overviewTop));
-    if (cardTopGap > 0) bottomOffset = cardTopGap;
-    return bottomOffset;
-  }
 
   const cardTopGap = Math.round(
     rail.getBoundingClientRect().top - overviewContent.getBoundingClientRect().top
@@ -77089,14 +77149,22 @@ function resolveNavigationHubRailStickyHeight(rail) {
 
   if (docSlab && rail) {
     const layoutAnchor = getNavigationHubRailLayoutAnchor(rail);
-    const slabPaddingTop = parseFloat(getComputedStyle(docSlab).paddingTop) || 0;
+    const slabStyles = getComputedStyle(docSlab);
+    const slabPaddingTop = parseFloat(slabStyles.paddingTop) || 0;
+    const slabPaddingBottom = parseFloat(slabStyles.paddingBottom) || 0;
+    const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
     const topOffset = Math.max(
       0,
       Math.round(getOffsetTopWithinScrollContainer(layoutAnchor, docSlab) - slabPaddingTop)
     );
-    const bottomOffset = resolveNavigationHubRailBottomOffset(rail, docSlab);
-    const heightFromViewport = docSlab.clientHeight - topOffset - bottomOffset;
-    return Math.max(240, Math.floor(heightFromViewport));
+
+    const slabRect = docSlab.getBoundingClientRect();
+    const anchorRect = layoutAnchor.getBoundingClientRect();
+    const heightFromVisible =
+      slabRect.bottom - slabPaddingBottom - anchorRect.top - bottomOffset;
+    const heightFromLayout = docSlab.clientHeight - topOffset - bottomOffset;
+
+    return Math.max(240, Math.floor(Math.max(heightFromVisible, heightFromLayout)));
   }
 
   const insetBottom = 12;
@@ -77298,9 +77366,7 @@ function syncNavigationHubRailDocumentOutlineActive(rail) {
     navigationHubRailDocumentScrollSpy?.scrollElement || getNavigationHubDocumentScrollElement();
   if (!scrollElement) return;
 
-  const preview = nodeOverviewContentNode?.querySelector(
-    ".node-entry-overview-manifest .file-content-preview, .node-navigation-manifest .file-content-preview"
-  );
+  const preview = findEntryOverviewMarkdownPreview();
   if (!preview) return;
 
   const headings = [...preview.querySelectorAll("h1,h2,h3,h4,h5,h6")];
@@ -77321,7 +77387,10 @@ function syncNavigationHubRailDocumentOutlineActive(rail) {
   links.forEach((link) => {
     const slugMatch = Boolean(activeSlug && link.dataset.slug === activeSlug);
     const indexMatch = Number(link.dataset.headingIndex) === activeIndex;
-    const matches = slugMatch || indexMatch;
+    const textMatch =
+      normalizeMarkdownHeadingCompareText(link.textContent || "") ===
+      normalizeMarkdownHeadingCompareText(activeHeading.textContent || "");
+    const matches = slugMatch || indexMatch || textMatch;
     link.classList.toggle("is-current", matches);
     if (matches) activeLink = link;
   });
@@ -86118,7 +86187,10 @@ function syncNavigationHubSplitRailChrome(hub) {
 function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
   syncNavigationHubSplitRailChrome(hub);
-  requestAnimationFrame(() => syncNavigationHubSplitRailChrome(hub));
+  requestAnimationFrame(() => {
+    syncNavigationHubSplitRailChrome(hub);
+    requestAnimationFrame(() => syncNavigationHubSplitRailChrome(hub));
+  });
 }
 
 function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
@@ -86749,16 +86821,19 @@ function fillNavigationHubRailDocumentOutlineList(list, headings) {
       const rail = btn.closest(".node-navigation-hub-rail");
       const documentSlot = getNavigationHubRailDocumentSlot(rail);
       setNavigationHubRailDocumentOutlineCurrentLink(documentSlot, btn);
-      scrollToEntryOverviewDocumentHeading(heading);
+      scrollToEntryOverviewDocumentHeading({
+        slug: btn.dataset.slug || "",
+        index: Number(btn.dataset.headingIndex),
+        text: btn.textContent || heading.text
+      });
     });
     item.appendChild(btn);
     list.appendChild(item);
   }
 }
 
-function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
-  const { body } = splitFrontmatter(String(markdown || ""));
-  const content = stripAwnDescCallouts(body).trim();
+function renderNavigationHubRailDocumentOutline(markdown, nodePath, heroTitle = "") {
+  const content = prepareEntryOverviewDocumentMarkdown(markdown, heroTitle);
   const headings = parseMarkdownHeadings(content);
   const hasHeadings = headings.length > 0;
 
@@ -86918,7 +86993,8 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 
   const documentOutline = renderNavigationHubRailDocumentOutline(
     options.documentMarkdown ?? "",
-    nodePath
+    nodePath,
+    options.documentHeroTitle ?? ""
   );
 
   const slotsWrap = document.createElement("div");
@@ -91644,21 +91720,22 @@ function renderFolderBrowseBreadcrumbs(filePath) {
 
 function scrollToEntryOverviewDocumentHeading(heading) {
   if (!heading) return;
-  const preview = nodeOverviewContentNode?.querySelector(
-    ".node-entry-overview-manifest .file-content-preview, .node-navigation-manifest .file-content-preview"
-  );
+  const preview = findEntryOverviewMarkdownPreview();
   if (!preview) return;
-  const target =
-    preview.querySelector(`#${CSS.escape(heading.slug)}`) ||
-    preview.querySelectorAll("h1,h2,h3,h4,h5,h6")?.[heading.index];
+  const target = resolveEntryOverviewPreviewHeadingTarget(preview, heading);
   if (!target) return;
 
-  const scrollElement = getNavigationHubDocumentScrollElement();
-  if (scrollElement) {
-    const scrollRect = scrollElement.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const nextTop = scrollElement.scrollTop + (targetRect.top - scrollRect.top) - 16;
-    scrollElement.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+  const scrollElement = findEntryOverviewDocumentScrollElement(preview);
+  const scrollOffset = 20;
+
+  if (scrollElement && scrollElement.contains(target)) {
+    const targetTop = getOffsetTopWithinScrollContainer(target, scrollElement);
+    const nextTop = Math.max(0, targetTop - scrollOffset);
+    if (typeof scrollElement.scrollTo === "function") {
+      scrollElement.scrollTo({ top: nextTop, behavior: "smooth" });
+    } else {
+      scrollElement.scrollTop = nextTop;
+    }
     return;
   }
 
@@ -117675,7 +117752,9 @@ let workspaceScrollBinding = null;
 let workspaceScrollHostTarget = null;
 
 function getOverviewNodeInDocSlabContent(docSlabContent) {
-  return docSlabContent?.querySelector("#node-overview-block.node-overview:not(.hidden)");
+  return docSlabContent?.querySelector(
+    ":scope > .doc-slab-main > #node-overview-block.node-overview:not(.hidden), :scope > .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden), #node-overview-block.node-overview:not(.hidden)"
+  );
 }
 
 function getTopicSchemaNodeInDocSlabContent(docSlabContent) {
