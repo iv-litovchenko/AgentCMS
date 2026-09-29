@@ -7273,43 +7273,6 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   color: #ffd89a;
 }
 
-.shell-mic-chrome-hint__link-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-}
-
-.shell-mic-chrome-hint__copy {
-  appearance: none;
-  margin: 0;
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 200, 90, 0.55);
-  background: rgba(255, 170, 40, 0.18);
-  color: #fff3d6;
-  font: inherit;
-  font-size: 10px;
-  line-height: 1.3;
-  cursor: pointer;
-  word-break: break-all;
-  text-align: left;
-}
-
-.shell-mic-chrome-hint__copy:hover {
-  background: rgba(255, 170, 40, 0.32);
-}
-
-.shell-mic-chrome-hint__copy:focus-visible {
-  outline: 2px solid rgba(255, 200, 90, 0.65);
-  outline-offset: 1px;
-}
-
-.shell-mic-chrome-hint__copy-hint {
-  color: rgba(255, 224, 160, 0.88);
-  font-size: 10px;
-}
-
 .shell-stt-settings-note {
   margin: 0;
   font-size: 11px;

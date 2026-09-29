@@ -89,32 +89,8 @@ function detectBrowserKind() {
   return { isMobile, isMac, isChrome, isSafari };
 }
 
-async function copyChromeSettingsUrl(url) {
-  const value = String(url || "").trim();
-  if (!value) return false;
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    try {
-      const area = document.createElement("textarea");
-      area.value = value;
-      area.setAttribute("readonly", "");
-      area.style.position = "fixed";
-      area.style.left = "-9999px";
-      document.body.appendChild(area);
-      area.select();
-      const ok = document.execCommand("copy");
-      area.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
-
 /** Оранжевая подсказка на вкладке STT — только десктопный Chrome. */
-export function initMicChromeHint({ hintEl, copyBtn, originEl } = {}) {
+export function initMicChromeHint({ hintEl, originEl } = {}) {
   if (!hintEl) return;
   const { isChrome, isMobile } = detectBrowserKind();
   if (!isChrome || isMobile) {
@@ -125,16 +101,6 @@ export function initMicChromeHint({ hintEl, copyBtn, originEl } = {}) {
   if (originEl) {
     originEl.textContent = voiceSiteOriginLabel();
   }
-  copyBtn?.addEventListener("click", () => {
-    void copyChromeSettingsUrl(CHROME_MIC_SETTINGS_URL).then((ok) => {
-      if (!copyBtn) return;
-      const prev = copyBtn.textContent;
-      copyBtn.textContent = ok ? "Скопировано" : "Не удалось скопировать";
-      window.setTimeout(() => {
-        copyBtn.textContent = prev;
-      }, 1600);
-    });
-  });
 }
 
 export function resolveMicPermissionDialogInput(input = "insecure") {
@@ -181,7 +147,7 @@ export function formatMicAccessPhaseMessage(input = "denied") {
   if (host === "chrome-panel") {
     return "Нет микрофона в Side Panel · ПКМ по иконке расширения → разрешения сайта";
   }
-  if (isChrome) return "Нет доступа к микрофону · 🔒 у сайта Voice или chrome://settings/content/microphone";
+  if (isChrome) return "Нет доступа к микрофону · ПКМ по иконке расширения или 🔒 у сайта Voice";
   if (isSafari) return "Нет доступа к микрофону · разрешите в настройках Safari";
   return "Нет доступа к микрофону · см. диалог помощи";
 }
@@ -210,11 +176,7 @@ export function describeMicPermissionDialog(input = {}) {
     ];
     if (detail) steps.push(`Код: ${detail}`);
     if (inChromePanel) {
-      steps.push(
-        CHROME_COMPANION_MIC_HINT,
-        `Сайт Voice: ${siteOrigin} (127.0.0.1 и localhost — разные записи).`,
-        `Дополнительно: ${CHROME_MIC_SETTINGS_URL} — разрешите ${siteOrigin}, если нужно.`
-      );
+      steps.push(CHROME_COMPANION_MIC_HINT, `Сайт Voice: ${siteOrigin} (127.0.0.1 и localhost — разные записи).`);
     } else if (isChrome) {
       steps.push(
         `Chrome: 🔒 у ${siteOrigin} → Микрофон → Разрешить.`,

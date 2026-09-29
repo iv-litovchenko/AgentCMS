@@ -2148,7 +2148,6 @@ const nodes = {
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
   micChromeHint: document.getElementById("shell-mic-chrome-hint"),
-  micChromeSettingsCopy: document.getElementById("shell-mic-chrome-settings-copy"),
   mobileLinkBtn: document.getElementById("shell-mobile-link-btn"),
   mobileDialog: document.getElementById("shell-mobile-dialog"),
   mobileDialogUrl: document.getElementById("shell-mobile-url"),
@@ -11873,7 +11872,6 @@ function syncMicPermissionUi() {
 function bindMicPermissionsUi(permissionApi) {
   initMicChromeHint({
     hintEl: nodes.micChromeHint,
-    copyBtn: nodes.micChromeSettingsCopy,
     originEl: document.getElementById("shell-mic-chrome-hint-origin")
   });
   nodes.micHelpLink?.addEventListener("click", (event) => {
