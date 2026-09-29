@@ -1409,6 +1409,7 @@ function isActionRunning(actionId) {
 function updateRunningButtons() {
   actionsRoot.querySelectorAll(".run-btn").forEach((button) => {
     const actionId = button.dataset.action;
+    if (!actionId) return;
     const isRunning = isActionRunning(actionId);
     const defaultLabel = formatActionButtonContent(actionId);
     button.disabled = isRunning;
