@@ -52362,12 +52362,75 @@ button.node-navigation-memory-title:focus-visible {
 .mermaid-diagram-frame {
   position: relative;
   margin: 1rem 0;
-  padding: 34px 12px 14px;
+  padding: 40px 12px 14px;
   border: 1px solid #dbe3ee;
   border-radius: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  overflow-x: auto;
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+}
+
+.mermaid-diagram-frame.is-mermaid-zoomed {
+  touch-action: none;
+  cursor: grab;
+}
+
+.mermaid-diagram-frame.is-mermaid-panning {
+  cursor: grabbing;
+}
+
+.mermaid-diagram-frame pre.mermaid svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mermaid-diagram-frame pre.mermaid svg:focus,
+.mermaid-diagram-frame pre.mermaid svg:focus-visible,
+.mermaid-diagram-frame pre.mermaid svg *:focus,
+.mermaid-diagram-frame pre.mermaid svg *:focus-visible {
+  outline: none;
+}
+
+.mermaid-diagram-frame pre.mermaid a .nodeLabel,
+.mermaid-diagram-frame pre.mermaid a .nodeLabel p {
+  font-weight: 700 !important;
+  color: #1d4ed8 !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.mermaid-diagram-frame pre.mermaid a:hover .nodeLabel,
+.mermaid-diagram-frame pre.mermaid a:hover .nodeLabel p {
+  color: #1e40af !important;
+}
+
+.mermaid-diagram-frame.is-dark pre.mermaid a .nodeLabel,
+.mermaid-diagram-frame.is-dark pre.mermaid a .nodeLabel p {
+  color: #38bdf8 !important;
+}
+
+.mermaid-diagram-frame.is-dark pre.mermaid a:hover .nodeLabel,
+.mermaid-diagram-frame.is-dark pre.mermaid a:hover .nodeLabel p {
+  color: #7dd3fc !important;
+}
+
+.mermaid-diagram-frame.is-mermaid-panning,
+.mermaid-diagram-frame.is-mermaid-panning pre.mermaid,
+.mermaid-diagram-frame.is-mermaid-panning pre.mermaid svg,
+.mermaid-diagram-frame.is-mermaid-panning pre.mermaid svg * {
+  outline: none !important;
+}
+
+.mermaid-diagram-frame.is-mermaid-zoomed pre.mermaid svg {
+  max-width: none;
 }
 
 .mermaid-diagram-frame.is-dark {
@@ -52377,9 +52440,11 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .mermaid-diagram-frame pre.mermaid {
-  display: flex;
-  justify-content: center;
+  display: block;
+  width: 100%;
   max-width: 100%;
+  margin: 0;
+  user-select: none;
 }
 
 .mermaid-diagram-theme-btn {
@@ -52389,16 +52454,31 @@ button.node-navigation-memory-title:focus-visible {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
+  justify-content: flex-start;
+  gap: 6px;
+  width: auto;
+  max-width: calc(100% - 16px);
+  min-height: 26px;
+  padding: 4px 10px 4px 8px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
   cursor: pointer;
+  font-size: 11px;
+  line-height: 1.25;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mermaid-diagram-theme-text {
+  min-width: 0;
+  text-align: left;
+}
+
+.mermaid-diagram-theme-label {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .mermaid-diagram-frame.is-dark .mermaid-diagram-theme-btn {
@@ -52422,18 +52502,12 @@ button.node-navigation-memory-title:focus-visible {
 .mermaid-diagram-theme-icon {
   width: 14px;
   height: 14px;
-  display: block;
-}
-
-.mermaid-diagram-theme-icon--sun {
   display: none;
 }
 
-.mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon {
-  display: none;
-}
-
-.mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun {
+.mermaid-diagram-theme-btn.is-theme-original .mermaid-diagram-theme-icon--original,
+.mermaid-diagram-theme-btn.is-theme-light .mermaid-diagram-theme-icon--sun,
+.mermaid-diagram-theme-btn.is-theme-dark .mermaid-diagram-theme-icon--moon {
   display: block;
 }
 

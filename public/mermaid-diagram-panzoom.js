@@ -1,0 +1,310 @@
+const PANZOOM_MIN = 0.35;
+const PANZOOM_MAX = 4;
+const WHEEL_ZOOM_FACTOR = 1.08;
+
+const hostState = new WeakMap();
+
+function getDiagramContent(host) {
+  return host.querySelector("pre.mermaid") || host.querySelector("svg");
+}
+
+function getDiagramSvg(content) {
+  if (!content) return null;
+  if (content.tagName?.toLowerCase() === "svg") return content;
+  return content.querySelector("svg");
+}
+
+function unwrapLegacyMermaidViewport(host) {
+  const viewport = host.querySelector(":scope > .mermaid-diagram-viewport");
+  if (!viewport) return;
+  const panzoom = viewport.querySelector(".mermaid-diagram-panzoom");
+  const inner = panzoom?.firstElementChild;
+  if (inner) host.insertBefore(inner, viewport);
+  viewport.remove();
+}
+
+function readSvgViewBox(svg) {
+  const vb = svg.viewBox?.baseVal;
+  if (vb && vb.width > 0 && vb.height > 0) {
+    return { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+  }
+  const raw = String(svg.getAttribute("viewBox") || "").trim().split(/\s+/).map(Number);
+  if (raw.length === 4 && raw[2] > 0 && raw[3] > 0) {
+    return { x: raw[0], y: raw[1], w: raw[2], h: raw[3] };
+  }
+  return null;
+}
+
+function cloneViewBox(vb) {
+  return { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
+}
+
+function viewBoxScale(base, current) {
+  return base.w / current.w;
+}
+
+function syncZoomedClass(host, transformed) {
+  host?.classList.toggle("is-mermaid-zoomed", Boolean(transformed));
+}
+
+function clearMermaidDiagramFocus(host) {
+  const svg = getDiagramSvg(getDiagramContent(host));
+  if (!svg) return;
+  const active = document.activeElement;
+  if (active instanceof Element && svg.contains(active) && typeof active.blur === "function") {
+    active.blur();
+  }
+}
+
+function applyViewBox(svg, state) {
+  const { x, y, w, h } = state.viewBox;
+  svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+  state.transformed = true;
+  syncZoomedClass(state.host, true);
+}
+
+function clientPointToSvg(svg, clientX, clientY, viewBox) {
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    return { x: viewBox.x + viewBox.w / 2, y: viewBox.y + viewBox.h / 2 };
+  }
+  const sx = (clientX - rect.left) / rect.width;
+  const sy = (clientY - rect.top) / rect.height;
+  return { x: viewBox.x + sx * viewBox.w, y: viewBox.y + sy * viewBox.h };
+}
+
+function zoomViewBoxAtPointer(svg, state, clientX, clientY, factor) {
+  const currentScale = viewBoxScale(state.baseViewBox, state.viewBox);
+  const nextScale = Math.min(PANZOOM_MAX, Math.max(PANZOOM_MIN, currentScale * factor));
+  if (nextScale === currentScale) return;
+  const zoomFactor = nextScale / currentScale;
+  const pt = clientPointToSvg(svg, clientX, clientY, state.viewBox);
+  const nw = state.viewBox.w / zoomFactor;
+  const nh = state.viewBox.h / zoomFactor;
+  state.viewBox.x = pt.x - (pt.x - state.viewBox.x) * (nw / state.viewBox.w);
+  state.viewBox.y = pt.y - (pt.y - state.viewBox.y) * (nh / state.viewBox.h);
+  state.viewBox.w = nw;
+  state.viewBox.h = nh;
+  applyViewBox(svg, state);
+}
+
+function wantsZoomWheel(event) {
+  if (event.ctrlKey || event.metaKey) return true;
+  const dominantVertical = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
+  return (
+    dominantVertical &&
+    (event.deltaMode === 1 || (Math.abs(event.deltaY) >= 48 && Math.abs(event.deltaX) < 8))
+  );
+}
+
+function bindPanZoom(host) {
+  if (hostState.has(host)) return hostState.get(host);
+
+  const state = {
+    host,
+    content: null,
+    svg: null,
+    originalViewBoxAttr: null,
+    baseViewBox: null,
+    viewBox: null,
+    transformed: false,
+    dragging: false,
+    dragPointerId: null,
+    dragStartX: 0,
+    dragStartY: 0,
+    dragOriginViewBox: null,
+    pinchStartDist: 0,
+    pinchStartViewBox: null,
+    pinchMidX: 0,
+    pinchMidY: 0
+  };
+
+  state.captureBase = () => {
+    state.content = getDiagramContent(host) || state.content;
+    state.svg = getDiagramSvg(state.content);
+    if (!state.svg) return false;
+
+    const base = readSvgViewBox(state.svg);
+    if (!base) return false;
+
+    state.originalViewBoxAttr = state.svg.getAttribute("viewBox");
+    state.baseViewBox = base;
+    state.viewBox = cloneViewBox(base);
+    state.transformed = false;
+    syncZoomedClass(host, false);
+    return true;
+  };
+
+  state.reset = () => {
+    if (!state.svg?.isConnected && !state.captureBase()) return;
+    if (!state.svg || !state.baseViewBox) return;
+
+    if (state.originalViewBoxAttr) {
+      state.svg.setAttribute("viewBox", state.originalViewBoxAttr);
+    } else {
+      const { x, y, w, h } = state.baseViewBox;
+      state.svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+    }
+    state.viewBox = cloneViewBox(state.baseViewBox);
+    state.transformed = false;
+    syncZoomedClass(host, false);
+  };
+
+  const onWheel = (event) => {
+    if (!host.isConnected || !state.svg?.isConnected || !state.baseViewBox) return;
+    if (event.target.closest("button, a, input, textarea, select, label")) return;
+
+    const zoomIntent = wantsZoomWheel(event);
+    if (!state.transformed && !zoomIntent) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (zoomIntent) {
+      const factor = event.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+      zoomViewBoxAtPointer(state.svg, state, event.clientX, event.clientY, factor);
+      clearMermaidDiagramFocus(host);
+      return;
+    }
+
+    const rect = state.svg.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    state.viewBox.x += (event.deltaX / rect.width) * state.viewBox.w;
+    state.viewBox.y += (event.deltaY / rect.height) * state.viewBox.h;
+    applyViewBox(state.svg, state);
+  };
+
+  const onPointerDown = (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest("button, a, input, textarea, select, label")) return;
+    if (!state.svg?.isConnected || !state.transformed) return;
+    state.dragging = true;
+    state.dragPointerId = event.pointerId;
+    state.dragStartX = event.clientX;
+    state.dragStartY = event.clientY;
+    state.dragOriginViewBox = cloneViewBox(state.viewBox);
+    event.preventDefault();
+    host.classList.add("is-mermaid-panning");
+    host.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event) => {
+    if (!state.dragging || event.pointerId !== state.dragPointerId || !state.svg) return;
+    const rect = state.svg.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dx = ((event.clientX - state.dragStartX) / rect.width) * state.dragOriginViewBox.w;
+    const dy = ((event.clientY - state.dragStartY) / rect.height) * state.dragOriginViewBox.h;
+    state.viewBox.x = state.dragOriginViewBox.x - dx;
+    state.viewBox.y = state.dragOriginViewBox.y - dy;
+    state.viewBox.w = state.dragOriginViewBox.w;
+    state.viewBox.h = state.dragOriginViewBox.h;
+    applyViewBox(state.svg, state);
+  };
+
+  const endDrag = (event) => {
+    if (!state.dragging || (event.pointerId !== undefined && event.pointerId !== state.dragPointerId)) {
+      return;
+    }
+    state.dragging = false;
+    state.dragPointerId = null;
+    host.classList.remove("is-mermaid-panning");
+    clearMermaidDiagramFocus(host);
+    try {
+      host.releasePointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onPointerUpClearFocus = (event) => {
+    if (event.target.closest("button, a, input, textarea, select, label")) return;
+    clearMermaidDiagramFocus(host);
+  };
+
+  const touchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const touchMidpoint = (touches) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2
+  });
+
+  const onTouchStart = (event) => {
+    if (event.touches.length === 2 && state.svg) {
+      event.preventDefault();
+      state.pinchStartDist = touchDistance(event.touches);
+      state.pinchStartViewBox = cloneViewBox(state.viewBox);
+      const mid = touchMidpoint(event.touches);
+      state.pinchMidX = mid.x;
+      state.pinchMidY = mid.y;
+    }
+  };
+
+  const onTouchMove = (event) => {
+    if (event.touches.length !== 2 || state.pinchStartDist <= 0 || !state.svg || !state.pinchStartViewBox) {
+      return;
+    }
+    event.preventDefault();
+    const dist = touchDistance(event.touches);
+    const ratio = dist / state.pinchStartDist;
+    const scaleAtStart = viewBoxScale(state.baseViewBox, state.pinchStartViewBox);
+    const targetScale = Math.min(PANZOOM_MAX, Math.max(PANZOOM_MIN, scaleAtStart * ratio));
+    if (targetScale === scaleAtStart) return;
+    state.viewBox = cloneViewBox(state.pinchStartViewBox);
+    zoomViewBoxAtPointer(
+      state.svg,
+      state,
+      state.pinchMidX,
+      state.pinchMidY,
+      targetScale / scaleAtStart
+    );
+  };
+
+  const onTouchEnd = (event) => {
+    if (event.touches.length < 2) state.pinchStartDist = 0;
+  };
+
+  const onDblClick = (event) => {
+    if (event.target.closest("button")) return;
+    if (!state.svg) return;
+    event.preventDefault();
+    state.reset();
+  };
+
+  host.addEventListener("wheel", onWheel, { passive: false });
+  host.addEventListener("pointerdown", onPointerDown);
+  host.addEventListener("pointermove", onPointerMove);
+  host.addEventListener("pointerup", endDrag);
+  host.addEventListener("pointerup", onPointerUpClearFocus);
+  host.addEventListener("pointercancel", endDrag);
+  host.addEventListener("touchstart", onTouchStart, { passive: false });
+  host.addEventListener("touchmove", onTouchMove, { passive: false });
+  host.addEventListener("touchend", onTouchEnd);
+  host.addEventListener("touchcancel", onTouchEnd);
+  host.addEventListener("dblclick", onDblClick);
+
+  hostState.set(host, state);
+  return state;
+}
+
+/**
+ * @param {Element} host — `.mermaid-diagram-frame` or `.shell-mermaid-lightbox-stage`
+ * @param {{ reset?: boolean }} [options]
+ */
+export function ensureMermaidDiagramPanZoom(host, options = {}) {
+  if (!(host instanceof Element)) return;
+  unwrapLegacyMermaidViewport(host);
+  const content = getDiagramContent(host);
+  if (!content?.querySelector?.("svg") && content?.tagName?.toLowerCase() !== "svg") return;
+
+  const state = bindPanZoom(host);
+  const apply = () => {
+    if (!host.isConnected) return;
+    if (!state.captureBase()) return;
+    if (options.reset) state.reset();
+  };
+  requestAnimationFrame(apply);
+}

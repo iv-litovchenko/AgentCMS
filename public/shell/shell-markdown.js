@@ -7,6 +7,15 @@ import {
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
 import { parseSttMessageSegments, STT_FENCE_OPEN } from "@shell/stt-format";
 import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
+import { ensureMermaidDiagramPanZoom } from "/mermaid-diagram-panzoom.js";
+import {
+  MERMAID_THEME_BUTTON_HTML,
+  applyMermaidFrameTheme,
+  mermaidEngineThemeForFrame,
+  nextMermaidFrameTheme,
+  normalizeMermaidFrameTheme,
+  syncMermaidThemeToggleUi
+} from "/mermaid-diagram-theme.js";
 
 let shellMarkdownIt = null;
 let markdownLibsPromise = null;
@@ -611,11 +620,11 @@ function ensurePreCodeElement(pre) {
   return code;
 }
 
-function initShellMermaid(theme = "neutral") {
+function initShellMermaid(engineTheme = "dark") {
   if (typeof window.mermaid?.initialize !== "function") return false;
   window.mermaid.initialize({
     ...MERMAID_BASE_CONFIG,
-    theme: theme === "dark" ? "dark" : "neutral"
+    theme: engineTheme
   });
   return true;
 }
@@ -650,16 +659,6 @@ function ensureMermaidDiagramFrame(block) {
   block.parentNode?.insertBefore(frame, block);
   frame.appendChild(block);
   return frame;
-}
-
-function syncMermaidThemeToggleUi(frame) {
-  const btn = frame.querySelector(".mermaid-diagram-theme-btn");
-  if (!btn) return;
-  const isDark = frame.dataset.mermaidTheme === "dark";
-  btn.classList.toggle("is-dark-active", isDark);
-  btn.title = isDark ? "Светлый фон" : "Тёмный фон";
-  btn.setAttribute("aria-label", btn.title);
-  btn.setAttribute("aria-pressed", isDark ? "true" : "false");
 }
 
 function ensureMermaidCopyButton(frame, block) {
@@ -752,7 +751,7 @@ async function openMermaidLightbox(frame, block) {
   if (!source) return;
 
   if (!block.querySelector("svg")?.querySelector("g")) {
-    const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
+    const theme = normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "dark");
     await renderMermaidBlock(block, theme);
   }
 
@@ -766,8 +765,11 @@ async function openMermaidLightbox(frame, block) {
   const clone = svg.cloneNode(true);
   clone.removeAttribute("style");
   stage.appendChild(clone);
-  overlay.classList.toggle("is-dark", frame?.classList.contains("is-dark") !== false);
+  const frameTheme = normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "dark");
+  overlay.classList.toggle("is-dark", frameTheme === "dark");
+  overlay.classList.toggle("is-original", frameTheme === "original");
   overlay.classList.remove("hidden");
+  ensureMermaidDiagramPanZoom(stage, { reset: true });
 }
 
 function ensureMermaidThemeToggle(frame, block) {
@@ -776,9 +778,7 @@ function ensureMermaidThemeToggle(frame, block) {
     btn = document.createElement("button");
     btn.type = "button";
     btn.className = "mermaid-diagram-theme-btn";
-    btn.innerHTML =
-      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9.5 1.8a5.2 5.2 0 1 0 4.7 4.7 4.1 4.1 0 0 1-4.7-4.7z"/></svg>' +
-      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.3 3.3l1.3 1.3M11.4 11.4l1.3 1.3M3.3 12.7l1.3-1.3M11.4 4.6l1.3-1.3"/></svg>';
+    btn.innerHTML = MERMAID_THEME_BUTTON_HTML;
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -786,7 +786,7 @@ function ensureMermaidThemeToggle(frame, block) {
     });
     frame.appendChild(btn);
   }
-  syncMermaidThemeToggleUi(frame);
+  syncMermaidThemeToggleUi(frame, "dark");
   return btn;
 }
 
@@ -795,8 +795,7 @@ async function renderMermaidBlock(block, theme = "dark") {
   if (!source) return false;
 
   const frame = ensureMermaidDiagramFrame(block);
-  frame.dataset.mermaidTheme = theme;
-  frame.classList.toggle("is-dark", theme === "dark");
+  const frameTheme = applyMermaidFrameTheme(frame, theme, "dark");
   ensureMermaidThemeToggle(frame, block);
   ensureMermaidCopyButton(frame, block);
   ensureMermaidExpandButton(frame, block);
@@ -805,7 +804,7 @@ async function renderMermaidBlock(block, theme = "dark") {
   block.removeAttribute("data-processed");
   block.dataset.mermaidRendered = "0";
 
-  if (!initShellMermaid(theme === "dark" ? "dark" : "neutral")) return false;
+  if (!initShellMermaid(mermaidEngineThemeForFrame(frameTheme, "dark"))) return false;
 
   try {
     const renderId = `shell-mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -814,6 +813,7 @@ async function renderMermaidBlock(block, theme = "dark") {
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
+    ensureMermaidDiagramPanZoom(frame, { reset: true });
     return true;
   } catch (error) {
     console.warn("Shell mermaid render failed:", error);
@@ -824,7 +824,7 @@ async function renderMermaidBlock(block, theme = "dark") {
 }
 
 async function toggleMermaidDiagramTheme(frame, block) {
-  const nextTheme = frame.dataset.mermaidTheme === "dark" ? "light" : "dark";
+  const nextTheme = nextMermaidFrameTheme(frame.dataset.mermaidTheme, "dark");
   block.dataset.mermaidRendered = "0";
   await renderMermaidBlock(block, nextTheme);
 }
@@ -855,7 +855,7 @@ async function typesetShellMermaidDiagrams(root) {
       pending += 1;
       continue;
     }
-    const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
+    const theme = normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "dark");
     const ok = await renderMermaidBlock(block, theme);
     if (!ok) pending += 1;
   }

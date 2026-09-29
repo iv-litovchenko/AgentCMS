@@ -2,8 +2,10 @@
 
 ```mermaid
 flowchart TD
+    CMS["🌐 Agent CMS"]
     WS["🏠 Workspace (agentId)"]
 
+    CMS --> WS
     WS --> TREE["📁 Дерево Page"]
     WS --> DATA["🗄️ Структурированные данные"]
     WS --> MEM["🧠 Память и коммуникация"]
@@ -40,4 +42,6 @@ flowchart TD
     AUX --> SEARCH["Search / Index"]
     AUX --> REPO["Repository"]
     AUX --> BOARD["NOTE.md / TODO.md"]
+
+    click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```

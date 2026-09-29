@@ -88881,11 +88881,20 @@ const MERMAID_BASE_CONFIG = {
     'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 };
 
-function initMermaid(theme = "neutral") {
+let mermaidThemeModulePromise = null;
+
+function loadMermaidThemeModule() {
+  if (!mermaidThemeModulePromise) {
+    mermaidThemeModulePromise = import("/mermaid-diagram-theme.js");
+  }
+  return mermaidThemeModulePromise;
+}
+
+function initMermaid(engineTheme = "neutral") {
   if (typeof window.mermaid?.initialize !== "function") return false;
   window.mermaid.initialize({
     ...MERMAID_BASE_CONFIG,
-    theme: theme === "dark" ? "dark" : "neutral"
+    theme: engineTheme
   });
   return true;
 }
@@ -88922,25 +88931,14 @@ function ensureMermaidDiagramFrame(block) {
   return frame;
 }
 
-function syncMermaidThemeToggleUi(frame) {
-  const btn = frame.querySelector(".mermaid-diagram-theme-btn");
-  if (!btn) return;
-  const isDark = frame.dataset.mermaidTheme === "dark";
-  btn.classList.toggle("is-dark-active", isDark);
-  btn.title = isDark ? "Светлый фон" : "Тёмный фон";
-  btn.setAttribute("aria-label", btn.title);
-  btn.setAttribute("aria-pressed", isDark ? "true" : "false");
-}
-
-function ensureMermaidThemeToggle(frame, block) {
+async function ensureMermaidThemeToggle(frame, block) {
+  const themeMod = await loadMermaidThemeModule();
   let btn = frame.querySelector(".mermaid-diagram-theme-btn");
   if (!btn) {
     btn = document.createElement("button");
     btn.type = "button";
     btn.className = "mermaid-diagram-theme-btn";
-    btn.innerHTML =
-      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9.5 1.8a5.2 5.2 0 1 0 4.7 4.7 4.1 4.1 0 0 1-4.7-4.7z"/></svg>' +
-      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.3 3.3l1.3 1.3M11.4 11.4l1.3 1.3M3.3 12.7l1.3-1.3M11.4 4.6l1.3-1.3"/></svg>';
+    btn.innerHTML = themeMod.MERMAID_THEME_BUTTON_HTML;
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -88948,7 +88946,7 @@ function ensureMermaidThemeToggle(frame, block) {
     });
     frame.appendChild(btn);
   }
-  syncMermaidThemeToggleUi(frame);
+  themeMod.syncMermaidThemeToggleUi(frame, "light");
   return btn;
 }
 
@@ -88956,16 +88954,16 @@ async function renderMermaidBlock(block, theme = "light") {
   const source = getMermaidBlockSource(block);
   if (!source) return false;
 
+  const themeMod = await loadMermaidThemeModule();
   const frame = ensureMermaidDiagramFrame(block);
-  frame.dataset.mermaidTheme = theme;
-  frame.classList.toggle("is-dark", theme === "dark");
-  ensureMermaidThemeToggle(frame, block);
+  const frameTheme = themeMod.applyMermaidFrameTheme(frame, theme, "light");
+  await ensureMermaidThemeToggle(frame, block);
 
   block.dataset.mermaidSource = source;
   block.removeAttribute("data-processed");
   block.dataset.mermaidRendered = "0";
 
-  if (!initMermaid(theme === "dark" ? "dark" : "neutral")) return false;
+  if (!initMermaid(themeMod.mermaidEngineThemeForFrame(frameTheme, "light"))) return false;
 
   try {
     const renderId = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -88974,6 +88972,9 @@ async function renderMermaidBlock(block, theme = "light") {
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
+    void import("/mermaid-diagram-panzoom.js").then((mod) =>
+      mod.ensureMermaidDiagramPanZoom(frame, { reset: true })
+    );
     return true;
   } catch (error) {
     console.warn("Mermaid render failed:", error);
@@ -88982,7 +88983,8 @@ async function renderMermaidBlock(block, theme = "light") {
 }
 
 async function toggleMermaidDiagramTheme(frame, block) {
-  const nextTheme = frame.dataset.mermaidTheme === "dark" ? "light" : "dark";
+  const themeMod = await loadMermaidThemeModule();
+  const nextTheme = themeMod.nextMermaidFrameTheme(frame.dataset.mermaidTheme, "light");
   block.dataset.mermaidRendered = "0";
   await renderMermaidBlock(block, nextTheme);
 }
@@ -89005,7 +89007,8 @@ async function typesetMarkdownDiagrams(rootNode) {
   for (const block of blocks) {
     if (seq !== mermaidTypesetSeq) return;
     const frame = block.closest(".mermaid-diagram-frame");
-    const theme = frame?.dataset.mermaidTheme === "dark" ? "dark" : "light";
+    const themeMod = await loadMermaidThemeModule();
+    const theme = themeMod.normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "light");
     await renderMermaidBlock(block, theme);
   }
 }
