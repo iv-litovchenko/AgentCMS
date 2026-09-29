@@ -19,6 +19,7 @@ export function snapshotFromApiResponse(data) {
     phase,
     phaseEndsAt,
     workMinutes: state.workMinutes != null ? Number(state.workMinutes) : null,
+    breakMinutes: state.breakMinutes != null ? Number(state.breakMinutes) : null,
     updatedAt: Number.isFinite(updatedMs) ? updatedMs : Date.now()
   };
 }
@@ -52,6 +53,7 @@ export async function writePomodoroWorkspaceState(agentId, snapshot) {
           phase: snapshot.phase,
           phaseEndsAt: snapshot.phaseEndsAt,
           workMinutes: snapshot.workMinutes ?? null,
+          breakMinutes: snapshot.breakMinutes ?? null,
           updatedAt: snapshot.updatedAt ?? Date.now()
         };
   try {

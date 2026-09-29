@@ -245,6 +245,23 @@ fields:
     group: general
     sort: 15
 
+  workspace-pomodoro-break-minutes:
+    type: awn.field.choice.one
+    title: Перерыв помидора
+    description: Длительность отдыха после фокуса (таймер в окне «Время отдохнуть»).
+    default: "5"
+    enum:
+      - key: "5"
+        name: 5 минут
+      - key: "10"
+        name: 10 минут
+      - key: "15"
+        name: 15 минут
+      - key: "60"
+        name: 60 минут
+    group: general
+    sort: 16
+
   awn-id-next:
     type: awn.field.number.integer
     title: Следующий id

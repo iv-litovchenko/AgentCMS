@@ -21076,8 +21076,10 @@ function applyWorkspacePomodoroFromCache(cache = getNodeSettingsCache()) {
   const entries = cache.entries || [];
   const enabledEntry = entries.find((item) => item.key === "workspace-pomodoro-enabled");
   const workEntry = entries.find((item) => item.key === "workspace-pomodoro-work-minutes");
+  const breakEntry = entries.find((item) => item.key === "workspace-pomodoro-break-minutes");
   window.WorkspacePomodoro?.applyEnabled?.(enabledEntry?.value);
   window.WorkspacePomodoro?.applyWorkMinutes?.(workEntry?.value);
+  window.WorkspacePomodoro?.applyBreakMinutes?.(breakEntry?.value);
 }
 
 function setupMaintenancePaneUi() {
@@ -96035,29 +96037,94 @@ function formatMenuAgentStatsShortLine({ counts, workspace, summaryLine } = {}) 
   return parts.join(" · ");
 }
 
-function formatMenuAgentStatsGitLocation(loc) {
-  if (!loc || typeof loc !== "object") return "—";
-  if (loc.error) return `ошибка: ${loc.error}`;
-  if (!loc.hasDotGit) return "нет .git";
-  const parts = ["инициализирован"];
-  if (loc.branch) parts.push(loc.branch);
-  if (loc.upstream) parts.push(`→ ${loc.upstream}`);
-  if (Number(loc.ahead) > 0 || Number(loc.behind) > 0) {
-    parts.push(`↑${loc.ahead || 0} ↓${loc.behind || 0}`);
+function buildMenuAgentStatsGitRepoRows(loc) {
+  if (!loc || typeof loc !== "object") {
+    return [
+      { label: "Статус git", value: "—" },
+      { label: "Ветка", value: "—" },
+      { label: "Статус", value: "—" },
+      { label: "Коммитов", value: "—" }
+    ];
   }
-  if (loc.clean === true) parts.push("чисто");
-  else if (Number(loc.changeCount) > 0) parts.push(`${loc.changeCount} изм.`);
-  return parts.join(" · ");
+  if (loc.error) {
+    return [
+      { label: "Статус git", value: "ошибка" },
+      { label: "Ветка", value: "—" },
+      { label: "Статус", value: loc.error },
+      { label: "Коммитов", value: "—" }
+    ];
+  }
+  const gitInit = loc.hasDotGit ? "инициализирован" : "не инициализирован";
+  const branch = loc.hasDotGit ? loc.branch || "—" : "—";
+  let workStatus = "—";
+  if (loc.hasDotGit) {
+    const remote =
+      Number(loc.ahead) > 0 || Number(loc.behind) > 0
+        ? ` · remote ↑${loc.ahead || 0} ↓${loc.behind || 0}`
+        : loc.upstream
+          ? ` · ${loc.upstream}`
+          : "";
+    workStatus = loc.clean ? `чисто${remote}` : `${loc.changeCount} изм.${remote}`;
+  }
+  const commitCount =
+    !loc.hasDotGit || loc.commitCount == null ? "—" : String(loc.commitCount);
+  return [
+    { label: "Статус git", value: gitInit },
+    { label: "Ветка", value: branch },
+    { label: "Статус", value: workStatus },
+    { label: "Коммитов", value: commitCount }
+  ];
 }
 
-function formatMenuAgentStatsWorkspaceRepo(repo) {
-  if (!repo || typeof repo !== "object") return null;
-  const parts = [];
-  if (repo.repoRel && repo.repoRel !== ".") parts.push(repo.repoRel);
-  if (repo.branch) parts.push(repo.branch);
-  if (repo.clean) parts.push("чисто");
-  else if (repo.counts?.total > 0) parts.push(`${repo.counts.total} изм.`);
-  return parts.length ? parts.join(" · ") : "активен";
+function appendMenuAgentStatsGitSection(container, git = {}) {
+  const section = document.createElement("section");
+  section.className = "menu-agent-stats-summary-section";
+
+  const heading = document.createElement("h3");
+  heading.className = "menu-agent-stats-summary-section-title";
+  heading.textContent = "Git (система контроля версий)";
+  section.appendChild(heading);
+
+  const repos = [];
+  if (git.agentRootEqualsProjectRoot) {
+    repos.push({ title: "Корень проекта и workspace", loc: git.projectRoot });
+  } else {
+    repos.push({
+      title: `Корень проекта CMS (${git.projectRoot?.rel || "."})`,
+      loc: git.projectRoot
+    });
+    repos.push({
+      title: `Workspace агента (${git.agentWorkspace?.rel || "—"})`,
+      loc: git.agentWorkspace
+    });
+  }
+
+  for (const repo of repos) {
+    const block = document.createElement("div");
+    block.className = "menu-agent-stats-summary-repo";
+
+    const subTitle = document.createElement("h4");
+    subTitle.className = "menu-agent-stats-summary-repo-title";
+    subTitle.textContent = repo.title;
+    block.appendChild(subTitle);
+
+    const list = document.createElement("dl");
+    list.className = "menu-agent-stats-summary-rows";
+    for (const row of buildMenuAgentStatsGitRepoRows(repo.loc)) {
+      const item = document.createElement("div");
+      item.className = "menu-agent-stats-summary-row";
+      const label = document.createElement("dt");
+      label.textContent = row.label;
+      const value = document.createElement("dd");
+      value.textContent = String(row.value);
+      item.append(label, value);
+      list.appendChild(item);
+    }
+    block.appendChild(list);
+    section.appendChild(block);
+  }
+
+  container.appendChild(section);
 }
 
 function formatMenuAgentStatsIndexValue(layerMeta) {
@@ -96170,24 +96237,7 @@ function renderMenuAgentStorageSummary(payload, { loading = false, error = null 
   const git = payload.git || {};
   const indexStatus = payload.workspaceIndexStatus || {};
 
-  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Git", [
-    {
-      label: git.agentRootEqualsProjectRoot ? "Корень (проект = workspace)" : "Корень проекта CMS",
-      value: formatMenuAgentStatsGitLocation(git.projectRoot)
-    },
-    ...(git.agentRootEqualsProjectRoot
-      ? []
-      : [
-          {
-            label: "Workspace агента",
-            value: formatMenuAgentStatsGitLocation(git.agentWorkspace)
-          }
-        ]),
-    {
-      label: "Статус git API",
-      value: formatMenuAgentStatsWorkspaceRepo(git.workspaceRepo) || "репозиторий не в корне workspace"
-    }
-  ]);
+  appendMenuAgentStatsGitSection(menuAgentStatsSummaryBodyNode, git);
 
   appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Меню", [
     { label: "Тем и узлов", value: menu.topicCount },

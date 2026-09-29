@@ -16288,7 +16288,8 @@ async function buildGitLocationSummary(dirAbsolute, projectRoot) {
     ahead: 0,
     behind: 0,
     clean: null,
-    changeCount: 0
+    changeCount: 0,
+    commitCount: null
   };
   if (!hasDotGit) return summary;
 
@@ -16306,6 +16307,9 @@ async function buildGitLocationSummary(dirAbsolute, projectRoot) {
     summary.behind = parsed.behind;
     summary.changeCount = parsed.changes.length;
     summary.clean = parsed.changes.length === 0;
+    const countRaw = await runGitInRepo(resolved, ["rev-list", "--count", "HEAD"]).catch(() => "");
+    const commitCount = Number.parseInt(String(countRaw || "").trim(), 10);
+    summary.commitCount = Number.isFinite(commitCount) ? commitCount : null;
     return summary;
   } catch (error) {
     summary.error = String(error?.message || error);
@@ -16316,27 +16320,15 @@ async function buildGitLocationSummary(dirAbsolute, projectRoot) {
 async function buildGitStorageSummaryBlock(agentRoot, projectRoot) {
   const agentRootResolved = path.resolve(agentRoot);
   const projectRootResolved = path.resolve(projectRoot);
-  const [projectRootGit, agentWorkspaceGit, workspaceStatus] = await Promise.all([
+  const [projectRootGit, agentWorkspaceGit] = await Promise.all([
     buildGitLocationSummary(projectRootResolved, projectRootResolved),
-    buildGitLocationSummary(agentRootResolved, projectRootResolved),
-    buildAgentGitStatus()
+    buildGitLocationSummary(agentRootResolved, projectRootResolved)
   ]);
 
   return {
     projectRoot: projectRootGit,
     agentWorkspace: agentWorkspaceGit,
-    agentRootEqualsProjectRoot: agentRootResolved === projectRootResolved,
-    workspaceRepo: workspaceStatus?.isRepo
-      ? {
-          repoRel: workspaceStatus.repoRel,
-          branch: workspaceStatus.branch,
-          upstream: workspaceStatus.upstream,
-          ahead: workspaceStatus.ahead,
-          behind: workspaceStatus.behind,
-          clean: workspaceStatus.clean,
-          counts: workspaceStatus.counts
-        }
-      : null
+    agentRootEqualsProjectRoot: agentRootResolved === projectRootResolved
   };
 }
 
