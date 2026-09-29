@@ -1,6 +1,6 @@
 {
   "name": "agent-cms",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "description": "File-based CMS prototype for agents (no database)",
   "author": "Agent CMS",
