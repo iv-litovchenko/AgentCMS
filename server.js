@@ -43,7 +43,7 @@ const { createWorkspaceIdService, parseAwnId } = require("./lib/workspace-id/ser
 const { createNavFlagsRegistryService } = require("./lib/nav-flags-registry/service");
 const { allocateNextId, readCounter } = require("./lib/workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
-const { getWorkspaceIndexMonitor } = require("./lib/indexes/workspace-index/monitor");
+const { getWorkspaceIndexMonitor, formatAge } = require("./lib/indexes/workspace-index/monitor");
 const {
   collectPolicyIndexableFiles,
   writeIndexRunLog,
@@ -2064,6 +2064,39 @@ async function getWorkspaceIndexMonitorPayload() {
     getOcrIndexStatus: () => getOcrIndexService().getStatus(),
     getWorkspaceIdStatus: () => getWorkspaceIdService().getStatus()
   });
+}
+
+async function buildAgentWorkspaceIndexStatus() {
+  const [ocr, semantic, fulltext, storage, link] = await Promise.all([
+    getOcrIndexService().getStatus(),
+    getSemanticSearchService().getStatus(),
+    getFulltextSearchService().getStatus(),
+    getStorageIndexService().getStatus(),
+    getLinkIndexService().getStatus()
+  ]);
+  return { ocr, semantic, fulltext, storage, link };
+}
+
+function resolveLatestIndexedAt(indexStatus) {
+  const candidates = [
+    indexStatus?.ocr?.builtAt,
+    indexStatus?.semantic?.builtAt,
+    indexStatus?.fulltext?.builtAt,
+    indexStatus?.storage?.builtAt,
+    indexStatus?.link?.builtAt
+  ];
+  let latest = null;
+  let latestMs = -Infinity;
+  for (const value of candidates) {
+    if (!value) continue;
+    const ms = new Date(value).getTime();
+    if (!Number.isFinite(ms)) continue;
+    if (ms > latestMs) {
+      latestMs = ms;
+      latest = value;
+    }
+  }
+  return latest;
 }
 
 function getIndexRunLogDeps(agentRoot = getAgentRoot()) {
@@ -13723,7 +13756,8 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
-  storageSummary: "GET /api/agent/storage-summary — get_workspace_storage_info MCP (sidebar stats)",
+  storageSummary:
+    "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
@@ -16419,13 +16453,32 @@ function formatMenuAgentStatsLine({ menu, workspace, intake } = {}) {
 
 async function buildAgentStorageSummary() {
   const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
   const agentId = getActiveAgentId();
-  const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
+  const agentRootRel = path.relative(projectRoot, agentRoot).replace(/\\/g, "/") || ".";
 
-  const [menu, workspaceStats, topicRegistry] = await Promise.all([
+  const [
+    menu,
+    workspaceStats,
+    topicRegistry,
+    dataStoresSummary,
+    repositoriesPayload,
+    settingsPayload,
+    alwaysContext,
+    cronRegistry,
+    heartbeatRegistry,
+    workspaceIndexStatus
+  ] = await Promise.all([
     buildAgentMenu(agentRoot),
     buildAgentWorkspaceStats(),
-    buildAgentTopicRegistry().catch(() => null)
+    buildAgentTopicRegistry().catch(() => null),
+    buildAgentDataStoresSummary().catch(() => null),
+    listRepositories(agentRoot).catch(() => null),
+    listAgentSettings(agentRoot, projectRoot, "all").catch(() => null),
+    buildAgentAlwaysContextRegistry().catch(() => null),
+    buildAgentCronRegistry().catch(() => null),
+    buildAgentHeartbeatRegistry().catch(() => null),
+    buildAgentWorkspaceIndexStatus().catch(() => null)
   ]);
 
   const menuNodes = countAgentMenuNodeStats(menu);
@@ -16456,18 +16509,40 @@ async function buildAgentStorageSummary() {
     registryTopicCount: topicRegistry?.topicCount ?? null
   };
 
+  const catalog = {
+    iblockCount: Number(dataStoresSummary?.dataStoreCount) || 0,
+    iblockRecordCount: Number(dataStoresSummary?.recordCount) || 0,
+    repositoryCount: Number(repositoriesPayload?.repositoryCount) || 0,
+    repositoryUnregisteredCount: Number(repositoriesPayload?.unregisteredCount) || 0,
+    settingsCount: Number(settingsPayload?.count) || 0
+  };
+
+  const alwaysContextCount = Number(alwaysContext?.itemCount) || 0;
+  const cronCount = Number(cronRegistry?.itemCount) || 0;
+  const heartbeatCount = Number(heartbeatRegistry?.itemCount) || 0;
+  const lastIndexedAt = workspaceIndexStatus ? resolveLatestIndexedAt(workspaceIndexStatus) : null;
+  const lastIndexedAge = lastIndexedAt ? formatAge(lastIndexedAt) : null;
+
   return {
     agentId,
     agentRootRel,
     menu: menuStats,
     workspace: workspaceStats,
     intake: intakeTotals,
+    catalog,
+    alwaysContextCount,
+    cronCount,
+    heartbeatCount,
+    workspaceIndexStatus,
+    lastIndexedAt,
+    lastIndexedAge,
     summaryLine: formatMenuAgentStatsLine({
       menu: menuStats,
       workspace: workspaceStats,
       intake: intakeTotals
     }),
-    hint: "Same counters as CMS sidebar #menu-agent-stats."
+    hint:
+      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
   };
 }
 

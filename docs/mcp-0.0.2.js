@@ -95,7 +95,8 @@ module.exports = {
         },
         {
           name: "get_workspace_storage_info",
-          description: "Сводка хранилища (как #menu-agent-stats): темы, контейнеры, файлы, размер, входящие.",
+          description:
+            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt.",
           parameters: "—",
           http: "GET /api/agent/storage-summary"
         }

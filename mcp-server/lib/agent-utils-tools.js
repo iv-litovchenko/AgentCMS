@@ -17,7 +17,7 @@ export function registerAgentUtilsTools(reg, client) {
 
   reg(
     "get_workspace_storage_info",
-    "Workspace storage summary (same as CMS sidebar #menu-agent-stats): topics, containers, files, size, inbox totals + summaryLine.",
+    "Workspace storage summary: menu/workspace/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
     z.object({}),
     () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
     { agentScope: false }
