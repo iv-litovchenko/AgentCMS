@@ -254,20 +254,20 @@ YamlCMS/  (корень)
 ├── ⚠️ menu-cache/              → lib/menu-cache/
 ├── ⚠️ nav-flags-registry/      → lib/nav-flags-registry/
 │
-├── 🔴 semantic-search/         → lib/indexes/semantic-search/
-├── 🔴 fulltext-index/          → lib/indexes/fulltext-index/
-├── 🔴 storage-index/           → lib/indexes/storage-index/
-├── 🔴 link-index/              → lib/indexes/link-index/
-├── 🔴 ocr-index/               → lib/indexes/ocr-index/
-├── 🔴 workspace-index/         → lib/indexes/workspace-index/
+├── 🔴 semantic-search/  (+)   → lib/indexes/semantic-search/
+├── 🔴 fulltext-index/  (+)     → lib/indexes/fulltext-index/
+├── 🔴 storage-index/  (+)      → lib/indexes/storage-index/
+├── 🔴 link-index/  (+)         → lib/indexes/link-index/
+├── 🔴 ocr-index/  (+)          → lib/indexes/ocr-index/
+├── 🔴 workspace-index/  (+)    → lib/indexes/workspace-index/
 │
-├── 🗑️ tools/ (пусто)           → удалить (логика в lib/tools/)
+├── 🗑️ tools/  (+ удалено)      → пустая папка в корне убрана (логика в lib/tools/)
 │
 └── 🌐 public/ (см. этап 3)
     ├── ⚠️ *.js в корне public/ → public/js/{core,app,panels,...}
-    └── 🗑️ site3 (битый symlink) → удалить
+    └── 🗑️ site3  (+ удалено)     → битый symlink `public/site3` убран
 ```
 
 **❌ в корне оставить:** `server.js`, `package.json`, `workspaces/`, `public/`, `mcp-server/`, `agent-shell/`, `desktop/`, `scripts/`, `docs/`, `examples/`, `browser-extension/`, `commands/`.
 
-**Порядок:** ⚠️ `paths` + одиночные `lib/*.js` → ⚠️ `workspace-id` / `menu-cache` / `nav-flags-registry` → 🔴 `*-index/` одним заходом → ⚠️ `voice-server` → 🗑️ `tools` / `site3`.
+**Порядок:** ⚠️ `paths` + одиночные `lib/*.js` → ⚠️ `workspace-id` / `menu-cache` / `nav-flags-registry` → 🔴 `*-index/` **(+)** → ⚠️ `voice-server` → 🗑️ `tools` **(+)** / `site3` **(+)**.

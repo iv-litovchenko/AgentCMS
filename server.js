@@ -35,20 +35,20 @@ const { fetchBufferFromImportUrl, resolveImportFileName } = require("./lib/media
 const { decodeBase64UploadData } = require("./lib/media/base64-upload");
 const { createScriptExecService } = require("./lib/services/script-exec-service");
 const { createWebSearchService } = require("./lib/services/web-search-service");
-const { createSemanticSearchService } = require("./semantic-search/service");
-const { createFulltextSearchService } = require("./fulltext-index/service");
-const { createStorageIndexService } = require("./storage-index/service");
-const { createLinkIndexService } = require("./link-index/service");
+const { createSemanticSearchService } = require("./lib/indexes/semantic-search/service");
+const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
+const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
+const { createLinkIndexService } = require("./lib/indexes/link-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./workspace-id/service");
 const { createNavFlagsRegistryService } = require("./nav-flags-registry/service");
 const { allocateNextId, readCounter } = require("./workspace-id/store");
-const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
-const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
+const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
+const { getWorkspaceIndexMonitor } = require("./lib/indexes/workspace-index/monitor");
 const {
   collectPolicyIndexableFiles,
   writeIndexRunLog,
   readIndexRunLog
-} = require("./workspace-index/run-log");
+} = require("./lib/indexes/workspace-index/run-log");
 const {
   buildIndexPolicy,
   resolvePipelineSteps,
@@ -63,11 +63,11 @@ const {
   startWorkspaceIndexProgress,
   tickWorkspaceIndexProgress,
   finishWorkspaceIndexProgress
-} = require("./workspace-index/progress");
-const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
-const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
-const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
-const { createOcrIndexService } = require("./ocr-index/service");
+} = require("./lib/indexes/workspace-index/progress");
+const { loadIndex: loadSemanticIndexFile } = require("./lib/indexes/semantic-search/store");
+const { loadIndex: loadFulltextIndexFile } = require("./lib/indexes/fulltext-index/store");
+const { loadIndex: loadStorageIndexFile } = require("./lib/indexes/storage-index/store");
+const { createOcrIndexService } = require("./lib/indexes/ocr-index/service");
 const { createIdentityService } = require("./lib/services/identity-service");
 const { createDocumentExtractService } = require("./lib/services/document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./lib/workspace/workspace-path-resolver");
