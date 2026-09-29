@@ -7245,6 +7245,71 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   display: none;
 }
 
+.shell-mic-chrome-hint {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(28, 20, 8, 0.55);
+  border: 1px solid rgba(255, 200, 90, 0.48);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #ffe8b8;
+}
+
+.shell-mic-chrome-hint[hidden] {
+  display: none !important;
+}
+
+.shell-mic-chrome-hint p {
+  margin: 0;
+}
+
+.shell-mic-chrome-hint p + p {
+  margin-top: 8px;
+}
+
+.shell-mic-chrome-hint code {
+  font-size: 10px;
+  color: #ffd89a;
+}
+
+.shell-mic-chrome-hint__link-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.shell-mic-chrome-hint__copy {
+  appearance: none;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 200, 90, 0.55);
+  background: rgba(255, 170, 40, 0.18);
+  color: #fff3d6;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.3;
+  cursor: pointer;
+  word-break: break-all;
+  text-align: left;
+}
+
+.shell-mic-chrome-hint__copy:hover {
+  background: rgba(255, 170, 40, 0.32);
+}
+
+.shell-mic-chrome-hint__copy:focus-visible {
+  outline: 2px solid rgba(255, 200, 90, 0.65);
+  outline-offset: 1px;
+}
+
+.shell-mic-chrome-hint__copy-hint {
+  color: rgba(255, 224, 160, 0.88);
+  font-size: 10px;
+}
+
 .shell-stt-settings-note {
   margin: 0;
   font-size: 11px;

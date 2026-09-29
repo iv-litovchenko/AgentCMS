@@ -62,6 +62,7 @@ import {
 import {
   describeMicPermissionDialog,
   getShellHttpsUrl,
+  initMicChromeHint,
   initShellPermissions,
   shellPermissionIssue,
   warmUpMicrophone
@@ -2144,6 +2145,8 @@ const nodes = {
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
+  micChromeHint: document.getElementById("shell-mic-chrome-hint"),
+  micChromeSettingsCopy: document.getElementById("shell-mic-chrome-settings-copy"),
   mobileLinkBtn: document.getElementById("shell-mobile-link-btn"),
   mobileDialog: document.getElementById("shell-mobile-dialog"),
   mobileDialogUrl: document.getElementById("shell-mobile-url"),
@@ -11859,6 +11862,10 @@ function syncMicPermissionUi() {
 }
 
 function bindMicPermissionsUi(permissionApi) {
+  initMicChromeHint({
+    hintEl: nodes.micChromeHint,
+    copyBtn: nodes.micChromeSettingsCopy
+  });
   nodes.micHelpLink?.addEventListener("click", (event) => {
     event.preventDefault();
     showMicPermissionDialog();

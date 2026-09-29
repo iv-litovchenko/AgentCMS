@@ -61,6 +61,8 @@ export function shellPermissionIssue({ shellPath } = {}) {
   };
 }
 
+export const CHROME_MIC_SETTINGS_URL = "chrome://settings/content/microphone";
+
 function detectBrowserKind() {
   const ua = String(navigator.userAgent || "");
   const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
@@ -68,6 +70,51 @@ function detectBrowserKind() {
   const isChrome = /Chrome|CriOS/i.test(ua) && !/Edg/i.test(ua);
   const isSafari = /Safari/i.test(ua) && !isChrome && !/Edg/i.test(ua);
   return { isMobile, isMac, isChrome, isSafari };
+}
+
+async function copyChromeSettingsUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return false;
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    try {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand("copy");
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Оранжевая подсказка на вкладке STT — только десктопный Chrome. */
+export function initMicChromeHint({ hintEl, copyBtn } = {}) {
+  if (!hintEl) return;
+  const { isChrome, isMobile } = detectBrowserKind();
+  if (!isChrome || isMobile) {
+    hintEl.hidden = true;
+    return;
+  }
+  hintEl.hidden = false;
+  copyBtn?.addEventListener("click", () => {
+    void copyChromeSettingsUrl(CHROME_MIC_SETTINGS_URL).then((ok) => {
+      if (!copyBtn) return;
+      const prev = copyBtn.textContent;
+      copyBtn.textContent = ok ? "Скопировано" : "Не удалось скопировать";
+      window.setTimeout(() => {
+        copyBtn.textContent = prev;
+      }, 1600);
+    });
+  });
 }
 
 export function describeMicPermissionDialog({ shellPath, reason = "insecure" } = {}) {
