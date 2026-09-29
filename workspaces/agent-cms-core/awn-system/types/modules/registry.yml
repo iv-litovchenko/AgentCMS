@@ -14,7 +14,7 @@ entries:
     view: git
     implementation: active
     ui-surfaces: [picker]
-    mcp: [module_git_status, module_git_commit]
+    mcp: [module_git_status, module_git_diff, module_git_commit]
   - module-id: module-journal
     label: Журнал
     view: journal

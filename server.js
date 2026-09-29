@@ -13870,7 +13870,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   moduleGit:
-    "GET/POST /api/git/status|commit — module_git_status / module_git_commit (module-git; extensions md,txt,csv,yml,yaml)",
+    "GET /api/git/status|diff + POST /api/git/commit — module_git_status / module_git_diff / module_git_commit (module-git)",
   execRunScript:
     "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
@@ -16170,6 +16170,7 @@ const {
   normalizeGitExtensions,
   filterChangesByExtensions,
   countGitChangesByKind,
+  buildModuleGitDiff,
   commitModuleGitChanges,
   runGitInRepo: runGitInRepoResult
 } = require("./lib/git/workspace-git-module");
@@ -20180,6 +20181,31 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read git status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/git/diff") {
+    try {
+      const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
+      if (!repoAbsolute) {
+        return sendJson(res, 400, {
+          error: "Git repository not found in workspace root"
+        });
+      }
+      const extensionsParam = url.searchParams.get("extensions");
+      const pathParam = url.searchParams.get("path") || "";
+      const maxBytesParam = url.searchParams.get("maxBytes");
+      const diff = await buildModuleGitDiff(repoAbsolute, {
+        extensions: extensionsParam ?? MODULE_GIT_DEFAULT_EXTENSIONS.join(","),
+        path: pathParam,
+        maxBytes: maxBytesParam
+      });
+      return sendJson(res, 200, { moduleId: "module-git", ...diff });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read git diff",
         details: String(error.message || error)
       });
     }

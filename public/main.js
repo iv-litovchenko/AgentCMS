@@ -101877,7 +101877,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-git",
     label: "Git-репозиторий",
     view: "git",
-    mcp: "module_git_status, module_git_commit",
+    mcp: "module_git_status, module_git_diff, module_git_commit",
     status: "active"
   },
   {

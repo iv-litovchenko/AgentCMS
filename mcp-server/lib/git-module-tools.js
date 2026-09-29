@@ -24,6 +24,28 @@ export function registerGitModuleTools(reg, client) {
   );
 
   reg(
+    "module_git_diff",
+    "module-git: unified diff vs HEAD for filtered changes (default extensions: md, txt, csv, yml, yaml). Optional path for one file.",
+    z.object({
+      extensions: gitExtensions,
+      path: z.string().optional().describe("Workspace-relative file path (single file)"),
+      maxBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(2_000_000)
+        .optional()
+        .describe("Max combined diff size (default 500000)")
+    }),
+    ({ extensions, path, maxBytes }) =>
+      client.get("/api/git/diff", {
+        ...(extensions != null ? { extensions: Array.isArray(extensions) ? extensions.join(",") : extensions } : {}),
+        ...(path ? { path } : {}),
+        ...(maxBytes != null ? { maxBytes } : {})
+      })
+  );
+
+  reg(
     "module_git_commit",
     "module-git: stage filtered paths (md, txt, csv, yml, yaml by default) and commit. Blocked in mcp-mode=readonly.",
     z.object({

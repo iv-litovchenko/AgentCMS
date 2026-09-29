@@ -88,3 +88,4 @@ batch_invoke:
     - iblock_content_read_properties
     - iblock_content_read_property
     - module_git_status
+    - module_git_diff
