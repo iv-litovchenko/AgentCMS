@@ -3423,18 +3423,24 @@
             </button>
           </div>
         </div>
-        <div id="agent-large-files-info" class="agent-tool-info">
-          <div id="agent-large-files-meta" class="agent-large-files-meta agent-tool-info-desc">
-            <span class="agent-large-files-meta-label">Порог:</span>
+        <div id="agent-large-files-info" class="agent-tool-info agent-large-files-info">
+          <div id="agent-large-files-meta" class="agent-large-files-meta">
+            <span class="agent-large-files-meta-label">От</span>
             <div
               id="agent-large-files-threshold-filter"
               class="agent-large-files-threshold-filter"
               role="group"
               aria-label="Минимальный размер файла"
             ></div>
-            <span class="agent-large-files-meta-hint">· сортировка по размеру (убывание)</span>
+            <span class="agent-large-files-meta-label">Сортировка</span>
+            <div
+              id="agent-large-files-sort-filter"
+              class="agent-large-files-sort-filter"
+              role="group"
+              aria-label="Сортировка по размеру"
+            ></div>
           </div>
-          <div id="agent-large-files-stats" class="agent-workspace-stats" aria-live="polite"></div>
+          <div id="agent-large-files-stats" class="agent-workspace-stats agent-large-files-stats" aria-live="polite"></div>
         </div>
         <div id="agent-large-files-content" class="agent-tool-body agent-large-files-content"></div>
       </main>
@@ -3797,6 +3803,10 @@
             </div>
             <div class="agent-git-settings-divider" role="presentation"></div>
             <p class="agent-git-settings-subtitle">Автор коммитов</p>
+            <p class="agent-git-settings-hint agent-git-settings-hint--block">
+              Если имя и email не заполнены, при коммите используются глобальные настройки git на сервере
+              (<code>user.name</code> / <code>user.email</code>).
+            </p>
             <div class="agent-git-settings-columns">
               <label class="agent-git-settings-field" for="agent-git-user-name">
                 <span class="agent-git-settings-label">Имя (user.name)</span>

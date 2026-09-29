@@ -453,8 +453,14 @@ const agentLargeFilesContentNode = document.getElementById("agent-large-files-co
 const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
 const agentLargeFilesMetaNode = document.getElementById("agent-large-files-meta");
 const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
-const AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS = [3, 5, 10, 15, 25, 45];
+const AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS = [3, 5, 10, 15, 25, 45, 100, 250, 1024];
+const AGENT_LARGE_FILES_SORT_OPTIONS = [
+  { dir: "desc", label: "↓ крупные", title: "Сначала самые большие" },
+  { dir: "asc", label: "↑ мелкие", title: "Сначала самые маленькие" }
+];
 let agentLargeFilesThresholdMb = 45;
+let agentLargeFilesSortDir = "desc";
+let agentLargeFilesCachedReport = null;
 const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pane");
 const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
@@ -102008,12 +102014,41 @@ async function renderAgentGitView() {
   }
 }
 
+function formatAgentLargeFilesThresholdLabel(mb) {
+  const value = Number(mb);
+  if (!Number.isFinite(value)) return "";
+  if (value >= 1024) return "1 ГБ";
+  return `${value} МБ`;
+}
+
+function sortAgentLargeFilesEntries(files) {
+  const list = Array.isArray(files) ? [...files] : [];
+  const ascending = agentLargeFilesSortDir === "asc";
+  list.sort((left, right) => {
+    const sizeDelta = (left.size || 0) - (right.size || 0);
+    if (sizeDelta !== 0) return ascending ? sizeDelta : -sizeDelta;
+    return String(left.path || "").localeCompare(String(right.path || ""));
+  });
+  return list;
+}
+
 function syncAgentLargeFilesThresholdFilterUi() {
   const wrap = document.getElementById("agent-large-files-threshold-filter");
   if (!wrap) return;
   wrap.querySelectorAll("[data-threshold-mb]").forEach((btn) => {
     const value = Number(btn.dataset.thresholdMb);
     const active = value === agentLargeFilesThresholdMb;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function syncAgentLargeFilesSortFilterUi() {
+  const wrap = document.getElementById("agent-large-files-sort-filter");
+  if (!wrap) return;
+  wrap.querySelectorAll("[data-sort-dir]").forEach((btn) => {
+    const dir = btn.dataset.sortDir;
+    const active = dir === agentLargeFilesSortDir;
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   });
@@ -102029,19 +102064,47 @@ function ensureAgentLargeFilesThresholdFilter() {
       btn.type = "button";
       btn.className = "agent-large-files-threshold-btn";
       btn.dataset.thresholdMb = String(mb);
-      btn.textContent = `${mb} МБ`;
+      btn.textContent = formatAgentLargeFilesThresholdLabel(mb);
+      btn.title = `Файлы от ${formatAgentLargeFilesThresholdLabel(mb)}`;
       btn.addEventListener("click", () => {
         if (agentLargeFilesThresholdMb === mb) return;
         agentLargeFilesThresholdMb = mb;
+        agentLargeFilesCachedReport = null;
         syncAgentLargeFilesThresholdFilterUi();
         if (agentWorkspaceView === "large-files") {
-          void renderAgentLargeFilesView();
+          void renderAgentLargeFilesView({ rescan: true });
         }
       });
       wrap.appendChild(btn);
     }
   }
   syncAgentLargeFilesThresholdFilterUi();
+}
+
+function ensureAgentLargeFilesSortFilter() {
+  const wrap = document.getElementById("agent-large-files-sort-filter");
+  if (!wrap) return;
+  if (wrap.dataset.bound !== "1") {
+    wrap.dataset.bound = "1";
+    for (const option of AGENT_LARGE_FILES_SORT_OPTIONS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "agent-large-files-threshold-btn";
+      btn.dataset.sortDir = option.dir;
+      btn.textContent = option.label;
+      btn.title = option.title;
+      btn.addEventListener("click", () => {
+        if (agentLargeFilesSortDir === option.dir) return;
+        agentLargeFilesSortDir = option.dir;
+        syncAgentLargeFilesSortFilterUi();
+        if (agentWorkspaceView === "large-files" && agentLargeFilesCachedReport) {
+          paintAgentLargeFilesReport(agentLargeFilesCachedReport);
+        }
+      });
+      wrap.appendChild(btn);
+    }
+  }
+  syncAgentLargeFilesSortFilterUi();
 }
 
 async function fetchAgentLargeFiles(minMb = agentLargeFilesThresholdMb) {
@@ -102077,10 +102140,91 @@ function createAgentLargeFilesTypeBadge(filePath) {
   return node;
 }
 
-async function renderAgentLargeFilesView() {
+function paintAgentLargeFilesReport(data) {
+  if (!agentLargeFilesContentNode || !data) return;
+
+  agentLargeFilesContentNode.replaceChildren();
+
+  if (agentLargeFilesStatsNode) {
+    agentLargeFilesStatsNode.replaceChildren(
+      renderAgentLargeFilesStatChip("файлов", data.count ?? 0, data.count ? "total" : ""),
+      renderAgentLargeFilesStatChip("суммарно", data.totalSizeLabel || formatFileSize(data.totalSize || 0))
+    );
+  }
+
+  const thresholdLabel = formatAgentLargeFilesThresholdLabel(
+    data.thresholdMb ?? agentLargeFilesThresholdMb
+  );
+  const shell = document.createElement("div");
+  shell.className = "agent-tool-shell agent-large-files-shell";
+
+  const files = sortAgentLargeFilesEntries(data.files);
+  if (!files.length) {
+    const empty = document.createElement("div");
+    empty.className = "agent-tool-empty-card agent-large-files-empty-state";
+    empty.innerHTML = `
+        <p class="agent-tool-empty-title agent-large-files-empty-title">Крупных файлов не найдено</p>
+        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов от ${thresholdLabel} и больше (кроме служебных каталогов: <code>.git</code>, <code>node_modules</code>, <code>awn-media-cloud</code>…).</p>
+      `;
+    shell.appendChild(empty);
+  } else {
+    const list = document.createElement("ul");
+    list.className = "agent-tool-list agent-large-files-list";
+
+    for (const item of files) {
+      const row = document.createElement("li");
+      row.className = "agent-large-files-item";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "agent-large-files-row";
+      btn.title = item.path;
+
+      const sizeNode = document.createElement("span");
+      sizeNode.className = "agent-large-files-size";
+      sizeNode.textContent = item.sizeLabel || formatFileSize(item.size);
+
+      const typeNode = createAgentLargeFilesTypeBadge(item.path);
+
+      const pathNode = document.createElement("span");
+      pathNode.className = "agent-large-files-path";
+      pathNode.textContent = item.path;
+
+      btn.append(typeNode, pathNode, sizeNode);
+      btn.addEventListener("click", () => {
+        void revealWorkspacePath(item.path);
+      });
+
+      const cloudBar = createGoogleDriveSyncBar({
+        ...resolveCloudSyncConfigForWorkspaceFile(item.path),
+        compact: true
+      });
+      cloudBar.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      row.append(btn, cloudBar);
+      list.appendChild(row);
+    }
+
+    shell.appendChild(list);
+  }
+
+  agentLargeFilesContentNode.appendChild(shell);
+}
+
+async function renderAgentLargeFilesView(options = {}) {
   if (!agentLargeFilesContentNode) return;
 
+  const rescan = options.rescan !== false;
+
   ensureAgentLargeFilesThresholdFilter();
+  ensureAgentLargeFilesSortFilter();
+
+  if (!rescan && agentLargeFilesCachedReport) {
+    paintAgentLargeFilesReport(agentLargeFilesCachedReport);
+    return;
+  }
 
   agentLargeFilesContentNode.replaceChildren();
   if (agentLargeFilesStatsNode) agentLargeFilesStatsNode.replaceChildren();
@@ -102092,72 +102236,10 @@ async function renderAgentLargeFilesView() {
 
   try {
     const data = await fetchAgentLargeFiles();
-    agentLargeFilesContentNode.replaceChildren();
-
-    if (agentLargeFilesStatsNode) {
-      agentLargeFilesStatsNode.append(
-        renderAgentLargeFilesStatChip("файлов", data.count ?? 0, data.count ? "total" : ""),
-        renderAgentLargeFilesStatChip("суммарно", data.totalSizeLabel || formatFileSize(data.totalSize || 0))
-      );
-    }
-
-    const shell = document.createElement("div");
-    shell.className = "agent-tool-shell agent-large-files-shell";
-
-    const files = Array.isArray(data.files) ? data.files : [];
-    if (!files.length) {
-      const empty = document.createElement("div");
-      empty.className = "agent-tool-empty-card agent-large-files-empty-state";
-      empty.innerHTML = `
-        <p class="agent-tool-empty-title agent-large-files-empty-title">Крупных файлов не найдено</p>
-        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? agentLargeFilesThresholdMb} МБ (кроме служебных каталогов: <code>.git</code>, <code>node_modules</code>, <code>awn-media-cloud</code>…).</p>
-      `;
-      shell.appendChild(empty);
-    } else {
-      const list = document.createElement("ul");
-      list.className = "agent-tool-list agent-large-files-list";
-
-      for (const item of files) {
-        const row = document.createElement("li");
-        row.className = "agent-large-files-item";
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "agent-large-files-row";
-        btn.title = item.path;
-
-        const sizeNode = document.createElement("span");
-        sizeNode.className = "agent-large-files-size";
-        sizeNode.textContent = item.sizeLabel || formatFileSize(item.size);
-
-        const typeNode = createAgentLargeFilesTypeBadge(item.path);
-
-        const pathNode = document.createElement("span");
-        pathNode.className = "agent-large-files-path";
-        pathNode.textContent = item.path;
-
-        btn.append(typeNode, pathNode, sizeNode);
-        btn.addEventListener("click", () => {
-          void revealWorkspacePath(item.path);
-        });
-
-        const cloudBar = createGoogleDriveSyncBar({
-          ...resolveCloudSyncConfigForWorkspaceFile(item.path),
-          compact: true
-        });
-        cloudBar.addEventListener("click", (event) => {
-          event.stopPropagation();
-        });
-
-        row.append(btn, cloudBar);
-        list.appendChild(row);
-      }
-
-      shell.appendChild(list);
-    }
-
-    agentLargeFilesContentNode.appendChild(shell);
+    agentLargeFilesCachedReport = data;
+    paintAgentLargeFilesReport(data);
   } catch (error) {
+    agentLargeFilesCachedReport = null;
     agentLargeFilesContentNode.replaceChildren();
     const errorNode = document.createElement("p");
     errorNode.className = "agent-large-files-empty is-alert";
@@ -121463,6 +121545,7 @@ agentJournalPeriodFilterNode?.addEventListener("change", () => {
 });
 
 agentLargeFilesRefreshBtn?.addEventListener("click", () => {
+  agentLargeFilesCachedReport = null;
   if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
   }
