@@ -54115,6 +54115,9 @@ button.node-navigation-memory-title:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding: 0;
+  --doc-slab-content-inline-inset: 0;
+  overflow: hidden;
 }
 
 .doc-body-main .doc-slab-content.is-repository-mockup-preview > .doc-slab-main {
@@ -54122,16 +54125,18 @@ button.node-navigation-memory-title:focus-visible {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .repository-mockup-preview {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-height: min(72vh, calc(100vh - 12rem));
+  min-height: 0;
   margin: 0;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.75rem;
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
   background: #0f172a;
 }

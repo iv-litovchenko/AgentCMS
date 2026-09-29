@@ -22,7 +22,7 @@ awn_settings:
   voice-route-qwenpaw-agent-id: Aya
   voice-route-qwenpaw-session-id: agent-shell
   voice-route-runtime: claude
-  voice-proactive-mode: ping
+  voice-proactive-mode: off
   voice-proactive-idle-seconds-min: 120
   voice-proactive-idle-seconds-max: 240
   voice-proactive-cooldown-seconds: 900
@@ -51,7 +51,7 @@ awn_settings:
     Не удаляй и не переписывай разметку ```awn-stt``` в цитатах пользователя.
   voice-stt-whisper-model: base
   voice-stt-elevenlabs-model: scribe_v2
-  voice-tts-enabled: true
+  voice-tts-enabled: false
   voice-tts-engine: edge
   voice-tts-playback-mode: dialog
   voice-tts-prompt: |
