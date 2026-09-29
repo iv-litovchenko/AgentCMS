@@ -3,7 +3,7 @@ awn_settings:
   integrations-model-version: stub-v1
   integrations-containers-note: static-groups-stub
   module-git-default-branch: main
-  module-git-commit-extensions: md, txt, csv, yml, yaml
+  module-git-commit-extensions: md, txt, csv, yml, yaml, json
   container-cursor-skill-enabled: true
   container-cursor-skill-kind: skill
   container-cursor-skill-source: ~/.cursor/skills/automate

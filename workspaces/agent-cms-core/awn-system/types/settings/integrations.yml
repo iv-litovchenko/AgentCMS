@@ -77,7 +77,7 @@ fields:
       Файлы с этими расширениями попадают в список изменений, commit и diff
       (UI «Сохранить изменения», module_git_status / module_git_commit /
       module_git_diff).
-    default: md, txt, csv, yml, yaml; также .gitignore (имя файла)
+    default: md, txt, csv, yml, yaml, json; также .gitignore (имя файла)
     group: module-git
     locked: true
     readonly: true

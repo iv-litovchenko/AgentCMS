@@ -131,6 +131,13 @@
     enabled = Boolean(next);
     saveState(enabled);
     apply();
+    try {
+      window.dispatchEvent(
+        new CustomEvent("agent-cms:privacy-mode-change", { detail: { enabled } })
+      );
+    } catch {
+      // ignore
+    }
   }
 
   if (toggleBtn.dataset.bound !== "1") {

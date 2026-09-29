@@ -74,6 +74,16 @@ fields:
     group: ui
     sort: 21
 
+  hide-sensitive-data:
+    type: awn.field.boolean
+    title: Скрывать персональные данные
+    description: >
+      Маскирует чувствительные поля (URL remote, секреты) и синхронизируется
+      с кнопкой «глаз» в шапке. На полях с глазиком можно временно показать значение.
+    default: false
+    group: ui
+    sort: 22
+
   user-static-plugin-example:
     type: awn.field.string
     title: "{NOT WORK} Пример персонального ключа"

@@ -249,11 +249,27 @@ const agentGitSettingsBtn = document.getElementById("agent-git-settings-btn");
 const agentGitSettingsPanel = document.getElementById("agent-git-settings-panel");
 const agentGitInitBtn = document.getElementById("agent-git-init-btn");
 const agentGitPushBtn = document.getElementById("agent-git-push-btn");
+const agentGitPullBtn = document.getElementById("agent-git-pull-btn");
 const agentGitRemoteNameInput = document.getElementById("agent-git-remote-name");
+const agentGitBranchInput = document.getElementById("agent-git-branch-input");
+const agentGitBranchToolbarSelect = document.getElementById("agent-git-branch-toolbar-select");
+
+function syncAgentGitBranchSelectElement(selectEl, branch) {
+  if (!selectEl) return;
+  const name = String(branch || "").trim() || "main";
+  const known = new Set(Array.from(selectEl.options).map((option) => option.value));
+  if (!known.has(name)) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    selectEl.appendChild(option);
+  }
+  selectEl.value = name;
+}
 const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
 const agentGitRemoteSaveBtn = document.getElementById("agent-git-remote-save-btn");
 const agentGitRemoteRemoveBtn = document.getElementById("agent-git-remote-remove-btn");
-const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml"];
+const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml", "json"];
 const AGENT_GIT_EXTRA_BASENAMES = [".gitignore"];
 
 function getAgentGitFilterLabel() {
@@ -20825,10 +20841,15 @@ function userAwnSettingsFromMenuTreeSettings(settings = {}) {
 }
 
 function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
+  const hideSensitive =
+    hideSensitiveDataByAgent[agentId] ??
+    (agentId === activeAgentId && window.AgentCmsPrivacyMode?.isEnabled?.()) ??
+    false;
   return {
     ...userAwnSettingsFromMenuTreeSettings(getMenuTreeSettings(agentId)),
     "sidebar-width": sidebarWidth,
-    "pinned-branch-path": getPinnedMenuFolder(agentId) || ""
+    "pinned-branch-path": getPinnedMenuFolder(agentId) || "",
+    "hide-sensitive-data": Boolean(hideSensitive)
   };
 }
 
@@ -20843,6 +20864,15 @@ function getMenuTreeSettings(agentId = activeAgentId) {
 }
 
 let userSettingsPersistTimer = null;
+const hideSensitiveDataByAgent = {};
+
+function normalizeUserHideSensitiveSetting(value) {
+  if (typeof value === "boolean") return value;
+  const text = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(text)) return true;
+  if (["false", "0", "no", "off", ""].includes(text)) return false;
+  return Boolean(value);
+}
 
 async function loadUserSettingsForAgent(agentId = activeAgentId) {
   if (!agentId) return null;
@@ -20882,6 +20912,13 @@ function scheduleUserSettingsPersist(agentId = activeAgentId) {
   }, 500);
 }
 
+window.addEventListener("agent-cms:privacy-mode-change", (event) => {
+  const enabled = Boolean(event?.detail?.enabled);
+  if (!activeAgentId) return;
+  hideSensitiveDataByAgent[activeAgentId] = enabled;
+  scheduleUserSettingsPersist(activeAgentId);
+});
+
 function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId) {
   menuTreeSettingsByAgent[agentId] = menuTreeSettingsFromUserAwnSettings(settings);
   const width = Number(settings["sidebar-width"]);
@@ -20895,6 +20932,15 @@ function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId)
   }
   const pinned = String(settings["pinned-branch-path"] || "").trim();
   setPinnedMenuFolder(pinned || null, agentId, { skipPersist: true });
+  if (Object.prototype.hasOwnProperty.call(settings, "hide-sensitive-data")) {
+    hideSensitiveDataByAgent[agentId] = normalizeUserHideSensitiveSetting(settings["hide-sensitive-data"]);
+    if (agentId === activeAgentId && window.AgentCmsPrivacyMode) {
+      const want = hideSensitiveDataByAgent[agentId];
+      if (window.AgentCmsPrivacyMode.isEnabled() !== want) {
+        window.AgentCmsPrivacyMode.setEnabled(want);
+      }
+    }
+  }
   try {
     localStorage.setItem(MENU_TREE_SETTINGS_STORAGE_KEY, JSON.stringify(menuTreeSettingsByAgent));
     localStorage.setItem(PINNED_MENU_FOLDER_STORAGE_KEY, JSON.stringify(pinnedMenuFolderByAgent));
@@ -101393,6 +101439,7 @@ function syncAgentGitSettingsUi(data) {
   const isRepo = Boolean(data?.isRepo);
   if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
   if (agentGitPushBtn) agentGitPushBtn.disabled = !isRepo;
+  if (agentGitPullBtn) agentGitPullBtn.disabled = true;
   if (agentGitRemoteSaveBtn) agentGitRemoteSaveBtn.disabled = !isRepo;
   if (agentGitRemoteRemoveBtn) agentGitRemoteRemoveBtn.disabled = !isRepo;
 
@@ -101404,6 +101451,8 @@ function syncAgentGitSettingsUi(data) {
   if (origin && agentGitRemoteUrlInput && !agentGitRemoteUrlInput.dataset.userEdited) {
     agentGitRemoteUrlInput.value = origin.fetchUrl || origin.pushUrl || "";
   }
+  syncAgentGitBranchSelectElement(agentGitBranchInput, data?.branch);
+  syncAgentGitBranchSelectElement(agentGitBranchToolbarSelect, data?.branch);
 }
 
 async function postAgentGitInit() {
@@ -101562,6 +101611,7 @@ async function renderAgentGitView() {
   if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
   if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
   if (agentGitPushBtn) agentGitPushBtn.disabled = true;
+  if (agentGitPullBtn) agentGitPullBtn.disabled = true;
 
   const loading = document.createElement("p");
   loading.className = "agent-tool-loading agent-git-empty";
@@ -101601,11 +101651,11 @@ async function renderAgentGitView() {
       if (!data.isRepo) {
         agentGitMetaNode.textContent = "Git-репозиторий не найден в корне workspace";
       } else if (data.clean) {
-        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · рабочая копия чистая · фильтр: ${extLabel}`;
+        agentGitMetaNode.textContent = `Рабочая копия чистая · фильтр: ${extLabel}`;
       } else if (data.filteredClean) {
-        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · нет изменений в ${extLabel} (всего в git: ${data.totalChangeCount ?? 0})`;
+        agentGitMetaNode.textContent = `Нет изменений в ${extLabel} (всего в git: ${data.totalChangeCount ?? 0})`;
       } else {
-        const parts = [`Ветка ${data.branch || "—"}`, `фильтр: ${extLabel}`];
+        const parts = [`фильтр: ${extLabel}`];
         if (data.upstream) parts.push(`upstream: ${data.upstream}`);
         if (data.ahead) parts.push(`↑${data.ahead}`);
         if (data.behind) parts.push(`↓${data.behind}`);
