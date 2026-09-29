@@ -96037,26 +96037,28 @@ function formatMenuAgentStatsShortLine({ counts, workspace, summaryLine } = {}) 
   return parts.join(" · ");
 }
 
+const MENU_AGENT_STATS_GIT_UNCOMMITTED_LABEL = "Не закоммичено (изменений)";
+
 function buildMenuAgentStatsGitRepoRows(loc) {
   if (!loc || typeof loc !== "object") {
     return [
       { label: "Статус git", value: "—" },
       { label: "Ветка", value: "—" },
-      { label: "Статус", value: "—" },
-      { label: "Коммитов", value: "—" }
+      { label: "Коммитов", value: "—" },
+      { label: MENU_AGENT_STATS_GIT_UNCOMMITTED_LABEL, value: "—" }
     ];
   }
   if (loc.error) {
     return [
       { label: "Статус git", value: "ошибка" },
       { label: "Ветка", value: "—" },
-      { label: "Статус", value: loc.error },
-      { label: "Коммитов", value: "—" }
+      { label: "Коммитов", value: "—" },
+      { label: MENU_AGENT_STATS_GIT_UNCOMMITTED_LABEL, value: loc.error }
     ];
   }
   const gitInit = loc.hasDotGit ? "инициализирован" : "не инициализирован";
   const branch = loc.hasDotGit ? loc.branch || "—" : "—";
-  let workStatus = "—";
+  let uncommitted = "—";
   if (loc.hasDotGit) {
     const remote =
       Number(loc.ahead) > 0 || Number(loc.behind) > 0
@@ -96064,15 +96066,16 @@ function buildMenuAgentStatsGitRepoRows(loc) {
         : loc.upstream
           ? ` · ${loc.upstream}`
           : "";
-    workStatus = loc.clean ? `чисто${remote}` : `${loc.changeCount} изм.${remote}`;
+    const changeCount = Number(loc.changeCount) || 0;
+    uncommitted = loc.clean ? `0${remote}` : `${changeCount}${remote}`;
   }
   const commitCount =
     !loc.hasDotGit || loc.commitCount == null ? "—" : String(loc.commitCount);
   return [
     { label: "Статус git", value: gitInit },
     { label: "Ветка", value: branch },
-    { label: "Статус", value: workStatus },
-    { label: "Коммитов", value: commitCount }
+    { label: "Коммитов", value: commitCount },
+    { label: MENU_AGENT_STATS_GIT_UNCOMMITTED_LABEL, value: uncommitted }
   ];
 }
 
