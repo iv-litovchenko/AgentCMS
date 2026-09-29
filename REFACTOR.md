@@ -112,46 +112,46 @@ YamlCMS/
 ├── ✅ lib/ui/  (+ готово)
 │   └── + ui-context-focus.js  →  lib/ui/ui-context-focus.js
 │
-├── 🔴 lib/platform/          (фаза 4, одним заходом)
-│   ├── platform-sources.js  →  lib/platform/platform-sources.js
-│   ├── platform-agent.js  →  lib/platform/platform-agent.js
-│   └── platform-ui-rotators.js  →  lib/platform/platform-ui-rotators.js
+├── 🔴 lib/platform/  (+ готово)
+│   ├── + platform-sources.js  →  lib/platform/platform-sources.js
+│   ├── + platform-agent.js  →  lib/platform/platform-agent.js
+│   └── + platform-ui-rotators.js  →  lib/platform/platform-ui-rotators.js
 │
-├── 🔴 lib/awn/
-│   ├── awn-yaml-utils.js  →  lib/awn/awn-yaml-utils.js
-│   ├── awn-data-loader.js  →  lib/awn/awn-data-loader.js
-│   ├── awn-data-csv.js  →  lib/awn/awn-data-csv.js
-│   ├── awn-types-loader.js  →  lib/awn/awn-types-loader.js
-│   ├── awn-blocks-loader.js  →  lib/awn/awn-blocks-loader.js
-│   ├── awn-fields-loader.js  →  lib/awn/awn-fields-loader.js
-│   ├── awn-field-registry.js  →  lib/awn/awn-field-registry.js
-│   ├── awn-enum-options.js  →  lib/awn/awn-enum-options.js
-│   ├── awn-canonical-model.js  →  lib/awn/awn-canonical-model.js
-│   ├── awn-system-presets-loader.js  →  lib/awn/awn-system-presets-loader.js
-│   ├── awn-data-agents-bridge.js  →  lib/awn/awn-data-agents-bridge.js
-│   ├── awn-data-types-bridge.js  →  lib/awn/awn-data-types-bridge.js
-│   ├── awn-data-taxonomies-bridge.js  →  lib/awn/awn-data-taxonomies-bridge.js
-│   ├── awn-taxonomy-record.js  →  lib/awn/awn-taxonomy-record.js
-│   ├── awn-taxonomy-catalog-bridge.js  →  lib/awn/awn-taxonomy-catalog-bridge.js
-│   ├── awn-taxonomy-service.js  →  lib/awn/awn-taxonomy-service.js
-│   └── types-yaml-bridge.js  →  lib/awn/types-yaml-bridge.js
+├── 🔴 lib/awn/  (+ готово)
+│   ├── + awn-yaml-utils.js  →  lib/awn/awn-yaml-utils.js
+│   ├── + awn-data-loader.js  →  lib/awn/awn-data-loader.js
+│   ├── + awn-data-csv.js  →  lib/awn/awn-data-csv.js
+│   ├── + awn-types-loader.js  →  lib/awn/awn-types-loader.js
+│   ├── + awn-blocks-loader.js  →  lib/awn/awn-blocks-loader.js
+│   ├── + awn-fields-loader.js  →  lib/awn/awn-fields-loader.js
+│   ├── + awn-field-registry.js  →  lib/awn/awn-field-registry.js
+│   ├── + awn-enum-options.js  →  lib/awn/awn-enum-options.js
+│   ├── + awn-canonical-model.js  →  lib/awn/awn-canonical-model.js
+│   ├── + awn-system-presets-loader.js  →  lib/awn/awn-system-presets-loader.js
+│   ├── + awn-data-agents-bridge.js  →  lib/awn/awn-data-agents-bridge.js
+│   ├── + awn-data-types-bridge.js  →  lib/awn/awn-data-types-bridge.js
+│   ├── + awn-data-taxonomies-bridge.js  →  lib/awn/awn-data-taxonomies-bridge.js
+│   ├── + awn-taxonomy-record.js  →  lib/awn/awn-taxonomy-record.js
+│   ├── + awn-taxonomy-catalog-bridge.js  →  lib/awn/awn-taxonomy-catalog-bridge.js
+│   ├── + awn-taxonomy-service.js  →  lib/awn/awn-taxonomy-service.js
+│   └── + types-yaml-bridge.js  →  lib/awn/types-yaml-bridge.js
 │
-└── 🔴 lib/config/
-    ├── manifest-paths.js  →  lib/config/manifest-paths.js
-    ├── storage-slot-routing.js  →  lib/config/storage-slot-routing.js
-    ├── schema-mod-paths.js  →  lib/config/schema-mod-paths.js
-    ├── configuration-schema.js  →  lib/config/configuration-schema.js
-    ├── section-schema.js  →  lib/config/section-schema.js
-    ├── chpu-resolver.js  →  lib/config/chpu-resolver.js
-    ├── settings-store.js  →  lib/config/settings-store.js
-    ├── mcp-policy-loader.js  →  lib/config/mcp-policy-loader.js
-    ├── index-policy.js  →  lib/config/index-policy.js
-    ├── node-read-state.js  →  lib/config/node-read-state.js
-    ├── node-config-bundle.js  →  lib/config/node-config-bundle.js
-    └── storage-record-extensions.js  →  lib/config/storage-record-extensions.js
+└── 🔴 lib/config/  (+ готово)
+    ├── + manifest-paths.js  →  lib/config/manifest-paths.js
+    ├── + storage-slot-routing.js  →  lib/config/storage-slot-routing.js
+    ├── + schema-mod-paths.js  →  lib/config/schema-mod-paths.js
+    ├── + configuration-schema.js  →  lib/config/configuration-schema.js
+    ├── + section-schema.js  →  lib/config/section-schema.js
+    ├── + chpu-resolver.js  →  lib/config/chpu-resolver.js
+    ├── + settings-store.js  →  lib/config/settings-store.js
+    ├── + mcp-policy-loader.js  →  lib/config/mcp-policy-loader.js
+    ├── + index-policy.js  →  lib/config/index-policy.js
+    ├── + node-read-state.js  →  lib/config/node-read-state.js
+    ├── + node-config-bundle.js  →  lib/config/node-config-bundle.js
+    └── + storage-record-extensions.js  →  lib/config/storage-record-extensions.js
 ```
 
-**Порядок:** ✅ `api` **(+)** → `services` **(+)** → `media` **(+)** → `tools` **(+)** → ⚠️ `docs` **(+)** → `agents` **(+)** → `workspace` **(+)** → `catalog` **(+)** → `ui` **(+)** → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
+**Порядок:** ✅ `api` **(+)** → `services` **(+)** → `media` **(+)** → `tools` **(+)** → ⚠️ `docs` **(+)** → `agents` **(+)** → `workspace` **(+)** → `catalog` **(+)** → `ui` **(+)** → 🔴 `platform` **(+)** + `awn` **(+)** + `config` **(+)** (`scripts/` обновлены; electron `build.files` уже `lib/**/*`).
 
 **После переноса в корне:** `server.js`, опционально `voice-server.js`, `package.json`, `*.command`, README, env.
 

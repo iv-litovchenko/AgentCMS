@@ -4,14 +4,14 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { parseTypeYaml } = require("../awn-yaml-utils");
+const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
 const {
   buildStoreMdContent,
   loadMergedStoreSchema,
   toAwnFieldKey,
   STORE_MD_FILE
-} = require("../awn-data-loader");
-const { parseCsvText, serializeCsv } = require("../awn-data-csv");
+} = require("../lib/awn/awn-data-loader");
+const { parseCsvText, serializeCsv } = require("../lib/awn/awn-data-csv");
 
 const ROOT = path.join(__dirname, "..", "workspaces", "agent-cms-core", "awn-data");
 const SKIP_FILES = new Set(["_store.md", "manifest.md", "main.md"].map((s) => s.toLowerCase()));

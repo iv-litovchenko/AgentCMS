@@ -71,7 +71,7 @@ async function migrateStateSessionIdsToWorkspace(agentRoot, projectRoot = proces
   }
   if (!raw || typeof raw !== "object") return false;
 
-  const { patchWorkspaceSettings } = require("../settings-store");
+  const { patchWorkspaceSettings } = require("../lib/config/settings-store");
   const workspacePatch = {};
   let changed = false;
 
@@ -99,7 +99,7 @@ async function migrateLegacyShellSettingsFile(agentRoot, projectRoot = process.c
   const legacyFlat = await readLegacySettingsFile(agentRoot);
   if (!legacyFlat) return false;
 
-  const { patchWorkspaceSettings, readWorkspaceSettingsWithLegacyFallback, parseSettingsFileContent } = require("../settings-store");
+  const { patchWorkspaceSettings, readWorkspaceSettingsWithLegacyFallback, parseSettingsFileContent } = require("../lib/config/settings-store");
   const file = await readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot);
   const existing = file.exists
     ? parseSettingsFileContent(file.content || "").awn_settings || {}

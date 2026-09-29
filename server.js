@@ -8,7 +8,7 @@ const { AsyncLocalStorage } = require("async_hooks");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./lib/agents/agent-registry");
-const { resolveChpuPath, isChpuReservedRootSegment } = require("./chpu-resolver");
+const { resolveChpuPath, isChpuReservedRootSegment } = require("./lib/config/chpu-resolver");
 const docsRegistry = require("./lib/docs/docs-registry");
 const apiDocs = require("./lib/docs/api-docs");
 const mcpDocs = require("./lib/docs/mcp-docs");
@@ -57,7 +57,7 @@ const {
   getPlatformIndexStorageMode,
   getPlatformSearchTuning,
   resolveSearchScopes
-} = require("./index-policy");
+} = require("./lib/config/index-policy");
 const {
   getWorkspaceIndexProgress,
   startWorkspaceIndexProgress,
@@ -109,7 +109,7 @@ const {
   mapJournalEntryToFlowItem
 } = require("./lib/services/workspace-journal-service");
 const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./menu-cache/store");
-const { parseCsvText } = require("./awn-data-csv");
+const { parseCsvText } = require("./lib/awn/awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
 const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
@@ -133,7 +133,7 @@ const {
   readFolderReadState,
   markFolderReadPath,
   writeFolderPageReadState
-} = require("./node-read-state");
+} = require("./lib/config/node-read-state");
 const {
   MANIFEST_FILE,
   AREA_MANIFEST_FILE,
@@ -270,7 +270,7 @@ const {
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
   normalizeDeclaredManifestTreeType
-} = require("./manifest-paths");
+} = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
   getAwnTypesPayload,
@@ -283,13 +283,13 @@ const {
   applyAwnSettingsToConfig,
   extractDefaultLandingModeFromNodeConfig,
   getTopicSchemaPayload
-} = require("./awn-types-loader");
+} = require("./lib/awn/awn-types-loader");
 const {
   getEffectiveSchemaPayloadForContentPath,
   toSectionConfigRelPath,
   listSectionFolderPrefixes,
   isSectionConfigRelPath
-} = require("./section-schema");
+} = require("./lib/config/section-schema");
 const {
   getEffectiveTopicSchemaPayload,
   getWorkspaceSchemaPayloadFull,
@@ -307,8 +307,8 @@ const {
   SCHEMA_MOD_FILE,
   toTopicConfigurationSchemaRel,
   WORKSPACE_CONFIGURATION_SCHEMA_REL
-} = require("./configuration-schema");
-const { isSchemaModFileName } = require("./schema-mod-paths");
+} = require("./lib/config/configuration-schema");
+const { isSchemaModFileName } = require("./lib/config/schema-mod-paths");
 const { rewriteAgentMarkdownLinks } = require("./lib/tools/markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./lib/tools/broken-links-scanner");
 const {
@@ -325,8 +325,8 @@ const {
   MIGRATABLE_PRESETS
 } = require("./lib/catalog/catalog-migration");
 const { addCatalogItemForAgentContext } = require("./lib/catalog/catalog-items");
-const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
-const { loadPlatformUiRotators } = require("./platform-ui-rotators");
+const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./lib/platform/platform-sources");
+const { loadPlatformUiRotators } = require("./lib/platform/platform-ui-rotators");
 const { getComponentsPayload } = require("./lib/catalog/components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./lib/catalog/type-catalog-loader");
 const {
@@ -358,8 +358,8 @@ const {
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
   TAXONOMIES_GROUP_REL
-} = require("./awn-data-loader");
-const { loadSystemFileTemplatesFromPresets } = require("./awn-system-presets-loader");
+} = require("./lib/awn/awn-data-loader");
+const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -368,9 +368,9 @@ const {
   writeAgentSystemFile,
   getAgentSystemStatus
 } = require("./lib/agents/agent-system");
-const { getCanonicalModelPayload } = require("./awn-canonical-model");
-const { parseYamlScalar, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
-const { getWorkspaceTaxonomiesPayload } = require("./awn-taxonomy-service");
+const { getCanonicalModelPayload } = require("./lib/awn/awn-canonical-model");
+const { parseYamlScalar, mergeFrontmatterOverrides } = require("./lib/awn/awn-yaml-utils");
+const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-service");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
 const { createExistsApi } = require("./lib/api/exists-api");
 const { createContentSchemaApi } = require("./lib/api/content-schema-api");
@@ -380,7 +380,7 @@ const {
   writeIdleScreensaverBreaks
 } = require("./lib/api/idle-screensaver-rest-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
-const NodeConfigBundle = require("./node-config-bundle");
+const NodeConfigBundle = require("./lib/config/node-config-bundle");
 const {
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
@@ -402,7 +402,7 @@ const {
   getMediaCloudDefaultProviderId
 } = require("./lib/workspace/workspace-agent-settings");
 const shellService = require("./agent-shell/shell-service");
-const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
+const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./lib/config/mcp-policy-loader");
 const {
   PROJECT_SETTINGS_GLOBAL_SCOPE,
   PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
@@ -438,7 +438,7 @@ const {
   writeAgentSetting,
   resetAgentSettingsScope,
   hydrateWorkspaceSettingsFromShell
-} = require("./settings-store");
+} = require("./lib/config/settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
   AWN_MASK_FILE_KEY,
@@ -6176,7 +6176,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   }
 
   if (ext === ".md" && WORKSPACE_FS_TYPED_MD_LAYERS.has(layer)) {
-    const { STORAGE_SLOT_ROUTING } = require("./storage-slot-routing");
+    const { STORAGE_SLOT_ROUTING } = require("./lib/config/storage-slot-routing");
     const spec = STORAGE_SLOT_ROUTING.find((entry) => entry.storageFolder === layer);
     return {
       error: `For .md in awn-storage/${layer}/ use create_content / write_content_body / write_content_properties`,
@@ -8009,7 +8009,7 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
 }
 
 function resolveSlotTransferScope(slotKey) {
-  const { normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const { normalizeStorageSlotKey } = require("./lib/config/storage-slot-routing");
   const key = normalizeStorageSlotKey(String(slotKey || "").trim());
   if (!key) return null;
   if (key === "external" || key === "memory") {
@@ -12082,7 +12082,7 @@ async function buildAgentPageMap(options = {}) {
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["discussion", "dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
-const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./storage-slot-routing");
+const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./lib/config/storage-slot-routing");
 
 const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
@@ -12723,7 +12723,7 @@ async function writeAgentAwnDataIndex(options = {}) {
 }
 
 function getSlotStorageIndexRelPath(manifestRelPath, slotKey, storageFolder, driver) {
-  const { slotKeyToStorageFolder, isExternalMemorySlot, isInternalBundleSlot } = require("./storage-slot-routing");
+  const { slotKeyToStorageFolder, isExternalMemorySlot, isInternalBundleSlot } = require("./lib/config/storage-slot-routing");
   const slotDir = String(getNamedStorageSlotDirRel(manifestRelPath, getStoragePathOptions()) || "")
     .replace(/\\/g, "/")
     .trim();
@@ -13051,7 +13051,7 @@ const CONTENT_INDEX_SLOT_LABELS = {
 };
 
 function resolveContentIndexEntrySlotLabel(slotKey) {
-  const { normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const { normalizeStorageSlotKey } = require("./lib/config/storage-slot-routing");
   const raw = String(slotKey || "").trim();
   const normalized = normalizeStorageSlotKey(raw) || raw;
   return (
@@ -13631,7 +13631,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     frontmatter = "";
   }
 
-  const { slotKeyToStorageFolder, normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const { slotKeyToStorageFolder, normalizeStorageSlotKey } = require("./lib/config/storage-slot-routing");
   const rawType = getYamlScalar(frontmatter, "awn-type") || "awn.page.topic";
   const awnType = String(rawType).trim();
   const slotsFlexible = await readTopicSlotsFlexible(canonicalRelPath);
@@ -13886,7 +13886,7 @@ async function readWorkspaceManifestContent(relPath) {
 }
 
 async function readAgentSystemContext(agentRoot) {
-  const { getCmsConfigRel } = require("./platform-sources");
+  const { getCmsConfigRel } = require("./lib/platform/platform-sources");
   const cmsConfigRel = getCmsConfigRel(agentRoot);
   const systemRoot = path.join(agentRoot, cmsConfigRel);
   const readText = async (rel) => {
@@ -15702,7 +15702,7 @@ function extractPriorityFromProps(content) {
 }
 
 async function getAgentCatalogLookupMaps() {
-  const { buildCatalogLookupMapsFromTaxonomies } = require("./awn-taxonomy-catalog-bridge");
+  const { buildCatalogLookupMapsFromTaxonomies } = require("./lib/awn/awn-taxonomy-catalog-bridge");
   const projectRoot = getProjectRoot();
   if (isPlatformAgentId(getActiveAgentId())) {
     return buildCatalogLookupMapsFromTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot, {
@@ -15715,7 +15715,7 @@ async function getAgentCatalogLookupMaps() {
 }
 
 async function getAgentCatalogsPayload() {
-  const { getCatalogsPayloadFromTaxonomies } = require("./awn-taxonomy-catalog-bridge");
+  const { getCatalogsPayloadFromTaxonomies } = require("./lib/awn/awn-taxonomy-catalog-bridge");
   const projectRoot = getProjectRoot();
   if (isPlatformAgentId(getActiveAgentId())) {
     const payload = getCatalogsPayloadFromTaxonomies(getAgentCmsCoreAbsolute(projectRoot), projectRoot, {
@@ -23142,8 +23142,8 @@ async function handleApiForAgent(req, res, url) {
       });
       const storeRel = String(payload?.store || "").replace(/\\/g, "/");
       if (storeRel.includes("awn-taxonomies/") || storeRel.includes("taxonomies/")) {
-        const { invalidatePlatformTaxonomyCache } = require("./awn-data-taxonomies-bridge");
-        const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./awn-taxonomy-service");
+        const { invalidatePlatformTaxonomyCache } = require("./lib/awn/awn-data-taxonomies-bridge");
+        const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./lib/awn/awn-taxonomy-service");
         invalidatePlatformTaxonomyCache(getProjectRoot());
         invalidateWorkspaceTaxonomiesPayloadCache(agentRoot, getProjectRoot());
       }
@@ -23727,7 +23727,7 @@ async function handleApiForAgent(req, res, url) {
         (/^(?:awn-databases|awn-data)\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
           /^awn-system\/types\/.+\.ya?ml$/i.test(normPath));
       if (isTypeFile && content.trim()) {
-        const { parseTypeYaml } = require("./awn-yaml-utils");
+        const { parseTypeYaml } = require("./lib/awn/awn-yaml-utils");
         let parsed;
         try {
           const bodyMatch = content.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)([\s\S]*)$/);
@@ -24172,7 +24172,7 @@ async function handleApiForAgent(req, res, url) {
       if (payload.awnSchema && typeof payload.awnSchema === "object") {
         awnSchema = normalizeAwnSchema(payload.awnSchema);
       } else if (typeof payload.content === "string" && payload.content.trim()) {
-        const { extractAwnSchemaFromConfigurationSchemaContent } = require("./configuration-schema");
+        const { extractAwnSchemaFromConfigurationSchemaContent } = require("./lib/config/configuration-schema");
         awnSchema =
           extractAwnSchemaFromConfigurationSchemaContent(payload.content) || normalizeAwnSchema(undefined);
       } else {
@@ -24893,7 +24893,7 @@ async function handleApiForAgent(req, res, url) {
       if (!isAllowedStorageSubfolderName(storageFolder)) {
         return sendJson(res, 400, { error: "Invalid storage folder" });
       }
-      const { isStorageFlatSectionFolder } = require("./storage-slot-routing");
+      const { isStorageFlatSectionFolder } = require("./lib/config/storage-slot-routing");
       if (!isStorageFlatSectionFolder(storageFolder)) {
         return sendJson(res, 400, { error: "Sections are not supported for this folder" });
       }

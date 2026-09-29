@@ -5,7 +5,7 @@
  */
 const fs = require("fs/promises");
 const path = require("path");
-const { listBundleFileNameCandidates, BUNDLE_MAIN_FILE, BUNDLE_TABULAR_FILE, BUNDLE_TODO_FILE, BUNDLE_CONFIG_FILE, ROOT_SYSTEM_TODO_FILE } = require("../manifest-paths");
+const { listBundleFileNameCandidates, BUNDLE_MAIN_FILE, BUNDLE_TABULAR_FILE, BUNDLE_TODO_FILE, BUNDLE_CONFIG_FILE, ROOT_SYSTEM_TODO_FILE } = require("../lib/config/manifest-paths");
 
 const ROOT = path.resolve(__dirname, "..");
 const WORKSPACES = [

@@ -6,8 +6,8 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { loadYamlFileSync } = require("../awn-yaml-utils");
-const { getAgentCmsCoreAbsolute } = require("../platform-sources");
+const { loadYamlFileSync } = require("../lib/awn/awn-yaml-utils");
+const { getAgentCmsCoreAbsolute } = require("../lib/platform/platform-sources");
 
 const CORE = getAgentCmsCoreAbsolute(process.cwd());
 const LEGACY_DIR = path.join(CORE, "awn-system", "presets");

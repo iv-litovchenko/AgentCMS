@@ -8,12 +8,12 @@
 
 const fs = require("fs");
 const path = require("path");
-const { parseTypeYaml, formatFrontmatterEntry, mergeFrontmatterOverrides } = require("../awn-yaml-utils");
+const { parseTypeYaml, formatFrontmatterEntry, mergeFrontmatterOverrides } = require("../lib/awn/awn-yaml-utils");
 const {
   migrateLegacyTaxonomyFields,
   listWorkspaceTaxonomies,
   projectTaxonomyIndexFields
-} = require("../awn-taxonomy-service");
+} = require("../lib/awn/awn-taxonomy-service");
 
 const LEGACY_KEYS = ["awn-tags", "awn-category", "awn-color"];
 

@@ -4,7 +4,7 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { parseTypeYaml } = require("../awn-yaml-utils");
+const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
 const {
   buildStoreMdContent,
   buildPlainManifestContent,
@@ -12,7 +12,7 @@ const {
   STORE_CONTRACT_FILE,
   STORE_MD_FILE,
   COLLECTION_MANIFEST
-} = require("../awn-data-loader");
+} = require("../lib/awn/awn-data-loader");
 
 const ROOT = path.join(__dirname, "..", "workspaces", "agent-cms-core", "awn-data");
 

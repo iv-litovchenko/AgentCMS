@@ -4,7 +4,7 @@ const {
   WORKSPACE_SETTINGS_FILE,
   parseSettingsFileContent,
   composeSettingsFileContent
-} = require("../settings-store");
+} = require("../lib/config/settings-store");
 const {
   WORKSPACE_AWN_ID_COUNTER_KEYS,
   WORKSPACE_AWN_ID_COUNTER_MODEL

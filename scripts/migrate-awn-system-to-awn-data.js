@@ -7,9 +7,9 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { loadYamlFileSync } = require("../awn-yaml-utils");
-const { getAgentCmsCoreAbsolute } = require("../platform-sources");
-const { DOMAIN_TYPE_STORES, CMS_CONFIG_STORE } = require("../awn-data-types-bridge");
+const { loadYamlFileSync } = require("../lib/awn/awn-yaml-utils");
+const { getAgentCmsCoreAbsolute } = require("../lib/platform/platform-sources");
+const { DOMAIN_TYPE_STORES, CMS_CONFIG_STORE } = require("../lib/awn/awn-data-types-bridge");
 
 const SKIP_DOMAINS = new Set(["fields", "md-blocks", "taxonomies"]);
 const FM_KEYS = new Set([

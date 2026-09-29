@@ -119,7 +119,7 @@ function loadQrCode() {
   }
 }
 const { buildSystemEnvironment } = requireRepo("lib/system-environment");
-const { getPlatformSettings, patchPlatformSettings } = requireRepo("settings-store");
+const { getPlatformSettings, patchPlatformSettings } = requireRepo("lib/config/settings-store");
 const { isPlatformMaintenanceMode } = requireRepo("lib/workspace/workspace-agent-settings");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");

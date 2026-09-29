@@ -1,4 +1,4 @@
-const { loadSystemFilePresets } = require("../awn-system-presets-loader");
+const { loadSystemFilePresets } = require("../lib/awn/awn-system-presets-loader");
 
 const SHELL_PROMPT_SLUGS = {
   ttsPrompt: "shell-tts-prompt",

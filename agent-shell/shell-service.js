@@ -587,7 +587,7 @@ async function writeSettings(agentRoot, patch, agentId) {
       buildWorkspacePatchFromShell
     } = require("../lib/workspace/workspace-shell-settings-bridge");
     const { writeStateFile } = require("./shell-settings-migrate");
-    const { patchWorkspaceSettings } = require("../settings-store");
+    const { patchWorkspaceSettings } = require("../lib/config/settings-store");
 
     const sourcePatch = patch && typeof patch === "object" ? patch : {};
     const runtimePatch = pickShellRuntimePatch(sourcePatch);

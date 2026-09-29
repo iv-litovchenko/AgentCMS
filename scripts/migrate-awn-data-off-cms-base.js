@@ -4,14 +4,14 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { parseTypeYaml } = require("../awn-yaml-utils");
+const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
 const {
   composeAwnDataStoreSchemeModYaml,
   buildStoreManifestContent,
   DEFAULT_ELEMENT_SCHEMA_TYPE,
   KIND_TO_AWN_PROP_TYPE,
   CONTAINER_TYPE_ID
-} = require("../awn-data-loader");
+} = require("../lib/awn/awn-data-loader");
 
 const LEGACY_CONTAINER = {
   collection: CONTAINER_TYPE_ID.collection,

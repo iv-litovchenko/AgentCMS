@@ -7,8 +7,8 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { getAgentCmsCoreAbsolute, CMS_BASE_REL, AWN_DATA_REL } = require("../platform-sources");
-const { DOMAIN_TYPE_STORES, CMS_BASE_STORE } = require("../awn-data-types-bridge");
+const { getAgentCmsCoreAbsolute, CMS_BASE_REL, AWN_DATA_REL } = require("../lib/platform/platform-sources");
+const { DOMAIN_TYPE_STORES, CMS_BASE_STORE } = require("../lib/awn/awn-data-types-bridge");
 
 const TOP_LEVEL_STORES = [...new Set(
   Object.values(DOMAIN_TYPE_STORES).filter((store) => !store.startsWith(`${CMS_BASE_STORE}/`))

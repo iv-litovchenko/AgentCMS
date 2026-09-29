@@ -8,9 +8,9 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
-const { getAgentCmsCoreAbsolute } = require("../platform-sources");
-const { parseTypeYaml } = require("../awn-yaml-utils");
-const { parseCsvText, writeCsvFromRecords } = require("../awn-data-csv");
+const { getAgentCmsCoreAbsolute } = require("../lib/platform/platform-sources");
+const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
+const { parseCsvText, writeCsvFromRecords } = require("../lib/awn/awn-data-csv");
 
 const CORE = getAgentCmsCoreAbsolute(process.cwd());
 const CATALOG = path.join(CORE, "catalog");

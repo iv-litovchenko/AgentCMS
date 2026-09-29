@@ -3,13 +3,13 @@ const path = require("path");
 const {
   mergeFrontmatterOverrides,
   splitFrontmatterBlocks
-} = require("../awn-yaml-utils");
+} = require("../lib/awn/awn-yaml-utils");
 const {
   parseStorageLayerRef,
   pickManifestRelFromStorageLayerRef,
   isAwnMediaCloudFolderName
-} = require("../manifest-paths");
-const { STORAGE_SLOT_ROUTING } = require("../storage-slot-routing");
+} = require("../lib/config/manifest-paths");
+const { STORAGE_SLOT_ROUTING } = require("../lib/config/storage-slot-routing");
 const {
   startWorkspaceIndexProgress,
   tickWorkspaceIndexProgress,

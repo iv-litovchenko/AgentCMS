@@ -10,7 +10,7 @@ const {
   isInternalBundleSlot,
   buildSectionCreateRequest,
   listSectionCapableSlotKeys
-} = require("../../storage-slot-routing.js");
+} = require("../../lib/config/storage-slot-routing.js");
 
 const contentSlot = z
   .string()

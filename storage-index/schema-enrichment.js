@@ -6,14 +6,14 @@ const {
   inferAwnTypeFromRelPath,
   MANIFEST_FILE,
   isManifestFileName
-} = require("../manifest-paths");
-const { isSchemaModFileName, listSchemaModFileNames } = require("../schema-mod-paths");
+} = require("../lib/config/manifest-paths");
+const { isSchemaModFileName, listSchemaModFileNames } = require("../lib/config/schema-mod-paths");
 const {
   extractAwnSchemaFromConfigurationSchemaContent,
   getEffectiveTopicSchemaPayload
-} = require("../configuration-schema");
-const { getEffectiveSchemaPayloadForContentPath } = require("../section-schema");
-const { normalizeStorageSlotKey, STORAGE_SLOT_ROUTING } = require("../storage-slot-routing");
+} = require("../lib/config/configuration-schema");
+const { getEffectiveSchemaPayloadForContentPath } = require("../lib/config/section-schema");
+const { normalizeStorageSlotKey, STORAGE_SLOT_ROUTING } = require("../lib/config/storage-slot-routing");
 const TopicSchemaSlotSpecs = require("../public/topic-schema-slot-specs.js");
 
 function storageLayerToSlotKey(layer) {
