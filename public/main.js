@@ -96035,6 +96035,31 @@ function formatMenuAgentStatsShortLine({ counts, workspace, summaryLine } = {}) 
   return parts.join(" · ");
 }
 
+function formatMenuAgentStatsGitLocation(loc) {
+  if (!loc || typeof loc !== "object") return "—";
+  if (loc.error) return `ошибка: ${loc.error}`;
+  if (!loc.hasDotGit) return "нет .git";
+  const parts = ["инициализирован"];
+  if (loc.branch) parts.push(loc.branch);
+  if (loc.upstream) parts.push(`→ ${loc.upstream}`);
+  if (Number(loc.ahead) > 0 || Number(loc.behind) > 0) {
+    parts.push(`↑${loc.ahead || 0} ↓${loc.behind || 0}`);
+  }
+  if (loc.clean === true) parts.push("чисто");
+  else if (Number(loc.changeCount) > 0) parts.push(`${loc.changeCount} изм.`);
+  return parts.join(" · ");
+}
+
+function formatMenuAgentStatsWorkspaceRepo(repo) {
+  if (!repo || typeof repo !== "object") return null;
+  const parts = [];
+  if (repo.repoRel && repo.repoRel !== ".") parts.push(repo.repoRel);
+  if (repo.branch) parts.push(repo.branch);
+  if (repo.clean) parts.push("чисто");
+  else if (repo.counts?.total > 0) parts.push(`${repo.counts.total} изм.`);
+  return parts.length ? parts.join(" · ") : "активен";
+}
+
 function formatMenuAgentStatsIndexValue(layerMeta) {
   if (!layerMeta || typeof layerMeta !== "object") return "—";
   if (layerMeta.reason) return String(layerMeta.reason);
@@ -96142,7 +96167,27 @@ function renderMenuAgentStorageSummary(payload, { loading = false, error = null 
   const workspace = payload.workspace || {};
   const intake = payload.intake || {};
   const catalog = payload.catalog || {};
+  const git = payload.git || {};
   const indexStatus = payload.workspaceIndexStatus || {};
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Git", [
+    {
+      label: git.agentRootEqualsProjectRoot ? "Корень (проект = workspace)" : "Корень проекта CMS",
+      value: formatMenuAgentStatsGitLocation(git.projectRoot)
+    },
+    ...(git.agentRootEqualsProjectRoot
+      ? []
+      : [
+          {
+            label: "Workspace агента",
+            value: formatMenuAgentStatsGitLocation(git.agentWorkspace)
+          }
+        ]),
+    {
+      label: "Статус git API",
+      value: formatMenuAgentStatsWorkspaceRepo(git.workspaceRepo) || "репозиторий не в корне workspace"
+    }
+  ]);
 
   appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Меню", [
     { label: "Тем и узлов", value: menu.topicCount },

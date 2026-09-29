@@ -13757,7 +13757,7 @@ const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
   storageSummary:
-    "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, runtime, workspaceIndexStatus, lastIndexedAt)",
+    "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
@@ -16275,6 +16275,71 @@ async function resolveAgentRootGitRepoAbsolute() {
   return null;
 }
 
+async function buildGitLocationSummary(dirAbsolute, projectRoot) {
+  const resolved = path.resolve(dirAbsolute);
+  const rel = path.relative(projectRoot, resolved).replace(/\\/g, "/") || ".";
+  const hasDotGit = await folderHasGitRepo(resolved);
+  const summary = {
+    rel,
+    hasDotGit,
+    isRepo: hasDotGit,
+    branch: "",
+    upstream: "",
+    ahead: 0,
+    behind: 0,
+    clean: null,
+    changeCount: 0
+  };
+  if (!hasDotGit) return summary;
+
+  try {
+    const statusRaw = await runGitInRepo(resolved, [
+      "status",
+      "--porcelain=v1",
+      "-b",
+      "--untracked-files=all"
+    ]);
+    const parsed = parseGitStatusPorcelain(statusRaw);
+    summary.branch = parsed.branch || "";
+    summary.upstream = parsed.upstream || "";
+    summary.ahead = parsed.ahead;
+    summary.behind = parsed.behind;
+    summary.changeCount = parsed.changes.length;
+    summary.clean = parsed.changes.length === 0;
+    return summary;
+  } catch (error) {
+    summary.error = String(error?.message || error);
+    return summary;
+  }
+}
+
+async function buildGitStorageSummaryBlock(agentRoot, projectRoot) {
+  const agentRootResolved = path.resolve(agentRoot);
+  const projectRootResolved = path.resolve(projectRoot);
+  const [projectRootGit, agentWorkspaceGit, workspaceStatus] = await Promise.all([
+    buildGitLocationSummary(projectRootResolved, projectRootResolved),
+    buildGitLocationSummary(agentRootResolved, projectRootResolved),
+    buildAgentGitStatus()
+  ]);
+
+  return {
+    projectRoot: projectRootGit,
+    agentWorkspace: agentWorkspaceGit,
+    agentRootEqualsProjectRoot: agentRootResolved === projectRootResolved,
+    workspaceRepo: workspaceStatus?.isRepo
+      ? {
+          repoRel: workspaceStatus.repoRel,
+          branch: workspaceStatus.branch,
+          upstream: workspaceStatus.upstream,
+          ahead: workspaceStatus.ahead,
+          behind: workspaceStatus.behind,
+          clean: workspaceStatus.clean,
+          counts: workspaceStatus.counts
+        }
+      : null
+  };
+}
+
 const LARGE_FILE_DEFAULT_MIN_BYTES = 45 * 1024 * 1024;
 const LARGE_FILE_SCAN_SKIP_DIRS = new Set([
   ".git",
@@ -16522,6 +16587,7 @@ async function buildAgentStorageSummary() {
   const heartbeatCount = Number(heartbeatRegistry?.itemCount) || 0;
   const lastIndexedAt = workspaceIndexStatus ? resolveLatestIndexedAt(workspaceIndexStatus) : null;
   const lastIndexedAge = lastIndexedAt ? formatAge(lastIndexedAt) : null;
+  const git = await buildGitStorageSummaryBlock(agentRoot, projectRoot).catch(() => null);
 
   return {
     agentId,
@@ -16530,6 +16596,7 @@ async function buildAgentStorageSummary() {
     workspace: workspaceStats,
     intake: intakeTotals,
     catalog,
+    git,
     alwaysContextCount,
     cronCount,
     heartbeatCount,
@@ -16542,7 +16609,7 @@ async function buildAgentStorageSummary() {
       intake: intakeTotals
     }),
     hint:
-      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
+      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (корень проекта CMS и workspace агента, .git), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
   };
 }
 
