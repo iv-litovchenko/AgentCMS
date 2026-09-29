@@ -40,7 +40,7 @@
 
 ## Итоговый план переноса (дерево)
 
-**Этап 1 — только перенос.** Эмодзи: ❌ остаётся · ✅ лёгкая группа · ⚠️ средняя · 🔴 тяжёлая (фаза 4)
+**Этап 1 — только перенос.** Эмодзи: ❌ остаётся · ✅ лёгкая группа · ⚠️ средняя · 🔴 тяжёлая (фаза 4) · **`+`** — уже перенесено
 
 ```
 YamlCMS/
@@ -48,35 +48,35 @@ YamlCMS/
 ├── ❌ server.js  →  (корень, не двигаем)
 ├── ⚠️ voice-server.js  →  server/voice-server.js   (или оставить в корне)
 │
-├── ✅ lib/api/
-│   ├── exists-api.js  →  lib/api/exists-api.js
-│   ├── content-schema-api.js  →  lib/api/content-schema-api.js
-│   ├── ui-context-api.js  →  lib/api/ui-context-api.js
-│   ├── idle-screensaver-rest-api.js  →  lib/api/idle-screensaver-rest-api.js
-│   ├── pomodoro-rest-api.js  →  lib/api/pomodoro-rest-api.js
-│   └── page-slots-api.js  →  lib/api/page-slots-api.js
+├── ✅ lib/api/  (+ готово)
+│   ├── + exists-api.js  →  lib/api/exists-api.js
+│   ├── + content-schema-api.js  →  lib/api/content-schema-api.js
+│   ├── + ui-context-api.js  →  lib/api/ui-context-api.js
+│   ├── + idle-screensaver-rest-api.js  →  lib/api/idle-screensaver-rest-api.js
+│   ├── + pomodoro-rest-api.js  →  lib/api/pomodoro-rest-api.js
+│   └── + page-slots-api.js  →  lib/api/page-slots-api.js
 │
-├── ✅ lib/services/
-│   ├── identity-service.js  →  lib/services/identity-service.js
-│   ├── document-extract-service.js  →  lib/services/document-extract-service.js
-│   ├── script-exec-service.js  →  lib/services/script-exec-service.js
-│   ├── web-search-service.js  →  lib/services/web-search-service.js
-│   ├── sidecar-service.js  →  lib/services/sidecar-service.js
-│   ├── dependencies-service.js  →  lib/services/dependencies-service.js
-│   ├── workspace-brain-service.js  →  lib/services/workspace-brain-service.js
-│   ├── workspace-facts-service.js  →  lib/services/workspace-facts-service.js
-│   ├── workspace-journal-service.js  →  lib/services/workspace-journal-service.js
-│   └── awn-repositories-service.js  →  lib/services/awn-repositories-service.js
+├── ✅ lib/services/  (+ готово)
+│   ├── + identity-service.js  →  lib/services/identity-service.js
+│   ├── + document-extract-service.js  →  lib/services/document-extract-service.js
+│   ├── + script-exec-service.js  →  lib/services/script-exec-service.js
+│   ├── + web-search-service.js  →  lib/services/web-search-service.js
+│   ├── + sidecar-service.js  →  lib/services/sidecar-service.js
+│   ├── + dependencies-service.js  →  lib/services/dependencies-service.js
+│   ├── + workspace-brain-service.js  →  lib/services/workspace-brain-service.js
+│   ├── + workspace-facts-service.js  →  lib/services/workspace-facts-service.js
+│   ├── + workspace-journal-service.js  →  lib/services/workspace-journal-service.js
+│   └── + awn-repositories-service.js  →  lib/services/awn-repositories-service.js
 │
-├── ✅ lib/media/
-│   ├── media-import.js  →  lib/media/media-import.js
-│   ├── media-thumbs.js  →  lib/media/media-thumbs.js
-│   ├── base64-upload.js  →  lib/media/base64-upload.js
-│   └── gdrive-sync.js  →  lib/media/gdrive-sync.js
+├── ✅ lib/media/  (+ готово)
+│   ├── + media-import.js  →  lib/media/media-import.js
+│   ├── + media-thumbs.js  →  lib/media/media-thumbs.js
+│   ├── + base64-upload.js  →  lib/media/base64-upload.js
+│   └── + gdrive-sync.js  →  lib/media/gdrive-sync.js
 │
-├── ✅ lib/tools/
-│   ├── broken-links-scanner.js  →  lib/tools/broken-links-scanner.js
-│   └── markdown-link-rewriter.js  →  lib/tools/markdown-link-rewriter.js
+├── ✅ lib/tools/  (+ готово)
+│   ├── + broken-links-scanner.js  →  lib/tools/broken-links-scanner.js
+│   └── + markdown-link-rewriter.js  →  lib/tools/markdown-link-rewriter.js
 │
 ├── ⚠️ lib/docs/
 │   ├── api-docs.js  →  lib/docs/api-docs.js
@@ -109,8 +109,8 @@ YamlCMS/
 │   ├── components-loader.js  →  lib/catalog/components-loader.js
 │   └── type-catalog-loader.js  →  lib/catalog/type-catalog-loader.js
 │
-├── ✅ lib/ui/
-│   └── ui-context-focus.js  →  lib/ui/ui-context-focus.js
+├── ✅ lib/ui/  (+ готово)
+│   └── + ui-context-focus.js  →  lib/ui/ui-context-focus.js
 │
 ├── 🔴 lib/platform/          (фаза 4, одним заходом)
 │   ├── platform-sources.js  →  lib/platform/platform-sources.js
@@ -151,7 +151,7 @@ YamlCMS/
     └── storage-record-extensions.js  →  lib/config/storage-record-extensions.js
 ```
 
-**Порядок:** ✅ `api` → `services` → `media` → `tools` → ⚠️ `docs` → `agents` → `workspace` → `catalog` → `ui` → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
+**Порядок:** ✅ `api` **(+)** → `services` **(+)** → `media` **(+)** → `tools` **(+)** → ⚠️ `docs` → `agents` → `workspace` → `catalog` → `ui` → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
 
 **После переноса в корне:** `server.js`, опционально `voice-server.js`, `package.json`, `*.command`, README, env.
 
@@ -159,7 +159,7 @@ YamlCMS/
 
 ## Этап 3 — `public/` (перенос + правка `index.html` / редких ссылок)
 
-Эмодзи: ❌ не двигаем · ✅ лёгко · ⚠️ несколько ссылок
+Эмодзи: ❌ не двигаем · ✅ лёгко · ⚠️ несколько ссылок · **`+`** — уже перенесено (пока ничего)
 
 ```
 public/

@@ -1,7 +1,7 @@
 const {
   resolveMarkdownHrefToWorkspaceRel,
   getWikilinkTargetFromRel
-} = require("../markdown-link-rewriter");
+} = require("../lib/tools/markdown-link-rewriter");
 
 const WIKILINK_RE = /\[\[([^\]|#]+)(#[^\]|]+)?(?:\|([^\]]+))?\]\]/g;
 const MARKDOWN_LINK_RE = /(!?\[(?:\\.|[^\]])*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;

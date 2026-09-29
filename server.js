@@ -12,7 +12,7 @@ const { resolveChpuPath, isChpuReservedRootSegment } = require("./chpu-resolver"
 const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
-const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive-sync");
+const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./lib/media/gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
@@ -30,11 +30,11 @@ const {
   clampThumbMax,
   readOrCreateImageThumb,
   wantsThumbVariant
-} = require("./media-thumbs");
-const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-import");
-const { decodeBase64UploadData } = require("./base64-upload");
-const { createScriptExecService } = require("./script-exec-service");
-const { createWebSearchService } = require("./web-search-service");
+} = require("./lib/media/media-thumbs");
+const { fetchBufferFromImportUrl, resolveImportFileName } = require("./lib/media/media-import");
+const { decodeBase64UploadData } = require("./lib/media/base64-upload");
+const { createScriptExecService } = require("./lib/services/script-exec-service");
+const { createWebSearchService } = require("./lib/services/web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
 const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
@@ -68,8 +68,8 @@ const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
 const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
 const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
 const { createOcrIndexService } = require("./ocr-index/service");
-const { createIdentityService } = require("./identity-service");
-const { createDocumentExtractService } = require("./document-extract-service");
+const { createIdentityService } = require("./lib/services/identity-service");
+const { createDocumentExtractService } = require("./lib/services/document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
 const {
   listRepositories,
@@ -80,17 +80,17 @@ const {
   readRepositoryGroups,
   writeRepositoryGroups,
   shouldSkipAwnRepositoriesSearch
-} = require("./awn-repositories-service");
+} = require("./lib/services/awn-repositories-service");
 const {
   readDependencies,
   writeDependencies
-} = require("./dependencies-service");
+} = require("./lib/services/dependencies-service");
 const {
   createSidecarService,
   toSidecarRelativePath,
   resolveSidecarAbsoluteFromSourceAbsolute
-} = require("./sidecar-service");
-const { createWorkspaceBrainService } = require("./workspace-brain-service");
+} = require("./lib/services/sidecar-service");
+const { createWorkspaceBrainService } = require("./lib/services/workspace-brain-service");
 const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./workspace-importance");
 const {
   INDEX_EXCLUDE_FIELD_KEY,
@@ -101,13 +101,13 @@ const {
   parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
 } = require("./workspace-index-exclude");
-const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
+const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./lib/services/workspace-facts-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
   collectEntriesFromRoot,
   mapJournalEntryToFlowItem
-} = require("./workspace-journal-service");
+} = require("./lib/services/workspace-journal-service");
 const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./menu-cache/store");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
@@ -309,8 +309,8 @@ const {
   WORKSPACE_CONFIGURATION_SCHEMA_REL
 } = require("./configuration-schema");
 const { isSchemaModFileName } = require("./schema-mod-paths");
-const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
-const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
+const { rewriteAgentMarkdownLinks } = require("./lib/tools/markdown-link-rewriter");
+const { buildAgentBrokenLinksReport } = require("./lib/tools/broken-links-scanner");
 const {
   getMergedCatalogsPayload,
   getCatalogLookupMaps,
@@ -371,15 +371,15 @@ const {
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const { parseYamlScalar, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
 const { getWorkspaceTaxonomiesPayload } = require("./awn-taxonomy-service");
-const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
-const { createExistsApi } = require("./exists-api");
-const { createContentSchemaApi } = require("./content-schema-api");
-const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
+const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
+const { createExistsApi } = require("./lib/api/exists-api");
+const { createContentSchemaApi } = require("./lib/api/content-schema-api");
+const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./lib/api/ui-context-api");
 const {
   readIdleScreensaverBreaks,
   writeIdleScreensaverBreaks
-} = require("./idle-screensaver-rest-api");
-const { readPomodoroState, writePomodoroState } = require("./pomodoro-rest-api");
+} = require("./lib/api/idle-screensaver-rest-api");
+const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const {
   normalizePlatformAgentSettings,
