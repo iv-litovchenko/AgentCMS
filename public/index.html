@@ -3604,7 +3604,7 @@
                 id="agent-git-toolbar-branch-label"
                 class="agent-git-toolbar-branch-label"
                 for="agent-git-branch-toolbar-select"
-              >origin/main</label>
+              >Ветка</label>
               <select
                 id="agent-git-branch-toolbar-select"
                 class="agent-git-toolbar-branch-select"
@@ -3612,7 +3612,7 @@
                 aria-label="Ветка"
                 title="Пока только main"
               >
-                <option value="main" selected>main</option>
+                <option value="main" selected>origin/main</option>
               </select>
             </div>
             <button id="agent-git-save-btn" class="agent-git-save-btn" type="button" title="Закоммитить файлы по фильтру расширений и .gitignore">
@@ -3787,12 +3787,15 @@
           </div>
         </div>
         <div id="agent-git-info" class="agent-tool-info agent-git-info">
-          <div id="agent-git-meta" class="agent-git-info-main agent-tool-info-desc" role="status">
-            <div id="agent-git-meta-primary" class="agent-git-meta-primary">Статус рабочей копии и ветки</div>
+          <div class="agent-git-info-header">
+            <div id="agent-git-meta" class="agent-git-info-status agent-tool-info-desc" role="status">
+              <div id="agent-git-meta-primary" class="agent-git-meta-primary">Статус рабочей копии и ветки</div>
+            </div>
+            <div id="agent-git-stats" class="agent-workspace-stats agent-git-info-stats" aria-live="polite">
+              <span id="agent-git-meta-aside" class="agent-workspace-stat agent-workspace-stat--upstream hidden" aria-hidden="true"></span>
+            </div>
           </div>
-          <div id="agent-git-stats" class="agent-workspace-stats agent-git-info-side" aria-live="polite">
-            <span id="agent-git-meta-aside" class="agent-git-upstream-label hidden" aria-hidden="true"></span>
-          </div>
+          <div id="agent-git-extensions-mount" class="agent-git-info-extensions hidden" aria-hidden="true"></div>
         </div>
         <aside id="agent-git-hint" class="agent-git-hint agent-git-reference" aria-labelledby="agent-git-reference-title">
           <header class="agent-git-reference-head">

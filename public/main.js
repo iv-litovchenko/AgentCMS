@@ -245,28 +245,29 @@ const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitMetaNode = document.getElementById("agent-git-meta");
 const agentGitMetaPrimaryNode = document.getElementById("agent-git-meta-primary");
 const agentGitMetaAsideNode = document.getElementById("agent-git-meta-aside");
+const agentGitExtensionsMountNode = document.getElementById("agent-git-extensions-mount");
 
-function formatAgentGitMetaAside(data) {
+function formatAgentGitUpstreamChipValue(data) {
   const upstream = String(data?.upstream || "").trim();
   const base = upstream || formatAgentGitToolbarUpstreamLabel(data);
-  const parts = [`upstream: ${base}`];
+  const parts = [base];
   if (Number(data?.ahead) > 0) parts.push(`↑${data.ahead}`);
   if (Number(data?.behind) > 0) parts.push(`↓${data.behind}`);
   return parts.join(" · ");
 }
 
-function setAgentGitMetaAside(aside = "") {
-  const asideText = String(aside || "").trim();
+function setAgentGitUpstreamChip(data) {
   if (!agentGitMetaAsideNode) return;
-  if (asideText) {
-    agentGitMetaAsideNode.textContent = asideText;
-    agentGitMetaAsideNode.classList.remove("hidden");
-    agentGitMetaAsideNode.removeAttribute("aria-hidden");
-  } else {
+  if (!data?.isRepo) {
     agentGitMetaAsideNode.textContent = "";
-    agentGitMetaAsideNode.classList.add("hidden");
+    agentGitMetaAsideNode.className = "agent-workspace-stat agent-workspace-stat--upstream hidden";
     agentGitMetaAsideNode.setAttribute("aria-hidden", "true");
+    return;
   }
+  const value = formatAgentGitUpstreamChipValue(data);
+  agentGitMetaAsideNode.className = "agent-workspace-stat agent-workspace-stat--upstream";
+  agentGitMetaAsideNode.innerHTML = `<strong>${escapeHtml(value)}</strong> ${escapeHtml("upstream")}`;
+  agentGitMetaAsideNode.removeAttribute("aria-hidden");
 }
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
 const agentGitSaveBtn = document.getElementById("agent-git-save-btn");
@@ -288,16 +289,17 @@ function formatAgentGitToolbarUpstreamLabel(data) {
   return `${remote}/${branch}`;
 }
 
-function syncAgentGitBranchSelectElement(selectEl, branch) {
+function syncAgentGitBranchSelectElement(selectEl, branch, optionLabel = "") {
   if (!selectEl) return;
   const name = String(branch || "").trim() || "main";
-  const known = new Set(Array.from(selectEl.options).map((option) => option.value));
-  if (!known.has(name)) {
-    const option = document.createElement("option");
+  const label = String(optionLabel || "").trim() || name;
+  let option = Array.from(selectEl.options).find((entry) => entry.value === name);
+  if (!option) {
+    option = document.createElement("option");
     option.value = name;
-    option.textContent = name;
     selectEl.appendChild(option);
   }
+  option.textContent = label;
   selectEl.value = name;
 }
 const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
@@ -335,139 +337,56 @@ const AGENT_GIT_FILE_EXTENSIONS = [
   "lock"
 ];
 const AGENT_GIT_EXTRA_BASENAMES = [".gitignore", ".env*", "*.lock"];
-const AGENT_GIT_FILTER_STORAGE_KEY = "agent-cms-git-extension-filter";
-let agentGitFilterControlNode = null;
-
-function loadAgentGitEnabledExtensions() {
-  try {
-    const raw = localStorage.getItem(AGENT_GIT_FILTER_STORAGE_KEY);
-    if (!raw) return new Set(AGENT_GIT_FILE_EXTENSIONS);
-    const parsed = JSON.parse(raw);
-    if (parsed?.mode === "all") return new Set(AGENT_GIT_FILE_EXTENSIONS);
-    if (Array.isArray(parsed?.enabled)) {
-      const enabled = parsed.enabled
-        .map((entry) => String(entry || "").trim().toLowerCase().replace(/^\./, ""))
-        .filter((entry) => AGENT_GIT_FILE_EXTENSIONS.includes(entry));
-      return enabled.length ? new Set(enabled) : new Set(AGENT_GIT_FILE_EXTENSIONS);
-    }
-  } catch {
-    // ignore
-  }
-  return new Set(AGENT_GIT_FILE_EXTENSIONS);
-}
-
-let agentGitEnabledExtensions = loadAgentGitEnabledExtensions();
-
-function saveAgentGitEnabledExtensions() {
-  const all = AGENT_GIT_FILE_EXTENSIONS.every((ext) => agentGitEnabledExtensions.has(ext));
-  try {
-    localStorage.setItem(
-      AGENT_GIT_FILTER_STORAGE_KEY,
-      JSON.stringify({
-        mode: all ? "all" : "custom",
-        enabled: [...agentGitEnabledExtensions]
-      })
-    );
-  } catch {
-    // ignore
-  }
-}
+let agentGitExtensionsLegendNode = null;
 
 function getAgentGitActiveExtensions() {
   return [...AGENT_GIT_FILE_EXTENSIONS];
 }
 
-function isAgentGitFilterAllActive() {
-  return AGENT_GIT_FILE_EXTENSIONS.every((ext) => agentGitEnabledExtensions.has(ext));
-}
-
-function syncAgentGitFilterChipStates() {
-  const chips = agentGitFilterControlNode?.querySelector(".agent-git-filter-chips");
-  if (!chips) return;
-  const allOn = isAgentGitFilterAllActive();
-  chips.querySelector("[data-git-filter-all]")?.classList.toggle("is-active", allOn);
-  chips.querySelector("[data-git-filter-all]")?.setAttribute("aria-pressed", allOn ? "true" : "false");
-  for (const btn of chips.querySelectorAll("[data-ext]")) {
-    const ext = btn.dataset.ext || "";
-    const on = agentGitEnabledExtensions.has(ext);
-    btn.classList.toggle("is-active", on);
-    btn.setAttribute("aria-pressed", on ? "true" : "false");
-  }
-}
-
-function ensureAgentGitFilterControl() {
-  if (agentGitFilterControlNode?.isConnected) {
-    syncAgentGitFilterChipStates();
-    return agentGitFilterControlNode;
+function ensureAgentGitExtensionsLegend() {
+  if (agentGitExtensionsLegendNode?.isConnected) {
+    return agentGitExtensionsLegendNode;
   }
 
   const wrap = document.createElement("div");
-  wrap.className = "agent-git-filter";
-  wrap.id = "agent-git-filter";
+  wrap.className = "agent-git-extensions-legend";
+  wrap.id = "agent-git-extensions-legend";
 
-  const label = document.createElement("span");
-  label.className = "agent-git-filter-label";
-  label.textContent = "фильтр:";
-
-  const chips = document.createElement("div");
-  chips.className = "agent-git-filter-chips";
-  chips.setAttribute("role", "group");
-  chips.setAttribute("aria-label", "Расширения файлов для git");
-
-  const allBtn = document.createElement("button");
-  allBtn.type = "button";
-  allBtn.className = "agent-git-filter-chip";
-  allBtn.dataset.gitFilterAll = "1";
-  allBtn.textContent = "Все";
-  allBtn.setAttribute("aria-pressed", "false");
-  chips.appendChild(allBtn);
+  const list = document.createElement("div");
+  list.className = "agent-git-extensions-list";
+  list.setAttribute("aria-label", "Расширения файлов для коммита");
 
   for (const ext of AGENT_GIT_FILE_EXTENSIONS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "agent-git-filter-chip";
-    btn.dataset.ext = ext;
-    btn.textContent = ext;
-    btn.setAttribute("aria-pressed", "false");
-    chips.appendChild(btn);
+    const tag = document.createElement("span");
+    tag.className = "agent-git-ext-tag";
+    tag.textContent = ext;
+    list.appendChild(tag);
   }
 
-  wrap.append(label, chips);
+  wrap.appendChild(list);
 
   const extras = document.createElement("p");
-  extras.className = "agent-git-filter-extras";
-  extras.textContent = `всегда: ${AGENT_GIT_EXTRA_BASENAMES.join(", ")}`;
+  extras.className = "agent-git-extensions-extras";
+  extras.textContent = `Также по имени: ${AGENT_GIT_EXTRA_BASENAMES.join(", ")}`;
   wrap.appendChild(extras);
 
-  if (!wrap.dataset.bound) {
-    wrap.dataset.bound = "1";
-    chips.addEventListener("click", (event) => {
-      const btn = event.target.closest(".agent-git-filter-chip");
-      if (!btn || btn.disabled) return;
-      event.preventDefault();
-
-      if (btn.dataset.gitFilterAll) {
-        agentGitEnabledExtensions = new Set(AGENT_GIT_FILE_EXTENSIONS);
-      } else {
-        const ext = String(btn.dataset.ext || "").trim();
-        if (!ext) return;
-        if (agentGitEnabledExtensions.has(ext)) {
-          if (agentGitEnabledExtensions.size <= 1) return;
-          agentGitEnabledExtensions.delete(ext);
-        } else {
-          agentGitEnabledExtensions.add(ext);
-        }
-      }
-
-      saveAgentGitEnabledExtensions();
-      syncAgentGitFilterChipStates();
-      if (agentWorkspaceView === "git") void renderAgentGitView();
-    });
-  }
-
-  agentGitFilterControlNode = wrap;
-  syncAgentGitFilterChipStates();
+  agentGitExtensionsLegendNode = wrap;
   return wrap;
+}
+
+function syncAgentGitExtensionsLegend(data) {
+  const mount = agentGitExtensionsMountNode;
+  if (!mount) return;
+  mount.replaceChildren();
+  if (!data?.isRepo) {
+    mount.classList.add("hidden");
+    mount.setAttribute("aria-hidden", "true");
+    agentGitExtensionsLegendNode = null;
+    return;
+  }
+  mount.classList.remove("hidden");
+  mount.removeAttribute("aria-hidden");
+  mount.appendChild(ensureAgentGitExtensionsLegend());
 }
 
 function renderAgentGitMetaPrimary(data) {
@@ -478,7 +397,7 @@ function renderAgentGitMetaPrimary(data) {
 
   if (!data?.isRepo) {
     host.textContent = "Git-репозиторий не найден в корне workspace";
-    agentGitFilterControlNode = null;
+    agentGitExtensionsLegendNode = null;
     return;
   }
 
@@ -490,7 +409,7 @@ function renderAgentGitMetaPrimary(data) {
   } else if (data.filteredClean) {
     const status = document.createElement("p");
     status.className = "agent-git-meta-status";
-    status.textContent = `Нет изменений в фильтре (всего в git: ${data.totalChangeCount ?? 0})`;
+    status.textContent = `Нет изменений в этих расширениях (всего в git: ${data.totalChangeCount ?? 0})`;
     host.appendChild(status);
   }
 
@@ -511,9 +430,6 @@ function formatAgentGitCommitExtensionsDisplay(value) {
 function getAgentGitFilterLabel() {
   const active = getAgentGitActiveExtensions();
   const extras = AGENT_GIT_EXTRA_BASENAMES.join(", ");
-  if (isAgentGitFilterAllActive()) {
-    return `все (${active.length}), ${extras}`;
-  }
   return `${active.join(", ")}, ${extras}`;
 }
 let agentGitSettingsOpen = false;
@@ -101697,15 +101613,13 @@ function syncAgentGitSettingsUi(data) {
     agentGitRemoteUrlInput.value = origin.fetchUrl || origin.pushUrl || "";
   }
   syncAgentGitBranchSelectElement(agentGitBranchInput, data?.branch);
-  syncAgentGitBranchSelectElement(agentGitBranchToolbarSelect, data?.branch);
+  const toolbarUpstreamLabel = data?.isRepo ? formatAgentGitToolbarUpstreamLabel(data) : "origin/main";
+  syncAgentGitBranchSelectElement(agentGitBranchToolbarSelect, data?.branch, toolbarUpstreamLabel);
   if (agentGitToolbarBranchLabel) {
-    agentGitToolbarBranchLabel.textContent = data?.isRepo
-      ? formatAgentGitToolbarUpstreamLabel(data)
-      : "origin/main";
+    agentGitToolbarBranchLabel.textContent = "Ветка";
   }
   if (agentGitBranchToolbarSelect) {
-    const branch = String(data?.branch || "").trim() || "main";
-    agentGitBranchToolbarSelect.setAttribute("aria-label", `Ветка ${branch}`);
+    agentGitBranchToolbarSelect.setAttribute("aria-label", `Ветка ${toolbarUpstreamLabel}`);
   }
 }
 
@@ -101867,6 +101781,12 @@ async function renderAgentGitView() {
     agentGitStatsNode.replaceChildren();
     if (asidePreserve) agentGitStatsNode.appendChild(asidePreserve);
   }
+  if (agentGitExtensionsMountNode) {
+    agentGitExtensionsMountNode.replaceChildren();
+    agentGitExtensionsMountNode.classList.add("hidden");
+    agentGitExtensionsMountNode.setAttribute("aria-hidden", "true");
+    agentGitExtensionsLegendNode = null;
+  }
   if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
   if (agentGitPushBtn) agentGitPushBtn.disabled = true;
   if (agentGitPullBtn) agentGitPullBtn.disabled = true;
@@ -101910,7 +101830,8 @@ async function renderAgentGitView() {
     }
 
     renderAgentGitMetaPrimary(data);
-    setAgentGitMetaAside(data.isRepo ? formatAgentGitMetaAside(data) : "");
+    syncAgentGitExtensionsLegend(data);
+    setAgentGitUpstreamChip(data);
 
     if (!data.isRepo) {
       const empty = document.createElement("div");
@@ -101972,8 +101893,20 @@ async function renderAgentGitView() {
       for (const commit of data.commits) {
         const item = document.createElement("li");
         item.className = "agent-git-commit-row";
+        const commitHash = String(commit.hash || commit.shortHash || "").trim();
+        const commitShort = String(commit.shortHash || commitHash || "").trim();
         item.innerHTML = `
-          <span class="agent-git-commit-hash">${escapeHtml(commit.shortHash || commit.hash || "")}</span>
+          <span class="agent-git-commit-picker">
+            <input
+              type="radio"
+              class="agent-git-commit-radio"
+              name="agent-git-history-commit"
+              value="${escapeHtml(commitHash)}"
+              disabled
+              aria-label="Выбрать коммит ${escapeHtml(commitShort)}"
+            />
+          </span>
+          <span class="agent-git-commit-hash">${escapeHtml(commitShort)}</span>
           <span class="agent-git-commit-subject">${escapeHtml(commit.subject || "")}</span>
           <span class="agent-git-commit-meta">${escapeHtml([commit.when, commit.author].filter(Boolean).join(" · "))}</span>
         `;
