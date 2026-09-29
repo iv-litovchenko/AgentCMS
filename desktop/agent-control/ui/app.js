@@ -1127,7 +1127,7 @@ function renderControlCard(control) {
 function renderCommanderCard(commander) {
   if (!commander) return "";
 
-  const actionsHtml = `<button type="button" class="run-btn compact-btn" data-tone="default" disabled title="В разработке">Скоро</button>`;
+  const actionsHtml = `<button type="button" class="run-btn compact-btn" data-tone="default" disabled title="Заготовка на будущее">Заготовка</button>`;
   return launchTile(commander, actionsHtml);
 }
 
