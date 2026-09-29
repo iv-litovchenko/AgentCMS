@@ -167,7 +167,7 @@ const APP_PRODUCTS = [
 ];
 
 const CONTROL_SELF = {
-  title: "Agent CMS Control",
+  title: "Agent CMS Control (Launcher)",
   subtitle: "Этот пульт",
   badge: "Control",
   accent: "control",
