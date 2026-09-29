@@ -16321,6 +16321,12 @@ async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTE
   };
 }
 
+function isWorkspaceMarkdownContentFile(name) {
+  const lower = String(name || "").toLowerCase();
+  if (lower.endsWith(HISTORY_VERSION_SUFFIX.toLowerCase())) return false;
+  return lower.endsWith(".md");
+}
+
 async function collectWorkspaceStatsInDir(dirAbsolute, stats) {
   let entries = [];
   try {
@@ -16344,6 +16350,9 @@ async function collectWorkspaceStatsInDir(dirAbsolute, stats) {
       const stat = await fs.stat(absolute);
       stats.totalBytes += stat.size;
       stats.fileCount += 1;
+      if (isWorkspaceMarkdownContentFile(entry.name)) {
+        stats.mdFileCount += 1;
+      }
     } catch {
       // skip unreadable files
     }
@@ -16352,12 +16361,13 @@ async function collectWorkspaceStatsInDir(dirAbsolute, stats) {
 
 async function buildAgentWorkspaceStats() {
   const agentRoot = getAgentRoot();
-  const stats = { totalBytes: 0, fileCount: 0, folderCount: 0 };
+  const stats = { totalBytes: 0, fileCount: 0, mdFileCount: 0, folderCount: 0 };
   await collectWorkspaceStatsInDir(agentRoot, stats);
   return {
     totalBytes: stats.totalBytes,
     totalSizeLabel: formatBytesLabel(stats.totalBytes),
     fileCount: stats.fileCount,
+    mdFileCount: stats.mdFileCount,
     folderCount: stats.folderCount
   };
 }

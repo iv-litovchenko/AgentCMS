@@ -96257,6 +96257,7 @@ function renderMenuAgentStorageSummary(payload, { loading = false, error = null 
   ]);
 
   appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Хранилище", [
+    { label: "Файлов (.md)", value: workspace.mdFileCount },
     { label: "Файлов", value: workspace.fileCount },
     { label: "Папок", value: workspace.folderCount },
     { label: "Размер", value: workspace.totalSizeLabel }
