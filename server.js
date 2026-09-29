@@ -39,9 +39,9 @@ const { createSemanticSearchService } = require("./lib/indexes/semantic-search/s
 const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
 const { createLinkIndexService } = require("./lib/indexes/link-index/service");
-const { createWorkspaceIdService, parseAwnId } = require("./workspace-id/service");
-const { createNavFlagsRegistryService } = require("./nav-flags-registry/service");
-const { allocateNextId, readCounter } = require("./workspace-id/store");
+const { createWorkspaceIdService, parseAwnId } = require("./lib/workspace-id/service");
+const { createNavFlagsRegistryService } = require("./lib/nav-flags-registry/service");
+const { allocateNextId, readCounter } = require("./lib/workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./lib/indexes/workspace-index/monitor");
 const {
@@ -108,7 +108,7 @@ const {
   collectEntriesFromRoot,
   mapJournalEntryToFlowItem
 } = require("./lib/services/workspace-journal-service");
-const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./menu-cache/store");
+const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./lib/menu-cache/store");
 const { parseCsvText } = require("./lib/awn/awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
@@ -1071,7 +1071,7 @@ function sendJson(res, statusCode, payload, extraHeaders = null) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
-const { rel: agentCmsRel } = require("./paths/agent-cms");
+const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
 const {
   migrateProjectAgentCmsLayout,
   migrateAllWorkspaceAwnDatabasesFolders,

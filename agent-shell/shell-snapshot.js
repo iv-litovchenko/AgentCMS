@@ -4,7 +4,7 @@ const {
   shellSnapshotCacheDir,
   shellSnapshotCacheRel,
   rewriteShellSnapshotRelPath
-} = require("../paths/agent-cms");
+} = require("../lib/paths/agent-cms");
 
 function parseDataUrl(dataUrl) {
   const raw = String(dataUrl || "").trim();

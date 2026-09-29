@@ -1,6 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
-const { rel } = require("../paths/agent-cms");
+const { rel } = require("../lib/paths/agent-cms");
 
 const LEGACY_AWN_SHELL_FILE = "awn-shell.json";
 const WORKSPACE_SETTINGS_FILE = rel.settings.workspace;

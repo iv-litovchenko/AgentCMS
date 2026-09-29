@@ -58,7 +58,7 @@ function settingsFormatModule() {
   return require("./shell-settings-format");
 }
 
-const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
+const { rel, abs: agentCmsAbs } = require("../lib/paths/agent-cms");
 
 const SHELL_STATE_REL = rel.state.shell;
 const WORKSPACE_SETTINGS_REL = rel.settings.workspace;

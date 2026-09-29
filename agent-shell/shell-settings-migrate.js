@@ -1,6 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
-const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
+const { rel, abs: agentCmsAbs } = require("../lib/paths/agent-cms");
 const { flattenSettings } = require("./shell-settings-format");
 const { hydrateWorkspaceFromShell, pickShellRuntimePatch } = require("../lib/workspace/workspace-shell-settings-bridge");
 const { SESSION_SHELL_TO_WORKSPACE } = require("../lib/workspace/workspace-route-settings-bridge");

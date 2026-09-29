@@ -249,10 +249,10 @@ YamlCMS/  (корень)
 │   ├── app-lock-*.js           → lib/auth/
 │   └── system-environment.js, lan-ip.js, mkcert-ios-ca.js → lib/runtime/
 │
-├── ⚠️ paths/                   → lib/paths/ (или lib/config/paths/)
-├── ⚠️ workspace-id/            → lib/workspace-id/
-├── ⚠️ menu-cache/              → lib/menu-cache/
-├── ⚠️ nav-flags-registry/      → lib/nav-flags-registry/
+├── ⚠️ paths/  (+)               → lib/paths/
+├── ⚠️ workspace-id/  (+)       → lib/workspace-id/
+├── ⚠️ menu-cache/  (+)         → lib/menu-cache/
+├── ⚠️ nav-flags-registry/  (+) → lib/nav-flags-registry/
 │
 ├── 🔴 semantic-search/  (+)   → lib/indexes/semantic-search/
 ├── 🔴 fulltext-index/  (+)     → lib/indexes/fulltext-index/
@@ -270,4 +270,4 @@ YamlCMS/  (корень)
 
 **❌ в корне оставить:** `server.js`, `package.json`, `workspaces/`, `public/`, `mcp-server/`, `agent-shell/`, `desktop/`, `scripts/`, `docs/`, `examples/`, `browser-extension/`, `commands/`.
 
-**Порядок:** ⚠️ `paths` + одиночные `lib/*.js` → ⚠️ `workspace-id` / `menu-cache` / `nav-flags-registry` → 🔴 `*-index/` **(+)** → ⚠️ `voice-server` → 🗑️ `tools` **(+)** / `site3` **(+)**.
+**Порядок:** ⚠️ `paths` **(+)** / `workspace-id` **(+)** / `menu-cache` **(+)** / `nav-flags-registry` **(+)** → одиночные `lib/*.js` → 🔴 `*-index/` **(+)** → ⚠️ `voice-server` → 🗑️ `tools` **(+)** / `site3` **(+)**.

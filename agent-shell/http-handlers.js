@@ -1,5 +1,5 @@
 const shellService = require("./shell-service");
-const { rel } = require("../paths/agent-cms");
+const { rel } = require("../lib/paths/agent-cms");
 const shellPresence = require("./shell-presence");
 const windowSettings = require("./window-settings");
 const { loadShellPromptTemplates } = require("./shell-prompt-presets");
