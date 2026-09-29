@@ -681,8 +681,10 @@ temp/
 # Зависимости (если есть npm-скрипты)
 node_modules/
 
-# Слоты awn-storage — media (крупные файлы)
-**/awn-storage/**/media/
+# Слоты awn-storage — media (крупные файлы; .md — sidecar и подписи — в git)
+**/awn-storage/**/media/**
+!**/awn-storage/**/media/**/
+!**/awn-storage/**/media/**/*.md
 
 # Каталог исходников — в git только manifest + README карточки
 awn-repositories/**/*
@@ -6164,7 +6166,7 @@ function getSystemFileHintSpec(name) {
     return {
       title: "Git — что не попадает в репозиторий",
       text:
-        "Корневой <code>.gitignore</code> workspace: runtime <code>.agent-cms/</code>, временные <code>awn-temp/</code>, OS-мусор, слоты <code>media</code>. " +
+        "Корневой <code>.gitignore</code> workspace: runtime <code>.agent-cms/</code>, временные <code>awn-temp/</code>, OS-мусор, бинарники в <code>awn-storage/…/media/</code> (файлы <code>.md</code> там — в git). " +
         "В <code>awn-repositories/</code> коммитим только <code>manifest.md</code> и <code>README.md</code>.",
       example: RECOMMENDED_AGENT_GITIGNORE
     };

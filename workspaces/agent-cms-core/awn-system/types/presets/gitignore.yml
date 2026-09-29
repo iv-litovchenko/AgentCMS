@@ -6,7 +6,7 @@ status: active
 extends: awn.preset
 target-file: ".gitignore"
 hint-title: "Git — что не попадает в репозиторий"
-hint-text: "Корневой <code>.gitignore</code> workspace: секреты, кэш <code>.agent-cms/cache/</code>, временные <code>awn-temp/</code>, OS-мусор, слоты <code>media</code>. В <code>awn-repositories/</code> — <code>index.md</code>, <code>manifest.md</code> и <code>README.md</code> карточек; остальное клона — нет."
+hint-text: "Корневой <code>.gitignore</code> workspace: секреты, кэш <code>.agent-cms/cache/</code>, временные <code>awn-temp/</code>, OS-мусор, бинарники в <code>awn-storage/…/media/</code> (файлы <code>.md</code> там — в git). В <code>awn-repositories/</code> — <code>index.md</code>, <code>manifest.md</code> и <code>README.md</code> карточек; остальное клона — нет."
 sort: 1
 body: |
   # Секреты — не коммитить
@@ -39,8 +39,10 @@ body: |
   # Зависимости (если есть npm-скрипты)
   node_modules/
 
-  # Слоты awn-storage — media (крупные файлы)
-  **/awn-storage/**/media/
+  # Слоты awn-storage — media (крупные файлы; .md — sidecar и подписи — в git)
+  **/awn-storage/**/media/**
+  !**/awn-storage/**/media/**/
+  !**/awn-storage/**/media/**/*.md
 
   # Каталог клонов — в git каталог index.md и карточки manifest + README
   awn-repositories/**
