@@ -244,6 +244,8 @@ const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitMetaNode = document.getElementById("agent-git-meta");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
+const agentGitSaveBtn = document.getElementById("agent-git-save-btn");
+const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml"];
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
 const agentJournalContentNode = document.getElementById("agent-journal-content");
 const agentJournalMetaNode = document.getElementById("agent-journal-meta");
@@ -101328,12 +101330,32 @@ async function renderAgentRuntimeRegistryView() {
 }
 
 async function fetchAgentGitStatus() {
-  const response = await fetch(buildApiUrl("/api/git/status"));
+  const response = await fetch(
+    buildApiUrl("/api/git/status", {
+      extensions: AGENT_GIT_FILE_EXTENSIONS.join(",")
+    })
+  );
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP ${response.status}`);
+    throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
   }
   return response.json();
+}
+
+async function commitAgentGitChanges(message) {
+  const response = await fetch(buildApiUrl("/api/git/commit"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      extensions: AGENT_GIT_FILE_EXTENSIONS
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  }
+  return payload;
 }
 
 function createAgentWorkspaceStatElement(value, label, tone = "") {
@@ -101448,6 +101470,7 @@ async function renderAgentGitView() {
 
   agentGitContentNode.replaceChildren();
   if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
+  if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
 
   const loading = document.createElement("p");
   loading.className = "agent-tool-loading agent-git-empty";
@@ -101460,20 +101483,37 @@ async function renderAgentGitView() {
 
     if (agentGitStatsNode) {
       if (data.isRepo) {
+        const filteredTotal = data.counts?.total ?? 0;
+        const repoTotal = data.totalChangeCount ?? filteredTotal;
+        const changeLabel =
+          repoTotal > filteredTotal ? `${filteredTotal} / ${repoTotal}` : String(filteredTotal);
         agentGitStatsNode.append(
-          renderAgentGitStatChip("изменений", data.counts?.total ?? 0, data.clean ? "clean" : "dirty"),
+          renderAgentGitStatChip("изменений", changeLabel, data.filteredClean ? "clean" : "dirty"),
           renderAgentGitStatChip("ветка", data.branch || "—", "branch")
         );
       }
     }
 
+    if (agentGitSaveBtn) {
+      const canSave = Boolean(
+        data.isRepo &&
+          !data.error &&
+          (data.counts?.conflict ?? 0) === 0 &&
+          (data.counts?.total ?? 0) > 0
+      );
+      agentGitSaveBtn.disabled = !canSave;
+    }
+
     if (agentGitMetaNode) {
+      const extLabel = AGENT_GIT_FILE_EXTENSIONS.join(", ");
       if (!data.isRepo) {
         agentGitMetaNode.textContent = "Git-репозиторий не найден в корне workspace";
       } else if (data.clean) {
-        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · рабочая копия чистая`;
+        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · рабочая копия чистая · фильтр: ${extLabel}`;
+      } else if (data.filteredClean) {
+        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · нет изменений в ${extLabel} (всего в git: ${data.totalChangeCount ?? 0})`;
       } else {
-        const parts = [`Ветка ${data.branch || "—"}`];
+        const parts = [`Ветка ${data.branch || "—"}`, `фильтр: ${extLabel}`];
         if (data.upstream) parts.push(`upstream: ${data.upstream}`);
         if (data.ahead) parts.push(`↑${data.ahead}`);
         if (data.behind) parts.push(`↓${data.behind}`);
@@ -101508,6 +101548,11 @@ async function renderAgentGitView() {
       clean.className = "agent-git-clean-banner";
       clean.textContent = "Рабочая копия чистая — нет незакоммиченных изменений.";
       shell.appendChild(clean);
+    } else if (data.filteredClean) {
+      const filtered = document.createElement("p");
+      filtered.className = "agent-git-clean-banner";
+      filtered.textContent = `Нет изменений в файлах ${AGENT_GIT_FILE_EXTENSIONS.join(", ")} — в репозитории другие правки (${data.totalChangeCount ?? 0}).`;
+      shell.appendChild(filtered);
     } else {
       const groups = [
         ["В индексе", data.changes.filter((item) => item.kind === "staged")],
@@ -101828,7 +101873,13 @@ async function renderAgentBrokenLinksView() {
 }
 
 const WORKSPACE_MODULES_CATALOG = [
-  { id: "module-git", label: "Git-репозиторий", view: "git", mcp: "—", status: "active" },
+  {
+    id: "module-git",
+    label: "Git-репозиторий",
+    view: "git",
+    mcp: "module_git_status, module_git_commit",
+    status: "active"
+  },
   {
     id: "module-journal",
     label: "Журнал",
@@ -120852,6 +120903,30 @@ agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
     void renderAgentGitView();
   }
+});
+
+agentGitSaveBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView !== "git") return;
+  const defaultMessage = `Сохранение workspace (${new Date().toISOString().slice(0, 10)})`;
+  const message = window.prompt("Сообщение коммита", defaultMessage);
+  if (message == null) return;
+  const trimmed = String(message).trim();
+  if (!trimmed) return;
+  agentGitSaveBtn.disabled = true;
+  void commitAgentGitChanges(trimmed)
+    .then((result) => {
+      if (result?.committed) {
+        const hash = result.shortHash || result.hash || "";
+        window.alert(hash ? `Коммит создан: ${hash}` : "Коммит создан");
+      } else {
+        window.alert("Нет изменений для коммита в выбранных типах файлов");
+      }
+      void renderAgentGitView();
+    })
+    .catch((error) => {
+      window.alert(`Не удалось сохранить: ${error.message}`);
+      void renderAgentGitView();
+    });
 });
 
 agentJournalRefreshBtn?.addEventListener("click", () => {

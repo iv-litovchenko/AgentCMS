@@ -12991,6 +12991,28 @@ body.workspace-idle-screensaver-active {
   background: rgba(255, 247, 237, 0.95);
 }
 
+.agent-git-save-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 70, 229, 0.45);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.95), rgba(79, 70, 229, 0.95));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.agent-git-save-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.agent-git-save-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .agent-workspace-refresh-btn,
 .agent-timeline-refresh-btn,
 .agent-git-refresh-btn,

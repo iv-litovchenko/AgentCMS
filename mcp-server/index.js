@@ -32,6 +32,7 @@ import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
+import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 
@@ -157,6 +158,7 @@ function createServer() {
 
   registerSettingsTools(reg, client);
   registerDependenciesTools(reg, client);
+  registerGitModuleTools(reg, client);
 
   // ── Навигация (3) ──────────────────────────────────────────────────────────
 
