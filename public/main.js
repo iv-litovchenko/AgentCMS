@@ -88931,9 +88931,68 @@ function ensureMermaidDiagramFrame(block) {
   return frame;
 }
 
+function ensureMermaidDiagramActions(frame) {
+  let bar = frame.querySelector(".mermaid-diagram-actions");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "mermaid-diagram-actions";
+    frame.appendChild(bar);
+  }
+  const themeBtn = frame.querySelector(":scope > .mermaid-diagram-theme-btn");
+  const sourceBtn = frame.querySelector(":scope > .mermaid-diagram-source-btn");
+  if (themeBtn && themeBtn.parentElement === frame) bar.appendChild(themeBtn);
+  if (sourceBtn && sourceBtn.parentElement === frame) bar.appendChild(sourceBtn);
+  return bar;
+}
+
+function toggleMermaidSourceView(frame, block) {
+  const open = !frame.classList.contains("is-mermaid-source-open");
+  frame.classList.toggle("is-mermaid-source-open", open);
+  const btn = frame.querySelector(".mermaid-diagram-source-btn");
+  if (btn) {
+    btn.setAttribute("aria-pressed", open ? "true" : "false");
+    btn.title = open ? "Скрыть исходник Mermaid" : "Показать исходник Mermaid";
+  }
+  if (!open) return;
+
+  const source = getMermaidBlockSource(block);
+  let view = frame.querySelector(".mermaid-diagram-source-view");
+  if (!view) {
+    view = document.createElement("pre");
+    view.className = "mermaid-diagram-source-view";
+    const code = document.createElement("code");
+    view.appendChild(code);
+    frame.insertBefore(view, block);
+  }
+  const code = view.querySelector("code");
+  if (code) code.textContent = source;
+}
+
+function ensureMermaidSourceButton(frame, block) {
+  const bar = ensureMermaidDiagramActions(frame);
+  let btn = bar.querySelector(".mermaid-diagram-source-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-source-btn";
+    btn.textContent = "Исходник";
+    btn.title = "Показать исходник Mermaid";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", "false");
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMermaidSourceView(frame, block);
+    });
+    bar.appendChild(btn);
+  }
+  return btn;
+}
+
 async function ensureMermaidThemeToggle(frame, block) {
   const themeMod = await loadMermaidThemeModule();
-  let btn = frame.querySelector(".mermaid-diagram-theme-btn");
+  const bar = ensureMermaidDiagramActions(frame);
+  let btn = bar.querySelector(".mermaid-diagram-theme-btn");
   if (!btn) {
     btn = document.createElement("button");
     btn.type = "button";
@@ -88944,7 +89003,7 @@ async function ensureMermaidThemeToggle(frame, block) {
       event.stopPropagation();
       void toggleMermaidDiagramTheme(frame, block);
     });
-    frame.appendChild(btn);
+    bar.appendChild(btn);
   }
   themeMod.syncMermaidThemeToggleUi(frame, "light");
   return btn;
@@ -88957,6 +89016,10 @@ async function renderMermaidBlock(block, theme = "light") {
   const themeMod = await loadMermaidThemeModule();
   const frame = ensureMermaidDiagramFrame(block);
   const frameTheme = themeMod.applyMermaidFrameTheme(frame, theme, "light");
+  frame.classList.remove("is-mermaid-source-open");
+  const sourceBtn = frame.querySelector(".mermaid-diagram-source-btn");
+  sourceBtn?.setAttribute("aria-pressed", "false");
+  ensureMermaidSourceButton(frame, block);
   await ensureMermaidThemeToggle(frame, block);
 
   block.dataset.mermaidSource = source;

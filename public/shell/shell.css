@@ -12163,7 +12163,7 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
 .shell-chat-msg .shell-md .mermaid-diagram-frame pre.mermaid a .nodeLabel p,
 .shell-reply-segment.shell-md .mermaid-diagram-frame pre.mermaid a .nodeLabel p,
 .shell-reply-tts-block-text.shell-md .mermaid-diagram-frame pre.mermaid a .nodeLabel p {
-  font-weight: 700 !important;
+  font-weight: inherit !important;
   color: #1d4ed8 !important;
   text-decoration: underline !important;
   text-decoration-thickness: 1.5px;

@@ -52399,7 +52399,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .mermaid-diagram-frame pre.mermaid a .nodeLabel,
 .mermaid-diagram-frame pre.mermaid a .nodeLabel p {
-  font-weight: 700 !important;
+  font-weight: inherit !important;
   color: #1d4ed8 !important;
   text-decoration: underline !important;
   text-decoration-thickness: 1.5px;
@@ -52447,11 +52447,22 @@ button.node-navigation-memory-title:focus-visible {
   user-select: none;
 }
 
-.mermaid-diagram-theme-btn {
+.mermaid-diagram-actions {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+}
+
+.mermaid-diagram-theme-btn,
+.mermaid-diagram-source-btn {
+  position: static;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -52479,6 +52490,90 @@ button.node-navigation-memory-title:focus-visible {
 .mermaid-diagram-theme-label {
   font-weight: 600;
   white-space: nowrap;
+}
+
+.mermaid-diagram-source-btn {
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 500;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mermaid-diagram-source-btn:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-btn {
+  border-color: #475569;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-btn:hover {
+  background: #1e293b;
+  border-color: #64748b;
+  color: #f8fafc;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open .mermaid-diagram-source-btn {
+  border-color: #6366f1;
+  color: #4338ca;
+  background: #eef2ff;
+}
+
+.mermaid-diagram-frame.is-dark.is-mermaid-source-open .mermaid-diagram-source-btn {
+  border-color: #818cf8;
+  color: #e0e7ff;
+  background: rgba(49, 46, 129, 0.45);
+}
+
+.mermaid-diagram-source-view {
+  display: none;
+  margin: 0 0 0.5rem;
+  padding: 12px;
+  max-height: min(420px, 50vh);
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open .mermaid-diagram-source-view {
+  display: block;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open pre.mermaid {
+  display: none;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-view {
+  border-color: #334155;
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+}
+
+.mermaid-diagram-source-view code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  background: transparent;
+  padding: 0;
 }
 
 .mermaid-diagram-frame.is-dark .mermaid-diagram-theme-btn {
