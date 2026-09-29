@@ -11,7 +11,7 @@
   <path d="M 50 14 L 56 14 L 56 20" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
   <path d="M 56 46 L 56 52 L 50 52" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
   <path d="M 20 52 L 14 52 L 14 46" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
-  <path d="M 32 15 A 18 18 0 0 1 50 33" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
-  <ellipse cx="32" cy="35" rx="9" ry="11" fill="#ffffff" />
-  <circle cx="50" cy="33" r="2" fill="#ffffff" opacity="0.8" />
+  <path d="M 32 14 A 18 18 0 0 1 50 32" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <ellipse cx="32" cy="32" rx="9" ry="11" fill="#ffffff" />
+  <circle cx="50" cy="32" r="2" fill="#ffffff" opacity="0.8" />
 </svg>

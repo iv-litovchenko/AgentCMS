@@ -7,8 +7,8 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#cmd-bg-02)" />
-  <ellipse cx="32" cy="36" rx="18" ry="22" fill="none" stroke="#ffffff" stroke-width="3" />
-  <path d="M 32 14 L 32 28" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
-  <rect x="28" y="16" width="8" height="10" rx="4" fill="#ffffff" />
-  <line x1="14" y1="36" x2="50" y2="36" stroke="#ffffff" stroke-width="2" opacity="0.35" stroke-linecap="round" />
+  <ellipse cx="32" cy="32" rx="18" ry="20" fill="none" stroke="#ffffff" stroke-width="3" />
+  <path d="M 32 12 L 32 24" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <rect x="28" y="14" width="8" height="10" rx="4" fill="#ffffff" />
+  <line x1="14" y1="32" x2="50" y2="32" stroke="#ffffff" stroke-width="2" opacity="0.35" stroke-linecap="round" />
 </svg>

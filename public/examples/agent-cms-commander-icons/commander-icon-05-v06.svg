@@ -7,10 +7,10 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#cmd-v06)" />
-  <circle cx="32" cy="33" r="20" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22" />
-  <path d="M 32 13 A 20 20 0 0 1 52 33" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
-  <path d="M 32 53 A 20 20 0 0 1 12 33" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
-  <path d="M 52 33 A 20 20 0 0 1 12 33" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.28" />
-  <ellipse cx="32" cy="35" rx="10" ry="12" fill="#ffffff" />
-  <path d="M 32 24 L 32 31" stroke="#9f1239" stroke-width="2" stroke-linecap="round" opacity="0.4" />
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22" />
+  <path d="M 32 12 A 20 20 0 0 1 52 32" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <path d="M 32 52 A 20 20 0 0 1 12 32" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <path d="M 52 32 A 20 20 0 0 1 12 32" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.28" />
+  <ellipse cx="32" cy="32" rx="10" ry="11" fill="#ffffff" />
+  <path d="M 32 21 L 32 28" stroke="#9f1239" stroke-width="2" stroke-linecap="round" opacity="0.4" />
 </svg>
