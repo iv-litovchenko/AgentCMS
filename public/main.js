@@ -4870,6 +4870,18 @@ function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
 
 async function openRepositoryWorkspaceEntry(entry, options = {}) {
   if (!entry || entry.registered === false) return;
+  if (options.openMockupPreview) {
+    const folderPathForPreview = normalizeLinkFilePath(
+      entry.folderPath || `awn-repositories/${entry.slug || ""}`
+    );
+    repositoryMockupPreviewFileRel =
+      String(options.mockupIndexRel || entry.rootIndexHtmlPath || `${folderPathForPreview}/index.html`)
+        .replace(/\\/g, "/")
+        .replace(/^\/+/, "")
+        .trim() || null;
+  } else if (!options.keepMockupPreview) {
+    repositoryMockupPreviewFileRel = null;
+  }
   const folderPath = normalizeLinkFilePath(
     entry.folderPath || `awn-repositories/${entry.slug || ""}`
   );
@@ -4929,6 +4941,7 @@ async function openRepositoryWorkspaceEntry(entry, options = {}) {
   applyModeUi({ skipAsyncRender: true });
   await renderRepositoryNavigationPage();
   applyNodeWorkspaceViewUi();
+  syncRepositoryMockupPreviewUi();
   updateBreadcrumbsForActiveMode();
   void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
 
@@ -88403,6 +88416,7 @@ function applyModeUi(options = {}) {
   syncSaveButtonLamp();
   window.AgentDiscussPanel?.sync?.();
   } finally {
+    syncRepositoryMockupPreviewUi();
     scheduleWorkspaceScrollChromeSync();
   }
 }
@@ -107430,6 +107444,8 @@ let menuRepositoriesSearchQuery = "";
 /** @type {{ mode: "create"|"edit"|"adopt", manifestPath?: string, slug?: string }} */
 let repositoryModalState = { mode: "create" };
 let repositoryGroupsDraft = { groups: [], assignments: {} };
+let repositoryMockupPreviewFileRel = null;
+let repositoryMockupPreviewBlockNode = null;
 let awnDataCatalogAgentId = null;
 let awnDataViewCatalogAgentId = null;
 let activeFolderBrowseAgentId = null;
@@ -115349,6 +115365,190 @@ function renderRepositoryWorkspaceReadme(repo, nodePath) {
   return section;
 }
 
+function repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath) {
+  if (repo?.hasRootIndexHtml) return true;
+  const normalizedFolder = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .trim();
+  if (!normalizedFolder) return false;
+  const items = Array.isArray(scanData?.items) ? scanData.items : [];
+  return items.some((item) => {
+    if (item?.kind === "folder") return false;
+    if (String(item?.name || "").toLowerCase() !== "index.html") return false;
+    const parent = String(item?.parentFolder || "")
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "")
+      .trim();
+    return parent === normalizedFolder;
+  });
+}
+
+function getRepositoryRootIndexHtmlRel(repo, folderPath) {
+  const fromRepo = String(repo?.rootIndexHtmlPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (fromRepo) return fromRepo;
+  const folder = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .trim();
+  return folder ? `${folder}/index.html` : "";
+}
+
+function ensureRepositoryMockupPreviewBlock() {
+  if (repositoryMockupPreviewBlockNode?.isConnected) return repositoryMockupPreviewBlockNode;
+  const block = document.createElement("section");
+  block.id = "repository-mockup-preview-block";
+  block.className = "repository-mockup-preview hidden";
+  block.setAttribute("aria-label", "Просмотр макета index.html");
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "repository-mockup-preview-toolbar";
+
+  const title = document.createElement("span");
+  title.className = "repository-mockup-preview-title";
+  title.textContent = "Просмотр макета (index.html)";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "repository-mockup-preview-close-btn";
+  closeBtn.textContent = "К обзору";
+  closeBtn.addEventListener("click", () => {
+    closeRepositoryMockupPreview();
+  });
+
+  toolbar.append(title, closeBtn);
+
+  const frame = document.createElement("iframe");
+  frame.className = "repository-mockup-preview-iframe";
+  frame.title = "Макет index.html";
+  frame.loading = "lazy";
+  frame.setAttribute("referrerpolicy", "no-referrer");
+
+  block.append(toolbar, frame);
+  docSlabMainNode?.appendChild(block);
+  repositoryMockupPreviewBlockNode = block;
+  return block;
+}
+
+function syncRepositoryMockupPreviewUi() {
+  const block = ensureRepositoryMockupPreviewBlock();
+  const docSlab = getDocSlabContentNode();
+  const previewRel = String(repositoryMockupPreviewFileRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const show =
+    Boolean(previewRel) &&
+    isRepositoryWorkspacePath() &&
+    (activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_OVERVIEW_MODE);
+
+  docSlab?.classList.toggle("is-repository-mockup-preview", show);
+  workspacePathHeaderNode?.classList.toggle("is-repository-mockup-preview", show);
+  block.classList.toggle("hidden", !show);
+  if (!show) {
+    const frame = block.querySelector(".repository-mockup-preview-iframe");
+    if (frame) frame.removeAttribute("src");
+    return;
+  }
+
+  nodeOverviewBlockNode?.classList.add("hidden");
+  const frame = block.querySelector(".repository-mockup-preview-iframe");
+  if (frame) {
+    const nextSrc = buildWorkspaceFolderBrowseFileUrl(previewRel);
+    if (frame.getAttribute("src") !== nextSrc) frame.src = nextSrc;
+  }
+}
+
+function closeRepositoryMockupPreview() {
+  repositoryMockupPreviewFileRel = null;
+  syncRepositoryMockupPreviewUi();
+  applyModeUi({ skipAsyncRender: false });
+}
+
+async function openRepositoryMockupPreview(entryOrFolderPath, options = {}) {
+  const entry =
+    entryOrFolderPath && typeof entryOrFolderPath === "object"
+      ? entryOrFolderPath
+      : {
+          folderPath: String(entryOrFolderPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim(),
+          slug: String(entryOrFolderPath || "")
+            .replace(/\\/g, "/")
+            .split("/")
+            .filter(Boolean)
+            .pop()
+        };
+  const folderPath = normalizeLinkFilePath(
+    entry.folderPath || `awn-repositories/${entry.slug || ""}`
+  );
+  const indexRel = getRepositoryRootIndexHtmlRel(entry, folderPath);
+  if (!indexRel) return;
+
+  const manifestPath = normalizeLinkFilePath(
+    entry.manifestPath || `${folderPath}/manifest.md`
+  );
+  const sameRepo =
+    normalizeLinkFilePath(activePath) === manifestPath ||
+    getRepositoryFolderPathFromWorkspacePath(getResolvedNodePath(activePath)) === folderPath;
+
+  if (sameRepo && isRepositoryWorkspacePath()) {
+    repositoryMockupPreviewFileRel = indexRel;
+    applyModeUi({ skipAsyncRender: true });
+    syncRepositoryMockupPreviewUi();
+    return;
+  }
+
+  await openRepositoryWorkspaceEntry(
+    { ...entry, folderPath, manifestPath, registered: true },
+    {
+      ...options,
+      openMockupPreview: true,
+      mockupIndexRel: indexRel,
+      skipRouteSync: options.skipRouteSync
+    }
+  );
+}
+
+const REPOSITORY_MOCKUP_PREVIEW_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+function createRepositoryMockupPreviewMenuButton(repo) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-repository-preview-btn";
+  btn.title = "Просмотр макета (index.html)";
+  btn.setAttribute("aria-label", "Просмотр макета (index.html)");
+  btn.draggable = false;
+  btn.innerHTML = REPOSITORY_MOCKUP_PREVIEW_ICON_SVG;
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    suspendAppRouteSync();
+    void openRepositoryMockupPreview(repo, { skipRouteSync: true }).finally(() => {
+      resumeAppRouteSync();
+      syncAppRouteToUrl({ push: true });
+    });
+  });
+  return btn;
+}
+
+function createRepositoryWorkspaceMockupPreviewCta(repo, folderPath, scanData) {
+  if (!repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath)) return null;
+  const wrap = document.createElement("div");
+  wrap.className = "repository-workspace-mockup-cta-wrap";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "repository-workspace-mockup-cta";
+  btn.innerHTML = `<span class="repository-workspace-mockup-cta-icon">${REPOSITORY_MOCKUP_PREVIEW_ICON_SVG}</span><span class="repository-workspace-mockup-cta-label">Просмотр макета (index.html)</span>`;
+  btn.addEventListener("click", () => {
+    void openRepositoryMockupPreview({ ...repo, folderPath });
+  });
+  wrap.appendChild(btn);
+  return wrap;
+}
+
 function getRepositoryStatsTheme() {
   const saved = readStorageItem(REPOSITORY_STATS_THEME_STORAGE_KEY);
   return saved === "light" ? "light" : "dark";
@@ -115397,7 +115597,7 @@ function createRepositoryStatsThemeToggle(dashboard) {
   return wrap;
 }
 
-function renderRepositoryWorkspaceDashboard(repo, scanStats) {
+function renderRepositoryWorkspaceDashboard(repo, scanStats, { folderPath = "", scanData = null } = {}) {
   const dashboard = document.createElement("section");
   dashboard.className = "repository-workspace-dashboard is-dark";
   dashboard.setAttribute("aria-label", "Статистика репозитория");
@@ -115409,6 +115609,9 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats) {
   title.textContent = "Статистика";
   head.append(title, createRepositoryStatsThemeToggle(dashboard));
   dashboard.appendChild(head);
+
+  const mockupCta = createRepositoryWorkspaceMockupPreviewCta(repo, folderPath, scanData);
+  if (mockupCta) dashboard.appendChild(mockupCta);
 
   const grid = document.createElement("div");
   grid.className = "repository-workspace-stat-grid";
@@ -115526,7 +115729,9 @@ async function renderRepositoryNavigationPage() {
 
   const scanStats = aggregateRepositoryFolderScan(scanData || {});
   if (repo) {
-    hubMain.appendChild(renderRepositoryWorkspaceDashboard(repo, scanStats));
+    hubMain.appendChild(
+      renderRepositoryWorkspaceDashboard(repo, scanStats, { folderPath, scanData })
+    );
     hubMain.appendChild(renderRepositoryWorkspaceReadme(repo, manifestPath));
   } else {
     const error = document.createElement("p");
@@ -115546,6 +115751,7 @@ async function renderRepositoryNavigationPage() {
 
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
+  syncRepositoryMockupPreviewUi();
 }
 
 async function renderRepositoryWorkspacePageFromActive() {
@@ -115622,7 +115828,9 @@ async function renderRepositoryWorkspacePage({
   loading.remove();
   const scanStats = aggregateRepositoryFolderScan(scanData || {});
   if (repo) {
-    page.appendChild(renderRepositoryWorkspaceDashboard(repo, scanStats));
+    page.appendChild(
+      renderRepositoryWorkspaceDashboard(repo, scanStats, { folderPath, scanData })
+    );
     page.appendChild(renderRepositoryWorkspaceReadme(repo, manifestPath));
   } else {
     const error = document.createElement("p");
@@ -115633,6 +115841,7 @@ async function renderRepositoryWorkspacePage({
 
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
+  syncRepositoryMockupPreviewUi();
 }
 
 function resolveRepositoryEntryForManifestPath(manifestPath) {
@@ -116027,10 +116236,15 @@ function createMenuRepositoryRow(repo) {
   leading.appendChild(createMenuRepositoryGitIcon({ hasGit: Boolean(repo.hasGit) }));
 
   row.append(createMenuRepositoryGroupDragHandle(), leading, createMenuRepositoryRowBody(repo));
+  if (repo.hasRootIndexHtml) {
+    row.classList.add("menu-repository-item--has-preview");
+    row.appendChild(createRepositoryMockupPreviewMenuButton(repo));
+  }
   attachRepositoryRowDragMetadata(row, repo, { registered: true });
 
   const openRepository = (event) => {
     if (event?.target?.closest?.(".menu-repository-group-drag-handle")) return;
+    if (event?.target?.closest?.(".menu-repository-preview-btn")) return;
     event?.preventDefault?.();
     event?.stopPropagation?.();
     suspendAppRouteSync();
