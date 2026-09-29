@@ -595,7 +595,7 @@ fs.writeFileSync(
       навигация по режимам. Переключатель <strong>Контейнер / Solo</strong> в каждом варианте (кроме 25).
     </p>
     <p class="lead" style="font-size:13px;margin-top:-8px;">
-      Запуск: <code>cd examples/ui-variant-7 && python3 -m http.server 8768</code> →
+      Запуск: <code>cd public/examples/ui-variant-7 && python3 -m http.server 8768</code> →
       <a href="http://localhost:8768">http://localhost:8768</a>
       · <a href="./VISION.md">VISION.md</a>
     </p>
@@ -604,4 +604,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${VARIANTS.length} variants in examples/ui-variant-7/`);
+console.log(`Generated ${VARIANTS.length} variants in public/examples/ui-variant-7/`);

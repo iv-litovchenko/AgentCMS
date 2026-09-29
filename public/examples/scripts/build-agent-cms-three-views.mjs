@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Снимок данных agent-cms-core → встроенный JSON для examples/agent-cms-core-three-views.html
+ * Снимок данных agent-cms-core → встроенный JSON для public/examples/agent-cms-core-three-views.html
  */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.join(__dirname, "../..");
+const repoRoot = path.join(__dirname, "../../..");
+const examplesRoot = path.join(__dirname, "..");
 const wsRoot = path.join(repoRoot, "workspaces/agent-cms-core");
 const mainDir = path.join(wsRoot, "zadachi-plany-i-idei/awn-storage/main");
 const voiceTodo = path.join(mainDir, "agent-cms-voice/voice-shell-todo.md");
@@ -193,7 +194,7 @@ const payload = {
   graph: collectGraph(),
 };
 
-const htmlPath = path.join(repoRoot, "examples/agent-cms-core-three-views.html");
+const htmlPath = path.join(examplesRoot, "agent-cms-core-three-views.html");
 let html = fs.readFileSync(htmlPath, "utf8");
 const startMarker = "<!-- __CMS_DATA__ -->";
 const json = JSON.stringify(payload, null, 2);

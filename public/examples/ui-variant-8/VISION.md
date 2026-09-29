@@ -54,4 +54,4 @@ Examples7 показывал весь overview. Здесь — **только** 
 | 24 | Production compact |
 | 25 | Split compare 3 колонки — **не рекомендуем** |
 
-Запуск: `cd examples/ui-variant-8 && python3 -m http.server 8769`
+Запуск: `cd public/examples/ui-variant-8 && python3 -m http.server 8769`

@@ -333,7 +333,7 @@ fs.writeFileSync(
       <p>Рекомендация: вариант <strong>25</strong> или <strong>01</strong> — одна строка, как в текущем Agent CMS.</p>
     </section>
     <p class="lead" style="font-size:13px;">
-      Запуск: <code>cd examples/ui-variant-9 && python3 -m http.server 8770</code> →
+      Запуск: <code>cd public/examples/ui-variant-9 && python3 -m http.server 8770</code> →
       <a href="http://localhost:8770">http://localhost:8770</a>
       · <code>node generate.mjs</code>
     </p>
@@ -342,4 +342,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${VARIANTS.length} variants in examples/ui-variant-9/`);
+console.log(`Generated ${VARIANTS.length} variants in public/examples/ui-variant-9/`);

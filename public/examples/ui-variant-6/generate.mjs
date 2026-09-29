@@ -110,4 +110,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${FIELD_DEMOS.length} field demos in examples/ui-variant-6/`);
+console.log(`Generated ${FIELD_DEMOS.length} field demos in public/examples/ui-variant-6/`);

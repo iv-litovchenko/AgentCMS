@@ -543,7 +543,7 @@ fs.writeFileSync(
       Сравни плотность, кнопки, preview, цвет. Baseline — <strong>#01</strong>, рекомендация — <strong>#24</strong>.
     </p>
     <p class="lead" style="font-size:13px;margin-top:-8px;">
-      Запуск: <code>cd examples/ui-variant-8 && python3 -m http.server 8769</code> →
+      Запуск: <code>cd public/examples/ui-variant-8 && python3 -m http.server 8769</code> →
       <a href="http://localhost:8769">http://localhost:8769</a>
       · <a href="./VISION.md">VISION.md</a>
     </p>
@@ -552,4 +552,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${VARIANTS.length} variants + shortlist page in examples/ui-variant-8/`);
+console.log(`Generated ${VARIANTS.length} variants + shortlist page in public/examples/ui-variant-8/`);

@@ -92,7 +92,7 @@ Workspace → Space «Коллекции» → Topic «Фильмы» → Elemen
 
 - Документация = компоненты; этот файл — живой журнал идей.
 - UI: кнопка 💡 в шапке после **MD**.
-- Целевой путь: `examples/ui-variant-14/VISION.md` (и соседние `examples/*/VISION.md`) для стабильной версии; `public/_storage/components-ideas.md` — быстрый черновик в приложении.
+- Целевой путь: `public/examples/ui-variant-14/VISION.md` (и соседние `public/examples/ui-variant-*/VISION.md`) для стабильной версии; `public/_storage/components-ideas.md` — быстрый черновик в приложении.
 - Картинки для окна **💡**: кладите в `public/_storage/images/` — внизу модалки выводятся на всю ширину (`width: 100%`).
 
 <!-- Добавляйте новые идеи секциями ### дата или ### тема -->

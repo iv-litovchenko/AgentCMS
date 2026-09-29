@@ -62,7 +62,7 @@ open examples/study-markers/03-study-markers.html
 ### CLI-скрипт
 
 ```bash
-cd examples/study-markers
+cd public/examples/study-markers
 
 node collect-markers.js --input sample-notes/
 node collect-markers.js -i sample-notes/ -t "мое вопрос"

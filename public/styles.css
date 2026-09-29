@@ -19493,6 +19493,7 @@ ol .live-diff-preview-removed {
 }
 
 .header-tool-btn--author,
+.header-tool-btn--examples,
 .header-tool-btn--settings,
 .header-tool-btn--logout {
   display: inline-flex;
@@ -19510,6 +19511,7 @@ ol .live-diff-preview-removed {
 }
 
 .header-tool-btn--author:hover,
+.header-tool-btn--examples:hover,
 .header-tool-btn--settings:hover {
   border-color: #cbd5e1;
   background: #f8fafc;

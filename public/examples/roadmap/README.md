@@ -53,7 +53,7 @@ open examples/roadmap/04-roadmap.html
 ### CLI
 
 ```bash
-cd examples/roadmap
+cd public/examples/roadmap
 node build-roadmap.js -i sample-roadmap/java-learning.md
 node build-roadmap.js -i sample-roadmap/java-learning.md -o report.html
 ```

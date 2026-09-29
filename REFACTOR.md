@@ -268,6 +268,6 @@ YamlCMS/  (корень)
     └── 🗑️ site3  (+ удалено)     → битый symlink `public/site3` убран
 ```
 
-**❌ в корне оставить:** `server.js`, `package.json`, `workspaces/`, `public/`, `mcp-server/`, `agent-shell/`, `desktop/`, `scripts/`, `docs/`, `examples/`, `browser-extension/`, `commands/`.
+**❌ в корне оставить:** `server.js`, `package.json`, `workspaces/`, `public/` (в т.ч. **`public/examples/`** — единый источник UI-прототипов), `mcp-server/`, `agent-shell/`, `desktop/`, `scripts/`, `docs/`, `browser-extension/`, `commands/`. Корневой `examples/` — только README-указатель.
 
 **Порядок:** ⚠️ `paths` **(+)** / `workspace-id` **(+)** / `menu-cache` **(+)** / `nav-flags-registry` **(+)** → одиночные `lib/*.js` → 🔴 `*-index/` **(+)** → ⚠️ `voice-server` → 🗑️ `tools` **(+)** / `site3` **(+)**.

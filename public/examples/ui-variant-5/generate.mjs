@@ -630,7 +630,7 @@ fs.writeFileSync(
       В каждом варианте переключатель AGENTS / Нода.
     </p>
     <p class="lead" style="font-size:13px;margin-top:-8px;">
-      Запуск: <code>cd examples/ui-variant-5 && python3 -m http.server 8767</code> →
+      Запуск: <code>cd public/examples/ui-variant-5 && python3 -m http.server 8767</code> →
       <a href="http://localhost:8767">http://localhost:8767</a>
       · См. также <a href="./VISION.md">VISION.md</a>
     </p>
@@ -639,4 +639,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${VARIANTS.length} variants in examples/ui-variant-5/`);
+console.log(`Generated ${VARIANTS.length} variants in public/examples/ui-variant-5/`);

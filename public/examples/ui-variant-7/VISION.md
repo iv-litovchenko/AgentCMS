@@ -60,4 +60,4 @@ Examples7 — «как показать **превью, метаданные, п
 | 24 | Production blend |
 | 25 | Split: контейнер и solo рядом |
 
-Запуск: `cd examples/ui-variant-7 && python3 -m http.server 8768`
+Запуск: `cd public/examples/ui-variant-7 && python3 -m http.server 8768`

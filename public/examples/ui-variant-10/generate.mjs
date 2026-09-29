@@ -494,7 +494,7 @@ fs.writeFileSync(
       <p>Рекомендация: вариант <strong>25</strong> или <strong>01</strong> — близко к production с улучшенной таблицей и медиа.</p>
     </section>
     <p class="lead" style="font-size:13px;">
-      Запуск: <code>cd examples/ui-variant-10 && python3 -m http.server 8771</code> →
+      Запуск: <code>cd public/examples/ui-variant-10 && python3 -m http.server 8771</code> →
       <a href="http://localhost:8771">http://localhost:8771</a>
       · <code>node generate.mjs</code>
     </p>

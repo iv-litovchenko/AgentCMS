@@ -5,5 +5,5 @@ awn_settings:
   tree-active-topics-only: true
   tree-pad-sort-indexes: false
   tree-max-depth: 7
-  sidebar-width: 280
+  sidebar-width: 300
   pinned-branch-path: ""

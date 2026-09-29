@@ -681,7 +681,7 @@ fs.writeFileSync(
       <p>Рекомендация: вариант <strong>25</strong> (кластер 🧭🧠📎 + flyout + контекст в содержимом). Подробнее: <a href="./VISION.md">VISION.md</a>.</p>
     </section>
     <p class="lead" style="font-size:13px;">
-      Запуск: <code>cd examples/ui-variant-4 && python3 -m http.server 8768</code> →
+      Запуск: <code>cd public/examples/ui-variant-4 && python3 -m http.server 8768</code> →
       <a href="http://localhost:8768">http://localhost:8768</a>
       · <code>node generate.mjs</code>
     </p>
@@ -690,4 +690,4 @@ fs.writeFileSync(
 </html>`
 );
 
-console.log(`Generated ${VARIANTS.length} variants in examples/ui-variant-4/`);
+console.log(`Generated ${VARIANTS.length} variants in public/examples/ui-variant-4/`);

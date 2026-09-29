@@ -56,4 +56,4 @@
 | 24 | Production blend |
 | 25 | Split: AGENTS и нода рядом |
 
-Запуск: `cd examples/ui-variant-5 && python3 -m http.server 8767`
+Запуск: `cd public/examples/ui-variant-5 && python3 -m http.server 8767`

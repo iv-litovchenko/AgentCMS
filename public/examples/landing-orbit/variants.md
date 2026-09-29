@@ -18,7 +18,7 @@
 
 Файлы архива:
 
-- `examples/landing-orbit/variant-new.css`
-- `examples/landing-orbit/variant-new.js`
+- `public/examples/landing-orbit/variant-new.css`
+- `public/examples/landing-orbit/variant-new.js`
 
 Чтобы вернуть `new`, перенесите фрагменты из этих файлов в `public/styles.css` и `public/main.js` (секция orbit / screensaver).

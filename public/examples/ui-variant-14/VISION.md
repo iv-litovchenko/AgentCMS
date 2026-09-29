@@ -57,4 +57,4 @@ dashboard:
 
 Первый виджет для продакшена: **todo** из `TODO.md` — данные и API уже есть.
 
-Запуск: `cd examples && python3 -m http.server 8790` → http://localhost:8790/ui-variant-14/
+Запуск: Agent CMS → `/examples/ui-variant-14/` (или `cd public/examples && python3 -m http.server 8790`)

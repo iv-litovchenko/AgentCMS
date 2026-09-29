@@ -20,7 +20,7 @@
 ## Запуск
 
 ```bash
-cd examples/ui-variant-6
+cd public/examples/ui-variant-6
 node generate.mjs
 python3 -m http.server 8768
 ```

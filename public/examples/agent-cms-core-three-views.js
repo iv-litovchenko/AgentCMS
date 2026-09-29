@@ -7,7 +7,7 @@
 
   if (!window.RoadmapRenderer || !window.Mindmap) {
     bootFail(
-      "Не загрузились roadmap/mindmap.js. Запустите: cd examples && python3 -m http.server 8765 → http://localhost:8765/agent-cms-core-three-views.html"
+      "Не загрузились roadmap/mindmap.js. Запустите: /examples/agent-cms-core-three-views.html (через Agent CMS)"
     );
     return;
   }
