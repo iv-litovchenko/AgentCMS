@@ -684,9 +684,7 @@ migrateVoiceHostQueryToPath();
 function isShellEmbedMode() {
   try {
     if (new URLSearchParams(window.location.search).get("embed") === "1") return true;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("side_panel") === "1") return true;
-    if (params.get("companion") === "1") {
+    if (new URLSearchParams(window.location.search).get("companion") === "1") {
       try {
         if (window.parent !== window) return true;
       } catch {
@@ -2148,7 +2146,6 @@ const nodes = {
   micDialogUrl: document.getElementById("shell-mic-dialog-url"),
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
-  micDialogOpenTab: document.getElementById("shell-mic-dialog-open-tab"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
   micChromeHint: document.getElementById("shell-mic-chrome-hint"),
   micChromeSettingsCopy: document.getElementById("shell-mic-chrome-settings-copy"),
@@ -8652,13 +8649,9 @@ function bindCmsPagePickerBridge() {
     const value = Boolean(next);
     if (value === active) return;
     syncUi(value);
-    const bridge =
-      window.parent !== window
-        ? window.parent
-        : new URLSearchParams(window.location.search).get("side_panel") === "1"
-          ? window
-          : window.parent;
-    bridge.postMessage({ type: "agent-cms-voice:page-picker-set", active: value }, "*");
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "agent-cms-voice:page-picker-set", active: value }, "*");
+    }
   };
 
   btn.addEventListener("click", () => {
@@ -8666,12 +8659,7 @@ function bindCmsPagePickerBridge() {
   });
 
   window.addEventListener("message", (event) => {
-    const fromParent = event.source === window.parent;
-    const fromSelf =
-      window.parent === window &&
-      event.source === window &&
-      new URLSearchParams(window.location.search).get("side_panel") === "1";
-    if (!fromParent && !fromSelf) return;
+    if (event.source !== window.parent) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
     if (data.type !== "agent-cms-voice:page-picker-state") return;
@@ -11873,36 +11861,7 @@ function showMicPermissionDialog(reasonOrOptions = "insecure") {
     nodes.micDialogUrl.textContent = info.httpsUrl;
     nodes.micDialogUrl.href = info.httpsUrl;
   }
-  if (nodes.micDialogOpenTab) {
-    const offer = Boolean(info.offerVoiceTab);
-    nodes.micDialogOpenTab.classList.toggle("hidden", !offer);
-    nodes.micDialogOpenTab.hidden = !offer;
-  }
   nodes.micDialog?.showModal();
-}
-
-function requestCompanionVoiceTabForMic() {
-  if (window.parent && window.parent !== window) {
-    window.parent.postMessage({ type: "agent-cms-voice:open-voice-tab", reason: "mic-permission" }, "*");
-    return true;
-  }
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.delete("side_panel");
-    url.searchParams.delete("_asc_reload");
-    if (/\/extension\/?$/i.test(url.pathname)) {
-      url.pathname = url.pathname.replace(/\/extension\/?$/i, "/");
-    }
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
-    return true;
-  } catch {
-    try {
-      window.open(getShellHttpsUrl(), "_blank", "noopener,noreferrer");
-      return true;
-    } catch {
-      return false;
-    }
-  }
 }
 
 function syncMicPermissionUi() {
@@ -11922,10 +11881,6 @@ function bindMicPermissionsUi(permissionApi) {
     showMicPermissionDialog();
   });
   nodes.micDialogClose?.addEventListener("click", () => nodes.micDialog?.close());
-  nodes.micDialogOpenTab?.addEventListener("click", () => {
-    requestCompanionVoiceTabForMic();
-    nodes.micDialog?.close();
-  });
   nodes.micDialogCheck?.addEventListener("click", () => {
     void permissionApi.runCheck().then(() => {
       initShellPermissions({

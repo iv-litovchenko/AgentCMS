@@ -40,9 +40,9 @@
     const agent = String(agentId || "").trim();
     if (!agent) {
       // Root + companion=1 → agent picker; /extension/ would be parsed as agentId "extension".
-      return `${base}/?companion=1&side_panel=1`;
+      return `${base}/?companion=1`;
     }
-    return `${base}/${encodeURIComponent(agent)}/extension/?companion=1&side_panel=1`;
+    return `${base}/${encodeURIComponent(agent)}/extension/?companion=1`;
   }
 
   function buildVoiceShellTabUrl(voiceBase, agentId) {

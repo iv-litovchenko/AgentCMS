@@ -18,8 +18,8 @@
       buildExtensionShellUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
-        if (!agent) return `${base}/?companion=1&side_panel=1`;
-        return `${base}/${encodeURIComponent(agent)}/extension/?companion=1&side_panel=1`;
+        if (!agent) return `${base}/?companion=1`;
+        return `${base}/${encodeURIComponent(agent)}/extension/?companion=1`;
       },
       buildVoiceShellTabUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
@@ -239,10 +239,6 @@
     if (event.source !== frame?.contentWindow) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
-    if (data.type === "agent-cms-voice:open-voice-tab") {
-      void openVoiceTab();
-      return;
-    }
     if (data.type !== "agent-cms-voice:file-hub-state") return;
     const open = Boolean(data.open);
     fileHubBtn?.classList.toggle("is-active", open);

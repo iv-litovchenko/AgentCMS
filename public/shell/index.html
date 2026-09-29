@@ -37,12 +37,12 @@
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
           "@shell/session": "/shell/shell-session.js?v=209",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
-          "@shell/surface": "/shell/shell-surface.js?v=231",
+          "@shell/surface": "/shell/shell-surface.js?v=232",
           "@shell/presence": "/shell/shell-presence.js?v=405",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
-          "@shell/permissions": "/shell/shell-permissions.js?v=214",
+          "@shell/permissions": "/shell/shell-permissions.js?v=215",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
           "@shell/dialog": "/shell/shell-dialog.js?v=318",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=8",
@@ -1175,10 +1175,10 @@
         </div>
         <div class="shell-mic-chrome-hint" id="shell-mic-chrome-hint" role="note" hidden>
           <p>
-            Если микрофон не работает в Google Chrome, проверьте доступ в настройках браузера для сайта Voice
-            <code id="shell-mic-chrome-hint-origin">https://127.0.0.1</code> (в Side Panel права у этого origin, не у
-            расширения). <code>127.0.0.1</code> и <code>localhost</code> — разные записи. Если во вкладке Voice 🎤
-            работает, а в панели нет — откройте Voice во вкладке.
+            Side Panel: ПКМ по иконке расширения Agent Shell (справа сверху) → «Просмотреть разрешения для сайта» →
+            Микрофон → Разрешить. Сайт Voice:
+            <code id="shell-mic-chrome-hint-origin">https://localhost</code>
+            (<code>127.0.0.1</code> и <code>localhost</code> — разные записи).
           </p>
           <p class="shell-mic-chrome-hint__link-row">
             <button type="button" class="shell-mic-chrome-hint__copy" id="shell-mic-chrome-settings-copy" title="Скопировать адрес настроек">
@@ -3474,9 +3474,6 @@ CMS workspace</pre>
           <a id="shell-mic-dialog-url" href="#" target="_blank" rel="noopener">https://127.0.0.1:3488/</a>
         </p>
         <div class="shell-dialog-actions">
-          <button type="button" class="shell-btn shell-btn--ghost hidden" id="shell-mic-dialog-open-tab">
-            Открыть Voice во вкладке
-          </button>
           <button type="button" class="shell-btn shell-btn--ghost" id="shell-mic-dialog-check">Проверить доступ</button>
           <button type="button" class="shell-btn" id="shell-mic-dialog-close">OK</button>
         </div>
@@ -3553,6 +3550,6 @@ CMS workspace</pre>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
-    <script src="/shell/shell.js?v=676" type="module"></script>
+    <script src="/shell/shell.js?v=678" type="module"></script>
   </body>
 </html>

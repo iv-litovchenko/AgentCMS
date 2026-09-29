@@ -76,6 +76,10 @@ export function shellPermissionIssue({ shellPath } = {}) {
 
 export const CHROME_MIC_SETTINGS_URL = "chrome://settings/content/microphone";
 
+/** Side Panel: права сайта Voice через меню иконки расширения (не chrome://). */
+export const CHROME_COMPANION_MIC_HINT =
+  "ПКМ по иконке расширения Agent Shell (панель расширений справа сверху) → «Просмотреть разрешения для сайта» → Микрофон → Разрешить.";
+
 function detectBrowserKind() {
   const ua = String(navigator.userAgent || "");
   const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
@@ -170,12 +174,12 @@ export function formatMicAccessPhaseMessage(input = "denied") {
   }
   if (reason === "policy") {
     if (host === "chrome-panel") {
-      return "Микрофон недоступен в Side Panel · откройте Voice во вкладке или см. диалог";
+      return "Микрофон в Side Panel · ПКМ по иконке расширения → разрешения сайта";
     }
     return "Микрофон недоступен в этом окне · см. диалог помощи";
   }
   if (host === "chrome-panel") {
-    return "Нет микрофона в Side Panel · вкладка Voice или настройки сайта (не «запрещённые»)";
+    return "Нет микрофона в Side Panel · ПКМ по иконке расширения → разрешения сайта";
   }
   if (isChrome) return "Нет доступа к микрофону · 🔒 у сайта Voice или chrome://settings/content/microphone";
   if (isSafari) return "Нет доступа к микрофону · разрешите в настройках Safari";
@@ -207,11 +211,9 @@ export function describeMicPermissionDialog(input = {}) {
     if (detail) steps.push(`Код: ${detail}`);
     if (inChromePanel) {
       steps.push(
-        "Chrome Side Panel: запрос микрофона часто не показывается (Permission dismissed) — известное ограничение, см. stackoverflow.com/questions/78649316.",
-        "Side Panel Companion: Voice во iframe — права у сайта Voice, не у расширения.",
-        `Ищите в настройках микрофона origin: ${siteOrigin} (127.0.0.1 и localhost — разные сайты).`,
-        "Обход: один раз разрешите микрофон во вкладке Voice (кнопка ниже), затем снова 🎤 в панели.",
-        `Или ${CHROME_MIC_SETTINGS_URL} — разрешите ${siteOrigin}.`
+        CHROME_COMPANION_MIC_HINT,
+        `Сайт Voice: ${siteOrigin} (127.0.0.1 и localhost — разные записи).`,
+        `Дополнительно: ${CHROME_MIC_SETTINGS_URL} — разрешите ${siteOrigin}, если нужно.`
       );
     } else if (isChrome) {
       steps.push(
@@ -222,14 +224,7 @@ export function describeMicPermissionDialog(input = {}) {
       steps.push("Разрешите микрофон для этого сайта в настройках браузера.");
     }
     steps.push("Обновите страницу и нажмите 🎤 снова.");
-    return {
-      title: "Микрофон недоступен в этом окне",
-      steps,
-      httpsUrl,
-      currentUrl,
-      siteOrigin,
-      offerVoiceTab: inChromePanel
-    };
+    return { title: "Микрофон недоступен в этом окне", steps, httpsUrl, currentUrl, siteOrigin };
   }
 
   if (reason === "denied") {
@@ -238,19 +233,15 @@ export function describeMicPermissionDialog(input = {}) {
     ];
     if (detail) steps.push(`Код: ${detail}${source ? ` (${source})` : ""}`);
     if (inChromePanel) {
-      steps.push(
-        "Chrome Side Panel: промпт микрофона может быть подавлен (Permission dismissed) — не всегда «запрещено» в настройках.",
-        "Вы в Chrome Side Panel: микрофон выдаётся сайту Voice во iframe, не иконке расширения.",
-        `В chrome://settings/content/microphone ищите ${siteOrigin}, не chrome-extension://….`,
-        "127.0.0.1 и localhost — разные записи; совпадайте с URL в настройках Companion.",
-        "Если 🎤 в панели молчит: «Открыть Voice во вкладке» → Разрешить → снова панель."
-      );
+      steps.push(CHROME_COMPANION_MIC_HINT, `Сайт Voice в панели: ${siteOrigin}.`);
     }
     if (isChrome) {
-      steps.push(
-        `🔒 слева от адреса Voice (${siteOrigin}) → «Микрофон» → «Разрешить», затем обновите.`,
-        `${CHROME_MIC_SETTINGS_URL} — проверьте «Разрешено» для ${siteOrigin}, не только «Запрещено».`
-      );
+      if (!inChromePanel) {
+        steps.push(
+          `🔒 слева от адреса Voice (${siteOrigin}) → «Микрофон» → «Разрешить», затем обновите.`,
+          `${CHROME_MIC_SETTINGS_URL} — проверьте «Разрешено» для ${siteOrigin}, не только «Запрещено».`
+        );
+      }
       if (isMac) {
         steps.push("macOS: Системные настройки → Конфиденциальность → Микрофон — Google Chrome включён.");
       }
@@ -265,14 +256,7 @@ export function describeMicPermissionDialog(input = {}) {
       steps.push("Разрешите микрофон в настройках сайта (иконка замка в адресной строке).");
     }
     steps.push("Обновите страницу и нажмите 🎤 снова.");
-    return {
-      title: "Микрофон недоступен",
-      steps,
-      httpsUrl,
-      currentUrl,
-      siteOrigin,
-      offerVoiceTab: inChromePanel
-    };
+    return { title: "Микрофон недоступен", steps, httpsUrl, currentUrl, siteOrigin };
   }
 
   const browserLabel = isChrome ? "Chrome" : isSafari ? "Safari" : "браузер";
