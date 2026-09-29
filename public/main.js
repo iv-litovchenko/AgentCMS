@@ -96077,6 +96077,11 @@ function buildMenuAgentStatsGitRepoRows(loc) {
 }
 
 function appendMenuAgentStatsGitSection(container, git = {}) {
+  const workspaceGit =
+    git && typeof git === "object" && ("hasDotGit" in git || "rel" in git)
+      ? git
+      : git?.agentWorkspace || git?.workspace || null;
+
   const section = document.createElement("section");
   section.className = "menu-agent-stats-summary-section";
 
@@ -96085,45 +96090,23 @@ function appendMenuAgentStatsGitSection(container, git = {}) {
   heading.textContent = "Git (система контроля версий)";
   section.appendChild(heading);
 
-  const repos = [];
-  if (git.agentRootEqualsProjectRoot) {
-    repos.push({ title: "Корень проекта и workspace", loc: git.projectRoot });
-  } else {
-    repos.push({
-      title: `Корень проекта CMS (${git.projectRoot?.rel || "."})`,
-      loc: git.projectRoot
-    });
-    repos.push({
-      title: `Workspace агента (${git.agentWorkspace?.rel || "—"})`,
-      loc: git.agentWorkspace
-    });
+  const block = document.createElement("div");
+  block.className = "menu-agent-stats-summary-repo";
+
+  const list = document.createElement("dl");
+  list.className = "menu-agent-stats-summary-rows";
+  for (const row of buildMenuAgentStatsGitRepoRows(workspaceGit)) {
+    const item = document.createElement("div");
+    item.className = "menu-agent-stats-summary-row";
+    const label = document.createElement("dt");
+    label.textContent = row.label;
+    const value = document.createElement("dd");
+    value.textContent = String(row.value);
+    item.append(label, value);
+    list.appendChild(item);
   }
-
-  for (const repo of repos) {
-    const block = document.createElement("div");
-    block.className = "menu-agent-stats-summary-repo";
-
-    const subTitle = document.createElement("h4");
-    subTitle.className = "menu-agent-stats-summary-repo-title";
-    subTitle.textContent = repo.title;
-    block.appendChild(subTitle);
-
-    const list = document.createElement("dl");
-    list.className = "menu-agent-stats-summary-rows";
-    for (const row of buildMenuAgentStatsGitRepoRows(repo.loc)) {
-      const item = document.createElement("div");
-      item.className = "menu-agent-stats-summary-row";
-      const label = document.createElement("dt");
-      label.textContent = row.label;
-      const value = document.createElement("dd");
-      value.textContent = String(row.value);
-      item.append(label, value);
-      list.appendChild(item);
-    }
-    block.appendChild(list);
-    section.appendChild(block);
-  }
-
+  block.appendChild(list);
+  section.appendChild(block);
   container.appendChild(section);
 }
 

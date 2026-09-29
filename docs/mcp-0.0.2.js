@@ -96,7 +96,7 @@ module.exports = {
         {
           name: "get_workspace_storage_info",
           description:
-            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (корень проекта и workspace агента, .git), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt.",
+            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (только .git workspace агента), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt.",
           parameters: "—",
           http: "GET /api/agent/storage-summary"
         }

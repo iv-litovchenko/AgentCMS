@@ -16318,18 +16318,7 @@ async function buildGitLocationSummary(dirAbsolute, projectRoot) {
 }
 
 async function buildGitStorageSummaryBlock(agentRoot, projectRoot) {
-  const agentRootResolved = path.resolve(agentRoot);
-  const projectRootResolved = path.resolve(projectRoot);
-  const [projectRootGit, agentWorkspaceGit] = await Promise.all([
-    buildGitLocationSummary(projectRootResolved, projectRootResolved),
-    buildGitLocationSummary(agentRootResolved, projectRootResolved)
-  ]);
-
-  return {
-    projectRoot: projectRootGit,
-    agentWorkspace: agentWorkspaceGit,
-    agentRootEqualsProjectRoot: agentRootResolved === projectRootResolved
-  };
+  return buildGitLocationSummary(path.resolve(agentRoot), projectRoot);
 }
 
 const LARGE_FILE_DEFAULT_MIN_BYTES = 45 * 1024 * 1024;
@@ -16601,7 +16590,7 @@ async function buildAgentStorageSummary() {
       intake: intakeTotals
     }),
     hint:
-      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (корень проекта CMS и workspace агента, .git), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
+      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (только .git в корне workspace агента), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
   };
 }
 
