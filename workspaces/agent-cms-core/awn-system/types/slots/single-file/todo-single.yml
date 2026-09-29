@@ -12,6 +12,6 @@ slot-order: 15
 allowed-content:
   - awn.content.record
   - awn.content.category
-  - awn.content.sidecar
+  - awn.annotation.sidecar
 accept-files:
   - ".md"

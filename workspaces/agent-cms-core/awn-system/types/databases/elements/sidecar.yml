@@ -1,8 +1,0 @@
-id: awn.database.element.sidecar
-name: Sidecar накопителя
-kind: element
-domain: database
-status: active
-extends: awn.content.sidecar
-description: Метаданные файла в store (*.sidecar.md)
-record-role: sidecar

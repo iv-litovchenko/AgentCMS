@@ -24,4 +24,4 @@ awn_schema:
         sort: 20
         title: Поле 2
   sidecar:
-    extends: awn.database.element.sidecar
+    extends: awn.annotation.sidecar

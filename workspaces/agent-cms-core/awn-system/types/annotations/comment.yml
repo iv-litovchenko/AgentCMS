@@ -1,10 +1,10 @@
-id: awn.content.comment
+id: awn.annotation.comment
 name: Комментарий
 kind: type
-domain: content
+domain: annotations
 status: active
-extends: awn.content.base
-description: Комментарий к узлу — слот comments/
+extends: awn.annotation.base
+description: Комментарий к manifest, записи или файлу — слот comments/
 slot: comments
 
 fields:

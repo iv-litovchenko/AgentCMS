@@ -7,6 +7,7 @@ description: CMS-модель агента — типы, слоты, поля. R
 domains:
   - base
   - content
+  - annotations
   - fields
   - pages
   - slots

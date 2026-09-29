@@ -17,8 +17,8 @@
 └── 💬 awn.content.discussion  ← поток в слоте, это скорее контент общения
 
 🔗 Аннотации / overlays (всегда «про что-то другое»)
-├── 📎 awn.content.sidecar  → 1:1 к файлу (*.sidecar.md рядом)
-└── 💭 awn.content.comment  → N:1 к target (comments/{target}/)
+├── 📎 awn.annotation.sidecar  → 1:1 к файлу (*.sidecar.md рядом)
+└── 💭 awn.annotation.comment  → N:1 к target (comments/{target}/)
 
 📍 Файл без .md (бинарник, csv, sh)
 └── сам не контент → sidecar (и OCR) даёт ему «лицо» в CMS

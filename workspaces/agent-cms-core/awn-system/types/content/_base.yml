@@ -5,7 +5,7 @@ domain: content
 status: active
 extends: awn.base
 description: >
-  Запись, категория, sidecar, dialog, comment. Nav контента — awn-focus и awn-main
+  Запись, категория, discussion. Nav контента — awn-focus и awn-main
   (awn-slots-flexible только у manifest темы, не у content). Runtime — через mixin.
 kind-ui:
   for: type

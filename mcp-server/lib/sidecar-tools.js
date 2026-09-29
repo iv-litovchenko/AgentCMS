@@ -50,7 +50,7 @@ export function registerSidecarTools(reg, client) {
 
   reg(
     "create_sidecar",
-    "Explicitly create a sidecar (awn.content.sidecar) for an existing file. Fails with 409 if sidecar already exists. Not created automatically on upload.",
+    "Explicitly create a sidecar (awn.annotation.sidecar) for an existing file. Fails with 409 if sidecar already exists. Not created automatically on upload.",
     sidecarAddress.extend({
       title: z.string().optional().describe("awn-name, default from source file name"),
       body: z.string().optional().describe("Initial description body"),

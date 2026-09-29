@@ -30,4 +30,4 @@ awn_schema:
         sort: 30
         title: пку4
   sidecar:
-    extends: awn.database.element.sidecar
+    extends: awn.annotation.sidecar

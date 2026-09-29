@@ -13,6 +13,6 @@ allowed-content:
   - awn.content.record-csv
   - awn.content.record
   - awn.content.category
-  - awn.content.sidecar
+  - awn.annotation.sidecar
 accept-files:
   - ".csv"

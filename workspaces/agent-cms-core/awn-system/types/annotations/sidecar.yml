@@ -1,10 +1,10 @@
-id: awn.content.sidecar
+id: awn.annotation.sidecar
 name: Sidecar
 kind: type
-domain: content
+domain: annotations
 status: active
-extends: awn.content.base
-description: Метаданные медиафайла (*.sidecar.md)
+extends: awn.annotation.base
+description: Метаданные файла (*.sidecar.md рядом с исходником)
 mixins:
   - awn.mixin.runtime
   - awn.mixin.indexing-record
@@ -17,7 +17,6 @@ field-groups:
 
 fields:
 
-  # --- file metadata (aside-body) ---
   awn-mime:
     type: awn.field.string
     title: "{A2!} MIME-тип"
@@ -34,7 +33,6 @@ fields:
     sort: 11
     locked: true
 
-  # --- ocr (aside-body) ---
   awn-ocr-source:
     type: awn.field.string
     title: "{A2!} Исходный файл"

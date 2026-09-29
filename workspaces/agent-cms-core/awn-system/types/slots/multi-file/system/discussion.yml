@@ -13,6 +13,6 @@ slot-tier: system
 allowed-content:
   - awn.content.discussion
   - awn.content.record
-  - awn.content.sidecar
+  - awn.annotation.sidecar
 accept-files:
   - ".md"

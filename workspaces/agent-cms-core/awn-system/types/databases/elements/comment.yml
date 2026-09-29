@@ -1,8 +1,0 @@
-id: awn.database.element.comment
-name: Комментарий накопителя
-kind: element
-domain: database
-status: active
-extends: awn.content.comment
-description: Комментарий к записи или frame инфоблока
-record-role: comment

@@ -493,8 +493,17 @@ write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-
 |----|-----|-------|
 | `awn.content.category` | Категория | Папка для группировки записей внутри слота |
 | `awn.content.record` | Запись | Обычный `.md` в слоте (заметка, документ) |
-| `awn.content.comment` | Комментарий (legacy) | Тип для slug-файлов в `comments/`; для UI Discuss — `append_comment`, не `create_content` |
-| `awn.content.sidecar` | Sidecar | Мета к файлу (`{stem}.sidecar.md` рядом с исходником) — **только через `create_sidecar`** |
+
+---
+
+## Аннотации (привязки хранилища)
+
+| id | Имя | Зачем |
+|----|-----|-------|
+| `awn.annotation.comment` | Комментарий | Файлы в `comments/`; для UI Discuss — `append_comment`, не `create_content` |
+| `awn.annotation.sidecar` | Sidecar | Мета к файлу (`{stem}.sidecar.md` рядом с исходником) — **только через `create_sidecar`** |
+
+Legacy alias: `awn.content.comment`, `awn.content.sidecar` → те же канонические id.
 
 Sidecar **не создаётся автоматически** при upload/import/create_content. Явный запрос: `create_sidecar` → правки: `write_sidecar`.
 
@@ -502,7 +511,7 @@ Sidecar **не создаётся автоматически** при upload/imp
 |------|-------|
 | `resolve_sidecar_path` | Куда ляжет sidecar: `sourcePath` **или** `path`+`slot`+`file` |
 | `read_sidecar` | Прочитать sidecar (`exists:false` если ещё не создан) |
-| `create_sidecar` | **Создать** sidecar с шаблоном `awn.content.sidecar` (409 если уже есть) |
+| `create_sidecar` | **Создать** sidecar с шаблоном `awn.annotation.sidecar` (409 если уже есть) |
 | `write_sidecar` | **Обновить** существующий sidecar (404 если нет — сначала `create_sidecar`) |
 
 **Именование:** `photo.png` → `photo.sidecar.md` (та же папка). Работает **в любом месте workspace** через `sourcePath`.

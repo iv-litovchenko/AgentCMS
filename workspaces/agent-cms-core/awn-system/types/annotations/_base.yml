@@ -1,0 +1,34 @@
+id: awn.annotation.base
+name: База аннотаций
+kind: base
+domain: annotations
+status: active
+extends: awn.base
+description: >
+  Привязки к объектам хранилища (sidecar 1:1 к файлу, comment N:1 к target).
+  Не авторский контент слота — overlay поверх страниц, записей и бинарников.
+kind-ui:
+  for: type
+  label: Аннотация
+  badge: { background: "#fef3c7", border: "#fcd34d", text: "#92400e" }
+
+form:
+  panel-title: "{A2!} Свойства привязки"
+
+field-groups:
+  - id: content
+    name: "{A2!} Основное"
+    description: Описание и связь с объектом
+    collapsed: false
+  - id: work-note
+    name: "{A2!} Служебная заметка"
+    description: На чём остановились — для вас и агента
+    collapsed: false
+  - id: system
+    name: "{A2!} Системные"
+    description: Заполняется автоматически, только чтение
+    collapsed: true
+
+fields:
+  awn-sort:
+    hidden: true

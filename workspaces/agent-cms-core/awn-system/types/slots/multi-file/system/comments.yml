@@ -11,8 +11,8 @@ path: comments/
 slot-order: 94
 slot-tier: system
 allowed-content:
-  - awn.content.comment
+  - awn.annotation.comment
   - awn.content.record
-  - awn.content.sidecar
+  - awn.annotation.sidecar
 accept-files:
   - ".md"

@@ -3167,7 +3167,7 @@ function canonicalContentTypeFromAwnType(awnType) {
   const normalized = normalizeAwnTypeName(awnType);
   if (normalized === "awn.content.record") return "record";
   if (normalized === "awn.content.category") return "record.category";
-  if (normalized === "awn.content.sidecar") return "sidecar";
+  if (normalized === "awn.annotation.sidecar") return "sidecar";
   if (normalized.startsWith("awn.page.")) return "page";
   return null;
 }
@@ -3215,7 +3215,7 @@ function resolveActiveContentDetailsFromState() {
       const relativePath = String(activeMediaSidecarPath).replace(/\\/g, "/");
       return {
         contentType: "sidecar",
-        awnType: "awn.content.sidecar",
+        awnType: "awn.annotation.sidecar",
         relativePath,
         sidecarOf:
           String(activeMediaSidecarSourcePath || resolveSidecarBinaryRef(relativePath) || "").replace(
@@ -47479,7 +47479,7 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
   if (normalized === "awn.content.record" || typeName === "awn.record") {
     return resolvedSlotKey === "media" ? "slot_media_record" : "slot_memory";
   }
-  if (normalized === "awn.content.sidecar" || typeName === "awn.sidecar") {
+  if (normalized === "awn.annotation.sidecar" || typeName === "awn.sidecar") {
     if (resolvedSlotKey === "media") return "slot_media";
     if (resolvedSlotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
       return TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(resolvedSlotKey, { contentKind: "sidecar" });
@@ -47499,7 +47499,11 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
   ) {
     return "record";
   }
-  if (normalized === "awn.database.element.sidecar" || typeName === "awn.database.content.sidecar") {
+  if (
+    normalized === "awn.annotation.sidecar" ||
+    normalized === "awn.database.element.sidecar" ||
+    typeName === "awn.database.content.sidecar"
+  ) {
     return "sidecar";
   }
   if (String(typeName || "").startsWith("awn.database.frame.")) return "frame";
@@ -47650,7 +47654,7 @@ function resolveOverviewSchemaTargetForContext(context = activeEntryOverviewCont
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context) {
     const entryKind = normalizeAwnTypeName(
       context.entryKind === "awn.media.asset"
-        ? "awn.content.sidecar"
+        ? "awn.annotation.sidecar"
         : context.entryKind || "awn.content.record"
     );
     const slotKey = getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
@@ -51140,7 +51144,7 @@ function normalizeAwnTypeName(typeName) {
   const legacyToCanonical = {
     "awn.record": "awn.content.record",
     "awn.record.category": "awn.content.category",
-    "awn.sidecar": "awn.content.sidecar",
+    "awn.sidecar": "awn.annotation.sidecar",
     "awn.media.category": "awn.content.category",
     "awn.topic": "awn.page.topic",
     "awn.area": "awn.page.area",
@@ -51224,7 +51228,7 @@ function getManifestTreeFolderDepth(normalized) {
 const CONTENT_AWN_TYPE_NAMES = new Set([
   "awn.content.record",
   "awn.content.category",
-  "awn.content.sidecar",
+  "awn.annotation.sidecar",
   "awn.content.base",
   "awn.record",
   "awn.record.category",
@@ -51242,7 +51246,7 @@ function isAwnStorageSlotContentPath(normalized) {
 
 function inferContentTypeFromStoragePath(normalized, fileNameLower = "") {
   const lower = fileNameLower || String(normalized || "").split("/").filter(Boolean).pop()?.toLowerCase() || "";
-  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.content.sidecar");
+  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.annotation.sidecar");
   if (lower === "manifest.md") return normalizeAwnTypeName("awn.content.category");
   return normalizeAwnTypeName("awn.content.record");
 }
@@ -51376,7 +51380,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
   const lower = fileName.toLowerCase();
 
-  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.content.sidecar");
+  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.annotation.sidecar");
   if (isMediaCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.category");
   if (isRecordCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.category");
   if (isSectionReadmePath(normalized) && /\/media\//i.test(normalized)) {
@@ -51551,10 +51555,10 @@ function getActiveAwnTypeDef(typeName = null) {
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.entryKind) {
       resolvedType =
         activeEntryOverviewContext.entryKind === "awn.media.asset"
-          ? normalizeAwnTypeName("awn.content.sidecar")
+          ? normalizeAwnTypeName("awn.annotation.sidecar")
           : normalizeAwnTypeName(activeEntryOverviewContext.entryKind);
     } else if (isMediaSidecarEditing()) {
-      resolvedType = normalizeAwnTypeName("awn.content.sidecar");
+      resolvedType = normalizeAwnTypeName("awn.annotation.sidecar");
     } else {
       const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
       if (declared) {
@@ -59850,7 +59854,7 @@ function buildDefaultMediaSidecarContent(sourceFilePath) {
   const quotedName = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeName)
     ? `"${safeName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
     : safeName;
-  return `---\nawn-type: awn.content.sidecar\nawn-name: ${quotedName}\n---\n\n`;
+  return `---\nawn-type: awn.annotation.sidecar\nawn-name: ${quotedName}\n---\n\n`;
 }
 
 async function fetchAttachmentSidecarMeta(path) {
@@ -71841,7 +71845,7 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
     }
     const typeName = normalizeAwnTypeName(
       context.entryKind === "awn.media.asset"
-        ? "awn.content.sidecar"
+        ? "awn.annotation.sidecar"
         : context.entryKind || resolveAwnTypeForContext()
     );
     return applyTypeSchemaToEntries(entries, typeName);
@@ -108023,7 +108027,7 @@ const AWN_DATA_SCHEMA_TARGET_TYPES = {
   category: "awn.database.element.category",
   record: "awn.database.element.record",
   "record-csv": "awn.database.element.record-csv",
-  sidecar: "awn.database.element.sidecar"
+  sidecar: "awn.annotation.sidecar"
 };
 
 function resolveAwnDataSchemaTargetsForStore(cache) {
@@ -109744,7 +109748,11 @@ function resolveAwnDatabaseSchemaTargetForElementType(awnType, nodePath = "") {
   ) {
     return "category";
   }
-  if (normalized === "awn.database.element.sidecar" || normalized === "awn.database.content.sidecar") {
+  if (
+    normalized === "awn.annotation.sidecar" ||
+    normalized === "awn.database.element.sidecar" ||
+    normalized === "awn.database.content.sidecar"
+  ) {
     return "sidecar";
   }
   if (

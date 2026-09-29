@@ -17,7 +17,7 @@
     const CONTENT_KIND_TYPE_NAMES = {
       record: "awn.content.record",
       category: "awn.content.category",
-      sidecar: "awn.content.sidecar",
+      sidecar: "awn.annotation.sidecar",
       "record-csv": "awn.content.record-csv"
     };
 
@@ -429,14 +429,15 @@
         "awn.media.category": "awn.content.category",
         "awn.content.media.category": "awn.content.category",
         "awn.record.category": "awn.content.category",
-        "awn.sidecar": "awn.content.sidecar"
+        "awn.sidecar": "awn.annotation.sidecar",
+        "awn.content.sidecar": "awn.annotation.sidecar"
       };
       return aliases[normalized] || normalized;
     }
 
     function resolveTopicSchemaTargetIdForAwnType(slotKey, typeName) {
       const normalized = normalizeAwnContentTypeName(typeName);
-      if (normalized === "awn.content.sidecar") {
+      if (normalized === "awn.annotation.sidecar" || normalized === "awn.content.sidecar") {
         return resolveTopicSchemaTargetId(slotKey, { contentKind: "sidecar" });
       }
       if (normalized === "awn.content.category") {
