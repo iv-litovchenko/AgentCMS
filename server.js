@@ -439,7 +439,13 @@ const {
   resetAgentSettingsScope,
   hydrateWorkspaceSettingsFromShell
 } = require("./lib/config/settings-store");
-const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
+const { transliterateToSlug, sanitizeSlugInput } = require(path.join(
+  __dirname,
+  "public",
+  "js",
+  "core",
+  "slug-translit.js"
+));
 const {
   AWN_MASK_FILE_KEY,
   ID_INCREMENT_FILENAME,
@@ -7415,7 +7421,7 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.content.category
 
 function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
   if (slotKey) {
-    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/topic-schema-slot-specs.js");
+    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/js/core/topic-schema-slot-specs.js");
     const resolved = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
     if (resolved) return resolved;
   }
@@ -7486,7 +7492,7 @@ async function buildSlotContentFileContentForManifest(
   const {
     resolveSlotContentKindTypeName,
     resolveTopicSchemaTargetIdForAwnType
-  } = require("./public/topic-schema-slot-specs.js");
+  } = require("./public/js/core/topic-schema-slot-specs.js");
   const safeTitle = String(title || "Запись").trim() || "Запись";
   const awnType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const schemaTarget = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
@@ -7604,7 +7610,7 @@ function countFrontmatterKeys(frontmatter) {
 }
 
 function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record", slotKey = "") {
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const rawType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
   if (!rawType) return true;
@@ -7624,7 +7630,7 @@ async function enrichTypedSlotMarkdownContent(
     return String(content ?? "");
   }
 
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
   const diskFrontmatter = String(options.diskFrontmatter || "").trim();
@@ -17268,8 +17274,8 @@ function isMaintenanceStaticBypassPath(safePath) {
   if (!safePath) return false;
   if (safePath === "maintenance.html") return true;
   if (safePath === "404.html") return true;
-  if (safePath === "platform-status.js") return true;
-  if (safePath === "project-version.js") return true;
+  if (safePath === "js/core/platform-status.js") return true;
+  if (safePath === "js/core/project-version.js") return true;
   if (safePath === "styles.css") return true;
   if (safePath === "favicon.svg" || safePath === "favicon.png" || safePath === "apple-touch-icon.png") {
     return true;

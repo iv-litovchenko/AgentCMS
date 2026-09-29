@@ -7148,7 +7148,6 @@ function parseShellPathAgentId() {
         "a",
         "api",
         "favicon.svg",
-        "project-version.js",
         "js"
       ]);
       if (parts.length >= 1 && !reserved.has(parts[0]) && !parts[0].includes(".")) {

@@ -166,12 +166,12 @@ public/
 │
 ├── ❌ main.js  →  (корень public/, не двигаем)
 │
-├── ⚠️ public/js/core/
-│   ├── topic-schema-slot-specs.js  →  public/js/core/topic-schema-slot-specs.js
-│   ├── node-config-bundle.js  →  public/js/core/node-config-bundle.js
-│   ├── project-version.js  →  public/js/core/project-version.js
-│   ├── platform-status.js  →  public/js/core/platform-status.js
-│   └── slug-translit.js  →  public/js/core/slug-translit.js
+├── ⚠️ public/js/core/  (+)
+│   ├── + topic-schema-slot-specs.js  →  public/js/core/topic-schema-slot-specs.js
+│   ├── + node-config-bundle.js  →  public/js/core/node-config-bundle.js
+│   ├── + project-version.js  →  public/js/core/project-version.js
+│   ├── + platform-status.js  →  public/js/core/platform-status.js
+│   └── + slug-translit.js  →  public/js/core/slug-translit.js
 │
 ├── ✅ public/js/app/  (+)
 │   ├── + app-lock.js  →  public/js/app/app-lock.js
@@ -223,7 +223,7 @@ public/
     └── + awn-enum-options.js  →  public/js/cms/awn-enum-options.js
 ```
 
-**Порядок:** ✅ `mermaid` → `markdown` → `pomodoro` → `panels` → `app` → `editor` → `cms` → ⚠️ `core` (плюс grep `topic-schema` / `node-config-bundle` в `server` и индексах).
+**Порядок:** ✅ `mermaid` **(+)** → `markdown` **(+)** → `pomodoro` **(+)** → `panels` **(+)** → `app` **(+)** → `editor` **(+)** → `cms` **(+)** → `core` **(+)** (`server` / `schema-enrichment` / `agent-registry` — пути обновлены).
 
 **После:** в корне `public/` — `main.js`, `index.html`, `styles.css`, папки `shell/`, `vendor/`, `shared/`, `_storage/`.
 

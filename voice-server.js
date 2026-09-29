@@ -69,12 +69,10 @@ const VOICE_RESERVED_ROOT = new Set([
   "a",
   "api",
   "favicon.svg",
-  "project-version.js",
   "js",
   "index.html",
   "404.html",
   "preview.html",
-  "platform-status.js",
   "maintenance.html"
 ]);
 
@@ -231,8 +229,8 @@ function isVoiceMaintenanceBypassPath(safePath, reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return true;
   if (safePath === "shell/maintenance.html") return true;
-  if (safePath === "platform-status.js") return true;
-  if (safePath === "project-version.js") return true;
+  if (safePath === "js/core/platform-status.js") return true;
+  if (safePath === "js/core/project-version.js") return true;
   if (safePath.startsWith("shell/") && /\.(css|js|svg|png|webp|ico|woff2?|webmanifest|wasm)$/i.test(safePath)) {
     return true;
   }
