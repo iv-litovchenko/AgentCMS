@@ -1543,6 +1543,7 @@ let headerProfileMenuOpen = false;
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const sidebarRoadmapGlobeBtn = document.getElementById("sidebar-roadmap-globe-btn");
+const sidebarGitBtn = document.getElementById("sidebar-git-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
 const AGENT_ROADMAP_MAP_WORKSPACE_VIEW = "roadmap-map";
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
@@ -100832,13 +100833,26 @@ function syncAgentAwnTypesToolbarUi() {
 }
 
 function initAgentGitToolbar() {
-  if (!agentGitBtn) return;
-  mountAgentToolbarBtnIcon(agentGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
+  if (agentGitBtn) {
+    mountAgentToolbarBtnIcon(agentGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
+  }
+  if (sidebarGitBtn) {
+    mountAgentToolbarBtnIcon(sidebarGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
+    if (sidebarGitBtn.dataset.gitToolbarBound !== "1") {
+      sidebarGitBtn.dataset.gitToolbarBound = "1";
+      sidebarGitBtn.addEventListener("click", () => {
+        closeAgentsPickerPopover();
+        setAgentWorkspaceView("git");
+      });
+    }
+  }
   syncAgentGitToolbarUi();
 }
 
 function syncAgentGitToolbarUi() {
-  agentGitBtn?.classList.toggle("is-active", agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible());
+  const active = agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible();
+  agentGitBtn?.classList.toggle("is-active", active);
+  sidebarGitBtn?.classList.toggle("is-active", active);
 }
 
 function syncAwnDashboardsToolbarUi() {

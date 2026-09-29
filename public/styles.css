@@ -22696,7 +22696,8 @@ a.header-tool-btn {
   padding-top: 2px;
 }
 
-.sidebar-agent-row--roadmap-globe {
+.sidebar-agent-row--roadmap-globe,
+.sidebar-agent-row--git {
   flex-shrink: 0;
 }
 
@@ -22736,6 +22737,37 @@ a.header-tool-btn {
 .sidebar-roadmap-globe-svg {
   width: 18px;
   height: 18px;
+  display: block;
+}
+
+.sidebar-git-btn {
+  color: #de4c36;
+  overflow: hidden;
+}
+
+.sidebar-git-btn:hover {
+  color: #c2410c;
+  border-color: #fdba74;
+  background: #fff7ed;
+}
+
+.sidebar-git-btn.is-active {
+  border-color: #de4c36;
+  background: #fff7ed;
+  box-shadow: 0 0 0 1px rgba(222, 76, 54, 0.28);
+}
+
+.sidebar-git-btn .agent-git-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar-git-btn .agent-git-btn-icon svg {
+  width: 16px;
+  height: 16px;
   display: block;
 }
 
@@ -27516,6 +27548,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .sidebar-slab-agent .agents-picker-btn,
+.sidebar-slab-agent .sidebar-git-btn,
 .sidebar-slab-agent .agents-manage-btn:not(.agents-picker-tool-btn),
 .sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn),
 .sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn),
@@ -27527,6 +27560,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .sidebar-slab-agent .agents-picker-btn:focus-visible,
+.sidebar-slab-agent .sidebar-git-btn:focus-visible,
 .sidebar-slab-agent .agents-manage-btn:not(.agents-picker-tool-btn):focus-visible,
 .sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn):focus-visible,
 .sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn):focus-visible,
