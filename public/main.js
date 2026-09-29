@@ -10992,33 +10992,34 @@ function createAppLandingPlatformVisual() {
   return visual;
 }
 
-let appLandingPlatformReadmeCache = null;
+let appLandingPlatformDiagramCache = null;
 let appLandingPlatformRenderToken = 0;
 
-async function loadAppLandingPlatformReadme(options = {}) {
-  if (!options.force && appLandingPlatformReadmeCache) return appLandingPlatformReadmeCache;
-  const response = await fetch("/api/platform/readme");
+async function loadAppLandingPlatformDiagram(options = {}) {
+  if (!options.force && appLandingPlatformDiagramCache) return appLandingPlatformDiagramCache;
+  const response = await fetch("/api/platform/landing-diagram");
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
-  appLandingPlatformReadmeCache = {
-    path: data.path || "README.md",
+  appLandingPlatformDiagramCache = {
+    path: data.path || "README.diagram.md",
     content: typeof data.content === "string" ? data.content : "",
     exists: Boolean(data.exists)
   };
-  return appLandingPlatformReadmeCache;
+  return appLandingPlatformDiagramCache;
 }
 
-function createAppLandingPlatformReadmePanel(readme, options = {}) {
+function createAppLandingPlatformDiagramPanel(diagram, options = {}) {
   const panel = document.createElement("article");
   panel.className = "app-landing-platform-readme markdown-preview";
-  panel.setAttribute("aria-label", "О проекте Agent CMS");
+  panel.setAttribute("aria-label", "Карта элементов workspace");
 
   const body = document.createElement("div");
   body.className = "app-landing-platform-readme-body markdown-body";
-  if (readme?.exists && readme.content && typeof renderMarkdownToHtml === "function") {
-    body.innerHTML = renderMarkdownToHtml(readme.content, { hideFrontmatter: true });
+  const diagramPath = diagram?.path || "README.diagram.md";
+  if (diagram?.exists && diagram.content && typeof renderMarkdownToHtml === "function") {
+    body.innerHTML = renderMarkdownToHtml(diagram.content, { hideFrontmatter: true });
     if (typeof hydrateMarkdownPreviewElement === "function") {
-      hydrateMarkdownPreviewElement(body, "README.md");
+      hydrateMarkdownPreviewElement(body, diagramPath);
     }
     for (const link of body.querySelectorAll("a[href]")) {
       const href = String(link.getAttribute("href") || "").trim();
@@ -11027,12 +11028,12 @@ function createAppLandingPlatformReadmePanel(readme, options = {}) {
         link.rel = "noopener noreferrer";
       }
     }
-  } else if (readme?.exists && readme.content) {
-    body.textContent = readme.content;
-  } else if (readme && readme.exists === false) {
-    body.innerHTML = "<p>README.md не найден в корне репозитория.</p>";
+  } else if (diagram?.exists && diagram.content) {
+    body.textContent = diagram.content;
+  } else if (diagram && diagram.exists === false) {
+    body.innerHTML = "<p>README.diagram.md не найден в корне репозитория.</p>";
   } else {
-    body.innerHTML = `<p>Не удалось загрузить README.md${
+    body.innerHTML = `<p>Не удалось загрузить карту workspace${
       options.error ? `: ${escapeHtml(options.error)}` : ""
     }.</p>`;
   }
@@ -11283,14 +11284,14 @@ async function renderAppLandingPlatformSection() {
     return;
   }
 
-  let readmePanel = null;
+  let diagramPanel = null;
   try {
-    const readme = await loadAppLandingPlatformReadme();
+    const diagram = await loadAppLandingPlatformDiagram();
     if (renderToken !== appLandingPlatformRenderToken) return;
-    readmePanel = createAppLandingPlatformReadmePanel(readme);
+    diagramPanel = createAppLandingPlatformDiagramPanel(diagram);
   } catch (error) {
     if (renderToken !== appLandingPlatformRenderToken) return;
-    readmePanel = createAppLandingPlatformReadmePanel(null, {
+    diagramPanel = createAppLandingPlatformDiagramPanel(null, {
       error: error instanceof Error ? error.message : String(error)
     });
   }
@@ -11301,7 +11302,7 @@ async function renderAppLandingPlatformSection() {
   appLandingPlatformNode.append(
     createAppLandingPlatformHero(platform),
     createAppLandingPlatformLearningMindset(),
-    readmePanel,
+    diagramPanel,
     createAppLandingPlatformVisual(),
     createAppLandingPlatformCatalogVisual()
   );

@@ -620,6 +620,7 @@ const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
 const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL_RESPONSE_STYLE.md";
 const GLOBAL_MARKDOWN_SHOWCASE_FILE = "GLOBAL_MARKDOWN_SHOWCASE.md";
 const PLATFORM_README_FILE = "README.md";
+const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
 
 const PLATFORM_ALWAYS_CONTEXT_FILES = [
   {
@@ -5681,6 +5682,7 @@ const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
 
 const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/platform/readme",
+  "/api/platform/landing-diagram",
   "/api/platform/global-doc",
   "/api/platform/settings-global",
   "/api/platform/settings-schema",
@@ -27835,13 +27837,26 @@ const PLATFORM_GLOBAL_DOC_FILES = new Set([
 ]);
 
 async function readPlatformReadmePayload() {
-  const readmeAbsolute = path.join(getAppRoot(), "README.md");
+  const readmeAbsolute = path.join(getAppRoot(), PLATFORM_README_FILE);
   try {
     const content = await fs.readFile(readmeAbsolute, "utf-8");
-    return { path: "README.md", content, exists: true };
+    return { path: PLATFORM_README_FILE, content, exists: true };
   } catch (error) {
     if (error && error.code === "ENOENT") {
-      return { path: "README.md", content: "", exists: false };
+      return { path: PLATFORM_README_FILE, content: "", exists: false };
+    }
+    throw error;
+  }
+}
+
+async function readPlatformLandingDiagramPayload() {
+  const diagramAbsolute = path.join(getAppRoot(), PLATFORM_LANDING_DIAGRAM_FILE);
+  try {
+    const content = await fs.readFile(diagramAbsolute, "utf-8");
+    return { path: PLATFORM_LANDING_DIAGRAM_FILE, content, exists: true };
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return { path: PLATFORM_LANDING_DIAGRAM_FILE, content: "", exists: false };
     }
     throw error;
   }
@@ -27895,6 +27910,17 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read platform README",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/landing-diagram") {
+    try {
+      return sendJson(res, 200, await readPlatformLandingDiagramPayload());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform landing diagram",
         details: String(error.message || error)
       });
     }

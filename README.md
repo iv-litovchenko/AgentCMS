@@ -8,47 +8,7 @@
 
 ![Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
 
-```mermaid
-flowchart TD
-    WS["🏠 Workspace (agentId)"]
-
-    WS --> TREE["📁 Дерево Page"]
-    WS --> DATA["🗄️ Структурированные данные"]
-    WS --> MEM["🧠 Память и коммуникация"]
-    WS --> AUX["⚙️ Вспомогательное"]
-
-    TREE --> AREA["Область (Area)"]
-    AREA --> SHARED_AREA["Общие"]
-    AREA --> AGENT_AREA["Агент"]
-    SHARED_AREA --> TOPIC["Тема (Topic / manifest.md)"]
-    AGENT_AREA --> TOPIC
-    TOPIC --> SLOT["Слот (main, inbox, media, notes…)"]
-    SLOT --> SECTION["Раздел"]
-    SECTION --> PAGE_ENTRY["Запись"]
-    PAGE_ENTRY --> SIDECAR["Sidecar"]
-
-    DATA --> IBLOCK["Инфоблок"]
-    IBLOCK --> TAX["Таксономии / справочники"]
-    IBLOCK --> GROUP["Группа"]
-    IBLOCK --> COLLECTION["Коллекция"]
-    IBLOCK --> SINGLE["Одиночка"]
-    GROUP --> DATA_SECTION["Раздел"]
-    COLLECTION --> DATA_SECTION
-    SINGLE --> DATA_SECTION
-    DATA_SECTION --> RECORD["Запись"]
-
-    MEM --> FACTS["Facts"]
-    MEM --> JOURNAL["Journal"]
-    MEM --> COMM["Коммуникация"]
-    COMM --> DIALOGS["Dialogs"]
-    COMM --> DISCUSS["Discussion / Comments"]
-    MEM --> INBOX["Inbox (входящие)"]
-
-    AUX --> SETTINGS["Settings (workspace / platform)"]
-    AUX --> SEARCH["Search / Index"]
-    AUX --> REPO["Repository"]
-    AUX --> BOARD["NOTE.md / TODO.md"]
-```
+Карта элементов workspace (Mermaid) — в корне: [README.diagram.md](README.diagram.md). На главной CMS показывается эта диаграмма.
 
 ## Три приложения
 | Название | Назначение |
@@ -113,7 +73,7 @@ flowchart TD
 9. **Создайте первое хранилище** — новый workspace или готовый `agent-cms-test` для пробы; при необходимости настройте `AGENTS.md`.
 10. **Освойтесь в нём** — пообщайтесь с агентом через MCP, разложите первые заметки по темам и слотам, наполните хранилище своими записями.
 
-На главной CMS открывается этот README.
+На главной CMS показывается [README.diagram.md](README.diagram.md), полный README — в репозитории.
 
 ## Ближайшее TODO
 
