@@ -58,4 +58,45 @@ export function registerGitModuleTools(reg, client) {
         ...(extensions != null ? { extensions } : {})
       })
   );
+
+  reg(
+    "module_git_init",
+    "module-git: git init in workspace root with initial branch main (default). Blocked in mcp-mode=readonly.",
+    z.object({
+      branch: z.string().optional().describe("Initial branch name (default main)")
+    }),
+    ({ branch }) => client.post("/api/git/init", { ...(branch ? { branch } : {}) })
+  );
+
+  reg(
+    "module_git_push",
+    "module-git: git push to remote (default origin, current branch, -u). Blocked in mcp-mode=readonly.",
+    z.object({
+      remote: z.string().optional().describe("Remote name (default origin)"),
+      branch: z.string().optional().describe("Branch to push (default: current)"),
+      setUpstream: z.boolean().optional().describe("Use -u (default true)")
+    }),
+    ({ remote, branch, setUpstream }) =>
+      client.post("/api/git/push", {
+        ...(remote ? { remote } : {}),
+        ...(branch ? { branch } : {}),
+        ...(setUpstream === false ? { setUpstream: false } : {})
+      })
+  );
+
+  reg(
+    "module_git_remote",
+    "module-git: add or change remote URL (action set) or remove remote (action remove). Remotes also in module_git_status. Blocked in mcp-mode=readonly.",
+    z.object({
+      action: z.enum(["set", "remove"]).describe("set = add or change URL; remove = delete remote"),
+      name: z.string().optional().describe("Remote name (default origin)"),
+      url: z.string().optional().describe("Remote URL (required for action=set)")
+    }),
+    ({ action, name, url }) =>
+      client.post("/api/git/remote", {
+        action,
+        ...(name ? { name } : {}),
+        ...(url ? { url } : {})
+      })
+  );
 }

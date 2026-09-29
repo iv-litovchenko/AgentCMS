@@ -6,7 +6,7 @@ description: >
 
 mcp:
   # single-call write tools (blocked in mcp-mode=readonly)
-  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|database_frame_write_|database_frame_create_|database_frame_refresh_|database_frame_delete_|database_frame_rename_|database_element_write_|database_element_create_|database_element_delete_|database_element_rename_|iblock_frame_write_|iblock_frame_create_|iblock_frame_refresh_|iblock_frame_delete_|iblock_frame_rename_|iblock_write_|iblock_create_|iblock_refresh_|iblock_content_write_|iblock_content_create_|iblock_content_delete_|iblock_content_rename_|notify_user|run_script|exec_|module_git_commit)"
+  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|database_frame_write_|database_frame_create_|database_frame_refresh_|database_frame_delete_|database_frame_rename_|database_element_write_|database_element_create_|database_element_delete_|database_element_rename_|iblock_frame_write_|iblock_frame_create_|iblock_frame_refresh_|iblock_frame_delete_|iblock_frame_rename_|iblock_write_|iblock_create_|iblock_refresh_|iblock_content_write_|iblock_content_create_|iblock_content_delete_|iblock_content_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_remote)"
   exec_tools:
     - exec_command
     - exec_shell

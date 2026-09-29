@@ -20,6 +20,11 @@ fieldGroups:
     description: >
       Как устроены контейнеры интеграций — один плагин = группа полей с общим
       префиксом id (.agent-cms/settings/integrations.yml).
+  - id: module-git
+    name: Модуль git
+    description: >
+      Параметры встроенного модуля module-git (панель Git workspace, MCP
+      module_git_*). Только для справки — значения задаются платформой.
   - id: example-cursor-skill
     name: Пример · Cursor Skill
     description: >
@@ -52,6 +57,31 @@ fields:
     group: concept
     locked: true
     sort: 2
+
+  module-git-default-branch:
+    type: awn.field.string
+    title: Ветка по умолчанию
+    description: >
+      Начальная ветка при git init в корне workspace (module_git_init, кнопка
+      «Инициализировать git»).
+    default: main
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 3
+
+  module-git-commit-extensions:
+    type: awn.field.string
+    title: Расширения для коммита
+    description: >
+      Файлы с этими расширениями попадают в список изменений, commit и diff
+      (UI «Сохранить изменения», module_git_status / module_git_commit /
+      module_git_diff).
+    default: md, txt, csv, yml, yaml
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 4
 
   container-cursor-skill-enabled:
     type: awn.field.boolean

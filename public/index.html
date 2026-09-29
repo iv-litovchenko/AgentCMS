@@ -3602,9 +3602,66 @@
             <button id="agent-git-save-btn" class="agent-git-save-btn" type="button" title="Закоммитить md, txt, csv, yml, yaml">
               Сохранить изменения
             </button>
+            <button id="agent-git-push-btn" class="agent-git-push-btn" type="button" title="Отправить текущую ветку на remote (origin)">
+              Push на remote
+            </button>
+            <button
+              id="agent-git-settings-btn"
+              class="agent-workspace-refresh-btn agent-git-settings-btn"
+              type="button"
+              title="Настройки git: init, remote"
+              aria-expanded="false"
+              aria-controls="agent-git-settings-panel"
+            >
+              <span class="agent-git-settings-btn-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  />
+                  <path
+                    d="M19.4 13.5a7.6 7.6 0 0 0 .1-3l2-1.2-2-3.4-2.3 1a7.5 7.5 0 0 0-2.6-1.5l-.4-2.5H9.8l-.4 2.5a7.5 7.5 0 0 0-2.6 1.5l-2.3-1-2 3.4 2 1.2a7.6 7.6 0 0 0 0 3l-2 1.2 2 3.4 2.3-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4.4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.3 1 2-3.4-2-1.2Z"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="agent-git-settings-btn-label">Настройка</span>
+            </button>
             <button id="agent-git-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить статус git">
               Обновить
             </button>
+          </div>
+        </div>
+        <div id="agent-git-settings-panel" class="agent-git-settings-panel hidden" role="region" aria-label="Настройки git">
+          <div class="agent-git-settings-card">
+            <p class="agent-git-settings-lead">Репозиторий в корне workspace · ветка по умолчанию <code>main</code></p>
+            <div class="agent-git-settings-row">
+              <button id="agent-git-init-btn" class="agent-git-settings-action" type="button">Инициализировать git</button>
+            </div>
+            <label class="agent-git-settings-field" for="agent-git-remote-name">
+              <span class="agent-git-settings-label">Remote</span>
+              <input id="agent-git-remote-name" class="agent-git-settings-input" type="text" value="origin" autocomplete="off" />
+            </label>
+            <label class="agent-git-settings-field" for="agent-git-remote-url">
+              <span class="agent-git-settings-label">URL</span>
+              <input
+                id="agent-git-remote-url"
+                class="agent-git-settings-input"
+                type="url"
+                placeholder="https://github.com/user/repo.git"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <div class="agent-git-settings-row">
+              <button id="agent-git-remote-save-btn" class="agent-git-settings-action is-primary" type="button">
+                Сохранить remote
+              </button>
+              <button id="agent-git-remote-remove-btn" class="agent-git-settings-action" type="button">Удалить remote</button>
+            </div>
           </div>
         </div>
         <div id="agent-git-info" class="agent-tool-info">

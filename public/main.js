@@ -245,7 +245,17 @@ const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitMetaNode = document.getElementById("agent-git-meta");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
 const agentGitSaveBtn = document.getElementById("agent-git-save-btn");
+const agentGitSettingsBtn = document.getElementById("agent-git-settings-btn");
+const agentGitSettingsPanel = document.getElementById("agent-git-settings-panel");
+const agentGitInitBtn = document.getElementById("agent-git-init-btn");
+const agentGitPushBtn = document.getElementById("agent-git-push-btn");
+const agentGitRemoteNameInput = document.getElementById("agent-git-remote-name");
+const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
+const agentGitRemoteSaveBtn = document.getElementById("agent-git-remote-save-btn");
+const agentGitRemoteRemoveBtn = document.getElementById("agent-git-remote-remove-btn");
 const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml"];
+let agentGitSettingsOpen = false;
+let agentGitLastStatus = null;
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
 const agentJournalContentNode = document.getElementById("agent-journal-content");
 const agentJournalMetaNode = document.getElementById("agent-journal-meta");
@@ -101358,6 +101368,73 @@ async function commitAgentGitChanges(message) {
   return payload;
 }
 
+function setAgentGitSettingsOpen(open) {
+  agentGitSettingsOpen = Boolean(open);
+  agentGitSettingsPanel?.classList.toggle("hidden", !agentGitSettingsOpen);
+  agentGitSettingsBtn?.classList.toggle("is-open", agentGitSettingsOpen);
+  agentGitSettingsBtn?.setAttribute("aria-expanded", agentGitSettingsOpen ? "true" : "false");
+}
+
+function syncAgentGitSettingsUi(data) {
+  agentGitLastStatus = data || null;
+  const isRepo = Boolean(data?.isRepo);
+  if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
+  if (agentGitPushBtn) agentGitPushBtn.disabled = !isRepo;
+  if (agentGitRemoteSaveBtn) agentGitRemoteSaveBtn.disabled = !isRepo;
+  if (agentGitRemoteRemoveBtn) agentGitRemoteRemoveBtn.disabled = !isRepo;
+
+  const remotes = Array.isArray(data?.remotes) ? data.remotes : [];
+  const origin = remotes.find((item) => item.name === "origin") || remotes[0];
+  if (origin && agentGitRemoteNameInput && !agentGitRemoteNameInput.dataset.userEdited) {
+    agentGitRemoteNameInput.value = origin.name || "origin";
+  }
+  if (origin && agentGitRemoteUrlInput && !agentGitRemoteUrlInput.dataset.userEdited) {
+    agentGitRemoteUrlInput.value = origin.fetchUrl || origin.pushUrl || "";
+  }
+}
+
+async function postAgentGitInit() {
+  const response = await fetch(buildApiUrl("/api/git/init"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch: "main" })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  return payload;
+}
+
+async function postAgentGitPush() {
+  const response = await fetch(buildApiUrl("/api/git/push"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      remote: agentGitRemoteNameInput?.value?.trim() || "origin",
+      setUpstream: true
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  return payload;
+}
+
+async function postAgentGitRemote(action) {
+  const name = agentGitRemoteNameInput?.value?.trim() || "origin";
+  const url = agentGitRemoteUrlInput?.value?.trim() || "";
+  const response = await fetch(buildApiUrl("/api/git/remote"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      name,
+      ...(action === "set" ? { url } : {})
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  return payload;
+}
+
 function createAgentWorkspaceStatElement(value, label, tone = "") {
   const chip = document.createElement("span");
   chip.className = `agent-workspace-stat${tone ? ` agent-workspace-stat--${tone}` : ""}`;
@@ -101471,6 +101548,7 @@ async function renderAgentGitView() {
   agentGitContentNode.replaceChildren();
   if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
   if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
+  if (agentGitPushBtn) agentGitPushBtn.disabled = true;
 
   const loading = document.createElement("p");
   loading.className = "agent-tool-loading agent-git-empty";
@@ -101480,6 +101558,7 @@ async function renderAgentGitView() {
   try {
     const data = await fetchAgentGitStatus();
     agentGitContentNode.replaceChildren();
+    syncAgentGitSettingsUi(data);
 
     if (agentGitStatsNode) {
       if (data.isRepo) {
@@ -101877,7 +101956,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-git",
     label: "Git-репозиторий",
     view: "git",
-    mcp: "module_git_status, module_git_diff, module_git_commit",
+    mcp: "module_git_status, module_git_diff, module_git_commit, module_git_init, module_git_push, module_git_remote",
     status: "active"
   },
   {
@@ -120905,9 +120984,91 @@ agentGitRefreshBtn?.addEventListener("click", () => {
   }
 });
 
+agentGitSettingsBtn?.addEventListener("click", () => {
+  setAgentGitSettingsOpen(!agentGitSettingsOpen);
+});
+
+agentGitRemoteNameInput?.addEventListener("input", () => {
+  agentGitRemoteNameInput.dataset.userEdited = "1";
+});
+agentGitRemoteUrlInput?.addEventListener("input", () => {
+  agentGitRemoteUrlInput.dataset.userEdited = "1";
+});
+
+agentGitInitBtn?.addEventListener("click", () => {
+  if (!window.confirm("Инициализировать git в корне workspace? Ветка: main")) return;
+  agentGitInitBtn.disabled = true;
+  void postAgentGitInit()
+    .then(() => {
+      window.alert("Git-репозиторий создан (ветка main)");
+      void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Ошибка init: ${error.message}`))
+    .finally(() => {
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
+agentGitPushBtn?.addEventListener("click", () => {
+  const remote = agentGitRemoteNameInput?.value?.trim() || "origin";
+  if (!window.confirm(`Отправить текущую ветку на remote «${remote}»?`)) return;
+  agentGitPushBtn.disabled = true;
+  void postAgentGitPush()
+    .then((result) => {
+      window.alert(result?.stdout || "Push выполнен");
+      void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Ошибка push: ${error.message}`))
+    .finally(() => {
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
+agentGitRemoteSaveBtn?.addEventListener("click", () => {
+  const url = agentGitRemoteUrlInput?.value?.trim();
+  if (!url) {
+    window.alert("Укажите URL remote");
+    return;
+  }
+  agentGitRemoteSaveBtn.disabled = true;
+  void postAgentGitRemote("set")
+    .then(() => {
+      delete agentGitRemoteUrlInput?.dataset.userEdited;
+      delete agentGitRemoteNameInput?.dataset.userEdited;
+      window.alert("Remote сохранён");
+      void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Ошибка remote: ${error.message}`))
+    .finally(() => {
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
+agentGitRemoteRemoveBtn?.addEventListener("click", () => {
+  const name = agentGitRemoteNameInput?.value?.trim() || "origin";
+  if (!window.confirm(`Удалить remote «${name}»?`)) return;
+  agentGitRemoteRemoveBtn.disabled = true;
+  void postAgentGitRemote("remove")
+    .then(() => {
+      if (agentGitRemoteUrlInput) agentGitRemoteUrlInput.value = "";
+      delete agentGitRemoteUrlInput?.dataset.userEdited;
+      delete agentGitRemoteNameInput?.dataset.userEdited;
+      window.alert("Remote удалён");
+      void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Ошибка remote: ${error.message}`))
+    .finally(() => {
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
 agentGitSaveBtn?.addEventListener("click", () => {
   if (agentWorkspaceView !== "git") return;
-  const defaultMessage = `Сохранение workspace (${new Date().toISOString().slice(0, 10)})`;
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const defaultMessage = `Сохранение workspace (${datePart} ${timePart})`;
   const message = window.prompt("Сообщение коммита", defaultMessage);
   if (message == null) return;
   const trimmed = String(message).trim();

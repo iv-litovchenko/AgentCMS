@@ -13870,7 +13870,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   moduleGit:
-    "GET /api/git/status|diff + POST /api/git/commit — module_git_status / module_git_diff / module_git_commit (module-git)",
+    "GET /api/git/status|diff + POST /api/git/init|commit|push|remote — module_git_* (module-git)",
   execRunScript:
     "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
@@ -16171,6 +16171,11 @@ const {
   filterChangesByExtensions,
   countGitChangesByKind,
   buildModuleGitDiff,
+  listModuleGitRemotes,
+  initModuleGitRepo,
+  setModuleGitRemote,
+  removeModuleGitRemote,
+  pushModuleGitRepo,
   commitModuleGitChanges,
   runGitInRepo: runGitInRepoResult
 } = require("./lib/git/workspace-git-module");
@@ -16648,7 +16653,8 @@ async function buildAgentGitStatus(options = {}) {
       counts: emptyCounts,
       totalCounts: emptyCounts,
       extensions: MODULE_GIT_DEFAULT_EXTENSIONS,
-      totalChangeCount: 0
+      totalChangeCount: 0,
+      remotes: []
     };
   }
 
@@ -16673,6 +16679,7 @@ async function buildAgentGitStatus(options = {}) {
     const commits = includeCommits ? parseGitLogOneline(logRaw) : [];
     const counts = countGitChangesByKind(changes);
     const totalCounts = countGitChangesByKind(allChanges);
+    const remotes = await listModuleGitRemotes(repoAbsolute).catch(() => []);
 
     return {
       moduleId: "module-git",
@@ -16690,7 +16697,8 @@ async function buildAgentGitStatus(options = {}) {
       counts,
       totalCounts,
       extensions: normalizedExtensions,
-      totalChangeCount: allChanges.length
+      totalChangeCount: allChanges.length,
+      remotes
     };
   } catch (error) {
     return {
@@ -20206,6 +20214,74 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read git diff",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/init") {
+    try {
+      const payload = await readJsonBody(req).catch(() => ({}));
+      const agentRoot = getAgentRoot();
+      const result = await initModuleGitRepo(agentRoot, {
+        branch: payload?.branch || "main"
+      });
+      return sendJson(res, 200, { moduleId: "module-git", ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to init git repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/push") {
+    try {
+      const payload = await readJsonBody(req).catch(() => ({}));
+      const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
+      if (!repoAbsolute) {
+        return sendJson(res, 400, {
+          error: "Git repository not found in workspace root"
+        });
+      }
+      const result = await pushModuleGitRepo(repoAbsolute, {
+        remote: payload?.remote || "origin",
+        branch: payload?.branch,
+        setUpstream: payload?.setUpstream !== false
+      });
+      return sendJson(res, 200, { moduleId: "module-git", ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to push git changes",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/remote") {
+    try {
+      const payload = await readJsonBody(req);
+      const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
+      if (!repoAbsolute) {
+        return sendJson(res, 400, {
+          error: "Git repository not found in workspace root"
+        });
+      }
+      const action = String(payload?.action || "set").trim().toLowerCase();
+      if (action === "remove") {
+        const result = await removeModuleGitRemote(repoAbsolute, {
+          name: payload?.name || "origin"
+        });
+        return sendJson(res, 200, { moduleId: "module-git", ...result });
+      }
+      const result = await setModuleGitRemote(repoAbsolute, {
+        name: payload?.name || "origin",
+        url: payload?.url
+      });
+      return sendJson(res, 200, { moduleId: "module-git", ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update git remote",
         details: String(error.message || error)
       });
     }
