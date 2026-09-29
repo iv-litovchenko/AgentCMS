@@ -254,6 +254,12 @@ const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
 const agentGitRemoteSaveBtn = document.getElementById("agent-git-remote-save-btn");
 const agentGitRemoteRemoveBtn = document.getElementById("agent-git-remote-remove-btn");
 const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml"];
+const AGENT_GIT_EXTRA_BASENAMES = [".gitignore"];
+
+function getAgentGitFilterLabel() {
+  const extras = AGENT_GIT_EXTRA_BASENAMES.join(", ");
+  return `${AGENT_GIT_FILE_EXTENSIONS.join(", ")}, ${extras}`;
+}
 let agentGitSettingsOpen = false;
 let agentGitLastStatus = null;
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
@@ -101586,7 +101592,7 @@ async function renderAgentGitView() {
     }
 
     if (agentGitMetaNode) {
-      const extLabel = AGENT_GIT_FILE_EXTENSIONS.join(", ");
+      const extLabel = getAgentGitFilterLabel();
       if (!data.isRepo) {
         agentGitMetaNode.textContent = "Git-репозиторий не найден в корне workspace";
       } else if (data.clean) {
@@ -101632,7 +101638,7 @@ async function renderAgentGitView() {
     } else if (data.filteredClean) {
       const filtered = document.createElement("p");
       filtered.className = "agent-git-clean-banner";
-      filtered.textContent = `Нет изменений в файлах ${AGENT_GIT_FILE_EXTENSIONS.join(", ")} — в репозитории другие правки (${data.totalChangeCount ?? 0}).`;
+      filtered.textContent = `Нет изменений в отфильтрованных файлах (${getAgentGitFilterLabel()}) — в репозитории другие правки (${data.totalChangeCount ?? 0}).`;
       shell.appendChild(filtered);
     } else {
       const groups = [
