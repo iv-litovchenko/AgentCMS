@@ -10770,7 +10770,7 @@ function createAppLandingSystemMapDiagram() {
 
   const badge = document.createElement("div");
   badge.className = "app-landing-system-map-badge";
-  badge.textContent = "Элементы системы";
+  badge.textContent = "Карта элементов системы";
 
   const diagram = document.createElement("div");
   diagram.className = "app-landing-system-map-diagram";
@@ -10986,7 +10986,7 @@ function createAppLandingPlatformCatalogVisual() {
 function createAppLandingPlatformVisual() {
   const visual = document.createElement("div");
   visual.className = "app-landing-platform-visual app-landing-platform-system-map-visual";
-  visual.setAttribute("aria-label", "Элементы системы Agent CMS");
+  visual.setAttribute("aria-label", "Карта элементов системы Agent CMS");
 
   visual.append(createAppLandingPlatformVisualBg(), createAppLandingSystemMapDiagram());
   return visual;
