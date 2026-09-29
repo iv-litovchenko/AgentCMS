@@ -16179,6 +16179,11 @@ const {
   commitModuleGitChanges,
   runGitInRepo: runGitInRepoResult
 } = require("./lib/git/workspace-git-module");
+const {
+  loadModuleGitConfig,
+  saveModuleGitConfig,
+  buildGitAuthorFromModuleConfig
+} = require("./lib/git/module-git-config");
 
 async function runGitInRepo(repoAbsolute, args) {
   const result = await runGitInRepoResult(repoAbsolute, args);
@@ -16664,10 +16669,12 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts: emptyCounts,
       extensions: MODULE_GIT_DEFAULT_EXTENSIONS,
       totalChangeCount: 0,
-      remotes: []
+      remotes: [],
+      moduleConfig: await loadModuleGitConfig(agentRoot)
     };
   }
 
+  const moduleConfig = await loadModuleGitConfig(agentRoot);
   const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
   const normalizedExtensions = normalizeGitExtensions(options.extensions);
   const includeCommits = options.includeCommits !== false;
@@ -16708,7 +16715,8 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts,
       extensions: normalizedExtensions,
       totalChangeCount: allChanges.length,
-      remotes
+      remotes,
+      moduleConfig
     };
   } catch (error) {
     return {
@@ -16728,6 +16736,8 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts: emptyCounts,
       extensions: normalizedExtensions,
       totalChangeCount: 0,
+      remotes: [],
+      moduleConfig,
       error: String(error?.message || error)
     };
   }
@@ -20303,6 +20313,39 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/git/module-config") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const moduleConfig = await loadModuleGitConfig(agentRoot);
+      return sendJson(res, 200, { moduleId: "module-git", moduleConfig });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read git module config",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/module-config") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req).catch(() => ({}));
+      const moduleConfig = await saveModuleGitConfig(agentRoot, {
+        userName: payload?.userName,
+        userEmail: payload?.userEmail,
+        commitMessageTemplate: payload?.commitMessageTemplate
+      });
+      return sendJson(res, 200, { moduleId: "module-git", moduleConfig });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save git module config",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/git/commit") {
     try {
       const payload = await readJsonBody(req);
@@ -20312,9 +20355,12 @@ async function handleApiForAgent(req, res, url) {
           error: "Git repository not found in workspace root"
         });
       }
+      const agentRoot = getAgentRoot();
+      const moduleConfig = await loadModuleGitConfig(agentRoot);
       const result = await commitModuleGitChanges(repoAbsolute, {
         message: payload?.message,
-        extensions: payload?.extensions ?? MODULE_GIT_DEFAULT_EXTENSIONS
+        extensions: payload?.extensions ?? MODULE_GIT_DEFAULT_EXTENSIONS,
+        author: buildGitAuthorFromModuleConfig(moduleConfig)
       });
       return sendJson(res, 200, { moduleId: "module-git", ...result });
     } catch (error) {

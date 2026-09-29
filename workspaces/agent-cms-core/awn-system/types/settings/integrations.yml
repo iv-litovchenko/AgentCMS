@@ -112,6 +112,53 @@ fields:
     readonly: true
     sort: 4
 
+  module-git-user-name:
+    type: awn.field.string
+    title: Имя автора коммита
+    description: >
+      Git user.name для коммитов из UI и module_git_commit (локально для команды, без проверки личности).
+    default: ""
+    group: module-git
+    sort: 5
+
+  module-git-user-email:
+    type: awn.field.string
+    title: Email автора коммита
+    description: Git user.email для коммитов из workspace.
+    default: ""
+    group: module-git
+    sort: 6
+
+  module-git-commit-message-template:
+    type: awn.field.string
+    title: Шаблон сообщения коммита
+    description: >
+      Плейсхолдеры — {branch}, {date}, {time}. Используется в UI «Сохранить» по умолчанию.
+    default: "[{branch}] Сохранение workspace ({date} {time})"
+    group: module-git
+    sort: 7
+
+  module-git-sign-commits:
+    type: awn.field.boolean
+    title: Подпись коммитов (GPG/SSH)
+    description: Зарезервировано — подпись коммитов пока не поддерживается.
+    default: false
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 8
+
+  module-git-pull-strategy:
+    type: awn.field.choice.one
+    title: Стратегия pull
+    description: Зарезервировано — merge или rebase при будущем Pull.
+    default: merge
+    enum: [merge, rebase]
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 9
+
   container-cursor-skill-enabled:
     type: awn.field.boolean
     title: "{NOT WORK} Включено"

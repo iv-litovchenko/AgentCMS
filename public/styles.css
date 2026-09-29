@@ -13314,6 +13314,37 @@ body.workspace-idle-screensaver-active {
   background: rgba(248, 250, 252, 0.95);
 }
 
+.agent-git-settings-divider {
+  margin: 14px 0 12px;
+  border-top: 1px solid color-mix(in srgb, var(--panel-border, #cbd5e1) 65%, transparent);
+}
+
+.agent-git-settings-subtitle {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #334155;
+}
+
+.agent-git-settings-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+
+.agent-git-settings-hint code {
+  font-size: 10px;
+}
+
+.agent-git-settings-columns--disabled .agent-git-settings-input:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
 .agent-git-settings-lead {
   margin: 0 0 10px;
   font-size: 12px;

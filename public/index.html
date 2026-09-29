@@ -3795,6 +3795,56 @@
               </button>
               <button id="agent-git-remote-remove-btn" class="agent-git-settings-action" type="button">Удалить remote</button>
             </div>
+            <div class="agent-git-settings-divider" role="presentation"></div>
+            <p class="agent-git-settings-subtitle">Автор коммитов</p>
+            <div class="agent-git-settings-columns">
+              <label class="agent-git-settings-field" for="agent-git-user-name">
+                <span class="agent-git-settings-label">Имя (user.name)</span>
+                <input
+                  id="agent-git-user-name"
+                  class="agent-git-settings-input"
+                  type="text"
+                  autocomplete="name"
+                  placeholder="Иван Иванов"
+                />
+              </label>
+              <label class="agent-git-settings-field" for="agent-git-user-email">
+                <span class="agent-git-settings-label">Email (user.email)</span>
+                <input
+                  id="agent-git-user-email"
+                  class="agent-git-settings-input"
+                  type="email"
+                  autocomplete="email"
+                  placeholder="you@example.com"
+                />
+              </label>
+            </div>
+            <label class="agent-git-settings-field" for="agent-git-commit-template">
+              <span class="agent-git-settings-label">Шаблон сообщения</span>
+              <input
+                id="agent-git-commit-template"
+                class="agent-git-settings-input"
+                type="text"
+                spellcheck="false"
+                placeholder="[{branch}] Сохранение workspace ({date} {time})"
+              />
+              <span class="agent-git-settings-hint">Плейсхолдеры: <code>{branch}</code> <code>{date}</code> <code>{time}</code></span>
+            </label>
+            <div class="agent-git-settings-columns agent-git-settings-columns--disabled">
+              <div class="agent-git-settings-field">
+                <span class="agent-git-settings-label">Подпись коммитов (GPG/SSH)</span>
+                <input class="agent-git-settings-input" type="text" value="скоро" disabled aria-disabled="true" />
+              </div>
+              <div class="agent-git-settings-field">
+                <span class="agent-git-settings-label">Стратегия pull</span>
+                <input class="agent-git-settings-input" type="text" value="merge · скоро" disabled aria-disabled="true" />
+              </div>
+            </div>
+            <div class="agent-git-settings-row">
+              <button id="agent-git-module-config-save-btn" class="agent-git-settings-action is-primary" type="button">
+                Сохранить автора и шаблон
+              </button>
+            </div>
           </div>
         </div>
         <div id="agent-git-info" class="agent-tool-info agent-git-info">

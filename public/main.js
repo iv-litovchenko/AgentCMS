@@ -305,6 +305,11 @@ function syncAgentGitBranchSelectElement(selectEl, branch, optionLabel = "") {
 const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
 const agentGitRemoteSaveBtn = document.getElementById("agent-git-remote-save-btn");
 const agentGitRemoteRemoveBtn = document.getElementById("agent-git-remote-remove-btn");
+const agentGitUserNameInput = document.getElementById("agent-git-user-name");
+const agentGitUserEmailInput = document.getElementById("agent-git-user-email");
+const agentGitCommitTemplateInput = document.getElementById("agent-git-commit-template");
+const agentGitModuleConfigSaveBtn = document.getElementById("agent-git-module-config-save-btn");
+let agentGitModuleConfig = null;
 const AGENT_GIT_FILE_EXTENSIONS = [
   "md",
   "txt",
@@ -101590,12 +101595,51 @@ function getAgentGitCommitBranchLabel() {
   return String(agentGitLastStatus?.branch || "main").trim() || "main";
 }
 
+const AGENT_GIT_COMMIT_MESSAGE_TEMPLATE_FALLBACK =
+  "[{branch}] Сохранение workspace ({date} {time})";
+
+function applyAgentGitCommitMessageTemplate(template, { branch, date, time } = {}) {
+  const source = String(template || "").trim() || AGENT_GIT_COMMIT_MESSAGE_TEMPLATE_FALLBACK;
+  return source
+    .replaceAll("{branch}", String(branch || "main").trim() || "main")
+    .replaceAll("{date}", String(date || ""))
+    .replaceAll("{time}", String(time || ""))
+    .trim();
+}
+
+function buildAgentGitDefaultCommitMessage(now = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const template =
+    agentGitModuleConfig?.commitMessageTemplate || AGENT_GIT_COMMIT_MESSAGE_TEMPLATE_FALLBACK;
+  return applyAgentGitCommitMessageTemplate(template, {
+    branch: getAgentGitCommitBranchLabel(),
+    date: datePart,
+    time: timePart
+  });
+}
+
 function withAgentGitBranchCommitPrefix(message) {
   const trimmed = String(message || "").trim();
   if (!trimmed) return trimmed;
   if (/^\[[^\]]+\]/.test(trimmed)) return trimmed;
   const branch = getAgentGitCommitBranchLabel();
   return `[${branch}] ${trimmed}`;
+}
+
+async function postAgentGitModuleConfig(patch) {
+  const response = await fetch(buildApiUrl("/api/git/module-config"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  }
+  if (payload.moduleConfig) agentGitModuleConfig = payload.moduleConfig;
+  return payload;
 }
 
 async function commitAgentGitChanges(message) {
@@ -101646,6 +101690,18 @@ function syncAgentGitSettingsUi(data) {
   }
   if (agentGitBranchToolbarSelect) {
     agentGitBranchToolbarSelect.setAttribute("aria-label", `Ветка ${toolbarUpstreamLabel}`);
+  }
+
+  agentGitModuleConfig = data?.moduleConfig || agentGitModuleConfig;
+  if (agentGitUserNameInput && !agentGitUserNameInput.dataset.userEdited) {
+    agentGitUserNameInput.value = agentGitModuleConfig?.userName || "";
+  }
+  if (agentGitUserEmailInput && !agentGitUserEmailInput.dataset.userEdited) {
+    agentGitUserEmailInput.value = agentGitModuleConfig?.userEmail || "";
+  }
+  if (agentGitCommitTemplateInput && !agentGitCommitTemplateInput.dataset.userEdited) {
+    agentGitCommitTemplateInput.value =
+      agentGitModuleConfig?.commitMessageTemplate || AGENT_GIT_COMMIT_MESSAGE_TEMPLATE_FALLBACK;
   }
 }
 
@@ -121337,14 +121393,40 @@ agentGitRemoteRemoveBtn?.addEventListener("click", () => {
     });
 });
 
+agentGitUserNameInput?.addEventListener("input", () => {
+  agentGitUserNameInput.dataset.userEdited = "1";
+});
+agentGitUserEmailInput?.addEventListener("input", () => {
+  agentGitUserEmailInput.dataset.userEdited = "1";
+});
+agentGitCommitTemplateInput?.addEventListener("input", () => {
+  agentGitCommitTemplateInput.dataset.userEdited = "1";
+});
+
+agentGitModuleConfigSaveBtn?.addEventListener("click", () => {
+  agentGitModuleConfigSaveBtn.disabled = true;
+  void postAgentGitModuleConfig({
+    userName: agentGitUserNameInput?.value?.trim() || "",
+    userEmail: agentGitUserEmailInput?.value?.trim() || "",
+    commitMessageTemplate: agentGitCommitTemplateInput?.value?.trim() || ""
+  })
+    .then(() => {
+      delete agentGitUserNameInput?.dataset.userEdited;
+      delete agentGitUserEmailInput?.dataset.userEdited;
+      delete agentGitCommitTemplateInput?.dataset.userEdited;
+      window.alert("Настройки git сохранены");
+      if (agentWorkspaceView === "git") void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Не удалось сохранить: ${error.message}`))
+    .finally(() => {
+      agentGitModuleConfigSaveBtn.disabled = false;
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
 agentGitSaveBtn?.addEventListener("click", () => {
   if (agentWorkspaceView !== "git") return;
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const branch = getAgentGitCommitBranchLabel();
-  const defaultMessage = `[${branch}] Сохранение workspace (${datePart} ${timePart})`;
+  const defaultMessage = buildAgentGitDefaultCommitMessage();
   const message = window.prompt("Сообщение коммита", defaultMessage);
   if (message == null) return;
   const trimmed = String(message).trim();
