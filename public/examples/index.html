@@ -80,9 +80,36 @@
       .card.is-hidden {
         display: none;
       }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .example-index-badge {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #334155;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        box-sizing: border-box;
+      }
+      .card:hover .example-index-badge {
+        background: #1e293b;
+      }
       .card h2 {
         margin: 0;
         font-size: 16px;
+        min-width: 0;
       }
       .card p {
         margin: 0;
@@ -331,6 +358,19 @@
         const grid = document.getElementById("examples-grid");
         const countNode = document.getElementById("examples-count");
         const cards = Array.from(grid.querySelectorAll(".card"));
+
+        cards.forEach((card, index) => {
+          const h2 = card.querySelector("h2");
+          if (!h2 || h2.closest(".card-head")) return;
+          const head = document.createElement("div");
+          head.className = "card-head";
+          const badge = document.createElement("span");
+          badge.className = "example-index-badge";
+          badge.textContent = String(index + 1);
+          badge.title = `Пример ${index + 1}`;
+          h2.parentNode.insertBefore(head, h2);
+          head.append(badge, h2);
+        });
 
         function normalize(value) {
           return String(value || "")
