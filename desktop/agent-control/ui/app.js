@@ -1124,8 +1124,16 @@ function renderControlCard(control) {
   return launchTile(control, actionButton(control.distActionId, "default", "compact-btn"));
 }
 
+function renderCommanderCard(commander) {
+  if (!commander) return "";
+
+  const actionsHtml = `<button type="button" class="run-btn compact-btn" data-tone="default" disabled title="В разработке">Скоро</button>`;
+  return launchTile(commander, actionsHtml);
+}
+
 function renderAppsSection() {
   const products = bootstrap?.appProducts || [];
+  const commander = bootstrap?.commanderSelf;
   const control = bootstrap?.controlSelf;
   const section = document.createElement("section");
   section.className = "launchpad panel section-block";
@@ -1136,6 +1144,7 @@ function renderAppsSection() {
     <div class="section-body">
       <div class="launchpad-grid">
         ${products.map(renderAppCard).join("")}
+        ${renderCommanderCard(commander)}
         ${renderControlCard(control)}
       </div>
     </div>

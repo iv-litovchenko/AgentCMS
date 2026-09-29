@@ -166,6 +166,16 @@ const APP_PRODUCTS = [
   }
 ];
 
+const COMMANDER_SELF = {
+  id: "commander",
+  title: "Agent CMS Commander",
+  subtitle: "Управление компьютером (заготовка)",
+  badge: "Commander",
+  accent: "commander",
+  icon: "commander.svg",
+  placeholder: true
+};
+
 const CONTROL_SELF = {
   title: "Agent CMS Control (Launcher)",
   subtitle: "Этот пульт",
@@ -200,6 +210,7 @@ function getServerPortsPayload() {
 module.exports = {
   ACTIONS,
   APP_PRODUCTS,
+  COMMANDER_SELF,
   CONTROL_SELF,
   SETUP_ACTIONS,
   getServerPorts,

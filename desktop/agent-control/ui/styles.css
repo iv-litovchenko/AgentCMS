@@ -13,6 +13,8 @@
   --voice-dim: #7c3aed;
   --control: #14b8a6;
   --control-dim: #0d9488;
+  --commander: #f43f5e;
+  --commander-dim: #be123c;
   --danger: #f87171;
   --ok: #34d399;
   --warn: #fbbf24;
@@ -2264,7 +2266,7 @@ body.is-booting {
 /* ── Карточки приложений ── */
 .launchpad-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -2336,6 +2338,11 @@ body.is-booting {
   opacity: 0.75;
 }
 
+.launch-tile[data-accent="commander"] .launch-tile-port--app {
+  color: var(--commander);
+  opacity: 0.75;
+}
+
 .launch-tile[data-accent="cms"] .launch-tile-body {
   border-top: 2px solid var(--cms);
 }
@@ -2346,6 +2353,10 @@ body.is-booting {
 
 .launch-tile[data-accent="control"] .launch-tile-body {
   border-top: 2px solid var(--control);
+}
+
+.launch-tile[data-accent="commander"] .launch-tile-body {
+  border-top: 2px solid var(--commander);
 }
 
 .launch-tile-top {
@@ -2396,6 +2407,11 @@ body.is-booting {
 .product-badge[data-accent="control"] {
   color: var(--control);
   background: rgba(20, 184, 166, 0.15);
+}
+
+.product-badge[data-accent="commander"] {
+  color: var(--commander);
+  background: rgba(244, 63, 94, 0.15);
 }
 
 .launch-tile-body h3 {

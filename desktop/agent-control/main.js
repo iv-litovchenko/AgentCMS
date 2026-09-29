@@ -765,6 +765,7 @@ if (!gotLock) {
       const {
         ACTIONS,
         APP_PRODUCTS,
+        COMMANDER_SELF,
         CONTROL_SELF,
         SETUP_ACTIONS,
         getServerPortsPayload,
@@ -780,6 +781,7 @@ if (!gotLock) {
         projectRoot: root,
         actions: ACTIONS,
         appProducts: APP_PRODUCTS,
+        commanderSelf: COMMANDER_SELF,
         controlSelf: CONTROL_SELF,
         setupActionIds: SETUP_ACTIONS,
         serverPorts,
