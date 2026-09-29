@@ -3,7 +3,7 @@
 awn_settings:
   maintenance-mode: false
   default-locale: ru
-  default-workspace-id: agent-cms-test
+  default-workspace-id: agent-medcenter
   ui-theme: system
   ui-density: comfortable
   ui-show-breadcrumbs: true

@@ -6,7 +6,7 @@ status: active
 extends: awn.preset
 target-file: ".gitignore"
 hint-title: "Git — что не попадает в репозиторий"
-hint-text: "Корневой <code>.gitignore</code> workspace: секреты, runtime <code>.agent-cms/</code>, временные <code>awn-temp/</code>, OS-мусор, слоты <code>media</code>. В <code>awn-repositories/</code> коммитим только <code>manifest.md</code> и <code>README.md</code>."
+hint-text: "Корневой <code>.gitignore</code> workspace: секреты, кэш <code>.agent-cms/cache/</code>, временные <code>awn-temp/</code>, OS-мусор, слоты <code>media</code>. В <code>awn-repositories/</code> — <code>index.md</code>, <code>manifest.md</code> и <code>README.md</code> карточек; остальное клона — нет."
 sort: 1
 body: |
   # Секреты — не коммитить
@@ -23,12 +23,10 @@ body: |
   .idea/
   .vscode/
 
-  # Runtime CMS / Shell
-  .agent-cms/
+  # Кэш индексов / поиска (настройки в .agent-cms/settings/ — в git)
+  .agent-cms/cache/
 
   # Временные файлы workspace
-  .agent-cms/cache/
-  .agent-cms/state/
   awn-temp/
 
   # Прочий кэш и временные файлы
@@ -44,7 +42,9 @@ body: |
   # Слоты awn-storage — media (крупные файлы)
   **/awn-storage/**/media/
 
-  # Каталог исходников — в git только manifest + README карточки
-  awn-repositories/**/*
+  # Каталог клонов — в git каталог index.md и карточки manifest + README
+  awn-repositories/**
+  !awn-repositories/**/
+  !awn-repositories/index.md
   !awn-repositories/**/manifest.md
   !awn-repositories/**/README.md
