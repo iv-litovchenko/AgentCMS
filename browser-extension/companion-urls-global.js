@@ -209,16 +209,17 @@
     }
   }
 
-  async function isVoiceReachable(voiceUrl) {
+  async function isVoiceReachable(voiceUrl, timeoutMs = 4000) {
     let origin = DEFAULT_VOICE_BASE_URL;
     try {
       origin = new URL(String(voiceUrl || DEFAULT_VOICE_BASE_URL)).origin;
     } catch {
       // keep default
     }
+    const waitMs = Math.max(500, Number(timeoutMs) || 4000);
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
+      const timer = setTimeout(() => controller.abort(), waitMs);
       const response = await fetch(`${origin}/`, {
         method: "GET",
         cache: "no-store",

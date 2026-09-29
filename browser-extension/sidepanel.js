@@ -120,6 +120,24 @@
     }
   }
 
+  function getOfflineStubUrl() {
+    try {
+      return chrome.runtime.getURL("offline-stub.html");
+    } catch {
+      return "";
+    }
+  }
+
+  async function isVoiceServerReachable(shellUrl) {
+    const probe = globalThis.CompanionUrls?.isVoiceReachable;
+    if (typeof probe !== "function") return true;
+    try {
+      return await probe(shellUrl, 2200);
+    } catch {
+      return false;
+    }
+  }
+
   async function loadShellFrame(force = false) {
     if (!frame) return;
 
@@ -131,14 +149,19 @@
       urlLabel.title = shellUrl;
     }
 
+    const voiceUp = await isVoiceServerReachable(shellUrl);
+    const stubUrl = getOfflineStubUrl();
+    const frameUrl = voiceUp ? shellUrl : stubUrl || shellUrl;
+
     const currentSrc = stripReloadNonce(frame.getAttribute("src") || "");
     if (force) {
-      frame.src = withReloadNonce(shellUrl);
+      frame.src = withReloadNonce(frameUrl);
       return;
     }
-    if (currentSrc === shellUrl) return;
+    if (currentSrc === frameUrl) return;
+    if (!voiceUp && stubUrl && currentSrc.startsWith(stubUrl.split("?")[0])) return;
 
-    frame.src = shellUrl;
+    frame.src = frameUrl;
   }
 
   function releaseRetryBtnBusy() {
