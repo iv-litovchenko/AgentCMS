@@ -154,7 +154,7 @@ const APP_PRODUCTS = [
   },
   {
     id: "voice",
-    title: "Agent CMS Voice",
+    title: "Agent CMS Voice (Flow window)",
     subtitle: "Голосовой клиент",
     badge: "Voice",
     accent: "voice",
