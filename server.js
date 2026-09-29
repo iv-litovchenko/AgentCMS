@@ -14008,7 +14008,7 @@ async function buildAgentSessionContext() {
 
   return {
     version: "0.0.4",
-    mcpVersion: "0.3.0",
+    mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
     agentId,
     agentRootRel,
     kitFolder,
@@ -16370,7 +16370,7 @@ function buildAgentMcpPing() {
     agentId: getActiveAgentId(),
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./lib/version/product-version").getProductVersion(),
-    mcpVersion: "0.3.8",
+    mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
     hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
   };
 }
