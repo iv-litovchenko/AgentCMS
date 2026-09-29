@@ -1,5 +1,6 @@
 (function initAgentShellCompanionToolbar() {
   if (window.__agentShellCompanionMounted) return;
+  if (document.querySelector('meta[name="agent-cms-voice-app"]')?.content === "1") return;
   window.__agentShellCompanionMounted = true;
 
   const STORAGE_EXPANDED = "asc-toolbar-expanded";

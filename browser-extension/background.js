@@ -155,6 +155,13 @@ function isVoiceServiceUrl(url) {
   try {
     const parsed = new URL(String(url || ""));
     if (lastResolvedVoiceOrigin && parsed.origin === lastResolvedVoiceOrigin) return true;
+    const path = String(parsed.pathname || "");
+    if (/\/extension\/?$/i.test(path) || /[?&]companion=1/.test(String(parsed.search || ""))) {
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        const host = parsed.hostname;
+        if (host === "localhost" || host === "127.0.0.1") return true;
+      }
+    }
     const port = parsed.port;
     return port === "3488" || port === "3088";
   } catch {
@@ -399,6 +406,44 @@ async function relayPagePickerSet(active, { tabId = 0, windowId = 0, senderTabId
   }).catch(() => {});
 }
 
+async function deliverComposeInsertToVoice(payload) {
+  try {
+    await chrome.runtime.sendMessage(payload);
+    return true;
+  } catch {
+    // side panel iframe host may be absent after top-level navigation
+  }
+
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    const url = String(tab.url || "");
+    if (!url.includes("companion=1") || !isVoiceServiceUrl(url)) continue;
+    try {
+      await chrome.tabs.sendMessage(tab.id, payload);
+      return true;
+    } catch {
+      // try next
+    }
+  }
+  return false;
+}
+
+async function notifyCompanionVoiceTabs(payload) {
+  const tabs = await chrome.tabs.query({});
+  let delivered = false;
+  for (const tab of tabs) {
+    const url = String(tab.url || "");
+    if (!url.includes("companion=1") || !isVoiceServiceUrl(url)) continue;
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "COMPANION_VOICE_RELAY", payload });
+      delivered = true;
+    } catch {
+      // ignore
+    }
+  }
+  return delivered;
+}
+
 async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId = 0 } = {}) {
   const body = String(text || "").trim();
   if (!body) throw new Error("Empty compose text");
@@ -409,13 +454,12 @@ async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId 
   }
 
   const payload = { type: "COMPANION_COMPOSE_INSERT_TO_SHELL", text: body, join: join || "newline" };
-  try {
-    await chrome.runtime.sendMessage(payload);
-  } catch {
-    // side panel may still be opening — retry once
+  let ok = await deliverComposeInsertToVoice(payload);
+  if (!ok) {
     await new Promise((resolve) => setTimeout(resolve, 320));
-    await chrome.runtime.sendMessage(payload).catch(() => {});
+    ok = await deliverComposeInsertToVoice(payload);
   }
+  if (!ok) throw new Error("Voice в Side Panel недоступен — откройте панель Companion");
 
   return { ok: true };
 }
@@ -792,6 +836,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     removeClipboardHistoryEntry(String(message.id || ""), storageLocal())
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_PAGE_PICKER_STATE") {
+    const active = Boolean(message.active);
+    void notifyCompanionVoiceTabs({ type: "agent-cms-voice:page-picker-state", active });
+    sendResponse({ ok: true });
     return true;
   }
 

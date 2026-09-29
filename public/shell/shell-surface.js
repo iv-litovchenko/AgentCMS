@@ -226,10 +226,19 @@ function detectCmsDialog(inIframe) {
   return false;
 }
 
+function isCompanionSidePanelLocation() {
+  try {
+    return new URLSearchParams(window.location.search).get("side_panel") === "1";
+  } catch {
+    return false;
+  }
+}
+
 function detectChromePanel(inIframe) {
   if (trustedSurfaceHost === "chrome-panel") return true;
   if (window.shellCompanion?.isCompanion) return true;
   if (readPathSurfaceId() === "chrome-panel") return true;
+  if (!inIframe && isCompanionSidePanelLocation()) return true;
   return inIframe && readVoiceSurfaceHostFromLocation() === "extension";
 }
 

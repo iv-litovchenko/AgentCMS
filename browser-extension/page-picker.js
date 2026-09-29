@@ -3,6 +3,7 @@
  */
 (function initCompanionPagePicker() {
   if (window.__agentShellCompanionPagePicker) return;
+  if (document.querySelector('meta[name="agent-cms-voice-app"]')?.content === "1") return;
   window.__agentShellCompanionPagePicker = true;
 
   const MESSAGE_SET = "COMPANION_PAGE_PICKER_SET";
