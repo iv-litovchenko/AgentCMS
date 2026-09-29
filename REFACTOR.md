@@ -37,3 +37,124 @@
 - Это другая задача, не замена переносу: перенос = разложить уже существующие модули; резка = уменьшить монолит server.js.
 
 Итого: сейчас делаете перенос. Резку server.js — потом, по желанию, параллельно или после.
+
+## Итоговый план переноса (дерево)
+
+**Этап 1 — только перенос.** Эмодзи: ❌ остаётся · ✅ лёгкая группа · ⚠️ средняя · 🔴 тяжёлая (фаза 4)
+
+```
+YamlCMS/
+│
+├── ❌ server.js  →  (корень, не двигаем)
+├── ⚠️ voice-server.js  →  server/voice-server.js   (или оставить в корне)
+│
+├── ✅ lib/api/
+│   ├── exists-api.js  →  lib/api/exists-api.js
+│   ├── content-schema-api.js  →  lib/api/content-schema-api.js
+│   ├── ui-context-api.js  →  lib/api/ui-context-api.js
+│   ├── idle-screensaver-rest-api.js  →  lib/api/idle-screensaver-rest-api.js
+│   ├── pomodoro-rest-api.js  →  lib/api/pomodoro-rest-api.js
+│   └── page-slots-api.js  →  lib/api/page-slots-api.js
+│
+├── ✅ lib/services/
+│   ├── identity-service.js  →  lib/services/identity-service.js
+│   ├── document-extract-service.js  →  lib/services/document-extract-service.js
+│   ├── script-exec-service.js  →  lib/services/script-exec-service.js
+│   ├── web-search-service.js  →  lib/services/web-search-service.js
+│   ├── sidecar-service.js  →  lib/services/sidecar-service.js
+│   ├── dependencies-service.js  →  lib/services/dependencies-service.js
+│   ├── workspace-brain-service.js  →  lib/services/workspace-brain-service.js
+│   ├── workspace-facts-service.js  →  lib/services/workspace-facts-service.js
+│   ├── workspace-journal-service.js  →  lib/services/workspace-journal-service.js
+│   └── awn-repositories-service.js  →  lib/services/awn-repositories-service.js
+│
+├── ✅ lib/media/
+│   ├── media-import.js  →  lib/media/media-import.js
+│   ├── media-thumbs.js  →  lib/media/media-thumbs.js
+│   ├── base64-upload.js  →  lib/media/base64-upload.js
+│   └── gdrive-sync.js  →  lib/media/gdrive-sync.js
+│
+├── ✅ lib/tools/
+│   ├── broken-links-scanner.js  →  lib/tools/broken-links-scanner.js
+│   └── markdown-link-rewriter.js  →  lib/tools/markdown-link-rewriter.js
+│
+├── ⚠️ lib/docs/
+│   ├── api-docs.js  →  lib/docs/api-docs.js
+│   ├── mcp-docs.js  →  lib/docs/mcp-docs.js
+│   └── docs-registry.js  →  lib/docs/docs-registry.js
+│
+├── ⚠️ lib/agents/
+│   ├── agent-registry.js  →  lib/agents/agent-registry.js
+│   └── agent-system.js  →  lib/agents/agent-system.js
+│
+├── ⚠️ lib/workspace/
+│   ├── workspace-agent-settings.js  →  lib/workspace/workspace-agent-settings.js
+│   ├── workspace-path-resolver.js  →  lib/workspace/workspace-path-resolver.js
+│   ├── workspace-importance.js  →  lib/workspace/workspace-importance.js
+│   ├── workspace-compose-templates.js  →  lib/workspace/workspace-compose-templates.js
+│   ├── workspace-index-exclude.js  →  lib/workspace/workspace-index-exclude.js
+│   ├── workspace-shell-settings-bridge.js  →  lib/workspace/workspace-shell-settings-bridge.js
+│   ├── workspace-route-settings-bridge.js  →  lib/workspace/workspace-route-settings-bridge.js
+│   ├── workspace-ui-settings-bridge.js  →  lib/workspace/workspace-ui-settings-bridge.js
+│   ├── workspace-voice-settings-bridge.js  →  lib/workspace/workspace-voice-settings-bridge.js
+│   ├── workspace-media-settings-bridge.js  →  lib/workspace/workspace-media-settings-bridge.js
+│   ├── workspace-window-settings-bridge.js  →  lib/workspace/workspace-window-settings-bridge.js
+│   └── ws-list-bridge.js  →  lib/workspace/ws-list-bridge.js
+│
+├── ⚠️ lib/catalog/
+│   ├── catalog-loader.js  →  lib/catalog/catalog-loader.js
+│   ├── catalog-items.js  →  lib/catalog/catalog-items.js
+│   ├── catalog-migration.js  →  lib/catalog/catalog-migration.js
+│   ├── catalog-normalize.js  →  lib/catalog/catalog-normalize.js
+│   ├── components-loader.js  →  lib/catalog/components-loader.js
+│   └── type-catalog-loader.js  →  lib/catalog/type-catalog-loader.js
+│
+├── ✅ lib/ui/
+│   └── ui-context-focus.js  →  lib/ui/ui-context-focus.js
+│
+├── 🔴 lib/platform/          (фаза 4, одним заходом)
+│   ├── platform-sources.js  →  lib/platform/platform-sources.js
+│   ├── platform-agent.js  →  lib/platform/platform-agent.js
+│   └── platform-ui-rotators.js  →  lib/platform/platform-ui-rotators.js
+│
+├── 🔴 lib/awn/
+│   ├── awn-yaml-utils.js  →  lib/awn/awn-yaml-utils.js
+│   ├── awn-data-loader.js  →  lib/awn/awn-data-loader.js
+│   ├── awn-data-csv.js  →  lib/awn/awn-data-csv.js
+│   ├── awn-types-loader.js  →  lib/awn/awn-types-loader.js
+│   ├── awn-blocks-loader.js  →  lib/awn/awn-blocks-loader.js
+│   ├── awn-fields-loader.js  →  lib/awn/awn-fields-loader.js
+│   ├── awn-field-registry.js  →  lib/awn/awn-field-registry.js
+│   ├── awn-enum-options.js  →  lib/awn/awn-enum-options.js
+│   ├── awn-canonical-model.js  →  lib/awn/awn-canonical-model.js
+│   ├── awn-system-presets-loader.js  →  lib/awn/awn-system-presets-loader.js
+│   ├── awn-data-agents-bridge.js  →  lib/awn/awn-data-agents-bridge.js
+│   ├── awn-data-types-bridge.js  →  lib/awn/awn-data-types-bridge.js
+│   ├── awn-data-taxonomies-bridge.js  →  lib/awn/awn-data-taxonomies-bridge.js
+│   ├── awn-taxonomy-record.js  →  lib/awn/awn-taxonomy-record.js
+│   ├── awn-taxonomy-catalog-bridge.js  →  lib/awn/awn-taxonomy-catalog-bridge.js
+│   ├── awn-taxonomy-service.js  →  lib/awn/awn-taxonomy-service.js
+│   └── types-yaml-bridge.js  →  lib/awn/types-yaml-bridge.js
+│
+└── 🔴 lib/config/
+    ├── manifest-paths.js  →  lib/config/manifest-paths.js
+    ├── storage-slot-routing.js  →  lib/config/storage-slot-routing.js
+    ├── schema-mod-paths.js  →  lib/config/schema-mod-paths.js
+    ├── configuration-schema.js  →  lib/config/configuration-schema.js
+    ├── section-schema.js  →  lib/config/section-schema.js
+    ├── chpu-resolver.js  →  lib/config/chpu-resolver.js
+    ├── settings-store.js  →  lib/config/settings-store.js
+    ├── mcp-policy-loader.js  →  lib/config/mcp-policy-loader.js
+    ├── index-policy.js  →  lib/config/index-policy.js
+    ├── node-read-state.js  →  lib/config/node-read-state.js
+    ├── node-config-bundle.js  →  lib/config/node-config-bundle.js
+    └── storage-record-extensions.js  →  lib/config/storage-record-extensions.js
+```
+
+**Порядок:** ✅ `api` → `services` → `media` → `tools` → ⚠️ `docs` → `agents` → `workspace` → `catalog` → `ui` → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
+
+**После переноса в корне:** `server.js`, опционально `voice-server.js`, `package.json`, `*.command`, README, env.
+
+**Этап 2 (отдельно):** резать `server.js`, не обязателен для переноса.
+
+**`public/*.js`** — отдельная волна (`public/js/panels/`, `app/`, …), если нужно — напиши, соберу такое же дерево.
