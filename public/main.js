@@ -88886,14 +88886,14 @@ let mermaidChromeModulePromise = null;
 
 function loadMermaidThemeModule() {
   if (!mermaidThemeModulePromise) {
-    mermaidThemeModulePromise = import("/mermaid-diagram-theme.js");
+    mermaidThemeModulePromise = import("/js/mermaid/mermaid-diagram-theme.js");
   }
   return mermaidThemeModulePromise;
 }
 
 function loadMermaidChromeModule() {
   if (!mermaidChromeModulePromise) {
-    mermaidChromeModulePromise = import("/mermaid-diagram-chrome.js");
+    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js");
   }
   return mermaidChromeModulePromise;
 }
@@ -89040,7 +89040,7 @@ async function ensureMermaidResetZoomButton(frame) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/mermaid-diagram-panzoom.js").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
+      void import("/js/mermaid/mermaid-diagram-panzoom.js").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
     });
     bar.appendChild(btn);
   } else {
@@ -89103,7 +89103,7 @@ async function renderMermaidBlock(block, theme = "light") {
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
-    void import("/mermaid-diagram-panzoom.js").then((mod) => {
+    void import("/js/mermaid/mermaid-diagram-panzoom.js").then((mod) => {
       mod.ensureMermaidDiagramPanZoom(frame, { reset: true });
       void ensureMermaidResetZoomButton(frame);
     });

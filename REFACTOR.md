@@ -159,7 +159,7 @@ YamlCMS/
 
 ## Этап 3 — `public/` (перенос + правка `index.html` / редких ссылок)
 
-Эмодзи: ❌ не двигаем · ✅ лёгко · ⚠️ несколько ссылок · **`+`** — уже перенесено (пока ничего)
+Эмодзи: ❌ не двигаем · ✅ лёгко · ⚠️ несколько ссылок · **`+`** — уже перенесено
 
 ```
 public/
@@ -173,54 +173,54 @@ public/
 │   ├── platform-status.js  →  public/js/core/platform-status.js
 │   └── slug-translit.js  →  public/js/core/slug-translit.js
 │
-├── ✅ public/js/app/
-│   ├── app-lock.js  →  public/js/app/app-lock.js
-│   ├── app-lock-scanner.js  →  public/js/app/app-lock-scanner.js
-│   ├── app-footer-voice-cmd.js  →  public/js/app/app-footer-voice-cmd.js
-│   ├── app-home-title-rotator.js  →  public/js/app/app-home-title-rotator.js
-│   ├── header-slogan-rotator.js  →  public/js/app/header-slogan-rotator.js
-│   ├── connection-status.js  →  public/js/app/connection-status.js
-│   └── privacy-mode.js  →  public/js/app/privacy-mode.js
+├── ✅ public/js/app/  (+)
+│   ├── + app-lock.js  →  public/js/app/app-lock.js
+│   ├── + app-lock-scanner.js  →  public/js/app/app-lock-scanner.js
+│   ├── + app-footer-voice-cmd.js  →  public/js/app/app-footer-voice-cmd.js
+│   ├── + app-home-title-rotator.js  →  public/js/app/app-home-title-rotator.js
+│   ├── + header-slogan-rotator.js  →  public/js/app/header-slogan-rotator.js
+│   ├── + connection-status.js  →  public/js/app/connection-status.js
+│   └── + privacy-mode.js  →  public/js/app/privacy-mode.js
 │
-├── ✅ public/js/panels/
-│   ├── discuss-panel.js  →  public/js/panels/discuss-panel.js
-│   ├── languagetool-panel.js  →  public/js/panels/languagetool-panel.js
-│   ├── semantic-index-panel.js  →  public/js/panels/semantic-index-panel.js
-│   ├── file-find-bar.js  →  public/js/panels/file-find-bar.js
-│   ├── api-docs-ui.js  →  public/js/panels/api-docs-ui.js
-│   ├── mcp-docs-primitives-help.js  →  public/js/panels/mcp-docs-primitives-help.js
-│   ├── companion-docs.js  →  public/js/panels/companion-docs.js
-│   ├── cms-page-picker.js  →  public/js/panels/cms-page-picker.js
-│   └── page-picker-extract.js  →  public/js/panels/page-picker-extract.js
+├── ✅ public/js/panels/  (+)
+│   ├── + discuss-panel.js  →  public/js/panels/discuss-panel.js
+│   ├── + languagetool-panel.js  →  public/js/panels/languagetool-panel.js
+│   ├── + semantic-index-panel.js  →  public/js/panels/semantic-index-panel.js
+│   ├── + file-find-bar.js  →  public/js/panels/file-find-bar.js
+│   ├── + api-docs-ui.js  →  public/js/panels/api-docs-ui.js
+│   ├── + mcp-docs-primitives-help.js  →  public/js/panels/mcp-docs-primitives-help.js
+│   ├── + companion-docs.js  →  public/js/panels/companion-docs.js
+│   ├── + cms-page-picker.js  →  public/js/panels/cms-page-picker.js
+│   └── + page-picker-extract.js  →  public/js/panels/page-picker-extract.js
 │
-├── ✅ public/js/editor/
-│   ├── document-viewer.js  →  public/js/editor/document-viewer.js
-│   ├── marker-blocks-preview.js  →  public/js/editor/marker-blocks-preview.js
-│   ├── page-snapshot.js  →  public/js/editor/page-snapshot.js
-│   ├── external-file-mask.js  →  public/js/editor/external-file-mask.js
-│   └── material-file-icons.js  →  public/js/editor/material-file-icons.js
+├── ✅ public/js/editor/  (+)
+│   ├── + document-viewer.js  →  public/js/editor/document-viewer.js
+│   ├── + marker-blocks-preview.js  →  public/js/editor/marker-blocks-preview.js
+│   ├── + page-snapshot.js  →  public/js/editor/page-snapshot.js
+│   ├── + external-file-mask.js  →  public/js/editor/external-file-mask.js
+│   └── + material-file-icons.js  →  public/js/editor/material-file-icons.js
 │
-├── ✅ public/js/markdown/
-│   ├── markdown-github-alerts.js  →  public/js/markdown/markdown-github-alerts.js
-│   ├── markdown-it-task-lists.js  →  public/js/markdown/markdown-it-task-lists.js
-│   └── markdown-it-footnote.min.js  →  public/js/markdown/markdown-it-footnote.min.js
+├── ✅ public/js/markdown/  (+)
+│   ├── + markdown-github-alerts.js  →  public/js/markdown/markdown-github-alerts.js
+│   ├── + markdown-it-task-lists.js  →  public/js/markdown/markdown-it-task-lists.js
+│   └── + markdown-it-footnote.min.js  →  public/js/markdown/markdown-it-footnote.min.js
 │
-├── ✅ public/js/mermaid/
-│   ├── mermaid-diagram-chrome.js  →  public/js/mermaid/mermaid-diagram-chrome.js
-│   ├── mermaid-diagram-panzoom.js  →  public/js/mermaid/mermaid-diagram-panzoom.js
-│   └── mermaid-diagram-theme.js  →  public/js/mermaid/mermaid-diagram-theme.js
+├── ✅ public/js/mermaid/  (+)
+│   ├── + mermaid-diagram-chrome.js  →  public/js/mermaid/mermaid-diagram-chrome.js
+│   ├── + mermaid-diagram-panzoom.js  →  public/js/mermaid/mermaid-diagram-panzoom.js
+│   └── + mermaid-diagram-theme.js  →  public/js/mermaid/mermaid-diagram-theme.js
 │
-├── ✅ public/js/pomodoro/
-│   ├── pomodoro-state-bootstrap.js  →  public/js/pomodoro/pomodoro-state-bootstrap.js
-│   ├── pomodoro-state-api.js  →  public/js/pomodoro/pomodoro-state-api.js
-│   ├── pomodoro-break-emoji.js  →  public/js/pomodoro/pomodoro-break-emoji.js
-│   ├── workspace-pomodoro.js  →  public/js/pomodoro/workspace-pomodoro.js
-│   ├── idle-screensaver-breaks-client.js  →  public/js/pomodoro/idle-screensaver-breaks-client.js
-│   └── workspace-idle-screensaver.js  →  public/js/pomodoro/workspace-idle-screensaver.js
+├── ✅ public/js/pomodoro/  (+)
+│   ├── + pomodoro-state-bootstrap.js  →  public/js/pomodoro/pomodoro-state-bootstrap.js
+│   ├── + pomodoro-state-api.js  →  public/js/pomodoro/pomodoro-state-api.js
+│   ├── + pomodoro-break-emoji.js  →  public/js/pomodoro/pomodoro-break-emoji.js
+│   ├── + workspace-pomodoro.js  →  public/js/pomodoro/workspace-pomodoro.js
+│   ├── + idle-screensaver-breaks-client.js  →  public/js/pomodoro/idle-screensaver-breaks-client.js
+│   └── + workspace-idle-screensaver.js  →  public/js/pomodoro/workspace-idle-screensaver.js
 │
-└── ✅ public/js/cms/
-    ├── awn-dashboards.js  →  public/js/cms/awn-dashboards.js
-    └── awn-enum-options.js  →  public/js/cms/awn-enum-options.js
+└── ✅ public/js/cms/  (+)
+    ├── + awn-dashboards.js  →  public/js/cms/awn-dashboards.js
+    └── + awn-enum-options.js  →  public/js/cms/awn-enum-options.js
 ```
 
 **Порядок:** ✅ `mermaid` → `markdown` → `pomodoro` → `panels` → `app` → `editor` → `cms` → ⚠️ `core` (плюс grep `topic-schema` / `node-config-bundle` в `server` и индексах).

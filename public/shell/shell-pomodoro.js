@@ -3,8 +3,8 @@ import {
   pickNewestPomodoroSnapshot,
   readPomodoroWorkspaceState,
   writePomodoroWorkspaceState
-} from "/pomodoro-state-api.js?v=1";
-import { createPomodoroBreakEmojiRotator } from "/pomodoro-break-emoji.js?v=1";
+} from "/js/pomodoro/pomodoro-state-api.js?v=1";
+import { createPomodoroBreakEmojiRotator } from "/js/pomodoro/pomodoro-break-emoji.js?v=1";
 
 const BREAK_MS = 5 * 60_000;
 const TICK_MS = 1000;

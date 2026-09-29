@@ -29,7 +29,7 @@
     if (breakEmojiRotator) return Promise.resolve(breakEmojiRotator);
     if (!breakEmojiNode) return Promise.resolve(null);
     if (!breakEmojiRotatorPromise) {
-      breakEmojiRotatorPromise = import("/pomodoro-break-emoji.js?v=1")
+      breakEmojiRotatorPromise = import("/js/pomodoro/pomodoro-break-emoji.js?v=1")
         .then((mod) => {
           breakEmojiRotator = mod.createPomodoroBreakEmojiRotator(breakEmojiNode, { intervalMs: 3000 });
           return breakEmojiRotator;

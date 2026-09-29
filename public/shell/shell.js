@@ -7149,9 +7149,7 @@ function parseShellPathAgentId() {
         "api",
         "favicon.svg",
         "project-version.js",
-        "app-lock.js",
-        "markdown-github-alerts.js",
-        "markdown-it-task-lists.js"
+        "js"
       ]);
       if (parts.length >= 1 && !reserved.has(parts[0]) && !parts[0].includes(".")) {
         return decodeURIComponent(parts[0]);

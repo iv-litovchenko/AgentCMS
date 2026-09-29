@@ -448,7 +448,7 @@ const {
   displayNameFromMaskPath,
   maskUsesId,
   extractAwnMaskFileValue
-} = require(path.join(__dirname, "public", "external-file-mask.js"));
+} = require(path.join(__dirname, "public", "js", "editor", "external-file-mask.js"));
 
 const execFileAsync = promisify(execFile);
 
