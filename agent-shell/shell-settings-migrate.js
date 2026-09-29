@@ -2,8 +2,8 @@ const fs = require("fs/promises");
 const path = require("path");
 const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
 const { flattenSettings } = require("./shell-settings-format");
-const { hydrateWorkspaceFromShell, pickShellRuntimePatch } = require("../workspace-shell-settings-bridge");
-const { SESSION_SHELL_TO_WORKSPACE } = require("../workspace-route-settings-bridge");
+const { hydrateWorkspaceFromShell, pickShellRuntimePatch } = require("../lib/workspace/workspace-shell-settings-bridge");
+const { SESSION_SHELL_TO_WORKSPACE } = require("../lib/workspace/workspace-route-settings-bridge");
 
 const LEGACY_SETTINGS_REL = ".agent-cms/settings/shell.json";
 const STATE_REL = rel.state.shell;

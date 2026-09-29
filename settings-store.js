@@ -15,8 +15,8 @@ const {
   parseWorkspaceAgentSettingsFromConfigContent,
   touchWorkspaceAwnIdCounterOnSave,
   workspaceAwnSettingsFlatEqual
-} = require("./workspace-agent-settings");
-const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
+} = require("./lib/workspace/workspace-agent-settings");
+const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./lib/catalog/type-catalog-loader");
 
 const { rel, projectRel, projectLegacy, legacy, platformSettingsAbs } = require("./paths/agent-cms");
 const PLATFORM_SETTINGS_FILE = projectRel.settings.platform;
@@ -77,7 +77,7 @@ async function hydrateWorkspaceSettingsFromShell(agentRoot, awnSettings = {}, pr
       readStateFile,
       readLegacySettingsFile
     } = require("./agent-shell/shell-settings-migrate");
-    const { hydrateWorkspaceFromShell } = require("./workspace-shell-settings-bridge");
+    const { hydrateWorkspaceFromShell } = require("./lib/workspace/workspace-shell-settings-bridge");
     await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
     const legacyFlat = await readLegacySettingsFile(agentRoot);
     const stateFlat = await readStateFile(agentRoot);
@@ -145,7 +145,7 @@ function enrichPlatformSettingsSchema(payload = {}, projectRoot = process.cwd())
   const field = payload.fields?.["default-workspace-id"];
   if (!field) return payload;
   try {
-    const { getAgentsPublicList } = require("./agent-registry");
+    const { getAgentsPublicList } = require("./lib/agents/agent-registry");
     const agents = getAgentsPublicList();
     field.enum = agents
       .filter((agent) => agent.active !== false)

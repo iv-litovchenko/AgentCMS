@@ -365,7 +365,7 @@ function normalizeProactiveQuietTime(value, fallback = "23:00") {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-const { normalizeVoiceComposeTemplates: normalizeComposePromptTemplates } = require("../workspace-compose-templates");
+const { normalizeVoiceComposeTemplates: normalizeComposePromptTemplates } = require("../lib/workspace/workspace-compose-templates");
 
 function normalizeSettings(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...flattenSettings(raw && typeof raw === "object" ? raw : {}) };
@@ -565,7 +565,7 @@ async function readSettings(agentRoot) {
   const {
     loadWorkspaceAwnSettings,
     buildShellSettingsFromWorkspace
-  } = require("../workspace-shell-settings-bridge");
+  } = require("../lib/workspace/workspace-shell-settings-bridge");
 
   await migrateLegacyShellSettingsFile(agentRoot, projectRoot);
   await migrateStateSessionIdsToWorkspace(agentRoot, projectRoot);
@@ -585,7 +585,7 @@ async function writeSettings(agentRoot, patch, agentId) {
       pickShellRuntimePatch,
       pickShellConfigPatch,
       buildWorkspacePatchFromShell
-    } = require("../workspace-shell-settings-bridge");
+    } = require("../lib/workspace/workspace-shell-settings-bridge");
     const { writeStateFile } = require("./shell-settings-migrate");
     const { patchWorkspaceSettings } = require("../settings-store");
 

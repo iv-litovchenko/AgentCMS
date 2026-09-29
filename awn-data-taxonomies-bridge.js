@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
-const { findCatalogScaffold } = require("./agent-registry");
+const { findCatalogScaffold } = require("./lib/agents/agent-registry");
 const { AWN_DATA_DIR, getAwnDataPayload } = require("./awn-data-loader");
 const { listWorkspaceTaxonomies } = require("./awn-taxonomy-service");
 const { recordToCatalogItem } = require("./awn-taxonomy-record");

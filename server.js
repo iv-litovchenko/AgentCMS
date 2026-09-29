@@ -7,11 +7,11 @@ const path = require("path");
 const { AsyncLocalStorage } = require("async_hooks");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
-const agentRegistry = require("./agent-registry");
+const agentRegistry = require("./lib/agents/agent-registry");
 const { resolveChpuPath, isChpuReservedRootSegment } = require("./chpu-resolver");
-const docsRegistry = require("./docs-registry");
-const apiDocs = require("./api-docs");
-const mcpDocs = require("./mcp-docs");
+const docsRegistry = require("./lib/docs/docs-registry");
+const apiDocs = require("./lib/docs/api-docs");
+const mcpDocs = require("./lib/docs/mcp-docs");
 const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./lib/media/gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
@@ -70,7 +70,7 @@ const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
 const { createOcrIndexService } = require("./ocr-index/service");
 const { createIdentityService } = require("./lib/services/identity-service");
 const { createDocumentExtractService } = require("./lib/services/document-extract-service");
-const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
+const { buildWorkspacePathResolvePayload } = require("./lib/workspace/workspace-path-resolver");
 const {
   listRepositories,
   getRepository,
@@ -91,7 +91,7 @@ const {
   resolveSidecarAbsoluteFromSourceAbsolute
 } = require("./lib/services/sidecar-service");
 const { createWorkspaceBrainService } = require("./lib/services/workspace-brain-service");
-const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./workspace-importance");
+const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./lib/workspace/workspace-importance");
 const {
   INDEX_EXCLUDE_FIELD_KEY,
   INDEX_EXCLUDE_RECORD_FIELD_KEY,
@@ -100,7 +100,7 @@ const {
   resolveIndexExcludeFlags,
   parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
-} = require("./workspace-index-exclude");
+} = require("./lib/workspace/workspace-index-exclude");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./lib/services/workspace-facts-service");
 const {
   createWorkspaceJournalService,
@@ -317,18 +317,18 @@ const {
   loadSchemasCatalogPreset,
   resolveCatalogPropValue,
   resolveCatalogTagsList
-} = require("./catalog-loader");
+} = require("./lib/catalog/catalog-loader");
 const {
   migrateDiscoveredTagsToGlobal,
   migrateDiscoveredPresetToGlobal,
   migrateDiscoveredCatalogsToGlobal,
   MIGRATABLE_PRESETS
-} = require("./catalog-migration");
-const { addCatalogItemForAgentContext } = require("./catalog-items");
+} = require("./lib/catalog/catalog-migration");
+const { addCatalogItemForAgentContext } = require("./lib/catalog/catalog-items");
 const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { loadPlatformUiRotators } = require("./platform-ui-rotators");
-const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getComponentsPayload } = require("./lib/catalog/components-loader");
+const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./lib/catalog/type-catalog-loader");
 const {
   AWN_DATA_DIR,
   normalizeStoreKind,
@@ -367,7 +367,7 @@ const {
   readAgentSystemFile,
   writeAgentSystemFile,
   getAgentSystemStatus
-} = require("./agent-system");
+} = require("./lib/agents/agent-system");
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const { parseYamlScalar, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
 const { getWorkspaceTaxonomiesPayload } = require("./awn-taxonomy-service");
@@ -400,7 +400,7 @@ const {
   getPlatformAlwaysContextWsFolder,
   getMediaCloudProviders,
   getMediaCloudDefaultProviderId
-} = require("./workspace-agent-settings");
+} = require("./lib/workspace/workspace-agent-settings");
 const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {

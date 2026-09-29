@@ -1,7 +1,7 @@
 const {
   loadBlocksFromCatalog,
   loadBlockGroupsFromCatalog
-} = require("./type-catalog-loader");
+} = require("./lib/catalog/type-catalog-loader");
 const {
   getAgentCmsCoreAbsolute,
   agentSystemDirExists,

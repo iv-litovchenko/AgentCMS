@@ -8,7 +8,7 @@ const {
 const {
   WORKSPACE_AWN_ID_COUNTER_KEYS,
   WORKSPACE_AWN_ID_COUNTER_MODEL
-} = require("../workspace-agent-settings");
+} = require("../lib/workspace/workspace-agent-settings");
 
 const LEGACY_COUNTER_FILE = "id-autoincrement.json";
 const COUNTER_FILE = WORKSPACE_SETTINGS_FILE;

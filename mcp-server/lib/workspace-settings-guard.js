@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { assertMcpToolAllowed } = require("../../workspace-agent-settings.js");
+const { assertMcpToolAllowed } = require("../../lib/workspace/workspace-agent-settings.js");
 
 const settingsCache = new Map();
 const CACHE_TTL_MS = 30_000;

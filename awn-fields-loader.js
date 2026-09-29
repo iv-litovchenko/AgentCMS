@@ -1,12 +1,12 @@
 const {
   getActiveComponents,
   loadFieldDefFromComponents
-} = require("./components-loader");
+} = require("./lib/catalog/components-loader");
 const {
   loadFieldTypesFromCatalog,
   loadFieldDefFromCatalog,
   loadFieldGroupsFromCatalog
-} = require("./type-catalog-loader");
+} = require("./lib/catalog/type-catalog-loader");
 const {
   getAgentCmsCoreAbsolute,
   agentSystemDirExists,

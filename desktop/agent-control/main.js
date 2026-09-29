@@ -12,7 +12,7 @@ const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
 const controlPackage = require("./package.json");
 const { requireRepo } = require("./repo-resolve");
-const docsRegistry = requireRepo("docs-registry");
+const docsRegistry = requireRepo("lib/docs/docs-registry");
 const { enrichMcpDocsForClient } = requireRepo("lib/https-redirect");
 
 function buildAnonymizedMcpConfig(cmsBaseUrl, envExtra = {}) {
@@ -120,7 +120,7 @@ function loadQrCode() {
 }
 const { buildSystemEnvironment } = requireRepo("lib/system-environment");
 const { getPlatformSettings, patchPlatformSettings } = requireRepo("settings-store");
-const { isPlatformMaintenanceMode } = requireRepo("workspace-agent-settings");
+const { isPlatformMaintenanceMode } = requireRepo("lib/workspace/workspace-agent-settings");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;

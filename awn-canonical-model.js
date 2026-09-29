@@ -4,7 +4,7 @@ const {
   mergeTypeSchema,
   isTypeActive,
   resolveCanonicalTypeId
-} = require("./type-catalog-loader");
+} = require("./lib/catalog/type-catalog-loader");
 
 const CANONICAL_PAGE_TYPES = ["awn.page.ws", "awn.page.area", "awn.page.topic"];
 

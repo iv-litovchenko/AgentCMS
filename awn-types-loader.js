@@ -25,7 +25,7 @@ const {
   inferAwnTypeFromRelPath
 } = require("./manifest-paths");
 const { getComponentsAbsolute } = require("./platform-sources");
-const { resolveCanonicalTypeId } = require("./type-catalog-loader");
+const { resolveCanonicalTypeId } = require("./lib/catalog/type-catalog-loader");
 const {
   parseNodeConfigBundle,
   composeNodeConfigBundle,
@@ -39,8 +39,8 @@ const {
 const {
   loadRecordTypesFromComponents,
   getComponentsPayload
-} = require("./components-loader");
-const { loadPageTypesFromCatalog, getTypeCatalogPayload, getTypeCatalogIndexPayload } = require("./type-catalog-loader");
+} = require("./lib/catalog/components-loader");
+const { loadPageTypesFromCatalog, getTypeCatalogPayload, getTypeCatalogIndexPayload } = require("./lib/catalog/type-catalog-loader");
 const {
   normalizeEnumOptions,
   stringifyEnumOptionsYaml,

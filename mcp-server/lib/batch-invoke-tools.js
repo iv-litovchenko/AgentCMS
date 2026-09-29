@@ -5,7 +5,7 @@ import { assertWorkspaceMcpToolAllowed, loadWorkspaceAgentSettings } from "./wor
 
 const require = createRequire(import.meta.url);
 const { assertBatchInvokeAllowed, getBatchAbsoluteMaxItems, getBatchDefaultParallel } = require(
-  "../../workspace-agent-settings.js"
+  "../../lib/workspace/workspace-agent-settings.js"
 );
 
 function normalizeBatchItem(item, index) {

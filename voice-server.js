@@ -10,9 +10,9 @@ const https = require("https");
 const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
-const agentRegistry = require("./agent-registry");
+const agentRegistry = require("./lib/agents/agent-registry");
 const { getPlatformSettings } = require("./settings-store");
-const { isPlatformMaintenanceMode } = require("./workspace-agent-settings");
+const { isPlatformMaintenanceMode } = require("./lib/workspace/workspace-agent-settings");
 const { getLanIPv4 } = require("./lib/lan-ip");
 const voiceChpu = require("./lib/voice-chpu");
 const {

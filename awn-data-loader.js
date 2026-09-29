@@ -276,7 +276,7 @@ function resolveElementExtendsRef(ref) {
 function loadInheritedFieldsFromTypeId(typeId, agentRoot, projectRoot) {
   if (!isTypeIdRef(typeId)) return { fields: {}, tabs: {} };
   try {
-    const { getTypeDetailByTypeId } = require("./type-catalog-loader");
+    const { getTypeDetailByTypeId } = require("./lib/catalog/type-catalog-loader");
     const detail = getTypeDetailByTypeId(projectRoot, agentRoot, typeId);
     if (!detail) return { fields: {}, tabs: {} };
     return {
@@ -2468,7 +2468,7 @@ function loadTypeMetaByTypeId(typeId, agentRoot, projectRoot) {
   let typeFields = {};
   if (!resolvedTypeId) return { typeId: "", typeDescription, typeFields };
   try {
-    const { getTypeDetailByTypeId } = require("./type-catalog-loader");
+    const { getTypeDetailByTypeId } = require("./lib/catalog/type-catalog-loader");
     const detail = getTypeDetailByTypeId(projectRoot, agentRoot, resolvedTypeId);
     if (detail) {
       typeDescription = String(detail.description || "").trim();

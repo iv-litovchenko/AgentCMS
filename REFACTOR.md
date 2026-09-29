@@ -78,36 +78,36 @@ YamlCMS/
 │   ├── + broken-links-scanner.js  →  lib/tools/broken-links-scanner.js
 │   └── + markdown-link-rewriter.js  →  lib/tools/markdown-link-rewriter.js
 │
-├── ⚠️ lib/docs/
-│   ├── api-docs.js  →  lib/docs/api-docs.js
-│   ├── mcp-docs.js  →  lib/docs/mcp-docs.js
-│   └── docs-registry.js  →  lib/docs/docs-registry.js
+├── ⚠️ lib/docs/  (+ готово)
+│   ├── + api-docs.js  →  lib/docs/api-docs.js
+│   ├── + mcp-docs.js  →  lib/docs/mcp-docs.js
+│   └── + docs-registry.js  →  lib/docs/docs-registry.js
 │
-├── ⚠️ lib/agents/
-│   ├── agent-registry.js  →  lib/agents/agent-registry.js
-│   └── agent-system.js  →  lib/agents/agent-system.js
+├── ⚠️ lib/agents/  (+ готово)
+│   ├── + agent-registry.js  →  lib/agents/agent-registry.js
+│   └── + agent-system.js  →  lib/agents/agent-system.js
 │
-├── ⚠️ lib/workspace/
-│   ├── workspace-agent-settings.js  →  lib/workspace/workspace-agent-settings.js
-│   ├── workspace-path-resolver.js  →  lib/workspace/workspace-path-resolver.js
-│   ├── workspace-importance.js  →  lib/workspace/workspace-importance.js
-│   ├── workspace-compose-templates.js  →  lib/workspace/workspace-compose-templates.js
-│   ├── workspace-index-exclude.js  →  lib/workspace/workspace-index-exclude.js
-│   ├── workspace-shell-settings-bridge.js  →  lib/workspace/workspace-shell-settings-bridge.js
-│   ├── workspace-route-settings-bridge.js  →  lib/workspace/workspace-route-settings-bridge.js
-│   ├── workspace-ui-settings-bridge.js  →  lib/workspace/workspace-ui-settings-bridge.js
-│   ├── workspace-voice-settings-bridge.js  →  lib/workspace/workspace-voice-settings-bridge.js
-│   ├── workspace-media-settings-bridge.js  →  lib/workspace/workspace-media-settings-bridge.js
-│   ├── workspace-window-settings-bridge.js  →  lib/workspace/workspace-window-settings-bridge.js
-│   └── ws-list-bridge.js  →  lib/workspace/ws-list-bridge.js
+├── ⚠️ lib/workspace/  (+ готово)
+│   ├── + workspace-agent-settings.js  →  lib/workspace/workspace-agent-settings.js
+│   ├── + workspace-path-resolver.js  →  lib/workspace/workspace-path-resolver.js
+│   ├── + workspace-importance.js  →  lib/workspace/workspace-importance.js
+│   ├── + workspace-compose-templates.js  →  lib/workspace/workspace-compose-templates.js
+│   ├── + workspace-index-exclude.js  →  lib/workspace/workspace-index-exclude.js
+│   ├── + workspace-shell-settings-bridge.js  →  lib/workspace/workspace-shell-settings-bridge.js
+│   ├── + workspace-route-settings-bridge.js  →  lib/workspace/workspace-route-settings-bridge.js
+│   ├── + workspace-ui-settings-bridge.js  →  lib/workspace/workspace-ui-settings-bridge.js
+│   ├── + workspace-voice-settings-bridge.js  →  lib/workspace/workspace-voice-settings-bridge.js
+│   ├── + workspace-media-settings-bridge.js  →  lib/workspace/workspace-media-settings-bridge.js
+│   ├── + workspace-window-settings-bridge.js  →  lib/workspace/workspace-window-settings-bridge.js
+│   └── + ws-list-bridge.js  →  lib/workspace/ws-list-bridge.js
 │
-├── ⚠️ lib/catalog/
-│   ├── catalog-loader.js  →  lib/catalog/catalog-loader.js
-│   ├── catalog-items.js  →  lib/catalog/catalog-items.js
-│   ├── catalog-migration.js  →  lib/catalog/catalog-migration.js
-│   ├── catalog-normalize.js  →  lib/catalog/catalog-normalize.js
-│   ├── components-loader.js  →  lib/catalog/components-loader.js
-│   └── type-catalog-loader.js  →  lib/catalog/type-catalog-loader.js
+├── ⚠️ lib/catalog/  (+ готово)
+│   ├── + catalog-loader.js  →  lib/catalog/catalog-loader.js
+│   ├── + catalog-items.js  →  lib/catalog/catalog-items.js
+│   ├── + catalog-migration.js  →  lib/catalog/catalog-migration.js
+│   ├── + catalog-normalize.js  →  lib/catalog/catalog-normalize.js
+│   ├── + components-loader.js  →  lib/catalog/components-loader.js
+│   └── + type-catalog-loader.js  →  lib/catalog/type-catalog-loader.js
 │
 ├── ✅ lib/ui/  (+ готово)
 │   └── + ui-context-focus.js  →  lib/ui/ui-context-focus.js
@@ -151,7 +151,7 @@ YamlCMS/
     └── storage-record-extensions.js  →  lib/config/storage-record-extensions.js
 ```
 
-**Порядок:** ✅ `api` **(+)** → `services` **(+)** → `media` **(+)** → `tools` **(+)** → ⚠️ `docs` → `agents` → `workspace` → `catalog` → `ui` → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
+**Порядок:** ✅ `api` **(+)** → `services` **(+)** → `media` **(+)** → `tools` **(+)** → ⚠️ `docs` **(+)** → `agents` **(+)** → `workspace` **(+)** → `catalog` **(+)** → `ui` **(+)** → 🔴 `platform` + `awn` + `config` (вместе + `scripts/` + electron `build.files`).
 
 **После переноса в корне:** `server.js`, опционально `voice-server.js`, `package.json`, `*.command`, README, env.
 

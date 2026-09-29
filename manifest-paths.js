@@ -5,7 +5,7 @@
  * - Slug = имя папки; display name — frontmatter `awn-name:`
  */
 const path = require("path");
-const { resolveCanonicalTypeId } = require("./type-catalog-loader");
+const { resolveCanonicalTypeId } = require("./lib/catalog/type-catalog-loader");
 const { normalizeYamlDisplayString } = require("./awn-yaml-utils");
 
 const EMPTY_TYPE_CATALOG = new Map();
