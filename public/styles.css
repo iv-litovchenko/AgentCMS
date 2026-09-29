@@ -19668,6 +19668,12 @@ ol .live-diff-preview-removed {
   flex: 0 0 auto;
 }
 
+.header-examples-btn-icon {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .header-community-popover {
   position: absolute;
   top: calc(100% + 8px);
