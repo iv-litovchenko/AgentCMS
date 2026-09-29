@@ -1,6 +1,7 @@
-const PANZOOM_MIN = 0.35;
+const PANZOOM_MIN = 1;
 const PANZOOM_MAX = 4;
 const WHEEL_ZOOM_FACTOR = 1.08;
+const PAN_MARGIN_RATIO = 0.28;
 
 const hostState = new WeakMap();
 
@@ -39,12 +40,68 @@ function cloneViewBox(vb) {
   return { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
 }
 
+const VIEWBOX_PAD_RATIO = 0.08;
+
+function padViewBox(vb, ratio = VIEWBOX_PAD_RATIO) {
+  const padW = vb.w * ratio;
+  const padH = vb.h * ratio;
+  return {
+    x: vb.x - padW * 0.5,
+    y: vb.y - padH * 0.5,
+    w: vb.w + padW,
+    h: vb.h + padH
+  };
+}
+
+function formatViewBox(vb) {
+  return `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
+}
+
 function viewBoxScale(base, current) {
   return base.w / current.w;
 }
 
-function syncZoomedClass(host, transformed) {
-  host?.classList.toggle("is-mermaid-zoomed", Boolean(transformed));
+function isViewBoxTransformed(base, current) {
+  if (!base || !current) return false;
+  const scale = viewBoxScale(base, current);
+  if (scale > 1.02) return true;
+  return (
+    Math.abs(current.x - base.x) > 0.5 ||
+    Math.abs(current.y - base.y) > 0.5 ||
+    Math.abs(current.w - base.w) > 0.5 ||
+    Math.abs(current.h - base.h) > 0.5
+  );
+}
+
+function clampViewBoxToBase(viewBox, baseViewBox) {
+  const vb = cloneViewBox(viewBox);
+  const base = baseViewBox;
+  if (!base?.w || !base?.h) return vb;
+
+  if (vb.w >= base.w) {
+    vb.x = base.x + (base.w - vb.w) / 2;
+  } else {
+    const marginX = vb.w * PAN_MARGIN_RATIO;
+    const minX = base.x - marginX;
+    const maxX = base.x + base.w - vb.w + marginX;
+    vb.x = minX > maxX ? base.x + (base.w - vb.w) / 2 : Math.min(Math.max(vb.x, minX), maxX);
+  }
+
+  if (vb.h >= base.h) {
+    vb.y = base.y + (base.h - vb.h) / 2;
+  } else {
+    const marginY = vb.h * PAN_MARGIN_RATIO;
+    const minY = base.y - marginY;
+    const maxY = base.y + base.h - vb.h + marginY;
+    vb.y = minY > maxY ? base.y + (base.h - vb.h) / 2 : Math.min(Math.max(vb.y, minY), maxY);
+  }
+
+  return vb;
+}
+
+function syncZoomedClass(host, baseViewBox, currentViewBox) {
+  const transformed = isViewBoxTransformed(baseViewBox, currentViewBox);
+  host?.classList.toggle("is-mermaid-zoomed", transformed);
   const resetBtn = host?.querySelector(".mermaid-diagram-reset-zoom-btn");
   if (resetBtn) resetBtn.disabled = !transformed;
 }
@@ -59,10 +116,12 @@ function clearMermaidDiagramFocus(host) {
 }
 
 function applyViewBox(svg, state) {
+  if (!state.baseViewBox) return;
+  state.viewBox = clampViewBoxToBase(state.viewBox, state.baseViewBox);
   const { x, y, w, h } = state.viewBox;
   svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
-  state.transformed = true;
-  syncZoomedClass(state.host, true);
+  state.transformed = isViewBoxTransformed(state.baseViewBox, state.viewBox);
+  syncZoomedClass(state.host, state.baseViewBox, state.viewBox);
 }
 
 function clientPointToSvg(svg, clientX, clientY, viewBox) {
@@ -126,14 +185,18 @@ function bindPanZoom(host) {
     state.svg = getDiagramSvg(state.content);
     if (!state.svg) return false;
 
-    const base = readSvgViewBox(state.svg);
-    if (!base) return false;
+    const raw = readSvgViewBox(state.svg);
+    if (!raw) return false;
 
-    state.originalViewBoxAttr = state.svg.getAttribute("viewBox");
+    const base = padViewBox(raw);
+    state.originalViewBoxAttr = formatViewBox(base);
     state.baseViewBox = base;
     state.viewBox = cloneViewBox(base);
     state.transformed = false;
-    syncZoomedClass(host, false);
+    if (!state.transformed) {
+      state.svg.setAttribute("viewBox", state.originalViewBoxAttr);
+    }
+    syncZoomedClass(host, base, state.viewBox);
     return true;
   };
 
@@ -141,15 +204,10 @@ function bindPanZoom(host) {
     if (!state.svg?.isConnected && !state.captureBase()) return;
     if (!state.svg || !state.baseViewBox) return;
 
-    if (state.originalViewBoxAttr) {
-      state.svg.setAttribute("viewBox", state.originalViewBoxAttr);
-    } else {
-      const { x, y, w, h } = state.baseViewBox;
-      state.svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
-    }
+    state.svg.setAttribute("viewBox", formatViewBox(state.baseViewBox));
     state.viewBox = cloneViewBox(state.baseViewBox);
     state.transformed = false;
-    syncZoomedClass(host, false);
+    syncZoomedClass(host, state.baseViewBox, state.viewBox);
   };
 
   const onWheel = (event) => {

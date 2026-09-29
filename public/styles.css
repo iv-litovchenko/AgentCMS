@@ -52367,13 +52367,19 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  overflow: hidden;
+  overflow: visible;
   touch-action: pan-y pinch-zoom;
 }
 
 .mermaid-diagram-frame.is-mermaid-zoomed {
+  overflow: auto;
+  max-height: min(88vh, 1200px);
   touch-action: none;
   cursor: grab;
+}
+
+.mermaid-diagram-frame.is-mermaid-zoomed.is-mermaid-panning {
+  overflow: hidden;
 }
 
 .mermaid-diagram-frame.is-mermaid-panning {
@@ -52385,9 +52391,16 @@ button.node-navigation-memory-title:focus-visible {
   width: 100%;
   max-width: 100%;
   height: auto;
+  overflow: visible;
   shape-rendering: geometricPrecision;
   text-rendering: geometricPrecision;
   -webkit-tap-highlight-color: transparent;
+}
+
+.mermaid-diagram-frame pre.mermaid foreignObject,
+.mermaid-diagram-frame pre.mermaid .nodeLabel,
+.mermaid-diagram-frame pre.mermaid .label-container {
+  overflow: visible;
 }
 
 .mermaid-diagram-frame pre.mermaid svg:focus,
@@ -52444,6 +52457,7 @@ button.node-navigation-memory-title:focus-visible {
   width: 100%;
   max-width: 100%;
   margin: 0;
+  overflow: visible;
   user-select: none;
 }
 
@@ -52451,7 +52465,8 @@ button.node-navigation-memory-title:focus-visible {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 1;
+  z-index: 4;
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;

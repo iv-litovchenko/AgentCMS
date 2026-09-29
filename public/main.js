@@ -88929,14 +88929,52 @@ function mermaidBlockHasRenderedDiagram(block) {
 
 function ensureMermaidDiagramFrame(block) {
   const existing = block.closest(".mermaid-diagram-frame");
-  if (existing) return existing;
+  if (existing) {
+    bindMermaidDiagramFrameChrome(existing);
+    return existing;
+  }
 
   const frame = document.createElement("div");
   frame.className = "mermaid-diagram-frame";
   frame.dataset.mermaidTheme = "light";
   block.parentNode?.insertBefore(frame, block);
   frame.appendChild(block);
+  bindMermaidDiagramFrameChrome(frame);
   return frame;
+}
+
+function bindMermaidDiagramFrameChrome(frame) {
+  if (!(frame instanceof Element) || frame.dataset.mermaidChromeBound === "1") return;
+  frame.dataset.mermaidChromeBound = "1";
+  frame.addEventListener("click", (event) => {
+    const sourceBtn = event.target.closest(".mermaid-diagram-source-btn");
+    if (!sourceBtn || !frame.contains(sourceBtn)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleMermaidSourceView(frame);
+  });
+}
+
+function getMermaidDiagramSource(frame, block) {
+  const fromBlock = getMermaidBlockSource(block);
+  if (fromBlock) return fromBlock;
+  if (!(frame instanceof Element)) return "";
+  const stored = frame.getAttribute("data-mermaid-diagram-source");
+  if (!stored) return "";
+  try {
+    return decodeURIComponent(stored).trim();
+  } catch {
+    return "";
+  }
+}
+
+function syncMermaidSourceButtonUi(frame, open) {
+  const btn = frame.querySelector(".mermaid-diagram-source-btn");
+  if (!btn) return;
+  const showLabel = open ? "Скрыть исходник Mermaid" : "Показать исходник Mermaid";
+  btn.setAttribute("aria-pressed", open ? "true" : "false");
+  btn.title = showLabel;
+  btn.setAttribute("aria-label", showLabel);
 }
 
 async function ensureMermaidDiagramActions(frame) {
@@ -88944,27 +88982,26 @@ async function ensureMermaidDiagramActions(frame) {
   return chromeMod.ensureMermaidDiagramActionsBar(frame);
 }
 
-function toggleMermaidSourceView(frame, block) {
+function toggleMermaidSourceView(frame) {
+  const block = frame.querySelector("pre.mermaid");
   const open = !frame.classList.contains("is-mermaid-source-open");
   frame.classList.toggle("is-mermaid-source-open", open);
-  const btn = frame.querySelector(".mermaid-diagram-source-btn");
-  if (btn) {
-    btn.setAttribute("aria-pressed", open ? "true" : "false");
-    btn.title = open ? "Скрыть исходник Mermaid" : "Показать исходник Mermaid";
-  }
+  syncMermaidSourceButtonUi(frame, open);
   if (!open) return;
 
-  const source = getMermaidBlockSource(block);
+  const source = getMermaidDiagramSource(frame, block);
   let view = frame.querySelector(".mermaid-diagram-source-view");
   if (!view) {
     view = document.createElement("pre");
     view.className = "mermaid-diagram-source-view";
     const code = document.createElement("code");
     view.appendChild(code);
-    frame.insertBefore(view, block);
+    const anchor = block || frame.querySelector(".mermaid-diagram-actions");
+    if (anchor) frame.insertBefore(view, anchor);
+    else frame.prepend(view);
   }
   const code = view.querySelector("code");
-  if (code) code.textContent = source;
+  if (code) code.textContent = source || "/* Исходник Mermaid недоступен */";
 }
 
 async function ensureMermaidSourceButton(frame, block) {
@@ -88979,11 +89016,6 @@ async function ensureMermaidSourceButton(frame, block) {
     btn.title = "Показать исходник Mermaid";
     btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", "false");
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleMermaidSourceView(frame, block);
-    });
     bar.appendChild(btn);
   } else if (!btn.querySelector(".mermaid-diagram-chrome-icon")) {
     btn.innerHTML = chromeMod.MERMAID_SOURCE_BUTTON_HTML;
@@ -89002,7 +89034,7 @@ async function ensureMermaidResetZoomButton(frame) {
     btn.type = "button";
     btn.className = "mermaid-diagram-reset-zoom-btn mermaid-diagram-chrome-btn";
     btn.innerHTML = chromeMod.MERMAID_RESET_ZOOM_BUTTON_HTML;
-    btn.title = "Сбросить масштаб и позицию диаграммы";
+    btn.title = "Сбросить масштаб и позицию";
     btn.setAttribute("aria-label", btn.title);
     btn.disabled = true;
     btn.addEventListener("click", (event) => {
@@ -89011,6 +89043,11 @@ async function ensureMermaidResetZoomButton(frame) {
       void import("/mermaid-diagram-panzoom.js").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
     });
     bar.appendChild(btn);
+  } else {
+    const label = btn.querySelector(".mermaid-diagram-chrome-label");
+    if (label && label.textContent !== "Сбросить") {
+      btn.innerHTML = chromeMod.MERMAID_RESET_ZOOM_BUTTON_HTML;
+    }
   }
   btn.disabled = !frame.classList.contains("is-mermaid-zoomed");
   chromeMod.sortMermaidDiagramActionButtons(bar);
@@ -89046,9 +89083,9 @@ async function renderMermaidBlock(block, theme = "light") {
   const themeMod = await loadMermaidThemeModule();
   const frame = ensureMermaidDiagramFrame(block);
   const frameTheme = themeMod.applyMermaidFrameTheme(frame, theme, "light");
+  frame.setAttribute("data-mermaid-diagram-source", encodeURIComponent(source));
   frame.classList.remove("is-mermaid-source-open");
-  const sourceBtn = frame.querySelector(".mermaid-diagram-source-btn");
-  sourceBtn?.setAttribute("aria-pressed", "false");
+  syncMermaidSourceButtonUi(frame, false);
   await ensureMermaidThemeToggle(frame, block);
   await ensureMermaidSourceButton(frame, block);
   await ensureMermaidResetZoomButton(frame);

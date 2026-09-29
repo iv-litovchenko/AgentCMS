@@ -12043,7 +12043,15 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
   border: 1px solid rgba(122, 108, 255, 0.24);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(15, 18, 34, 0.92) 0%, rgba(8, 10, 22, 0.96) 100%);
-  overflow: hidden;
+  overflow: visible;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame.is-mermaid-zoomed,
+.shell-chat-msg .shell-md .mermaid-diagram-frame.is-mermaid-zoomed,
+.shell-reply-segment.shell-md .mermaid-diagram-frame.is-mermaid-zoomed,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame.is-mermaid-zoomed {
+  overflow: auto;
+  max-height: min(88vh, 1200px);
 }
 
 .shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark),
