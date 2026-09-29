@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Commander v02 radar">
+  <defs>
+    <linearGradient id="cmd-v02" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#881337" />
+      <stop offset="100%" stop-color="#e11d48" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-v02)" />
+  <circle cx="32" cy="33" r="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.18" />
+  <path d="M 32 13 A 20 20 0 0 1 49.3 40" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <path d="M 49.3 40 A 20 20 0 0 1 14.7 40" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.42" />
+  <path d="M 14.7 40 A 20 20 0 0 1 32 13" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.42" />
+  <ellipse cx="32" cy="35" rx="9" ry="11" fill="#ffffff" />
+  <circle cx="32" cy="27" r="2.2" fill="#881337" opacity="0.45" />
+</svg>
