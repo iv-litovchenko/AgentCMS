@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example11 — провал в базу знаний агента</title>
+    <style>
+      :root { --bg: #0b1220; --panel: #111827; --border: #243044; --text: #e5e7eb; --muted: #94a3b8; --accent: #60a5fa; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: radial-gradient(circle at 50% 0%, #1e293b, var(--bg)); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 860px; line-height: 1.55; margin: 0 0 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(96,165,250,0.15); color: #93c5fd; width: fit-content; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #0f172a; text-decoration: none; font-size: 13px; font-weight: 700; }
+      .focus-card { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.14); }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(96,165,250,0.12); color: #bfdbfe; border: 1px solid rgba(96,165,250,0.25); }
+      .vision { max-width: 860px; margin-bottom: 28px; padding: 18px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; line-height: 1.55; font-size: 14px; }
+      .vision h2 { margin: 0 0 10px; font-size: 16px; }
+      .vision ul { margin: 8px 0 0; padding-left: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Example11 — провал в базу знаний</h1>
+    <p class="lead">
+      10 HTML/CSS прототипов экрана «клик по агенту → вертикальная карта содержимого workspace».
+      Все варианты — статичные мокапы без JS, для выбора визуального направления orbit-dive.
+    </p>
+    <div class="pill-row">
+      <span class="pill">🫧 Orbit dive</span>
+      <span class="pill">🌌 Vertical tree</span>
+      <span class="pill">🧠 Knowledge map</span>
+      <span class="pill">📱 Narrow column</span>
+    </div>
+    <section class="vision">
+      <h2>Контекст</h2>
+      <ul>
+        <li>Мок-агент: <strong>Agent CMS Core</strong> · 3 раздела · 9 тем.</li>
+        <li>Референс: вертикальные постеры, ствол сверху вниз, пузыри с иконками/превью.</li>
+        <li>Рекомендация для старта: <strong>01</strong>, <strong>02</strong>, <strong>04</strong>, <strong>07</strong>.</li>
+      </ul>
+    </section>
+    <p class="lead" style="font-size:13px;">
+      Запуск: <code>cd examples/ui-variant-11 && python3 -m http.server 8772</code> →
+      <a href="http://localhost:8772">http://localhost:8772</a>
+    </p>
+    <div class="grid">
+      <article class="card focus-card">
+        <span class="tag">01</span>
+        <h2>Vertical spine</h2>
+        <p>Узкая колонка, золотой ствол, пузыри по центру — <strong>11 подвариантов</strong> в каталоге.</p>
+        <a class="demo" href="./01-vertical-spine/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">02</span>
+        <h2>Galaxy + brain</h2>
+        <p>Галактика сверху, «мозг» агента, ветви вниз — как на референс-постерах.</p>
+        <a class="demo" href="./02-galaxy-brain/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>Hex lattice</h2>
+        <p>Шестиугольные узлы в вертикальных ярусах, sci-fi сетка.</p>
+        <a class="demo" href="./03-hex-lattice/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">04</span>
+        <h2>Glass windows</h2>
+        <p>Прямоугольные «окна» с превью кода/текста внутри пузырей.</p>
+        <a class="demo" href="./04-glass-windows/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Constellation</h2>
+        <p>Созвездие: точки на тёмном небе, дуги-связи, минимум UI.</p>
+        <a class="demo" href="./05-constellation/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Ring layers</h2>
+        <p>Горизонтальные «кольца»-ярусы, каждый — слой базы знаний.</p>
+        <a class="demo" href="./06-ring-layers/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">07</span>
+        <h2>DNA zigzag</h2>
+        <p>Вертикальный зигзаг: узлы чередуются слева/справа от ствола.</p>
+        <a class="demo" href="./07-dna-zigzag/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Waterfall</h2>
+        <p>Каскад: пузыри сужаются и уменьшаются к низу экрана.</p>
+        <a class="demo" href="./08-waterfall/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Holo room</h2>
+        <p>Комната + голограмма: дерево над «рабочим столом» пользователя.</p>
+        <a class="demo" href="./09-holo-room/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Monolith cards</h2>
+        <p>Светлый minimal: вертикальный монолит карточек без космоса.</p>
+        <a class="demo" href="./10-monolith-cards/index.html">Открыть</a>
+      </article>
+    </div>
+  </body>
+</html>

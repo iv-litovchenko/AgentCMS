@@ -1,0 +1,65 @@
+/* Архив варианта "new" — orbit / заставка (облегчённая производительность).
+   См. variants.md */
+
+.app-landing-orbit-link {
+  stroke: rgba(148, 163, 184, 0.3);
+  stroke-width: 0.14;
+  stroke-linecap: round;
+}
+
+.app-landing-orbit-link.is-active {
+  stroke: rgba(250, 204, 21, 0.42);
+  stroke-width: 0.18;
+}
+
+.app-landing-orbit-hub-ring {
+  /* без animation: app-landing-orbit-hub-pulse */
+}
+
+.app-landing-orbit-item {
+  transform: translate3d(-50%, -50%, 0);
+  animation: app-landing-orbit-drift var(--orbit-duration, 10s) ease-in-out infinite;
+  will-change: transform;
+}
+
+.app-landing-orbit-bubble.is-inactive {
+  opacity: 0.72;
+  /* без filter: grayscale */
+}
+
+.app-landing-orbit-create-btn {
+  background: rgba(15, 23, 42, 0.82);
+  /* без backdrop-filter */
+}
+
+@keyframes app-landing-orbit-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(-50%, -50%, 0) translate3d(var(--orbit-float-x, 12px), calc(var(--orbit-float-y, 14px) * -1), 0);
+  }
+  50% {
+    transform: translate3d(-50%, -50%, 0) translate3d(calc(var(--orbit-float-x, 12px) * -0.65), calc(var(--orbit-float-y, 14px) * 0.75), 0);
+  }
+  75% {
+    transform: translate3d(-50%, -50%, 0) translate3d(calc(var(--orbit-float-x, 12px) * 0.35), calc(var(--orbit-float-y, 14px) * -0.45), 0);
+  }
+}
+
+.app-landing-pane.is-screensaver .app-landing-hero-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-landing-pane.is-screensaver .app-landing-stars--far,
+.app-landing-pane.is-screensaver .app-landing-stars--mid,
+.app-landing-pane.is-screensaver .app-landing-stars--near {
+  animation: none;
+  opacity: 0.72;
+}
+
+.app-landing-pane.is-screensaver .app-landing-meteor {
+  display: none;
+}

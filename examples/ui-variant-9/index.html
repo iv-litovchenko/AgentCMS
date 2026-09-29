@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example9 — хлебные крошки + select + действия</title>
+    <style>
+      :root { --bg: #f5f7fb; --panel: #fff; --border: #d7deeb; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 860px; line-height: 1.55; margin: 0 0 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; width: fit-content; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; }
+      .focus-card { border-color: #86efac; box-shadow: 0 0 0 3px rgba(34,197,94,0.12); }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+      .vision { max-width: 860px; margin-bottom: 28px; padding: 18px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; line-height: 1.55; font-size: 14px; }
+      .vision h2 { margin: 0 0 10px; font-size: 16px; }
+      .vision ul { margin: 8px 0 0; padding-left: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Example9 — хлебные крошки + select + действия</h1>
+    <p class="lead">
+      25 прототипов шапки workspace: как совместить <strong>select подрежима</strong>,
+      <strong>хлебные крошки</strong> (служебные / обычные / доменные) и
+      <strong>служебные кнопки</strong> (Сохранить, Удалить, Просмотр…).
+      В каждом варианте переключатель контекста сверху.
+    </p>
+    <div class="pill-row">
+      <span class="pill">Служебный файл</span>
+      <span class="pill">Обычные крошки</span>
+      <span class="pill">Настройки ноды</span>
+      <span class="pill">Память ноды</span>
+      <span class="pill">Обзор ноды</span>
+    </div>
+    <section class="vision">
+      <h2>Три типа навигации</h2>
+      <ul>
+        <li><strong>Служебные файлы</strong> — docker-compose.yml, AGENTS.md: путь + 🔒 + Save, без select и Delete.</li>
+        <li><strong>Обычные крошки</strong> — документ в дереве без доменного префixа.</li>
+        <li><strong>Крошки документа и раздела</strong> — префix «Настройки/Память/Обзор» + select подрежима + путь.</li>
+      </ul>
+      <p>Рекомендация: вариант <strong>25</strong> или <strong>01</strong> — одна строка, как в текущем Agent CMS.</p>
+    </section>
+    <p class="lead" style="font-size:13px;">
+      Запуск: <code>cd examples/ui-variant-9 && python3 -m http.server 8770</code> →
+      <a href="http://localhost:8770">http://localhost:8770</a>
+      · <code>node generate.mjs</code>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>Production single row</h2>
+        <p>Как сейчас в CMS: select · префикс+крошки · доп.кнопки · просмотр · Сохранить/Удалить — всё в одной строке.</p>
+        <a class="demo" href="./01-production-row/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>Select → path</h2>
+        <p>Сначала select подрежима, затем путь без текстового префикса — домен читается из выпадающего списка.</p>
+        <a class="demo" href="./02-select-then-crumbs/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>Path → select</h2>
+        <p>Префикс и путь слева, select подрежима сразу после крошек — удобно, если путь важнее режима.</p>
+        <a class="demo" href="./03-crumbs-then-select/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Segment chips</h2>
+        <p>Вместо select — горизонтальные chips подрежимов (TODO, .env, Скрипты…) прямо в строке крошек.</p>
+        <a class="demo" href="./04-mode-segments/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Two rows (anti)</h2>
+        <p>Две строки: домен+select сверху, крошки+кнопки снизу. Антипаттерн — для сравнения с однострочным вариантом.</p>
+        <a class="demo" href="./05-two-row-anti/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Chip prefix</h2>
+        <p>Доменный префix — цветной pill-chip, путь без дублирующего текста «Настройки ноды» в крошках.</p>
+        <a class="demo" href="./06-chip-prefix/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Three zones</h2>
+        <p>Три зоны с вертикальными разделителями: select | крошки | действия — чёткая структура toolbar.</p>
+        <a class="demo" href="./07-zoned-toolbar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Actions first</h2>
+        <p>Кнопки слеva — спорный, но удобен для частого Save на широких мониторах.</p>
+        <a class="demo" href="./08-actions-first/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Overflow ⋯</h2>
+        <p>Крошки на всю ширину, Save/Delete спрятаны в меню ⋯ — минимум шума в шапке.</p>
+        <a class="demo" href="./09-overflow-menu/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Icon actions</h2>
+        <p>Служебные кнопки — только иконки 💾⚙🗑, текст в tooltip.</p>
+        <a class="demo" href="./10-icons-only/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">11</span>
+        <h2>Service file minimal</h2>
+        <p>Служебный файл: только путь + 🔒 + Сохранить, без select и Удалить.</p>
+        <a class="demo" href="./11-service-minimal/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">12</span>
+        <h2>Memory extended</h2>
+        <p>Память: select · крошки · «Создать воспоминание» · «Создать раздел» · вид · действия.</p>
+        <a class="demo" href="./12-memory-extended/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">13</span>
+        <h2>View toggle center</h2>
+        <p>Переключатель Просмотр/Редактировать/Источник — между крошками и кнопками Save.</p>
+        <a class="demo" href="./13-view-center/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">14</span>
+        <h2>Divider groups</h2>
+        <p>Select | крошки | действия — группы отделены вертикальными линиями.</p>
+        <a class="demo" href="./14-divider-groups/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Glass sticky</h2>
+        <p>Липкая полупрозрачная шапка с blur — крошки остаются видимы при скролле контента.</p>
+        <a class="demo" href="./15-glass-sticky/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">16</span>
+        <h2>Compact 24px</h2>
+        <p>Плотная шапка: меньше padding и шрифт — больше места редактору.</p>
+        <a class="demo" href="./16-compact-dense/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">17</span>
+        <h2>Truncate path</h2>
+        <p>Длинный путь обрезается ellipsis посередине — select и кнопки всегда видны.</p>
+        <a class="demo" href="./17-truncate-path/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">18</span>
+        <h2>Select inside crumbs</h2>
+        <p>Select подрежима встроен в nav крошек как сегмент пути — визуально единая цепочка.</p>
+        <a class="demo" href="./18-select-as-crumb/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">19</span>
+        <h2>Service + title row</h2>
+        <p>Служебный файл: строка 1 — крошки+Save; строка 2 — крупное имя файла (как docker-compose.yml).</p>
+        <a class="demo" href="./19-service-title-below/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">20</span>
+        <h2>Actions as crumbs</h2>
+        <p>Сохранить и Удалить оформлены как последние «крошки» — максимально компактно.</p>
+        <a class="demo" href="./20-crumb-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">21</span>
+        <h2>Wrap on narrow</h2>
+        <p>flex-wrap: элементы переносятся на вторую строку на узком экране вместо overflow.</p>
+        <a class="demo" href="./21-wrap-responsive/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">22</span>
+        <h2>Overview quiet</h2>
+        <p>Обзор ноды: только префix+путь без Save/Delete в шапке — действия в hero-блоке.</p>
+        <a class="demo" href="./22-overview-quiet/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">23</span>
+        <h2>Mode rail below</h2>
+        <p>Строка 1 — крошки+Save; строка 2 — chips подрежимов настроек (только для settings).</p>
+        <a class="demo" href="./23-mode-rail-below/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">24</span>
+        <h2>Slab stack</h2>
+        <p>Шапка как отдельная «плита» doc-slab-path — визуально отделена от контента, как в production.</p>
+        <a class="demo" href="./24-slab-stack/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">25</span>
+        <h2>Recommended blend</h2>
+        <p>Рекомендуемый: одна строка, select слева, префикс inline в крошках, memory-кнопки по контексту.</p>
+        <a class="demo" href="./25-recommended-blend/index.html">Открыть</a>
+      </article></div>
+  </body>
+</html>
