@@ -8,7 +8,7 @@
 
 ![Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
 
-Карта элементов workspace (Mermaid) — в корне: [README.diagram.md](README.diagram.md). На главной CMS показывается эта диаграмма.
+Карта идей и элементов системы (workspace), Mermaid — в корне: [README.diagram.md](README.diagram.md). На главной CMS показывается эта диаграмма.
 
 ## Три приложения
 | Название | Назначение |

@@ -1,4 +1,4 @@
-# Карта элементов workspace
+# Карта идей и элементов системы (workspace)
 
 ```mermaid
 flowchart TD

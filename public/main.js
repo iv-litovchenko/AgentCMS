@@ -10770,7 +10770,7 @@ function createAppLandingSystemMapDiagram() {
 
   const badge = document.createElement("div");
   badge.className = "app-landing-system-map-badge";
-  badge.textContent = "Карта элементов системы";
+  badge.textContent = "Карта идей и элементов системы (workspace)";
 
   const diagram = document.createElement("div");
   diagram.className = "app-landing-system-map-diagram";
@@ -10986,7 +10986,7 @@ function createAppLandingPlatformCatalogVisual() {
 function createAppLandingPlatformVisual() {
   const visual = document.createElement("div");
   visual.className = "app-landing-platform-visual app-landing-platform-system-map-visual";
-  visual.setAttribute("aria-label", "Карта элементов системы Agent CMS");
+  visual.setAttribute("aria-label", "Карта идей и элементов системы (workspace) Agent CMS");
 
   visual.append(createAppLandingPlatformVisualBg(), createAppLandingSystemMapDiagram());
   return visual;
@@ -11011,7 +11011,7 @@ async function loadAppLandingPlatformDiagram(options = {}) {
 function createAppLandingPlatformDiagramPanel(diagram, options = {}) {
   const panel = document.createElement("article");
   panel.className = "app-landing-platform-readme markdown-preview";
-  panel.setAttribute("aria-label", "Карта элементов workspace");
+  panel.setAttribute("aria-label", "Карта идей и элементов системы (workspace)");
 
   const body = document.createElement("div");
   body.className = "app-landing-platform-readme-body markdown-body";
