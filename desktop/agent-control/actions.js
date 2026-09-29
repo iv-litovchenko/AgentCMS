@@ -169,7 +169,7 @@ const APP_PRODUCTS = [
 const COMMANDER_SELF = {
   id: "commander",
   title: "Agent CMS Commander",
-  subtitle: "Управление компьютером (заготовка)",
+  subtitle: "Управление компьютером (переключатель раскладки 😀)",
   badge: "Commander",
   accent: "commander",
   icon: "commander.svg",
