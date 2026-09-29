@@ -2,10 +2,13 @@
 
 import { buildVoiceShellPath, parseVoiceShellPath } from "./voice-chpu.js";
 import { resolveVoiceTlsPort } from "./shell-ports.js";
+import { getShellSurface } from "./shell-surface.js";
 
+/** Сохраняем localhost и 127.0.0.1 — Chrome считает их разными origin для микрофона. */
 function resolveHostname(hostname = window.location.hostname) {
   const host = String(hostname || "").trim();
-  if (!host || host === "localhost" || host === "127.0.0.1") return "127.0.0.1";
+  if (!host || host === "0.0.0.0") return "localhost";
+  if (host === "localhost" || host === "127.0.0.1") return host;
   return host;
 }
 
@@ -33,8 +36,21 @@ function normalizeShellPath(shellPath) {
 }
 
 export function getShellHttpsUrl(hostname = window.location.hostname, shellPath) {
+  const path =
+    shellPath != null && shellPath !== ""
+      ? normalizeShellPath(shellPath)
+      : isShellSecureContext() && window.location.protocol === "https:"
+        ? pathnameForVoiceUrl()
+        : normalizeShellPath(shellPath);
   const host = resolveHostname(hostname);
-  const path = normalizeShellPath(shellPath);
+
+  if (isShellSecureContext() && window.location.protocol === "https:") {
+    const liveHost = resolveHostname(window.location.hostname);
+    const livePort = window.location.port || String(resolveVoiceTlsPort());
+    const portSuffix = livePort ? `:${livePort}` : "";
+    return `https://${liveHost}${portSuffix}${path}`;
+  }
+
   return `https://${host}:${resolveVoiceTlsPort()}${path}`;
 }
 
@@ -45,10 +61,7 @@ export function isShellSecureContext() {
 export function shellPermissionIssue({ shellPath } = {}) {
   if (isShellSecureContext()) return null;
   const host = window.location.hostname;
-  const httpsUrl = getShellHttpsUrl(
-    host === "localhost" || host === "127.0.0.1" ? "127.0.0.1" : host,
-    shellPath
-  );
+  const httpsUrl = getShellHttpsUrl(host || "localhost", shellPath);
   const onLan = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
   return {
     title: "Нужен HTTPS",
@@ -97,7 +110,7 @@ async function copyChromeSettingsUrl(url) {
 }
 
 /** Оранжевая подсказка на вкладке STT — только десктопный Chrome. */
-export function initMicChromeHint({ hintEl, copyBtn } = {}) {
+export function initMicChromeHint({ hintEl, copyBtn, originEl } = {}) {
   if (!hintEl) return;
   const { isChrome, isMobile } = detectBrowserKind();
   if (!isChrome || isMobile) {
@@ -105,6 +118,9 @@ export function initMicChromeHint({ hintEl, copyBtn } = {}) {
     return;
   }
   hintEl.hidden = false;
+  if (originEl) {
+    originEl.textContent = voiceSiteOriginLabel();
+  }
   copyBtn?.addEventListener("click", () => {
     void copyChromeSettingsUrl(CHROME_MIC_SETTINGS_URL).then((ok) => {
       if (!copyBtn) return;
@@ -117,20 +133,118 @@ export function initMicChromeHint({ hintEl, copyBtn } = {}) {
   });
 }
 
-export function describeMicPermissionDialog({ shellPath, reason = "insecure" } = {}) {
+export function resolveMicPermissionDialogInput(input = "insecure") {
+  if (typeof input === "string") return { reason: input };
+  if (input && typeof input === "object") return { ...input };
+  return { reason: "insecure" };
+}
+
+function readMicPermissionSurfaceHost(surfaceHost) {
+  const explicit = String(surfaceHost || "").trim();
+  if (explicit) return explicit;
+  try {
+    return getShellSurface()?.host || "";
+  } catch {
+    return "";
+  }
+}
+
+function voiceSiteOriginLabel() {
+  try {
+    const { protocol, hostname, port } = window.location;
+    const portSuffix = port ? `:${port}` : "";
+    return `${protocol}//${hostname}${portSuffix}`;
+  } catch {
+    return window.location.href;
+  }
+}
+
+/** Короткая строка для статуса под 🎤. */
+export function formatMicAccessPhaseMessage(input = "denied") {
+  const { reason, surfaceHost } = resolveMicPermissionDialogInput(input);
+  const host = readMicPermissionSurfaceHost(surfaceHost);
+  const { isChrome, isSafari } = detectBrowserKind();
+
+  if (reason === "insecure") {
+    return `Нужен HTTPS для микрофона · ${getShellHttpsUrl()}`;
+  }
+  if (reason === "policy") {
+    if (host === "chrome-panel") {
+      return "Микрофон недоступен в Side Panel · откройте Voice во вкладке или см. диалог";
+    }
+    return "Микрофон недоступен в этом окне · см. диалог помощи";
+  }
+  if (host === "chrome-panel") {
+    return "Нет микрофона в Side Panel · вкладка Voice или настройки сайта (не «запрещённые»)";
+  }
+  if (isChrome) return "Нет доступа к микрофону · 🔒 у сайта Voice или chrome://settings/content/microphone";
+  if (isSafari) return "Нет доступа к микрофону · разрешите в настройках Safari";
+  return "Нет доступа к микрофону · см. диалог помощи";
+}
+
+export function describeMicPermissionDialog(input = {}) {
+  const {
+    shellPath,
+    reason = "insecure",
+    surfaceHost: surfaceHostInput,
+    deniedSource = "",
+    errorDetail = ""
+  } = resolveMicPermissionDialogInput(input);
   const issue = shellPermissionIssue({ shellPath });
   const httpsUrl = issue?.httpsUrl || getShellHttpsUrl();
   const currentUrl = window.location.href;
+  const siteOrigin = voiceSiteOriginLabel();
+  const surfaceHost = readMicPermissionSurfaceHost(surfaceHostInput);
+  const inChromePanel = surfaceHost === "chrome-panel";
   const { isMobile, isMac, isChrome, isSafari } = detectBrowserKind();
+  const detail = String(errorDetail || "").trim();
+  const source = String(deniedSource || "").trim();
+
+  if (reason === "policy") {
+    const steps = [
+      "Браузер не дал доступ к микрофону или распознаванию речи в этом окне (часто не связано со списком «Запрещено»)."
+    ];
+    if (detail) steps.push(`Код: ${detail}`);
+    if (inChromePanel) {
+      steps.push(
+        "Side Panel Companion: Voice во iframe — права у сайта Voice, не у расширения.",
+        `Ищите в настройках микрофона origin: ${siteOrigin} (127.0.0.1 и localhost — разные сайты).`,
+        "Проверка: откройте тот же Voice во вкладке (кнопка в панели) и нажмите 🎤.",
+        `Или ${CHROME_MIC_SETTINGS_URL} — разрешите ${siteOrigin}.`
+      );
+    } else if (isChrome) {
+      steps.push(
+        `Chrome: 🔒 у ${siteOrigin} → Микрофон → Разрешить.`,
+        `${CHROME_MIC_SETTINGS_URL} — сайт может быть не в «Запрещено», но и без «Разрешить».`
+      );
+    } else {
+      steps.push("Разрешите микрофон для этого сайта в настройках браузера.");
+    }
+    steps.push("Обновите страницу и нажмите 🎤 снова.");
+    return { title: "Микрофон недоступен в этом окне", steps, httpsUrl, currentUrl, siteOrigin };
+  }
 
   if (reason === "denied") {
-    const steps = ["Браузер отклонил доступ к микрофону для этого сайта."];
+    const steps = [
+      "Браузер отклонил микрофон. Это не всегда значит, что сайт в «Запрещено» — иногда запрос даже не показывался."
+    ];
+    if (detail) steps.push(`Код: ${detail}${source ? ` (${source})` : ""}`);
+    if (inChromePanel) {
+      steps.push(
+        "Вы в Chrome Side Panel: микрофон выдаётся сайту Voice во iframe, не иконке расширения.",
+        `В chrome://settings/content/microphone ищите ${siteOrigin}, не chrome-extension://….`,
+        "127.0.0.1 и localhost — разные записи; совпадайте с URL в настройках Companion.",
+        "Если во вкладке Voice 🎤 работает, а в панели нет — ограничение Side Panel/iframe; пользуйтесь вкладкой."
+      );
+    }
     if (isChrome) {
       steps.push(
-        "Chrome: нажмите 🔒 слева от адреса → «Микрофон» → «Разрешить», затем обновите страницу.",
-        "Или chrome://settings/content/microphone — уберите сайт из «Запрещено».",
-        "macOS: Системные настройки → Конфиденциальность → Микрофон — Google Chrome включён."
+        `🔒 слева от адреса Voice (${siteOrigin}) → «Микрофон» → «Разрешить», затем обновите.`,
+        `${CHROME_MIC_SETTINGS_URL} — проверьте «Разрешено» для ${siteOrigin}, не только «Запрещено».`
       );
+      if (isMac) {
+        steps.push("macOS: Системные настройки → Конфиденциальность → Микрофон — Google Chrome включён.");
+      }
     } else if (isSafari && isMac) {
       steps.push(
         "Safari → Настройки → Веб-сайты → Микрофон — разрешите для этого сайта.",
@@ -138,11 +252,11 @@ export function describeMicPermissionDialog({ shellPath, reason = "insecure" } =
       );
     } else if (isMobile) {
       steps.push("Настройки → Safari/Chrome → Микрофон → «Спросить» или «Разрешить».");
-    } else {
+    } else if (!inChromePanel) {
       steps.push("Разрешите микрофон в настройках сайта (иконка замка в адресной строке).");
     }
     steps.push("Обновите страницу и нажмите 🎤 снова.");
-    return { title: "Микрофон заблокирован", steps, httpsUrl, currentUrl };
+    return { title: "Микрофон недоступен", steps, httpsUrl, currentUrl, siteOrigin };
   }
 
   const browserLabel = isChrome ? "Chrome" : isSafari ? "Safari" : "браузер";
@@ -219,8 +333,33 @@ export async function runShellPermissionCheck({ micDialog, shellPath } = {}) {
   } catch (error) {
     mic = false;
     if (error?.name === "NotAllowedError") {
-      window.alert("Микрофон: доступ запрещён.\n\nНастройки → Safari → Микрофон → для этого сайта «Разрешить».");
-      micDialog?.showModal();
+      const info = describeMicPermissionDialog({
+        reason: "denied",
+        deniedSource: "getUserMedia",
+        errorDetail: error.name
+      });
+      if (micDialog && typeof micDialog.showModal === "function") {
+        const titleEl = document.getElementById("shell-mic-dialog-title");
+        const stepsEl = document.getElementById("shell-mic-dialog-steps");
+        const urlEl = document.getElementById("shell-mic-dialog-url");
+        if (titleEl) titleEl.textContent = info.title;
+        if (stepsEl) {
+          stepsEl.replaceChildren(
+            ...info.steps.map((step) => {
+              const li = document.createElement("li");
+              li.textContent = step;
+              return li;
+            })
+          );
+        }
+        if (urlEl) {
+          urlEl.textContent = info.httpsUrl;
+          urlEl.href = info.httpsUrl;
+        }
+        micDialog.showModal();
+      } else {
+        window.alert(`${info.title}\n\n${info.steps.join("\n")}\n\nHTTPS Voice: ${info.httpsUrl}`);
+      }
     } else {
       window.alert(`Микрофон: ${error?.message || error?.name || "ошибка"}`);
     }

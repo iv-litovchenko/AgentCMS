@@ -1,6 +1,7 @@
 import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "@shell/storage-keys";
 import { blobToPcm16MonoBase64, pickMicRecorderMimeType } from "@shell/audio-pcm";
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
+import { formatMicAccessPhaseMessage } from "@shell/permissions";
 
 const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
 const VOICE_CONFIRM_MOBILE_KEY = MOBILE_STORAGE_LEGACY.voiceConfirm;
@@ -406,11 +407,26 @@ export function createShellTapVoice(deps) {
       void releaseShellWakeLock(deps.state, "recording");
 
       if (errorCode === "not-allowed") {
-        deps.renderPhase("waiting", "Нет доступа к микрофону · разрешите в Safari");
-        deps.showMicPermissionDialog?.("denied");
+        const micOpts = {
+          reason: "denied",
+          deniedSource: "Web Speech",
+          errorDetail: `not-allowed`
+        };
+        deps.renderPhase("waiting", formatMicAccessPhaseMessage(micOpts));
+        deps.showMicPermissionDialog?.(micOpts);
         return;
       }
-      if (errorCode === "service-not-allowed" || deps.shellPermissionIssue?.()) {
+      if (errorCode === "service-not-allowed") {
+        const micOpts = {
+          reason: "policy",
+          deniedSource: "Web Speech",
+          errorDetail: "service-not-allowed"
+        };
+        deps.renderPhase("waiting", formatMicAccessPhaseMessage(micOpts));
+        deps.showMicPermissionDialog?.(micOpts);
+        return;
+      }
+      if (deps.shellPermissionIssue?.()) {
         deps.renderPhase("waiting", `Нужен HTTPS · ${deps.getShellHttpsUrl?.()}`);
         deps.showMicPermissionDialog?.("insecure");
         return;
@@ -554,8 +570,13 @@ export function createShellTapVoice(deps) {
         return false;
       }
       if (error?.name === "NotAllowedError") {
-        deps.renderPhase("waiting", "Нет доступа к микрофону · разрешите в Safari");
-        deps.showMicPermissionDialog?.("denied");
+        const micOpts = {
+          reason: "denied",
+          deniedSource: "getUserMedia",
+          errorDetail: error.name
+        };
+        deps.renderPhase("waiting", formatMicAccessPhaseMessage(micOpts));
+        deps.showMicPermissionDialog?.(micOpts);
         return false;
       }
       deps.renderPhase("waiting", error?.message || "Не удалось включить микрофон");

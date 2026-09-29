@@ -1,6 +1,7 @@
 /** Живой диалог v12: быстрые паузы, resume, barge-in. */
 
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
+import { formatMicAccessPhaseMessage } from "@shell/permissions";
 import { acquireShellWakeLock, hapticTap, releaseShellWakeLock } from "@shell/voice";
 
 export const LIVE_UTTERANCE_END_MS = 920;
@@ -470,11 +471,27 @@ export function createShellLiveDialog(deps) {
       }
       if (code === "not-allowed") {
         void stop({ notify: false });
-        deps.renderPhase?.("waiting", "Нет доступа к микрофону · разрешите в Safari");
-        deps.showMicPermissionDialog?.("denied");
+        const micOpts = {
+          reason: "denied",
+          deniedSource: "Web Speech",
+          errorDetail: "not-allowed"
+        };
+        deps.renderPhase?.("waiting", formatMicAccessPhaseMessage(micOpts));
+        deps.showMicPermissionDialog?.(micOpts);
         return;
       }
-      if (code === "service-not-allowed" || deps.shellPermissionIssue?.()) {
+      if (code === "service-not-allowed") {
+        void stop({ notify: false });
+        const micOpts = {
+          reason: "policy",
+          deniedSource: "Web Speech",
+          errorDetail: "service-not-allowed"
+        };
+        deps.renderPhase?.("waiting", formatMicAccessPhaseMessage(micOpts));
+        deps.showMicPermissionDialog?.(micOpts);
+        return;
+      }
+      if (deps.shellPermissionIssue?.()) {
         void stop({ notify: false });
         deps.renderPhase?.("waiting", `Нужен HTTPS · ${deps.getShellHttpsUrl?.()}`);
         deps.showMicPermissionDialog?.("insecure");

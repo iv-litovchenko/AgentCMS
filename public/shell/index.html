@@ -42,7 +42,7 @@
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
-          "@shell/permissions": "/shell/shell-permissions.js?v=211",
+          "@shell/permissions": "/shell/shell-permissions.js?v=213",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
           "@shell/dialog": "/shell/shell-dialog.js?v=318",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=8",
@@ -60,9 +60,9 @@
           "@shell/prompt-placeholders": "/shell/shell-prompt-placeholders.js?v=1",
           "@shell/debug": "/shell/shell-debug.js?v=417",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
-          "@shell/voice": "/shell/shell-voice.js?v=212",
+          "@shell/voice": "/shell/shell-voice.js?v=213",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=423",
-          "@shell/live-dialog": "/shell/shell-live-dialog.js?v=24",
+          "@shell/live-dialog": "/shell/shell-live-dialog.js?v=25",
           "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=209",
           "@shell/stt-format": "/shell/shell-stt-format.js?v=3",
@@ -1175,9 +1175,10 @@
         </div>
         <div class="shell-mic-chrome-hint" id="shell-mic-chrome-hint" role="note" hidden>
           <p>
-            Если микрофон не работает в Google Chrome, проверьте доступ в настройках браузера. Уберите
-            <code>localhost</code> из «Заблокировано» и разрешите сайт Voice (в Side Panel права у
-            <code>https://localhost:3488</code>, не у расширения).
+            Если микрофон не работает в Google Chrome, проверьте доступ в настройках браузера для сайта Voice
+            <code id="shell-mic-chrome-hint-origin">https://127.0.0.1</code> (в Side Panel права у этого origin, не у
+            расширения). <code>127.0.0.1</code> и <code>localhost</code> — разные записи. Если во вкладке Voice 🎤
+            работает, а в панели нет — откройте Voice во вкладке.
           </p>
           <p class="shell-mic-chrome-hint__link-row">
             <button type="button" class="shell-mic-chrome-hint__copy" id="shell-mic-chrome-settings-copy" title="Скопировать адрес настроек">
@@ -3549,6 +3550,6 @@ CMS workspace</pre>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
-    <script src="/shell/shell.js?v=671" type="module"></script>
+    <script src="/shell/shell.js?v=673" type="module"></script>
   </body>
 </html>

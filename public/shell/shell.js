@@ -61,9 +61,11 @@ import {
 } from "@shell/audio-unlock-banner";
 import {
   describeMicPermissionDialog,
+  formatMicAccessPhaseMessage,
   getShellHttpsUrl,
   initMicChromeHint,
   initShellPermissions,
+  resolveMicPermissionDialogInput,
   shellPermissionIssue,
   warmUpMicrophone
 } from "@shell/permissions";
@@ -11836,8 +11838,13 @@ function connectStream() {
   });
 }
 
-function showMicPermissionDialog(reason = "insecure") {
-  const info = describeMicPermissionDialog({ reason });
+function showMicPermissionDialog(reasonOrOptions = "insecure") {
+  const options = resolveMicPermissionDialogInput(reasonOrOptions);
+  const surface = getShellSurface();
+  const info = describeMicPermissionDialog({
+    ...options,
+    surfaceHost: options.surfaceHost || surface?.host
+  });
   if (nodes.micDialogTitle) nodes.micDialogTitle.textContent = info.title;
   if (nodes.micDialogSteps) {
     nodes.micDialogSteps.replaceChildren(
@@ -11864,7 +11871,8 @@ function syncMicPermissionUi() {
 function bindMicPermissionsUi(permissionApi) {
   initMicChromeHint({
     hintEl: nodes.micChromeHint,
-    copyBtn: nodes.micChromeSettingsCopy
+    copyBtn: nodes.micChromeSettingsCopy,
+    originEl: document.getElementById("shell-mic-chrome-hint-origin")
   });
   nodes.micHelpLink?.addEventListener("click", (event) => {
     event.preventDefault();
