@@ -114421,10 +114421,11 @@ function slugifyRepositorySlug(name) {
 }
 
 const DEFAULT_REPOSITORY_GROUPS = [
-  { id: "study", title: "Изучение" },
   { id: "new", title: "Новый" },
-  { id: "archived", title: "Архив" },
-  { id: "vendored", title: "Вендор" }
+  { id: "active", title: "Активный" },
+  { id: "study", title: "Изучение" },
+  { id: "vendored", title: "Вендор" },
+  { id: "archived", title: "Архив" }
 ];
 const DEFAULT_REPOSITORY_GROUP_IDS = new Set(DEFAULT_REPOSITORY_GROUPS.map((group) => group.id));
 const REPOSITORY_STATUS_LABELS = {

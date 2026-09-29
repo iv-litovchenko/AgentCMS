@@ -1,13 +1,15 @@
 # Группы sidebar для awn-repositories (без физических подпапок)
 groups:
-  - id: study
-    title: "Изучение"
   - id: new
     title: "Новый"
-  - id: archived
-    title: "Архив"
+  - id: active
+    title: "Активный"
+  - id: study
+    title: "Изучение"
   - id: vendored
     title: "Вендор"
+  - id: archived
+    title: "Архив"
   - id: cms
     title: "CMS и платформа"
   - id: clients
