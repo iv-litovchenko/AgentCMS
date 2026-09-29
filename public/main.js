@@ -101572,12 +101572,24 @@ async function fetchAgentGitStatus() {
   return response.json();
 }
 
+function getAgentGitCommitBranchLabel() {
+  return String(agentGitLastStatus?.branch || "main").trim() || "main";
+}
+
+function withAgentGitBranchCommitPrefix(message) {
+  const trimmed = String(message || "").trim();
+  if (!trimmed) return trimmed;
+  if (/^\[[^\]]+\]/.test(trimmed)) return trimmed;
+  const branch = getAgentGitCommitBranchLabel();
+  return `[${branch}] ${trimmed}`;
+}
+
 async function commitAgentGitChanges(message) {
   const response = await fetch(buildApiUrl("/api/git/commit"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message,
+      message: withAgentGitBranchCommitPrefix(message),
       extensions: getAgentGitActiveExtensions()
     })
   });
@@ -121317,7 +121329,8 @@ agentGitSaveBtn?.addEventListener("click", () => {
   const pad = (value) => String(value).padStart(2, "0");
   const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const defaultMessage = `Сохранение workspace (${datePart} ${timePart})`;
+  const branch = getAgentGitCommitBranchLabel();
+  const defaultMessage = `[${branch}] Сохранение workspace (${datePart} ${timePart})`;
   const message = window.prompt("Сообщение коммита", defaultMessage);
   if (message == null) return;
   const trimmed = String(message).trim();
