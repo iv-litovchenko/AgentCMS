@@ -213,12 +213,8 @@ function renderAppFooter() {
   const footer = document.getElementById("app-footer");
   if (!footer) return;
 
-  const controlVersion = bootstrap?.controlVersion || "0.1.0";
-  const projectVersion = bootstrap?.environment?.app?.version;
-  const projectLabel =
-    projectVersion && projectVersion !== controlVersion ? ` · agent-cms v${projectVersion}` : "";
-
-  footer.textContent = `Agent CMS Control v${controlVersion}${projectLabel}`;
+  const version = String(bootstrap?.environment?.app?.version || "").trim();
+  footer.textContent = version ? `Agent CMS v${version}` : "Agent CMS";
 }
 
 function getSetupCheckState() {

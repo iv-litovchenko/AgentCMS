@@ -274,6 +274,12 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
     return;
   }
 
+  if (safePath === "js/core/project-version.js") {
+    const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
+    await writeProjectVersionJsResponse(res);
+    return;
+  }
+
   try {
     let content = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();

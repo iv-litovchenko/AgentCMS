@@ -16369,7 +16369,7 @@ function buildAgentMcpPing() {
     serverTime: new Date().toISOString(),
     agentId: getActiveAgentId(),
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
-    cmsVersion: require("./package.json").version,
+    cmsVersion: require("./lib/version/product-version").getProductVersion(),
     mcpVersion: "0.3.8",
     hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
   };
@@ -17499,6 +17499,12 @@ async function serveStatic(reqPath, res, req) {
 
   if (safePath === "index.html") {
     await serveIndexHtml(res, String(req?.headers?.host || "").trim());
+    return;
+  }
+
+  if (safePath === "js/core/project-version.js") {
+    const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
+    await writeProjectVersionJsResponse(res);
     return;
   }
 

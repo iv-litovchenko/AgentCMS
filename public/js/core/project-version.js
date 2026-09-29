@@ -1,4 +1,5 @@
-const PROJECT_VERSION = "0.0.1";
+// Injected from root package.json when served by server.js / voice-server.js.
+const PROJECT_VERSION = "0.0.0";
 
 function applyProjectVersion(doc = document) {
   if (!doc || typeof doc.querySelectorAll !== "function") return;

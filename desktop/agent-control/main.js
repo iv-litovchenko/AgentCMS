@@ -10,7 +10,6 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
-const controlPackage = require("./package.json");
 const { requireRepo } = require("./repo-resolve");
 const docsRegistry = requireRepo("lib/docs/docs-registry");
 const { enrichMcpDocsForClient } = requireRepo("lib/http/https-redirect");
@@ -795,8 +794,7 @@ if (!gotLock) {
         environment,
         mobileConnect: buildMobileConnectInfo(environment),
         server,
-        setupFlags: buildProjectSetupFlags(root),
-        controlVersion: controlPackage.version
+        setupFlags: buildProjectSetupFlags(root)
       };
     });
 
