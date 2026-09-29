@@ -71,13 +71,42 @@ fields:
     sort: 3
 
   module-git-commit-extensions:
-    type: awn.field.string
+    type: awn.field.text
     title: Расширения для коммита
     description: >
-      Файлы с этими расширениями попадают в список изменений, commit и diff
-      (UI «Сохранить изменения», module_git_status / module_git_commit /
-      module_git_diff).
-    default: md, txt, csv, yml, yaml, json; также .gitignore (имя файла)
+      Одно расширение на строку (без точки). Попадают в git status / commit / diff
+      (UI «Сохранить», module_git_*). Дополнительно по имени файла: .gitignore,
+      любой .env / .env.*, любой *\.lock (poetry.lock, yarn.lock…).
+    default: |
+      md
+      txt
+      csv
+      yml
+      yaml
+      json
+      toml
+      html
+      htm
+      css
+      scss
+      js
+      mjs
+      ts
+      sh
+      xml
+      ini
+      cfg
+      properties
+      sql
+      jsonl
+      ndjson
+      mdx
+      py
+      pyi
+      rb
+      go
+      rs
+      lock
     group: module-git
     locked: true
     readonly: true

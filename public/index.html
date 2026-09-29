@@ -3600,7 +3600,11 @@
           </div>
           <div class="agent-canvas-head-aside agent-tool-head-actions">
             <div class="agent-git-toolbar-branch">
-              <label class="agent-git-toolbar-branch-label" for="agent-git-branch-toolbar-select">Ветка</label>
+              <label
+                id="agent-git-toolbar-branch-label"
+                class="agent-git-toolbar-branch-label"
+                for="agent-git-branch-toolbar-select"
+              >origin/main</label>
               <select
                 id="agent-git-branch-toolbar-select"
                 class="agent-git-toolbar-branch-select"
@@ -3611,7 +3615,7 @@
                 <option value="main" selected>main</option>
               </select>
             </div>
-            <button id="agent-git-save-btn" class="agent-git-save-btn" type="button" title="Закоммитить md, txt, csv, yml, yaml, json и .gitignore">
+            <button id="agent-git-save-btn" class="agent-git-save-btn" type="button" title="Закоммитить файлы по фильтру расширений и .gitignore">
               <span class="agent-git-action-btn-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="6" r="2.5" stroke="currentColor" stroke-width="2" />
@@ -3782,10 +3786,43 @@
             </div>
           </div>
         </div>
-        <div id="agent-git-info" class="agent-tool-info">
-          <p id="agent-git-meta" class="agent-tool-info-desc">Статус рабочей копии и ветки</p>
-          <div id="agent-git-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        <div id="agent-git-info" class="agent-tool-info agent-git-info">
+          <div id="agent-git-meta" class="agent-git-info-main agent-tool-info-desc" role="status">
+            <div id="agent-git-meta-primary" class="agent-git-meta-primary">Статус рабочей копии и ветки</div>
+          </div>
+          <div id="agent-git-stats" class="agent-workspace-stats agent-git-info-side" aria-live="polite">
+            <span id="agent-git-meta-aside" class="agent-git-upstream-label hidden" aria-hidden="true"></span>
+          </div>
         </div>
+        <aside id="agent-git-hint" class="agent-git-hint agent-git-reference" aria-labelledby="agent-git-reference-title">
+          <header class="agent-git-reference-head">
+            <span class="agent-git-reference-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M12 8v5m0 3h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3 id="agent-git-reference-title" class="agent-git-reference-title">Справка: push и слияние</h3>
+          </header>
+          <div class="agent-git-reference-body">
+            <p>
+              Если два человека пушат изменения в одну и ту же ветку, то тот, кто пытается запушить вторым,
+              столкнётся с конфликтом — git попросит сначала подтянуть чужие изменения, слить их со своими, и
+              уже потом отправить результат.
+            </p>
+            <p>
+              Если изменения в разных файлах или в разных частях файла, слияние обычно проходит автоматически и
+              безболезненно. А вот если оба правили одни и те же строки, возникнет конфликт слияния, который
+              придётся разрешать вручную — git покажет оба варианта и попросит выбрать, что оставить.
+            </p>
+            <p>Разрешение конфликтов придётся делать через IDE.</p>
+          </div>
+        </aside>
         <div id="agent-git-content" class="agent-tool-body agent-git-content"></div>
       </main>
 
@@ -7309,8 +7346,8 @@
     <script src="/js/panels/api-docs-ui.js?v=2"></script>
     <script src="/main.js?v=0.5.970"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
-    <script src="/js/app/privacy-mode.js?v=4"></script>
-    <script src="/js/app/sensitive-input.js?v=2"></script>
+    <script src="/js/app/privacy-mode.js?v=5"></script>
+    <script src="/js/app/sensitive-input.js?v=3"></script>
     <script src="/js/panels/page-picker-extract.js?v=0.5.5"></script>
     <script src="/js/editor/page-snapshot.js?v=0.1.0"></script>
     <script src="/js/panels/cms-page-picker.js?v=0.5.9"></script>

@@ -3,12 +3,14 @@ import { z } from "zod";
 const gitExtensions = z
   .union([z.string(), z.array(z.string())])
   .optional()
-  .describe("File extensions filter (default: md, txt, csv, yml, yaml, json)");
+  .describe(
+    "File extensions filter (default: md, txt, csv, yml, yaml, json, toml, html, htm, css, scss, js, mjs, ts, sh, xml, ini, cfg, properties, sql, jsonl, ndjson, mdx)"
+  );
 
 export function registerGitModuleTools(reg, client) {
   reg(
     "module_git_status",
-    "module-git: branch, porcelain changes, recent commits. Default extensions filter: md, txt, csv, yml, yaml, json.",
+    "module-git: branch, porcelain changes, recent commits. Default extensions filter includes md/yaml/json, web (html,css,js,ts), configs (toml,ini), sql, jsonl, mdx, etc.",
     z.object({
       extensions: gitExtensions,
       includeCommits: z
@@ -25,7 +27,7 @@ export function registerGitModuleTools(reg, client) {
 
   reg(
     "module_git_diff",
-    "module-git: unified diff vs HEAD for filtered changes (default extensions: md, txt, csv, yml, yaml, json). Optional path for one file.",
+    "module-git: unified diff vs HEAD for filtered changes (same default extensions as module_git_status). Optional path for one file.",
     z.object({
       extensions: gitExtensions,
       path: z.string().optional().describe("Workspace-relative file path (single file)"),
@@ -47,7 +49,7 @@ export function registerGitModuleTools(reg, client) {
 
   reg(
     "module_git_commit",
-    "module-git: stage filtered paths (md, txt, csv, yml, yaml, json by default) and commit. Blocked in mcp-mode=readonly.",
+    "module-git: stage filtered paths (default text/code extensions) and commit. Blocked in mcp-mode=readonly.",
     z.object({
       message: z.string().min(1).describe("Commit message"),
       extensions: gitExtensions

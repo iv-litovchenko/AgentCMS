@@ -243,6 +243,31 @@ const agentGitPaneNode = document.getElementById("agent-git-pane");
 const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitMetaNode = document.getElementById("agent-git-meta");
+const agentGitMetaPrimaryNode = document.getElementById("agent-git-meta-primary");
+const agentGitMetaAsideNode = document.getElementById("agent-git-meta-aside");
+
+function formatAgentGitMetaAside(data) {
+  const upstream = String(data?.upstream || "").trim();
+  const base = upstream || formatAgentGitToolbarUpstreamLabel(data);
+  const parts = [`upstream: ${base}`];
+  if (Number(data?.ahead) > 0) parts.push(`↑${data.ahead}`);
+  if (Number(data?.behind) > 0) parts.push(`↓${data.behind}`);
+  return parts.join(" · ");
+}
+
+function setAgentGitMetaAside(aside = "") {
+  const asideText = String(aside || "").trim();
+  if (!agentGitMetaAsideNode) return;
+  if (asideText) {
+    agentGitMetaAsideNode.textContent = asideText;
+    agentGitMetaAsideNode.classList.remove("hidden");
+    agentGitMetaAsideNode.removeAttribute("aria-hidden");
+  } else {
+    agentGitMetaAsideNode.textContent = "";
+    agentGitMetaAsideNode.classList.add("hidden");
+    agentGitMetaAsideNode.setAttribute("aria-hidden", "true");
+  }
+}
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
 const agentGitSaveBtn = document.getElementById("agent-git-save-btn");
 const agentGitSettingsBtn = document.getElementById("agent-git-settings-btn");
@@ -253,6 +278,15 @@ const agentGitPullBtn = document.getElementById("agent-git-pull-btn");
 const agentGitRemoteNameInput = document.getElementById("agent-git-remote-name");
 const agentGitBranchInput = document.getElementById("agent-git-branch-input");
 const agentGitBranchToolbarSelect = document.getElementById("agent-git-branch-toolbar-select");
+const agentGitToolbarBranchLabel = document.getElementById("agent-git-toolbar-branch-label");
+
+function formatAgentGitToolbarUpstreamLabel(data) {
+  const upstream = String(data?.upstream || "").trim();
+  if (upstream) return upstream;
+  const branch = String(data?.branch || "").trim() || "main";
+  const remote = agentGitRemoteNameInput?.value?.trim() || "origin";
+  return `${remote}/${branch}`;
+}
 
 function syncAgentGitBranchSelectElement(selectEl, branch) {
   if (!selectEl) return;
@@ -269,12 +303,218 @@ function syncAgentGitBranchSelectElement(selectEl, branch) {
 const agentGitRemoteUrlInput = document.getElementById("agent-git-remote-url");
 const agentGitRemoteSaveBtn = document.getElementById("agent-git-remote-save-btn");
 const agentGitRemoteRemoveBtn = document.getElementById("agent-git-remote-remove-btn");
-const AGENT_GIT_FILE_EXTENSIONS = ["md", "txt", "csv", "yml", "yaml", "json"];
-const AGENT_GIT_EXTRA_BASENAMES = [".gitignore"];
+const AGENT_GIT_FILE_EXTENSIONS = [
+  "md",
+  "txt",
+  "csv",
+  "yml",
+  "yaml",
+  "json",
+  "toml",
+  "html",
+  "htm",
+  "css",
+  "scss",
+  "js",
+  "mjs",
+  "ts",
+  "sh",
+  "xml",
+  "ini",
+  "cfg",
+  "properties",
+  "sql",
+  "jsonl",
+  "ndjson",
+  "mdx",
+  "py",
+  "pyi",
+  "rb",
+  "go",
+  "rs",
+  "lock"
+];
+const AGENT_GIT_EXTRA_BASENAMES = [".gitignore", ".env*", "*.lock"];
+const AGENT_GIT_FILTER_STORAGE_KEY = "agent-cms-git-extension-filter";
+let agentGitFilterControlNode = null;
+
+function loadAgentGitEnabledExtensions() {
+  try {
+    const raw = localStorage.getItem(AGENT_GIT_FILTER_STORAGE_KEY);
+    if (!raw) return new Set(AGENT_GIT_FILE_EXTENSIONS);
+    const parsed = JSON.parse(raw);
+    if (parsed?.mode === "all") return new Set(AGENT_GIT_FILE_EXTENSIONS);
+    if (Array.isArray(parsed?.enabled)) {
+      const enabled = parsed.enabled
+        .map((entry) => String(entry || "").trim().toLowerCase().replace(/^\./, ""))
+        .filter((entry) => AGENT_GIT_FILE_EXTENSIONS.includes(entry));
+      return enabled.length ? new Set(enabled) : new Set(AGENT_GIT_FILE_EXTENSIONS);
+    }
+  } catch {
+    // ignore
+  }
+  return new Set(AGENT_GIT_FILE_EXTENSIONS);
+}
+
+let agentGitEnabledExtensions = loadAgentGitEnabledExtensions();
+
+function saveAgentGitEnabledExtensions() {
+  const all = AGENT_GIT_FILE_EXTENSIONS.every((ext) => agentGitEnabledExtensions.has(ext));
+  try {
+    localStorage.setItem(
+      AGENT_GIT_FILTER_STORAGE_KEY,
+      JSON.stringify({
+        mode: all ? "all" : "custom",
+        enabled: [...agentGitEnabledExtensions]
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+function getAgentGitActiveExtensions() {
+  return [...AGENT_GIT_FILE_EXTENSIONS];
+}
+
+function isAgentGitFilterAllActive() {
+  return AGENT_GIT_FILE_EXTENSIONS.every((ext) => agentGitEnabledExtensions.has(ext));
+}
+
+function syncAgentGitFilterChipStates() {
+  const chips = agentGitFilterControlNode?.querySelector(".agent-git-filter-chips");
+  if (!chips) return;
+  const allOn = isAgentGitFilterAllActive();
+  chips.querySelector("[data-git-filter-all]")?.classList.toggle("is-active", allOn);
+  chips.querySelector("[data-git-filter-all]")?.setAttribute("aria-pressed", allOn ? "true" : "false");
+  for (const btn of chips.querySelectorAll("[data-ext]")) {
+    const ext = btn.dataset.ext || "";
+    const on = agentGitEnabledExtensions.has(ext);
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+}
+
+function ensureAgentGitFilterControl() {
+  if (agentGitFilterControlNode?.isConnected) {
+    syncAgentGitFilterChipStates();
+    return agentGitFilterControlNode;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "agent-git-filter";
+  wrap.id = "agent-git-filter";
+
+  const label = document.createElement("span");
+  label.className = "agent-git-filter-label";
+  label.textContent = "фильтр:";
+
+  const chips = document.createElement("div");
+  chips.className = "agent-git-filter-chips";
+  chips.setAttribute("role", "group");
+  chips.setAttribute("aria-label", "Расширения файлов для git");
+
+  const allBtn = document.createElement("button");
+  allBtn.type = "button";
+  allBtn.className = "agent-git-filter-chip";
+  allBtn.dataset.gitFilterAll = "1";
+  allBtn.textContent = "Все";
+  allBtn.setAttribute("aria-pressed", "false");
+  chips.appendChild(allBtn);
+
+  for (const ext of AGENT_GIT_FILE_EXTENSIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "agent-git-filter-chip";
+    btn.dataset.ext = ext;
+    btn.textContent = ext;
+    btn.setAttribute("aria-pressed", "false");
+    chips.appendChild(btn);
+  }
+
+  wrap.append(label, chips);
+
+  const extras = document.createElement("p");
+  extras.className = "agent-git-filter-extras";
+  extras.textContent = `всегда: ${AGENT_GIT_EXTRA_BASENAMES.join(", ")}`;
+  wrap.appendChild(extras);
+
+  if (!wrap.dataset.bound) {
+    wrap.dataset.bound = "1";
+    chips.addEventListener("click", (event) => {
+      const btn = event.target.closest(".agent-git-filter-chip");
+      if (!btn || btn.disabled) return;
+      event.preventDefault();
+
+      if (btn.dataset.gitFilterAll) {
+        agentGitEnabledExtensions = new Set(AGENT_GIT_FILE_EXTENSIONS);
+      } else {
+        const ext = String(btn.dataset.ext || "").trim();
+        if (!ext) return;
+        if (agentGitEnabledExtensions.has(ext)) {
+          if (agentGitEnabledExtensions.size <= 1) return;
+          agentGitEnabledExtensions.delete(ext);
+        } else {
+          agentGitEnabledExtensions.add(ext);
+        }
+      }
+
+      saveAgentGitEnabledExtensions();
+      syncAgentGitFilterChipStates();
+      if (agentWorkspaceView === "git") void renderAgentGitView();
+    });
+  }
+
+  agentGitFilterControlNode = wrap;
+  syncAgentGitFilterChipStates();
+  return wrap;
+}
+
+function renderAgentGitMetaPrimary(data) {
+  const host = agentGitMetaPrimaryNode || agentGitMetaNode;
+  if (!host) return;
+
+  host.replaceChildren();
+
+  if (!data?.isRepo) {
+    host.textContent = "Git-репозиторий не найден в корне workspace";
+    agentGitFilterControlNode = null;
+    return;
+  }
+
+  if (data.clean) {
+    const status = document.createElement("p");
+    status.className = "agent-git-meta-status";
+    status.textContent = "Рабочая копия чистая";
+    host.appendChild(status);
+  } else if (data.filteredClean) {
+    const status = document.createElement("p");
+    status.className = "agent-git-meta-status";
+    status.textContent = `Нет изменений в фильтре (всего в git: ${data.totalChangeCount ?? 0})`;
+    host.appendChild(status);
+  }
+
+}
+
+function formatAgentGitCommitExtensionsDisplay(value) {
+  const fallback = AGENT_GIT_FILE_EXTENSIONS.join("\n");
+  const text = String(value ?? "").trim();
+  if (!text) return fallback;
+  if (text.includes("\n")) return text.replace(/\r\n/g, "\n");
+  return text
+    .split(/[,\s]+/)
+    .map((part) => part.trim().replace(/^\./, ""))
+    .filter(Boolean)
+    .join("\n");
+}
 
 function getAgentGitFilterLabel() {
+  const active = getAgentGitActiveExtensions();
   const extras = AGENT_GIT_EXTRA_BASENAMES.join(", ");
-  return `${AGENT_GIT_FILE_EXTENSIONS.join(", ")}, ${extras}`;
+  if (isAgentGitFilterAllActive()) {
+    return `все (${active.length}), ${extras}`;
+  }
+  return `${active.join(", ")}, ${extras}`;
 }
 let agentGitSettingsOpen = false;
 let agentGitLastStatus = null;
@@ -53415,6 +53655,9 @@ function formatPropsDatetimeLocalValue(value) {
 }
 
 function getPropsEntryDisplayValue(entry) {
+  if (entry.key === "module-git-commit-extensions") {
+    return formatAgentGitCommitExtensionsDisplay(entry.value);
+  }
   if (entry.kind === "array") {
     const values = Array.isArray(entry.value)
       ? entry.value
@@ -56153,6 +56396,7 @@ function resolveSchemaPropsWidget(fieldDef) {
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
+  if (normalized === "module-git-commit-extensions") return "textarea";
   if (normalized === "awn-runtime-cron") return "runtime-schedule-type";
   if (isPropsAttachmentsField(key, fieldDef)) return "attachments";
   if (hasStructuredObjectFieldProperties(fieldDef, normalized)) return "object-group";
@@ -57042,10 +57286,11 @@ function createPropsFormTextareaControl(entry, meta, { locked = false } = {}) {
   textarea.className = "props-form-value props-form-value--textarea";
   const displayValue = getPropsEntryDisplayValue(entry);
   const lineCount = String(displayValue || "").split(/\r?\n/).length;
-  textarea.rows = Math.max(6, Math.min(16, lineCount + 2));
+  textarea.rows = Math.max(6, Math.min(24, lineCount + 2));
   textarea.value = displayValue;
-  if (meta.hint) textarea.title = meta.hint;
-  textarea.placeholder = meta.hint || "—";
+  if (meta.hint && entry.key !== "module-git-commit-extensions") textarea.title = meta.hint;
+  textarea.placeholder =
+    entry.key === "module-git-commit-extensions" ? "—" : meta.hint || "—";
   bindPropsFormLockedState(textarea, locked);
   wrap.appendChild(textarea);
   return wrap;
@@ -101401,7 +101646,7 @@ async function renderAgentRuntimeRegistryView() {
 async function fetchAgentGitStatus() {
   const response = await fetch(
     buildApiUrl("/api/git/status", {
-      extensions: AGENT_GIT_FILE_EXTENSIONS.join(",")
+      extensions: getAgentGitActiveExtensions().join(",")
     })
   );
   if (!response.ok) {
@@ -101417,7 +101662,7 @@ async function commitAgentGitChanges(message) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
-      extensions: AGENT_GIT_FILE_EXTENSIONS
+      extensions: getAgentGitActiveExtensions()
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -101453,6 +101698,15 @@ function syncAgentGitSettingsUi(data) {
   }
   syncAgentGitBranchSelectElement(agentGitBranchInput, data?.branch);
   syncAgentGitBranchSelectElement(agentGitBranchToolbarSelect, data?.branch);
+  if (agentGitToolbarBranchLabel) {
+    agentGitToolbarBranchLabel.textContent = data?.isRepo
+      ? formatAgentGitToolbarUpstreamLabel(data)
+      : "origin/main";
+  }
+  if (agentGitBranchToolbarSelect) {
+    const branch = String(data?.branch || "").trim() || "main";
+    agentGitBranchToolbarSelect.setAttribute("aria-label", `Ветка ${branch}`);
+  }
 }
 
 async function postAgentGitInit() {
@@ -101608,7 +101862,11 @@ async function renderAgentGitView() {
   if (!agentGitContentNode) return;
 
   agentGitContentNode.replaceChildren();
-  if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
+  if (agentGitStatsNode) {
+    const asidePreserve = agentGitMetaAsideNode;
+    agentGitStatsNode.replaceChildren();
+    if (asidePreserve) agentGitStatsNode.appendChild(asidePreserve);
+  }
   if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
   if (agentGitPushBtn) agentGitPushBtn.disabled = true;
   if (agentGitPullBtn) agentGitPullBtn.disabled = true;
@@ -101629,10 +101887,15 @@ async function renderAgentGitView() {
         const repoTotal = data.totalChangeCount ?? filteredTotal;
         const changeLabel =
           repoTotal > filteredTotal ? `${filteredTotal} / ${repoTotal}` : String(filteredTotal);
-        agentGitStatsNode.append(
+        const asideAnchor = agentGitMetaAsideNode;
+        const chips = [
           renderAgentGitStatChip("изменений", changeLabel, data.filteredClean ? "clean" : "dirty"),
           renderAgentGitStatChip("ветка", data.branch || "—", "branch")
-        );
+        ];
+        for (const chip of chips) {
+          if (asideAnchor) agentGitStatsNode.insertBefore(chip, asideAnchor);
+          else agentGitStatsNode.appendChild(chip);
+        }
       }
     }
 
@@ -101646,22 +101909,8 @@ async function renderAgentGitView() {
       agentGitSaveBtn.disabled = !canSave;
     }
 
-    if (agentGitMetaNode) {
-      const extLabel = getAgentGitFilterLabel();
-      if (!data.isRepo) {
-        agentGitMetaNode.textContent = "Git-репозиторий не найден в корне workspace";
-      } else if (data.clean) {
-        agentGitMetaNode.textContent = `Рабочая копия чистая · фильтр: ${extLabel}`;
-      } else if (data.filteredClean) {
-        agentGitMetaNode.textContent = `Нет изменений в ${extLabel} (всего в git: ${data.totalChangeCount ?? 0})`;
-      } else {
-        const parts = [`фильтр: ${extLabel}`];
-        if (data.upstream) parts.push(`upstream: ${data.upstream}`);
-        if (data.ahead) parts.push(`↑${data.ahead}`);
-        if (data.behind) parts.push(`↓${data.behind}`);
-        agentGitMetaNode.textContent = parts.join(" · ");
-      }
-    }
+    renderAgentGitMetaPrimary(data);
+    setAgentGitMetaAside(data.isRepo ? formatAgentGitMetaAside(data) : "");
 
     if (!data.isRepo) {
       const empty = document.createElement("div");

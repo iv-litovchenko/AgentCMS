@@ -1,5 +1,6 @@
 /**
- * Поля с data-sensitive: «глазик» + маскировка при is-privacy-mode (см. privacy-mode.js).
+ * Поля с data-sensitive: глобальный режим (privacy-mode.js) маскирует все;
+ * «глазик» на поле — только при включённом глобальном режиме, временно показать это поле.
  */
 (function initAgentSensitiveInputs() {
   const REVEAL_CLASS = "is-revealed";
@@ -16,6 +17,14 @@
     input.setAttribute("data-sensitive-input-type", type);
   }
 
+  function syncToggleVisibility(wrap, btn, privacy) {
+    if (!btn) return;
+    const showFieldToggle = Boolean(privacy);
+    btn.hidden = !showFieldToggle;
+    btn.tabIndex = showFieldToggle ? 0 : -1;
+    wrap.classList.toggle("is-field-reveal-available", showFieldToggle);
+  }
+
   function syncWrap(wrap) {
     const input = wrap.querySelector("input[data-sensitive], input");
     const btn = wrap.querySelector(".agent-sensitive-toggle");
@@ -23,17 +32,22 @@
 
     rememberInputType(input);
     const restoreType = input.dataset.sensitiveTypeRestore || "text";
-    const revealed = wrap.classList.contains(REVEAL_CLASS);
     const privacy = isPrivacyEnabled();
 
-    if (!privacy && !revealed) {
+    if (!privacy) {
+      wrap.classList.remove(REVEAL_CLASS);
       input.type = restoreType;
       input.classList.remove("is-sensitive-masked");
+      input.removeAttribute("readonly");
       btn?.setAttribute("aria-pressed", "false");
+      syncToggleVisibility(wrap, btn, false);
       return;
     }
 
-    if (privacy && !revealed) {
+    syncToggleVisibility(wrap, btn, true);
+
+    const revealed = wrap.classList.contains(REVEAL_CLASS);
+    if (!revealed) {
       if (restoreType === "password") {
         input.type = "password";
         input.classList.remove("is-sensitive-masked");
@@ -67,6 +81,8 @@
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (!isPrivacyEnabled()) return;
+
       const willReveal = !wrap.classList.contains(REVEAL_CLASS);
       wrap.classList.toggle(REVEAL_CLASS, willReveal);
       btn.setAttribute("aria-pressed", willReveal ? "true" : "false");
