@@ -9,7 +9,7 @@ PROVIDER_FILE="$CERT_DIR/provider.txt"
 
 mkdir -p "$CERT_DIR"
 
-IP="$(node -e "const ip=require('./lib/lan-ip').getLanIPv4(process.argv[1]); console.log(ip || '');" "$ROOT" 2>/dev/null || true)"
+IP="$(node -e "const ip=require('./lib/runtime/lan-ip').getLanIPv4(process.argv[1]); console.log(ip || '');" "$ROOT" 2>/dev/null || true)"
 if [[ -z "$IP" ]]; then
   IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
 fi
@@ -52,7 +52,7 @@ if command -v mkcert >/dev/null 2>&1; then
   echo "mkcert" > "$PROVIDER_FILE"
   echo "$IP" > "$IP_FILE"
   if command -v node >/dev/null 2>&1; then
-    node -e "require('./lib/mkcert-ios-ca').exportMkcertRootCa(process.argv[1])" "$ROOT" >/dev/null 2>&1 || true
+    node -e "require('./lib/runtime/mkcert-ios-ca').exportMkcertRootCa(process.argv[1])" "$ROOT" >/dev/null 2>&1 || true
   fi
   echo "Trusted certificate ready — Safari/Chrome will not show warnings."
   echo "CMS https://localhost:3443  ·  Voice https://localhost:3488"

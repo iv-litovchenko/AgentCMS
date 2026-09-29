@@ -36,10 +36,10 @@
         "filter": [
           "docs-registry.js",
           "docs/**",
-          "lib/https-redirect.js",
-          "lib/lan-ip.js",
-          "lib/system-environment.js",
-          "lib/voice-sidecar-probe.js",
+          "lib/http/https-redirect.js",
+          "lib/runtime/lan-ip.js",
+          "lib/runtime/system-environment.js",
+          "lib/voice/voice-sidecar-probe.js",
           "agent-shell/runtime-cli-env.js"
         ]
       }

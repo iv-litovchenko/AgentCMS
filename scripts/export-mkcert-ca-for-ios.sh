@@ -5,7 +5,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PAT
 
 node -e "
 const path = require('path');
-const { exportMkcertRootCa, isMkcertDev } = require('./lib/mkcert-ios-ca');
+const { exportMkcertRootCa, isMkcertDev } = require('./lib/runtime/mkcert-ios-ca');
 const root = process.argv[1];
 if (!isMkcertDev(root)) {
   console.error('Сертификаты не mkcert. Сначала: npm run setup:certs');

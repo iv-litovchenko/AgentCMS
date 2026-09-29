@@ -1,6 +1,6 @@
 const path = require("path");
 const { spawn } = require("child_process");
-const { resolveSidecarPython } = require("../lib/voice-sidecar-probe");
+const { resolveSidecarPython } = require("../lib/voice/voice-sidecar-probe");
 const { normalizeSttEngine, readElevenlabsSttApiKey } = require("./stt-service");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");

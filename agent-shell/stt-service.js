@@ -1,5 +1,5 @@
 const path = require("path");
-const { probeFasterWhisper } = require("../lib/voice-sidecar-probe");
+const { probeFasterWhisper } = require("../lib/voice/voice-sidecar-probe");
 
 const STT_ENGINES = ["browser", "google", "whisper", "elevenlabs"];
 

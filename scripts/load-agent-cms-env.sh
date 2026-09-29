@@ -14,5 +14,5 @@ if [[ -z "$NODE_BIN" ]]; then
   export AGENT_CMS_EDITOR_HTTPS_URL="https://localhost:${AGENT_CMS_EDITOR_HTTPS_PORT}"
   export AGENT_CMS_VOICE_HTTPS_URL="https://localhost:${AGENT_CMS_VOICE_HTTPS_PORT}"
 else
-  eval "$("$NODE_BIN" "$ROOT/lib/agent-cms-ports.js")"
+  eval "$("$NODE_BIN" "$ROOT/lib/config/agent-cms-ports.js")"
 fi

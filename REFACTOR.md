@@ -239,15 +239,15 @@ YamlCMS/  (корень)
 ├── ⚠️ voice-server.js          → lib/server/voice-server.js
 │
 ├── ⚠️ lib/*.js (одиночные)     → разложить по подпапкам:
-│   ├── page-url.js             → lib/routing/page-url.js
-│   ├── voice-chpu.js           → lib/voice/voice-chpu.js
-│   ├── voice-sidecar-probe.js  → lib/voice/
-│   ├── agent-cms-ports.js      → lib/config/
-│   ├── agent-cms-migrate.js    → lib/migrate/
-│   ├── workspace-index-path.js → lib/workspace/
-│   ├── https-redirect.js       → lib/http/
-│   ├── app-lock-*.js           → lib/auth/
-│   └── system-environment.js, lan-ip.js, mkcert-ios-ca.js → lib/runtime/
+│   ├── + page-url.js             → lib/routing/page-url.js
+│   ├── + voice-chpu.js           → lib/voice/voice-chpu.js
+│   ├── + voice-sidecar-probe.js  → lib/voice/voice-sidecar-probe.js
+│   ├── + agent-cms-ports.js      → lib/config/agent-cms-ports.js
+│   ├── + agent-cms-migrate.js    → lib/migrate/agent-cms-migrate.js
+│   ├── + workspace-index-path.js → lib/workspace/workspace-index-path.js
+│   ├── + https-redirect.js       → lib/http/https-redirect.js
+│   ├── + app-lock-passkey.js, app-lock-session.js → lib/auth/
+│   └── + system-environment.js, lan-ip.js, mkcert-ios-ca.js → lib/runtime/
 │
 ├── ⚠️ paths/  (+)               → lib/paths/
 ├── ⚠️ workspace-id/  (+)       → lib/workspace-id/

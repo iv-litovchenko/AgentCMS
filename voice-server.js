@@ -13,14 +13,14 @@ const path = require("path");
 const agentRegistry = require("./lib/agents/agent-registry");
 const { getPlatformSettings } = require("./lib/config/settings-store");
 const { isPlatformMaintenanceMode } = require("./lib/workspace/workspace-agent-settings");
-const { getLanIPv4 } = require("./lib/lan-ip");
-const voiceChpu = require("./lib/voice-chpu");
+const { getLanIPv4 } = require("./lib/runtime/lan-ip");
+const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler
-} = require("./lib/https-redirect");
-const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } = require("./lib/agent-cms-ports");
-const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
+} = require("./lib/http/https-redirect");
+const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } = require("./lib/config/agent-cms-ports");
+const { wrapHttpHandler } = require("./lib/runtime/mkcert-ios-ca");
 
 const ROOT = __dirname;
 

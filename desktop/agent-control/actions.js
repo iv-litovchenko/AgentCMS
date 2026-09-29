@@ -6,7 +6,7 @@ function getProjectRootFromActions() {
 
 function getServerPorts() {
   const root = getProjectRootFromActions();
-  const portsMod = require(path.join(root, "lib", "agent-cms-ports"));
+  const portsMod = require(path.join(root, "lib", "config", "agent-cms-ports"));
   portsMod.hydrateProcessEnvFromRoot(root);
   return portsMod.getAgentCmsPorts();
 }

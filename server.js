@@ -16,16 +16,16 @@ const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./lib/me
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
-const voiceChpu = require("./lib/voice-chpu");
+const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler,
   resolveInternalCmsApiUrl,
   getClientCmsBaseUrl,
   enrichMcpDocsForClient
-} = require("./lib/https-redirect");
-const { buildPageUrlPayload } = require("./lib/page-url");
-const { isSameWorkspaceIndexPath } = require("./lib/workspace-index-path");
+} = require("./lib/http/https-redirect");
+const { buildPageUrlPayload } = require("./lib/routing/page-url");
+const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
 const {
   clampThumbMax,
   readOrCreateImageThumb,
@@ -110,15 +110,15 @@ const {
 } = require("./lib/services/workspace-journal-service");
 const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./lib/menu-cache/store");
 const { parseCsvText } = require("./lib/awn/awn-data-csv");
-const { buildSystemEnvironment } = require("./lib/system-environment");
-const { getLanIPv4 } = require("./lib/lan-ip");
-const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
-const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
+const { buildSystemEnvironment } = require("./lib/runtime/system-environment");
+const { getLanIPv4 } = require("./lib/runtime/lan-ip");
+const { wrapHttpHandler } = require("./lib/runtime/mkcert-ios-ca");
+const { createAppLockPasskeyService } = require("./lib/auth/app-lock-passkey");
 const {
   getValidAppLockSession,
   issueAppLockSession,
   buildSessionClearCookie
-} = require("./lib/app-lock-session");
+} = require("./lib/auth/app-lock-session");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
   READ_STATE_FILE,
@@ -1082,7 +1082,7 @@ const {
   migrateProjectAgentCmsLayout,
   migrateAllWorkspaceAwnDatabasesFolders,
   migrateAllAgentCmsLayouts
-} = require("./lib/agent-cms-migrate");
+} = require("./lib/migrate/agent-cms-migrate");
 
 const WORKSPACE_ACTIVITY_DIR = agentCmsRel.state.dir;
 const WORKSPACE_ACTIVITY_FILE = "activity.jsonl";
@@ -17396,7 +17396,7 @@ async function serveIndexHtml(res, reqHost = "") {
     content = content.replace("<head>", `<head>\n    ${script}`);
   }
   if (!content.includes("__AGENT_CMS_PORTS__")) {
-    const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+    const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
     const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getAgentCmsPorts())};</script>`;
     content = content.replace("<head>", `<head>\n    ${portsScript}`);
   }
@@ -17416,12 +17416,12 @@ function voicePublicBaseUrl() {
   if (voiceServerInfo?.httpUrl && !isTlsEnabled()) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
   if (isTlsEnabled()) {
     const host = process.env.VOICE_HOST || process.env.HOST || "localhost";
-    const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+    const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
     const port = getAgentCmsPorts().voiceHttps;
     return `https://${host}:${port}`;
   }
   if (voiceServerInfo?.httpUrl) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
-  const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+  const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
   const ports = getAgentCmsPorts();
   const port = ports.voiceHttp;
   const host = process.env.VOICE_HOST || "localhost";
@@ -29329,7 +29329,7 @@ async function startServer(options = {}) {
     await stopServer();
   }
 
-  const portsMod = require("./lib/agent-cms-ports");
+  const portsMod = require("./lib/config/agent-cms-ports");
   const projectRootForEnv = options.root || __dirname;
   portsMod.hydrateProcessEnvFromRoot(projectRootForEnv);
   portsMod.syncLegacyPortEnvVars();
@@ -29368,7 +29368,7 @@ async function startServer(options = {}) {
     console.warn("Agent CMS layout migration skipped:", error?.message || error);
   }
 
-  const { getAgentCmsPorts } = require("./lib/agent-cms-ports");
+  const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
   const configuredPorts = getAgentCmsPorts();
   const host = options.host ?? process.env.HOST ?? undefined;
   const port = Number(options.port ?? configuredPorts.editorHttp);
@@ -29531,7 +29531,7 @@ function attachProcessDiagnostics() {
 
 if (require.main === module) {
   attachProcessDiagnostics();
-  const portsMod = require("./lib/agent-cms-ports");
+  const portsMod = require("./lib/config/agent-cms-ports");
   portsMod.hydrateProcessEnvFromRoot(__dirname);
   portsMod.syncLegacyPortEnvVars();
   startServer({ root: __dirname, tryNextPort: false })
