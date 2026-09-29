@@ -88882,12 +88882,20 @@ const MERMAID_BASE_CONFIG = {
 };
 
 let mermaidThemeModulePromise = null;
+let mermaidChromeModulePromise = null;
 
 function loadMermaidThemeModule() {
   if (!mermaidThemeModulePromise) {
     mermaidThemeModulePromise = import("/mermaid-diagram-theme.js");
   }
   return mermaidThemeModulePromise;
+}
+
+function loadMermaidChromeModule() {
+  if (!mermaidChromeModulePromise) {
+    mermaidChromeModulePromise = import("/mermaid-diagram-chrome.js");
+  }
+  return mermaidChromeModulePromise;
 }
 
 function initMermaid(engineTheme = "neutral") {
@@ -88931,18 +88939,9 @@ function ensureMermaidDiagramFrame(block) {
   return frame;
 }
 
-function ensureMermaidDiagramActions(frame) {
-  let bar = frame.querySelector(".mermaid-diagram-actions");
-  if (!bar) {
-    bar = document.createElement("div");
-    bar.className = "mermaid-diagram-actions";
-    frame.appendChild(bar);
-  }
-  const themeBtn = frame.querySelector(":scope > .mermaid-diagram-theme-btn");
-  const sourceBtn = frame.querySelector(":scope > .mermaid-diagram-source-btn");
-  if (themeBtn && themeBtn.parentElement === frame) bar.appendChild(themeBtn);
-  if (sourceBtn && sourceBtn.parentElement === frame) bar.appendChild(sourceBtn);
-  return bar;
+async function ensureMermaidDiagramActions(frame) {
+  const chromeMod = await loadMermaidChromeModule();
+  return chromeMod.ensureMermaidDiagramActionsBar(frame);
 }
 
 function toggleMermaidSourceView(frame, block) {
@@ -88968,14 +88967,15 @@ function toggleMermaidSourceView(frame, block) {
   if (code) code.textContent = source;
 }
 
-function ensureMermaidSourceButton(frame, block) {
-  const bar = ensureMermaidDiagramActions(frame);
+async function ensureMermaidSourceButton(frame, block) {
+  const chromeMod = await loadMermaidChromeModule();
+  const bar = await ensureMermaidDiagramActions(frame);
   let btn = bar.querySelector(".mermaid-diagram-source-btn");
   if (!btn) {
     btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "mermaid-diagram-source-btn";
-    btn.textContent = "Исходник";
+    btn.className = "mermaid-diagram-source-btn mermaid-diagram-chrome-btn";
+    btn.innerHTML = chromeMod.MERMAID_SOURCE_BUTTON_HTML;
     btn.title = "Показать исходник Mermaid";
     btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", "false");
@@ -88985,13 +88985,41 @@ function ensureMermaidSourceButton(frame, block) {
       toggleMermaidSourceView(frame, block);
     });
     bar.appendChild(btn);
+  } else if (!btn.querySelector(".mermaid-diagram-chrome-icon")) {
+    btn.innerHTML = chromeMod.MERMAID_SOURCE_BUTTON_HTML;
+    btn.classList.add("mermaid-diagram-chrome-btn");
   }
+  chromeMod.sortMermaidDiagramActionButtons(bar);
+  return btn;
+}
+
+async function ensureMermaidResetZoomButton(frame) {
+  const chromeMod = await loadMermaidChromeModule();
+  const bar = await ensureMermaidDiagramActions(frame);
+  let btn = bar.querySelector(".mermaid-diagram-reset-zoom-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-reset-zoom-btn mermaid-diagram-chrome-btn";
+    btn.innerHTML = chromeMod.MERMAID_RESET_ZOOM_BUTTON_HTML;
+    btn.title = "Сбросить масштаб и позицию диаграммы";
+    btn.setAttribute("aria-label", btn.title);
+    btn.disabled = true;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void import("/mermaid-diagram-panzoom.js").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
+    });
+    bar.appendChild(btn);
+  }
+  btn.disabled = !frame.classList.contains("is-mermaid-zoomed");
+  chromeMod.sortMermaidDiagramActionButtons(bar);
   return btn;
 }
 
 async function ensureMermaidThemeToggle(frame, block) {
   const themeMod = await loadMermaidThemeModule();
-  const bar = ensureMermaidDiagramActions(frame);
+  const bar = await ensureMermaidDiagramActions(frame);
   let btn = bar.querySelector(".mermaid-diagram-theme-btn");
   if (!btn) {
     btn = document.createElement("button");
@@ -89006,6 +89034,8 @@ async function ensureMermaidThemeToggle(frame, block) {
     bar.appendChild(btn);
   }
   themeMod.syncMermaidThemeToggleUi(frame, "light");
+  const chromeMod = await loadMermaidChromeModule();
+  chromeMod.sortMermaidDiagramActionButtons(bar);
   return btn;
 }
 
@@ -89019,8 +89049,9 @@ async function renderMermaidBlock(block, theme = "light") {
   frame.classList.remove("is-mermaid-source-open");
   const sourceBtn = frame.querySelector(".mermaid-diagram-source-btn");
   sourceBtn?.setAttribute("aria-pressed", "false");
-  ensureMermaidSourceButton(frame, block);
   await ensureMermaidThemeToggle(frame, block);
+  await ensureMermaidSourceButton(frame, block);
+  await ensureMermaidResetZoomButton(frame);
 
   block.dataset.mermaidSource = source;
   block.removeAttribute("data-processed");
@@ -89035,9 +89066,10 @@ async function renderMermaidBlock(block, theme = "light") {
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
-    void import("/mermaid-diagram-panzoom.js").then((mod) =>
-      mod.ensureMermaidDiagramPanZoom(frame, { reset: true })
-    );
+    void import("/mermaid-diagram-panzoom.js").then((mod) => {
+      mod.ensureMermaidDiagramPanZoom(frame, { reset: true });
+      void ensureMermaidResetZoomButton(frame);
+    });
     return true;
   } catch (error) {
     console.warn("Mermaid render failed:", error);

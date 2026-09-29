@@ -1,9 +1,25 @@
-# Карта элементов workspace
+# Карта идей и элементов workspace
 
 ```mermaid
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    "fontSize": "14px",
+    "lineColor": "#cbd5e1",
+    "primaryTextColor": "#0f172a"
+  },
+  "flowchart": {
+    "curve": "basis",
+    "padding": 18,
+    "nodeSpacing": 30,
+    "rankSpacing": 46,
+    "htmlLabels": true
+  }
+}}%%
 flowchart TD
-    CMS["🌐 Agent CMS"]
-    WS["🏠 Workspace (agentId)"]
+    CMS(["🌐 Agent CMS"])
+    WS(("🏠 Workspace<br/><small>agentId</small>"))
 
     CMS --> WS
     WS --> TREE["📁 Дерево Page"]
@@ -42,6 +58,30 @@ flowchart TD
     AUX --> SEARCH["Search / Index"]
     AUX --> REPO["Repository"]
     AUX --> BOARD["NOTE.md / TODO.md"]
+
+    classDef hub fill:#9ca3af,stroke:#6b7280,color:#111827,stroke-width:2px
+    classDef cms fill:#eef2ff,stroke:#4f46e5,color:#312e81,stroke-width:2px
+    classDef treeHead fill:#e5e7eb,stroke:#9ca3af,color:#111827,stroke-width:2px
+    classDef treeNode fill:#f3f4f6,stroke:#d1d5db,color:#111827
+    classDef dataHead fill:#d1d5db,stroke:#9ca3af,color:#111827,stroke-width:2px
+    classDef dataNode fill:#e5e7eb,stroke:#b0b7c3,color:#111827
+    classDef memHead fill:#374151,stroke:#1f2937,color:#f9fafb,stroke-width:2px
+    classDef memNode fill:#4b5563,stroke:#374151,color:#f9fafb
+    classDef auxHead fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2.5px
+    classDef auxNode fill:#fafafa,stroke:#334155,color:#0f172a,stroke-width:1.5px
+
+    class CMS cms
+    class WS hub
+    class TREE,AREA treeHead
+    class SHARED_AREA,AGENT_AREA,TOPIC,SLOT,SECTION,PAGE_ENTRY,SIDECAR treeNode
+    class DATA,IBLOCK dataHead
+    class TAX,GROUP,COLLECTION,SINGLE,DATA_SECTION,RECORD dataNode
+    class MEM,COMM memHead
+    class FACTS,JOURNAL,INBOX,DIALOGS,DISCUSS memNode
+    class AUX auxHead
+    class SETTINGS,SEARCH,REPO,BOARD auxNode
+
+    linkStyle default stroke:#cbd5e1,stroke-width:2px
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```

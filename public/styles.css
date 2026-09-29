@@ -52460,7 +52460,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .mermaid-diagram-theme-btn,
-.mermaid-diagram-source-btn {
+.mermaid-diagram-chrome-btn {
   position: static;
   flex-shrink: 0;
   display: inline-flex;
@@ -52482,6 +52482,25 @@ button.node-navigation-memory-title:focus-visible {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+.mermaid-diagram-chrome-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.mermaid-diagram-chrome-label {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.mermaid-diagram-chrome-btn:disabled,
+.mermaid-diagram-reset-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
 .mermaid-diagram-theme-text {
   min-width: 0;
   text-align: left;
@@ -52492,37 +52511,19 @@ button.node-navigation-memory-title:focus-visible {
   white-space: nowrap;
 }
 
-.mermaid-diagram-source-btn {
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 4px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #475569;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1.25;
-  font-weight: 500;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.mermaid-diagram-source-btn:hover {
+.mermaid-diagram-chrome-btn:hover:not(:disabled) {
   background: #ffffff;
   border-color: #94a3b8;
   color: #0f172a;
 }
 
-.mermaid-diagram-frame.is-dark .mermaid-diagram-source-btn {
+.mermaid-diagram-frame.is-dark .mermaid-diagram-chrome-btn {
   border-color: #475569;
   background: rgba(15, 23, 42, 0.88);
   color: #e2e8f0;
 }
 
-.mermaid-diagram-frame.is-dark .mermaid-diagram-source-btn:hover {
+.mermaid-diagram-frame.is-dark .mermaid-diagram-chrome-btn:hover:not(:disabled) {
   background: #1e293b;
   border-color: #64748b;
   color: #f8fafc;
@@ -52592,6 +52593,16 @@ button.node-navigation-memory-title:focus-visible {
   background: #1e293b;
   border-color: #64748b;
   color: #f8fafc;
+}
+
+.mermaid-diagram-frame.is-mermaid-zoomed .mermaid-diagram-reset-zoom-btn:not(:disabled) {
+  border-color: #6366f1;
+  color: #4338ca;
+}
+
+.mermaid-diagram-frame.is-dark.is-mermaid-zoomed .mermaid-diagram-reset-zoom-btn:not(:disabled) {
+  border-color: #818cf8;
+  color: #c7d2fe;
 }
 
 .mermaid-diagram-theme-icon {

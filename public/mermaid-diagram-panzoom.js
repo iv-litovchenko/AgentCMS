@@ -45,6 +45,8 @@ function viewBoxScale(base, current) {
 
 function syncZoomedClass(host, transformed) {
   host?.classList.toggle("is-mermaid-zoomed", Boolean(transformed));
+  const resetBtn = host?.querySelector(".mermaid-diagram-reset-zoom-btn");
+  if (resetBtn) resetBtn.disabled = !transformed;
 }
 
 function clearMermaidDiagramFocus(host) {
@@ -307,4 +309,14 @@ export function ensureMermaidDiagramPanZoom(host, options = {}) {
     if (options.reset) state.reset();
   };
   requestAnimationFrame(apply);
+}
+
+export function resetMermaidDiagramPanZoom(host) {
+  if (!(host instanceof Element)) return;
+  const state = hostState.get(host);
+  if (state?.reset) {
+    state.reset();
+    return;
+  }
+  ensureMermaidDiagramPanZoom(host, { reset: true });
 }
