@@ -1,12 +1,14 @@
 (function () {
   "use strict";
 
-  const BREAK_MS = 5 * 60_000;
+  const BREAK_MS_DEFAULT = 5 * 60_000;
   const TICK_MS = 1000;
   const STORAGE_KEY = "workspace-pomodoro.v1";
   const SETTING_ENABLED_KEY = "workspace-pomodoro-enabled";
   const SETTING_WORK_KEY = "workspace-pomodoro-work-minutes";
+  const SETTING_BREAK_KEY = "workspace-pomodoro-break-minutes";
   const ALLOWED_WORK_MINUTES = [1, 5, 25, 45, 60];
+  const ALLOWED_BREAK_MINUTES = [5, 10, 15, 60];
 
   const btn = document.getElementById("app-footer-pomodoro-btn");
   const btnLabel = document.getElementById("app-footer-pomodoro-btn-label");
@@ -22,6 +24,9 @@
   const breakBreaksRow = document.getElementById("workspace-pomodoro-break-breaks");
   const breakBreaksCount = document.getElementById("workspace-pomodoro-break-breaks-count");
   const breakEmojiNode = document.getElementById("workspace-pomodoro-break-emoji");
+  const breakCheckpointInput = document.getElementById("workspace-pomodoro-break-checkpoint-input");
+  let breakCheckpoint = null;
+  let breakCheckpointPromise = null;
   let breakEmojiRotator = null;
   let breakEmojiRotatorPromise = null;
 
@@ -37,6 +42,37 @@
         .catch(() => null);
     }
     return breakEmojiRotatorPromise;
+  }
+
+  function getBreakCheckpoint() {
+    if (breakCheckpoint) return Promise.resolve(breakCheckpoint);
+    if (!breakCheckpointInput) return Promise.resolve(null);
+    if (!breakCheckpointPromise) {
+      breakCheckpointPromise = import("/js/pomodoro/pomodoro-break-checkpoint.js?v=1")
+        .then((mod) => {
+          breakCheckpoint = mod.createPomodoroBreakCheckpoint({
+            inputEl: breakCheckpointInput,
+            getAgentId,
+            resolveJournalContext: async () => {
+              const resolveCtx = globalThis.resolveWorkspaceJournalEntryContextResolved;
+              if (typeof resolveCtx === "function") {
+                const ctx = await resolveCtx();
+                return { path: ctx.path || "", topic: ctx.topic || "" };
+              }
+              return { path: "", topic: "" };
+            },
+            onNotify(kind, message) {
+              const toast = globalThis.showToast;
+              if (typeof toast !== "function") return;
+              if (kind === "success") toast("Сохранено в журнал workspace", "success");
+              else toast(`Не удалось сохранить: ${message}`, "error");
+            }
+          });
+          return breakCheckpoint;
+        })
+        .catch(() => null);
+    }
+    return breakCheckpointPromise;
   }
 
   const breaksCounter =
@@ -56,6 +92,8 @@
   let featureEnabled = true;
   let workMinutes = 25;
   let workMs = 25 * 60_000;
+  let breakMinutes = 5;
+  let breakMs = BREAK_MS_DEFAULT;
   let workspacePersistTimer = null;
   let workspacePersistInFlight = false;
 
@@ -69,6 +107,15 @@
     }
     const minutes = parseInt(String(value ?? "25").trim(), 10);
     if (!Number.isFinite(minutes) || !ALLOWED_WORK_MINUTES.includes(minutes)) return 25;
+    return minutes;
+  }
+
+  function parseBreakMinutes(value) {
+    if (value != null && typeof value === "object" && "key" in value) {
+      value = value.key;
+    }
+    const minutes = parseInt(String(value ?? "5").trim(), 10);
+    if (!Number.isFinite(minutes) || !ALLOWED_BREAK_MINUTES.includes(minutes)) return 5;
     return minutes;
   }
 
@@ -99,15 +146,16 @@
   async function fetchWorkspacePomodoroSettings(agentId) {
     try {
       const response = await fetch(buildSettingsUrl(agentId), { credentials: "same-origin" });
-      if (!response.ok) return { enabled: true, workMinutes: 25 };
+      if (!response.ok) return { enabled: true, workMinutes: 25, breakMinutes: 5 };
       const data = await response.json();
       const settings = data?.settings || {};
       return {
         enabled: parseEnabled(settings[SETTING_ENABLED_KEY]),
-        workMinutes: parseWorkMinutes(settings[SETTING_WORK_KEY])
+        workMinutes: parseWorkMinutes(settings[SETTING_WORK_KEY]),
+        breakMinutes: parseBreakMinutes(settings[SETTING_BREAK_KEY])
       };
     } catch {
-      return { enabled: true, workMinutes: 25 };
+      return { enabled: true, workMinutes: 25, breakMinutes: 5 };
     }
   }
 
@@ -123,6 +171,15 @@
     updateFooterBtn();
   }
 
+  function applyBreakMinutes(rawValue) {
+    breakMinutes = parseBreakMinutes(rawValue);
+    breakMs = breakMinutes * 60_000;
+    if (phase === "break" && breakClock) {
+      const remaining = Math.max(0, phaseEndsAt - Date.now());
+      breakClock.textContent = remaining > 0 ? formatMmSs(remaining) : formatMmSs(breakMs);
+    }
+  }
+
   function applyEnabled(rawValue) {
     featureEnabled = parseEnabled(rawValue);
     if (!featureEnabled) stopSession();
@@ -132,6 +189,7 @@
   function applyWorkspaceSettings(raw) {
     if (raw?.enabled != null) applyEnabled(raw.enabled);
     if (raw?.workMinutes != null) applyWorkMinutes(raw.workMinutes);
+    if (raw?.breakMinutes != null) applyBreakMinutes(raw.breakMinutes);
   }
 
   function storageKey() {
@@ -153,6 +211,7 @@
         phase: p,
         phaseEndsAt: endsAt,
         workMinutes: data.workMinutes != null ? data.workMinutes : null,
+        breakMinutes: data.breakMinutes != null ? data.breakMinutes : null,
         updatedAt: Number(data.updatedAt) || 0
       };
     } catch {
@@ -186,7 +245,7 @@
       optionalSnap ||
       (phase === "idle"
         ? null
-        : { phase, phaseEndsAt, workMinutes, updatedAt: Date.now() });
+        : { phase, phaseEndsAt, workMinutes, breakMinutes, updatedAt: Date.now() });
     workspacePersistInFlight = true;
     try {
       await api.writePomodoroWorkspaceState(getAgentId(), snap);
@@ -204,7 +263,7 @@
         void flushWorkspaceState(null);
         return;
       }
-      const snap = { phase, phaseEndsAt, workMinutes, updatedAt: now };
+      const snap = { phase, phaseEndsAt, workMinutes, breakMinutes, updatedAt: now };
       sessionStorage.setItem(storageKey(), JSON.stringify(snap));
       startWorkspacePersistInterval();
       void flushWorkspaceState(snap);
@@ -311,12 +370,13 @@
     document.body.classList.add("workspace-pomodoro-break-active");
     void getBreakEmojiRotator().then((rot) => rot?.start());
     void breaksCounter?.load?.(getAgentId());
-    breakDoneBtn?.focus({ preventScroll: true });
+    void getBreakCheckpoint().then((cp) => cp?.onBreakOpen());
   }
 
   function hideBreakModal() {
     if (!breakRoot) return;
     breakEmojiRotator?.stop();
+    breakCheckpoint?.onBreakClose();
     breakRoot.classList.add("hidden");
     breakRoot.setAttribute("aria-hidden", "true");
     document.body.classList.remove("workspace-pomodoro-break-active");
@@ -358,9 +418,10 @@
 
   function enterBreak() {
     phase = "break";
-    phaseEndsAt = Date.now() + BREAK_MS;
+    phaseEndsAt = Date.now() + breakMs;
     persistState();
     playBreakChime();
+    if (breakClock) breakClock.textContent = formatMmSs(breakMs);
     showBreakModal();
     updateFooterBtn();
     updatePopoverUi();
@@ -401,6 +462,9 @@
     phaseEndsAt = saved.phaseEndsAt;
     if (saved.workMinutes != null) {
       applyWorkMinutes(saved.workMinutes);
+    }
+    if (saved.breakMinutes != null) {
+      applyBreakMinutes(saved.breakMinutes);
     }
     if (phaseEndsAt <= Date.now()) {
       if (phase === "work") {
@@ -486,8 +550,10 @@
     enterIdle();
   }
 
-  function completeBreak() {
+  async function completeBreak() {
     breaksCounter?.recordDismissed?.();
+    const cp = await getBreakCheckpoint();
+    await cp?.beforeBreakComplete?.();
     void unlockAudio();
     closePopover();
     enterWork();
@@ -572,7 +638,9 @@
 
     stopBtn?.addEventListener("click", () => stopSession());
 
-    breakDoneBtn?.addEventListener("click", () => completeBreak());
+    breakDoneBtn?.addEventListener("click", () => {
+      void completeBreak();
+    });
 
     document.addEventListener("click", (event) => {
       if (!popoverOpen) return;
@@ -614,6 +682,7 @@
     });
 
     applyWorkMinutes(workMinutes);
+    applyBreakMinutes(breakMinutes);
     syncVisibility();
     void breaksCounter?.load?.(getAgentId());
     void restoreCombinedState().then(() => broadcastShellPomodoroState());
@@ -653,6 +722,8 @@
     parseEnabled,
     applyWorkMinutes,
     parseWorkMinutes,
+    applyBreakMinutes,
+    parseBreakMinutes,
     handleRemoteAction,
     broadcastShellPomodoroState
   };

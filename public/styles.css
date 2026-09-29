@@ -24497,6 +24497,38 @@ body.workspace-pomodoro-break-active {
   color: rgba(254, 215, 170, 0.82);
 }
 
+.workspace-pomodoro-break-checkpoint {
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+}
+
+.workspace-pomodoro-break-checkpoint-input {
+  display: block;
+  width: 100%;
+  min-height: 4.5rem;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #fff7ed;
+  background: rgba(12, 10, 9, 0.55);
+  border: 1px solid rgba(251, 146, 60, 0.45);
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+}
+
+.workspace-pomodoro-break-checkpoint-input::placeholder {
+  color: rgba(254, 215, 170, 0.45);
+}
+
+.workspace-pomodoro-break-checkpoint-input:focus {
+  border-color: rgba(251, 191, 36, 0.75);
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.25);
+}
+
 .workspace-pomodoro-break-emoji {
   display: flex;
   align-items: center;
@@ -27983,6 +28015,22 @@ body.workspace-pomodoro-break-active {
 
 .menu-agent-stats-summary-section:last-child {
   margin-bottom: 0;
+}
+
+.menu-agent-stats-summary-repo {
+  margin-bottom: 12px;
+}
+
+.menu-agent-stats-summary-repo:last-child {
+  margin-bottom: 0;
+}
+
+.menu-agent-stats-summary-repo-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(61, 43, 31, 0.82);
 }
 
 .menu-agent-stats-summary-section-title {

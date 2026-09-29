@@ -4,14 +4,17 @@ import {
   readPomodoroWorkspaceState,
   writePomodoroWorkspaceState
 } from "/js/pomodoro/pomodoro-state-api.js?v=1";
+import { createPomodoroBreakCheckpoint } from "/js/pomodoro/pomodoro-break-checkpoint.js?v=1";
 import { createPomodoroBreakEmojiRotator } from "/js/pomodoro/pomodoro-break-emoji.js?v=1";
 
-const BREAK_MS = 5 * 60_000;
+const BREAK_MS_DEFAULT = 5 * 60_000;
 const TICK_MS = 1000;
 const STORAGE_KEY = "shell-pomodoro.v1";
 const SETTING_ENABLED_KEY = "workspace-pomodoro-enabled";
 const SETTING_WORK_KEY = "workspace-pomodoro-work-minutes";
+const SETTING_BREAK_KEY = "workspace-pomodoro-break-minutes";
 const ALLOWED_WORK_MINUTES = [1, 5, 25, 45, 60];
+const ALLOWED_BREAK_MINUTES = [5, 10, 15, 60];
 
 let getAgentId = () => "main";
 let isEligible = () => true;
@@ -38,6 +41,13 @@ function parseWorkMinutes(value) {
   return minutes;
 }
 
+function parseBreakMinutes(value) {
+  if (value != null && typeof value === "object" && "key" in value) value = value.key;
+  const minutes = parseInt(String(value ?? "5").trim(), 10);
+  if (!Number.isFinite(minutes) || !ALLOWED_BREAK_MINUTES.includes(minutes)) return 5;
+  return minutes;
+}
+
 function workMinutesLabel(minutes) {
   const m = Number(minutes) || 25;
   const mod10 = m % 10;
@@ -56,15 +66,16 @@ function buildSettingsUrl(agentId) {
 async function fetchWorkspacePomodoroSettings(agentId) {
   try {
     const response = await fetch(buildSettingsUrl(agentId), { credentials: "same-origin" });
-    if (!response.ok) return { enabled: true, workMinutes: 25 };
+    if (!response.ok) return { enabled: true, workMinutes: 25, breakMinutes: 5 };
     const data = await response.json();
     const settings = data?.settings || {};
     return {
       enabled: parseEnabled(settings[SETTING_ENABLED_KEY]),
-      workMinutes: parseWorkMinutes(settings[SETTING_WORK_KEY])
+      workMinutes: parseWorkMinutes(settings[SETTING_WORK_KEY]),
+      breakMinutes: parseBreakMinutes(settings[SETTING_BREAK_KEY])
     };
   } catch {
-    return { enabled: true, workMinutes: 25 };
+    return { enabled: true, workMinutes: 25, breakMinutes: 5 };
   }
 }
 
@@ -129,6 +140,21 @@ function createLocalController() {
   const breakDoneBtn = $("shell-pomodoro-break-done");
   const breakBreaksRow = $("shell-pomodoro-break-breaks");
   const breakBreaksCount = $("shell-pomodoro-break-breaks-count");
+  const breakCheckpointInput = $("shell-pomodoro-break-checkpoint-input");
+  const breakCheckpoint = createPomodoroBreakCheckpoint({
+    inputEl: breakCheckpointInput,
+    getAgentId: () => getAgentId(),
+    resolveJournalContext: async () => {
+      const href = typeof location !== "undefined" ? String(location.href || "").trim() : "";
+      if (!href) return { path: "", topic: "" };
+      return { path: "", topic: "", url: href };
+    },
+    linkContext: false,
+    onNotify(kind, message) {
+      if (kind === "success") return;
+      console.warn("[pomodoro checkpoint]", message);
+    }
+  });
   const breakEmojiRotator = createPomodoroBreakEmojiRotator($("shell-pomodoro-break-emoji"), {
     intervalMs: 3000
   });
@@ -149,6 +175,8 @@ function createLocalController() {
   let featureEnabled = true;
   let workMinutes = 25;
   let workMs = 25 * 60_000;
+  let breakMinutes = 5;
+  let breakMs = BREAK_MS_DEFAULT;
   let workspacePersistTimer = null;
   let workspacePersistInFlight = false;
 
@@ -171,6 +199,7 @@ function createLocalController() {
         phase: p,
         phaseEndsAt: endsAt,
         workMinutes: data.workMinutes != null ? data.workMinutes : null,
+        breakMinutes: data.breakMinutes != null ? data.breakMinutes : null,
         updatedAt: Number(data.updatedAt) || 0
       };
     } catch {
@@ -201,7 +230,7 @@ function createLocalController() {
       optionalSnap ||
       (phase === "idle"
         ? null
-        : { phase, phaseEndsAt, workMinutes, updatedAt: Date.now() });
+        : { phase, phaseEndsAt, workMinutes, breakMinutes, updatedAt: Date.now() });
     workspacePersistInFlight = true;
     try {
       await writePomodoroWorkspaceState(getAgentId(), snap);
@@ -219,7 +248,7 @@ function createLocalController() {
         void flushWorkspaceState(null);
         return;
       }
-      const snap = { phase, phaseEndsAt, workMinutes, updatedAt: now };
+      const snap = { phase, phaseEndsAt, workMinutes, breakMinutes, updatedAt: now };
       sessionStorage.setItem(storageKey(), JSON.stringify(snap));
       startWorkspacePersistInterval();
       void flushWorkspaceState(snap);
@@ -301,12 +330,13 @@ function createLocalController() {
     document.body.classList.add("shell-pomodoro-break-active");
     breakEmojiRotator.start();
     void breaksCounter?.load?.(getAgentId());
-    breakDoneBtn?.focus({ preventScroll: true });
+    breakCheckpoint.onBreakOpen();
   }
 
   function hideBreakModal() {
     if (!breakRoot) return;
     breakEmojiRotator.stop();
+    breakCheckpoint.onBreakClose();
     breakRoot.classList.add("hidden");
     breakRoot.setAttribute("aria-hidden", "true");
     document.body.classList.remove("shell-pomodoro-break-active");
@@ -346,9 +376,10 @@ function createLocalController() {
 
   function enterBreak() {
     phase = "break";
-    phaseEndsAt = Date.now() + BREAK_MS;
+    phaseEndsAt = Date.now() + breakMs;
     persistState();
     playBreakChime();
+    if (breakClock) breakClock.textContent = formatMmSs(breakMs);
     showBreakModal();
     updateLaunchBtn();
     updatePopoverUi();
@@ -388,6 +419,10 @@ function createLocalController() {
     if (saved.workMinutes != null) {
       workMinutes = parseWorkMinutes(saved.workMinutes);
       workMs = workMinutes * 60_000;
+    }
+    if (saved.breakMinutes != null) {
+      breakMinutes = parseBreakMinutes(saved.breakMinutes);
+      breakMs = breakMinutes * 60_000;
     }
     if (phaseEndsAt <= Date.now()) {
       if (phase === "work") {
@@ -462,6 +497,7 @@ function createLocalController() {
 
   async function completeBreak() {
     breaksCounter?.recordDismissed?.();
+    await breakCheckpoint.beforeBreakComplete();
     await unlockAudio();
     closePopover();
     enterWork();
@@ -479,6 +515,10 @@ function createLocalController() {
         popoverLead.innerHTML =
           `Метод помидора: <strong>${workMinutesLabel(workMinutes)}</strong> фокуса в Voice, затем отдых и звук.`;
       }
+    }
+    if (settings?.breakMinutes != null) {
+      breakMinutes = parseBreakMinutes(settings.breakMinutes);
+      breakMs = breakMinutes * 60_000;
     }
     syncVisibility();
     updatePopoverUi();
@@ -500,7 +540,7 @@ function createLocalController() {
   });
   startBtn?.addEventListener("click", () => void startWorkSession());
   stopBtn?.addEventListener("click", () => stopSession());
-  breakDoneBtn?.addEventListener("click", () => completeBreak());
+  breakDoneBtn?.addEventListener("click", () => void completeBreak());
 
   document.addEventListener("click", (event) => {
     if (!popoverOpen) return;
