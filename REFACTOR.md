@@ -228,3 +228,46 @@ public/
 **После:** в корне `public/` — `main.js`, `index.html`, `styles.css`, папки `shell/`, `vendor/`, `shared/`, `_storage/`.
 
 **Чек:** `npm start` + открыть CMS, консоль без 404 на `/….js`.
+
+## Этап 4 — корень (остаток после этапа 1)
+
+Эмодзи: ❌ не трогать · ⚠️ лёгко · 🔴 тяжело (много `require`) · 🌐 фронт (этап 3) · 🗑️ мусор · **`+`** — готово
+
+```
+YamlCMS/  (корень)
+│
+├── ⚠️ voice-server.js          → lib/server/voice-server.js
+│
+├── ⚠️ lib/*.js (одиночные)     → разложить по подпапкам:
+│   ├── page-url.js             → lib/routing/page-url.js
+│   ├── voice-chpu.js           → lib/voice/voice-chpu.js
+│   ├── voice-sidecar-probe.js  → lib/voice/
+│   ├── agent-cms-ports.js      → lib/config/
+│   ├── agent-cms-migrate.js    → lib/migrate/
+│   ├── workspace-index-path.js → lib/workspace/
+│   ├── https-redirect.js       → lib/http/
+│   ├── app-lock-*.js           → lib/auth/
+│   └── system-environment.js, lan-ip.js, mkcert-ios-ca.js → lib/runtime/
+│
+├── ⚠️ paths/                   → lib/paths/ (или lib/config/paths/)
+├── ⚠️ workspace-id/            → lib/workspace-id/
+├── ⚠️ menu-cache/              → lib/menu-cache/
+├── ⚠️ nav-flags-registry/      → lib/nav-flags-registry/
+│
+├── 🔴 semantic-search/         → lib/indexes/semantic-search/
+├── 🔴 fulltext-index/          → lib/indexes/fulltext-index/
+├── 🔴 storage-index/           → lib/indexes/storage-index/
+├── 🔴 link-index/              → lib/indexes/link-index/
+├── 🔴 ocr-index/               → lib/indexes/ocr-index/
+├── 🔴 workspace-index/         → lib/indexes/workspace-index/
+│
+├── 🗑️ tools/ (пусто)           → удалить (логика в lib/tools/)
+│
+└── 🌐 public/ (см. этап 3)
+    ├── ⚠️ *.js в корне public/ → public/js/{core,app,panels,...}
+    └── 🗑️ site3 (битый symlink) → удалить
+```
+
+**❌ в корне оставить:** `server.js`, `package.json`, `workspaces/`, `public/`, `mcp-server/`, `agent-shell/`, `desktop/`, `scripts/`, `docs/`, `examples/`, `browser-extension/`, `commands/`.
+
+**Порядок:** ⚠️ `paths` + одиночные `lib/*.js` → ⚠️ `workspace-id` / `menu-cache` / `nav-flags-registry` → 🔴 `*-index/` одним заходом → ⚠️ `voice-server` → 🗑️ `tools` / `site3`.
