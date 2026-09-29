@@ -6678,6 +6678,35 @@
       </div>
     </div>
 
+    <div id="menu-agent-stats-summary-overlay" class="menu-agent-stats-env-overlay hidden" aria-hidden="true">
+      <div
+        id="menu-agent-stats-summary-popover"
+        class="menu-agent-stats-env-popover is-summary"
+        role="dialog"
+        aria-label="Статистика workspace"
+        aria-modal="true"
+      >
+        <div class="menu-agent-stats-env-popover-head">
+          <div class="menu-agent-stats-env-popover-head-copy">
+            <span id="menu-agent-stats-summary-popover-title" class="menu-agent-stats-env-popover-title">Статистика</span>
+            <span id="menu-agent-stats-summary-popover-subtitle" class="menu-agent-stats-env-popover-subtitle hidden"></span>
+          </div>
+          <button
+            id="menu-agent-stats-summary-popover-close-btn"
+            class="menu-agent-stats-env-popover-close modal-close-btn"
+            type="button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+        <div id="menu-agent-stats-summary-body" class="menu-agent-stats-summary-body" aria-live="polite"></div>
+        <div id="menu-agent-stats-summary-footer" class="menu-agent-stats-env-popover-footer hidden">
+          <span id="menu-agent-stats-summary-footer-text" class="menu-agent-stats-env-popover-version"></span>
+        </div>
+      </div>
+    </div>
+
     <div id="menu-agent-stats-env-overlay" class="menu-agent-stats-env-overlay hidden" aria-hidden="true">
       <div
         id="menu-agent-stats-env-popover"

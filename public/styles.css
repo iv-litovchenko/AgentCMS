@@ -27836,15 +27836,199 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-line {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
   font-size: 12px;
   line-height: 1.3;
   color: #fff;
+}
+
+.menu-agent-stats-reload-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.menu-agent-stats-reload-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.menu-agent-stats-reload-btn:focus {
+  outline: none;
+}
+
+.menu-agent-stats-reload-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.42);
+}
+
+.menu-agent-stats-reload-btn:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.menu-agent-stats-reload-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.menu-agent-stats-reload-btn.is-loading .menu-agent-stats-reload-icon {
+  animation: menu-agent-stats-reload-spin 0.65s linear infinite;
+}
+
+@keyframes menu-agent-stats-reload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.menu-agent-stats-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.menu-agent-stats-open-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.menu-agent-stats-open-btn:focus {
+  outline: none;
+}
+
+.menu-agent-stats-open-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.42);
+}
+
+.menu-agent-stats-open-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+}
+
+.menu-agent-stats-open-icon {
+  flex: 0 0 auto;
+  display: block;
+  width: 14px;
+  height: 14px;
+  opacity: 0.92;
+}
+
+.menu-agent-stats-open-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-agent-stats-env-popover.is-summary {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.menu-agent-stats-summary-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(62vh, 480px);
+  overflow: auto;
+  padding: 12px 16px 14px;
+  background:
+    linear-gradient(var(--notebook-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--notebook-grid) 1px, transparent 1px),
+    var(--notebook-paper);
+  background-size:
+    18px 18px,
+    18px 18px,
+    auto;
+}
+
+.menu-agent-stats-summary-section {
+  margin-bottom: 14px;
+}
+
+.menu-agent-stats-summary-section:last-child {
+  margin-bottom: 0;
+}
+
+.menu-agent-stats-summary-section-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(61, 43, 31, 0.55);
+}
+
+.menu-agent-stats-summary-rows {
+  margin: 0;
+  padding: 0;
+}
+
+.menu-agent-stats-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.menu-agent-stats-summary-row dt {
+  margin: 0;
+  font-weight: 500;
+  color: rgba(61, 43, 31, 0.78);
+}
+
+.menu-agent-stats-summary-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--notebook-ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-agent-stats-summary-loading,
+.menu-agent-stats-summary-error {
+  margin: 0;
+  padding: 8px 0;
+  font-size: 13px;
+  color: rgba(61, 43, 31, 0.72);
 }
 
 .menu-agent-stats-actions {
@@ -27855,6 +28039,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-journal-btn,
+.menu-agent-stats-reload-btn,
 .menu-agent-stats-env-btn,
 .menu-agent-stats-settings-btn {
   flex: 0 0 auto;
@@ -27876,6 +28061,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-journal-btn:hover:not(:disabled),
+.menu-agent-stats-reload-btn:hover:not(:disabled),
 .menu-agent-stats-env-btn:hover:not(:disabled),
 .menu-agent-stats-settings-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.16);

@@ -21,6 +21,13 @@ const menuAgentStatsEnvPopoverSubtitleNode = document.getElementById("menu-agent
 const menuAgentStatsEnvPopoverGridNode = document.getElementById("menu-agent-stats-env-popover-grid");
 const menuAgentStatsEnvPopoverFooterNode = document.getElementById("menu-agent-stats-env-popover-footer");
 const menuAgentStatsEnvPopoverVersionNode = document.getElementById("menu-agent-stats-env-popover-version");
+const menuAgentStatsSummaryOverlayNode = document.getElementById("menu-agent-stats-summary-overlay");
+const menuAgentStatsSummaryPopoverCloseBtn = document.getElementById("menu-agent-stats-summary-popover-close-btn");
+const menuAgentStatsSummaryPopoverTitleNode = document.getElementById("menu-agent-stats-summary-popover-title");
+const menuAgentStatsSummaryPopoverSubtitleNode = document.getElementById("menu-agent-stats-summary-popover-subtitle");
+const menuAgentStatsSummaryBodyNode = document.getElementById("menu-agent-stats-summary-body");
+const menuAgentStatsSummaryFooterNode = document.getElementById("menu-agent-stats-summary-footer");
+const menuAgentStatsSummaryFooterTextNode = document.getElementById("menu-agent-stats-summary-footer-text");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
@@ -95917,7 +95924,17 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 
 let menuAgentStatsSeq = 0;
 let menuAgentStatsDeferTimer = 0;
+let menuAgentStorageSummaryCache = null;
+let menuAgentStorageSummarySeq = 0;
+let menuAgentStatsSummaryReloading = false;
 let menuSystemEnvironmentSeq = 0;
+const MENU_AGENT_INDEX_LAYER_LABELS = {
+  ocr: "OCR",
+  semantic: "Семантика",
+  fulltext: "Полнотекст",
+  storage: "Storage",
+  link: "Ссылки"
+};
 let menuSystemEnvironmentCache = null;
 const MENU_SYSTEM_ENV_ORDER = [
   "node",
@@ -95991,6 +96008,267 @@ function isMenuAgentStatsEnvPopoverOpen() {
   return Boolean(menuAgentStatsEnvOverlayNode && !menuAgentStatsEnvOverlayNode.classList.contains("hidden"));
 }
 
+function isMenuAgentStatsSummaryPopoverOpen() {
+  return Boolean(menuAgentStatsSummaryOverlayNode && !menuAgentStatsSummaryOverlayNode.classList.contains("hidden"));
+}
+
+function setMenuAgentStatsSummaryPopoverExpanded(expanded) {
+  const value = expanded ? "true" : "false";
+  document.getElementById("menu-agent-stats-open-btn")?.setAttribute("aria-expanded", value);
+}
+
+function closeMenuAgentStatsSummaryPopover() {
+  menuAgentStatsSummaryOverlayNode?.classList.add("hidden");
+  menuAgentStatsSummaryOverlayNode?.setAttribute("aria-hidden", "true");
+  setMenuAgentStatsSummaryPopoverExpanded(false);
+}
+
+function formatMenuAgentStatsShortLine({ counts, workspace, summaryLine } = {}) {
+  const fromApi = String(summaryLine || "").trim();
+  if (fromApi) return fromApi;
+  const topics = counts?.total ?? 0;
+  const files = workspace?.fileCount;
+  const size = workspace?.totalSizeLabel;
+  const parts = [`${topics} тем`];
+  if (files != null) parts.push(`${files} файлов`);
+  if (size) parts.push(size);
+  return parts.join(" · ");
+}
+
+function formatMenuAgentStatsIndexValue(layerMeta) {
+  if (!layerMeta || typeof layerMeta !== "object") return "—";
+  if (layerMeta.reason) return String(layerMeta.reason);
+  const chunks = [];
+  if (layerMeta.ready === true) chunks.push("готов");
+  else if (layerMeta.ready === false) chunks.push("не готов");
+  const count = layerMeta.fileCount ?? layerMeta.chunkCount ?? layerMeta.entryCount;
+  if (count != null && Number(count) >= 0) {
+    chunks.push(`${count} ${layerMeta.chunkCount != null ? "фрагм." : "файл."}`);
+  }
+  if (layerMeta.builtAt) {
+    const when = new Date(layerMeta.builtAt);
+    if (!Number.isNaN(when.getTime())) {
+      chunks.push(when.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" }));
+    }
+  }
+  return chunks.length ? chunks.join(" · ") : "—";
+}
+
+function appendMenuAgentStatsSummarySection(container, title, rows) {
+  const entries = (rows || []).filter((row) => row && row.value != null && String(row.value).trim() !== "");
+  if (!entries.length) return;
+
+  const section = document.createElement("section");
+  section.className = "menu-agent-stats-summary-section";
+
+  const heading = document.createElement("h3");
+  heading.className = "menu-agent-stats-summary-section-title";
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const list = document.createElement("dl");
+  list.className = "menu-agent-stats-summary-rows";
+
+  for (const row of entries) {
+    const item = document.createElement("div");
+    item.className = "menu-agent-stats-summary-row";
+
+    const label = document.createElement("dt");
+    label.textContent = row.label;
+
+    const value = document.createElement("dd");
+    value.textContent = String(row.value);
+
+    item.append(label, value);
+    list.appendChild(item);
+  }
+
+  section.appendChild(list);
+  container.appendChild(section);
+}
+
+function renderMenuAgentStorageSummary(payload, { loading = false, error = null } = {}) {
+  if (!menuAgentStatsSummaryBodyNode) return;
+
+  if (menuAgentStatsSummaryPopoverTitleNode) {
+    menuAgentStatsSummaryPopoverTitleNode.textContent = "Статистика workspace";
+  }
+
+  const subtitle = loading
+    ? "Загрузка…"
+    : error
+      ? "Не удалось загрузить сводку"
+      : payload?.summaryLine || payload?.agentRootRel || "";
+  if (menuAgentStatsSummaryPopoverSubtitleNode) {
+    if (subtitle) {
+      menuAgentStatsSummaryPopoverSubtitleNode.textContent = subtitle;
+      menuAgentStatsSummaryPopoverSubtitleNode.classList.remove("hidden");
+    } else {
+      menuAgentStatsSummaryPopoverSubtitleNode.textContent = "";
+      menuAgentStatsSummaryPopoverSubtitleNode.classList.add("hidden");
+    }
+  }
+
+  menuAgentStatsSummaryBodyNode.replaceChildren();
+
+  if (loading) {
+    const note = document.createElement("p");
+    note.className = "menu-agent-stats-summary-loading";
+    note.textContent = "Собираем сводку workspace…";
+    menuAgentStatsSummaryBodyNode.appendChild(note);
+    menuAgentStatsSummaryFooterNode?.classList.add("hidden");
+    return;
+  }
+
+  if (error) {
+    const note = document.createElement("p");
+    note.className = "menu-agent-stats-summary-error";
+    note.textContent = String(error.message || error || "Ошибка загрузки");
+    menuAgentStatsSummaryBodyNode.appendChild(note);
+    menuAgentStatsSummaryFooterNode?.classList.add("hidden");
+    return;
+  }
+
+  if (!payload) {
+    const note = document.createElement("p");
+    note.className = "menu-agent-stats-summary-error";
+    note.textContent = "Нет данных";
+    menuAgentStatsSummaryBodyNode.appendChild(note);
+    menuAgentStatsSummaryFooterNode?.classList.add("hidden");
+    return;
+  }
+
+  const menu = payload.menu || {};
+  const workspace = payload.workspace || {};
+  const intake = payload.intake || {};
+  const catalog = payload.catalog || {};
+  const indexStatus = payload.workspaceIndexStatus || {};
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Меню", [
+    { label: "Тем и узлов", value: menu.topicCount },
+    { label: "Контейнеров", value: menu.containerCount },
+    { label: "Листьев меню", value: menu.leafCount },
+    { label: "В реестре тем", value: menu.registryTopicCount }
+  ]);
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Хранилище", [
+    { label: "Файлов", value: workspace.fileCount },
+    { label: "Папок", value: workspace.folderCount },
+    { label: "Размер", value: workspace.totalSizeLabel }
+  ]);
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Входящие", [
+    { label: "Необработанных", value: intake.inboxPending > 0 ? intake.inboxPending : null },
+    { label: "Сообщений в обсуждениях", value: intake.discussionMessages > 0 ? intake.discussionMessages : null },
+    { label: "Непрочитанных @", value: intake.mentionUnread > 0 ? intake.mentionUnread : null }
+  ]);
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Каталог", [
+    { label: "Инфоблоков", value: catalog.iblockCount },
+    { label: "Записей в инфоблоках", value: catalog.iblockRecordCount },
+    { label: "Репозиториев", value: catalog.repositoryCount },
+    { label: "Без регистрации", value: catalog.repositoryUnregisteredCount > 0 ? catalog.repositoryUnregisteredCount : null },
+    { label: "Настроек", value: catalog.settingsCount }
+  ]);
+
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Runtime", [
+    { label: "Always context", value: payload.alwaysContextCount },
+    { label: "Cron", value: payload.cronCount },
+    { label: "Heartbeat", value: payload.heartbeatCount }
+  ]);
+
+  const indexRows = Object.entries(MENU_AGENT_INDEX_LAYER_LABELS).map(([key, label]) => ({
+    label,
+    value: formatMenuAgentStatsIndexValue(indexStatus[key])
+  }));
+  appendMenuAgentStatsSummarySection(menuAgentStatsSummaryBodyNode, "Индексы", indexRows);
+
+  if (menuAgentStatsSummaryFooterNode && menuAgentStatsSummaryFooterTextNode) {
+    const footerParts = [];
+    if (payload.lastIndexedAge) footerParts.push(`Индексация: ${payload.lastIndexedAge} назад`);
+    else if (payload.lastIndexedAt) footerParts.push(`Индексация: ${payload.lastIndexedAt}`);
+    if (payload.agentId) footerParts.push(payload.agentId);
+    if (footerParts.length) {
+      menuAgentStatsSummaryFooterTextNode.textContent = footerParts.join(" · ");
+      menuAgentStatsSummaryFooterNode.classList.remove("hidden");
+    } else {
+      menuAgentStatsSummaryFooterTextNode.textContent = "";
+      menuAgentStatsSummaryFooterNode.classList.add("hidden");
+    }
+  }
+}
+
+async function fetchAgentStorageSummary() {
+  const response = await fetch(buildApiUrl("/api/agent/storage-summary"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function setMenuAgentStatsReloadLoading(loading) {
+  menuAgentStatsSummaryReloading = Boolean(loading);
+  const btn = document.getElementById("menu-agent-stats-reload-btn");
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.classList.toggle("is-loading", loading);
+  btn.setAttribute("aria-busy", loading ? "true" : "false");
+}
+
+async function refreshMenuAgentStorageSummary({ updatePopover = false, showReloadSpinner = false } = {}) {
+  const seq = ++menuAgentStorageSummarySeq;
+  if (showReloadSpinner) setMenuAgentStatsReloadLoading(true);
+  if (updatePopover) renderMenuAgentStorageSummary(null, { loading: true });
+
+  try {
+    const payload = await fetchAgentStorageSummary();
+    if (seq !== menuAgentStorageSummarySeq) return;
+    menuAgentStorageSummaryCache = payload;
+    const menuCounts = countAgentMenuNodes(currentMenuData);
+    renderMenuAgentStatsContent({
+      counts: { total: payload?.menu?.topicCount ?? menuCounts?.total ?? 0 },
+      workspace: payload?.workspace,
+      summaryLine: payload?.summaryLine
+    });
+    if (updatePopover) renderMenuAgentStorageSummary(payload);
+  } catch (error) {
+    if (seq !== menuAgentStorageSummarySeq) return;
+    if (updatePopover) renderMenuAgentStorageSummary(null, { error });
+  } finally {
+    if (seq === menuAgentStorageSummarySeq && showReloadSpinner) {
+      setMenuAgentStatsReloadLoading(false);
+    }
+  }
+}
+
+async function syncMenuAgentStorageSummaryPopover({ force = false } = {}) {
+  if (!menuAgentStatsSummaryBodyNode) return;
+  if (!force && menuAgentStorageSummaryCache) {
+    renderMenuAgentStorageSummary(menuAgentStorageSummaryCache);
+    return;
+  }
+  await refreshMenuAgentStorageSummary({ updatePopover: true, showReloadSpinner: force });
+}
+
+function openMenuAgentStatsSummaryPopover() {
+  if (!menuAgentStatsSummaryOverlayNode) return;
+  closeMenuAgentStatsEnvPopover();
+  menuAgentStatsSummaryOverlayNode.classList.remove("hidden");
+  menuAgentStatsSummaryOverlayNode.setAttribute("aria-hidden", "false");
+  setMenuAgentStatsSummaryPopoverExpanded(true);
+  void syncMenuAgentStorageSummaryPopover();
+}
+
+function toggleMenuAgentStatsSummaryPopover() {
+  if (!menuAgentStatsSummaryOverlayNode) return;
+  if (menuAgentStatsSummaryOverlayNode.classList.contains("hidden")) {
+    openMenuAgentStatsSummaryPopover();
+    return;
+  }
+  closeMenuAgentStatsSummaryPopover();
+}
+
 function positionMenuAgentStatsEnvPopover() {
   /* centered via .menu-agent-stats-env-overlay flex */
 }
@@ -96009,6 +96287,7 @@ function closeMenuAgentStatsEnvPopover() {
 
 function openMenuAgentStatsEnvPopover() {
   if (!menuAgentStatsEnvOverlayNode) return;
+  closeMenuAgentStatsSummaryPopover();
   void syncMenuSystemEnvironment();
   menuAgentStatsEnvOverlayNode.classList.remove("hidden");
   menuAgentStatsEnvOverlayNode.setAttribute("aria-hidden", "false");
@@ -96031,6 +96310,27 @@ async function fetchAgentWorkspaceStats() {
     throw new Error(errorData.error || `HTTP ${response.status}`);
   }
   return response.json();
+}
+
+function createMenuAgentStatsReloadButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-reload-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-reload-btn";
+  button.title = "Обновить статистику";
+  button.setAttribute("aria-label", "Обновить статистику");
+  button.setAttribute("aria-busy", "false");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-reload-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+    "</svg>";
+  if (menuAgentStatsSummaryReloading) {
+    button.disabled = true;
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+  }
+  return button;
 }
 
 function createMenuAgentStatsEnvironmentButton() {
@@ -96121,20 +96421,8 @@ function syncMenuAgentStatsSettingsBtnState() {
   syncMenuAgentStatsModuleBtnState();
 }
 
-function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = null, loading = false } = {}) {
+function renderMenuAgentStatsContent({ counts, workspace = null, summaryLine = null, loading = false } = {}) {
   if (!menuAgentStatsNode) return;
-
-  const items = [
-    { value: String(counts?.total ?? 0), label: "тем" },
-    {
-      value: loading ? "…" : workspace?.fileCount == null ? "—" : String(workspace.fileCount),
-      label: "файлов"
-    },
-    {
-      value: loading ? "…" : workspace?.totalSizeLabel || "—",
-      label: ""
-    }
-  ];
 
   menuAgentStatsNode.replaceChildren();
 
@@ -96144,23 +96432,33 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
   const line = document.createElement("div");
   line.className = "menu-agent-stats-line";
 
-  items.forEach((item) => {
-    const stat = document.createElement("span");
-    stat.className = "menu-agent-stat";
+  const reloadBtn = createMenuAgentStatsReloadButton();
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.id = "menu-agent-stats-open-btn";
+  openBtn.className = "menu-agent-stats-open-btn";
+  openBtn.title = "Статистика workspace";
+  openBtn.setAttribute("aria-label", "Статистика workspace");
+  openBtn.setAttribute("aria-haspopup", "dialog");
+  openBtn.setAttribute("aria-controls", "menu-agent-stats-summary-popover");
+  openBtn.setAttribute("aria-expanded", isMenuAgentStatsSummaryPopoverOpen() ? "true" : "false");
+  openBtn.innerHTML =
+    '<svg class="menu-agent-stats-open-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M4 19V5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<rect x="7" y="11" width="3" height="6" rx="0.5" fill="currentColor"/>' +
+    '<rect x="12" y="8" width="3" height="9" rx="0.5" fill="currentColor"/>' +
+    '<rect x="17" y="13" width="3" height="4" rx="0.5" fill="currentColor"/>' +
+    "</svg>";
 
-    const value = document.createElement("span");
-    value.className = "menu-agent-stat-value";
-    value.textContent = item.value;
+  const label = document.createElement("span");
+  label.className = "menu-agent-stats-open-label";
+  label.textContent = loading
+    ? "Статистика…"
+    : formatMenuAgentStatsShortLine({ counts, workspace, summaryLine });
 
-    stat.appendChild(value);
-    if (item.label) {
-      const label = document.createElement("span");
-      label.className = "menu-agent-stat-label";
-      label.textContent = item.label;
-      stat.appendChild(label);
-    }
-    line.appendChild(stat);
-  });
+  openBtn.appendChild(label);
+  line.append(reloadBtn, openBtn);
 
   band.appendChild(line);
   band.appendChild(createMenuAgentStatsActions());
@@ -96170,6 +96468,8 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
 
 function hideMenuAgentStats() {
   menuAgentStatsSeq += 1;
+  menuAgentStorageSummaryCache = null;
+  closeMenuAgentStatsSummaryPopover();
   menuAgentStatsNode?.classList.add("hidden");
   menuAgentStatsNode?.replaceChildren();
 }
@@ -96312,6 +96612,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   }
 
   const seq = ++menuAgentStatsSeq;
+  menuAgentStorageSummaryCache = null;
   const counts = countAgentMenuNodes(menu);
   menuAgentStatsNode.classList.remove("hidden");
   renderMenuAgentStatsContent({ counts, loading: true });
@@ -96323,7 +96624,11 @@ async function syncMenuAgentStats(menu = currentMenuData) {
       refreshMenuIntakeSummary(menu, activeAgentId).catch(() => null)
     ]);
     if (seq !== menuAgentStatsSeq) return;
-    renderMenuAgentStatsContent({ counts, workspace, intakeTotals });
+    renderMenuAgentStatsContent({
+      counts,
+      workspace,
+      summaryLine: menuAgentStorageSummaryCache?.summaryLine
+    });
     syncChannelLiveUpdates();
   } catch {
     if (seq !== menuAgentStatsSeq) return;
@@ -107352,10 +107657,29 @@ function setupMenuStaticFooterGroup() {
     toggleMenuStaticFooterExpanded();
   });
   menuAgentStatsNode?.addEventListener("click", (event) => {
+    const reloadBtn = event.target.closest("#menu-agent-stats-reload-btn");
+    if (reloadBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (reloadBtn.disabled || reloadBtn.classList.contains("is-loading")) return;
+      void refreshMenuAgentStorageSummary({
+        updatePopover: isMenuAgentStatsSummaryPopoverOpen(),
+        showReloadSpinner: true
+      });
+      return;
+    }
+    const statsBtn = event.target.closest("#menu-agent-stats-open-btn");
+    if (statsBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMenuAgentStatsSummaryPopover();
+      return;
+    }
     const journalBtn = event.target.closest("#menu-agent-stats-journal-btn");
     if (journalBtn) {
       event.preventDefault();
       event.stopPropagation();
+      closeMenuAgentStatsSummaryPopover();
       closeMenuAgentStatsEnvPopover();
       void openWorkspaceJournalModule();
       return;
@@ -107364,6 +107688,7 @@ function setupMenuStaticFooterGroup() {
     if (settingsBtn) {
       event.preventDefault();
       event.stopPropagation();
+      closeMenuAgentStatsSummaryPopover();
       closeMenuAgentStatsEnvPopover();
       void openProjectSettingsHub();
       return;
@@ -107372,6 +107697,7 @@ function setupMenuStaticFooterGroup() {
     if (!envBtn) return;
     event.preventDefault();
     event.stopPropagation();
+    closeMenuAgentStatsSummaryPopover();
     toggleMenuAgentStatsEnvPopover();
   });
   void refreshMenuGoogleDriveStats();
@@ -120126,6 +120452,14 @@ headerProfileSystemInfoBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   openMenuAgentStatsEnvPopover();
 });
+menuAgentStatsSummaryPopoverCloseBtn?.addEventListener("click", () => {
+  closeMenuAgentStatsSummaryPopover();
+});
+menuAgentStatsSummaryOverlayNode?.addEventListener("click", (event) => {
+  if (event.target === menuAgentStatsSummaryOverlayNode) {
+    closeMenuAgentStatsSummaryPopover();
+  }
+});
 menuAgentStatsEnvPopoverCloseBtn?.addEventListener("click", () => {
   closeMenuAgentStatsEnvPopover();
 });
@@ -120965,6 +121299,7 @@ document.getElementById("menu")?.addEventListener(
     closeResourceContextMenu();
     if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
     closeMenuSettingsPopover();
+    if (isMenuAgentStatsSummaryPopoverOpen()) closeMenuAgentStatsSummaryPopover();
     if (isMenuAgentStatsEnvPopoverOpen()) closeMenuAgentStatsEnvPopover();
   },
   { passive: true }
@@ -121114,6 +121449,13 @@ document.addEventListener("click", (event) => {
   if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
   if (event.target.closest("#menu-settings-wrap")) return;
   closeMenuSettingsPopover();
+});
+
+document.addEventListener("click", (event) => {
+  if (!isMenuAgentStatsSummaryPopoverOpen()) return;
+  if (event.target.closest("#menu-agent-stats-summary-overlay")) return;
+  if (event.target.closest("#menu-agent-stats-open-btn")) return;
+  closeMenuAgentStatsSummaryPopover();
 });
 
 document.addEventListener("click", (event) => {
