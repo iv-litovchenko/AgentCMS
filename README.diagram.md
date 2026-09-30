@@ -5,7 +5,7 @@ flowchart TD
     CMS["🌐 Agent CMS"]
     WS["🏠 Workspace<br/>workspaceID<br/>WorkspaceSlug (key)"]
 
-    CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)"]
+    CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)<br/>1+1"]
     ACTORS --> WS
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
