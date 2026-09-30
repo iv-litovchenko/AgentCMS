@@ -60724,7 +60724,34 @@ function createPropsAttachmentActionButton(className, title, label, onClick, ico
   return btn;
 }
 
-function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = false } = {}) {
+function openEntryOverviewAttachmentPreview(path) {
+  const url = resolveMarkdownAssetSrc(path, getPropsContextPath());
+  if (!url) {
+    showToast("Не удалось открыть предпросмотр", "error");
+    return;
+  }
+  const fileName = String(path || "").split("/").pop() || path;
+  if (isMediaDocumentPreviewCandidate(fileName) && window.DocumentViewer?.open) {
+    void window.DocumentViewer.open({
+      url,
+      fileName,
+      onExternal: () => window.open(url, "_blank", "noopener,noreferrer")
+    });
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+async function revealEntryOverviewAttachmentInExplorer(path) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!normalized) return;
+  await revealWorkspaceFolderBrowseFile(normalized);
+}
+
+function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = false, entryOverview = false } = {}) {
   const item = document.createElement("div");
   item.className = "props-form-attachment-item props-form-attachment-item--simple";
   item.classList.toggle("is-in-body", inBody);
@@ -60769,13 +60796,36 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
   const actions = document.createElement("div");
   actions.className = "props-form-attachment-actions";
 
+  if (entryOverview) {
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--preview has-icon",
+        "Предпросмотр",
+        "",
+        () => openEntryOverviewAttachmentPreview(path),
+        MEDIA_ACTION_ICON_OPEN
+      )
+    );
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--finder has-icon",
+        getRevealMediaFileLabel(),
+        "",
+        () => void revealEntryOverviewAttachmentInExplorer(path),
+        MEDIA_ACTION_ICON_FINDER
+      )
+    );
+  }
+
   actions.appendChild(
     createPropsAttachmentActionButton(
       "props-form-attachment-action props-form-attachment-action--props",
-      "Свойства sidecar (awn-name, awn-description)",
+      entryOverview
+        ? "Редактировать sidecar (awn-name, awn-description)"
+        : "Свойства sidecar (awn-name, awn-description)",
       "",
       () => void openAttachmentSidecarPropsModal(path),
-      PROPS_ATTACHMENT_ACTION_ICON_PROPS
+      entryOverview ? MEDIA_ACTION_ICON_EDIT : PROPS_ATTACHMENT_ACTION_ICON_PROPS
     )
   );
 
@@ -73819,18 +73869,15 @@ function renderEntryOverviewAttachmentsPart(entries, rawBody, context = null) {
 
   for (const path of paths) {
     const inBody = isAttachmentReferencedInEditorBody(path, usedRefs);
-    const item = createPropsAttachmentItemSimple(path, null, { locked: true, inBody });
+    const item = createPropsAttachmentItemSimple(path, null, {
+      locked: true,
+      inBody,
+      entryOverview: true
+    });
     item.classList.add("node-entry-overview-attachment-item");
     decoratePropsAttachmentSortRow(item, { sortable });
-    const assetUrl = resolveMarkdownAssetSrc(path, getPropsContextPath());
-    if (assetUrl) {
-      item.classList.add("is-openable");
-      item.title = `Открыть: ${getAttachmentDisplayLabelFromPath(path)}`;
-      item.addEventListener("click", (event) => {
-        if (event.target.closest(".props-form-attachment-sort-handle")) return;
-        window.open(assetUrl, "_blank", "noopener,noreferrer");
-      });
-    }
+    item.title =
+      "Перетащите в чат Agent CMS Voice или редактор для ссылки";
     list.appendChild(item);
   }
 
@@ -116753,23 +116800,127 @@ function renderRepositoryWorkspaceReadme(repo, nodePath) {
   return section;
 }
 
-function repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath) {
-  if (repo?.hasRootIndexHtml) return true;
-  const normalizedFolder = String(folderPath || "")
+function normalizeRepositoryWorkspaceFolderRel(folderPath) {
+  return String(folderPath || "")
     .replace(/\\/g, "/")
     .replace(/\/+$/, "")
     .trim();
+}
+
+function repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath) {
+  if (repo?.hasRootIndexHtml) return true;
+  const normalizedFolder = normalizeRepositoryWorkspaceFolderRel(folderPath);
   if (!normalizedFolder) return false;
   const items = Array.isArray(scanData?.items) ? scanData.items : [];
   return items.some((item) => {
     if (item?.kind === "folder") return false;
     if (String(item?.name || "").toLowerCase() !== "index.html") return false;
-    const parent = String(item?.parentFolder || "")
-      .replace(/\\/g, "/")
-      .replace(/\/+$/, "")
-      .trim();
+    const parent = normalizeRepositoryWorkspaceFolderRel(item?.parentFolder);
     return parent === normalizedFolder;
   });
+}
+
+function listRepositoryWorkspaceRootScanItems(scanData, folderPath) {
+  const normalizedFolder = normalizeRepositoryWorkspaceFolderRel(folderPath);
+  if (!normalizedFolder) return [];
+  const items = Array.isArray(scanData?.items) ? scanData.items : [];
+  return items
+    .filter((item) => {
+      if (Number(item?.depth) !== 1) return false;
+      return normalizeRepositoryWorkspaceFolderRel(item?.parentFolder) === normalizedFolder;
+    })
+    .sort((a, b) => {
+      const aFolder = a.kind === "folder";
+      const bFolder = b.kind === "folder";
+      if (aFolder !== bFolder) return aFolder ? -1 : 1;
+      return String(a.name || "").localeCompare(String(b.name || ""), "ru", {
+        sensitivity: "base"
+      });
+    });
+}
+
+function formatRepositoryWorkspaceRootItemMeta(item) {
+  if (item?.kind === "folder") {
+    const parts = ["dir"];
+    const count = Number(item.itemCount);
+    if (Number.isFinite(count) && count >= 0) parts.push(`${count} эл.`);
+    return parts.join(" · ");
+  }
+  const parts = [];
+  const sizeLabel = formatFileSize(item?.size);
+  if (sizeLabel) parts.push(sizeLabel);
+  const ext = String(item?.ext || "").trim();
+  if (ext) parts.push(ext.startsWith(".") ? ext : `.${ext}`);
+  else if (!String(item?.name || "").includes(".")) parts.push("без расширения");
+  const kind = String(item?.kind || "file").trim();
+  if (kind && kind !== "file") parts.push(kind);
+  return parts.join(" · ");
+}
+
+function appendRepositoryWorkspaceRootItemIcon(iconWrap, item) {
+  iconWrap.className = "repository-workspace-root-icon";
+  iconWrap.setAttribute("aria-hidden", "true");
+  if (item?.kind === "folder") {
+    iconWrap.textContent = "📁";
+    return;
+  }
+  const name = String(item?.name || item?.path || "file");
+  const emoji = getFolderBrowseFileIconEmoji(name, item?.ext, item?.kind);
+  applyNavigationFileIconToElement(iconWrap, item, emoji, {
+    className: "material-file-icon material-file-icon--repository-root",
+    width: 18,
+    height: 18,
+    replaceChildren: true
+  });
+}
+
+function renderRepositoryWorkspaceRootListing(scanData, folderPath) {
+  if (!scanData) return null;
+  const rootItems = listRepositoryWorkspaceRootScanItems(scanData, folderPath);
+  const wrap = document.createElement("div");
+  wrap.className = "repository-workspace-root-listing";
+  const title = document.createElement("h3");
+  title.className = "repository-workspace-root-listing-title";
+  title.textContent = "Корень";
+  wrap.appendChild(title);
+
+  if (!rootItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "repository-workspace-root-listing-empty";
+    empty.textContent = "В корне нет файлов и папок.";
+    wrap.appendChild(empty);
+    return wrap;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "repository-workspace-root-list";
+  list.setAttribute("aria-label", "Содержимое корня репозитория");
+
+  for (const item of rootItems) {
+    const row = document.createElement("li");
+    row.className = "repository-workspace-root-item";
+    if (item.kind === "folder") row.classList.add("is-folder");
+
+    const icon = document.createElement("span");
+    appendRepositoryWorkspaceRootItemIcon(icon, item);
+
+    const main = document.createElement("div");
+    main.className = "repository-workspace-root-item-main";
+
+    const name = document.createElement("span");
+    name.className = "repository-workspace-root-item-name";
+    name.textContent = String(item.name || item.path || "—");
+
+    const meta = document.createElement("span");
+    meta.className = "repository-workspace-root-item-meta";
+    meta.textContent = formatRepositoryWorkspaceRootItemMeta(item);
+
+    main.append(name, meta);
+    row.append(icon, main);
+    list.appendChild(row);
+  }
+  wrap.appendChild(list);
+  return wrap;
 }
 
 function getRepositoryRootIndexHtmlRel(repo, folderPath) {
@@ -117023,6 +117174,9 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats, { folderPath = "", 
 
   const extBars = renderRepositoryWorkspaceExtensionBars(scanStats.topExtensions, scanStats.fileCount);
   if (extBars) dashboard.appendChild(extBars);
+
+  const rootListing = renderRepositoryWorkspaceRootListing(scanData, folderPath);
+  if (rootListing) dashboard.appendChild(rootListing);
 
   const chips = document.createElement("div");
   chips.className = "repository-workspace-meta-chips";
