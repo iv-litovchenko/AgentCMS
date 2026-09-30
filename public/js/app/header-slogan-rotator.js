@@ -39,6 +39,16 @@
     },
     {
       kind: "text",
+      text: "Агент работает с файлами не напрямую — а через протокол…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Be in the moment…",
+      holdMs: 7000
+    },
+    {
+      kind: "text",
       text: "Куда фокус — туда и усилия…",
       holdMs: 8000
     },
