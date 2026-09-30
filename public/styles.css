@@ -36257,8 +36257,25 @@ body.workspace-pomodoro-break-active {
   gap: 8px;
 }
 
+.node-navigation-memory-card--flexible {
+  gap: 10px;
+}
+
 .node-navigation-memory-card--flexible .node-navigation-memory-title-icon {
   font-size: 1em;
+}
+
+.node-navigation-memory-flexible-subtitle {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  background: rgba(240, 253, 250, 0.95);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #0f766e;
 }
 
 .node-navigation-rail-link-list {

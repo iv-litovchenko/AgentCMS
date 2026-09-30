@@ -24581,7 +24581,7 @@ const topicSlotsDisabledCache = new Map();
 const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
 const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
-  "Структура задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
+  "Структура содержимого задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
 const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
 
 function isTopicFlexibleSlotBrowseContext(context = activeEntryOverviewContext) {
@@ -68605,6 +68605,9 @@ function createNavigationMemoryPanel(
 
   const card = document.createElement("section");
   card.className = `node-navigation-memory-card node-navigation-memory-card--${cardModeId}`;
+  if (cardModeId === "flexible") {
+    card.dataset.slotsFlexible = "1";
+  }
 
   const body = document.createElement("div");
   body.className = "node-navigation-memory-body";
@@ -68629,25 +68632,33 @@ function createNavigationMemoryPanel(
       ? () => refreshNavigationMediaList(card)
       : null);
 
-  card.append(
-    createNavigationSectionHead(title, {
-      viewModeId: headViewModeId,
-      openTitle: opts.openTitle || null,
-      icon: opts.icon || "",
-      titleComment: opts.titleComment || "",
-      badgeText,
-      badgeModeId,
-      imageColumnsToggle,
-      imageColumnsScope: opts.imageColumnsScope || null,
-      sort: sortScope && onSortChange
-        ? {
-            scope: sortScope,
-            onChange: onSortChange
-          }
-        : null
-    }),
-    body
-  );
+  const head = createNavigationSectionHead(title, {
+    viewModeId: headViewModeId,
+    openTitle: opts.openTitle || null,
+    icon: opts.icon || "",
+    titleComment: opts.subtitleBelow ? "" : opts.titleComment || "",
+    badgeText,
+    badgeModeId,
+    imageColumnsToggle,
+    imageColumnsScope: opts.imageColumnsScope || null,
+    sort: sortScope && onSortChange
+      ? {
+          scope: sortScope,
+          onChange: onSortChange
+        }
+      : null
+  });
+  card.appendChild(head);
+
+  const subtitleBelow = String(opts.subtitleBelow || "").trim();
+  if (subtitleBelow) {
+    const notice = document.createElement("p");
+    notice.className = "node-navigation-memory-flexible-subtitle";
+    notice.textContent = subtitleBelow;
+    card.appendChild(notice);
+  }
+
+  card.appendChild(body);
   return card;
 }
 
@@ -79208,6 +79219,7 @@ function renderNavigationMediaPart(
         viewModeId: "external",
         badgeModeId: "external",
         icon: "🧠",
+        subtitleBelow: TOPIC_SHARED_SLOT_SUBTITLE,
         openTitle: "Открыть awn-storage/ — общий гибкий слот",
         imageColumnsToggle: true,
         imageColumnsScope: FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE,
