@@ -4,6 +4,9 @@ export const MERMAID_SOURCE_BUTTON_HTML =
   '<path d="M6 5h5M6 7.5h5M6 10h3"/></svg>' +
   '<span class="mermaid-diagram-chrome-label">Исходник</span>';
 
+export const MERMAID_SOURCE_COPY_BUTTON_HTML =
+  '<span class="mermaid-diagram-chrome-label">Копировать</span>';
+
 export const MERMAID_RESET_ZOOM_BUTTON_HTML =
   '<svg class="mermaid-diagram-chrome-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">' +
   '<path d="M10.5 2.5H13v2.5M5.5 13.5H3V11M13 10.5V13h-2.5M3 5.5V3h2.5"/></svg>' +

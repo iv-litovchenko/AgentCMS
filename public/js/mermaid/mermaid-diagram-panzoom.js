@@ -210,8 +210,16 @@ function bindPanZoom(host) {
     syncZoomedClass(host, state.baseViewBox, state.viewBox);
   };
 
+  const ignorePanZoomForEvent = (event) => {
+    if (host.classList.contains("is-mermaid-source-open")) return true;
+    const target = event.target;
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest(".mermaid-diagram-source-panel, .mermaid-diagram-actions"));
+  };
+
   const onWheel = (event) => {
     if (!host.isConnected || !state.svg?.isConnected || !state.baseViewBox) return;
+    if (ignorePanZoomForEvent(event)) return;
     if (event.target.closest("button, a, input, textarea, select, label")) return;
 
     const zoomIntent = wantsZoomWheel(event);
@@ -236,6 +244,7 @@ function bindPanZoom(host) {
 
   const onPointerDown = (event) => {
     if (event.button !== 0) return;
+    if (ignorePanZoomForEvent(event)) return;
     if (event.target.closest("button, a, input, textarea, select, label")) return;
     if (!state.svg?.isConnected || !state.transformed) return;
     state.dragging = true;
@@ -293,6 +302,7 @@ function bindPanZoom(host) {
   });
 
   const onTouchStart = (event) => {
+    if (ignorePanZoomForEvent(event)) return;
     if (event.touches.length === 2 && state.svg) {
       event.preventDefault();
       state.pinchStartDist = touchDistance(event.touches);

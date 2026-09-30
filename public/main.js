@@ -90161,6 +90161,96 @@ function syncMermaidSourceButtonUi(frame, open) {
   btn.setAttribute("aria-label", showLabel);
 }
 
+async function copyMermaidDiagramSourceText(text, button) {
+  const value = String(text || "");
+  if (!value) return;
+
+  const markCopied = () => {
+    if (!(button instanceof Element)) return;
+    button.classList.add("is-copied");
+    const label = button.querySelector(".mermaid-diagram-chrome-label");
+    const prev = label?.textContent || button.textContent;
+    if (label) label.textContent = "Скопировано";
+    else button.textContent = "Скопировано";
+    button.title = "Скопировано";
+    window.setTimeout(() => {
+      button.classList.remove("is-copied");
+      if (label) label.textContent = prev || "Копировать";
+      else button.textContent = prev || "Копировать";
+      button.title = "Копировать исходник Mermaid";
+    }, 1200);
+  };
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      markCopied();
+      return;
+    }
+  } catch {
+    /* fallback below */
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  try {
+    document.execCommand("copy");
+    markCopied();
+  } catch {
+    /* ignore */
+  } finally {
+    textarea.remove();
+  }
+}
+
+function ensureMermaidSourcePanel(frame, block) {
+  let panel = frame.querySelector(".mermaid-diagram-source-panel");
+  if (panel) return panel;
+
+  panel = document.createElement("div");
+  panel.className = "mermaid-diagram-source-panel";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "mermaid-diagram-source-toolbar";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "mermaid-diagram-source-copy-btn mermaid-diagram-chrome-btn";
+  copyBtn.title = "Копировать исходник Mermaid";
+  copyBtn.setAttribute("aria-label", copyBtn.title);
+  copyBtn.innerHTML = '<span class="mermaid-diagram-chrome-label">Копировать</span>';
+  copyBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const mermaidBlock = frame.querySelector("pre.mermaid");
+    void copyMermaidDiagramSourceText(getMermaidDiagramSource(frame, mermaidBlock), copyBtn);
+  });
+  toolbar.appendChild(copyBtn);
+
+  let view = frame.querySelector(":scope > .mermaid-diagram-source-view");
+  if (!view) {
+    view = document.createElement("pre");
+    view.className = "mermaid-diagram-source-view";
+    const code = document.createElement("code");
+    view.appendChild(code);
+  } else {
+    view.remove();
+  }
+
+  panel.append(toolbar, view);
+
+  const anchor = block || frame.querySelector(".mermaid-diagram-actions");
+  if (anchor) frame.insertBefore(panel, anchor);
+  else frame.prepend(panel);
+
+  return panel;
+}
+
 async function ensureMermaidDiagramActions(frame) {
   const chromeMod = await loadMermaidChromeModule();
   return chromeMod.ensureMermaidDiagramActionsBar(frame);
@@ -90174,17 +90264,9 @@ function toggleMermaidSourceView(frame) {
   if (!open) return;
 
   const source = getMermaidDiagramSource(frame, block);
-  let view = frame.querySelector(".mermaid-diagram-source-view");
-  if (!view) {
-    view = document.createElement("pre");
-    view.className = "mermaid-diagram-source-view";
-    const code = document.createElement("code");
-    view.appendChild(code);
-    const anchor = block || frame.querySelector(".mermaid-diagram-actions");
-    if (anchor) frame.insertBefore(view, anchor);
-    else frame.prepend(view);
-  }
-  const code = view.querySelector("code");
+  const panel = ensureMermaidSourcePanel(frame, block);
+  const view = panel.querySelector(".mermaid-diagram-source-view");
+  const code = view?.querySelector("code");
   if (code) code.textContent = source || "/* Исходник Mermaid недоступен */";
 }
 

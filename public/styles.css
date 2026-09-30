@@ -53913,33 +53913,83 @@ button.node-navigation-memory-title:focus-visible {
   background: rgba(49, 46, 129, 0.45);
 }
 
-.mermaid-diagram-source-view {
+.mermaid-diagram-source-panel {
   display: none;
   margin: 0 0 0.5rem;
-  padding: 12px;
-  max-height: min(420px, 50vh);
-  overflow: auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
+  overflow: hidden;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open .mermaid-diagram-source-panel {
+  display: block;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open {
+  touch-action: auto;
+  cursor: default;
+}
+
+.mermaid-diagram-frame.is-mermaid-source-open.is-mermaid-zoomed {
+  touch-action: auto;
+  cursor: default;
+  overflow: visible;
+}
+
+.mermaid-diagram-source-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.mermaid-diagram-source-copy-btn.is-copied {
+  border-color: #22c55e;
+  color: #15803d;
+}
+
+.mermaid-diagram-source-view {
+  display: block;
+  margin: 0;
+  padding: 12px;
+  max-height: min(420px, 50vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.mermaid-diagram-frame.is-mermaid-source-open .mermaid-diagram-source-view {
-  display: block;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  touch-action: pan-y;
 }
 
 .mermaid-diagram-frame.is-mermaid-source-open pre.mermaid {
   display: none;
 }
 
-.mermaid-diagram-frame.is-dark .mermaid-diagram-source-view {
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-panel {
   border-color: #334155;
   background: rgba(15, 23, 42, 0.65);
   color: #e2e8f0;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-toolbar {
+  border-bottom-color: #334155;
+  background: rgba(15, 23, 42, 0.88);
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-source-copy-btn.is-copied {
+  border-color: #4ade80;
+  color: #bbf7d0;
 }
 
 .mermaid-diagram-source-view code {
