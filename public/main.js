@@ -2609,7 +2609,10 @@ function parseChpuAppRouteParts(parts) {
 async function applyChpuLegacySlotViews(legacySlotFolder, uiViews, topicEntry) {
   const slotFolder = String(legacySlotFolder || "").trim();
   if (!slotFolder) return false;
-  const contentMode = getChpuMemoryKindForSlotFolder(slotFolder);
+  const contentMode = normalizeTypedStorageModeForFlexibleTopic(
+    getChpuMemoryKindForSlotFolder(slotFolder),
+    topicEntry?.path
+  );
   const label = topicEntry.label || getLabelFromPath(topicEntry.path);
   const wantsList = uiViews.includes("list");
   const wantsPreview = uiViews.includes("preview") || !wantsList;
@@ -88077,33 +88080,6 @@ async function renderNodeNavigation() {
   if (!isInlineNavHub && !slotsDisabled) {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
     if (isStale()) return;
-  } else if (!isInlineNavHub && slotsDisabled) {
-    appendTopicLiteIndexControlsRow(hubMain, nodePath);
-  }
-
-  if (isInlineNavHub) {
-    const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
-    if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
-  } else {
-    const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({
-      childEntries,
-      nodePath,
-      heroTitle,
-      slots: topicSlotCounters,
-      externalData,
-      mediaData
-    });
-    if (elementsNavAccordion) {
-      hubMain.appendChild(elementsNavAccordion);
-    } else if (!useSplitLayout) {
-      const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
-      if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
-    }
-  }
-
-  if (isInlineNavHub) {
-    const internalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
-    if (internalPanel) hubMain.appendChild(internalPanel);
   }
 
   const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
@@ -88118,7 +88094,43 @@ async function renderNodeNavigation() {
     todoData
   });
 
-  if (panelsWrap) {
+  if (isInlineNavHub) {
+    const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+    if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
+  } else {
+    const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({
+      childEntries,
+      nodePath,
+      heroTitle,
+      slots: topicSlotCounters,
+      externalData,
+      mediaData
+    });
+    if (slotsDisabled) {
+      if (panelsWrap) hubMain.appendChild(panelsWrap);
+      const topicNavCluster = document.createElement("div");
+      topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
+      appendTopicLiteIndexControlsRow(topicNavCluster, nodePath);
+      if (elementsNavAccordion) topicNavCluster.appendChild(elementsNavAccordion);
+      else if (!useSplitLayout) {
+        const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+        if (subsectionsBlock) topicNavCluster.appendChild(subsectionsBlock);
+      }
+      if (topicNavCluster.childElementCount) hubMain.appendChild(topicNavCluster);
+    } else if (elementsNavAccordion) {
+      hubMain.appendChild(elementsNavAccordion);
+    } else if (!useSplitLayout) {
+      const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+      if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
+    }
+  }
+
+  if (isInlineNavHub) {
+    const internalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
+    if (internalPanel) hubMain.appendChild(internalPanel);
+  }
+
+  if (panelsWrap && (!slotsDisabled || isInlineNavHub)) {
     hubMain.appendChild(panelsWrap);
   }
 

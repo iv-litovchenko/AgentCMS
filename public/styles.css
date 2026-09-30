@@ -36258,16 +36258,35 @@ body.workspace-pomodoro-break-active {
 }
 
 .node-navigation-memory-card--flexible {
-  gap: 10px;
+  gap: 4px;
 }
 
 .node-navigation-memory-card--flexible .node-navigation-memory-title-icon {
   font-size: 1em;
 }
 
+.node-navigation-hub-topic-nav-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.node-navigation-hub-topic-nav-cluster > .node-navigation-workspace-counters--lite-index,
+.node-navigation-hub-topic-nav-cluster > .node-navigation-elements-nav-accordion {
+  margin: 0;
+}
+
+.node-navigation-hub-topic-nav-cluster
+  > .node-navigation-workspace-counters--lite-index
+  > .node-navigation-workspace-counter-topic-index-row.is-content-index {
+  margin: 0;
+}
+
 .node-navigation-memory-flexible-subtitle {
-  margin: 0 0 10px;
-  padding: 6px 10px;
+  margin: 0;
+  padding: 10px 12px;
   box-sizing: border-box;
   width: 100%;
   border-radius: 10px;
