@@ -8,16 +8,12 @@ flowchart TD
     CMS --> WS
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
+    WS --> EXTRA_DATA["Дополнительные данные"]
     WS --> MEM["🧠 Память и коммуникация"]
     WS --> AUX["⚙️ Вспомогательное"]
     WS --> IDEAS["💡 Идеи"]
 
-    IDEAS --> IDEA1["Git-модуль<br/>синхронизация, LFS"]
-    IDEAS --> IDEA2["UI на базе движка<br/>Сборка интерфейса на базе движка<br/>идеи для названия такого компонента<br/>в рамках системы:<br/>VOXELS<br/>VERTECX<br/>VEXEL<br/>ELEXIR"]
-    IDEAS --> IDEA3["Выгрузка в облако<br/>Google Диск и Яндекс Диск"]
-    IDEAS --> IDEA4["Синхронизация с удалённым сервером<br/>доступность хранилища 24/7"]
-    IDEAS --> IDEA5["Дашборды<br/>гибкие управляемые дашборды"]
-    IDEAS --> IDEA6["Пайплайн<br/>расширить статусы записей через пайплайны<br/>(последовательность шагов)<br/>либо дополнить статусы отдельным полем<br/>базовые статусы: открыто · закрыто · архив"]
+    IDEAS --> IDEAS_BLOCK["1. Git-модуль<br/>синхронизация, LFS<br/>2. UI на базе движка<br/>Сборка интерфейса на базе движка<br/>идеи для названия такого компонента<br/>в рамках системы:<br/>VOXELS<br/>VERTECX<br/>VEXEL<br/>ELEXIR<br/>3. Выгрузка в облако<br/>Google Диск и Яндекс Диск<br/>4. Синхронизация с удалённым сервером<br/>доступность хранилища 24/7<br/>5. Дашборды<br/>гибкие управляемые дашборды<br/>6. Пайплайн<br/>расширить статусы записей через пайплайны<br/>(последовательность шагов)<br/>либо дополнить статусы отдельным полем<br/>базовые статусы: открыто · закрыто · архив"]
 
     TREE --> SHARED_AREA["Область общие<br/>awn-shared"]
     TREE --> CONTENT_AREA["Область контента<br/>awn-container"]
@@ -40,17 +36,21 @@ flowchart TD
     COLLECTION --> DATA_SECTION["Раздел"]
     DATA_SECTION --> RECORD["Запись"]
 
+    EXTRA_DATA --> REPOS["Репозитории"]
+    EXTRA_DATA --> BOARD["README.md · AGENTS.md · NOTE.md · TODO.md"]
+    EXTRA_DATA --> ANNOT["Аннотации"]
+    ANNOT --> ANNOT_COMMENTS["Комментарии"]
+    ANNOT --> ANNOT_SIDECAR["Sidecar"]
+
     MEM --> FACTS["Facts"]
-    MEM --> JOURNAL["Journal"]
     MEM --> COMM["Коммуникация"]
     COMM --> DIALOGS["Dialogs"]
     COMM --> DISCUSS["Discussion / Comments"]
-    MEM --> INBOX["Inbox (входящие)"]
 
-    AUX --> SETTINGS["Settings (workspace / platform)"]
-    AUX --> SEARCH["Search / Index"]
-    AUX --> REPO["Repository"]
-    AUX --> BOARD["NOTE.md / TODO.md"]
+    AUX --> SETTINGS["Настройки, .env"]
+    AUX --> SEARCH["Поиск"]
+    AUX --> AUX_JOURNAL["Журнал"]
+    AUX --> MODULES["Модули"]
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```
