@@ -101667,12 +101667,18 @@ function setAgentGitSettingsOpen(open) {
   agentGitSettingsBtn?.setAttribute("aria-expanded", agentGitSettingsOpen ? "true" : "false");
 }
 
+function agentGitHasConfiguredRemote(data) {
+  const remotes = Array.isArray(data?.remotes) ? data.remotes : [];
+  return remotes.some((item) => String(item?.fetchUrl || item?.pushUrl || "").trim());
+}
+
 function syncAgentGitSettingsUi(data) {
   agentGitLastStatus = data || null;
   const isRepo = Boolean(data?.isRepo);
+  const hasRemote = agentGitHasConfiguredRemote(data);
   if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
-  if (agentGitPushBtn) agentGitPushBtn.disabled = !isRepo;
-  if (agentGitPullBtn) agentGitPullBtn.disabled = true;
+  if (agentGitPushBtn) agentGitPushBtn.disabled = !isRepo || !hasRemote;
+  if (agentGitPullBtn) agentGitPullBtn.disabled = !isRepo || !hasRemote;
   if (agentGitRemoteSaveBtn) agentGitRemoteSaveBtn.disabled = !isRepo;
   if (agentGitRemoteRemoveBtn) agentGitRemoteRemoveBtn.disabled = !isRepo;
 
@@ -101725,6 +101731,21 @@ async function postAgentGitPush() {
     body: JSON.stringify({
       remote: agentGitRemoteNameInput?.value?.trim() || "origin",
       setUpstream: true
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  return payload;
+}
+
+async function postAgentGitPull() {
+  const strategy = String(agentGitModuleConfig?.pullStrategy || "merge").trim() || "merge";
+  const response = await fetch(buildApiUrl("/api/git/pull"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      remote: agentGitRemoteNameInput?.value?.trim() || "origin",
+      strategy
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -102355,7 +102376,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-git",
     label: "Git-репозиторий",
     view: "git",
-    mcp: "module_git_status, module_git_diff, module_git_commit, module_git_init, module_git_push, module_git_remote",
+    mcp: "module_git_status, module_git_diff, module_git_commit, module_git_init, module_git_push, module_git_pull, module_git_remote",
     status: "active"
   },
   {
@@ -121422,6 +121443,23 @@ agentGitPushBtn?.addEventListener("click", () => {
       void renderAgentGitView();
     })
     .catch((error) => window.alert(`Ошибка push: ${error.message}`))
+    .finally(() => {
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    });
+});
+
+agentGitPullBtn?.addEventListener("click", () => {
+  const remote = agentGitRemoteNameInput?.value?.trim() || "origin";
+  const strategy = String(agentGitModuleConfig?.pullStrategy || "merge").trim() || "merge";
+  const strategyLabel = strategy === "rebase" ? "rebase" : "merge";
+  if (!window.confirm(`Забрать изменения с remote «${remote}» (${strategyLabel})?`)) return;
+  agentGitPullBtn.disabled = true;
+  void postAgentGitPull()
+    .then((result) => {
+      window.alert(result?.stdout || "Pull выполнен");
+      void renderAgentGitView();
+    })
+    .catch((error) => window.alert(`Ошибка pull: ${error.message}`))
     .finally(() => {
       if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
     });

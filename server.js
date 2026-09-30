@@ -13870,7 +13870,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   moduleGit:
-    "GET /api/git/status|diff + POST /api/git/init|commit|push|remote — module_git_* (module-git)",
+    "GET /api/git/status|diff|module-config + POST /api/git/init|commit|push|pull|remote|module-config — module_git_* (module-git)",
   execRunScript:
     "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
@@ -16176,6 +16176,7 @@ const {
   setModuleGitRemote,
   removeModuleGitRemote,
   pushModuleGitRepo,
+  pullModuleGitRepo,
   commitModuleGitChanges,
   runGitInRepo: runGitInRepoResult
 } = require("./lib/git/workspace-git-module");
@@ -20279,6 +20280,32 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to push git changes",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/pull") {
+    try {
+      const payload = await readJsonBody(req).catch(() => ({}));
+      const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
+      if (!repoAbsolute) {
+        return sendJson(res, 400, {
+          error: "Git repository not found in workspace root"
+        });
+      }
+      const agentRoot = getAgentRoot();
+      const moduleConfig = await loadModuleGitConfig(agentRoot);
+      const strategy = String(payload?.strategy || moduleConfig.pullStrategy || "merge").trim();
+      const result = await pullModuleGitRepo(repoAbsolute, {
+        remote: payload?.remote || "origin",
+        branch: payload?.branch,
+        rebase: strategy === "rebase" || payload?.rebase === true
+      });
+      return sendJson(res, 200, { moduleId: "module-git", ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to pull git changes",
         details: String(error.message || error)
       });
     }

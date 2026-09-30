@@ -21,6 +21,7 @@ entries:
         module_git_commit,
         module_git_init,
         module_git_push,
+        module_git_pull,
         module_git_remote
       ]
   - module-id: module-journal

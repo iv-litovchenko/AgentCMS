@@ -87,6 +87,24 @@ export function registerGitModuleTools(reg, client) {
   );
 
   reg(
+    "module_git_pull",
+    "module-git: git pull from remote (default origin, current branch). Uses merge or rebase per integrations module-git-pull-strategy. Blocked in mcp-mode=readonly.",
+    z.object({
+      remote: z.string().optional().describe("Remote name (default origin)"),
+      branch: z.string().optional().describe("Branch to pull (default: current)"),
+      rebase: z.boolean().optional().describe("Use pull --rebase (overrides workspace strategy)"),
+      strategy: z.enum(["merge", "rebase"]).optional().describe("Pull strategy when rebase not set")
+    }),
+    ({ remote, branch, rebase, strategy }) =>
+      client.post("/api/git/pull", {
+        ...(remote ? { remote } : {}),
+        ...(branch ? { branch } : {}),
+        ...(rebase != null ? { rebase } : {}),
+        ...(strategy ? { strategy } : {})
+      })
+  );
+
+  reg(
     "module_git_remote",
     "module-git: add or change remote URL (action set) or remove remote (action remove). Remotes also in module_git_status. Blocked in mcp-mode=readonly.",
     z.object({
