@@ -1,0 +1,6 @@
+.v08-table{width:100%;border-collapse:collapse;font-size:12px}
+.v08-table th,.v08-table td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:middle}
+.v08-table th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc}
+.v08-slot{font-weight:600}
+.v08-num{font-weight:800;font-variant-numeric:tabular-nums;color:#1d4ed8;width:48px}
+.v08-types{font-size:10px;color:#64748b;font-family:ui-monospace,Menlo,monospace}

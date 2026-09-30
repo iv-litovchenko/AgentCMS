@@ -1,0 +1,5 @@
+.v01-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.v01-card{border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;overflow:hidden}
+.v01-counter{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;min-height:68px;padding:8px 6px}
+.v01-icon{font-size:18px;line-height:1}
+.v01-value{font-size:20px;font-weight:800;color:#0f172a;line-height:1}
