@@ -9,21 +9,26 @@ flowchart TD
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> EXTRA_DATA["Дополнительные данные"]
-    WS --> MEM["🧠 Память и коммуникация"]
     WS --> AUX["⚙️ Вспомогательное"]
     WS --> IDEAS["💡 Идеи"]
 
-    IDEAS --> IDEAS_BLOCK["1. Git-модуль<br/>синхронизация, LFS<br/>2. UI на базе движка<br/>Сборка интерфейса на базе движка<br/>идеи для названия такого компонента<br/>в рамках системы:<br/>VOXELS<br/>VERTECX<br/>VEXEL<br/>ELEXIR<br/>3. Выгрузка в облако<br/>Google Диск и Яндекс Диск<br/>4. Синхронизация с удалённым сервером<br/>доступность хранилища 24/7<br/>5. Дашборды<br/>гибкие управляемые дашборды<br/>6. Пайплайн<br/>расширить статусы записей через пайплайны<br/>(последовательность шагов)<br/>либо дополнить статусы отдельным полем<br/>базовые статусы: открыто · закрыто · архив"]
+    IDEAS --> IDEA1["1. Git-модуль<br/>синхронизация, LFS"]
+    IDEA1 --> IDEA2["2. UI на базе движка<br/>Сборка интерфейса на базе движка<br/>идеи для названия такого компонента<br/>в рамках системы:<br/>VOXELS<br/>VERTECX<br/>VEXEL<br/>ELEXIR"]
+    IDEA2 --> IDEA3["3. Выгрузка в облако<br/>Google Диск и Яндекс Диск"]
+    IDEA3 --> IDEA4["4. Синхронизация с удалённым сервером<br/>доступность хранилища 24/7"]
+    IDEA4 --> IDEA5["5. Дашборды<br/>гибкие управляемые дашборды"]
+    IDEA5 --> IDEA6["6. Пайплайн<br/>расширить статусы записей через пайплайны<br/>(последовательность шагов)<br/>либо дополнить статусы отдельным полем<br/>базовые статусы: открыто · закрыто · архив"]
+    IDEA6 --> IDEA7["7. Права доступа и роли"]
 
     TREE --> SHARED_AREA["Область общие<br/>awn-shared"]
     TREE --> CONTENT_AREA["Область контента<br/>awn-container"]
     TREE --> AGENT_AREA["Область агента<br/>awn-system / kit"]
 
-    CONTENT_AREA --> AREA["Область"]
-    AREA --> TOPIC["Тема"]
-    TOPIC --> SLOT["Слот"]
-    SLOT --> SECTION["Раздел"]
-    SECTION --> PAGE_ENTRY["Запись"]
+    CONTENT_AREA --> C_AREA["Область"]
+    C_AREA --> C_TOPIC["Тема"]
+    C_TOPIC --> C_SLOT["Слот"]
+    C_SLOT --> C_SECTION["Раздел"]
+    C_SECTION --> C_PAGE["Запись"]
 
     SHARED_AREA --> SHARED_THEMES["Стандартные темы<br/>Входящие · Заметки · Источники · Артефакты · Скрипты · Медиа<br/>Загрузки из браузера · Автозагружаемый контекст"]
 
@@ -41,16 +46,15 @@ flowchart TD
     EXTRA_DATA --> ANNOT["Аннотации"]
     ANNOT --> ANNOT_COMMENTS["Комментарии"]
     ANNOT --> ANNOT_SIDECAR["Sidecar"]
-
-    MEM --> FACTS["Facts"]
-    MEM --> COMM["Коммуникация"]
-    COMM --> DIALOGS["Dialogs"]
-    COMM --> DISCUSS["Discussion / Comments"]
+    EXTRA_DATA --> FACT_BANK["Банк фактов"]
+    EXTRA_DATA --> GLOSSARY["Глоссарий"]
+    EXTRA_DATA --> EXTRA_DIALOGS["Диалоги<br/>дискуссия"]
 
     AUX --> SETTINGS["Настройки, .env"]
     AUX --> SEARCH["Поиск"]
     AUX --> AUX_JOURNAL["Журнал"]
     AUX --> MODULES["Модули"]
+    AUX --> CLOUD_DISKS["Облачные диски<br/>Google · Яндекс"]
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```
