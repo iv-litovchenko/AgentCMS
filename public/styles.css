@@ -55377,6 +55377,32 @@ button.node-navigation-memory-title:focus-visible {
   outline: none;
 }
 
+.repository-workspace-mockup-cta:disabled,
+.repository-workspace-mockup-cta.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  border-color: #4b5563;
+  background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.repository-workspace-mockup-cta:disabled:hover,
+.repository-workspace-mockup-cta:disabled:focus-visible,
+.repository-workspace-mockup-cta.is-disabled:hover,
+.repository-workspace-mockup-cta.is-disabled:focus-visible {
+  border-color: #4b5563;
+  background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+  box-shadow: none;
+}
+
+.repository-workspace-dashboard.is-light .repository-workspace-mockup-cta:disabled,
+.repository-workspace-dashboard.is-light .repository-workspace-mockup-cta.is-disabled {
+  border-color: #d1d5db;
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
 .repository-workspace-dashboard.is-light .repository-workspace-mockup-cta {
   color: #fff;
 }

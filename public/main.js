@@ -116923,16 +116923,24 @@ function createRepositoryMockupPreviewMenuButton(repo) {
 }
 
 function createRepositoryWorkspaceMockupPreviewCta(repo, folderPath, scanData) {
-  if (!repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath)) return null;
+  const hasIndex = repositoryWorkspaceHasRootIndexHtml(repo, scanData, folderPath);
   const wrap = document.createElement("div");
   wrap.className = "repository-workspace-mockup-cta-wrap";
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "repository-workspace-mockup-cta";
   btn.innerHTML = `<span class="repository-workspace-mockup-cta-icon">${REPOSITORY_MOCKUP_PREVIEW_ICON_SVG}</span><span class="repository-workspace-mockup-cta-label">Просмотр макета (index.html)</span>`;
-  btn.addEventListener("click", () => {
-    void openRepositoryMockupPreview({ ...repo, folderPath });
-  });
+  if (hasIndex) {
+    btn.title = "Просмотр макета (index.html)";
+    btn.addEventListener("click", () => {
+      void openRepositoryMockupPreview({ ...repo, folderPath });
+    });
+  } else {
+    btn.disabled = true;
+    btn.classList.add("is-disabled");
+    btn.title = "index.html не найден в корне репозитория";
+    btn.setAttribute("aria-label", "Просмотр макета (index.html) — файл отсутствует");
+  }
   wrap.appendChild(btn);
   return wrap;
 }
@@ -116998,8 +117006,7 @@ function renderRepositoryWorkspaceDashboard(repo, scanStats, { folderPath = "", 
   head.append(title, createRepositoryStatsThemeToggle(dashboard));
   dashboard.appendChild(head);
 
-  const mockupCta = createRepositoryWorkspaceMockupPreviewCta(repo, folderPath, scanData);
-  if (mockupCta) dashboard.appendChild(mockupCta);
+  dashboard.appendChild(createRepositoryWorkspaceMockupPreviewCta(repo, folderPath, scanData));
 
   const grid = document.createElement("div");
   grid.className = "repository-workspace-stat-grid";
