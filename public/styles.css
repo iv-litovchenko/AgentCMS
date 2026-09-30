@@ -13238,6 +13238,11 @@ body.workspace-idle-screensaver-active {
   cursor: not-allowed;
 }
 
+.agent-git-pull-btn.is-busy {
+  opacity: 0.82;
+  cursor: wait;
+}
+
 .agent-git-settings-btn {
   display: inline-flex;
   align-items: center;
@@ -62734,6 +62739,19 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 14px;
   line-height: 1.5;
   color: #334155;
+}
+
+.confirm-modal-message.is-preformatted {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  max-height: min(52vh, 360px);
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.28);
 }
 
 .confirm-modal-hint {

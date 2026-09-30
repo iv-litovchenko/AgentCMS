@@ -29035,7 +29035,11 @@ function showToast(message, type = "", duration = 1600) {
 
 function askConfirm(message, { okLabel = "Удалить", cancelLabel = "Отмена", title = "", hint = "", icon = "⚠️", variant = "danger" } = {}) {
   if (confirmTitleNode) confirmTitleNode.textContent = title || "Подтверждение";
-  if (confirmMessageNode) confirmMessageNode.textContent = message;
+  if (confirmMessageNode) {
+    confirmMessageNode.textContent = message;
+    confirmMessageNode.classList.toggle("is-preformatted", String(message || "").includes("\n"));
+  }
+  confirmCancelBtn.classList.remove("hidden");
   if (confirmHintNode) {
     confirmHintNode.textContent = hint;
     confirmHintNode.classList.toggle("hidden", !hint);
@@ -29053,10 +29057,35 @@ function askConfirm(message, { okLabel = "Удалить", cancelLabel = "Отм
   });
 }
 
+function showAlertDialog(message, { title = "Сообщение", hint = "", okLabel = "Закрыть", icon = "ℹ️", variant = "info" } = {}) {
+  if (confirmTitleNode) confirmTitleNode.textContent = title;
+  if (confirmMessageNode) {
+    confirmMessageNode.textContent = message;
+    confirmMessageNode.classList.toggle("is-preformatted", String(message || "").includes("\n"));
+  }
+  if (confirmHintNode) {
+    confirmHintNode.textContent = hint;
+    confirmHintNode.classList.toggle("hidden", !hint);
+  }
+  if (confirmIconNode) confirmIconNode.textContent = icon;
+  confirmOkBtn.textContent = okLabel;
+  confirmCancelBtn.classList.add("hidden");
+  if (confirmModalCardNode) {
+    confirmModalCardNode.classList.remove("is-danger", "is-warning", "is-info");
+    confirmModalCardNode.classList.add(`is-${variant}`);
+  }
+  confirmModalNode.classList.remove("hidden");
+  return new Promise((resolve) => {
+    pendingConfirmResolve = () => resolve(true);
+  });
+}
+
 function closeConfirm(result) {
   confirmModalNode.classList.add("hidden");
   confirmOkBtn.textContent = "Удалить";
   confirmCancelBtn.textContent = "Отмена";
+  confirmCancelBtn.classList.remove("hidden");
+  if (confirmMessageNode) confirmMessageNode.classList.remove("is-preformatted");
   if (confirmTitleNode) confirmTitleNode.textContent = "Подтверждение";
   if (confirmHintNode) {
     confirmHintNode.textContent = "";
@@ -101738,6 +101767,28 @@ async function postAgentGitPush() {
   return payload;
 }
 
+function formatAgentGitPullResultDialog(result) {
+  const remote = String(result?.remote || "origin").trim() || "origin";
+  const branch = String(result?.branch || getAgentGitCommitBranchLabel()).trim() || "main";
+  const strategy = result?.strategy === "rebase" ? "rebase" : "merge";
+  const out = `${String(result?.stdout || "")}\n${String(result?.stderr || "")}`.trim();
+  const lines = [
+    `Remote: ${remote}`,
+    `Ветка: ${branch}`,
+    `Стратегия: ${strategy}`,
+    ""
+  ];
+  if (/already up to date/i.test(out)) {
+    lines.push("Новых коммитов на remote нет — локальная копия уже актуальна.");
+  } else if (out) {
+    lines.push("Вывод git:");
+    lines.push(out);
+  } else {
+    lines.push("Команда выполнена успешно. Список изменений в панели обновлён.");
+  }
+  return lines.join("\n");
+}
+
 async function postAgentGitPull() {
   const strategy = String(agentGitModuleConfig?.pullStrategy || "merge").trim() || "merge";
   const response = await fetch(buildApiUrl("/api/git/pull"), {
@@ -121449,20 +121500,46 @@ agentGitPushBtn?.addEventListener("click", () => {
 });
 
 agentGitPullBtn?.addEventListener("click", () => {
-  const remote = agentGitRemoteNameInput?.value?.trim() || "origin";
-  const strategy = String(agentGitModuleConfig?.pullStrategy || "merge").trim() || "merge";
-  const strategyLabel = strategy === "rebase" ? "rebase" : "merge";
-  if (!window.confirm(`Забрать изменения с remote «${remote}» (${strategyLabel})?`)) return;
-  agentGitPullBtn.disabled = true;
-  void postAgentGitPull()
-    .then((result) => {
-      window.alert(result?.stdout || "Pull выполнен");
-      void renderAgentGitView();
-    })
-    .catch((error) => window.alert(`Ошибка pull: ${error.message}`))
-    .finally(() => {
-      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+  void (async () => {
+    const remote = agentGitRemoteNameInput?.value?.trim() || "origin";
+    const strategy = String(agentGitModuleConfig?.pullStrategy || "merge").trim() || "merge";
+    const strategyLabel = strategy === "rebase" ? "rebase" : "merge";
+    const confirmed = await askConfirm(`Забрать изменения с remote «${remote}»?\nСтратегия: ${strategyLabel}.`, {
+      title: "Git pull",
+      okLabel: "Pull",
+      cancelLabel: "Отмена",
+      icon: "⬇️",
+      variant: "info"
     });
+    if (!confirmed) return;
+
+    const pullLabel = agentGitPullBtn?.querySelector(".agent-git-action-btn-label");
+    const pullLabelPrev = pullLabel?.textContent || "Pull";
+    agentGitPullBtn.disabled = true;
+    agentGitPullBtn.classList.add("is-busy");
+    if (pullLabel) pullLabel.textContent = "Pull…";
+    try {
+      const result = await postAgentGitPull();
+      await renderAgentGitView();
+      await showAlertDialog(formatAgentGitPullResultDialog(result), {
+        title: "Результат pull",
+        icon: "⬇️",
+        variant: "info",
+        okLabel: "Закрыть"
+      });
+    } catch (error) {
+      await showAlertDialog(String(error?.message || error), {
+        title: "Ошибка pull",
+        icon: "⚠️",
+        variant: "warning",
+        okLabel: "Закрыть"
+      });
+    } finally {
+      agentGitPullBtn?.classList.remove("is-busy");
+      if (pullLabel) pullLabel.textContent = pullLabelPrev;
+      if (agentGitLastStatus) syncAgentGitSettingsUi(agentGitLastStatus);
+    }
+  })();
 });
 
 agentGitRemoteSaveBtn?.addEventListener("click", () => {
