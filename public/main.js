@@ -88107,7 +88107,6 @@ async function renderNodeNavigation() {
       mediaData
     });
     if (slotsDisabled) {
-      if (panelsWrap) hubMain.appendChild(panelsWrap);
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
       appendTopicLiteIndexControlsRow(topicNavCluster, nodePath);
@@ -88130,7 +88129,7 @@ async function renderNodeNavigation() {
     if (internalPanel) hubMain.appendChild(internalPanel);
   }
 
-  if (panelsWrap && (!slotsDisabled || isInlineNavHub)) {
+  if (panelsWrap) {
     hubMain.appendChild(panelsWrap);
   }
 
