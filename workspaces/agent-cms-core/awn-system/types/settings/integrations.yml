@@ -70,17 +70,57 @@ fields:
     readonly: true
     sort: 3
 
-  module-git-commit-extensions:
-    type: awn.field.text
-    title: Расширения для коммита
+  module-git-commit-batch-order:
+    type: awn.field.choice.one
+    title: Порядок коммитов при сохранении
     description: >
-      Одно расширение на строку (без точки). Попадают в git status / commit / diff
-      (UI «Сохранить», module_git_*). Дополнительно по имени файла: .gitignore,
-      любой .env / .env.*, любой *\.lock (poetry.lock, yarn.lock…).
+      Кнопка «Сохранить изменения» создаёт два коммита подряд: сначала выбранная
+      партия, затем вторая (если есть изменения в её расширениях).
+    default: system-first
+    enum:
+      - key: system-first
+        name: Сначала служебные (System), затем контент (Content)
+      - key: content-first
+        name: Сначала контент (Content), затем служебные (System)
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 4
+
+  module-git-commit-extensions-content:
+    type: awn.field.text
+    title: Расширения файлов для коммита Content
+    description: >
+      Одно расширение на строку (без точки). Первая или вторая партия коммита
+      (см. порядок). Типично: md, mdx, csv, txt.
     default: |
       md
-      txt
+      mdx
       csv
+      txt
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 5
+
+  module-git-commit-message-template-content:
+    type: awn.field.string
+    title: Шаблон сообщения коммита Content
+    description: >
+      Плейсхолдеры — {branch}, {date}, {time}. Коммит контентных файлов.
+    default: "[{branch}] Сохранение workspace ({date} {time}) - Content"
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 6
+
+  module-git-commit-extensions-system:
+    type: awn.field.text
+    title: Расширения файлов для коммита System
+    description: >
+      Служебные и конфигурационные файлы (yml, json, css, lock…). Дополнительно по
+      имени: .gitignore, .env / .env.*, *\.lock.
+    default: |
       yml
       yaml
       json
@@ -100,7 +140,6 @@ fields:
       sql
       jsonl
       ndjson
-      mdx
       py
       pyi
       rb
@@ -110,7 +149,18 @@ fields:
     group: module-git
     locked: true
     readonly: true
-    sort: 4
+    sort: 7
+
+  module-git-commit-message-template-system:
+    type: awn.field.string
+    title: Шаблон сообщения коммита System
+    description: >
+      Плейсхолдеры — {branch}, {date}, {time}. Коммит служебных файлов.
+    default: "[{branch}] Сохранение workspace ({date} {time}) - System"
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 8
 
   module-git-user-name:
     type: awn.field.string
@@ -119,7 +169,7 @@ fields:
       Git user.name для коммитов из UI и module_git_commit (локально для команды, без проверки личности).
     default: ""
     group: module-git
-    sort: 5
+    sort: 9
 
   module-git-user-email:
     type: awn.field.string
@@ -127,16 +177,7 @@ fields:
     description: Git user.email для коммитов из workspace.
     default: ""
     group: module-git
-    sort: 6
-
-  module-git-commit-message-template:
-    type: awn.field.string
-    title: Шаблон сообщения коммита
-    description: >
-      Плейсхолдеры — {branch}, {date}, {time}. Используется в UI «Сохранить» по умолчанию.
-    default: "[{branch}] Сохранение workspace ({date} {time})"
-    group: module-git
-    sort: 7
+    sort: 10
 
   module-git-sign-commits:
     type: awn.field.boolean
@@ -146,7 +187,7 @@ fields:
     group: module-git
     locked: true
     readonly: true
-    sort: 8
+    sort: 11
 
   module-git-pull-strategy:
     type: awn.field.choice.one
@@ -157,7 +198,7 @@ fields:
     group: module-git
     locked: true
     readonly: true
-    sort: 9
+    sort: 12
 
   container-cursor-skill-enabled:
     type: awn.field.boolean

@@ -16185,6 +16185,7 @@ const {
   pushModuleGitRepo,
   pullModuleGitRepo,
   commitModuleGitChanges,
+  commitModuleGitChangesInBatches,
   runGitInRepo: runGitInRepoResult
 } = require("./lib/git/workspace-git-module");
 const {
@@ -16192,6 +16193,7 @@ const {
   saveModuleGitConfig,
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
+const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
 
 async function runGitInRepo(repoAbsolute, args) {
   const result = await runGitInRepoResult(repoAbsolute, args);
@@ -16647,8 +16649,17 @@ async function buildAgentTopicSizeReport() {
   };
 }
 
+function enrichModuleGitConfigWithCommitBatches(moduleConfig, commitBatchSettings) {
+  return {
+    ...moduleConfig,
+    commitBatchOrder: commitBatchSettings?.batchOrder || "system-first",
+    commitBatches: Array.isArray(commitBatchSettings?.batches) ? commitBatchSettings.batches : []
+  };
+}
+
 async function buildAgentGitStatus(options = {}) {
   const agentRoot = getAgentRoot();
+  const commitBatchSettings = await loadModuleGitCommitBatchSettings(agentRoot);
   const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
   const emptyCounts = {
     total: 0,
@@ -16675,16 +16686,24 @@ async function buildAgentGitStatus(options = {}) {
       commits: [],
       counts: emptyCounts,
       totalCounts: emptyCounts,
-      extensions: MODULE_GIT_DEFAULT_EXTENSIONS,
+      extensions: commitBatchSettings.unionExtensions,
       totalChangeCount: 0,
       remotes: [],
-      moduleConfig: await loadModuleGitConfig(agentRoot)
+      moduleConfig: enrichModuleGitConfigWithCommitBatches(
+        await loadModuleGitConfig(agentRoot),
+        commitBatchSettings
+      )
     };
   }
 
-  const moduleConfig = await loadModuleGitConfig(agentRoot);
+  const moduleConfig = enrichModuleGitConfigWithCommitBatches(
+    await loadModuleGitConfig(agentRoot),
+    commitBatchSettings
+  );
   const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
-  const normalizedExtensions = normalizeGitExtensions(options.extensions);
+  const normalizedExtensions = options.extensions
+    ? normalizeGitExtensions(options.extensions)
+    : commitBatchSettings.unionExtensions;
   const includeCommits = options.includeCommits !== false;
 
   try {
@@ -20391,12 +20410,41 @@ async function handleApiForAgent(req, res, url) {
       }
       const agentRoot = getAgentRoot();
       const moduleConfig = await loadModuleGitConfig(agentRoot);
-      const result = await commitModuleGitChanges(repoAbsolute, {
-        message: payload?.message,
-        extensions: payload?.extensions ?? MODULE_GIT_DEFAULT_EXTENSIONS,
-        author: buildGitAuthorFromModuleConfig(moduleConfig)
+      const author = buildGitAuthorFromModuleConfig(moduleConfig);
+      const commitBatchSettings = await loadModuleGitCommitBatchSettings(agentRoot);
+      const explicitMessage = String(payload?.message || "").trim();
+      const useBatched =
+        payload?.batched === true ||
+        (!explicitMessage && payload?.extensions == null && commitBatchSettings.batches.length > 0);
+
+      if (!useBatched) {
+        const result = await commitModuleGitChanges(repoAbsolute, {
+          message: explicitMessage,
+          extensions: payload?.extensions ?? MODULE_GIT_DEFAULT_EXTENSIONS,
+          author
+        });
+        return sendJson(res, 200, { moduleId: "module-git", ...result });
+      }
+
+      const statusRaw = await runGitInRepo(repoAbsolute, [
+        "status",
+        "--porcelain=v1",
+        "-b",
+        "--untracked-files=all"
+      ]);
+      const parsed = parseGitStatusPorcelain(statusRaw);
+      const now = new Date();
+      const pad = (value) => String(value).padStart(2, "0");
+      const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const result = await commitModuleGitChangesInBatches(repoAbsolute, {
+        batches: commitBatchSettings.batches,
+        author,
+        branch: parsed.branch || "main",
+        date: datePart,
+        time: timePart
       });
-      return sendJson(res, 200, { moduleId: "module-git", ...result });
+      return sendJson(res, 200, { moduleId: "module-git", batched: true, ...result });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to commit git changes",

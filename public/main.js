@@ -345,9 +345,28 @@ const AGENT_GIT_FILE_EXTENSIONS = [
   "lock"
 ];
 const AGENT_GIT_EXTRA_BASENAMES = [".gitignore", ".env*", "*.lock"];
+const MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS = new Set([
+  "module-git-commit-extensions",
+  "module-git-commit-extensions-content",
+  "module-git-commit-extensions-system"
+]);
 let agentGitExtensionsLegendNode = null;
 
 function getAgentGitActiveExtensions() {
+  if (Array.isArray(agentGitLastStatus?.extensions) && agentGitLastStatus.extensions.length) {
+    return [...agentGitLastStatus.extensions];
+  }
+  const batches = agentGitModuleConfig?.commitBatches;
+  if (Array.isArray(batches) && batches.length) {
+    const union = new Set();
+    for (const batch of batches) {
+      for (const ext of batch.extensions || []) {
+        const normalized = String(ext || "").trim().toLowerCase().replace(/^\./, "");
+        if (normalized) union.add(normalized);
+      }
+    }
+    if (union.size) return [...union];
+  }
   return [...AGENT_GIT_FILE_EXTENSIONS];
 }
 
@@ -360,18 +379,40 @@ function ensureAgentGitExtensionsLegend() {
   wrap.className = "agent-git-extensions-legend";
   wrap.id = "agent-git-extensions-legend";
 
-  const list = document.createElement("div");
-  list.className = "agent-git-extensions-list";
-  list.setAttribute("aria-label", "Расширения файлов для коммита");
-
-  for (const ext of AGENT_GIT_FILE_EXTENSIONS) {
-    const tag = document.createElement("span");
-    tag.className = "agent-git-ext-tag";
-    tag.textContent = ext;
-    list.appendChild(tag);
+  const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
+    ? agentGitModuleConfig.commitBatches
+    : [];
+  if (batches.length) {
+    for (const batch of batches) {
+      const group = document.createElement("div");
+      group.className = "agent-git-extensions-batch";
+      const title = document.createElement("div");
+      title.className = "agent-git-extensions-batch-title";
+      title.textContent = batch.label || batch.id || "Коммит";
+      group.appendChild(title);
+      const list = document.createElement("div");
+      list.className = "agent-git-extensions-list";
+      for (const ext of batch.extensions || []) {
+        const tag = document.createElement("span");
+        tag.className = "agent-git-ext-tag";
+        tag.textContent = ext;
+        list.appendChild(tag);
+      }
+      group.appendChild(list);
+      wrap.appendChild(group);
+    }
+  } else {
+    const list = document.createElement("div");
+    list.className = "agent-git-extensions-list";
+    list.setAttribute("aria-label", "Расширения файлов для коммита");
+    for (const ext of AGENT_GIT_FILE_EXTENSIONS) {
+      const tag = document.createElement("span");
+      tag.className = "agent-git-ext-tag";
+      tag.textContent = ext;
+      list.appendChild(tag);
+    }
+    wrap.appendChild(list);
   }
-
-  wrap.appendChild(list);
 
   const extras = document.createElement("p");
   extras.className = "agent-git-extensions-extras";
@@ -54036,7 +54077,7 @@ function formatPropsDatetimeLocalValue(value) {
 }
 
 function getPropsEntryDisplayValue(entry) {
-  if (entry.key === "module-git-commit-extensions") {
+  if (MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)) {
     return formatAgentGitCommitExtensionsDisplay(entry.value);
   }
   if (entry.kind === "array") {
@@ -56777,7 +56818,7 @@ function resolveSchemaPropsWidget(fieldDef) {
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
-  if (normalized === "module-git-commit-extensions") return "textarea";
+  if (MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(normalized)) return "textarea";
   if (normalized === "awn-runtime-cron") return "runtime-schedule-type";
   if (isPropsAttachmentsField(key, fieldDef)) return "attachments";
   if (hasStructuredObjectFieldProperties(fieldDef, normalized)) return "object-group";
@@ -57669,9 +57710,10 @@ function createPropsFormTextareaControl(entry, meta, { locked = false } = {}) {
   const lineCount = String(displayValue || "").split(/\r?\n/).length;
   textarea.rows = Math.max(6, Math.min(24, lineCount + 2));
   textarea.value = displayValue;
-  if (meta.hint && entry.key !== "module-git-commit-extensions") textarea.title = meta.hint;
-  textarea.placeholder =
-    entry.key === "module-git-commit-extensions" ? "—" : meta.hint || "—";
+  if (meta.hint && !MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)) textarea.title = meta.hint;
+  textarea.placeholder = MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)
+    ? "—"
+    : meta.hint || "—";
   bindPropsFormLockedState(textarea, locked);
   wrap.appendChild(textarea);
   return wrap;
@@ -102524,13 +102566,12 @@ async function postAgentGitModuleConfig(patch) {
   return payload;
 }
 
-async function commitAgentGitChanges(message) {
+async function commitAgentGitChanges() {
   const response = await fetch(buildApiUrl("/api/git/commit"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: withAgentGitBranchCommitPrefix(message),
-      extensions: getAgentGitActiveExtensions()
+      batched: true
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -122603,24 +122644,34 @@ agentGitModuleConfigSaveBtn?.addEventListener("click", () => {
 
 agentGitSaveBtn?.addEventListener("click", () => {
   if (agentWorkspaceView !== "git") return;
-  const defaultMessage = buildAgentGitDefaultCommitMessage();
-  const message = window.prompt("Сообщение коммита", defaultMessage);
-  if (message == null) return;
-  const trimmed = String(message).trim();
-  if (!trimmed) return;
   agentGitSaveBtn.disabled = true;
-  void commitAgentGitChanges(trimmed)
+  void commitAgentGitChanges()
     .then((result) => {
+      if (result?.batched && Array.isArray(result.batches)) {
+        const committed = result.batches.filter((item) => item.committed);
+        if (!committed.length) {
+          window.alert("Нет изменений для коммита в настроенных партиях (Content / System)");
+          return;
+        }
+        const lines = committed.map((item) => {
+          const label = item.label || item.batchId || "коммит";
+          const hash = item.shortHash || item.hash || "";
+          return hash ? `${label}: ${hash}` : label;
+        });
+        window.alert(`Создано коммитов: ${committed.length}\n${lines.join("\n")}`);
+        return;
+      }
       if (result?.committed) {
         const hash = result.shortHash || result.hash || "";
         window.alert(hash ? `Коммит создан: ${hash}` : "Коммит создан");
       } else {
         window.alert("Нет изменений для коммита в выбранных типах файлов");
       }
-      void renderAgentGitView();
     })
     .catch((error) => {
       window.alert(`Не удалось сохранить: ${error.message}`);
+    })
+    .finally(() => {
       void renderAgentGitView();
     });
 });

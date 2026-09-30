@@ -18100,6 +18100,21 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   gap: 8px;
 }
 
+.agent-git-extensions-batch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-git-extensions-batch-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
 .agent-git-extensions-list {
   display: flex;
   flex-wrap: wrap;
