@@ -42499,6 +42499,61 @@ img.is-svg-media,
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
+.node-overview-thumb-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.node-navigation-hero .node-overview-thumb-column {
+  flex: 0 0 96px;
+  width: 96px;
+}
+
+.node-overview-thumb-column > .node-overview-thumb-wrap {
+  width: 100%;
+}
+
+.node-overview-thumb-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.node-overview-thumb-menu-trigger:hover,
+.node-overview-thumb-menu-trigger:focus-visible {
+  border-color: #93c5fd;
+  color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.35);
+  outline: none;
+}
+
+.node-overview-thumb-menu-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-props-aside .node-overview-thumb-column {
+  width: 100%;
+}
+
 .node-entry-overview-media-asset-title-row {
   display: flex;
   align-items: flex-start;

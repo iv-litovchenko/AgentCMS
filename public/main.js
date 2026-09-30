@@ -22686,7 +22686,8 @@ const RESOURCE_CONTEXT_MENU_ACTIONS = {
   externalFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
   flatStorageFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
   mediaFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
-  memorySection: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS]
+  memorySection: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
+  awnDataRecord: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS]
 };
 
 const RESOURCE_CLIPBOARD_ACTIONS = [
@@ -23101,6 +23102,7 @@ let resourceContextMenuState = null;
 let renameSectionState = null;
 let renameMenuNodeState = null;
 let renameExternalFileState = null;
+let renameAwnDataRecordState = null;
 
 function getMemorySectionScope(state = resourceContextMenuState) {
   if (!state) return null;
@@ -23283,6 +23285,92 @@ async function updateMemorySectionStatusApi(sectionFolder, nextStatus, state = r
   return response.json();
 }
 
+function normalizeOverviewThumbComparePath(path) {
+  return String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function overviewThumbPathsMatch(nodePath, ...candidates) {
+  const nodeNorm = normalizeOverviewThumbComparePath(nodePath);
+  if (!nodeNorm) return false;
+  for (const candidate of candidates) {
+    const value = normalizeOverviewThumbComparePath(candidate);
+    if (!value) continue;
+    if (nodeNorm === value) return true;
+    if (nodeNorm.endsWith(`/${value}`) || value.endsWith(`/${nodeNorm}`)) return true;
+    const nodeTail = nodeNorm.split("/").pop() || nodeNorm;
+    const valueTail = value.split("/").pop() || value;
+    if (nodeTail && nodeTail === valueTail) return true;
+  }
+  return false;
+}
+
+async function fetchAwnDataRecordMenuStatus(state) {
+  const cached = String(state?.status || "").trim();
+  if (cached) return cached;
+  const fm = state?.record?.frontmatter;
+  if (fm && typeof fm === "object") {
+    const fromFm = String(fm["awn-status"] || "").trim();
+    if (fromFm) return fromFm;
+  }
+  const storeRel = String(state?.storeRel || "").trim();
+  const recordId = String(state?.recordId || "").trim();
+  if (!storeRel || !recordId) return "";
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  try {
+    const response = await fetch(
+      buildApiUrl(
+        "/api/awn-databases/record-property",
+        { store: storeRel, record: recordId, key: "awn-status" },
+        agentId
+      )
+    );
+    if (!response.ok) return "";
+    const data = await response.json().catch(() => ({}));
+    return String(data.value || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+async function updateAwnDataRecordMenuStatusApi(state, nextStatus) {
+  const storeRel = String(state?.storeRel || "").trim();
+  const recordId = String(state?.recordId || "").trim();
+  if (!storeRel || !recordId) throw new Error("Не удалось определить запись");
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const response = await fetch(buildApiUrl("/api/awn-databases/record-property", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      store: storeRel,
+      record: recordId,
+      key: "awn-status",
+      value: nextStatus
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+async function refreshAwnDataRecordMenuViews(state = resourceContextMenuState) {
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  await refreshMenuAwnDataStores(agentId);
+  await loadAwnDataViewStore(agentId);
+  if (state?.recordId && String(awnDataViewRecordId || "") === String(state.recordId)) {
+    const record =
+      awnDataViewRecordCache ||
+      getAwnDataStoreAllRecords(awnDataViewStoreCache).find(
+        (item) => String(item.id || "").trim() === String(state.recordId).trim()
+      );
+    if (record) {
+      awnDataViewRecordCache = record;
+      await renderAwnDataRecordView(record, awnDataViewStoreCache, agentId);
+    }
+  }
+}
+
 async function fetchResourceFileStatus(state) {
   if (!state?.filePath) return String(state?.status || "").trim();
 
@@ -23420,6 +23508,10 @@ async function refreshResourceFileViews(state = resourceContextMenuState) {
     if (state.railSlotMemoryKind) {
       await refreshNavigationHubRailSlotTreeForMemoryKind(state.railSlotMemoryKind || "media");
     }
+    return;
+  }
+  if (state?.kind === "awnDataRecord") {
+    await refreshAwnDataRecordMenuViews(state);
   }
 }
 
@@ -23519,7 +23611,14 @@ function positionResourceContextMenu(clientX, clientY) {
 function appendResourceContextMenuStatusSection(currentStatus = "") {
   if (!resourceContextMenuListNode) return;
   const state = resourceContextMenuState;
-  if (!state || (state.kind !== "memorySection" && state.kind !== "externalFile" && state.kind !== "flatStorageFile" && state.kind !== "mediaFile")) {
+  if (
+    !state ||
+    (state.kind !== "memorySection" &&
+      state.kind !== "externalFile" &&
+      state.kind !== "flatStorageFile" &&
+      state.kind !== "mediaFile" &&
+      state.kind !== "awnDataRecord")
+  ) {
     return;
   }
 
@@ -23609,6 +23708,8 @@ function openResourceContextMenu(event, state) {
       (state.kind === "externalFile" || state.kind === "flatStorageFile" || state.kind === "mediaFile")
     ) {
       currentStatus = await fetchResourceFileStatus(state);
+    } else if (state.kind === "awnDataRecord") {
+      currentStatus = await fetchAwnDataRecordMenuStatus(state);
     }
 
     resourceContextMenuState = { ...state, status: currentStatus };
@@ -23638,6 +23739,9 @@ async function handleResourceContextMenuStatusAction(nextStatus) {
     ) {
       await updateResourceFileStatusApi(state, normalizedStatus);
       await refreshResourceFileViews(state);
+    } else if (state.kind === "awnDataRecord") {
+      await updateAwnDataRecordMenuStatusApi(state, normalizedStatus);
+      await refreshAwnDataRecordMenuViews(state);
     } else {
       showToast("Статус для этого типа элементов пока не поддерживается", "error");
       return;
@@ -23691,6 +23795,7 @@ function openRenameMenuNodeModal(state) {
   if (!createSectionModalNode || !state?.path) return;
   renameMenuNodeState = state;
   renameExternalFileState = null;
+  renameAwnDataRecordState = null;
 
   void (async () => {
     const nodePath = state.path;
@@ -23809,6 +23914,7 @@ async function submitRenameMenuNode() {
 function openRenameExternalFileModal(state) {
   if (!createSectionModalNode || !state?.filePath) return;
   renameExternalFileState = state;
+  renameAwnDataRecordState = null;
   renameMenuNodeState = null;
   renameSectionState = null;
 
@@ -23929,7 +24035,155 @@ async function submitRenameExternalFile() {
 }
 
 function renameModalSubmitLabel() {
-  return renameSectionState || renameMenuNodeState || renameExternalFileState ? "Сохранить" : "Создать";
+  return renameSectionState || renameMenuNodeState || renameExternalFileState || renameAwnDataRecordState
+    ? "Сохранить"
+    : "Создать";
+}
+
+function openRenameAwnDataRecordModal(state) {
+  if (!createSectionModalNode || !state?.storeRel || !state?.recordId) return;
+  renameAwnDataRecordState = state;
+  renameExternalFileState = null;
+  renameMenuNodeState = null;
+  renameSectionState = null;
+
+  const record = state.record || {};
+  const displayName = String(record.title || state.label || "").trim();
+  const slug = String(record.id || state.recordId || "").trim();
+
+  prepareRenameModalFields({
+    message: "Переименовать запись",
+    nameLabel: "Название",
+    slugLabel: "ID записи (slug)",
+    displayName,
+    slug
+  });
+}
+
+async function submitRenameAwnDataRecord() {
+  const state = renameAwnDataRecordState;
+  if (!state?.storeRel || !state?.recordId) return;
+
+  const displayName = createSectionNameInputNode.value.trim();
+  const slug = createSectionSlugController?.getSlug() || "";
+  if (!displayName) {
+    showToast("Введите название", "error");
+    return;
+  }
+  if (!slug) {
+    showToast("Введите slug (id записи)", "error");
+    return;
+  }
+
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  createSectionOkBtn.disabled = true;
+  createSectionOkBtn.textContent = "Сохраняю...";
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/records/rename", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store: state.storeRel,
+        record: state.recordId,
+        slug,
+        title: displayName
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    }
+    closeCreateSectionModal();
+    const nextId = String(data.record || slug).trim() || slug;
+    if (nextId) awnDataViewRecordId = nextId;
+    await refreshMenuAwnDataStores(agentId);
+    await loadAwnDataViewStore(agentId);
+    const record =
+      getAwnDataStoreAllRecords(awnDataViewStoreCache).find(
+        (item) => String(item.id || "").trim() === nextId
+      ) || state.record;
+    if (record) {
+      awnDataViewRecordCache = record;
+      await renderAwnDataRecordView(record, awnDataViewStoreCache, agentId);
+    }
+    showToast("Переименовано", "success");
+  } catch (error) {
+    showToast(`Ошибка переименования: ${error.message}`, "error");
+  } finally {
+    createSectionOkBtn.disabled = false;
+    createSectionOkBtn.textContent = renameModalSubmitLabel();
+  }
+}
+
+async function promptMoveAwnDataRecord(state) {
+  if (!state?.storeRel || !state?.recordId) return;
+  const moveData = await askMoveTarget({
+    title: "Переместить запись",
+    hint: "Укажите id родительского раздела. Оставьте пустым для корня.",
+    pathLabel: "Родительский раздел (id)",
+    defaultPath: String(state.record?.parent || "").trim()
+  });
+  if (moveData == null) return;
+
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/records/rename", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store: state.storeRel,
+        record: state.recordId,
+        parent: moveData.path || ""
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    }
+    await refreshMenuAwnDataStores(agentId);
+    await loadAwnDataViewStore(agentId);
+    const record =
+      getAwnDataStoreAllRecords(awnDataViewStoreCache).find(
+        (item) => String(item.id || "").trim() === String(state.recordId).trim()
+      ) || state.record;
+    if (record) {
+      awnDataViewRecordCache = record;
+      await renderAwnDataRecordView(record, awnDataViewStoreCache, agentId);
+    }
+    showToast("Запись перемещена", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteAwnDataRecordFromMenu(state) {
+  if (!state?.storeRel || !state?.recordId) return;
+  const label = String(state.label || state.recordId).trim() || state.recordId;
+  const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
+  if (!confirmed) return;
+
+  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  try {
+    const response = await fetch(
+      buildApiUrl(
+        "/api/awn-databases/records",
+        { store: state.storeRel, record: state.recordId },
+        agentId
+      ),
+      { method: "DELETE" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    }
+    showToast("Удалено", "success");
+    awnDataViewRecordId = "";
+    awnDataViewRecordCache = null;
+    await refreshMenuAwnDataStores(agentId);
+    await openAwnDataViewPage(state.storeRel, agentId);
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
+  }
 }
 
 function editFlatStorageFileFromResourceMenu(state) {
@@ -23988,6 +24242,11 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
+  if (actionId === "edit" && state.kind === "awnDataRecord" && state.record) {
+    void openAwnDataRecordEditor(state.record, state.viewStore);
+    return;
+  }
+
   if (actionId === "rename" && state.kind === "memorySection" && state.sectionFolder) {
     openRenameSectionModal(state);
     return;
@@ -23995,6 +24254,11 @@ function handleResourceContextMenuAction(actionId) {
 
   if (actionId === "rename" && state.kind === "externalFile" && state.filePath) {
     openRenameExternalFileModal(state);
+    return;
+  }
+
+  if (actionId === "rename" && state.kind === "awnDataRecord") {
+    openRenameAwnDataRecordModal(state);
     return;
   }
 
@@ -24013,6 +24277,11 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
+  if (actionId === "move" && state.kind === "awnDataRecord") {
+    void promptMoveAwnDataRecord(state);
+    return;
+  }
+
   if (actionId === "delete" && state.kind === "memorySection" && state.sectionFolder) {
     void deleteMemorySectionFromMenu(state);
     return;
@@ -24025,6 +24294,11 @@ function handleResourceContextMenuAction(actionId) {
 
   if (actionId === "delete" && state.kind === "mediaFile" && state.filePath) {
     void deleteMediaRecord(state.filePath);
+    return;
+  }
+
+  if (actionId === "delete" && state.kind === "awnDataRecord") {
+    void deleteAwnDataRecordFromMenu(state);
   }
 }
 
@@ -24033,6 +24307,7 @@ function openRenameSectionModal(state) {
   renameSectionState = state;
   renameMenuNodeState = null;
   renameExternalFileState = null;
+  renameAwnDataRecordState = null;
   const label =
     state.label ||
     getMemorySectionDisplayLabel(state.sectionFolder) ||
@@ -24186,11 +24461,11 @@ function openAdoptFolderContextMenu(event, target) {
   positionMenuContextMenu(event.clientX, event.clientY);
 }
 
-function openMenuContextMenu(event, target) {
-  if (!menuContextMenuNode || !menuContextMenuListNode) return;
-  const path = normalizeMenuNodePath(target.dataset.path);
+function openMenuContextMenuForPath(event, nodePath, target = null) {
+  if (!menuContextMenuNode || !menuContextMenuListNode) return false;
+  const path = normalizeMenuNodePath(nodePath);
   const kind = getMenuContextMenuKind(path);
-  if (!kind) return;
+  if (!kind) return false;
 
   event.preventDefault();
   event.stopPropagation();
@@ -24206,6 +24481,12 @@ function openMenuContextMenu(event, target) {
   };
   renderMenuContextMenuItems(kind, path, activeAgentId, status);
   positionMenuContextMenu(event.clientX, event.clientY);
+  return true;
+}
+
+function openMenuContextMenu(event, target) {
+  if (!target?.dataset?.path) return;
+  openMenuContextMenuForPath(event, target.dataset.path, target);
 }
 
 function handleMenuContextMenuEvent(event) {
@@ -61344,7 +61625,11 @@ function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
     });
   }
 
-  wrap.appendChild(thumbWrap);
+  wrap.appendChild(
+    wrapOverviewThumbWithMenuColumn(thumbWrap, propsContext, {
+      propEntries: parsePropsYaml(propsInputNode.value || "")
+    })
+  );
   return wrap;
 }
 
@@ -62719,7 +63004,9 @@ function persistCreateSectionAfterChoice() {
 }
 
 function syncCreateSectionAfterFieldsetVisibility() {
-  const isRenameMode = Boolean(renameSectionState || renameMenuNodeState || renameExternalFileState);
+  const isRenameMode = Boolean(
+    renameSectionState || renameMenuNodeState || renameExternalFileState || renameAwnDataRecordState
+  );
   createSectionAfterFieldsetNode?.classList.toggle("hidden", isRenameMode);
 }
 
@@ -62988,6 +63275,7 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
   renameSectionState = null;
   renameMenuNodeState = null;
   renameExternalFileState = null;
+  renameAwnDataRecordState = null;
   createSectionParentFolder =
     isMediaLibraryContentMode(targetMode)
       ? getActiveMediaSectionParentForCreate()
@@ -63021,6 +63309,7 @@ function closeCreateSectionModal() {
   renameSectionState = null;
   renameMenuNodeState = null;
   renameExternalFileState = null;
+  renameAwnDataRecordState = null;
   resetCreateSectionModalLabels();
   createSectionOkBtn.textContent = "Создать";
   syncCreateSectionAfterFieldsetVisibility();
@@ -64269,6 +64558,151 @@ function createOverviewThumbPasteIcon() {
   return icon;
 }
 
+function createOverviewThumbMenuTriggerIcon() {
+  const icon = document.createElement("span");
+  icon.className = "node-overview-thumb-menu-trigger-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML =
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="19" cy="12" r="1.75"/></svg>';
+  return icon;
+}
+
+function getOverviewThumbWrapNode(node) {
+  if (!node) return null;
+  if (node.classList?.contains("node-overview-thumb-wrap")) return node;
+  return node.querySelector?.(".node-overview-thumb-wrap") || node;
+}
+
+function buildOverviewThumbAwnDataRecordContextMenuState(nodePath, options = {}) {
+  const ctx = options.awnDataRecordContext;
+  let record = ctx?.record;
+  let viewStore = ctx?.viewStore;
+  if (!record && activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewRecordCache) {
+    record = awnDataViewRecordCache;
+    viewStore = awnDataViewStoreCache;
+  }
+  if (!record || !viewStore) return null;
+
+  const filePath = resolveAwnDataRecordFilePath(record, viewStore);
+  if (
+    !overviewThumbPathsMatch(
+      nodePath,
+      filePath,
+      record?.relPath,
+      options.thumbContextPath,
+      record?.id ? `${record.id}.md` : ""
+    )
+  ) {
+    return null;
+  }
+
+  const storeRel = String(viewStore?.relPath || awnDataViewStoreRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  const recordId = String(record?.id || awnDataViewRecordId || "").trim();
+  if (!storeRel || !recordId) return null;
+
+  const label = String(record?.title || record?.id || "").trim() || recordId;
+  const status =
+    String(record?.frontmatter?.["awn-status"] || "").trim() ||
+    String(
+      resolveAwnStatusFromPropEntries(
+        options.propEntries || buildAwnDataRecordViewPropEntries(record)
+      )
+    ).trim();
+
+  return {
+    kind: "awnDataRecord",
+    storeRel,
+    recordId,
+    record,
+    viewStore: normalizeAwnDataStoreView(viewStore),
+    label,
+    status,
+    filePath: normalizeOverviewThumbComparePath(filePath)
+  };
+}
+
+function buildOverviewThumbResourceContextMenuState(nodePath, options = {}) {
+  const ctx = options.entryOverviewContext;
+  if (!ctx?.relativePath) return null;
+  const memoryKind = ctx.memoryKind || "external";
+  if (!resolveNavigationHubRailResourceContextMenuScope(memoryKind)) return null;
+
+  const nodeNorm = String(nodePath || "").replace(/\\/g, "/");
+  const relNorm = String(ctx.relPath || "").replace(/\\/g, "/");
+  if (nodeNorm !== relNorm) return null;
+
+  const filePath = String(ctx.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const status =
+    String(ctx.status || "").trim() ||
+    String(resolveAwnStatusFromPropEntries(options.propEntries || "")).trim();
+
+  return buildNavigationHubRailFileContextMenuState(memoryKind, {
+    path: filePath,
+    title: ctx.title || "",
+    status
+  });
+}
+
+function canShowOverviewThumbContextMenu(nodePath, options = {}) {
+  const path = normalizeMenuNodePath(nodePath);
+  if (path && getMenuContextMenuKind(path)) return true;
+  return Boolean(
+    buildOverviewThumbResourceContextMenuState(nodePath, options) ||
+      buildOverviewThumbAwnDataRecordContextMenuState(nodePath, options)
+  );
+}
+
+function openOverviewThumbContextMenu(event, nodePath, options = {}) {
+  const path = normalizeMenuNodePath(nodePath);
+  if (path && getMenuContextMenuKind(path)) {
+    openMenuContextMenuForPath(event, path, options.target || null);
+    return;
+  }
+  const awnDataState = buildOverviewThumbAwnDataRecordContextMenuState(nodePath, options);
+  if (awnDataState) {
+    openResourceContextMenu(event, awnDataState);
+    return;
+  }
+  const resourceState = buildOverviewThumbResourceContextMenuState(nodePath, options);
+  if (resourceState) {
+    openResourceContextMenu(event, resourceState);
+  }
+}
+
+function appendOverviewThumbContextMenuTrigger(container, nodePath, options = {}) {
+  if (!canShowOverviewThumbContextMenu(nodePath, options)) return null;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-overview-thumb-menu-trigger";
+  const menuPath = normalizeMenuNodePath(nodePath);
+  if (menuPath) btn.dataset.path = menuPath;
+  btn.setAttribute("aria-label", "Действия с записью");
+  btn.title = "Действия";
+  btn.appendChild(createOverviewThumbMenuTriggerIcon());
+
+  const open = (event) => {
+    openOverviewThumbContextMenu(event, nodePath, { target: btn, ...options });
+  };
+  btn.addEventListener("click", open);
+  btn.addEventListener("contextmenu", open);
+
+  container.appendChild(btn);
+  return btn;
+}
+
+function wrapOverviewThumbWithMenuColumn(thumbWrap, nodePath, options = {}) {
+  if (!thumbWrap || !canShowOverviewThumbContextMenu(nodePath, options)) return thumbWrap;
+
+  const column = document.createElement("div");
+  column.className = "node-overview-thumb-column";
+  column.appendChild(thumbWrap);
+  appendOverviewThumbContextMenuTrigger(column, nodePath, options);
+  return column;
+}
+
 function clipboardItemToPreviewFile(type, blob) {
   const normalizedType = String(type || "").toLowerCase();
   const ext =
@@ -64472,7 +64906,7 @@ function createOverviewThumbWrap(preview, title, nodePath = activePath, options 
     });
   }
 
-  return thumbWrap;
+  return wrapOverviewThumbWithMenuColumn(thumbWrap, nodePath, options);
 }
 
 async function refreshNodeCoverThumbInPlace() {
@@ -64802,7 +65236,10 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
         ? options.thumbWrap
         : createOverviewThumbWrap(preview, title, options.thumbContextPath || nodePath, {
             readOnly: Boolean(options.readOnlyThumb),
-            thumbClass: options.thumbClass
+            thumbClass: options.thumbClass,
+            entryOverviewContext: options.entryOverviewContext,
+            propEntries: options.propEntries,
+            awnDataRecordContext: options.awnDataRecordContext
           });
   }
 
@@ -76147,11 +76584,14 @@ function createEntryOverviewThumbWrap(context, preview, title, entries) {
     return null;
   }
 
-  const thumbWrap = createOverviewThumbWrap(preview, title, context.relPath, {
-    readOnly: true
+  const thumbMount = createOverviewThumbWrap(preview, title, context.relPath, {
+    readOnly: true,
+    entryOverviewContext: context,
+    propEntries: entries
   });
 
-  if (thumbWrap.dataset.hasPreview !== "1") {
+  const thumbWrap = getOverviewThumbWrapNode(thumbMount);
+  if (thumbWrap && thumbWrap.dataset.hasPreview !== "1") {
     const emoji = getPropsEntryValueByKey(entries, "awn-emoji");
     if (emoji) {
       thumbWrap.replaceChildren();
@@ -76162,7 +76602,7 @@ function createEntryOverviewThumbWrap(context, preview, title, entries) {
     }
   }
 
-  return thumbWrap;
+  return thumbMount;
 }
 
 const ENTRY_OVERVIEW_MEDIA_IMAGE_EXTS = new Set([
@@ -114675,6 +115115,7 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
     pathLabel: formatNodeHeroSlugLabel(filePath || fileRel) || String(record?.id || "").trim(),
     recordPath: filePath || fileRel,
     pageManifestPath: filePath || fileRel,
+    awnDataRecordContext: { record, viewStore, agentId: catalogAgentId },
     onIdAssigned: async () => {
       await loadAwnDataViewStore(catalogAgentId);
     },
@@ -123014,6 +123455,10 @@ createSectionOkBtn.addEventListener("click", () => {
     void submitRenameExternalFile();
     return;
   }
+  if (renameAwnDataRecordState) {
+    void submitRenameAwnDataRecord();
+    return;
+  }
   void createWorkspaceSection();
 });
 createSectionNameInputNode.addEventListener("keydown", (event) => {
@@ -123028,6 +123473,10 @@ createSectionNameInputNode.addEventListener("keydown", (event) => {
   }
   if (renameExternalFileState) {
     void submitRenameExternalFile();
+    return;
+  }
+  if (renameAwnDataRecordState) {
+    void submitRenameAwnDataRecord();
     return;
   }
   void createWorkspaceSection();
