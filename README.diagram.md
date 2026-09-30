@@ -8,7 +8,7 @@ flowchart TD
     CMS --> WS
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
-    WS --> REPOS["📦 Репозитории"]
+    WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
     WS --> EXTRA_DATA["Дополнительные данные"]
     WS --> UI["Интерфейс"]
     WS --> AUX["⚙️ Вспомогательное"]
@@ -31,7 +31,7 @@ flowchart TD
 
     TREE --> SHARED_AREA["Область общие<br/>awn-shared"]
     TREE --> CONTENT_AREA["Область контента<br/>awn-container"]
-    TREE --> AGENT_AREA["Область агента<br/>awn-system / kit"]
+    TREE --> AGENT_AREA["Область агента<br/>awn-agent-kit"]
 
     CONTENT_AREA --> C_AREA["Область"]
     C_AREA --> C_TOPIC["Тема"]
@@ -59,7 +59,8 @@ flowchart TD
     GLOSSARY --> EXTRA_DIALOGS["Диалоги<br/>дискуссия"]
 
     AUX --> AUX_TYPES["Типы"]
-    AUX_TYPES --> SETTINGS["Настройки, .env"]
+    AUX_TYPES --> AUX_DEPS["Зависимости<br/>MCP · skills · tools · ПО на компьютере<br/>файл dependencies.csv"]
+    AUX_DEPS --> SETTINGS["Настройки, .env"]
     SETTINGS --> SEARCH["Поиск"]
     SEARCH --> AUX_JOURNAL["Журнал"]
     AUX_JOURNAL --> MODULES["Модули"]
