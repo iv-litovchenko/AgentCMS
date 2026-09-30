@@ -36251,6 +36251,16 @@ body.workspace-pomodoro-break-active {
   color: #4338ca;
 }
 
+.node-navigation-hub-rail-flexible-slot-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-navigation-memory-card--flexible .node-navigation-memory-title-icon {
+  font-size: 1em;
+}
+
 .node-navigation-rail-link-list {
   list-style: none;
   margin: 0;

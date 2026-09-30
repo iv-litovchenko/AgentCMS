@@ -7170,8 +7170,13 @@ async function collectMediaFilesStructured(
   folderAbsolute,
   prefix = "",
   items = [],
-  sectionManifests = []
+  sectionManifests = [],
+  options = {}
 ) {
+  const shouldSkipDirectory =
+    options.shouldSkipDirectory ||
+    ((name) => shouldSkipDirectoryListing(name) || shouldSkipExternalMemoryDirectory(name));
+
   let entries = [];
   try {
     entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
@@ -7188,7 +7193,7 @@ async function collectMediaFilesStructured(
     const relPath = relative.replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
-      if (shouldSkipDirectoryListing(entry.name) || shouldSkipExternalMemoryDirectory(entry.name)) continue;
+      if (shouldSkipDirectory(entry.name)) continue;
       let folderCreatedAt = null;
       let folderUpdatedAt = null;
       try {
@@ -7208,7 +7213,7 @@ async function collectMediaFilesStructured(
         createdAt: folderCreatedAt,
         updatedAt: folderUpdatedAt
       });
-      await collectMediaFilesStructured(absolute, relPath, items, sectionManifests);
+      await collectMediaFilesStructured(absolute, relPath, items, sectionManifests, options);
       continue;
     }
 
@@ -24802,13 +24807,37 @@ async function handleApiForAgent(req, res, url) {
         if (parent && parent !== ".") sectionRelPaths.push(parent);
       }
       const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+      let groups = null;
+      let sectionManifests = null;
+      let mediaFileCount = 0;
+      if (slotsDisabled) {
+        const sharedSlotCollectOptions = {
+          shouldSkipDirectory: shouldSkipSharedSlotStorageDirectory
+        };
+        sectionManifests = [];
+        let mediaItems = await collectMediaFilesStructured(
+          folderAbsolute,
+          "",
+          [],
+          sectionManifests,
+          sharedSlotCollectOptions
+        );
+        mediaItems = mediaItems.filter((item) => {
+          const rel = String(item?.path || "").replace(/\\/g, "/").replace(/\/$/, "");
+          return rel && !isSharedSlotExcludedRelPath(rel);
+        });
+        groups = groupMediaFiles(mediaItems);
+        const mediaList = buildMediaListContent(groups);
+        mediaFileCount = mediaList.files;
+      }
       return sendJson(res, 200, {
         exists: true,
         files: enrichedFiles,
         folders,
         nonMarkdownFiles,
         sectionSortOrders,
-        slotsDisabled
+        slotsDisabled,
+        ...(groups ? { groups, sectionManifests, mediaFileCount } : {})
       });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [], slotsDisabled });

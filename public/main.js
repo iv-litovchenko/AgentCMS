@@ -24578,6 +24578,50 @@ const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая памят�
 const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
   "Структура задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
+const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
+
+function isTopicFlexibleSlotBrowseContext(context = activeEntryOverviewContext) {
+  return context?.memoryKind === "external" && isTopicSharedSlotActive();
+}
+
+function isFlexibleSlotBrowseUploadTarget(context, targetMode) {
+  return targetMode === "external" && isTopicFlexibleSlotBrowseContext(context);
+}
+
+function supportsEntryOverviewBrowseUpload(context) {
+  const targetMode = getEntryOverviewBrowseUploadTargetMode(context);
+  return (
+    isMediaLibraryContentMode(targetMode) || isFlexibleSlotBrowseUploadTarget(context, targetMode)
+  );
+}
+
+function resolveFlexibleSlotUploadFolderPath(context, parentFolder = null) {
+  const root = getExternalMemoryRootRel(getResolvedNodePath(activePath));
+  if (!root) return "";
+  const sub = String(
+    parentFolder ??
+      resolveEntryOverviewExternalCreateParent(context) ??
+      navigationHubRailSlotCreateState?.parentFolder ??
+      ""
+  )
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  return sub ? `${root}/${sub}`.replace(/\/+/g, "/") : root;
+}
+
+function buildFlexibleSlotWorkspaceAssetUrl(relativePath, nodePath = activePath, options = {}) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const wsPath = getExternalItemContextPath({ path: rel }, nodePath);
+  if (!wsPath) return "";
+  return buildWorkspaceFolderBrowseFileUrl(wsPath, {
+    thumb: options.thumb,
+    max: options.max
+  });
+}
+
+function shouldUseFlexibleSlotAssetUrls(nodePath = activePath) {
+  return isTopicSharedSlotActive(nodePath);
+}
 
 function isTopicSlotsFlexibleFromEntries(entries) {
   if (!Array.isArray(entries) || !entries.length) return false;
@@ -34382,6 +34426,9 @@ function resolveMediaAssetContextPath(nodePath = activePath) {
 
 function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
   if (!nodePath || !filePath) return "";
+  if (shouldUseFlexibleSlotAssetUrls(nodePath)) {
+    return buildFlexibleSlotWorkspaceAssetUrl(filePath, nodePath, options);
+  }
   const manifestBase = getResolvedNodePath(nodePath);
   const memoryKind =
     options.memoryKind ||
@@ -39691,6 +39738,17 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
           toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
         }
       });
+    } else if (targetMode === "external" && isTopicSharedSlotActive()) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+        label: getNavigationHubMediaUploadButtonLabel(false),
+        title: `Загрузить файлы в ${TOPIC_SHARED_SLOT_RAIL_LABEL}`,
+        ariaExpanded: false,
+        onClick: () => {
+          const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: "external" };
+          toggleEntryOverviewBrowseUploadPanel(uploadContext, "external", parentFolder);
+        }
+      });
     }
 
     if (supportsNavigationHubRailRecordCreate(targetMode)) {
@@ -39923,7 +39981,7 @@ function setEntryOverviewBrowseUploadPanelOpen(open, context = entryOverviewBrow
 
 function ensureEntryOverviewBrowseUploadHost(panel, context) {
   const targetMode = getEntryOverviewBrowseUploadTargetMode(context);
-  if (!isMediaLibraryContentMode(targetMode)) return null;
+  if (!supportsEntryOverviewBrowseUpload(context)) return null;
 
   let host = panel.querySelector(".entry-overview-browse-upload-host");
   if (!host) {
@@ -39936,13 +39994,15 @@ function ensureEntryOverviewBrowseUploadHost(panel, context) {
 
   const mountKey = `${targetMode}:${getEntryOverviewBrowseUploadParentFolder(context) || "."}`;
   if (host.dataset.mountKey !== mountKey) {
+    const flexibleUpload = isFlexibleSlotBrowseUploadTarget(context, targetMode);
     mountMediaBulkUploadZone(host, {
-      modeLabel: getMediaLibraryModeLabel(targetMode),
+      modeLabel: flexibleUpload ? TOPIC_SHARED_SLOT_RAIL_LABEL : getMediaLibraryModeLabel(targetMode),
+      allowAnyFileType: flexibleUpload,
       onClose: () => {
         setEntryOverviewBrowseUploadPanelOpen(false);
         endNavigationHubRailSlotCreate();
       },
-      uploadFiles: (files) => uploadNavigationHubRailMediaFiles(files, targetMode)
+      uploadFiles: (files) => uploadEntryOverviewBrowseFiles(files, context, targetMode)
     });
     host.dataset.mountKey = mountKey;
   }
@@ -39953,7 +40013,7 @@ function ensureEntryOverviewBrowseUploadHost(panel, context) {
 }
 
 function toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder) {
-  if (!activePath || !isMediaLibraryContentMode(targetMode)) return;
+  if (!activePath || !supportsEntryOverviewBrowseUpload(context)) return;
 
   const panel = nodeOverviewContentNode?.querySelector(".node-entry-overview-browse-panel");
   if (!panel) {
@@ -39985,7 +40045,40 @@ function toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder)
 }
 
 async function openNavigationHubRailMediaUpload(targetMode, parentFolder) {
-  if (!activePath || !isMediaLibraryContentMode(targetMode)) return;
+  if (!activePath) return;
+  if (targetMode === "external" && isTopicSharedSlotActive()) {
+    beginNavigationHubRailSlotCreate({
+      targetMode: "external",
+      parentFolder: parentFolder ?? null,
+      slotKey: "memory",
+      entryOverviewContext: activeEntryOverviewContext || { memoryKind: "external" }
+    });
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.addEventListener(
+      "change",
+      () => {
+        const files = input.files ? [...input.files] : [];
+        input.remove();
+        if (!files.length) {
+          endNavigationHubRailSlotCreate();
+          return;
+        }
+        void uploadEntryOverviewBrowseFiles(
+          files,
+          activeEntryOverviewContext || { memoryKind: "external" },
+          "external"
+        );
+      },
+      { once: true }
+    );
+    input.click();
+    return;
+  }
+  if (!isMediaLibraryContentMode(targetMode)) return;
   beginNavigationHubRailSlotCreate({
     targetMode,
     parentFolder: parentFolder ?? null,
@@ -40011,6 +40104,31 @@ async function openNavigationHubRailMediaUpload(targetMode, parentFolder) {
     { once: true }
   );
   input.click();
+}
+
+async function uploadNavigationHubRailFlexibleSlotFiles(files, context) {
+  const folderPath = resolveFlexibleSlotUploadFolderPath(context);
+  if (!folderPath) throw new Error("Не удалось определить папку гибкого слота");
+  await uploadWorkspaceFolderFiles(folderPath, files, { trackProgress: true });
+}
+
+async function uploadEntryOverviewBrowseFiles(files, context, targetMode) {
+  if (isFlexibleSlotBrowseUploadTarget(context, targetMode)) {
+    try {
+      await uploadNavigationHubRailFlexibleSlotFiles(files, context);
+      await refreshNavigationHubAfterSlotMutation();
+      showToast(
+        files.length === 1 ? "Файл загружен" : `Загружено файлов: ${files.length}`,
+        "success"
+      );
+    } catch (error) {
+      showToast(`Ошибка загрузки: ${error.message}`, "error");
+    } finally {
+      endNavigationHubRailSlotCreate();
+    }
+    return;
+  }
+  return uploadNavigationHubRailMediaFiles(files, targetMode);
 }
 
 async function uploadNavigationHubRailMediaFiles(files, targetMode) {
@@ -41239,7 +41357,7 @@ function mountMediaBulkUploadZone(host, options = {}) {
   input.multiple = true;
   input.hidden = true;
   input.className = "media-bulk-upload-input";
-  if (mediaUploadInputNode?.accept) input.accept = mediaUploadInputNode.accept;
+  if (!options.allowAnyFileType && mediaUploadInputNode?.accept) input.accept = mediaUploadInputNode.accept;
 
   zone.append(idle, progress);
   panel.append(closeBtn, zone);
@@ -68449,9 +68567,21 @@ function renderNavigationTitleVariant2Template() {
   return block;
 }
 
-function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = null, contextMeterText = null) {
+function createNavigationMemoryPanel(
+  modeId,
+  title,
+  contentNode,
+  dataForBadge = null,
+  contextMeterText = null,
+  panelOptions = null
+) {
+  const opts = panelOptions && typeof panelOptions === "object" ? panelOptions : {};
+  const cardModeId = String(opts.cardModeId || modeId).trim() || modeId;
+  const headViewModeId = opts.viewModeId || modeId;
+  const badgeModeId = opts.badgeModeId || modeId;
+
   const card = document.createElement("section");
-  card.className = `node-navigation-memory-card node-navigation-memory-card--${modeId}`;
+  card.className = `node-navigation-memory-card node-navigation-memory-card--${cardModeId}`;
 
   const body = document.createElement("div");
   body.className = "node-navigation-memory-body";
@@ -68461,18 +68591,35 @@ function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = 
     contextMeterText != null ? createDocumentContextMeter(String(contextMeterText)) : null;
   if (meter) body.appendChild(meter);
 
-  const badgeText = dataForBadge ? getNavigationMemoryBadgeText(modeId, dataForBadge) : null;
-  const sortScope = modeId === "media" || modeId === "assets" ? modeId : null;
+  const badgeText =
+    dataForBadge && opts.badgeText !== false
+      ? opts.badgeText ?? getNavigationMemoryBadgeText(badgeModeId, dataForBadge)
+      : null;
+  const defaultMediaColumns = modeId === "media" || modeId === "assets";
+  const imageColumnsToggle =
+    opts.imageColumnsToggle != null ? Boolean(opts.imageColumnsToggle) : defaultMediaColumns;
+  const sortScope =
+    opts.sortScope ||
+    (modeId === "media" || modeId === "assets" ? modeId : null);
+  const onSortChange =
+    opts.onSortChange || (sortScope && (modeId === "media" || modeId === "assets" || opts.cardModeId === "flexible")
+      ? () => refreshNavigationMediaList(card)
+      : null);
+
   card.append(
     createNavigationSectionHead(title, {
-      viewModeId: modeId,
+      viewModeId: headViewModeId,
+      openTitle: opts.openTitle || null,
+      icon: opts.icon || "",
+      titleComment: opts.titleComment || "",
       badgeText,
-      badgeModeId: modeId,
-      imageColumnsToggle: modeId === "media" || modeId === "assets",
-      sort: sortScope
+      badgeModeId,
+      imageColumnsToggle,
+      imageColumnsScope: opts.imageColumnsScope || null,
+      sort: sortScope && onSortChange
         ? {
             scope: sortScope,
-            onChange: () => refreshNavigationMediaList(card)
+            onChange: onSortChange
           }
         : null
     }),
@@ -68956,7 +69103,9 @@ async function fetchExternalFilesForNavigation(nodePath) {
       files: Array.isArray(data.files) ? data.files : [],
       folders: Array.isArray(data.folders) ? data.folders : [],
       nonMarkdownFiles: Array.isArray(data.nonMarkdownFiles) ? data.nonMarkdownFiles : [],
-      slotsDisabled: Boolean(data.slotsDisabled)
+      slotsDisabled: Boolean(data.slotsDisabled),
+      groups: data.groups && typeof data.groups === "object" ? data.groups : null,
+      sectionManifests: Array.isArray(data.sectionManifests) ? data.sectionManifests : []
     };
   } catch {
     return { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
@@ -69037,6 +69186,7 @@ function mergeFlatStorageNavigationFileLists(parts) {
 }
 
 function appendNavigationExternalNonMdNotice(container, nonMarkdownFiles) {
+  if (isTopicSharedSlotActive()) return;
   const items = (Array.isArray(nonMarkdownFiles) ? nonMarkdownFiles : []).filter(
     (item) => !isSlotNavigationServiceFilePath(String(item.relativePath || item.name || ""))
   );
@@ -71309,6 +71459,28 @@ function getNavigationHubRailTocHandlers(memoryKind) {
   return getEntryOverviewNavigationHandlers(memoryKind);
 }
 
+function openFlexibleSlotItemFromNavigation(item) {
+  const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return;
+  if (item?.isFolder || rel.endsWith("/")) {
+    openExternalCategoryOverviewFromNavigation(rel.replace(/\/$/, ""));
+    return;
+  }
+  if (/\.md$/i.test(rel) && !isSectionReadmePath(rel)) {
+    openExternalRecordOverviewFromNavigation(item);
+    return;
+  }
+  const relPath = getExternalItemContextPath(item);
+  void openEntryOverviewFromNavigation({
+    relPath,
+    memoryKind: "external",
+    relativePath: rel,
+    title: item.displayName || item.title || item.name || rel.split("/").pop() || rel,
+    entryKind: "awn.media.asset",
+    status: item.status || ""
+  });
+}
+
 function getEntryOverviewNavigationHandlers(memoryKind) {
   if (memoryKind === "media" || memoryKind === "assets") {
     return {
@@ -71320,6 +71492,12 @@ function getEntryOverviewNavigationHandlers(memoryKind) {
     };
   }
   if (memoryKind === "external") {
+    if (isTopicSharedSlotActive()) {
+      return {
+        onFolderClick: openExternalCategoryOverviewFromNavigation,
+        onFileClick: openFlexibleSlotItemFromNavigation
+      };
+    }
     return {
       onFolderClick: openExternalCategoryOverviewFromNavigation,
       onFileClick: openExternalRecordOverviewFromNavigation
@@ -73663,7 +73841,17 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
   try {
     if (context.memoryKind === "external") {
       const data = await fetchExternalFilesForNavigation(topicPath);
-      return prepareNavigationExternalItems(data.files || [], data.folders || []);
+      if (data.slotsDisabled && data.groups) {
+        const prepared = prepareNavigationMediaItems(data.groups, data.sectionManifests || [], {
+          memoryKind: "media"
+        });
+        prepared.flexibleSlotMedia = true;
+        return prepared;
+      }
+      return prepareNavigationExternalItems(
+        combineNavigationStorageFileLists(data.files || [], data.nonMarkdownFiles || []),
+        data.folders || []
+      );
     }
     if (context.memoryKind === "media" || context.memoryKind === "assets") {
       const data =
@@ -73741,7 +73929,11 @@ function resetEntryOverviewSearch() {
 function getEntryOverviewSearchPlaceholder(context) {
   const kind = context?.memoryKind;
   if (kind === "media") return "Поиск по медиа...";
-  if (kind === "external") return "Поиск по записям Content...";
+  if (kind === "external") {
+    return isTopicFlexibleSlotBrowseContext(context)
+      ? "Поиск по файлам..."
+      : "Поиск по записям Content...";
+  }
   if (kind === "note" || kind === "quick-notes") return "Поиск по заметкам...";
   if (kind === "references") return "Поиск по ссылкам...";
   return "Поиск по оглавлению...";
@@ -73842,6 +74034,16 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
           toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
         }
       });
+    } else if (isFlexibleSlotBrowseUploadTarget(context, targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+        label: getNavigationHubMediaUploadButtonLabel(false),
+        title: `Загрузить файлы в ${TOPIC_SHARED_SLOT_RAIL_LABEL}`,
+        ariaExpanded: false,
+        onClick: () => {
+          toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
+        }
+      });
     }
 
     if (supportsNavigationHubRailRecordCreate(targetMode)) {
@@ -73871,10 +74073,16 @@ function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false }
   const searchBar = slotFolderMissing ? null : createEntryOverviewSearchBar(context);
   const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
   const mediaCols =
-    !slotFolderMissing && (context?.memoryKind === "media" || context?.memoryKind === "assets")
+    !slotFolderMissing &&
+    (context?.memoryKind === "media" ||
+      context?.memoryKind === "assets" ||
+      isTopicFlexibleSlotBrowseContext(context))
       ? (() => {
-          navigationMediaImagesLayout = loadNavigationMediaImagesLayout(context.memoryKind);
-          return createNavigationMediaImagesLayoutToggle(context.memoryKind);
+          const layoutScope = isTopicFlexibleSlotBrowseContext(context)
+            ? FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE
+            : context.memoryKind;
+          navigationMediaImagesLayout = loadNavigationMediaImagesLayout(layoutScope);
+          return createNavigationMediaImagesLayoutToggle(layoutScope);
         })()
       : null;
   const sortScope =
@@ -74033,7 +74241,7 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
     if (toolbar) panel.appendChild(toolbar);
   }
 
-  if (showActions && !slotFolderMissing && isMediaLibraryContentMode(getEntryOverviewBrowseUploadTargetMode(context))) {
+  if (showActions && !slotFolderMissing && supportsEntryOverviewBrowseUpload(context)) {
     ensureEntryOverviewBrowseUploadHost(panel, context);
     syncEntryOverviewBrowseUploadPanelUi();
   }
@@ -76165,6 +76373,26 @@ async function fetchEntryOverviewTextPreview(context, nodePath = activePath, siz
     return { text };
   }
 
+  if (memoryKind === "external" && isTopicSharedSlotActive(nodePath)) {
+    const wsPath = getExternalItemContextPath({ path: relativePath }, nodePath);
+    if (wsPath) {
+      const url = appendCacheBuster(buildWorkspaceFolderBrowseFileUrl(wsPath));
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const contentLength = Number(response.headers.get("content-length") || 0);
+      if (contentLength > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+        return { tooLarge: true, size: contentLength };
+      }
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+        return { tooLarge: true, size: buffer.byteLength };
+      }
+      const bytes = new Uint8Array(buffer);
+      if (bytes.includes(0)) return { binary: true };
+      return { text: new TextDecoder("utf-8", { fatal: false }).decode(buffer) };
+    }
+  }
+
   const storageFolder =
     memoryKind === "external"
       ? getStorageSubfolderForMode("external")
@@ -76966,7 +77194,11 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPrevi
     return null;
   }
 
-  if (context.memoryKind === "media" || context.memoryKind === "assets") {
+  if (
+    context.memoryKind === "media" ||
+    context.memoryKind === "assets" ||
+    navigationIndex?.flexibleSlotMedia
+  ) {
     return renderEntryOverviewMediaMemoryToc(context, navigationIndex, { topicPreview });
   }
 
@@ -76981,7 +77213,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPrevi
       const empty = document.createElement("p");
       empty.className = "node-navigation-section-search-empty node-navigation-shared-slot-empty";
       empty.textContent =
-        "Пока нет .md файлов в awn-storage/. Добавьте файл или папку внутри awn-storage/.";
+        "Пока нет файлов в awn-storage/. Загрузите файлы или создайте раздел.";
       section.appendChild(empty);
       return section;
     }
@@ -77066,6 +77298,9 @@ async function renderEntryOverview() {
 
   if (context.memoryKind === "media" || context.memoryKind === "assets") {
     navigationMediaImagesLayout = loadNavigationMediaImagesLayout(context.memoryKind);
+  }
+  if (isTopicFlexibleSlotBrowseContext(context)) {
+    navigationMediaImagesLayout = loadNavigationMediaImagesLayout(FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE);
   }
 
   syncEntryOverviewKindClass(getEntryOverviewKindClass(context.entryKind));
@@ -78528,6 +78763,20 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
   const mdItems = contentFiles;
   const sharedSlotMode = slotsDisabled || externalData?.slotsDisabled;
 
+  if (sharedSlotMode && externalData?.groups) {
+    const hasGroupedFiles = Object.values(externalData.groups).some(
+      (items) => Array.isArray(items) && items.length > 0
+    );
+    if (hasGroupedFiles) {
+      const flexiblePanel = renderNavigationFlexibleSlotFilesPart({
+        groups: externalData.groups,
+        sectionManifests: externalData.sectionManifests || [],
+        exists: true
+      });
+      if (flexiblePanel) return flexiblePanel;
+    }
+  }
+
   if (!mdItems.length && folderPaths.size === 0 && !nonMarkdownFiles.length && !sharedSlotMode) {
     navigationExternalTocState = null;
     return null;
@@ -78589,7 +78838,7 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
     const empty = document.createElement("p");
     empty.className = "node-navigation-section-search-empty node-navigation-shared-slot-empty";
     empty.textContent =
-      "Пока нет .md файлов в awn-storage/. Добавьте файл или папку внутри awn-storage/.";
+      "Пока нет файлов в awn-storage/. Загрузите файлы или создайте раздел.";
     body.appendChild(empty);
   }
 
@@ -78874,7 +79123,23 @@ function refreshNavigationMediaList(card) {
   renderNavigationMediaBookToc(mediaBody, state);
 }
 
-function renderNavigationMediaPart(mediaData, { memoryKind = "media", label = "Медиа" } = {}) {
+function renderNavigationFlexibleSlotFilesPart(mediaData) {
+  const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
+  const panel = renderNavigationMediaPart(mediaData, {
+    memoryKind: "media",
+    label: TOPIC_SHARED_SLOT_RAIL_LABEL,
+    flexibleSlotPanel: true
+  });
+  if (panel) {
+    panel.dataset.slotsFlexible = "1";
+  }
+  return panel;
+}
+
+function renderNavigationMediaPart(
+  mediaData,
+  { memoryKind = "media", label = "Медиа", flexibleSlotPanel = false } = {}
+) {
   const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
   const { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths } = prepareNavigationMediaItems(
     groups,
@@ -78891,17 +79156,31 @@ function renderNavigationMediaPart(mediaData, { memoryKind = "media", label = "�
   const nodePath = getResolvedNodePath(activePath);
   const imageItems = collectNavigationMediaImageItems(groups, contentFiles);
 
-  const panel = createNavigationMemoryPanel(memoryKind, label, body, mediaData);
+  const panelOptions = flexibleSlotPanel
+    ? {
+        cardModeId: "flexible",
+        viewModeId: "external",
+        badgeModeId: "external",
+        icon: "🧠",
+        openTitle: "Открыть awn-storage/ — общий гибкий слот",
+        imageColumnsToggle: true,
+        imageColumnsScope: FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE,
+        sortScope: "external"
+      }
+    : null;
+
+  const panel = createNavigationMemoryPanel(memoryKind, label, body, mediaData, null, panelOptions);
   panel._navigationMediaState = {
     contentFiles,
     folderLabels,
     folderStatuses,
     sectionManifestByFolder,
     folderPaths,
-    memoryKind,
+    memoryKind: flexibleSlotPanel ? "external" : memoryKind,
     nodePath,
     imageItems,
-    groups
+    groups,
+    flexibleSlotPanel
   };
   refreshNavigationMediaList(panel);
   return panel;
@@ -86777,6 +87056,13 @@ function prepareFlexibleSlotRailIndex(externalData = {}) {
   );
 }
 
+function createNavigationHubRailFlexibleSlotSubtitle() {
+  const notice = document.createElement("p");
+  notice.className = "node-navigation-hub-rail-shared-slot-notice";
+  notice.textContent = TOPIC_SHARED_SLOT_SUBTITLE;
+  return notice;
+}
+
 function renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx) {
   const externalData = prefetched.externalData || {};
   const slot = buildFlexibleSlotRailCounter(externalData);
@@ -86787,11 +87073,15 @@ function renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, active
     navigationIndex: prepareFlexibleSlotRailIndex(externalData)
   };
   const details = renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx);
-  if (details) {
-    details.classList.add("node-navigation-hub-rail-slot--flexible");
-    details.dataset.slotsFlexible = "1";
-  }
-  return details;
+  if (!details) return null;
+
+  details.classList.add("node-navigation-hub-rail-slot--flexible");
+  details.dataset.slotsFlexible = "1";
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hub-rail-flexible-slot-block";
+  wrap.append(details, createNavigationHubRailFlexibleSlotSubtitle());
+  return wrap;
 }
 
 function renderNavigationHubRailSharedSlotNotice() {
