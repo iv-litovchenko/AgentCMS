@@ -454,10 +454,6 @@ const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stat
 const agentLargeFilesMetaNode = document.getElementById("agent-large-files-meta");
 const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
 const AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS = [3, 5, 10, 15, 25, 45, 100, 250, 1024];
-const AGENT_LARGE_FILES_SORT_OPTIONS = [
-  { dir: "desc", label: "↓ крупные", title: "Сначала самые большие" },
-  { dir: "asc", label: "↑ мелкие", title: "Сначала самые маленькие" }
-];
 let agentLargeFilesThresholdMb = 45;
 let agentLargeFilesSortDir = "desc";
 let agentLargeFilesCachedReport = null;
@@ -102044,14 +102040,13 @@ function syncAgentLargeFilesThresholdFilterUi() {
 }
 
 function syncAgentLargeFilesSortFilterUi() {
-  const wrap = document.getElementById("agent-large-files-sort-filter");
-  if (!wrap) return;
-  wrap.querySelectorAll("[data-sort-dir]").forEach((btn) => {
-    const dir = btn.dataset.sortDir;
-    const active = dir === agentLargeFilesSortDir;
-    btn.classList.toggle("is-active", active);
-    btn.setAttribute("aria-pressed", active ? "true" : "false");
-  });
+  const btn = document.getElementById("agent-large-files-sort-dir-btn");
+  if (!btn) return;
+  const descending = agentLargeFilesSortDir === "desc";
+  btn.textContent = descending ? "↓ Крупные сначала" : "↑ Мелкие сначала";
+  btn.title = descending ? "Сначала самые большие (нажмите для смены)" : "Сначала самые маленькие (нажмите для смены)";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", descending ? "true" : "false");
 }
 
 function ensureAgentLargeFilesThresholdFilter() {
@@ -102086,23 +102081,18 @@ function ensureAgentLargeFilesSortFilter() {
   if (!wrap) return;
   if (wrap.dataset.bound !== "1") {
     wrap.dataset.bound = "1";
-    for (const option of AGENT_LARGE_FILES_SORT_OPTIONS) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "agent-large-files-threshold-btn";
-      btn.dataset.sortDir = option.dir;
-      btn.textContent = option.label;
-      btn.title = option.title;
-      btn.addEventListener("click", () => {
-        if (agentLargeFilesSortDir === option.dir) return;
-        agentLargeFilesSortDir = option.dir;
-        syncAgentLargeFilesSortFilterUi();
-        if (agentWorkspaceView === "large-files" && agentLargeFilesCachedReport) {
-          paintAgentLargeFilesReport(agentLargeFilesCachedReport);
-        }
-      });
-      wrap.appendChild(btn);
-    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "agent-large-files-sort-dir-btn";
+    btn.className = "agent-large-files-sort-dir-btn";
+    btn.addEventListener("click", () => {
+      agentLargeFilesSortDir = agentLargeFilesSortDir === "desc" ? "asc" : "desc";
+      syncAgentLargeFilesSortFilterUi();
+      if (agentWorkspaceView === "large-files" && agentLargeFilesCachedReport) {
+        paintAgentLargeFilesReport(agentLargeFilesCachedReport);
+      }
+    });
+    wrap.appendChild(btn);
   }
   syncAgentLargeFilesSortFilterUi();
 }

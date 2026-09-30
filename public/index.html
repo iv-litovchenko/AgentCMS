@@ -3425,22 +3425,30 @@
         </div>
         <div id="agent-large-files-info" class="agent-tool-info agent-large-files-info">
           <div id="agent-large-files-meta" class="agent-large-files-meta">
-            <span class="agent-large-files-meta-label">От</span>
-            <div
-              id="agent-large-files-threshold-filter"
-              class="agent-large-files-threshold-filter"
-              role="group"
-              aria-label="Минимальный размер файла"
-            ></div>
-            <span class="agent-large-files-meta-label">Сортировка</span>
-            <div
-              id="agent-large-files-sort-filter"
-              class="agent-large-files-sort-filter"
-              role="group"
-              aria-label="Сортировка по размеру"
-            ></div>
+            <div class="agent-large-files-toolbar-row">
+              <span class="agent-large-files-meta-label">Размер от</span>
+              <div class="agent-large-files-threshold-scroll">
+                <div
+                  id="agent-large-files-threshold-filter"
+                  class="agent-large-files-threshold-filter"
+                  role="group"
+                  aria-label="Минимальный размер файла"
+                ></div>
+              </div>
+            </div>
+            <div class="agent-large-files-toolbar-row agent-large-files-toolbar-row--summary">
+              <div class="agent-large-files-summary-sort">
+                <span class="agent-large-files-meta-label">Сортировка</span>
+                <div
+                  id="agent-large-files-sort-filter"
+                  class="agent-large-files-sort-filter"
+                  role="group"
+                  aria-label="Сортировка по размеру"
+                ></div>
+              </div>
+              <div id="agent-large-files-stats" class="agent-workspace-stats agent-large-files-stats" aria-live="polite"></div>
+            </div>
           </div>
-          <div id="agent-large-files-stats" class="agent-workspace-stats agent-large-files-stats" aria-live="polite"></div>
         </div>
         <div id="agent-large-files-content" class="agent-tool-body agent-large-files-content"></div>
       </main>
