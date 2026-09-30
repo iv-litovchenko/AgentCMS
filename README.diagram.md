@@ -8,9 +8,18 @@ flowchart TD
     CMS --> WS
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
+    WS --> REPOS["📦 Репозитории"]
     WS --> EXTRA_DATA["Дополнительные данные"]
+    WS --> UI["Интерфейс"]
     WS --> AUX["⚙️ Вспомогательное"]
     WS --> IDEAS["💡 Идеи"]
+
+    UI --> UI_CONTROL["Agent CMS Controll (luncher)"]
+    UI_CONTROL --> UI_EDITOR["Agent CMS Editor"]
+    UI_EDITOR --> UI_VOICE["Agent CMS Voice<br/>(Flow window)"]
+    UI_VOICE --> UI_SIDEPANEL["Sidepanel в Google Chrome"]
+    UI_SIDEPANEL --> UI_PANEL["Панелька в браузере"]
+    UI_PANEL --> UI_MCP["MCP сервер"]
 
     IDEAS --> IDEA1["1. Git-модуль<br/>синхронизация, LFS"]
     IDEA1 --> IDEA2["2. UI на базе движка<br/>Сборка интерфейса на базе движка<br/>идеи для названия такого компонента<br/>в рамках системы:<br/>VOXELS<br/>VERTECX<br/>VEXEL<br/>ELEXIR"]
@@ -41,20 +50,20 @@ flowchart TD
     COLLECTION --> DATA_SECTION["Раздел"]
     DATA_SECTION --> RECORD["Запись"]
 
-    EXTRA_DATA --> REPOS["Репозитории"]
     EXTRA_DATA --> BOARD["README.md · AGENTS.md · NOTE.md · TODO.md"]
-    EXTRA_DATA --> ANNOT["Аннотации"]
+    BOARD --> ANNOT["Аннотации"]
     ANNOT --> ANNOT_COMMENTS["Комментарии"]
-    ANNOT --> ANNOT_SIDECAR["Sidecar"]
-    EXTRA_DATA --> FACT_BANK["Банк фактов"]
-    EXTRA_DATA --> GLOSSARY["Глоссарий"]
-    EXTRA_DATA --> EXTRA_DIALOGS["Диалоги<br/>дискуссия"]
+    ANNOT_COMMENTS --> ANNOT_SIDECAR["Sidecar"]
+    ANNOT_SIDECAR --> FACT_BANK["Банк фактов"]
+    FACT_BANK --> GLOSSARY["Глоссарий"]
+    GLOSSARY --> EXTRA_DIALOGS["Диалоги<br/>дискуссия"]
 
-    AUX --> SETTINGS["Настройки, .env"]
-    AUX --> SEARCH["Поиск"]
-    AUX --> AUX_JOURNAL["Журнал"]
-    AUX --> MODULES["Модули"]
-    AUX --> CLOUD_DISKS["Облачные диски<br/>Google · Яндекс"]
+    AUX --> AUX_TYPES["Типы"]
+    AUX_TYPES --> SETTINGS["Настройки, .env"]
+    SETTINGS --> SEARCH["Поиск"]
+    SEARCH --> AUX_JOURNAL["Журнал"]
+    AUX_JOURNAL --> MODULES["Модули"]
+    MODULES --> CLOUD_DISKS["Облачные диски<br/>Google · Яндекс"]
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```
