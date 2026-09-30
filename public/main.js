@@ -2656,6 +2656,10 @@ async function resolveChpuTopicEntry(resolved) {
 }
 
 async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
+  contentMode = normalizeTypedStorageModeForFlexibleTopic(
+    contentMode,
+    resolved?.topicManifestPath || resolved?.manifestPath
+  );
   const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
   const storageRelPath = /\.md$/i.test(relInSlot)
     ? relInSlot
@@ -24665,6 +24669,23 @@ function isTopicSharedSlotActive(nodePath = activePath) {
     if (entries?.length) return isTopicSlotsDisabledFromEntries(entries);
   }
   return false;
+}
+
+/** В режиме awn-slots-flexible типовые слоты (media, inbox…) не используются — только external / awn-storage/. */
+function normalizeEntryOverviewMemoryKindForTopic(memoryKind, topicPath = activePath) {
+  const kind = String(memoryKind || "").trim() || "external";
+  if (!isTopicSharedSlotActive(topicPath)) return kind;
+  if (kind === "media" || kind === "assets") return "external";
+  if (isFlatEntryOverviewMemoryKind(kind)) return "external";
+  return kind;
+}
+
+function normalizeTypedStorageModeForFlexibleTopic(modeId, topicPath = activePath) {
+  const mode = String(modeId || "").trim();
+  if (!mode || !isTopicSharedSlotActive(topicPath)) return mode;
+  if (mode === "media" || mode === "assets") return "external";
+  if (isFlatStorageSectionMode(mode) || FLAT_STORAGE_SECTION_MODES.has(mode)) return "external";
+  return mode;
 }
 
 function getTopicSharedSlotStorageRootRel(nodePath) {
@@ -68001,45 +68022,47 @@ function openSharedFlexibleSlotExternalNavigation() {
 }
 
 function openNavigationHubSlotList(modeId, externalFile = null) {
-  if (modeId === "external" && isTopicSharedSlotActive()) {
+  const resolvedModeId = normalizeTypedStorageModeForFlexibleTopic(modeId);
+  if (resolvedModeId === "external" && isTopicSharedSlotActive()) {
     openSharedFlexibleSlotExternalNavigation();
     syncAppRouteToUrl({ replace: true });
     return;
   }
-  openNavigationPanelMode(modeId, externalFile);
+  openNavigationPanelMode(resolvedModeId, externalFile);
   syncAppRouteToUrl({ replace: true });
 }
 
 function openNavigationHubSlotPreview(modeId) {
-  if (modeId === "external" && isTopicSharedSlotActive()) {
+  const resolvedModeId = normalizeTypedStorageModeForFlexibleTopic(modeId);
+  if (resolvedModeId === "external" && isTopicSharedSlotActive()) {
     openSharedFlexibleSlotExternalNavigation();
     syncAppRouteToUrl({ replace: true });
     return;
   }
-  if (modeId === "media" && supportsDataEntryOverview("media")) {
+  if (resolvedModeId === "media" && supportsDataEntryOverview("media")) {
     openEntryOverviewMemoryTocFromNavigation("media");
     syncAppRouteToUrl({ replace: true });
     return;
   }
-  if (modeId === "external" && supportsDataEntryOverview("memory")) {
+  if (resolvedModeId === "external" && supportsDataEntryOverview("memory")) {
     openEntryOverviewMemoryTocFromNavigation("external");
     syncAppRouteToUrl({ replace: true });
     return;
   }
-  if (isFlatEntryOverviewMemoryKind(modeId)) {
-    const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.defaultMode === modeId);
+  if (isFlatEntryOverviewMemoryKind(resolvedModeId)) {
+    const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.defaultMode === resolvedModeId);
     if (spec && supportsDataEntryOverview(spec.key)) {
-      openEntryOverviewMemoryTocFromNavigation(modeId);
+      openEntryOverviewMemoryTocFromNavigation(resolvedModeId);
       syncAppRouteToUrl({ replace: true });
       return;
     }
   }
-  if (isBundleEntryOverviewMemoryKind(modeId)) {
-    openEntryOverviewMemoryTocFromNavigation(modeId);
+  if (isBundleEntryOverviewMemoryKind(resolvedModeId)) {
+    openEntryOverviewMemoryTocFromNavigation(resolvedModeId);
     syncAppRouteToUrl({ replace: true });
     return;
   }
-  openNavigationHubSlotList(modeId);
+  openNavigationHubSlotList(resolvedModeId);
 }
 
 function openNavigationPanelMode(modeId, externalFile = null) {
@@ -71744,17 +71767,18 @@ function openEntryOverviewBundleSlotFromNavigation(memoryKind) {
 
 function openEntryOverviewMemoryTocFromNavigation(memoryKind = "external") {
   if (!activePath) return;
-  if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    openEntryOverviewBundleSlotFromNavigation(memoryKind);
+  const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+  const resolvedKind = normalizeEntryOverviewMemoryKindForTopic(memoryKind, topicPath);
+  if (isBundleEntryOverviewMemoryKind(resolvedKind)) {
+    openEntryOverviewBundleSlotFromNavigation(resolvedKind);
     return;
   }
-  const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
   void openEntryOverviewFromNavigation({
     relPath: topicPath,
-    memoryKind,
+    memoryKind: resolvedKind,
     relativePath: "",
     title: "Оглавление",
-    entryKind: getEntryOverviewTocRootEntryKind(memoryKind)
+    entryKind: getEntryOverviewTocRootEntryKind(resolvedKind)
   });
 }
 
@@ -71986,9 +72010,10 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
   if (!isMemoryTocRoot && !context?.relPath) return;
   if (!isMemoryTocRoot) snapshotNonTocEntryOverviewContext(context);
   const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+  const memoryKind = normalizeEntryOverviewMemoryKindForTopic(context.memoryKind || "external", topicPath);
   activeEntryOverviewContext = {
     relPath: String(isMemoryTocRoot ? context?.relPath || topicPath : context.relPath).replace(/\\/g, "/"),
-    memoryKind: context.memoryKind || "external",
+    memoryKind,
     relativePath: String(context.relativePath || "").replace(/\\/g, "/"),
     title: String(context.title || "").trim(),
     entryKind: String(context.entryKind || "awn.record"),
@@ -72787,6 +72812,11 @@ function resolveEntryOverviewStorageSlotFolderWorkspacePath(context, topicPath) 
 function shouldOfferEntryOverviewStorageSlotCreate(context) {
   if (!context?.memoryKind || !activePath) return false;
   if (!isEntryOverviewMemoryTocRoot(context)) return false;
+  if (isTopicSharedSlotActive()) {
+    if (context.memoryKind === "media" || context.memoryKind === "assets") return false;
+    if (isFlatEntryOverviewMemoryKind(context.memoryKind)) return false;
+    if (normalizeEntryOverviewMemoryKindForTopic(context.memoryKind) === "external") return false;
+  }
   if (context.memoryKind === "external" && isTopicSharedSlotActive()) return false;
   return Boolean(getEntryOverviewStorageSlotFolderApiName(context));
 }
@@ -73854,6 +73884,16 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
       );
     }
     if (context.memoryKind === "media" || context.memoryKind === "assets") {
+      if (isTopicSharedSlotActive(topicPath)) {
+        const data = await fetchExternalFilesForNavigation(topicPath);
+        if (data.slotsDisabled && data.groups) {
+          const prepared = prepareNavigationMediaItems(data.groups, data.sectionManifests || [], {
+            memoryKind: "media"
+          });
+          prepared.flexibleSlotMedia = true;
+          return prepared;
+        }
+      }
       const data =
         context.memoryKind === "assets"
           ? await fetchMediaLibraryOverview(topicPath, "assets")
@@ -79065,19 +79105,25 @@ function renderNavigationMediaBookToc(body, state) {
   list.className = "nav-book-toc-list nav-book-toc-list--root";
   const tree = buildNavigationPathTree(contentFiles, folderLabels, memoryKind);
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels, memoryKind);
+  const flexibleSlotPanel = Boolean(state.flexibleSlotPanel);
+  const flexibleHandlers = flexibleSlotPanel ? getEntryOverviewNavigationHandlers("external") : null;
   appendNavigationBookTocList(list, tree, 0, {
     folderLabels,
     folderStatuses,
     sectionManifestByFolder,
     nodePath,
-    linkLeadingMode: "media",
+    linkLeadingMode: flexibleSlotPanel ? "guide" : "media",
     treeStyle: "guide",
     resourceContextMenuMemoryKind: memoryKind,
     readManifestPath: getActiveNodeApiPath(),
     readMemoryKind: memoryKind,
-    sortMode: loadNavigationListSort(memoryKind),
-    onFolderClick: (folderPath) => openMediaLibraryCategoryOverviewFromNavigation(folderPath, memoryKind),
-    onFileClick: (item) => openMediaLibraryEntryOverviewFromNavigation(item, memoryKind)
+    sortMode: loadNavigationListSort(flexibleSlotPanel ? "external" : memoryKind),
+    onFolderClick:
+      flexibleHandlers?.onFolderClick ||
+      ((folderPath) => openMediaLibraryCategoryOverviewFromNavigation(folderPath, memoryKind)),
+    onFileClick:
+      flexibleHandlers?.onFileClick ||
+      ((item) => openMediaLibraryEntryOverviewFromNavigation(item, memoryKind))
   });
   nav.appendChild(list);
   body.appendChild(nav);
@@ -79106,7 +79152,7 @@ function refreshNavigationMediaImagesPreview(card, state) {
     const gridWrap = renderNavigationMediaImagesGrid(
       imageItems,
       state.nodePath,
-      (item) => openMediaLibraryEntryOverviewFromNavigation(item, state.memoryKind)
+      (item) => (state.flexibleSlotPanel ? openFlexibleSlotItemFromNavigation(item) : openMediaLibraryEntryOverviewFromNavigation(item, state.memoryKind))
     );
     if (gridWrap) preview.appendChild(gridWrap);
   }
