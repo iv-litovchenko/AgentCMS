@@ -7,3 +7,4 @@ awn_settings:
   tree-max-depth: 7
   sidebar-width: 300
   pinned-branch-path: ""
+  hide-sensitive-data: false

@@ -29,7 +29,8 @@
       "id": "хобби",
       "title": "Хобби",
       "agentIds": [
-        "agent-cms-core"
+        "agent-cms-core",
+        "agent-cms-test"
       ],
       "appearance": "light"
     }

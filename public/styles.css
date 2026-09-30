@@ -7278,13 +7278,6 @@ body.workspace-idle-screensaver-active {
   opacity: 0.55;
 }
 
-.app-landing-group-agent-sort-handle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
-}
-
 .app-landing-group-agent-wrap--sortable .app-landing-agent-card {
   padding-left: 30px;
 }
@@ -32779,6 +32772,15 @@ body.workspace-pomodoro-break-active {
 
 .menu-sort-handle:not(.menu-sort-handle--disabled):not([aria-disabled="true"]) {
   cursor: grab;
+}
+
+/* Must follow `.menu-sort-handle` — base rule sets `position: relative` for menu rows. */
+.app-landing-group-agent-wrap .menu-sort-handle.app-landing-group-agent-sort-handle {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  z-index: 3;
 }
 
 .menu-folder.menu-folder--adopt {
