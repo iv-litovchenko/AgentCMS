@@ -3684,6 +3684,18 @@
               <span class="agent-git-action-btn-label">Pull</span>
             </button>
             <button
+              id="agent-git-lfs-btn"
+              class="agent-git-lfs-btn"
+              type="button"
+              title="Git LFS — справка (на будущее)"
+              aria-label="Git LFS — справка"
+              aria-haspopup="dialog"
+              aria-controls="agent-git-lfs-modal"
+            >
+              <span class="agent-git-lfs-btn-mark" aria-hidden="true">!</span>
+              <span class="agent-git-action-btn-label">LFS</span>
+            </button>
+            <button
               id="agent-git-settings-btn"
               class="agent-workspace-refresh-btn agent-git-settings-btn"
               type="button"
@@ -3905,6 +3917,99 @@
           </div>
         </aside>
         <div id="agent-git-content" class="agent-tool-body agent-git-content"></div>
+        <div
+          id="agent-git-lfs-modal"
+          class="modal-overlay agent-git-lfs-modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-git-lfs-modal-title"
+          aria-hidden="true"
+        >
+          <div class="modal-card agent-git-lfs-modal-card">
+            <header class="agent-git-lfs-modal-head">
+              <span class="agent-git-lfs-modal-icon" aria-hidden="true">!</span>
+              <div>
+                <h3 id="agent-git-lfs-modal-title" class="agent-git-lfs-modal-title">Git LFS</h3>
+                <p class="agent-git-lfs-modal-subtitle">Справка · на будущее</p>
+              </div>
+            </header>
+            <div class="agent-git-lfs-modal-body">
+              <p>
+                <strong>Git LFS (Large File Storage)</strong> — это не «залить гигабайт в обычный коммит», а
+                <strong>отдельное хранилище для тяжёлых файлов</strong>, а в git остаются только
+                <strong>лёгкие указатели</strong> (текстовые «заглушки»).
+              </p>
+              <h4>Как работает</h4>
+              <ul>
+                <li>
+                  В репозитории коммитятся <strong>pointer-файлы</strong> (килобайты), а
+                  <strong>сами бинарники</strong> (видео, zip, большие картинки, дампы) лежат на
+                  <strong>LFS-сервере</strong> (GitHub/GitLab и т.д.).
+                </li>
+                <li>
+                  <code>git clone</code> / <code>pull</code> по умолчанию может <strong>не</strong> тянуть все
+                  LFS-объекты — только по запросу (<code>git lfs pull</code>) или при checkout.
+                </li>
+                <li>
+                  В <code>.gitattributes</code> задаёте правила: например <code>*.psd filter=lfs</code>,
+                  <code>*.mp4 filter=lfs</code>.
+                </li>
+              </ul>
+              <h4>Как пользоваться (минимум)</h4>
+              <ol>
+                <li>Установить <code>git-lfs</code>, в репо: <code>git lfs install</code></li>
+                <li>
+                  Настроить маски: <code>git lfs track "*.pdf"</code> → появится/обновится
+                  <code>.gitattributes</code>
+                </li>
+                <li>Добавить файлы и коммитить как обычно — LFS подменит содержимое на pointer при push</li>
+                <li>На другой машине: clone + при необходимости <code>git lfs pull</code></li>
+              </ol>
+              <h4>Зачем вам (YamlCMS / большие файлы)</h4>
+              <ul>
+                <li>
+                  <strong>Плюс:</strong> в git-истории workspace не раздувается от <strong>медиа, архивов, бэкапов</strong>;
+                  push/pull быстрее для тех, кому LFS-файлы не нужны.
+                </li>
+                <li>
+                  <strong>Минус:</strong> нужен <strong>хостинг с LFS</strong> (лимиты, иногда платно), отдельная настройка в
+                  CMS/агенте; агенты и «Сохранить по расширениям» <strong>сами LFS не включают</strong> — это уровень
+                  репозитория.
+                </li>
+                <li>
+                  Есть идея в планах (<code>git-lfs-large-file-storage</code>) и инструмент
+                  <strong>«большие файлы»</strong> — логично: <strong>контент и медиа</strong> в workspace/Obsidian/облаке, а
+                  <strong>LFS</strong> — если именно <strong>версионировать крупные бинарники в том же git remote</strong>, что и
+                  код/<code>.md</code>.
+                </li>
+              </ul>
+              <p>
+                <strong>Кратко:</strong> LFS = git для «указателей», тяжёлое — сбоку; имеет смысл, если большие файлы
+                <strong>обязательно</strong> живут в git remote, а не в отдельном хранилище или без версий в git.
+              </p>
+              <h4>Свой LFS-сервер</h4>
+              <p>
+                LFS — не только GitHub: можно свой <strong>LFS endpoint</strong> (S3/MinIO, Artifactory, GitLab self-hosted,
+                Gitea, Forgejo и т.д.).
+              </p>
+              <p>
+                <strong>Как:</strong> в репозитории в <code>.lfsconfig</code> или <code>git config lfs.url</code> указываете URL
+                вашего LFS-сервера; <code>git remote</code> остаётся обычным git (часто тот же GitLab/Gitea).
+              </p>
+              <p>
+                <strong>Зачем:</strong> без лимитов GitHub, данные у вас, свой диск/бэкапы.
+                <strong>Минус:</strong> сами поднимаете HTTPS, доступы, бэкапы и место на диске.
+              </p>
+              <p>
+                <strong>Для YamlCMS:</strong> remote может быть GitHub, а LFS — отдельный self-hosted URL, если хостинг git это
+                поддерживает (GitLab/Gitea — проще всего «всё на одном сервере»).
+              </p>
+            </div>
+            <div class="modal-actions agent-git-lfs-modal-actions">
+              <button id="agent-git-lfs-modal-close-btn" class="save-btn" type="button">Закрыть</button>
+            </div>
+          </div>
+        </div>
       </main>
 
       <main id="agent-journal-pane" class="agent-canvas-pane agent-tool-pane agent-journal-pane hidden" aria-label="Бортовой журнал">

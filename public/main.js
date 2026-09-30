@@ -276,6 +276,9 @@ const agentGitSettingsPanel = document.getElementById("agent-git-settings-panel"
 const agentGitInitBtn = document.getElementById("agent-git-init-btn");
 const agentGitPushBtn = document.getElementById("agent-git-push-btn");
 const agentGitPullBtn = document.getElementById("agent-git-pull-btn");
+const agentGitLfsBtn = document.getElementById("agent-git-lfs-btn");
+const agentGitLfsModal = document.getElementById("agent-git-lfs-modal");
+const agentGitLfsModalCloseBtn = document.getElementById("agent-git-lfs-modal-close-btn");
 const agentGitRemoteNameInput = document.getElementById("agent-git-remote-name");
 const agentGitBranchInput = document.getElementById("agent-git-branch-input");
 const agentGitBranchToolbarSelect = document.getElementById("agent-git-branch-toolbar-select");
@@ -1789,6 +1792,7 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
 };
 const CORE_SYSTEM_FILES = new Set([
   "AGENTS.md",
+  "README.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
@@ -101696,6 +101700,18 @@ function setAgentGitSettingsOpen(open) {
   agentGitSettingsBtn?.setAttribute("aria-expanded", agentGitSettingsOpen ? "true" : "false");
 }
 
+function openAgentGitLfsModal() {
+  if (!agentGitLfsModal) return;
+  agentGitLfsModal.classList.remove("hidden");
+  agentGitLfsModal.removeAttribute("aria-hidden");
+}
+
+function closeAgentGitLfsModal() {
+  if (!agentGitLfsModal) return;
+  agentGitLfsModal.classList.add("hidden");
+  agentGitLfsModal.setAttribute("aria-hidden", "true");
+}
+
 function agentGitHasConfiguredRemote(data) {
   const remotes = Array.isArray(data?.remotes) ? data.remotes : [];
   return remotes.some((item) => String(item?.fetchUrl || item?.pushUrl || "").trim());
@@ -121461,6 +121477,18 @@ agentGitRefreshBtn?.addEventListener("click", () => {
 
 agentGitSettingsBtn?.addEventListener("click", () => {
   setAgentGitSettingsOpen(!agentGitSettingsOpen);
+});
+
+agentGitLfsBtn?.addEventListener("click", () => {
+  openAgentGitLfsModal();
+});
+
+agentGitLfsModalCloseBtn?.addEventListener("click", () => {
+  closeAgentGitLfsModal();
+});
+
+agentGitLfsModal?.addEventListener("click", (event) => {
+  if (event.target === agentGitLfsModal) closeAgentGitLfsModal();
 });
 
 agentGitRemoteNameInput?.addEventListener("input", () => {

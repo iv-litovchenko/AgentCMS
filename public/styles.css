@@ -13145,7 +13145,8 @@ body.workspace-idle-screensaver-active {
 
 .agent-git-save-btn,
 .agent-git-push-btn,
-.agent-git-pull-btn {
+.agent-git-pull-btn,
+.agent-git-lfs-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -13241,6 +13242,126 @@ body.workspace-idle-screensaver-active {
 .agent-git-pull-btn.is-busy {
   opacity: 0.82;
   cursor: wait;
+}
+
+.agent-git-lfs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.96), rgba(220, 38, 38, 0.96));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.agent-git-lfs-btn:hover {
+  filter: brightness(1.06);
+}
+
+.agent-git-lfs-btn-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.agent-git-lfs-modal-card {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(88vh, 820px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px 16px;
+}
+
+.agent-git-lfs-modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.agent-git-lfs-modal-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.agent-git-lfs-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.agent-git-lfs-modal-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.agent-git-lfs-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 0 14px;
+  padding-right: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.agent-git-lfs-modal-body h4 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.agent-git-lfs-modal-body h4:first-child {
+  margin-top: 0;
+}
+
+.agent-git-lfs-modal-body p {
+  margin: 0 0 8px;
+}
+
+.agent-git-lfs-modal-body ul,
+.agent-git-lfs-modal-body ol {
+  margin: 0 0 8px;
+  padding-left: 1.2rem;
+}
+
+.agent-git-lfs-modal-body li {
+  margin: 0 0 4px;
+}
+
+.agent-git-lfs-modal-body code {
+  font-size: 11px;
+}
+
+.agent-git-lfs-modal-actions {
+  justify-content: flex-end;
 }
 
 .agent-git-settings-btn {
