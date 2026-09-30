@@ -1,0 +1,10 @@
+# Agent CMS — пользовательские настройки (UI, дерево меню)
+
+awn_settings:
+  tree-show-empty-folders: true
+  tree-active-topics-only: false
+  tree-pad-sort-indexes: false
+  tree-max-depth: 7
+  sidebar-width: 280
+  pinned-branch-path: ""
+  hide-sensitive-data: false

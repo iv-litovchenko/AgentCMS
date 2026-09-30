@@ -114,6 +114,8 @@ fields:
         name: 🟣 В работе
       - key: blocked
         name: 🚧 Заблокирована
+      - key: waiting-review
+        name: ⏳ Ожидает проверку
       - key: done
         name: ✅ Готова
       - key: closed
