@@ -9201,6 +9201,7 @@ const SHARED_DEFAULT_THEMES = [
   { slug: "artefacts", title: "Артефакты" },
   { slug: "scripts", title: "Скрипты" },
   { slug: "media", title: "Медиа" },
+  { slug: "downloads", title: "Загрузки из браузера" },
   { slug: "context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
 ];
 

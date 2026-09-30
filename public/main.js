@@ -1850,6 +1850,7 @@ const SHARED_THEME_PRESETS = [
   { slug: "artefacts", label: "Артефакты" },
   { slug: "scripts", label: "Скрипты" },
   { slug: "media", label: "Медиа" },
+  { slug: "downloads", label: "Загрузки из браузера" },
   { slug: "context", label: "Автозагружаемый контекст" }
 ];
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
