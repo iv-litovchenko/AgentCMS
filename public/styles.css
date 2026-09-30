@@ -53937,14 +53937,15 @@ button.node-navigation-memory-title:focus-visible {
   overflow: visible;
 }
 
-.mermaid-diagram-source-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  padding: 6px 8px;
-  border-bottom: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.72);
+.mermaid-diagram-source-body {
+  position: relative;
+}
+
+.mermaid-diagram-source-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 22px;
+  z-index: 2;
 }
 
 .mermaid-diagram-source-copy-btn.is-copied {
@@ -53955,7 +53956,7 @@ button.node-navigation-memory-title:focus-visible {
 .mermaid-diagram-source-view {
   display: block;
   margin: 0;
-  padding: 12px;
+  padding: 44px 12px 12px;
   max-height: min(420px, 50vh);
   overflow: auto;
   overscroll-behavior: contain;
@@ -53980,11 +53981,6 @@ button.node-navigation-memory-title:focus-visible {
   border-color: #334155;
   background: rgba(15, 23, 42, 0.65);
   color: #e2e8f0;
-}
-
-.mermaid-diagram-frame.is-dark .mermaid-diagram-source-toolbar {
-  border-bottom-color: #334155;
-  background: rgba(15, 23, 42, 0.88);
 }
 
 .mermaid-diagram-frame.is-dark .mermaid-diagram-source-copy-btn.is-copied {

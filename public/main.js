@@ -90208,17 +90208,27 @@ async function copyMermaidDiagramSourceText(text, button) {
   }
 }
 
-function ensureMermaidSourcePanel(frame, block) {
-  let panel = frame.querySelector(".mermaid-diagram-source-panel");
-  if (panel) return panel;
+function normalizeMermaidSourcePanelLayout(panel, frame) {
+  if (panel.querySelector(".mermaid-diagram-source-body")) return;
+  const toolbar = panel.querySelector(".mermaid-diagram-source-toolbar");
+  const copyBtn = toolbar?.querySelector(".mermaid-diagram-source-copy-btn");
+  const view = panel.querySelector(".mermaid-diagram-source-view");
+  if (!view) return;
+  const body = document.createElement("div");
+  body.className = "mermaid-diagram-source-body";
+  if (copyBtn) body.append(copyBtn, view);
+  else body.appendChild(view);
+  toolbar?.remove();
+  panel.appendChild(body);
+  if (!copyBtn && frame instanceof Element) {
+    ensureMermaidSourceCopyButton(frame, body);
+  }
+}
 
-  panel = document.createElement("div");
-  panel.className = "mermaid-diagram-source-panel";
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "mermaid-diagram-source-toolbar";
-
-  const copyBtn = document.createElement("button");
+function ensureMermaidSourceCopyButton(frame, body) {
+  let copyBtn = body.querySelector(".mermaid-diagram-source-copy-btn");
+  if (copyBtn) return copyBtn;
+  copyBtn = document.createElement("button");
   copyBtn.type = "button";
   copyBtn.className = "mermaid-diagram-source-copy-btn mermaid-diagram-chrome-btn";
   copyBtn.title = "Копировать исходник Mermaid";
@@ -90230,7 +90240,22 @@ function ensureMermaidSourcePanel(frame, block) {
     const mermaidBlock = frame.querySelector("pre.mermaid");
     void copyMermaidDiagramSourceText(getMermaidDiagramSource(frame, mermaidBlock), copyBtn);
   });
-  toolbar.appendChild(copyBtn);
+  body.insertBefore(copyBtn, body.firstChild);
+  return copyBtn;
+}
+
+function ensureMermaidSourcePanel(frame, block) {
+  let panel = frame.querySelector(".mermaid-diagram-source-panel");
+  if (panel) {
+    normalizeMermaidSourcePanelLayout(panel, frame);
+    return panel;
+  }
+
+  panel = document.createElement("div");
+  panel.className = "mermaid-diagram-source-panel";
+
+  const body = document.createElement("div");
+  body.className = "mermaid-diagram-source-body";
 
   let view = frame.querySelector(":scope > .mermaid-diagram-source-view");
   if (!view) {
@@ -90242,7 +90267,9 @@ function ensureMermaidSourcePanel(frame, block) {
     view.remove();
   }
 
-  panel.append(toolbar, view);
+  body.appendChild(view);
+  ensureMermaidSourceCopyButton(frame, body);
+  panel.appendChild(body);
 
   const anchor = block || frame.querySelector(".mermaid-diagram-actions");
   if (anchor) frame.insertBefore(panel, anchor);
