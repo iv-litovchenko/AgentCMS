@@ -53956,7 +53956,7 @@ button.node-navigation-memory-title:focus-visible {
 .mermaid-diagram-source-view {
   display: block;
   margin: 0;
-  padding: 44px 12px 12px;
+  padding: 12px;
   max-height: min(420px, 50vh);
   overflow: auto;
   overscroll-behavior: contain;
@@ -53989,10 +53989,13 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .mermaid-diagram-source-view code {
+  display: block;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
   background: transparent;
   padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .mermaid-diagram-frame.is-dark .mermaid-diagram-theme-btn {

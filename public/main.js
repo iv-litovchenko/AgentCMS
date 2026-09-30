@@ -89849,7 +89849,11 @@ function getMarkdownIt() {
     if (language === "mermaid") {
       const source = token.content.trimEnd();
       const encodedSource = encodeURIComponent(source);
-      return `<pre class="mermaid" data-mermaid-source="${encodedSource}">${source}</pre>\n`;
+      const escaped = source
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return `<pre class="mermaid" data-mermaid-source="${encodedSource}">${escaped}</pre>\n`;
     }
     const fenceBlock = getAwnFenceRenderer(language);
     if (fenceBlock) {
@@ -90101,6 +90105,9 @@ function getMermaidBlockSource(block) {
       // fall through
     }
   }
+  if (block.dataset.mermaidRendered === "1" || block.querySelector("svg")) {
+    return "";
+  }
   const text = String(block.textContent || "").trim();
   if (!text || text.startsWith("#mermaid-")) return "";
   return text;
@@ -90140,16 +90147,28 @@ function bindMermaidDiagramFrameChrome(frame) {
 }
 
 function getMermaidDiagramSource(frame, block) {
+  if (frame instanceof Element) {
+    const frameStored = frame.getAttribute("data-mermaid-diagram-source");
+    if (frameStored) {
+      try {
+        const decoded = decodeURIComponent(frameStored).trim();
+        if (decoded) return decoded;
+      } catch {
+        /* fall through */
+      }
+    }
+  }
   const fromBlock = getMermaidBlockSource(block);
   if (fromBlock) return fromBlock;
-  if (!(frame instanceof Element)) return "";
-  const stored = frame.getAttribute("data-mermaid-diagram-source");
-  if (!stored) return "";
-  try {
-    return decodeURIComponent(stored).trim();
-  } catch {
-    return "";
-  }
+  return "";
+}
+
+function formatMermaidMarkdownSource(source) {
+  let body = String(source || "").trim();
+  if (!body) return "";
+  const fenced = body.match(/^```(?:mermaid)?\s*\r?\n([\s\S]*?)```\s*$/i);
+  if (fenced) body = String(fenced[1] || "").trim();
+  return "```mermaid\n" + body + "\n```";
 }
 
 function syncMermaidSourceButtonUi(frame, open) {
@@ -90238,7 +90257,10 @@ function ensureMermaidSourceCopyButton(frame, body) {
     event.preventDefault();
     event.stopPropagation();
     const mermaidBlock = frame.querySelector("pre.mermaid");
-    void copyMermaidDiagramSourceText(getMermaidDiagramSource(frame, mermaidBlock), copyBtn);
+    void copyMermaidDiagramSourceText(
+      formatMermaidMarkdownSource(getMermaidDiagramSource(frame, mermaidBlock)),
+      copyBtn
+    );
   });
   body.insertBefore(copyBtn, body.firstChild);
   return copyBtn;
@@ -90294,7 +90316,9 @@ function toggleMermaidSourceView(frame) {
   const panel = ensureMermaidSourcePanel(frame, block);
   const view = panel.querySelector(".mermaid-diagram-source-view");
   const code = view?.querySelector("code");
-  if (code) code.textContent = source || "/* Исходник Mermaid недоступен */";
+  const markdown = formatMermaidMarkdownSource(source);
+  if (code) code.textContent = markdown || "/* Исходник Mermaid недоступен */";
+  else if (view) view.textContent = markdown || "/* Исходник Mermaid недоступен */";
 }
 
 async function ensureMermaidSourceButton(frame, block) {

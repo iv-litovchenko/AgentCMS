@@ -639,6 +639,9 @@ function getMermaidBlockSource(block) {
       /* fall through */
     }
   }
+  if (block.dataset.mermaidRendered === "1" || block.querySelector("svg")) {
+    return "";
+  }
   const text = String(block.textContent || "").trim();
   if (!text || text.startsWith("#mermaid-")) return "";
   return text;

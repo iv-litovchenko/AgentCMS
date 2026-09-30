@@ -6,7 +6,8 @@ flowchart TD
     WS["🏠 Workspace<br/>workspaceID<br/>WorkspaceSlug (key)"]
 
     CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)<br/>1+1"]
-    ACTORS --> WS
+    ACTORS --> CMS_ENDPOINT["🌐 localhost:<port> · 🔌 MCP-server"]
+    CMS_ENDPOINT --> WS
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
