@@ -10,9 +10,24 @@ flowchart TD
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
     WS --> EXTRA_DATA["Дополнительные данные"]
+    WS --> MD_MARKUP["Маркдаун-разметка<br/>Структура · Текст · Списки<br/>Маркеры и пометки · Код и таблицы<br/>Визуализация (Mermaid) · Прочее"]
+    MD_MARKUP --> RECORD_FIELDS["Поля записей<br/>Текст (однострочный · многострочный) · Числа · Выбор<br/>Дата и время · Медиа · Структура<br/>Справочники · CMS / платформа"]
     WS --> UI["Интерфейс"]
     WS --> AUX["⚙️ Вспомогательное"]
+    WS --> TOOLS["Инструменты"]
+    WS --> WS_SERVICES["Сервисы workspace"]
     WS --> IDEAS["💡 Идеи"]
+
+    WS_SERVICES --> WS_DISCUSS["Discuss · digest · summarization"]
+    WS_DISCUSS --> WS_TRASH["Корзина"]
+    WS_TRASH --> WS_NOTIFY["Уведомления"]
+    WS_NOTIFY --> WS_POMODORO["Помодоро"]
+    WS_POMODORO --> WS_SCREENSAVER["Заставка бездействия"]
+    WS_SCREENSAVER --> WS_CONTEXT_REG["Реестр контекста<br/>всегда в контексте · по расписанию · сердцебиение"]
+
+    TOOLS --> SEARCH["Поиск"]
+    SEARCH --> MODULES["Модули"]
+    MODULES --> AUX_JOURNAL["Журнал"]
 
     UI --> UI_CONTROL["Agent CMS Controll (luncher)"]
     UI_CONTROL --> UI_EDITOR["Agent CMS Editor"]
@@ -61,10 +76,8 @@ flowchart TD
     AUX --> AUX_TYPES["Типы"]
     AUX_TYPES --> AUX_DEPS["Зависимости<br/>MCP · skills · tools · ПО на компьютере<br/>файл dependencies.csv"]
     AUX_DEPS --> SETTINGS["Настройки, .env"]
-    SETTINGS --> SEARCH["Поиск"]
-    SEARCH --> AUX_JOURNAL["Журнал"]
-    AUX_JOURNAL --> MODULES["Модули"]
-    MODULES --> CLOUD_DISKS["Облачные диски<br/>Google · Яндекс"]
+    SETTINGS --> AUX_INDEXES["Индексы<br/>страницы · контент · инфоблоки · репозитории"]
+    AUX_INDEXES --> CLOUD_DISKS["Облачные диски<br/>Google · Яндекс"]
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
 ```
