@@ -1693,6 +1693,7 @@ async function clearWorkspaceActivity(agentRoot = getAgentRoot()) {
 function recordWorkspaceNodeCreateFromResponse(createdPath) {
   const normalized = String(createdPath || "").replace(/\\/g, "/").trim();
   if (!normalized) return null;
+  queueWorkspaceIndexFileSync(normalized);
   return recordWorkspaceActivity({
     action: "create",
     path: normalized,
@@ -2460,7 +2461,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
     frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
   }
   frontmatter = applyDescriptionToFrontmatter(frontmatter, options.description);
-  return frontmatter;
+  return applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter: "" });
 }
 
 function normalizeAwnNameForStorage(displayName, slug) {
