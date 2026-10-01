@@ -29579,13 +29579,55 @@ const ADOPT_REQUIRES_AREA_PARENT_MESSAGE =
 const ADOPT_TOPIC_HAS_SUBFOLDERS_MESSAGE =
   "Папку с вложенными подпапками нельзя подхватить как тему — используйте «Подхватить (область)» или уберите вложенные папки.";
 
-function isCreateAdoptParentArea(folderPath, agentId = getCreateModalAgentId()) {
-  const parent = getCreateFolderParentPath(folderPath);
-  if (!parent || parent === ".") return false;
-  const node = getMenuTreeNodeByFolderPath(parent, agentId);
-  if (node?.indexPath && isAreaNodePath(normalizeMenuNodePath(node.indexPath))) return true;
-  const manifestRel = `${parent}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+function resolveAdoptValidationFolderPath(folderPath, agentId = getCreateModalAgentId()) {
+  let normalized = normalizeCreateParentPath(folderPath || ".");
+  if (!normalized || normalized === ".") return normalized;
+  if (getMenuTreeNodeByFolderPath(normalized, agentId)) return normalized;
+
+  const kit = getActiveAgentKitFolder(agentId);
+  if (kit && normalized !== kit && !normalized.startsWith(`${kit}/`)) {
+    const prefixed = normalizeCreateParentPath(resolveServiceTreeFolderPath(normalized, agentId));
+    if (getMenuTreeNodeByFolderPath(prefixed, agentId)) return prefixed;
+    normalized = prefixed;
+  }
+
+  const container = getActiveAgentContainerFolder(agentId);
+  if (container && normalized !== container && !normalized.startsWith(`${container}/`)) {
+    const segments = normalized.split("/").filter(Boolean);
+    if (!segments.includes(container)) {
+      const prefixed = normalizeCreateParentPath(resolveContainerTreeFolderPath(normalized, agentId));
+      if (getMenuTreeNodeByFolderPath(prefixed, agentId)) return prefixed;
+    }
+  }
+
+  return normalized;
+}
+
+function folderPathLooksLikeAreaTreeNode(folderPath, agentId = getCreateModalAgentId()) {
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  if (!normalized || normalized === ".") return false;
+  const node = getMenuTreeNodeByFolderPath(normalized, agentId);
+  if (node?.indexPath) {
+    const indexPath = normalizeMenuNodePath(node.indexPath);
+    if (isTopicManifestPath(indexPath)) return false;
+    if (isAreaNodePath(indexPath)) return true;
+  }
+  if (node?.awnTreeType) {
+    const declared = normalizeDeclaredManifestTreeType(node.awnTreeType);
+    if (declared === "topic") return false;
+    if (declared === "area" || declared === "workspace") return true;
+  }
+  const manifestRel = `${normalized}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+  if (isTopicManifestPath(manifestRel)) return false;
   return isAreaNodePath(manifestRel);
+}
+
+function isCreateAdoptParentArea(folderPath, agentId = getCreateModalAgentId()) {
+  const folder = resolveAdoptValidationFolderPath(folderPath, agentId);
+  const parent = getCreateFolderParentPath(folder);
+  if (!parent || parent === ".") return false;
+  const parentResolved = resolveAdoptValidationFolderPath(parent, agentId);
+  return folderPathLooksLikeAreaTreeNode(parentResolved, agentId);
 }
 
 function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgentId()) {
@@ -29597,7 +29639,7 @@ function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgent
 }
 
 async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentId) {
-  const normalized = normalizeCreateParentPath(folderPath || ".");
+  const normalized = resolveAdoptValidationFolderPath(folderPath, agentId);
   if (!normalized || normalized === ".") return false;
   try {
     const response = await fetch(
@@ -29866,7 +29908,7 @@ function resolveCreateAdoptNodeType() {
 }
 
 function getCreateAdoptFolderPath() {
-  return normalizeCreateParentPath(createModalBaseParentPath || ".");
+  return resolveAdoptValidationFolderPath(createModalBaseParentPath || ".");
 }
 
 function resolveCreateNodeParentPath(type) {

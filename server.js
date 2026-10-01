@@ -10273,6 +10273,22 @@ async function folderAbsoluteHasListableChildDirectories(dirAbsolute) {
   return false;
 }
 
+function countManifestAreaDepthHeuristic(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const dir = path.posix.dirname(normalized).replace(/\\/g, "/");
+  const kitFolder = getAgentKitFolder();
+  if (kitFolder && (dir === kitFolder || dir.startsWith(`${kitFolder}/`))) {
+    const tail = dir === kitFolder ? "" : dir.slice(kitFolder.length + 1);
+    return tail.split("/").filter(Boolean).length;
+  }
+  const containerFolder = getAgentContainerFolder();
+  if (containerFolder && (dir === containerFolder || dir.startsWith(`${containerFolder}/`))) {
+    const tail = dir === containerFolder ? "" : dir.slice(containerFolder.length + 1);
+    return tail.split("/").filter(Boolean).length;
+  }
+  return dir.split("/").filter(Boolean).length;
+}
+
 async function folderRelIsAreaTreeNode(folderRel, options = {}) {
   const normalized = String(folderRel || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return false;
@@ -10284,11 +10300,22 @@ async function folderRelIsAreaTreeNode(folderRel, options = {}) {
   const manifestRel = `${normalized}/${manifestBase}`.replace(/\\/g, "/");
   if (isContainerAreaRootManifestRel(manifestRel)) return true;
   if (isServiceAreaRootManifestRel(manifestRel)) return true;
-  const { type } = await readManifestMenuMetaCached(manifestRel, options);
-  if (type === "topic") return false;
-  if (type === "area" || type === "workspace" || type === "section") return true;
-  const folderDepth = path.posix.dirname(manifestRel).split("/").filter(Boolean).length;
-  return folderDepth < 2;
+
+  const meta = await readManifestMenuMetaCached(manifestRel, options);
+  let declared = normalizeDeclaredManifestTreeType(meta?.type);
+  if (!declared) {
+    try {
+      const { frontmatter } = await readCachedNodeFrontmatter(manifestRel, options);
+      declared = normalizeDeclaredManifestTreeType(getYamlScalar(frontmatter, "awn-type"));
+    } catch {
+      // ignore
+    }
+  }
+  if (declared === "topic") return false;
+  if (declared === "area" || declared === "workspace") return true;
+  if (String(meta?.type || "").trim() === "section") return true;
+
+  return countManifestAreaDepthHeuristic(manifestRel) < 2;
 }
 
 async function resolveExistingAreaManifestBasename(dirAbsolute) {
