@@ -43,7 +43,9 @@ x-field-1: ""
 x-field-2: ""
 awn-update: 2026-08-15T20:56:34.609Z
 awn-version: 6
+awn-id: 45
 ---
+
 
 # Игра «Дальнобойщик 2» (Hard Truck 2)
 

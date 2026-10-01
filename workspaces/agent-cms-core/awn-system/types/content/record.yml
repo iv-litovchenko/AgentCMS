@@ -25,7 +25,7 @@ fields:
   awn-materials:
     type: awn.field.materials
     title: "{A2!} Доп. материалы"
-    description: Папка awn-materials-* рядом с записью
+    description: Папка awn-storage/assets/materials/{awn-id}/
     placement: aside-hero
     group: content
     sort: 2

@@ -31719,6 +31719,7 @@ function shouldHideNavigationInfrastructureFolder(folderPath, memoryKind = null)
   if (memoryKind === "assets") return false;
   return isMemorySectionInfrastructureFolderPath(folderPath);
 }
+const RECORD_MATERIALS_ASSETS_SUBPATH = "assets/materials";
 const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-materials-";
 const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [
   RECORD_PARTS_PACKAGE_FOLDER_PREFIX,
@@ -31730,6 +31731,37 @@ function getRecordMaterialsFolderNamesForSlug(slug) {
   const normalized = String(slug || "").trim();
   if (!normalized) return [];
   return RECORD_PARTS_PACKAGE_FOLDER_PREFIXES.map((prefix) => `${prefix}${normalized}`);
+}
+
+function parseRecordMaterialsAwnIdValue(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0 || !Number.isInteger(num)) return null;
+  return num;
+}
+
+function getRecordMaterialsAwnIdFromContext(context) {
+  const props = Array.isArray(context?.props) ? context.props : [];
+  const fromProps = getPropsEntryValueByKey(props, "awn-id");
+  let parsed = parseRecordMaterialsAwnIdValue(fromProps);
+  if (parsed) return parsed;
+  const fromForm = getPropsEntryValueByKey(propsFormEntries, "awn-id");
+  parsed = parseRecordMaterialsAwnIdValue(fromForm);
+  if (parsed) return parsed;
+  const fromHidden = getPropsEntryValueByKey(propsFormHiddenEntries, "awn-id");
+  return parseRecordMaterialsAwnIdValue(fromHidden);
+}
+
+function buildRecordMaterialsAssetsRelPath(awnId) {
+  const id = parseRecordMaterialsAwnIdValue(awnId);
+  if (!id) return "";
+  return `${RECORD_MATERIALS_ASSETS_SUBPATH}/${id}`;
+}
+
+function isRecordMaterialsAssetsPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized === RECORD_MATERIALS_ASSETS_SUBPATH || normalized.startsWith(`${RECORD_MATERIALS_ASSETS_SUBPATH}/`);
 }
 const RECORD_MATERIALS_UI_LABEL = "Доп материалы";
 const RECORD_MATERIALS_HERO_MARKER_CAPTION = "Доп материалы";
@@ -37014,6 +37046,7 @@ function isRecordPartsPackageFolderPath(folderPath) {
 function isRecordPartsPackageFilePath(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return false;
+  if (isRecordMaterialsAssetsPath(normalized)) return true;
   return normalized
     .split("/")
     .filter(Boolean)
@@ -37037,7 +37070,10 @@ function getRecordSlugFromStorageRelativePath(relativePath) {
   return base.replace(/\.md$/i, "");
 }
 
-function resolveRecordPartsStorageRelPath(relativePath) {
+function resolveRecordPartsStorageRelPath(relativePath, context = null) {
+  const awnId = context ? getRecordMaterialsAwnIdFromContext(context) : null;
+  const materialsRel = buildRecordMaterialsAssetsRelPath(awnId);
+  if (materialsRel) return materialsRel;
   const slug = getRecordSlugFromStorageRelativePath(relativePath);
   if (!slug) return "";
   const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
@@ -37048,6 +37084,11 @@ function resolveRecordPartsStorageRelPath(relativePath) {
 
 function resolveRecordPartsWorkspaceFolderPath(context) {
   if (!context?.relativePath) return "";
+  const materialsRel = buildRecordMaterialsAssetsRelPath(getRecordMaterialsAwnIdFromContext(context));
+  if (materialsRel) {
+    return getEntryOverviewItemContextPath(materialsRel, "assets");
+  }
+
   const slug = getRecordSlugFromStorageRelativePath(context.relativePath);
   if (!slug) return "";
 
@@ -37063,9 +37104,12 @@ function resolveRecordPartsWorkspaceFolderPath(context) {
     return parentDir ? `${parentDir}/${partsFolderName}` : partsFolderName;
   }
 
-  const storageRel = resolveRecordPartsStorageRelPath(context.relativePath);
+  const storageRel = resolveRecordPartsStorageRelPath(context.relativePath, context);
   if (!storageRel) return "";
-  return getEntryOverviewItemContextPath(storageRel, context.memoryKind || "external");
+  return getEntryOverviewItemContextPath(
+    storageRel,
+    isRecordMaterialsAssetsPath(storageRel) ? "assets" : context.memoryKind || "external"
+  );
 }
 
 function resolveRecordParentWorkspaceFolderPath(context) {
@@ -37110,16 +37154,24 @@ function pickRecordPartsFolderFromParentListing(folders, parentPath, slug = "") 
 }
 
 async function findRecordPartsWorkspaceFolder(context) {
+  const expected = resolveRecordPartsWorkspaceFolderPath(context);
+  const awnId = getRecordMaterialsAwnIdFromContext(context);
+  if (expected && awnId) {
+    if (await recordPartsWorkspaceFolderExists(expected)) return expected;
+    return expected;
+  }
+
   const parentPath = resolveRecordParentWorkspaceFolderPath(context);
-  if (!parentPath) return "";
+  if (!parentPath) return expected || "";
 
   try {
     const parent = await fetchWorkspaceFolderBrowse(parentPath);
-    if (!parent?.exists) return "";
+    if (!parent?.exists) return expected || "";
     const slug = getRecordSlugFromStorageRelativePath(context?.relativePath || "");
-    return pickRecordPartsFolderFromParentListing(parent.folders, parentPath, slug);
+    const legacy = pickRecordPartsFolderFromParentListing(parent.folders, parentPath, slug);
+    return legacy || expected || "";
   } catch {
-    return "";
+    return expected || "";
   }
 }
 
@@ -37213,16 +37265,77 @@ function createPropsRecordMaterialsAddControl({ locked = false, onMaterialsState
   const context = resolvePropsRecordMaterialsContext();
   if (!context || !shouldShowEntryOverviewRecordParts(context)) return null;
 
-  const workspaceFolderPath = resolveRecordPartsWorkspaceFolderPath(context);
-  const storageRelPath = resolveRecordPartsStorageRelPath(context.relativePath);
-  if (!workspaceFolderPath || !storageRelPath) return null;
-
   const container = document.createElement("div");
   container.className = "props-form-record-materials";
+
+  const resolveMaterialsPaths = () => {
+    const ctx = {
+      ...context,
+      props: [...propsFormEntries, ...propsFormHiddenEntries]
+    };
+    return {
+      workspaceFolderPath: resolveRecordPartsWorkspaceFolderPath(ctx),
+      storageRelPath: resolveRecordPartsStorageRelPath(context.relativePath, ctx)
+    };
+  };
+
+  const ensureRecordAwnId = async () => {
+    const ctx = { ...context, props: [...propsFormEntries, ...propsFormHiddenEntries] };
+    if (getRecordMaterialsAwnIdFromContext(ctx)) return true;
+    const recordPath = String(context.relPath || context.relativePath || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim();
+    if (!recordPath) return false;
+    await applyWorkspaceRecordIdAssign(recordPath, null, async () => {
+      await refreshUiAfterWorkspaceRecordIdAssign();
+    });
+    const nextCtx = { ...context, props: [...propsFormEntries, ...propsFormHiddenEntries] };
+    return Boolean(getRecordMaterialsAwnIdFromContext(nextCtx));
+  };
 
   const renderState = async () => {
     container.replaceChildren();
     if (locked) return;
+
+    let { workspaceFolderPath, storageRelPath } = resolveMaterialsPaths();
+    const hasAwnId = Boolean(
+      getRecordMaterialsAwnIdFromContext({
+        ...context,
+        props: [...propsFormEntries, ...propsFormHiddenEntries]
+      })
+    );
+    if (!workspaceFolderPath || !storageRelPath) {
+      if (!hasAwnId) {
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "props-form-record-materials-add";
+        appendRecordMaterialsIconLabel(addBtn, RECORD_MATERIALS_UI_LABEL, {
+          iconClass: "record-materials-icon record-materials-icon--button"
+        });
+        addBtn.addEventListener("click", () => {
+          addBtn.disabled = true;
+          void (async () => {
+            if (!(await ensureRecordAwnId())) {
+              throw new Error("Не удалось присвоить awn-id записи");
+            }
+            const paths = resolveMaterialsPaths();
+            if (!paths.workspaceFolderPath) {
+              throw new Error("Не удалось определить путь доп. материалов");
+            }
+            await ensureRecordPartsWorkspaceFolder(paths.workspaceFolderPath);
+            onMaterialsStateChange?.(true);
+            showToast(`${RECORD_MATERIALS_UI_LABEL} созданы`, "success");
+            await renderState();
+          })().catch((error) => {
+            addBtn.disabled = false;
+            showToast(error.message || "Не удалось создать доп. материалы записи", "error");
+          });
+        });
+        container.appendChild(addBtn);
+      }
+      return;
+    }
 
     const exists = await recordPartsWorkspaceFolderExists(workspaceFolderPath);
     if (exists) {
@@ -37254,16 +37367,22 @@ function createPropsRecordMaterialsAddControl({ locked = false, onMaterialsState
     });
     addBtn.addEventListener("click", () => {
       addBtn.disabled = true;
-      void ensureRecordPartsWorkspaceFolder(workspaceFolderPath)
-        .then(() => {
-          onMaterialsStateChange?.(true);
-          showToast(`${RECORD_MATERIALS_UI_LABEL} созданы`, "success");
-          return renderState();
-        })
-        .catch((error) => {
-          addBtn.disabled = false;
-          showToast(error.message || "Не удалось создать доп. материалы записи", "error");
-        });
+      void (async () => {
+        if (!(await ensureRecordAwnId())) {
+          throw new Error("Не удалось присвоить awn-id записи");
+        }
+        const paths = resolveMaterialsPaths();
+        if (!paths.workspaceFolderPath) {
+          throw new Error("Не удалось определить путь доп. материалов");
+        }
+        await ensureRecordPartsWorkspaceFolder(paths.workspaceFolderPath);
+        onMaterialsStateChange?.(true);
+        showToast(`${RECORD_MATERIALS_UI_LABEL} созданы`, "success");
+        await renderState();
+      })().catch((error) => {
+        addBtn.disabled = false;
+        showToast(error.message || "Не удалось создать доп. материалы записи", "error");
+      });
     });
     container.appendChild(addBtn);
   };
@@ -37276,6 +37395,7 @@ function addMemorySectionFolderPath(folderPaths, folderPath) {
   const normalized = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
   if (!normalized || isMemorySectionInfrastructureFolderPath(normalized)) return;
   if (isRecordPartsPackageFolderPath(normalized)) return;
+  if (isRecordMaterialsAssetsPath(normalized)) return;
   folderPaths.add(normalized);
 }
 

@@ -531,26 +531,25 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
 
-### Доп. материалы записи (`awn-materials-{slug}`)
+### Доп. материалы записи (`assets/materials/{awn-id}`)
 
 **Суть:** это **не** обычный раздел каталога и **не** общая папка темы. Это **личная папка одной конкретной записи** — все файлы внутри относятся только к ней (черновики, приложения, схемы, картинки, доп. `.md`).
 
-**Связь по имени (1:1):**
+**Связь по `awn-id` (1:1):**
 
 ```
-razdel-1/
-  igra-dalnoboyschik-2.md              ← запись-владелец (awn.content.record)
-  awn-materials-igra-dalnoboyschik-2/ ← её доп. материалы (slug совпадает)
-    manifest.md                        ← опционально (как у обычного раздела)
+awn-storage/
+  main/razdel-1/igra-dalnoboyschik-2.md   ← запись-владелец (awn-id в frontmatter)
+  assets/materials/42/                    ← её доп. материалы (42 = awn-id)
+    manifest.md                           ← опционально
     черновик.md
     схема.png
 ```
 
-- Имя папки: **`awn-materials-{slug}`** (канон), где `{slug}` = имя `.md` **без** расширения.
-- Legacy (читаются, но новые папки не так): `awn-parts-{slug}`, `parts-{slug}`.
-- Папка **всегда** лежит **рядом** с записью (тот же родительский каталог).
-- Одна запись → **не больше одной** такой папки. Несколько записей в разделе → у каждой своя `awn-materials-*`, если создана.
-- При переименовании `{slug}.md` папка переименовывается вместе с записью (в каноническое имя `awn-materials-{slug}`).
+- Канонический путь: **`awn-storage/assets/materials/{awn-id}/`** (нужен `awn-id` у записи).
+- Legacy (читаются, новые не создавать): `main/…/awn-materials-{slug}/`, `awn-parts-{slug}`, `parts-{slug}` рядом с записью.
+- Одна запись → **не больше одной** папки материалов.
+- Переименование `.md` **не** переносит папку (якорь — `awn-id`, не slug).
 
 **Для агента — как понять «чья это папка»:**
 
@@ -558,7 +557,7 @@ razdel-1/
 |--------------|----------------|
 | `get_content_map` | `parentRecordRef` → ref записи-владельца, напр. `razdel-1/igra-dalnoboyschik-2.md` |
 | `get_content_map` (запись) | `hasRecordMaterials: true`, `recordMaterialsFolderRef` → ref папки |
-| По пути на диске | `…/awn-materials-{slug}/…` (или legacy `awn-parts-*`) ⇒ владелец `…/{slug}.md` |
+| По пути на диске | `…/assets/materials/{awn-id}/…` ⇒ владелец с тем же `awn-id` (legacy: `…/awn-materials-{slug}/…` ⇒ `…/{slug}.md`) |
 | UI человека | блок «Доп материалы» на обзоре записи; в TOC папки **скрыты** |
 
 **Не путать с:**
