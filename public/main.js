@@ -73993,6 +73993,128 @@ function getRecordPartsRelativeDisplayPath(filePath, rootFolderPath) {
   return normalized.split("/").pop() || normalized;
 }
 
+const RECORD_PARTS_NAV_MEMORY_KIND = "assets";
+
+function prepareRecordPartsNavigationItemsFromScan(items, rootFolderPath) {
+  const rootKey = String(rootFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  const folderLabels = new Map();
+  const folderStatuses = new Map();
+  const sectionManifestByFolder = new Map();
+  const folderPaths = new Set();
+  const contentFiles = [];
+
+  const toRelPath = (absolutePath) => getRecordPartsRelativeDisplayPath(absolutePath, rootKey);
+
+  for (const item of items || []) {
+    const kind = String(item?.kind || "").trim();
+    if (kind === "folder") {
+      const folderPath = String(item.folderPath || item.path || "")
+        .replace(/\\/g, "/")
+        .replace(/\/+$/, "");
+      if (!rootKey || !folderPath.startsWith(rootKey)) continue;
+      const relFolder = toRelPath(folderPath);
+      if (!relFolder) continue;
+      addMemorySectionFolderPath(folderPaths, relFolder);
+      if (!folderLabels.has(relFolder)) {
+        const segment = relFolder.split("/").pop() || relFolder;
+        folderLabels.set(relFolder, String(item.title || item.name || segment).trim() || segment);
+      }
+      continue;
+    }
+
+    const filePath = String(item.path || "").replace(/\\/g, "/");
+    if (!rootKey || !filePath.startsWith(`${rootKey}/`)) continue;
+    if (isRecordPartsInfrastructureScanItem(item)) continue;
+
+    const relPath = toRelPath(filePath);
+    if (!relPath) continue;
+
+    if (isSectionReadmePath(relPath)) {
+      const folderKey = relPath.slice(0, relPath.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+      const segment = folderKey.split("/").pop() || folderKey;
+      const title = String(item.title || item.displayName || "").trim();
+      folderLabels.set(
+        folderKey,
+        title || folderLabels.get(folderKey) || resolveNodeDisplayName("", segment) || segment
+      );
+      sectionManifestByFolder.set(folderKey, item);
+      const status = resolveNavigationItemStatus(item);
+      if (status) folderStatuses.set(folderKey, status);
+      if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
+      continue;
+    }
+
+    if (relPath.toLowerCase().endsWith(".sidecar.md")) continue;
+
+    const baseName = item.name || relPath.split("/").pop() || relPath;
+    const displayName = String(item.title || item.displayName || "").trim();
+    const slug = baseName.replace(/\.md$/i, "");
+    const title = displayName || resolveNodeDisplayName("", slug) || baseName;
+
+    contentFiles.push({
+      path: relPath,
+      name: baseName,
+      title,
+      displayName,
+      size: item.size ?? null,
+      ext: item.ext || "",
+      status: resolveNavigationItemStatus(item),
+      kind: item.kind
+    });
+
+    for (const ancestor of collectNavigationFolderAncestors(relPath, RECORD_PARTS_NAV_MEMORY_KIND)) {
+      addMemorySectionFolderPath(folderPaths, ancestor);
+    }
+  }
+
+  return { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths };
+}
+
+function renderRecordPartsNavigationBookToc(body, navigationState, workspaceFolderPath, context) {
+  if (!body || !navigationState) return;
+  body.querySelector(".node-navigation-book-toc")?.remove();
+
+  const {
+    contentFiles,
+    folderLabels,
+    folderStatuses,
+    sectionManifestByFolder,
+    folderPaths
+  } = navigationState;
+  const hasList = contentFiles.length > 0 || folderPaths.size > 0;
+  if (!hasList) return;
+
+  const nav = document.createElement("nav");
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
+  nav.setAttribute("aria-label", RECORD_MATERIALS_UI_LABEL);
+
+  const list = document.createElement("ul");
+  list.className = "nav-book-toc-list nav-book-toc-list--root";
+  const tree = buildNavigationPathTree(contentFiles, folderLabels, RECORD_PARTS_NAV_MEMORY_KIND);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels, RECORD_PARTS_NAV_MEMORY_KIND);
+  const rootPrefix = String(workspaceFolderPath || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  appendNavigationBookTocList(list, tree, 0, {
+    folderLabels,
+    folderStatuses,
+    sectionManifestByFolder,
+    nodePath: context?.relPath || activePath,
+    linkLeadingMode: "media",
+    treeStyle: "guide",
+    readManifestPath: getActiveNodeApiPath(),
+    readMemoryKind: RECORD_PARTS_NAV_MEMORY_KIND,
+    sortMode: loadNavigationListSort(RECORD_PARTS_NAV_MEMORY_KIND),
+    onFileClick: (item) => {
+      const rel = String(item.path || "").replace(/\\/g, "/");
+      const fullPath = rootPrefix ? `${rootPrefix}/${rel}` : rel;
+      openRecordPartsPackageFile({ ...item, path: fullPath });
+    }
+  });
+  nav.appendChild(list);
+  body.appendChild(nav);
+}
+
 function formatRecordPartsAssetSize(size) {
   const normalized = Number(size);
   if (!Number.isFinite(normalized) || normalized < 0) return "";
@@ -74468,15 +74590,28 @@ async function renderEntryOverviewRecordPartsPart(context, workspaceFolderPath =
     appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_UI_LABEL, {
       iconClass: "record-materials-icon record-materials-icon--button"
     });
-    createBtn.addEventListener("click", () => {
+    const canCreateRecordMaterials = Boolean(getRecordMaterialsAwnIdFromContext(context));
+    if (!canCreateRecordMaterials) {
       createBtn.disabled = true;
-      void ensureRecordPartsWorkspaceFolder(workspaceFolderPath)
-        .then(() => refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath))
-        .catch((error) => {
-          createBtn.disabled = false;
-          showToast(error.message || "Не удалось создать доп. материалы записи", "error");
-        });
-    });
+      createBtn.title = "Сначала присвойте awn-id записи (в шапке обзора или в свойствах)";
+    } else {
+      createBtn.title = `Создать папку ${RECORD_MATERIALS_UI_LABEL.toLowerCase()}`;
+      createBtn.addEventListener("click", () => {
+        const targetFolderPath =
+          resolveRecordPartsWorkspaceFolderPath(context) || workspaceFolderPath;
+        if (!targetFolderPath) {
+          showToast("Не удалось определить путь доп. материалов", "error");
+          return;
+        }
+        createBtn.disabled = true;
+        void ensureRecordPartsWorkspaceFolder(targetFolderPath)
+          .then(() => refreshEntryOverviewRecordPartsBody(body, context, targetFolderPath))
+          .catch((error) => {
+            createBtn.disabled = false;
+            showToast(error.message || "Не удалось создать доп. материалы записи", "error");
+          });
+      });
+    }
     actions.appendChild(createBtn);
     body.appendChild(actions);
   };
@@ -74566,12 +74701,12 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
   }
 
   const items = scanData?.items || [];
-  const mdTree = buildRecordPartsMarkdownTreeFromScanItems(items, workspaceFolderPath);
+  const navigationState = prepareRecordPartsNavigationItemsFromScan(items, workspaceFolderPath);
   const assetItems = collectRecordPartsAssetScanItems(items, workspaceFolderPath);
-  const hasMarkdown = recordPartsTreeHasContent(mdTree);
-  const hasAssets = assetItems.length > 0;
+  const hasListedItems =
+    navigationState.contentFiles.length > 0 || navigationState.folderPaths.size > 0;
 
-  if (!hasMarkdown && !hasAssets) {
+  if (!hasListedItems && !assetItems.length) {
     const renderEmpty = helpers.renderEmpty;
     if (typeof renderEmpty === "function") {
       renderEmpty("Папка создана, но пока пуста — добавьте md-страницы или другие файлы.", {
@@ -74585,7 +74720,7 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
   delete body.dataset.recordPartsItemCount;
   const fileHandlers = { onFileClick: openRecordPartsPackageFile };
   body.dataset.recordPartsItemCount = String(
-    flattenRecordPartsMdTree(mdTree).length + assetItems.length
+    navigationState.contentFiles.length || assetItems.length
   );
 
   const imageItems = assetItems.filter(isRecordPartsNavigationImageItem);
@@ -74605,48 +74740,13 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
     if (preview.childElementCount) body.appendChild(preview);
   }
 
-  if (hasMarkdown) {
-    const contentFiles = flattenRecordPartsMdTree(mdTree);
-    const folderPaths = collectRecordPartsFolderPathsFromTree(mdTree);
-    const folderLabels = new Map();
-    for (const folderPath of folderPaths) {
-      const segment = folderPath.split("/").pop() || folderPath;
-      folderLabels.set(folderPath, segment);
-    }
+  renderRecordPartsNavigationBookToc(body, navigationState, workspaceFolderPath, context);
 
-    const nav = document.createElement("nav");
-    nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
-    nav.setAttribute("aria-label", `${RECORD_MATERIALS_UI_LABEL} — md`);
-
-    const list = document.createElement("ul");
-    list.className = "nav-book-toc-list nav-book-toc-list--root";
-    const tree = buildNavigationPathTree(contentFiles, folderLabels, "external");
-    ensureNavigationTreeFolders(tree, folderPaths, folderLabels, "external");
-    appendNavigationBookTocList(list, tree, 0, {
-      folderLabels,
-      folderStatuses: new Map(),
-      sectionManifestByFolder: new Map(),
-      nodePath: context?.relPath || activePath,
-      linkLeadingMode: "media",
-      treeStyle: "guide",
-      onFileClick: (item) => {
-        const rel = String(item.path || "").replace(/\\/g, "/");
-        const fullPath = `${workspaceFolderPath.replace(/\/+$/, "")}/${rel}`;
-        openRecordPartsPackageFile({ ...item, path: fullPath });
-      }
-    });
-    nav.appendChild(list);
-    body.appendChild(nav);
-  } else if (!imageItems.length) {
+  if (!body.querySelector(".node-navigation-book-toc") && !imageItems.length) {
     const mdEmpty = document.createElement("div");
     mdEmpty.className = "node-entry-overview-record-parts-md-empty";
-    mdEmpty.textContent = "Md-страниц пока нет — положите .md файлы в эту папку.";
+    mdEmpty.textContent = "Пока нет файлов для списка — добавьте материалы в папку.";
     body.appendChild(mdEmpty);
-  }
-
-  const nonImageAssets = assetItems.filter((item) => !isRecordPartsNavigationImageItem(item));
-  if (nonImageAssets.length) {
-    body.appendChild(renderRecordPartsAssetsSection(nonImageAssets, workspaceFolderPath, fileHandlers));
   }
 }
 
