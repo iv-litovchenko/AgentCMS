@@ -73083,6 +73083,35 @@ function openMediaLibraryAssetsFolderFromNavigation(folderPath) {
   });
 }
 
+function resolveRecordMaterialsAssetsBrowseFolderPath(context, workspaceFolderPath = "") {
+  const materialsRel = resolveRecordPartsStorageRelPath(context?.relativePath, context);
+  if (materialsRel && isRecordMaterialsAssetsPath(materialsRel)) {
+    return normalizeMediaLibrarySlotRelativePath(materialsRel, "assets");
+  }
+  const folderPath = String(workspaceFolderPath || resolveRecordPartsWorkspaceFolderPath(context) || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "");
+  if (!folderPath) return "";
+  const storageRel = folderPath.replace(/^.*?\/awn-storage\//i, "");
+  const assetsMatch = storageRel.match(/^(?:[^/]+\/)?assets\/(.+)$/i);
+  if (assetsMatch?.[1]) return assetsMatch[1].replace(/\/$/, "");
+  return "";
+}
+
+function openRecordMaterialsBrowseFromOverview(context, workspaceFolderPath = "") {
+  const assetsFolder = resolveRecordMaterialsAssetsBrowseFolderPath(context, workspaceFolderPath);
+  if (assetsFolder) {
+    openMediaLibraryAssetsFolderFromNavigation(assetsFolder);
+    syncAppRouteToUrl({ replace: true });
+    return;
+  }
+  const folderPath = String(workspaceFolderPath || resolveRecordPartsWorkspaceFolderPath(context) || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "");
+  if (!folderPath) return;
+  void openFolderBrowseFromMenu(RECORD_MATERIALS_UI_LABEL, folderPath);
+}
+
 function openMediaCategoryOverviewFromNavigation(folderPath) {
   openMediaLibraryCategoryOverviewFromNavigation(folderPath, "media");
 }
@@ -73892,11 +73921,16 @@ function buildRecordPartsTreeFromScanItems(items, rootFolderPath) {
   return rootNode;
 }
 
+function isRecordPartsInfrastructureScanItem(item) {
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  const base = (filePath.split("/").pop() || String(item?.name || "")).trim();
+  return base.toLowerCase() === MANIFEST_FILE.toLowerCase();
+}
+
 function isRecordPartsMarkdownScanItem(item) {
   const kind = String(item?.kind || "").trim();
   const filePath = String(item?.path || "").replace(/\\/g, "/");
-  const base = (filePath.split("/").pop() || String(item?.name || "")).trim();
-  if (base.toLowerCase() === MANIFEST_FILE.toLowerCase()) return false;
+  if (isRecordPartsInfrastructureScanItem(item)) return false;
   if (kind === "page") return true;
   return /\.md$/i.test(filePath) || /\.md$/i.test(String(item?.name || ""));
 }
@@ -73904,6 +73938,7 @@ function isRecordPartsMarkdownScanItem(item) {
 function isRecordPartsAssetScanItem(item) {
   const kind = String(item?.kind || "").trim();
   if (kind === "folder") return false;
+  if (isRecordPartsInfrastructureScanItem(item)) return false;
   return !isRecordPartsMarkdownScanItem(item);
 }
 
@@ -74153,7 +74188,7 @@ function openRecordPartsPackageFile(fileItem) {
 function createEntryOverviewRecordMaterialsCard(
   title,
   contentNode,
-  { badgeText = null, workspaceFolderPath = "" } = {}
+  { badgeText = null, workspaceFolderPath = "", materialsContext = null } = {}
 ) {
   const card = document.createElement("section");
   card.className =
@@ -74170,6 +74205,20 @@ function createEntryOverviewRecordMaterialsCard(
   });
   head.classList.add("node-navigation-memory-head--record-materials");
   head.classList.add("node-navigation-memory-head--actionable");
+
+  const titleNode = head.querySelector(".node-navigation-memory-title");
+  if (titleNode && materialsContext && workspaceFolderPath) {
+    const titleButton = document.createElement("button");
+    titleButton.type = "button";
+    titleButton.className = titleNode.className;
+    titleButton.title = `Открыть: ${title}`;
+    while (titleNode.firstChild) titleButton.appendChild(titleNode.firstChild);
+    titleNode.replaceWith(titleButton);
+    titleButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openRecordMaterialsBrowseFromOverview(materialsContext, workspaceFolderPath);
+    });
+  }
 
   if (workspaceFolderPath) {
     const viewBtn = document.createElement("button");
@@ -74441,7 +74490,8 @@ async function renderEntryOverviewRecordPartsPart(context, workspaceFolderPath =
 
   const card = createEntryOverviewRecordMaterialsCard(RECORD_MATERIALS_UI_LABEL, bodyWrap, {
     badgeText,
-    workspaceFolderPath
+    workspaceFolderPath,
+    materialsContext: context
   });
   card.dataset.partsStorageRel = storageRelPath;
   card.dataset.recordPartsWorkspacePath = workspaceFolderPath;
