@@ -31828,16 +31828,130 @@ function parseRecordMaterialsAwnIdValue(value) {
   return num;
 }
 
+function normalizeRecordMaterialsRelativePath(relativePath) {
+  let rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return "";
+  if (!/\.md$/i.test(rel) && isRecordStorageRelativePath(rel)) {
+    rel = `${rel}.md`;
+  }
+  return rel;
+}
+
+function recordMaterialsRelativePathVariants(relativePath) {
+  const rel = normalizeRecordMaterialsRelativePath(relativePath);
+  if (!rel) return [];
+  const variants = new Set([rel, rel.replace(/\.md$/i, "")]);
+  if (rel.startsWith("main/")) {
+    variants.add(rel.slice("main/".length));
+    variants.add(rel.slice("main/".length).replace(/\.md$/i, ""));
+  } else {
+    variants.add(`main/${rel}`);
+    variants.add(`main/${rel}`.replace(/\.md$/i, ""));
+  }
+  return [...variants];
+}
+
+function findExternalCacheFileByRelativePath(relativePath) {
+  const variants = new Set(recordMaterialsRelativePathVariants(relativePath));
+  if (!variants.size || !Array.isArray(externalFilesCache) || !externalFilesCache.length) return null;
+  return (
+    externalFilesCache.find((item) => {
+      const path = String(item.relativePath || item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      if (!path) return false;
+      if (variants.has(path)) return true;
+      return variants.has(path.replace(/\.md$/i, ""));
+    }) || null
+  );
+}
+
+function findNavigationContentFileByRelativePath(relativePath, navigationIndex) {
+  const variants = new Set(recordMaterialsRelativePathVariants(relativePath));
+  if (!variants.size) return null;
+  const files = navigationIndex?.contentFiles;
+  if (!Array.isArray(files) || !files.length) return null;
+  return (
+    files.find((item) => {
+      const path = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      if (!path) return false;
+      if (variants.has(path)) return true;
+      return variants.has(path.replace(/\.md$/i, ""));
+    }) || null
+  );
+}
+
+function mergeAwnIdIntoRecordMaterialsContext(context, awnId) {
+  const parsed = parseRecordMaterialsAwnIdValue(awnId);
+  if (!parsed || !context) return context;
+  const props = Array.isArray(context.props) ? [...context.props] : [];
+  if (!getPropsEntryValueByKey(props, "awn-id")) {
+    props.push({ key: "awn-id", value: String(parsed), kind: "scalar" });
+  }
+  return { ...context, props, awnId: parsed };
+}
+
+function parseRecordMaterialsAwnIdFromFrontmatterText(recordBody) {
+  const { frontmatter } = splitFrontmatter(String(recordBody || ""));
+  const raw =
+    getYamlScalarFromFrontmatter(frontmatter, "awn-id") || String(frontmatter?.["awn-id"] ?? "").trim();
+  return parseRecordMaterialsAwnIdValue(raw);
+}
+
+function buildRecordMaterialsContext(context, { propEntries = null, navigationIndex = null, recordBody = "" } = {}) {
+  const bodyAwnId = parseRecordMaterialsAwnIdFromFrontmatterText(recordBody);
+  let ctx = withRecordMaterialsContext(context, propEntries, navigationIndex);
+  if (bodyAwnId) {
+    return mergeAwnIdIntoRecordMaterialsContext(ctx, bodyAwnId);
+  }
+  if (getRecordMaterialsAwnIdFromContext(ctx)) return ctx;
+  const loadedPath = normalizeLiveSyncStoragePath(String(context?.relPath || ""));
+  if (
+    loadedPath &&
+    entryOverviewLoadedBodyPath &&
+    loadedPath === entryOverviewLoadedBodyPath &&
+    entryOverviewLoadedBody
+  ) {
+    const loadedAwnId = parseRecordMaterialsAwnIdFromFrontmatterText(entryOverviewLoadedBody);
+    if (loadedAwnId) return mergeAwnIdIntoRecordMaterialsContext(ctx, loadedAwnId);
+  }
+  return ctx;
+}
+
+function withRecordMaterialsContext(context, propEntries = null, navigationIndex = null) {
+  if (!context) return context;
+  const fromEntries = Array.isArray(propEntries) && propEntries.length ? propEntries : null;
+  const navItem = fromEntries
+    ? null
+    : findNavigationContentFileByRelativePath(context.relativePath, navigationIndex);
+  const navProps = Array.isArray(navItem?.props) && navItem.props.length ? navItem.props : null;
+  const contextProps = Array.isArray(context.props) && context.props.length ? context.props : null;
+  const props = fromEntries || navProps || contextProps;
+  if (!props && !context.awnId) return context;
+  return {
+    ...context,
+    ...(props ? { props } : {}),
+    ...(context.awnId ? {} : navItem?.awnId ? { awnId: navItem.awnId } : {})
+  };
+}
+
 function getRecordMaterialsAwnIdFromContext(context) {
   const props = Array.isArray(context?.props) ? context.props : [];
   const fromProps = getPropsEntryValueByKey(props, "awn-id");
   let parsed = parseRecordMaterialsAwnIdValue(fromProps);
   if (parsed) return parsed;
+  parsed = parseRecordMaterialsAwnIdValue(context?.awnId);
+  if (parsed) return parsed;
   const fromForm = getPropsEntryValueByKey(propsFormEntries, "awn-id");
   parsed = parseRecordMaterialsAwnIdValue(fromForm);
   if (parsed) return parsed;
   const fromHidden = getPropsEntryValueByKey(propsFormHiddenEntries, "awn-id");
-  return parseRecordMaterialsAwnIdValue(fromHidden);
+  parsed = parseRecordMaterialsAwnIdValue(fromHidden);
+  if (parsed) return parsed;
+  const cached = findExternalCacheFileByRelativePath(context?.relativePath);
+  if (cached) {
+    parsed = parseRecordMaterialsAwnIdValue(resolveNavigationItemAwnId(cached));
+    if (parsed) return parsed;
+  }
+  return null;
 }
 
 function buildRecordMaterialsAssetsRelPath(awnId) {
@@ -37243,8 +37357,7 @@ function pickRecordPartsFolderFromParentListing(folders, parentPath, slug = "") 
 async function findRecordPartsWorkspaceFolder(context) {
   const expected = resolveRecordPartsWorkspaceFolderPath(context);
   const awnId = getRecordMaterialsAwnIdFromContext(context);
-  if (expected && awnId) {
-    if (await recordPartsWorkspaceFolderExists(expected)) return expected;
+  if (awnId && expected) {
     return expected;
   }
 
@@ -72410,13 +72523,16 @@ async function openFlatStorageRecordOverviewFromNavigation(item, memoryKind) {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
   const relPath = getFlatStorageItemContextPath(rel, memoryKind);
+  const props = Array.isArray(item?.props) ? item.props : [];
   await openEntryOverviewFromNavigation({
     relPath,
     memoryKind,
     relativePath: rel,
     title: item.title || rel.split("/").pop()?.replace(/\.md$/i, "") || rel,
     entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind }),
-    status: item.status || ""
+    status: item.status || "",
+    ...(props.length ? { props } : {}),
+    ...(item.awnId ? { awnId: item.awnId } : {})
   });
 }
 
@@ -72767,7 +72883,9 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
     relativePath: String(context.relativePath || "").replace(/\\/g, "/"),
     title: String(context.title || "").trim(),
     entryKind: String(context.entryKind || "awn.record"),
-    status: String(context.status || "").trim()
+    status: String(context.status || "").trim(),
+    ...(Array.isArray(context.props) && context.props.length ? { props: context.props } : {}),
+    ...(context.awnId ? { awnId: context.awnId } : {})
   };
   resetEntryOverviewSearch();
   if (!applyContentModeState(NODE_ENTRY_OVERVIEW_MODE)) {
@@ -72797,13 +72915,16 @@ function openExternalRecordOverviewFromNavigation(item) {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
   const relPath = getExternalItemContextPath(item);
+  const props = Array.isArray(item?.props) ? item.props : [];
   void openEntryOverviewFromNavigation({
     relPath,
     memoryKind: "external",
     relativePath: rel,
     title: item.title || rel.split("/").pop() || rel,
     entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: "external" }),
-    status: item.status || ""
+    status: item.status || "",
+    ...(props.length ? { props } : {}),
+    ...(item.awnId ? { awnId: item.awnId } : {})
   });
 }
 
@@ -73773,9 +73894,11 @@ function buildRecordPartsTreeFromScanItems(items, rootFolderPath) {
 
 function isRecordPartsMarkdownScanItem(item) {
   const kind = String(item?.kind || "").trim();
-  if (kind === "page") return true;
   const filePath = String(item?.path || "").replace(/\\/g, "/");
-  return /\.md$/i.test(filePath);
+  const base = (filePath.split("/").pop() || String(item?.name || "")).trim();
+  if (base.toLowerCase() === MANIFEST_FILE.toLowerCase()) return false;
+  if (kind === "page") return true;
+  return /\.md$/i.test(filePath) || /\.md$/i.test(String(item?.name || ""));
 }
 
 function isRecordPartsAssetScanItem(item) {
@@ -78204,10 +78327,15 @@ async function renderEntryOverview() {
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
+  const materialsContext = buildRecordMaterialsContext(context, {
+    propEntries: entries,
+    navigationIndex,
+    recordBody: rawBody
+  });
   let recordPartsWorkspaceFolderPath = "";
-  const showRecordParts = shouldShowEntryOverviewRecordParts(context);
+  const showRecordParts = shouldShowEntryOverviewRecordParts(materialsContext);
   if (showRecordParts) {
-    recordPartsWorkspaceFolderPath = await findRecordPartsWorkspaceFolder(context);
+    recordPartsWorkspaceFolderPath = await findRecordPartsWorkspaceFolder(materialsContext);
     if (isStale()) return;
   }
 
@@ -78300,7 +78428,7 @@ async function renderEntryOverview() {
 
   if (showRecordParts) {
     await appendEntryOverviewRecordPartsPanel(
-      context,
+      materialsContext,
       hubMain,
       isStale,
       contentPanel || hero,
