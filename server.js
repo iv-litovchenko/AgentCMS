@@ -10246,6 +10246,35 @@ async function isTreeMenuManifestRel(manifestRel, options = {}) {
   return !type;
 }
 
+async function folderRelHasTreeManifest(folderRel, options = {}) {
+  const normalized = String(folderRel || "").replace(/\\/g, "/").trim();
+  if (!normalized || normalized === ".") return false;
+  const folderAbsolute = normalizeWorkspacePath(normalized);
+  if (!folderAbsolute) return false;
+  const manifestBase = await resolveExistingAreaManifestBasename(folderAbsolute);
+  if (!manifestBase) return false;
+  const manifestRel = `${normalized}/${manifestBase}`.replace(/\\/g, "/");
+  return isTreeMenuManifestRel(manifestRel, options);
+}
+
+async function folderRelIsAreaTreeNode(folderRel, options = {}) {
+  const normalized = String(folderRel || "").replace(/\\/g, "/").trim();
+  if (!normalized || normalized === ".") return false;
+  if (!(await folderRelHasTreeManifest(normalized, options))) return false;
+  const folderAbsolute = normalizeWorkspacePath(normalized);
+  if (!folderAbsolute) return false;
+  const manifestBase = await resolveExistingAreaManifestBasename(folderAbsolute);
+  if (!manifestBase) return false;
+  const manifestRel = `${normalized}/${manifestBase}`.replace(/\\/g, "/");
+  if (isContainerAreaRootManifestRel(manifestRel)) return true;
+  if (isServiceAreaRootManifestRel(manifestRel)) return true;
+  const { type } = await readManifestMenuMetaCached(manifestRel, options);
+  if (type === "topic") return false;
+  if (type === "area" || type === "workspace" || type === "section") return true;
+  const folderDepth = path.posix.dirname(manifestRel).split("/").filter(Boolean).length;
+  return folderDepth < 2;
+}
+
 async function resolveExistingAreaManifestBasename(dirAbsolute) {
   for (const name of AREA_MANIFEST_CANDIDATES) {
     const candidate = path.join(dirAbsolute, name);
@@ -28093,6 +28122,13 @@ async function handleApiForAgent(req, res, url) {
       const indexExcludeFlags = parsePayloadIndexExcludeFlags(payload);
 
       if (type === "manifest" || type === "topic-manifest") {
+        const parentRel = path.posix.dirname(String(parentPathResolved || "").replace(/\\/g, "/"));
+        if (!parentRel || parentRel === "." || !(await folderRelIsAreaTreeNode(parentRel))) {
+          return sendJson(res, 400, {
+            error:
+              "Подхват возможен только если непосредственный родитель — область с manifest.md (тип «область»)."
+          });
+        }
         const adoptResult = await adoptExistingFolderWithManifest({
           parentAbsolute,
           parentPathResolved,

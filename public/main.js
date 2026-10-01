@@ -29565,7 +29565,35 @@ function resolveSharedTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${sharedFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
-function shouldOfferAreaAdopt(node) {
+function getCreateFolderParentPath(folderPath) {
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  if (!normalized || normalized === ".") return ".";
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length <= 1) return ".";
+  return parts.slice(0, -1).join("/");
+}
+
+const ADOPT_REQUIRES_AREA_PARENT_MESSAGE =
+  "Подхват возможен только если непосредственный родитель — область с manifest.md (тип «область»).";
+
+function isCreateAdoptParentArea(folderPath, agentId = getCreateModalAgentId()) {
+  const parent = getCreateFolderParentPath(folderPath);
+  if (!parent || parent === ".") return false;
+  const node = getMenuTreeNodeByFolderPath(parent, agentId);
+  if (node?.indexPath && isAreaNodePath(normalizeMenuNodePath(node.indexPath))) return true;
+  const manifestRel = `${parent}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+  return isAreaNodePath(manifestRel);
+}
+
+function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgentId()) {
+  if (type !== "manifest" && type !== "topic-manifest") return null;
+  if (!isCreateAdoptParentArea(folderPath, agentId)) {
+    return ADOPT_REQUIRES_AREA_PARENT_MESSAGE;
+  }
+  return null;
+}
+
+function shouldOfferAreaAdopt(node, agentId = activeAgentId) {
   if (!node || node.indexPath) return false;
   const folderPath = String(node.folderPath || "").trim();
   if (!folderPath) return false;
@@ -29813,6 +29841,10 @@ function isCreateAdoptFolderContext() {
 
 function isCreateAdoptInsideEstablishedArea() {
   return isCreateAdoptFolderContext() && isFolderPathInsideEstablishedArea(createModalBaseParentPath);
+}
+
+function resolveCreateAdoptNodeType() {
+  return isCreateAdoptParentArea(createModalBaseParentPath) ? "topic-manifest" : "manifest";
 }
 
 function getCreateAdoptFolderPath() {
@@ -30677,7 +30709,7 @@ async function uploadWorkspaceFolderFiles(folderPath, fileList, options = {}) {
 
 function syncCreateNodeActionsUi() {
   const showManifestOption = isCreateAdoptFolderContext();
-  const adoptInsideArea = isCreateAdoptInsideEstablishedArea();
+  const adoptParentIsArea = isCreateAdoptParentArea(createModalBaseParentPath);
   const showFreeMemoryOptions = shouldShowFreeMemoryCreateOptions();
   const serviceRoot = isServiceRootCreateParent(createModalBaseParentPath);
   const serviceSubfolder = isServiceSubfolderCreateParent(createModalBaseParentPath);
@@ -30695,19 +30727,14 @@ function syncCreateNodeActionsUi() {
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
   createNodeActionsNode?.classList.toggle("has-free-memory-option", showFreeMemoryOptions && !showManifestOption);
   if (createManifestBtn && showManifestOption) {
-    createManifestBtn.classList.toggle("create-node-action-btn--primary", !adoptInsideArea);
+    createManifestBtn.classList.toggle("create-node-action-btn--primary", !adoptParentIsArea);
   }
   if (createFileBtn) {
-    if (showManifestOption && adoptInsideArea) {
+    if (showManifestOption) {
       createFileBtn.classList.remove("hidden");
       createFileBtn.textContent = "Подхватить (тема)";
       createFileBtn.title = `Подхватить папку как тему (${AREA_MANIFEST_FILE})`;
-      createFileBtn.classList.add("create-node-action-btn--primary");
-    } else if (showManifestOption) {
-      createFileBtn.classList.add("hidden");
-      createFileBtn.textContent = "Файл (тема)";
-      createFileBtn.title = "Новый файл темы (*.md)";
-      createFileBtn.classList.remove("create-node-action-btn--primary");
+      createFileBtn.classList.toggle("create-node-action-btn--primary", adoptParentIsArea);
     } else {
       createFileBtn.classList.remove("hidden");
       createFileBtn.textContent = "Файл (тема)";
@@ -30772,9 +30799,7 @@ function updateCreateNodeModalContext(parentPath) {
   const label = formatCreateParentLabel(parentPath);
   if (createNodeModalTitleNode) {
     if (isCreateAdoptFolderContext()) {
-      createNodeModalTitleNode.textContent = isCreateAdoptInsideEstablishedArea()
-        ? `${FREE_MEMORY_LABEL}: «${label}» — без темы`
-        : `${FREE_MEMORY_LABEL}: «${label}»`;
+      createNodeModalTitleNode.textContent = `${FREE_MEMORY_LABEL}: «${label}»`;
     } else {
       createNodeModalTitleNode.textContent = `Создать в «${label}»`;
     }
@@ -75787,6 +75812,23 @@ async function fetchPageOutsideSlotsReport(manifestPath) {
   return response.json();
 }
 
+function createOutsideSlotsMoveToInboxButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-navigation-outside-slots-warning-move-inbox-btn";
+  btn.textContent = "Переместить во входящие - выполнять в ручную!";
+  btn.disabled = true;
+  btn.setAttribute("aria-disabled", "true");
+  return btn;
+}
+
+function createOutsideSlotsMoveToInboxActions() {
+  const footer = document.createElement("div");
+  footer.className = "node-navigation-outside-slots-warning-actions";
+  footer.appendChild(createOutsideSlotsMoveToInboxButton());
+  return footer;
+}
+
 function renderPageOutsideSlotsWarningPanel(report, topicPath) {
   const panel = document.createElement("section");
   panel.className = "node-navigation-outside-slots-warning";
@@ -75839,7 +75881,7 @@ function renderPageOutsideSlotsWarningPanel(report, topicPath) {
     list.appendChild(row);
   }
 
-  panel.append(header, list);
+  panel.append(header, list, createOutsideSlotsMoveToInboxActions());
   return panel;
 }
 
@@ -75942,7 +75984,7 @@ function renderIblockOutsideStructureWarningPanel(report) {
     list.appendChild(row);
   }
 
-  panel.append(header, list);
+  panel.append(header, list, createOutsideSlotsMoveToInboxActions());
   return panel;
 }
 
@@ -96427,6 +96469,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
       if (canAdoptArea) {
         sectionRow.className = "menu-folder-row menu-folder-row--adopt";
+        const adoptTargetPath = node.folderPath || sectionFolderPath || ".";
 
         sectionRow.appendChild(
           createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed, {
@@ -96437,10 +96480,8 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         const folderLabel = document.createElement("button");
         folderLabel.type = "button";
         folderLabel.className = "menu-folder menu-folder--adopt";
-        folderLabel.dataset.folderPath = node.folderPath || sectionFolderPath || ".";
-        folderLabel.title = isEmptyFolder
-          ? `${FREE_MEMORY_LABEL} — клик: просмотр; +: оформить как область`
-          : `${FREE_MEMORY_LABEL} — клик: просмотр; +: оформить как область`;
+        folderLabel.dataset.folderPath = adoptTargetPath;
+        folderLabel.title = `${FREE_MEMORY_LABEL} — клик: просмотр; +: подхват (область или тема)`;
         setMenuLabelWithMarkers(
           folderLabel,
           formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
@@ -96465,10 +96506,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         addBtn.type = "button";
         addBtn.className = "add-node-btn";
         addBtn.textContent = "+";
-        addBtn.title = `Оформить ${FREE_MEMORY_LABEL.toLowerCase()} как область`;
+        addBtn.title = `Подхватить ${FREE_MEMORY_LABEL.toLowerCase()} (область или тема)`;
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          const adoptPath = node.folderPath || sectionFolderPath || ".";
+          const adoptPath = adoptTargetPath;
           openCreateNodeModal(adoptPath, {
             adoptFolder: true,
             emptyFolder: isEmptyFolder,
@@ -121217,7 +121258,15 @@ async function createNode(type, options = {}) {
   }
 
   if (isCreateAdoptFolderContext() && type === "folder") {
-    type = isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "manifest";
+    type = resolveCreateAdoptNodeType();
+  }
+
+  if (isCreateAdoptFolderContext() && (type === "manifest" || type === "topic-manifest")) {
+    const adoptError = validateCreateAdoptType(type, createModalBaseParentPath, agentId);
+    if (adoptError) {
+      showToast(adoptError, "error");
+      return;
+    }
   }
 
   const displayName = createNameInputNode?.value?.trim() ?? "";
@@ -123269,7 +123318,7 @@ folderBrowseFileRenameBtn?.addEventListener("click", () => {
   });
 });
 createFileBtn?.addEventListener("click", () => {
-  createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "file");
+  createNode(isCreateAdoptFolderContext() ? "topic-manifest" : "file");
 });
 createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-service-doc-preset]");
@@ -123388,7 +123437,7 @@ createNameInputNode?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     if (isCreateAdoptFolderContext()) {
-      createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "manifest");
+      createNode(resolveCreateAdoptNodeType());
       return;
     }
     createNode("folder");
