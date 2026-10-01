@@ -11486,7 +11486,12 @@ function createAppLandingPlatformLearningMindset() {
   promptSubtitle.className = "app-landing-platform-learning-sphere-prompt-subtitle";
   promptSubtitle.textContent = "Задача и контекст — четыре первых шага";
 
-  promptCopy.append(promptTitle, promptSubtitle);
+  const promptHint = document.createElement("p");
+  promptHint.className = "app-landing-platform-learning-sphere-prompt-hint";
+  promptHint.textContent =
+    "Шаг 1: сначала поищи в хранилище похожие записи — если это уместно";
+
+  promptCopy.append(promptTitle, promptSubtitle, promptHint);
   spherePrompt.append(promptCloud, promptCopy);
 
   const sphereJourney = document.createElement("div");
@@ -11499,7 +11504,8 @@ function createAppLandingPlatformLearningMindset() {
     {
       icon: "💬",
       label: "Первый вопрос",
-      detail: "Сформулируй задачу и спроси агента или нейросеть, с чего начать",
+      detail:
+        "Сначала поищи в хранилище похожие записи (поиск или вопрос агенту). Затем сформулируй задачу и спроси, с чего начать",
       tone: "violet",
       delay: 0,
       step: 1
