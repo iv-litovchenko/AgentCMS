@@ -85,6 +85,14 @@ function formatViewBox(vb) {
   return `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
 }
 
+function parseViewBoxString(value) {
+  const parts = String(value || "").trim().split(/\s+/).map(Number);
+  if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+    return { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+  }
+  return null;
+}
+
 function viewBoxScale(base, current) {
   return base.w / current.w;
 }
@@ -127,10 +135,20 @@ function clampViewBoxToBase(viewBox, baseViewBox) {
   return vb;
 }
 
+function findMermaidResetZoomButton(host) {
+  if (!(host instanceof Element)) return null;
+  const inHost = host.querySelector(":scope > .mermaid-diagram-actions .mermaid-diagram-reset-zoom-btn");
+  if (inHost) return inHost;
+  const inHostDirect = host.querySelector(".mermaid-diagram-reset-zoom-btn");
+  if (inHostDirect) return inHostDirect;
+  const panel = host.closest(".mermaid-diagram-lightbox-panel");
+  return panel?.querySelector(".mermaid-diagram-reset-zoom-btn") || null;
+}
+
 function syncZoomedClass(host, baseViewBox, currentViewBox) {
   const transformed = isViewBoxTransformed(baseViewBox, currentViewBox);
   host?.classList.toggle("is-mermaid-zoomed", transformed);
-  const resetBtn = host?.querySelector(".mermaid-diagram-reset-zoom-btn");
+  const resetBtn = findMermaidResetZoomButton(host);
   if (resetBtn) resetBtn.disabled = !transformed;
 }
 
@@ -208,7 +226,8 @@ function bindPanZoom(host) {
     pinchMidY: 0
   };
 
-  state.captureBase = () => {
+  state.captureBase = (options = {}) => {
+    const updateBaseOnly = Boolean(options.updateBaseOnly);
     state.content = getDiagramContent(host) || state.content;
     state.svg = getDiagramSvg(state.content);
     if (!state.svg) return false;
@@ -219,11 +238,18 @@ function bindPanZoom(host) {
     const base = padViewBox(raw);
     state.originalViewBoxAttr = formatViewBox(base);
     state.baseViewBox = base;
+
+    if (updateBaseOnly) {
+      if (state.viewBox) {
+        state.transformed = isViewBoxTransformed(base, state.viewBox);
+        syncZoomedClass(host, base, state.viewBox);
+      }
+      return true;
+    }
+
     state.viewBox = cloneViewBox(base);
     state.transformed = false;
-    if (!state.transformed) {
-      state.svg.setAttribute("viewBox", state.originalViewBoxAttr);
-    }
+    state.svg.setAttribute("viewBox", state.originalViewBoxAttr);
     syncZoomedClass(host, base, state.viewBox);
     return true;
   };
@@ -392,10 +418,79 @@ function bindPanZoom(host) {
  * @param {Element} host — `.mermaid-diagram-frame` or `.shell-mermaid-lightbox-stage`
  * @param {{ reset?: boolean }} [options]
  */
+function buildViewSnapshotFromBoxes(baseViewBox, currentViewBox) {
+  if (!baseViewBox || !currentViewBox) return null;
+  const cx = currentViewBox.x + currentViewBox.w / 2;
+  const cy = currentViewBox.y + currentViewBox.h / 2;
+  const transformed = isViewBoxTransformed(baseViewBox, currentViewBox);
+  return {
+    scale: viewBoxScale(baseViewBox, currentViewBox),
+    relCx: (cx - baseViewBox.x) / baseViewBox.w,
+    relCy: (cy - baseViewBox.y) / baseViewBox.h,
+    transformed
+  };
+}
+
+export function snapshotMermaidDiagramView(host) {
+  if (!(host instanceof Element)) return null;
+  const state = hostState.get(host);
+  const svg = getDiagramSvg(getDiagramContent(host));
+  const current =
+    state?.viewBox && state.viewBox.w > 0
+      ? cloneViewBox(state.viewBox)
+      : svg
+        ? readSvgViewBox(svg)
+        : null;
+  if (!current) return null;
+
+  const base =
+    state?.baseViewBox && state.baseViewBox.w > 0
+      ? state.baseViewBox
+      : (() => {
+          const intrinsic = svg ? readMermaidIntrinsicViewBox(svg) : null;
+          return intrinsic ? padViewBox(intrinsic) : current;
+        })();
+
+  const relative = buildViewSnapshotFromBoxes(base, current);
+  return relative ? { ...relative, viewBox: formatViewBox(current) } : null;
+}
+
+export function restoreMermaidDiagramView(host, snapshot) {
+  if (!(host instanceof Element) || !snapshot) return;
+  const state = hostState.get(host);
+  if (!state?.svg) return;
+
+  const fromAttr = parseViewBoxString(snapshot.viewBox);
+  if (fromAttr) {
+    state.viewBox = fromAttr;
+    applyViewBox(state.svg, state);
+    return;
+  }
+
+  if (!snapshot.transformed) {
+    state.reset();
+    return;
+  }
+  const base = state.baseViewBox;
+  if (!base?.w || !base?.h) return;
+  const scale = Math.min(PANZOOM_MAX, Math.max(PANZOOM_MIN, Number(snapshot.scale) || 1));
+  const nw = base.w / scale;
+  const nh = base.h / scale;
+  const cx = base.x + (Number(snapshot.relCx) || 0.5) * base.w;
+  const cy = base.y + (Number(snapshot.relCy) || 0.5) * base.h;
+  state.viewBox = { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
+  applyViewBox(state.svg, state);
+}
+
 function applyMermaidDiagramPanZoom(host, state, options = {}) {
   if (!host.isConnected) return;
-  if (!state.captureBase()) return;
-  if (options.reset) state.reset();
+  const hasSnapshot = Boolean(options.viewSnapshot);
+  if (!state.captureBase({ updateBaseOnly: hasSnapshot })) return;
+  if (hasSnapshot) {
+    restoreMermaidDiagramView(host, options.viewSnapshot);
+  } else if (options.reset) {
+    state.reset();
+  }
   host.classList.remove("is-mermaid-panning");
 }
 
@@ -419,12 +514,12 @@ export function refreshMermaidDiagramPanZoom(host, options = {}) {
   if (!content?.querySelector?.("svg") && content?.tagName?.toLowerCase() !== "svg") return;
 
   const state = hostState.get(host) || bindPanZoom(host);
-  host.classList.remove("is-mermaid-zoomed", "is-mermaid-panning");
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      applyMermaidDiagramPanZoom(host, state, { reset: true, ...options });
-    });
-  });
+  const viewSnapshot = options.viewSnapshot || null;
+  const reset = options.reset !== false && !viewSnapshot;
+  host.classList.remove("is-mermaid-panning");
+  const apply = () => applyMermaidDiagramPanZoom(host, state, { reset, viewSnapshot });
+  if (viewSnapshot) apply();
+  else requestAnimationFrame(apply);
 }
 
 export function resetMermaidDiagramPanZoom(host) {

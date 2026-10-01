@@ -22,6 +22,11 @@ export const MERMAID_FULLSCREEN_BUTTON_HTML =
   '<path d="M2.5 6V3.5H5M11 3.5h2.5V6M14.5 10v2.5H12M5 14.5H2.5V12"/></svg>' +
   '<span class="mermaid-diagram-chrome-label">На весь экран</span>';
 
+export const MERMAID_EXIT_FULLSCREEN_BUTTON_HTML =
+  '<svg class="mermaid-diagram-chrome-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" aria-hidden="true">' +
+  '<path d="M6 2.5H3.5V5M13 3.5H10.5M13 10.5v2.5H10.5M6 13.5H3.5V11"/></svg>' +
+  '<span class="mermaid-diagram-chrome-label">Свернуть</span>';
+
 const MERMAID_ACTION_BUTTON_ORDER = [
   ".mermaid-diagram-theme-btn",
   ".mermaid-diagram-source-btn",

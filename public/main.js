@@ -90664,7 +90664,7 @@ function loadMermaidThemeModule() {
 
 function loadMermaidChromeModule() {
   if (!mermaidChromeModulePromise) {
-    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js?v=0.5.971");
+    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js?v=0.5.975");
   }
   return mermaidChromeModulePromise;
 }
@@ -91006,7 +91006,7 @@ async function refreshMermaidDiagramFrame(frame) {
 
   const themeMod = await loadMermaidThemeModule();
   const theme = themeMod.normalizeMermaidFrameTheme(frame.dataset.mermaidTheme, "light");
-  const ok = await renderMermaidBlock(block, theme);
+  const ok = await renderMermaidBlock(block, theme, { preserveView: true, keepChromeState: true });
 
   if (frame.classList.contains("is-mermaid-source-open")) {
     const panel = frame.querySelector(".mermaid-diagram-source-panel");
@@ -91068,8 +91068,10 @@ async function ensureMermaidFullscreenButton(frame, block) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/js/mermaid/mermaid-diagram-lightbox.js").then((mod) => {
-        mod.openMermaidDiagramLightbox(frame, block);
+      void import("/js/mermaid/mermaid-diagram-lightbox.js?v=0.5.975").then((mod) => {
+        mod.openMermaidDiagramLightbox(frame, {
+          onRefresh: () => refreshMermaidDiagramFrame(frame)
+        });
       });
     });
     bar.appendChild(btn);
@@ -91096,7 +91098,7 @@ async function ensureMermaidResetZoomButton(frame) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.972").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
+      void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
     });
     bar.appendChild(btn);
   } else {
@@ -91132,17 +91134,27 @@ async function ensureMermaidThemeToggle(frame, block) {
   return btn;
 }
 
-async function renderMermaidBlock(block, theme = "light") {
+async function renderMermaidBlock(block, theme = "light", options = {}) {
   const source = getMermaidBlockSource(block);
   if (!source) return false;
 
   const themeMod = await loadMermaidThemeModule();
   const frame = ensureMermaidDiagramFrame(block);
+  const preserveView = Boolean(options.preserveView);
+  const keepChromeState = Boolean(options.keepChromeState);
+  const panzoomMod = preserveView
+    ? await import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975")
+    : null;
+  const viewSnapshot = preserveView ? panzoomMod.snapshotMermaidDiagramView(frame) : null;
   const frameTheme = themeMod.applyMermaidFrameTheme(frame, theme, "light");
   frame.setAttribute("data-mermaid-diagram-source", encodeURIComponent(source));
-  frame.classList.remove("is-mermaid-source-open");
-  syncMermaidSourceButtonUi(frame, false);
-  await upgradeMermaidDiagramFrameChrome(frame);
+  if (!keepChromeState) {
+    frame.classList.remove("is-mermaid-source-open");
+    syncMermaidSourceButtonUi(frame, false);
+  }
+  if (!keepChromeState) {
+    await upgradeMermaidDiagramFrameChrome(frame);
+  }
 
   block.dataset.mermaidSource = source;
   block.removeAttribute("data-processed");
@@ -91153,15 +91165,26 @@ async function renderMermaidBlock(block, theme = "light") {
   try {
     const renderId = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const { svg, bindFunctions } = await window.mermaid.render(renderId, source);
+    const prevSvg = block.querySelector("svg");
+    const prevHeight = prevSvg?.getBoundingClientRect().height || 0;
+    if (preserveView && prevHeight > 0) {
+      block.style.minHeight = `${Math.ceil(prevHeight)}px`;
+    }
     block.innerHTML = svg;
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
-    void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.972").then((mod) => {
+    const applyPanZoom = (mod) => {
       mod.normalizeMermaidRenderedSvgRoot(block);
-      mod.refreshMermaidDiagramPanZoom(frame, { reset: true });
+      mod.refreshMermaidDiagramPanZoom(frame, {
+        reset: !preserveView,
+        viewSnapshot: preserveView ? viewSnapshot : null
+      });
+      if (preserveView) block.style.minHeight = "";
       void ensureMermaidResetZoomButton(frame);
-    });
+    };
+    if (panzoomMod) applyPanZoom(panzoomMod);
+    else void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then(applyPanZoom);
     return true;
   } catch (error) {
     console.warn("Mermaid render failed:", error);

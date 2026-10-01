@@ -54044,7 +54044,7 @@ button.node-navigation-memory-title:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
   background: rgba(248, 250, 252, 0.96);
 }
 
@@ -54056,49 +54056,73 @@ button.node-navigation-memory-title:focus-visible {
   background: rgba(15, 23, 42, 0.94);
 }
 
+.mermaid-diagram-lightbox-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(96vw, 1400px);
+  max-height: calc(100vh - 40px);
+  min-height: min(60vh, 480px);
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+}
+
+.mermaid-diagram-lightbox.is-dark .mermaid-diagram-lightbox-panel {
+  border-color: #334155;
+  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+}
+
+.mermaid-diagram-lightbox-toolbar {
+  position: static;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  max-width: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.mermaid-diagram-lightbox.is-dark .mermaid-diagram-lightbox-toolbar {
+  border-bottom-color: #334155;
+  background: rgba(15, 23, 42, 0.88);
+}
+
 .mermaid-diagram-lightbox-stage {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  max-width: min(96vw, 1400px);
-  max-height: calc(100vh - 80px);
-  overflow: hidden;
-  position: relative;
-}
-
-.mermaid-diagram-lightbox-stage .mermaid-diagram-viewport {
   width: 100%;
-  max-height: calc(100vh - 80px);
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  position: relative;
+  touch-action: none;
 }
 
-.mermaid-diagram-lightbox-stage svg {
+.mermaid-diagram-lightbox-stage pre.mermaid {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow: visible;
+}
+
+.mermaid-diagram-lightbox-stage pre.mermaid svg {
+  display: block;
+  width: 100%;
   max-width: 100%;
   height: auto;
 }
 
-.mermaid-diagram-lightbox-stage.is-mermaid-zoomed svg {
+.mermaid-diagram-lightbox-stage.is-mermaid-zoomed pre.mermaid svg {
   max-width: none;
 }
 
-.mermaid-diagram-lightbox-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 1;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.12);
-  color: #334155;
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.mermaid-diagram-lightbox.is-dark .mermaid-diagram-lightbox-close {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+.mermaid-diagram-lightbox-stage .mermaid-diagram-viewport {
+  width: 100%;
+  max-height: none;
 }
 
 .mermaid-diagram-source-panel {
