@@ -88,4 +88,18 @@ flowchart TD
     AUX_INDEXES --> CLOUD_DISKS["☁️ Облачные диски<br/>Google · Яндекс"]
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
+    click WS_NOTIFY href "zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
+    click WS_CONTEXT_REG href "zadachi-plany-i-idei/awn-storage/main/reestr-tem-i-avtozagruzka.md" "Реестр контекста"
+    click SEARCH href "zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
+    click MODULES href "zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
+    click IDEA1 href "zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"
+    click IDEA2 href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/voxels-vertecx-elixirr-rasshi-mstpostroi-mstcms.md" "UI на базе движка · VOXELS"
+    click IDEA6 href "zadachi-plany-i-idei/awn-storage/ideas.md" "Пайплайн"
+    click IDEA7 href "zadachi-plany-i-idei/awn-storage/main/6-acsess-dostupy-prava.md" "Права доступа и роли"
+    click IDEA8 href "zadachi-plany-i-idei/awn-storage/main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md" "Пароли и приватные данные"
+    click C_SLOT href "zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy.md" "Дорожная карта"
+    click FACT_BANK href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/bank-faktov-i-glossariy.md" "Банк фактов"
+    click EXTRA_DIALOGS href "obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md" "Диалоги · дискуссия"
+    click ANNOT_SIDECAR href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/izobrazheniya-i-rabota-s-izobrazheniyami.md" "Sidecar"
+    click CLOUD_DISKS href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/webdav-setevoy-protokol-protokol-obscheniya-s-oblachnymi-hranilischami.md" "Облачные диски"
 ```
