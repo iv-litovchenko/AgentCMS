@@ -10028,6 +10028,7 @@ const {
   getRecordSlugFromPartsFolderName,
   getRecordPartsMetaFromRelPath,
   buildRecordPartsFolderTitle,
+  shouldCreateRecordPartsFolderManifest,
   buildRecordMaterialsAssetsRelPath,
   resolveStorageBundleAbsoluteFromSlotFolderAbsolute,
   resolveRecordMaterialsFolderAbsolute,
@@ -10177,6 +10178,9 @@ async function ensureRecordPartsFolderManifest(folderAbsolute) {
   const relFromStorage =
     storageIdx >= 0 ? segments.slice(storageIdx + 1).join("/") : path.basename(folderAbsolute);
   const partsMeta = getRecordPartsMetaFromRelPath(relFromStorage);
+  if (!shouldCreateRecordPartsFolderManifest(partsMeta)) {
+    return { created: false, skipped: true };
+  }
   const folderName = path.basename(folderAbsolute);
   const slug = partsMeta?.slug || getRecordSlugFromPartsFolderName(folderName);
   const awnId = partsMeta?.awnId || parseAwnId(folderName);
