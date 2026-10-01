@@ -29576,6 +29576,9 @@ function getCreateFolderParentPath(folderPath) {
 const ADOPT_REQUIRES_AREA_PARENT_MESSAGE =
   "Подхват возможен только если непосредственный родитель — область с manifest.md (тип «область»).";
 
+const ADOPT_TOPIC_HAS_SUBFOLDERS_MESSAGE =
+  "Папку с вложенными подпапками нельзя подхватить как тему — используйте «Подхватить (область)» или уберите вложенные папки.";
+
 function isCreateAdoptParentArea(folderPath, agentId = getCreateModalAgentId()) {
   const parent = getCreateFolderParentPath(folderPath);
   if (!parent || parent === ".") return false;
@@ -29591,6 +29594,21 @@ function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgent
     return ADOPT_REQUIRES_AREA_PARENT_MESSAGE;
   }
   return null;
+}
+
+async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  if (!normalized || normalized === ".") return false;
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/workspace/folder/browse", { folderPath: normalized }, agentId)
+    );
+    if (!response.ok) return false;
+    const data = await response.json();
+    return (data.folders?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
 }
 
 function shouldOfferAreaAdopt(node, agentId = activeAgentId) {
@@ -121265,6 +121283,10 @@ async function createNode(type, options = {}) {
     const adoptError = validateCreateAdoptType(type, createModalBaseParentPath, agentId);
     if (adoptError) {
       showToast(adoptError, "error");
+      return;
+    }
+    if (type === "topic-manifest" && (await adoptTargetFolderHasSubfolders(createModalBaseParentPath, agentId))) {
+      showToast(ADOPT_TOPIC_HAS_SUBFOLDERS_MESSAGE, "error");
       return;
     }
   }

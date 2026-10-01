@@ -10257,6 +10257,22 @@ async function folderRelHasTreeManifest(folderRel, options = {}) {
   return isTreeMenuManifestRel(manifestRel, options);
 }
 
+async function folderAbsoluteHasListableChildDirectories(dirAbsolute) {
+  if (!dirAbsolute) return false;
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (shouldSkipDirectoryListing(entry.name)) continue;
+    return true;
+  }
+  return false;
+}
+
 async function folderRelIsAreaTreeNode(folderRel, options = {}) {
   const normalized = String(folderRel || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return false;
@@ -28127,6 +28143,15 @@ async function handleApiForAgent(req, res, url) {
           return sendJson(res, 400, {
             error:
               "Подхват возможен только если непосредственный родитель — область с manifest.md (тип «область»)."
+          });
+        }
+        if (
+          type === "topic-manifest" &&
+          (await folderAbsoluteHasListableChildDirectories(parentAbsolute))
+        ) {
+          return sendJson(res, 400, {
+            error:
+              "Папку с вложенными подпапками нельзя подхватить как тему — используйте «Подхватить (область)» или уберите вложенные папки."
           });
         }
         const adoptResult = await adoptExistingFolderWithManifest({

@@ -44,6 +44,7 @@
     "main/draft-1",
     "main/draft-1.md",
     "main/draft-3.md",
+    "main/drugie-idei/bank-faktov-i-glossariy.md",
     "main/drugie-idei/crdt-conflict-free-replicated-data-type-eto-spetsialnye-struktury-dannyh-kotorye-pozvolyayut-sin.md",
     "main/drugie-idei/crdt-conflict-free-replicated-data-type-sinhronizatsiya-servera.md",
     "main/drugie-idei/edit-vmesto-write-proverit-kak-perezapisyvayutsya-fayly-seychas.md",
@@ -111,5 +112,5 @@
     "media/8da24847-5bc2-4ee0-9d87-33168723d63c.png",
     "topic-index-generated/zadachi-plany-i-idei/index.md"
   ],
-  "updatedAt": "2026-09-30T20:00:05.397Z"
+  "updatedAt": "2026-10-01T07:55:59.233Z"
 }

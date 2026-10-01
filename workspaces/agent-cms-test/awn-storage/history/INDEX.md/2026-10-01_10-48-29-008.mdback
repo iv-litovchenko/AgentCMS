@@ -8,28 +8,23 @@
 | — | awn.page.area | — | `aja-test-oblasti-2049/manifest.md` | [Ая тест области 2049](aja-test-oblasti-2049/manifest.md) | Тестовая область Agent CMS 2049 для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты такие аккуратные? — Потому что в их мире каждая точка с запятой может стать точкой невозврата. | 2.5 KB | 50 | 0 | 0 | Схемы, Настройки |
 | — | awn.page.topic | типовые | `awn-agent-kit/agent/manifest.md` | [Агент](awn-agent-kit/agent/manifest.md) | — | 176 B | 10 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-agent-kit/devices/manifest.md` | [Управление ПК, устройствами, различный софт](awn-agent-kit/devices/manifest.md) | — | 358 B | 10 | 0 | 0 | — |
-| — | awn.page.topic | типовые | `awn-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md` | [ierarhi-3 н](awn-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md) | — | 700 B | 35 | 0 | 0 | — |
-| — | awn.page.area | — | `awn-agent-kit/ierarhi-1-o/manifest.md` | [ierarhi-1-о](awn-agent-kit/ierarhi-1-o/manifest.md) | — | 699 B | 35 | 0 | 0 | — |
-| — | папка | — | `awn-agent-kit/ierarhi-12/444` | [444](awn-agent-kit/ierarhi-12/444) | — | — | — | 0 | 0 | — |
-| — | папка | — | `awn-agent-kit/ierarhi-12/444/555` | [555](awn-agent-kit/ierarhi-12/444/555) | — | — | — | 0 | 0 | — |
-| — | папка | — | `awn-agent-kit/ierarhi-12/444/555/666` | [666](awn-agent-kit/ierarhi-12/444/555/666) | — | — | — | 0 | 0 | — |
+| — | папка | — | `awn-agent-kit/ierarhi-1` | [ierarhi-1](awn-agent-kit/ierarhi-1) | — | — | — | 0 | 0 | — |
+| — | awn.page.area | — | `awn-agent-kit/ierarhi-1/ierarhi-1/manifest.md` | [ierarhi-1](awn-agent-kit/ierarhi-1/ierarhi-1/manifest.md) | — | 694 B | 35 | 0 | 0 | — |
+| — | папка | — | `awn-agent-kit/ierarhi-1/ierarhi-3` | [ierarhi-3](awn-agent-kit/ierarhi-1/ierarhi-3) | — | — | — | 0 | 0 | — |
+| — | папка | — | `awn-agent-kit/ierarhi-12` | [ierarhi-12](awn-agent-kit/ierarhi-12) | — | — | — | 0 | 0 | — |
+| — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2` | [ierarhi-2](awn-agent-kit/ierarhi-12/ierarhi-2) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3` | [ierarziya-3](awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3) | — | — | — | 0 | 0 | — |
-| — | awn.page.area | — | `awn-agent-kit/ierarhi-12/ierarhi-2/manifest.md` | [ierarhi-2](awn-agent-kit/ierarhi-12/ierarhi-2/manifest.md) | — | 694 B | 35 | 0 | 0 | — |
+| — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3/ierarziya-3` | [ierarziya-3](awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3/ierarziya-3) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema-1` | [tema-1](awn-agent-kit/ierarhi-12/ierarhi-2/tema-1) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema-1/tema-1` | [tema-1](awn-agent-kit/ierarhi-12/ierarhi-2/tema-1/tema-1) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema2` | [tema2](awn-agent-kit/ierarhi-12/ierarhi-2/tema2) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema2/tema2` | [tema2](awn-agent-kit/ierarhi-12/ierarhi-2/tema2/tema2) | — | — | — | 0 | 0 | — |
 | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-12` | [ierarhi-12](awn-agent-kit/ierarhi-12/ierarhi-12) | — | — | — | 0 | 0 | — |
-| — | awn.page.area | — | `awn-agent-kit/ierarhi-12/manifest.md` | [ierarhi-12](awn-agent-kit/ierarhi-12/manifest.md) | — | 695 B | 35 | 0 | 0 | — |
 | — | awn.page.area | — | `awn-agent-kit/manifest.md` | [Служебные темы и компоненты](awn-agent-kit/manifest.md) | — | 529 B | 26 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-agent-kit/real-world-and-space/manifest.md` | [Объекты реального мира, места и пространства](awn-agent-kit/real-world-and-space/manifest.md) | — | 342 B | 10 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-agent-kit/test/manifest.md` | [Тест](awn-agent-kit/test/manifest.md) | — | 593 B | 31 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-agent-kit/user/manifest.md` | [Пользователь](awn-agent-kit/user/manifest.md) | — | 237 B | 10 | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-container/009/manifest.md` | [9](awn-container/009/manifest.md) | шошщощш | 613 B | 30 | 0 | 0 | — |
-| — | папка | — | `awn-container/777` | [777](awn-container/777) | — | — | — | 0 | 0 | — |
-| — | папка | — | `awn-container/777/222` | [222](awn-container/777/222) | — | — | — | 0 | 0 | — |
-| — | папка | — | `awn-container/777/333` | [333](awn-container/777/333) | — | — | — | 0 | 0 | — |
-| — | awn.page.area | — | `awn-container/777/777/manifest.md` | [777](awn-container/777/777/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
 | — | папка | — | `awn-container/8777` | [8777](awn-container/8777) | — | — | — | 0 | 0 | — |
 | — | awn.page.topic | типовые | `awn-container/finansy/manifest.md` | [Финансы](awn-container/finansy/manifest.md) | ауцауцауц | 704 B | 34 | 0 | 0 | — |
 | 4 | awn.page.topic | типовые | `awn-container/html-i-css-2/manifest.md` | [HTML и CSS 2](awn-container/html-i-css-2/manifest.md) | — | 726 B | 38 | 0 | 0 | Схемы |

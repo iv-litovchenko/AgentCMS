@@ -4,7 +4,7 @@ awn_settings:
   tree-show-empty-folders: true
   tree-active-topics-only: false
   tree-pad-sort-indexes: false
-  tree-max-depth: 7
+  tree-max-depth: 10
   sidebar-width: 400
   pinned-branch-path: ""
   hide-sensitive-data: false
