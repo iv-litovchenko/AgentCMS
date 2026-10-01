@@ -2,9 +2,9 @@
 
 awn_settings:
   tree-show-empty-folders: true
-  tree-active-topics-only: true
+  tree-active-topics-only: false
   tree-pad-sort-indexes: false
   tree-max-depth: 7
-  sidebar-width: 300
+  sidebar-width: 400
   pinned-branch-path: ""
   hide-sensitive-data: false

@@ -29551,6 +29551,8 @@ function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
   if (isAgentContainerNodePath(raw)) return raw;
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder) return raw;
+  const segments = raw.split("/").filter(Boolean);
+  if (segments.includes(containerFolder)) return raw;
   return `${containerFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
@@ -121214,7 +121216,7 @@ async function createNode(type, options = {}) {
     return;
   }
 
-  if (createModalEmptyFolder && type === "folder") {
+  if (isCreateAdoptFolderContext() && type === "folder") {
     type = isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "manifest";
   }
 
@@ -123385,6 +123387,10 @@ createNameInputNode?.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeCreateNodeModal();
   if (event.key === "Enter") {
     event.preventDefault();
+    if (isCreateAdoptFolderContext()) {
+      createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "manifest");
+      return;
+    }
     createNode("folder");
   }
 });

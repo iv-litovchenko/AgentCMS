@@ -2383,15 +2383,12 @@ function normalizePageCreateType(rawType, awnType) {
   if (!raw) return "";
 
   const lower = raw.toLowerCase();
-  if (lower === "folder" || lower === "area" || lower === "awn.page.area" || lower === "manifest") {
+  if (lower === "manifest") return "manifest";
+  if (lower === "topic-manifest") return "topic-manifest";
+  if (lower === "folder" || lower === "area" || lower === "awn.page.area") {
     return "folder";
   }
-  if (
-    lower === "file" ||
-    lower === "topic" ||
-    lower === "topic-manifest" ||
-    lower.startsWith("awn.page.topic")
-  ) {
+  if (lower === "file" || lower === "topic" || lower.startsWith("awn.page.topic")) {
     return "file";
   }
   return raw;
