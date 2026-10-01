@@ -11385,12 +11385,31 @@ function createAppLandingPlatformLearningMindset() {
   section.className = "app-landing-platform-learning";
   section.setAttribute("aria-label", "Обучение: источники информации и первые шаги");
 
-  const head = document.createElement("header");
-  head.className = "app-landing-platform-learning-head";
+  const body = document.createElement("div");
+  body.className = "app-landing-platform-learning-body";
+
+  function appendLearningColumnHead(parent, columnTitle, columnLead) {
+    const columnHead = document.createElement("div");
+    columnHead.className = "app-landing-platform-learning-column-head";
+    const columnTitleEl = document.createElement("h5");
+    columnTitleEl.className = "app-landing-platform-learning-column-title";
+    columnTitleEl.textContent = columnTitle;
+    const columnLeadEl = document.createElement("p");
+    columnLeadEl.className = "app-landing-platform-learning-column-lead";
+    columnLeadEl.textContent = columnLead;
+    columnHead.append(columnTitleEl, columnLeadEl);
+    parent.appendChild(columnHead);
+  }
+
+  const sourcesColumn = document.createElement("div");
+  sourcesColumn.className = "app-landing-platform-learning-column";
 
   const eyebrow = document.createElement("span");
   eyebrow.className = "app-landing-platform-learning-eyebrow";
   eyebrow.textContent = "Напоминание при работе";
+
+  const intro = document.createElement("div");
+  intro.className = "app-landing-platform-learning-intro";
 
   const title = document.createElement("h4");
   title.className = "app-landing-platform-learning-title";
@@ -11398,12 +11417,17 @@ function createAppLandingPlatformLearningMindset() {
 
   const lead = document.createElement("p");
   lead.className = "app-landing-platform-learning-lead";
-  lead.textContent = "Всегда есть то, откуда мы черпаем информацию — держи источники в голове и опирайся на хранилище.";
+  lead.textContent =
+    "Слева — откуда черпаем информацию, справа — с чего начать в задаче и хранилище.";
 
-  head.append(eyebrow, title, lead);
+  intro.append(title, lead);
+  sourcesColumn.append(eyebrow, intro);
 
-  const body = document.createElement("div");
-  body.className = "app-landing-platform-learning-body";
+  appendLearningColumnHead(
+    sourcesColumn,
+    "Источники",
+    "Всегда есть то, откуда мы черпаем информацию — держи источники в голове и опирайся на хранилище."
+  );
 
   const orbitWrap = document.createElement("div");
   orbitWrap.className = "app-landing-platform-learning-orbit-wrap";
@@ -11451,13 +11475,14 @@ function createAppLandingPlatformLearningMindset() {
 
   orbit.append(ring, hub);
   orbitWrap.appendChild(orbit);
+  sourcesColumn.appendChild(orbitWrap);
 
   const aside = document.createElement("div");
-  aside.className = "app-landing-platform-learning-aside";
+  aside.className = "app-landing-platform-learning-aside app-landing-platform-learning-column";
 
   const sphereField = document.createElement("div");
   sphereField.className = "app-landing-platform-learning-sphere-field";
-  sphereField.setAttribute("aria-label", "Подсказки: с чего начать работу");
+  sphereField.setAttribute("aria-label", "С чего начать: подсказки и первые шаги");
 
   const sphereBg = document.createElement("div");
   sphereBg.className = "app-landing-platform-learning-sphere-bg";
@@ -11466,6 +11491,17 @@ function createAppLandingPlatformLearningMindset() {
     '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--1"></span>' +
     '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--2"></span>' +
     '<span class="app-landing-platform-learning-sphere-mist app-landing-platform-learning-sphere-mist--3"></span>';
+
+  const sphereIntro = document.createElement("div");
+  sphereIntro.className =
+    "app-landing-platform-learning-column-head app-landing-platform-learning-sphere-intro";
+  const sphereIntroTitle = document.createElement("h5");
+  sphereIntroTitle.className = "app-landing-platform-learning-column-title";
+  sphereIntroTitle.textContent = "С чего начать";
+  const sphereIntroLead = document.createElement("p");
+  sphereIntroLead.className = "app-landing-platform-learning-column-lead";
+  sphereIntroLead.textContent = "Задача и контекст — пять первых шагов.";
+  sphereIntro.append(sphereIntroTitle, sphereIntroLead);
 
   const spherePrompt = document.createElement("div");
   spherePrompt.className = "app-landing-platform-learning-sphere-prompt";
@@ -11482,11 +11518,7 @@ function createAppLandingPlatformLearningMindset() {
   promptTitle.className = "app-landing-platform-learning-sphere-prompt-title";
   promptTitle.textContent = "Не знаешь, с чего начать?";
 
-  const promptSubtitle = document.createElement("p");
-  promptSubtitle.className = "app-landing-platform-learning-sphere-prompt-subtitle";
-  promptSubtitle.textContent = "Задача и контекст — пять первых шагов";
-
-  promptCopy.append(promptTitle, promptSubtitle);
+  promptCopy.append(promptTitle);
   spherePrompt.append(promptCloud, promptCopy);
 
   const sphereJourney = document.createElement("div");
@@ -11506,8 +11538,9 @@ function createAppLandingPlatformLearningMindset() {
     },
     {
       icon: "🔍",
-      label: "Поиск в хранилище",
-      detail: "Сначала поищи в хранилище похожие записи — если это уместно",
+      label: "Предварительный поиск в хранилище (в своей БД)",
+      detail:
+        "Сначала поищи похожие записи — возможно уже есть за что зацепиться (если это уместно)",
       tone: "sky",
       delay: 0.35,
       step: 2
@@ -11553,11 +11586,11 @@ function createAppLandingPlatformLearningMindset() {
     orbsLayer.appendChild(unit);
   }
 
-  sphereJourney.append(spherePrompt, orbsLayer);
+  sphereJourney.append(sphereIntro, spherePrompt, orbsLayer);
   sphereField.append(sphereBg, sphereJourney);
   aside.appendChild(sphereField);
-  body.append(orbitWrap, aside);
-  section.append(head, body);
+  body.append(sourcesColumn, aside);
+  section.append(body);
   return section;
 }
 

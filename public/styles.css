@@ -4832,10 +4832,6 @@ body.workspace-idle-screensaver-active {
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
-.app-landing-platform-learning-head {
-  margin-bottom: 14px;
-}
-
 .app-landing-platform-learning-eyebrow {
   display: inline-block;
   margin-bottom: 6px;
@@ -4850,6 +4846,10 @@ body.workspace-idle-screensaver-active {
   border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
+.app-landing-platform-learning-intro {
+  max-width: 52ch;
+}
+
 .app-landing-platform-learning-title {
   margin: 0 0 6px;
   font-size: 20px;
@@ -4860,7 +4860,6 @@ body.workspace-idle-screensaver-active {
 
 .app-landing-platform-learning-lead {
   margin: 0;
-  max-width: 52ch;
   font-size: 13px;
   line-height: 1.5;
   color: #475569;
@@ -4873,8 +4872,35 @@ body.workspace-idle-screensaver-active {
   align-items: start;
 }
 
+.app-landing-platform-learning-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-landing-platform-learning-column-head {
+  padding: 0 2px;
+}
+
+.app-landing-platform-learning-column-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+
+.app-landing-platform-learning-column-lead {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
 .app-landing-platform-learning-aside {
   display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -4906,6 +4932,12 @@ body.workspace-idle-screensaver-active {
   flex-direction: column;
   gap: 18px;
   width: 100%;
+}
+
+.app-landing-platform-learning-sphere-intro {
+  padding: 0 4px 2px;
+  text-align: left;
+  align-self: stretch;
 }
 
 .app-landing-platform-learning-sphere-bg {
