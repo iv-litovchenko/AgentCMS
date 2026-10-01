@@ -191,10 +191,12 @@ let awnDataViewSectionCreateSubmitBtnNode = null;
 let awnDataViewSectionSearchInputNode = null;
 let awnDataViewAddWrapNode = null;
 let awnDataAddNameInputNode = null;
+let awnDataAddDescriptionInputNode = null;
 let awnDataAddSlugInputNode = null;
 let awnDataAddSlugUnlinkBtn = null;
 let awnDataAddSlugController = null;
 let awnDataViewSectionCreateNameInputNode = null;
+let awnDataViewSectionCreateDescriptionInputNode = null;
 let awnDataViewSectionCreateSlugInputNode = null;
 let awnDataViewSectionCreateSlugUnlinkBtn = null;
 let awnDataViewSectionCreateSlugController = null;
@@ -1006,6 +1008,7 @@ const storageSectionsPanelToggleWrapNode = document.getElementById("storage-sect
 const storageSectionsPanelToggleNode = document.getElementById("storage-sections-panel-toggle");
 const createSectionModalNode = document.getElementById("create-section-modal");
 const createSectionNameInputNode = document.getElementById("create-section-name-input");
+const createSectionDescriptionInputNode = document.getElementById("create-section-description-input");
 const createSectionSlugInputNode = document.getElementById("create-section-slug-input");
 const createSectionSlugUnlinkBtn = document.getElementById("create-section-slug-unlink-btn");
 const createSectionCancelBtn = document.getElementById("create-section-cancel-btn");
@@ -1379,6 +1382,9 @@ const createMemoryNamesListNode = document.getElementById("create-memory-names-l
 const createMemoryNameInputNodes = createMemoryNamesListNode
   ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-name-input")]
   : [];
+const createMemoryDescriptionInputNodes = createMemoryNamesListNode
+  ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-description-input")]
+  : [];
 const createMemorySlugInputNodes = createMemoryNamesListNode
   ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-slug-input")]
   : [];
@@ -1520,6 +1526,7 @@ const toastNode = document.getElementById("toast");
 const createNodeModalNode = document.getElementById("create-node-modal");
 const createNodeModalTitleNode = document.getElementById("create-node-modal-title");
 const createNameInputNode = document.getElementById("create-name-input");
+const createNodeDescriptionInputNode = document.getElementById("create-node-description-input");
 const createSlugRowNode = document.getElementById("create-slug-row");
 const createSlugInputNode = document.getElementById("create-slug-input");
 const createSlugUnlinkBtn = document.getElementById("create-slug-unlink-btn");
@@ -30878,6 +30885,7 @@ function closeCreateNodeModal() {
   createModalEmptyFolder = false;
   createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
+  if (createNodeDescriptionInputNode) createNodeDescriptionInputNode.value = "";
   if (createSlugInputNode) createSlugInputNode.value = "";
   syncDisplayNameLengthHint(createNameInputNode);
   setCreateSlugLinked(true);
@@ -63031,8 +63039,18 @@ async function openFlatStorageFileFromOverview(memoryKind, relativePath) {
 
 function resetCreateMemoryNameInputs() {
   for (const input of createMemoryNameInputNodes) input.value = "";
+  for (const input of createMemoryDescriptionInputNodes) input.value = "";
   for (const controller of createMemorySlugControllers) controller.reset();
   for (const input of createMemoryNameInputNodes) syncDisplayNameLengthHint(input);
+}
+
+function buildCreateMemoryDescriptionFields(description) {
+  const text = String(description || "").trim();
+  return text ? { "awn-description": text } : null;
+}
+
+function readTrimmedDescriptionInput(input) {
+  return String(input?.value || "").trim();
 }
 
 function shouldShowCreateMemoryFormatFieldset() {
@@ -63263,6 +63281,7 @@ function syncCreateMemoryModalMaskUi(mask = activeCreateMemoryMask) {
   if (hasMask) {
     for (let index = 1; index < createMemoryNameInputNodes.length; index += 1) {
       if (createMemoryNameInputNodes[index]) createMemoryNameInputNodes[index].value = "";
+      if (createMemoryDescriptionInputNodes[index]) createMemoryDescriptionInputNodes[index].value = "";
       createMemorySlugControllers[index]?.reset();
     }
   }
@@ -63316,7 +63335,8 @@ function getCreateMemoryItems() {
       createMemorySlugControllers[index]?.getSlug() ||
       sanitizeSlugValue(transliterateDisplayToSlug(displayName));
     if (!slug) continue;
-    items.push({ displayName, slug });
+    const description = createMemoryDescriptionInputNodes[index]?.value?.trim() || "";
+    items.push({ displayName, slug, description });
   }
   return items.slice(0, CREATE_MEMORY_MAX_COUNT);
 }
@@ -63392,6 +63412,7 @@ function setCreateMemoryModalBusy(busy) {
   createMemoryOkBtn.disabled = busy;
   createMemoryCancelBtn.disabled = busy;
   for (const input of createMemoryNameInputNodes) input.disabled = busy;
+  for (const input of createMemoryDescriptionInputNodes) input.disabled = busy;
   for (const input of createMemorySlugInputNodes) input.disabled = busy;
   for (const button of createMemorySlugUnlinkBtns) button.disabled = busy;
   for (const radio of createMemoryAfterRadios) radio.disabled = busy;
@@ -63435,7 +63456,7 @@ function closeCreateMemoryModal() {
   endNavigationHubRailSlotCreate();
 }
 
-async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOverride = null) {
+async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOverride = null, options = {}) {
   const folder = folderOverride || getActiveSlotRecordCreateFolder();
   if (!folder) throw new Error("No active storage slot");
   const createMode = getActiveSlotRecordCreateMode();
@@ -63450,6 +63471,8 @@ async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOv
     requestBody.title = title;
     requestBody.displayName = title;
   }
+  const descriptionFields = buildCreateMemoryDescriptionFields(options.description);
+  if (descriptionFields) requestBody.fields = descriptionFields;
   if (parentFolder) requestBody.parent = parentFolder;
   const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
@@ -63465,7 +63488,7 @@ async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOv
   return response.json();
 }
 
-async function createSlotRecordFile(displayName, slug, folderOverride = null) {
+async function createSlotRecordFile(displayName, slug, folderOverride = null, options = {}) {
   const folder = folderOverride || getActiveSlotRecordCreateFolder();
   if (!folder) throw new Error("No active storage slot");
   const createMode = getActiveSlotRecordCreateMode();
@@ -63477,6 +63500,8 @@ async function createSlotRecordFile(displayName, slug, folderOverride = null) {
     displayName,
     slug
   };
+  const descriptionFields = buildCreateMemoryDescriptionFields(options.description);
+  if (descriptionFields) requestBody.fields = descriptionFields;
   if (parentFolder) requestBody.parent = parentFolder;
   const fileExtension = getCreateMemoryFileExtension();
   if (fileExtension) requestBody.fileExtension = fileExtension;
@@ -63513,7 +63538,9 @@ async function createExternalMemory() {
     try {
       const data = await createSlotRecordFileWithMask(
         activeCreateMemoryMask,
-        getCreateMemoryMaskName()
+        getCreateMemoryMaskName(),
+        null,
+        { description: createMemoryDescriptionInputNodes[0]?.value?.trim() || "" }
       );
       persistCreateMemoryAfterChoice();
       persistCreateMemoryFormatChoice();
@@ -63545,11 +63572,11 @@ async function createExternalMemory() {
 
   try {
     for (let index = 0; index < items.length; index += 1) {
-      const { displayName, slug } = items[index];
+      const { displayName, slug, description } = items[index];
       createMemoryOkBtn.textContent =
         items.length === 1 ? "Создаю..." : `Создаю ${index + 1} из ${items.length}...`;
       try {
-        const data = await createSlotRecordFile(displayName, slug);
+        const data = await createSlotRecordFile(displayName, slug, null, { description });
         created += 1;
         lastFile = data.file;
       } catch {
@@ -63654,6 +63681,7 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
         : "Создать раздел";
   }
   createSectionNameInputNode.value = "";
+  if (createSectionDescriptionInputNode) createSectionDescriptionInputNode.value = "";
   createSectionSlugController?.reset();
   syncCreateSectionAfterRadiosFromStorage();
   syncCreateSectionAfterFieldsetVisibility();
@@ -63665,6 +63693,7 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
+  if (createSectionDescriptionInputNode) createSectionDescriptionInputNode.value = "";
   createSectionSlugController?.reset();
   syncDisplayNameLengthHint(createSectionNameInputNode);
   createSectionParentFolder = null;
@@ -63740,6 +63769,8 @@ async function createWorkspaceSection() {
       displayName,
       slug
     };
+    const sectionDescription = readTrimmedDescriptionInput(createSectionDescriptionInputNode);
+    if (sectionDescription) requestBody.description = sectionDescription;
     if (isMediaLibraryTarget && mediaParentFolder) {
       requestBody.parent = mediaParentFolder;
     }
@@ -112231,10 +112262,12 @@ function syncAwnDataViewDomRefs(root) {
     awnDataViewSectionSearchInputNode = null;
     awnDataViewAddWrapNode = null;
   awnDataAddNameInputNode = null;
+  awnDataAddDescriptionInputNode = null;
   awnDataAddSlugInputNode = null;
   awnDataAddSlugUnlinkBtn = null;
   awnDataAddSlugController = null;
   awnDataViewSectionCreateNameInputNode = null;
+  awnDataViewSectionCreateDescriptionInputNode = null;
   awnDataViewSectionCreateSlugInputNode = null;
   awnDataViewSectionCreateSlugUnlinkBtn = null;
   awnDataViewSectionCreateSlugController = null;
@@ -112298,6 +112331,9 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewSectionNoticesNode = root.querySelector(".awn-databases-view-section-notices");
   awnDataViewSectionCreateFormNode = root.querySelector(".awn-databases-view-section-create-form");
   awnDataViewSectionCreateNameInputNode = root.querySelector(".awn-databases-view-section-create-name-input");
+  awnDataViewSectionCreateDescriptionInputNode = root.querySelector(
+    ".awn-databases-view-section-create-description-input"
+  );
   awnDataViewSectionCreateSlugInputNode = root.querySelector(".awn-databases-view-section-create-slug-input");
   awnDataViewSectionCreateSlugUnlinkBtn = root.querySelector(".awn-databases-view-section-create-slug-unlink-btn");
   awnDataViewSectionCreateBtnNode = root.querySelector(".awn-databases-view-section-create-btn");
@@ -112307,6 +112343,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataAddRecordsFormNode = root.querySelector(".awn-databases-view-add-records-form");
   awnDataAddFilesFormNode = root.querySelector(".awn-databases-view-add-files-form");
   awnDataAddNameInputNode = root.querySelector(".awn-databases-add-name-input");
+  awnDataAddDescriptionInputNode = root.querySelector(".awn-databases-add-description-input");
   awnDataAddSlugInputNode = root.querySelector(".awn-databases-add-slug-input");
   awnDataAddSlugUnlinkBtn = root.querySelector(".awn-databases-add-slug-unlink-btn");
   initAwnDataViewSlugControllers();
@@ -113363,6 +113400,7 @@ async function loadAwnDataViewStore(agentId = activeAgentId) {
     renderAwnDataViewStoreContent(store, agentId);
     awnDataViewAddWrapNode?.classList.toggle("hidden", shouldHideAwnDataViewActions(store));
     if (awnDataAddNameInputNode) awnDataAddNameInputNode.value = "";
+    if (awnDataAddDescriptionInputNode) awnDataAddDescriptionInputNode.value = "";
     awnDataAddSlugController?.reset();
     if (awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
     applyAwnDataActiveSectionToAddParentSelect();
@@ -116796,6 +116834,7 @@ function toggleAwnDataCreateSectionForm(show) {
     window.requestAnimationFrame(() => awnDataViewSectionCreateNameInputNode?.focus());
   } else {
     if (awnDataViewSectionCreateNameInputNode) awnDataViewSectionCreateNameInputNode.value = "";
+    if (awnDataViewSectionCreateDescriptionInputNode) awnDataViewSectionCreateDescriptionInputNode.value = "";
     awnDataViewSectionCreateSlugController?.reset();
   }
 }
@@ -116829,7 +116868,8 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
         id: slug,
         slug,
         parent: parent || undefined,
-        isSection: true
+        isSection: true,
+        description: readTrimmedDescriptionInput(awnDataViewSectionCreateDescriptionInputNode) || undefined
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -116841,6 +116881,7 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
     if (created?.id) awnDataViewSectionId = String(created.id);
 
     if (awnDataViewSectionCreateNameInputNode) awnDataViewSectionCreateNameInputNode.value = "";
+    if (awnDataViewSectionCreateDescriptionInputNode) awnDataViewSectionCreateDescriptionInputNode.value = "";
     awnDataViewSectionCreateSlugController?.reset();
     toggleAwnDataCreateSectionForm(false);
     showToast("Раздел создан", "success");
@@ -116888,13 +116929,15 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
         title: name,
         id: slug || undefined,
         slug: slug || undefined,
-        parent: parent || undefined
+        parent: parent || undefined,
+        description: readTrimmedDescriptionInput(awnDataAddDescriptionInputNode) || undefined
       })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
     showToast("Элемент добавлен", "success");
     if (awnDataAddNameInputNode) awnDataAddNameInputNode.value = "";
+    if (awnDataAddDescriptionInputNode) awnDataAddDescriptionInputNode.value = "";
     awnDataAddSlugController?.reset();
     await refreshMenuAwnDataStores(agentId);
     await loadAwnDataViewStore(agentId);
@@ -121657,6 +121700,8 @@ async function createNode(type, options = {}) {
     if (options.awnType) {
       payload.awnType = String(options.awnType);
     }
+    const nodeDescription = readTrimmedDescriptionInput(createNodeDescriptionInputNode);
+    if (nodeDescription) payload.description = nodeDescription;
 
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
       method: "POST",

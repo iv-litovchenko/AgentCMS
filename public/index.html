@@ -6088,6 +6088,14 @@
             placeholder="Например: Плавание"
             autocomplete="off"
           />
+          <input
+            id="create-node-description-input"
+            class="popover-input create-form-description-input"
+            type="text"
+            placeholder="Описание (необязательно)"
+            autocomplete="off"
+            spellcheck="true"
+          />
           <div id="create-slug-row" class="slug-field-row">
             <label class="slug-field-label" for="create-slug-input">Имя папки или файла (slug)</label>
             <div class="slug-input-row">
@@ -6163,6 +6171,14 @@
           placeholder="Например: TODO"
           autocomplete="off"
         />
+        <input
+          id="create-section-description-input"
+          class="popover-input create-form-description-input"
+          type="text"
+          placeholder="Описание (необязательно)"
+          autocomplete="off"
+          spellcheck="true"
+        />
         <div id="create-section-slug-row" class="slug-field-row">
           <label class="slug-field-label" for="create-section-slug-input">Имя папки (slug)</label>
           <div class="slug-input-row">
@@ -6227,7 +6243,16 @@
         <div id="create-memory-names-list" class="create-memory-names-list" role="group" aria-label="Названия записей">
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">1</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Название" autocomplete="off" />
+            <div class="create-memory-name-field">
+              <input class="popover-input create-memory-name-input" type="text" placeholder="Название" autocomplete="off" />
+              <input
+                class="popover-input create-memory-description-input"
+                type="text"
+                placeholder="Описание (необязательно)"
+                autocomplete="off"
+                spellcheck="true"
+              />
+            </div>
             <div class="slug-input-wrap">
               <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
               <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
@@ -6235,7 +6260,16 @@
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">2</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <div class="create-memory-name-field">
+              <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+              <input
+                class="popover-input create-memory-description-input"
+                type="text"
+                placeholder="Описание (необязательно)"
+                autocomplete="off"
+                spellcheck="true"
+              />
+            </div>
             <div class="slug-input-wrap">
               <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
               <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
@@ -6243,7 +6277,16 @@
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">3</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <div class="create-memory-name-field">
+              <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+              <input
+                class="popover-input create-memory-description-input"
+                type="text"
+                placeholder="Описание (необязательно)"
+                autocomplete="off"
+                spellcheck="true"
+              />
+            </div>
             <div class="slug-input-wrap">
               <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
               <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
@@ -6251,7 +6294,16 @@
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">4</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <div class="create-memory-name-field">
+              <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+              <input
+                class="popover-input create-memory-description-input"
+                type="text"
+                placeholder="Описание (необязательно)"
+                autocomplete="off"
+                spellcheck="true"
+              />
+            </div>
             <div class="slug-input-wrap">
               <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
               <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
@@ -6259,7 +6311,16 @@
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">5</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <div class="create-memory-name-field">
+              <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+              <input
+                class="popover-input create-memory-description-input"
+                type="text"
+                placeholder="Описание (необязательно)"
+                autocomplete="off"
+                spellcheck="true"
+              />
+            </div>
             <div class="slug-input-wrap">
               <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
               <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
@@ -6779,6 +6840,13 @@
                       spellcheck="false"
                       aria-label="Название раздела"
                     />
+                    <input
+                      class="awn-databases-view-section-create-description-input create-form-description-input"
+                      type="text"
+                      placeholder="Описание (необязательно)"
+                      spellcheck="true"
+                      aria-label="Описание раздела"
+                    />
                   </label>
                   <div class="slug-field-row awn-databases-view-section-create-slug-row">
                     <label class="slug-field-label" for="awn-databases-view-section-create-slug-input">Имя папки (slug)</label>
@@ -6848,6 +6916,13 @@
                   <label class="agents-registry-field awn-databases-add-name-field">
                     <span>Новый элемент</span>
                     <input class="awn-databases-add-name-input" type="text" placeholder="Название" spellcheck="false" aria-label="Название элемента" />
+                    <input
+                      class="awn-databases-add-description-input create-form-description-input"
+                      type="text"
+                      placeholder="Описание (необязательно)"
+                      spellcheck="true"
+                      aria-label="Описание элемента"
+                    />
                   </label>
                   <div class="slug-field-row awn-databases-add-slug-row">
                     <label class="slug-field-label" for="awn-databases-add-slug-input">Имя файла (slug)</label>

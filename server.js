@@ -2404,6 +2404,22 @@ function resolvePageCreateAwnType(rawType, awnType, normalizedType) {
   return explicit || undefined;
 }
 
+function resolvePayloadDescription(payloadOrOptions) {
+  if (!payloadOrOptions || typeof payloadOrOptions !== "object") return "";
+  return String(
+    payloadOrOptions.description ||
+      payloadOrOptions.awnDescription ||
+      payloadOrOptions["awn-description"] ||
+      ""
+  ).trim();
+}
+
+function applyDescriptionToFrontmatter(frontmatter, description) {
+  const text = String(description || "").trim();
+  if (!text) return frontmatter;
+  return upsertYamlScalarLine(frontmatter, "awn-description", text);
+}
+
 function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, options = {}) {
   const isArea = nodeKind === "area";
   const isSection = nodeKind === "section";
@@ -2442,6 +2458,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
   if (indexFlags && (indexFlags.record || indexFlags.subtree)) {
     frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
   }
+  frontmatter = applyDescriptionToFrontmatter(frontmatter, options.description);
   return frontmatter;
 }
 
@@ -7474,6 +7491,7 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.content.category
   if (indexFlags.record) {
     frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
   }
+  frontmatter = applyDescriptionToFrontmatter(frontmatter, options.description);
   if (!frontmatter.trim()) return `\n> Описание раздела.\n`;
   return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
 }
@@ -7531,6 +7549,7 @@ async function buildStorageSectionReadmeContentForManifest(
         if (indexFlags.record) {
           frontmatter = applyIndexExcludeFrontmatter(frontmatter, indexFlags);
         }
+        frontmatter = applyDescriptionToFrontmatter(frontmatter, options.description);
         return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
       }
     } catch {
@@ -23594,7 +23613,8 @@ async function handleApiForAgent(req, res, url) {
         parent: payload?.parent,
         isSection: Boolean(payload?.isSection),
         body: payload?.body,
-        fileExtension: payload?.fileExtension || payload?.extension
+        fileExtension: payload?.fileExtension || payload?.extension,
+        description: resolvePayloadDescription(payload)
       });
       const storeRel = String(payload?.store || "").replace(/\\/g, "/");
       if (storeRel.includes("awn-taxonomies/") || storeRel.includes("taxonomies/")) {
@@ -25270,6 +25290,7 @@ async function handleApiForAgent(req, res, url) {
         "memory",
         {
           contentWorkspaceRel,
+          description: resolvePayloadDescription(payload),
           indexExcludeFlags: resolveRecordIndexExcludeOptions({
             indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
           })
@@ -25344,6 +25365,7 @@ async function handleApiForAgent(req, res, url) {
         slotKey,
         {
           contentWorkspaceRel,
+          description: resolvePayloadDescription(payload),
           indexExcludeFlags: resolveRecordIndexExcludeOptions({
             indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
           })
@@ -25424,6 +25446,7 @@ async function handleApiForAgent(req, res, url) {
         slotKey,
         {
           contentWorkspaceRel,
+          description: resolvePayloadDescription(payload),
           indexExcludeFlags: resolveRecordIndexExcludeOptions({
             indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
           })
@@ -27894,7 +27917,8 @@ async function handleApiForAgent(req, res, url) {
     }
 
     const manifestFrontmatter = buildManifestCreateFrontmatter(nodeKind === "topic" ? "topic" : "area", title, targetFolderName, {
-      indexExcludeFlags: parsePayloadIndexExcludeFlags(payload)
+      indexExcludeFlags: parsePayloadIndexExcludeFlags(payload),
+      description: resolvePayloadDescription(payload)
     });
     await fs.writeFile(
       manifestAbsolute,
@@ -28246,7 +28270,8 @@ async function handleApiForAgent(req, res, url) {
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
         const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName, {
-          indexExcludeFlags
+          indexExcludeFlags,
+          description: resolvePayloadDescription(payload)
         });
         await fs.writeFile(
           manifestAbsolute,
@@ -28285,7 +28310,8 @@ async function handleApiForAgent(req, res, url) {
       const awnNodeType = String(payload.awnType || "topic").trim() || "topic";
       const fileFrontmatter = buildManifestCreateFrontmatter("topic", displayName, folderName, {
         awnType: awnNodeType,
-        indexExcludeFlags
+        indexExcludeFlags,
+        description: resolvePayloadDescription(payload)
       });
       await fs.writeFile(
         manifestAbsolute,
