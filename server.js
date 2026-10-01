@@ -40,6 +40,7 @@ const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/se
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
 const { createLinkIndexService } = require("./lib/indexes/link-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./lib/workspace-id/service");
+const { generateWorkspaceSlug } = require("./lib/workspace/slug-service");
 const recordMaterials = require("./lib/record-materials");
 const { createNavFlagsRegistryService } = require("./lib/nav-flags-registry/service");
 const { allocateNextId, readCounter } = require("./lib/workspace-id/store");
@@ -13917,6 +13918,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
   workspaceIdResolve: "GET /api/workspace-id/resolve?id= — путь записи по awn-id",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
+  workspaceSlugGenerate:
+    "GET|POST /api/workspace-slug/generate — generate_workspace_slug MCP (text, preset?, slug?, stripExtension?)",
   workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
   workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
@@ -20091,6 +20094,37 @@ async function handleApiForAgent(req, res, url) {
       const status = message.includes("must be a positive integer") ? 400 : 500;
       return sendJson(res, status, {
         error: "Failed to resolve workspace id",
+        details: message
+      });
+    }
+  }
+
+  if (
+    (req.method === "GET" || req.method === "POST") &&
+    url.pathname === "/api/workspace-slug/generate"
+  ) {
+    try {
+      const payload =
+        req.method === "POST" ? await readJsonBody(req) : Object.fromEntries(url.searchParams);
+      const text = payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
+      const slug = payload.slug ?? "";
+      const preset = payload.preset ?? "page";
+      const stripExtension =
+        payload.stripExtension === true ||
+        payload.stripExtension === "true" ||
+        payload.stripExtension === "1";
+      if (!String(text || "").trim() && !String(slug || "").trim()) {
+        return sendJson(res, 400, {
+          error: "text or slug is required"
+        });
+      }
+      const data = generateWorkspaceSlug({ text, slug, preset, stripExtension });
+      return sendJson(res, 200, { ok: true, ...data });
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = error?.code === "EINVAL" ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to generate workspace slug",
         details: message
       });
     }

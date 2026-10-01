@@ -189,9 +189,12 @@ search_workspace_links({
 | `assign_workspace_id({ path })` | Выдать id существующей записи без `awn-id` |
 | `query_workspace_storage` | Фильтр `where: [{ field: "awn-id", eq: 1847 }]` (каталог полей) |
 
+**Slug (имя папки/файла):** `generate_workspace_slug({ text, preset? })` — те же правила, что при `create_page` / `create_content` (без записи на диск). `preset`: `page` | `content` | `store` | `database` | `repository` | `catalog` | `filename`.
+
 ```json
 resolve_workspace_id({ "id": 1847 })
 assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
+generate_workspace_slug({ "text": "Моя тема", "preset": "page" })
 ```
 
 ---

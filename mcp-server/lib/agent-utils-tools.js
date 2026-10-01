@@ -16,6 +16,53 @@ export function registerAgentUtilsTools(reg, client) {
   );
 
   reg(
+    "generate_workspace_slug",
+    "Derive disk slug from title/text (same rules as create_page/create_content). preset: page|content|store|database|repository|catalog|filename. Pass slug to sanitize only.",
+    z
+      .object({
+        text: z.string().optional().describe("Display name or arbitrary text"),
+        title: z.string().optional(),
+        displayName: z.string().optional(),
+        name: z.string().optional(),
+        slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
+        preset: z
+          .enum(["page", "content", "store", "database", "repository", "catalog", "filename"])
+          .optional()
+          .describe("Default page"),
+        stripExtension: z
+          .boolean()
+          .optional()
+          .describe("For preset=filename: strip any file extension before slugify")
+      })
+      .refine(
+        (value) =>
+          Boolean(
+            String(value.text || "").trim() ||
+              String(value.title || "").trim() ||
+              String(value.displayName || "").trim() ||
+              String(value.name || "").trim() ||
+              String(value.slug || "").trim()
+          ),
+        { message: "Provide text, title, displayName, name, or slug" }
+      ),
+    (payload) => {
+      const text =
+        payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
+      return client.get(
+        "/api/workspace-slug/generate",
+        {
+          text,
+          slug: payload.slug,
+          preset: payload.preset,
+          stripExtension: payload.stripExtension
+        },
+        { agentScope: false }
+      );
+    },
+    { agentScope: false }
+  );
+
+  reg(
     "get_workspace_storage_info",
     "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
     z.object({}),
