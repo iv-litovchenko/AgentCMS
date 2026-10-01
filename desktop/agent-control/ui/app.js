@@ -267,14 +267,28 @@ function renderSetupChecklist() {
     `;
   });
 
-  const statItems = Object.keys(DISK_STAT_LABELS).map((id) => `
-    <div class="setup-check-item setup-check-item--stat" data-state="stat">
-      <span class="setup-check-copy">
-        <span class="setup-check-label">${DISK_STAT_LABELS[id]}</span>
-        <span class="setup-check-value">${diskState[id]}</span>
-      </span>
-    </div>
-  `);
+  const statItems = Object.keys(DISK_STAT_LABELS).map((id) => {
+    const refreshBtn =
+      id === "diskFree"
+        ? `<button
+        type="button"
+        class="ghost-btn ghost-btn--icon setup-check-disk-refresh"
+        data-disk-stats-refresh
+        title="Обновить данные о диске"
+        aria-label="Обновить данные о диске"
+      >↻</button>`
+        : "";
+
+    return `
+      <div class="setup-check-item setup-check-item--stat${id === "diskFree" ? " setup-check-item--stat-refresh" : ""}" data-state="stat">
+        ${refreshBtn}
+        <span class="setup-check-copy">
+          <span class="setup-check-label">${DISK_STAT_LABELS[id]}</span>
+          <span class="setup-check-value">${diskState[id]}</span>
+        </span>
+      </div>
+    `;
+  });
 
   root.innerHTML = `
     <div class="setup-checklist-grid setup-checklist-grid--checks">
@@ -284,6 +298,46 @@ function renderSetupChecklist() {
       ${statItems.join("")}
     </div>
   `;
+}
+
+async function refreshDiskStats(button) {
+  if (!button || button.disabled) return;
+  const block = button.closest(".setup-check-item--stat-refresh");
+  const valueEl = block?.querySelector(".setup-check-value");
+  const prevValue = valueEl?.textContent ?? "";
+
+  button.disabled = true;
+  block?.classList.add("is-disk-loading");
+  block?.setAttribute("aria-busy", "true");
+  if (valueEl) valueEl.textContent = "…";
+
+  try {
+    const data = await window.agentControl.refreshBootstrap();
+    if (data.environment) {
+      bootstrap.environment = data.environment;
+      renderSetupChecklist();
+      return;
+    }
+    if (valueEl) valueEl.textContent = prevValue;
+  } catch (error) {
+    if (valueEl) valueEl.textContent = prevValue;
+    appendLog(`Ошибка обновления диска: ${error.message}\n`, "stderr");
+  } finally {
+    block?.classList.remove("is-disk-loading");
+    block?.removeAttribute("aria-busy");
+    if (button.isConnected) button.disabled = false;
+  }
+}
+
+function bindSetupChecklistActions() {
+  const root = document.getElementById("setup-checklist");
+  if (!root || root.dataset.actionsBound) return;
+  root.dataset.actionsBound = "1";
+  root.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-disk-stats-refresh]");
+    if (!btn) return;
+    void refreshDiskStats(btn);
+  });
 }
 
 function renderEnvRow({ mark, label, detail, value, status, hover }) {
@@ -1494,6 +1548,7 @@ async function init() {
   startFlipClock();
   startServerPoll();
   bindEnvExpandToggle();
+  bindSetupChecklistActions();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {
