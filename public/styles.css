@@ -46285,7 +46285,9 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-label > .nav-book-toc-status,
+.nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-label > .nav-book-toc-id-badge,
 .nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-label > .nav-book-toc-status,
+.nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-label > .nav-book-toc-id-badge,
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status {
   margin-right: 4px;
 }
@@ -54028,6 +54030,75 @@ button.node-navigation-memory-title:focus-visible {
   border-color: #818cf8;
   color: #e0e7ff;
   background: rgba(49, 46, 129, 0.45);
+}
+
+.mermaid-diagram-refresh-btn.is-busy {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.mermaid-diagram-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 12010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.mermaid-diagram-lightbox.hidden {
+  display: none;
+}
+
+.mermaid-diagram-lightbox.is-dark {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+.mermaid-diagram-lightbox-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(96vw, 1400px);
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
+  position: relative;
+}
+
+.mermaid-diagram-lightbox-stage .mermaid-diagram-viewport {
+  width: 100%;
+  max-height: calc(100vh - 80px);
+}
+
+.mermaid-diagram-lightbox-stage svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-diagram-lightbox-stage.is-mermaid-zoomed svg {
+  max-width: none;
+}
+
+.mermaid-diagram-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  color: #334155;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mermaid-diagram-lightbox.is-dark .mermaid-diagram-lightbox-close {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 .mermaid-diagram-source-panel {

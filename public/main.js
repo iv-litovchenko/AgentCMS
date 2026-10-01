@@ -71966,6 +71966,8 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
       const displayName = String(item.displayName || "").trim();
       const slug = baseName.replace(/\.md$/i, "");
       const title = displayName || resolveNodeDisplayName("", slug) || baseName;
+      const itemProps = Array.isArray(item.props) ? item.props : [];
+      const itemAwnId = item.awnId != null && item.awnId !== "" ? item.awnId : null;
       contentFiles.push({
         path,
         name: baseName,
@@ -71975,6 +71977,8 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
         size: item.size ?? null,
         ext: item.ext || "",
         status: resolveNavigationItemStatus(item),
+        props: itemProps,
+        awnId: itemAwnId,
         gdriveSynced: Boolean(item.gdriveSynced),
         gdriveBlob: String(item.gdriveBlob || ""),
         createdAt: item.createdAt || null,
@@ -72058,6 +72062,9 @@ function populateNavBookTocFolderLabel(
   const folderStatus = isUnregistered
     ? ""
     : resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder);
+  const manifestItem = findNavigationSectionManifestItem(folderNode.folderPath, sectionManifestByFolder);
+  const folderAwnId = resolveNavigationItemAwnId(manifestItem || {});
+  const folderIdBadge = folderAwnId ? createNavBookTocIdBadge(folderAwnId) : null;
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
@@ -72065,6 +72072,7 @@ function populateNavBookTocFolderLabel(
   const statusBadge = createNavBookTocStatusBadge(folderStatus);
   folderLabel.appendChild(folderIcon);
   if (statusBadge) folderLabel.appendChild(statusBadge);
+  if (folderIdBadge) folderLabel.appendChild(folderIdBadge);
   folderLabel.appendChild(folderText);
   if (
     folderNode.folderPath &&
@@ -81924,6 +81932,7 @@ function refreshLiveSyncInlineDiffView() {
 function hydrateMarkdownPreviewElement(element, nodePath) {
   applySyntaxHighlighting(element, { nodePath });
   void typesetMarkdownDiagrams(element);
+  void syncMermaidDiagramChromeInRoot(element);
   void hydrateAwnFenceBlocks(element);
   enhanceMarkdownPreviewImages(element);
 }
@@ -90655,7 +90664,7 @@ function loadMermaidThemeModule() {
 
 function loadMermaidChromeModule() {
   if (!mermaidChromeModulePromise) {
-    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js");
+    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js?v=0.5.971");
   }
   return mermaidChromeModulePromise;
 }
@@ -90692,10 +90701,29 @@ function mermaidBlockHasRenderedDiagram(block) {
   return Boolean(g?.innerHTML?.trim());
 }
 
+async function upgradeMermaidDiagramFrameChrome(frame) {
+  const block = frame?.querySelector("pre.mermaid");
+  if (!block) return;
+  await ensureMermaidThemeToggle(frame, block);
+  await ensureMermaidSourceButton(frame, block);
+  await ensureMermaidRefreshButton(frame);
+  await ensureMermaidResetZoomButton(frame);
+  await ensureMermaidFullscreenButton(frame, block);
+}
+
+async function syncMermaidDiagramChromeInRoot(root) {
+  if (!(root instanceof Element)) return;
+  const frames = root.querySelectorAll(".mermaid-diagram-frame");
+  for (const frame of frames) {
+    await upgradeMermaidDiagramFrameChrome(frame);
+  }
+}
+
 function ensureMermaidDiagramFrame(block) {
   const existing = block.closest(".mermaid-diagram-frame");
   if (existing) {
     bindMermaidDiagramFrameChrome(existing);
+    void upgradeMermaidDiagramFrameChrome(existing);
     return existing;
   }
 
@@ -90916,6 +90944,143 @@ async function ensureMermaidSourceButton(frame, block) {
   return btn;
 }
 
+function extractMermaidSourcesFromMarkdown(markdown) {
+  const sources = [];
+  const re = /```mermaid\s*\r?\n([\s\S]*?)```/gi;
+  let match;
+  while ((match = re.exec(String(markdown || "")))) {
+    const body = String(match[1] || "").trim();
+    if (body) sources.push(body);
+  }
+  return sources;
+}
+
+async function fetchMarkdownBodyForMermaidRefresh(filePath) {
+  const path = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!path) return "";
+  try {
+    if (/\.(md|markdown)$/i.test(path) || isAwnDatabaseRecordContentPath(path)) {
+      return await fetchAwnDatabaseRecordEditorContent(path);
+    }
+    const data = await fetchWorkspaceFolderPage(path);
+    return String(data.content || data.body || "");
+  } catch {
+    try {
+      const data = await fetchWorkspaceFolderText(path);
+      return String(data.content || "");
+    } catch {
+      return "";
+    }
+  }
+}
+
+function resolveMermaidDiagramPreviewPath(frame) {
+  const preview = frame?.closest(".file-content-preview");
+  const fromPreview = String(preview?.dataset?.linkBasePath || "").trim();
+  if (fromPreview) return fromPreview;
+  return getActiveNodeApiPath() || getResolvedNodePath(activePath) || "";
+}
+
+async function refreshMermaidDiagramFrame(frame) {
+  const block = frame?.querySelector("pre.mermaid");
+  if (!block) return false;
+
+  const preview = frame.closest(".file-content-preview");
+  const frames = preview ? [...preview.querySelectorAll(".mermaid-diagram-frame")] : [frame];
+  const diagramIndex = Math.max(0, frames.indexOf(frame));
+  const nodePath = resolveMermaidDiagramPreviewPath(frame);
+
+  let source = "";
+  if (nodePath) {
+    const markdown = await fetchMarkdownBodyForMermaidRefresh(nodePath);
+    const sources = extractMermaidSourcesFromMarkdown(markdown);
+    if (diagramIndex < sources.length) source = sources[diagramIndex];
+  }
+  if (!source) source = getMermaidDiagramSource(frame, block);
+  if (!source) return false;
+
+  block.setAttribute("data-mermaid-source", encodeURIComponent(source));
+  block.dataset.mermaidSource = source;
+  block.dataset.mermaidRendered = "0";
+  block.removeAttribute("data-processed");
+
+  const themeMod = await loadMermaidThemeModule();
+  const theme = themeMod.normalizeMermaidFrameTheme(frame.dataset.mermaidTheme, "light");
+  const ok = await renderMermaidBlock(block, theme);
+
+  if (frame.classList.contains("is-mermaid-source-open")) {
+    const panel = frame.querySelector(".mermaid-diagram-source-panel");
+    const code = panel?.querySelector(".mermaid-diagram-source-view code");
+    const markdown = formatMermaidMarkdownSource(source);
+    if (code) code.textContent = markdown;
+    else {
+      const view = panel?.querySelector(".mermaid-diagram-source-view");
+      if (view) view.textContent = markdown;
+    }
+  }
+  return ok;
+}
+
+async function ensureMermaidRefreshButton(frame) {
+  const chromeMod = await loadMermaidChromeModule();
+  const bar = await ensureMermaidDiagramActions(frame);
+  let btn = bar.querySelector(".mermaid-diagram-refresh-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-refresh-btn mermaid-diagram-chrome-btn";
+    btn.innerHTML = chromeMod.MERMAID_REFRESH_BUTTON_HTML;
+    btn.title = "Обновить диаграмму с диска";
+    btn.setAttribute("aria-label", btn.title);
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.classList.add("is-busy");
+      void refreshMermaidDiagramFrame(frame)
+        .catch((error) => console.warn("Mermaid refresh failed:", error))
+        .finally(() => {
+          btn.disabled = false;
+          btn.classList.remove("is-busy");
+        });
+    });
+    bar.appendChild(btn);
+  } else if (!btn.querySelector(".mermaid-diagram-chrome-icon")) {
+    btn.innerHTML = chromeMod.MERMAID_REFRESH_BUTTON_HTML;
+    btn.classList.add("mermaid-diagram-chrome-btn");
+  }
+  chromeMod.sortMermaidDiagramActionButtons(bar);
+  return btn;
+}
+
+async function ensureMermaidFullscreenButton(frame, block) {
+  const chromeMod = await loadMermaidChromeModule();
+  const bar = await ensureMermaidDiagramActions(frame);
+  let btn = bar.querySelector(".mermaid-diagram-fullscreen-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-fullscreen-btn mermaid-diagram-chrome-btn";
+    btn.innerHTML = chromeMod.MERMAID_FULLSCREEN_BUTTON_HTML;
+    btn.title = "На весь экран";
+    btn.setAttribute("aria-label", btn.title);
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void import("/js/mermaid/mermaid-diagram-lightbox.js").then((mod) => {
+        mod.openMermaidDiagramLightbox(frame, block);
+      });
+    });
+    bar.appendChild(btn);
+  } else if (!btn.querySelector(".mermaid-diagram-chrome-icon")) {
+    btn.innerHTML = chromeMod.MERMAID_FULLSCREEN_BUTTON_HTML;
+    btn.classList.add("mermaid-diagram-chrome-btn");
+  }
+  chromeMod.sortMermaidDiagramActionButtons(bar);
+  return btn;
+}
+
 async function ensureMermaidResetZoomButton(frame) {
   const chromeMod = await loadMermaidChromeModule();
   const bar = await ensureMermaidDiagramActions(frame);
@@ -90931,7 +91096,7 @@ async function ensureMermaidResetZoomButton(frame) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/js/mermaid/mermaid-diagram-panzoom.js").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
+      void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.972").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
     });
     bar.appendChild(btn);
   } else {
@@ -90977,9 +91142,7 @@ async function renderMermaidBlock(block, theme = "light") {
   frame.setAttribute("data-mermaid-diagram-source", encodeURIComponent(source));
   frame.classList.remove("is-mermaid-source-open");
   syncMermaidSourceButtonUi(frame, false);
-  await ensureMermaidThemeToggle(frame, block);
-  await ensureMermaidSourceButton(frame, block);
-  await ensureMermaidResetZoomButton(frame);
+  await upgradeMermaidDiagramFrameChrome(frame);
 
   block.dataset.mermaidSource = source;
   block.removeAttribute("data-processed");
@@ -90994,8 +91157,9 @@ async function renderMermaidBlock(block, theme = "light") {
     bindFunctions?.(block);
     block.dataset.mermaidRendered = "1";
     block.setAttribute("data-processed", "true");
-    void import("/js/mermaid/mermaid-diagram-panzoom.js").then((mod) => {
-      mod.ensureMermaidDiagramPanZoom(frame, { reset: true });
+    void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.972").then((mod) => {
+      mod.normalizeMermaidRenderedSvgRoot(block);
+      mod.refreshMermaidDiagramPanZoom(frame, { reset: true });
       void ensureMermaidResetZoomButton(frame);
     });
     return true;
@@ -91024,16 +91188,19 @@ async function typesetMarkdownDiagrams(rootNode) {
     if (block.dataset.mermaidRendered === "1" && mermaidBlockHasRenderedDiagram(block)) return false;
     return Boolean(getMermaidBlockSource(block));
   });
-  if (!blocks.length) return;
 
-  const seq = ++mermaidTypesetSeq;
-  for (const block of blocks) {
-    if (seq !== mermaidTypesetSeq) return;
-    const frame = block.closest(".mermaid-diagram-frame");
-    const themeMod = await loadMermaidThemeModule();
-    const theme = themeMod.normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "light");
-    await renderMermaidBlock(block, theme);
+  if (blocks.length) {
+    const seq = ++mermaidTypesetSeq;
+    for (const block of blocks) {
+      if (seq !== mermaidTypesetSeq) return;
+      const frame = block.closest(".mermaid-diagram-frame");
+      const themeMod = await loadMermaidThemeModule();
+      const theme = themeMod.normalizeMermaidFrameTheme(frame?.dataset.mermaidTheme, "light");
+      await renderMermaidBlock(block, theme);
+    }
   }
+
+  await syncMermaidDiagramChromeInRoot(root);
 }
 
 // --- JS-рендер markdown-блоков (fence) ---------------------------------------

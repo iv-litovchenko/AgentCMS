@@ -36,6 +36,34 @@ function readSvgViewBox(svg) {
   return null;
 }
 
+/** Mermaid intrinsic box before pan-zoom padding; avoids shrinking on each re-capture. */
+function readMermaidIntrinsicViewBox(svg) {
+  const stored = String(svg?.getAttribute("data-mermaid-intrinsic-viewbox") || "").trim();
+  if (stored) {
+    const parts = stored.split(/\s+/).map(Number);
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      return { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+    }
+  }
+  const raw = readSvgViewBox(svg);
+  if (!raw) return null;
+  svg.setAttribute("data-mermaid-intrinsic-viewbox", formatViewBox(raw));
+  return raw;
+}
+
+export function normalizeMermaidRenderedSvgRoot(blockOrSvg) {
+  const svg =
+    blockOrSvg?.tagName?.toLowerCase() === "svg"
+      ? blockOrSvg
+      : blockOrSvg?.querySelector?.("svg");
+  if (!svg) return;
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  svg.style.removeProperty("width");
+  svg.style.removeProperty("height");
+  svg.style.removeProperty("max-width");
+}
+
 function cloneViewBox(vb) {
   return { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
 }
@@ -185,7 +213,7 @@ function bindPanZoom(host) {
     state.svg = getDiagramSvg(state.content);
     if (!state.svg) return false;
 
-    const raw = readSvgViewBox(state.svg);
+    const raw = readMermaidIntrinsicViewBox(state.svg);
     if (!raw) return false;
 
     const base = padViewBox(raw);
@@ -364,6 +392,13 @@ function bindPanZoom(host) {
  * @param {Element} host — `.mermaid-diagram-frame` or `.shell-mermaid-lightbox-stage`
  * @param {{ reset?: boolean }} [options]
  */
+function applyMermaidDiagramPanZoom(host, state, options = {}) {
+  if (!host.isConnected) return;
+  if (!state.captureBase()) return;
+  if (options.reset) state.reset();
+  host.classList.remove("is-mermaid-panning");
+}
+
 export function ensureMermaidDiagramPanZoom(host, options = {}) {
   if (!(host instanceof Element)) return;
   unwrapLegacyMermaidViewport(host);
@@ -371,12 +406,25 @@ export function ensureMermaidDiagramPanZoom(host, options = {}) {
   if (!content?.querySelector?.("svg") && content?.tagName?.toLowerCase() !== "svg") return;
 
   const state = bindPanZoom(host);
-  const apply = () => {
-    if (!host.isConnected) return;
-    if (!state.captureBase()) return;
-    if (options.reset) state.reset();
-  };
-  requestAnimationFrame(apply);
+  requestAnimationFrame(() => {
+    applyMermaidDiagramPanZoom(host, state, options);
+  });
+}
+
+/** Re-measure after SVG swap (e.g. refresh) without duplicating listeners. */
+export function refreshMermaidDiagramPanZoom(host, options = {}) {
+  if (!(host instanceof Element)) return;
+  unwrapLegacyMermaidViewport(host);
+  const content = getDiagramContent(host);
+  if (!content?.querySelector?.("svg") && content?.tagName?.toLowerCase() !== "svg") return;
+
+  const state = hostState.get(host) || bindPanZoom(host);
+  host.classList.remove("is-mermaid-zoomed", "is-mermaid-panning");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      applyMermaidDiagramPanZoom(host, state, { reset: true, ...options });
+    });
+  });
 }
 
 export function resetMermaidDiagramPanZoom(host) {

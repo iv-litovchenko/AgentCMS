@@ -7260,6 +7260,7 @@ async function collectMediaFilesStructured(
     if (isAreaManifestFileName(entry.name)) {
       let displayName = "";
       let status = null;
+      let awnId = null;
       let createdAt = null;
       let updatedAt = null;
       try {
@@ -7275,10 +7276,13 @@ async function collectMediaFilesStructured(
         displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
         status =
           getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
+        awnId = parseAwnId(
+          getFrontmatterPropValue(props, "awn-id") || getYamlScalar(frontmatter, "awn-id")
+        );
       } catch {
         // manifest may be unreadable
       }
-      sectionManifests.push({ path: relPath, displayName, status, createdAt, updatedAt });
+      sectionManifests.push({ path: relPath, displayName, status, awnId, createdAt, updatedAt });
       continue;
     }
 
@@ -7286,6 +7290,7 @@ async function collectMediaFilesStructured(
     let size = 0;
     let displayName = "";
     let status = null;
+    let awnId = null;
     let createdAt = null;
     let updatedAt = null;
     try {
@@ -7307,6 +7312,9 @@ async function collectMediaFilesStructured(
             );
             status =
               getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
+            awnId = parseAwnId(
+              getFrontmatterPropValue(props, "awn-id") || getYamlScalar(frontmatter, "awn-id")
+            );
           } catch {
             // sidecar may not exist yet
           }
@@ -7318,10 +7326,15 @@ async function collectMediaFilesStructured(
           const { frontmatter } = splitNodeFrontmatter(raw);
           const slug = entry.name.replace(/\.md$/i, "");
           displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", slug);
+          const props = parseFrontmatterProps(frontmatter);
           if (!status) {
-            const props = parseFrontmatterProps(frontmatter);
             status =
               getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
+          }
+          if (!awnId) {
+            awnId = parseAwnId(
+              getFrontmatterPropValue(props, "awn-id") || getYamlScalar(frontmatter, "awn-id")
+            );
           }
         } catch {
           // markdown may be unreadable
@@ -7346,6 +7359,7 @@ async function collectMediaFilesStructured(
       name: entry.name,
       displayName,
       status,
+      awnId,
       group: classifyMediaGroup(ext),
       isFolder: false,
       size,
