@@ -11484,14 +11484,9 @@ function createAppLandingPlatformLearningMindset() {
 
   const promptSubtitle = document.createElement("p");
   promptSubtitle.className = "app-landing-platform-learning-sphere-prompt-subtitle";
-  promptSubtitle.textContent = "Задача и контекст — четыре первых шага";
+  promptSubtitle.textContent = "Задача и контекст — пять первых шагов";
 
-  const promptHint = document.createElement("p");
-  promptHint.className = "app-landing-platform-learning-sphere-prompt-hint";
-  promptHint.textContent =
-    "Шаг 1: сначала поищи в хранилище похожие записи — если это уместно";
-
-  promptCopy.append(promptTitle, promptSubtitle, promptHint);
+  promptCopy.append(promptTitle, promptSubtitle);
   spherePrompt.append(promptCloud, promptCopy);
 
   const sphereJourney = document.createElement("div");
@@ -11504,35 +11499,42 @@ function createAppLandingPlatformLearningMindset() {
     {
       icon: "💬",
       label: "Первый вопрос",
-      detail:
-        "Сначала поищи в хранилище похожие записи (поиск или вопрос агенту). Затем сформулируй задачу и спроси, с чего начать",
+      detail: "Сформулируй задачу и спроси агента или нейросеть, с чего начать",
       tone: "violet",
       delay: 0,
       step: 1
+    },
+    {
+      icon: "🔍",
+      label: "Поиск в хранилище",
+      detail: "Сначала поищи в хранилище похожие записи — если это уместно",
+      tone: "sky",
+      delay: 0.35,
+      step: 2
     },
     {
       icon: "🛤️",
       label: "Составь дорожную карту",
       detail: "Опиши цель и разложи её на этапы, шаг за шагом в workspace",
       tone: "sky",
-      delay: 0.35,
-      step: 2
+      delay: 0.7,
+      step: 3
     },
     {
       icon: "🕸️",
       label: "Составь интелект карту",
       detail: "Увидь взаимосвязи между различными темами",
       tone: "emerald",
-      delay: 0.7,
-      step: 3
+      delay: 1.05,
+      step: 4
     },
     {
       icon: "📝",
       label: "Термины и заметки",
       detail: "Создавай и изучай интересующие темы и вопросы",
       tone: "amber",
-      delay: 1.05,
-      step: 4
+      delay: 1.4,
+      step: 5
     }
   ];
 
