@@ -248,7 +248,11 @@ const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
   { icon: "🔖", label: "Закладки" },
   { icon: "📥", label: "Загрузки из браузера" },
   { icon: "📓", label: "Печатные тетради" },
-  { icon: "📊", label: "аналитика" }
+  { icon: "🖼️", label: "Фотоархив" },
+  { icon: "📱", label: "Фотоархив (телефон)" },
+  { icon: "📊", label: "аналитика" },
+  { icon: "🌍", label: "Объекты реального мира" },
+  { icon: "📦", label: "Другое (не знаю куда деть)" }
 ];
 let menuAwnChannelsSearchQuery = "";
 const appSplashNode = document.getElementById("app-splash");
@@ -1924,7 +1928,6 @@ const SHARED_THEME_PRESETS = [
   { slug: "artefacts", label: "Артефакты" },
   { slug: "scripts", label: "Скрипты" },
   { slug: "media", label: "Медиа" },
-  { slug: "downloads", label: "Загрузки из браузера" },
   { slug: "context", label: "Автозагружаемый контекст" }
 ];
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(

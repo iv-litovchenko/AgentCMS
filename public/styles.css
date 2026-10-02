@@ -67181,7 +67181,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   box-shadow: none;
 }
 
-.menu-awn-channels-scope-caption,
 .menu-awn-channels-toolbar,
 .menu-awn-channels-toolbar-row--search,
 .menu-awn-channels-thesis,
@@ -67190,22 +67189,22 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-thesis {
-  margin: 0 0 0.35rem;
-  padding: 0.45rem 0.5rem;
-  font-size: 0.625rem;
-  line-height: 1.45;
+  margin: 0 0 0.3rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.6rem;
+  line-height: 1.35;
   color: #7f1d1d;
   border: 1px solid rgba(248, 113, 113, 0.45);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.58);
   box-sizing: border-box;
-  max-height: min(26vh, 188px);
+  max-height: min(16vh, 112px);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .menu-awn-channels-thesis-p {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.28rem;
 }
 
 .menu-awn-channels-thesis-p:last-child {
@@ -67217,11 +67216,11 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-thesis-list {
-  margin: 0 0 0.4rem;
-  padding-left: 1.1rem;
+  margin: 0 0 0.28rem;
+  padding-left: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.12rem;
 }
 
 .menu-awn-channels-thesis-list li {
