@@ -67184,8 +67184,56 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-channels-scope-caption,
 .menu-awn-channels-toolbar,
 .menu-awn-channels-toolbar-row--search,
+.menu-awn-channels-thesis,
 .menu-awn-channels-footer-caption {
   flex-shrink: 0;
+}
+
+.menu-awn-channels-thesis {
+  margin: 0 0 0.35rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  color: #7f1d1d;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  box-sizing: border-box;
+  max-height: min(26vh, 188px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.menu-awn-channels-thesis-p {
+  margin: 0 0 0.4rem;
+}
+
+.menu-awn-channels-thesis-p:last-child {
+  margin-bottom: 0;
+}
+
+.menu-awn-channels-thesis-p--lead {
+  margin-bottom: 0.25rem;
+}
+
+.menu-awn-channels-thesis-list {
+  margin: 0 0 0.4rem;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.menu-awn-channels-thesis-list li {
+  padding: 0;
+}
+
+.menu-awn-channels-thesis code {
+  font-size: 0.575rem;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  background: rgba(254, 226, 226, 0.65);
+  color: #991b1b;
 }
 
 .menu-awn-channels-band-body[hidden],

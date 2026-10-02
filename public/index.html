@@ -1899,6 +1899,32 @@
                 </label>
               </div>
             </div>
+            <div class="menu-awn-channels-thesis" aria-label="Смысл awn-channels (заметка)">
+              <p class="menu-awn-channels-thesis-p">
+                <strong>Кратко:</strong> ты попал в точку. <code>awn-channels</code> — это не «каналы показа» (лента, дайджест, блог как витрина), а <strong>единый шлюз входящего хаоса</strong>: всё с одной стороны приходит «грязным», с <code>untrusted</code>, потом triage → темы / инфоблоки / факты. Лента и дайджест — <strong>после</strong>; бортовой журнал — <strong>события системы</strong>, не Telegram и не закладки.
+              </p>
+              <p class="menu-awn-channels-thesis-p menu-awn-channels-thesis-p--lead">
+                <strong>Что ещё может лежать в том же списке (ingress, не view):</strong>
+              </p>
+              <ul class="menu-awn-channels-thesis-list">
+                <li><strong>Почта / mailbox</strong> (у вас уже в ADR)</li>
+                <li><strong>RSS / feed-подписки</strong> (внешний поток, не «лента UI»)</li>
+                <li><strong>GitHub / issues / PR / комменты</strong></li>
+                <li><strong>Календарь / напоминания</strong></li>
+                <li><strong>Голос / STT / встречи</strong> (рядом с <code>awn-dialogs</code>, но как «сырьё для разбора»)</li>
+                <li><strong>OCR / сканы / фото</strong> (тетради, чеки, визитки)</li>
+                <li><strong>Clipboard / «вставил из буфера»</strong></li>
+                <li><strong>Webhook / API / автоматизации</strong> (n8n, Zapier)</li>
+                <li><strong>Облачные inbox</strong> (Drive, Dropbox «новое в папке Inbox»)</li>
+                <li><strong>Companion / расширение браузера</strong> (как «загрузки и закладки», но живой поток)</li>
+              </ul>
+              <p class="menu-awn-channels-thesis-p">
+                <strong>Одна ось в типе:</strong> <code>ingress</code> (откуда) + <code>trust</code> + слот <code>inbox/</code>; <strong>вторая ось отдельно:</strong> forum / blog-agent / digest — это уже <strong>режимы работы</strong> над тем же хаосом, не соседи Telegram в одной папке без метки.
+              </p>
+              <p class="menu-awn-channels-thesis-p">
+                Статичный сайдбар — хороший чертёж; следующий шаг по смыслу — <code>awn-channels/{slug}/</code> + index + triage, без новых «витрин» в этой папке.
+              </p>
+            </div>
             <ul
               id="menu-awn-channels-list"
               class="menu-awn-channels-list"
