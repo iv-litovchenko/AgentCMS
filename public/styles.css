@@ -3261,10 +3261,14 @@ body.workspace-idle-screensaver-active {
 .agent-focus-panel--sidebar {
   gap: 0;
   padding: 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
   background: rgba(248, 250, 252, 0.92);
   flex-shrink: 0;
   min-height: 0;
+}
+
+/* Разделитель между аккордеонами; верх блока — только border-top у .menu-sidebar-bottom */
+.menu-sidebar-bottom > .agent-focus-panel--sidebar + .agent-focus-panel--sidebar {
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .sidebar-focus-toggle {
@@ -24454,8 +24458,37 @@ a.header-tool-btn {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding-left: 10px;
+  padding-left: 8px;
   overflow: hidden;
+}
+
+.content-search-input-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.content-search-input-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.content-search-bar:focus-within .content-search-input-icon {
+  color: #64748b;
+}
+
+.content-search-bar--semantic:focus-within .content-search-input-icon {
+  color: #7c3aed;
+}
+
+.content-search-bar--id:focus-within .content-search-input-icon {
+  color: #2563eb;
 }
 
 .content-search-mode-btn.is-disabled,
