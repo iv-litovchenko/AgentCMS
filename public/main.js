@@ -85459,6 +85459,15 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 
   headMeta.append(author, time);
 
+  const commentAwnId = normalizeAwnIdDisplayValue(comment.awnId);
+  if (commentAwnId) {
+    const idBadge = createNavBookTocIdBadge(commentAwnId);
+    if (idBadge) {
+      idBadge.classList.add("node-comment-awn-id-badge");
+      headMeta.appendChild(idBadge);
+    }
+  }
+
   const headActions = document.createElement("div");
   headActions.className = "node-comment-head-actions";
 
