@@ -60,6 +60,7 @@ const {
   getPlatformSearchTuning,
   resolveSearchScopes
 } = require("./lib/config/index-policy");
+const { formatAwnStatusDisplay } = require("./lib/config/awn-status-labels");
 const {
   getWorkspaceIndexProgress,
   startWorkspaceIndexProgress,
@@ -252,6 +253,7 @@ const {
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,
   AWN_WORKSPACE_TEMP_FOLDER,
+  AWN_WORKSPACE_SCRIPTS_FOLDER,
   AWN_WORKSPACE_RECYCLE_FOLDER,
   AWN_WORKSPACE_BACKUP_FOLDER,
   AWN_DASHBOARDS_FOLDER,
@@ -10535,6 +10537,7 @@ function shouldSkipMenuDirectory(name) {
   if (lower === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) return true;
   if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_SCRIPTS_FOLDER || "awn-scripts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_BACKUP_FOLDER || "awn-backup").toLowerCase()) return true;
   if (lower === String(AWN_DASHBOARDS_FOLDER || "awn-dashboards").toLowerCase()) return true;
@@ -12797,8 +12800,8 @@ function formatContentIndexRecordCount(recordCount) {
 function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
   if (!entries?.length) return emptyHint;
   const lines = [
-    "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Подразделы | Хранение | Типы файлов |",
-    "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
+    "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Подразделы | Хранение | Типы файлов |",
+    "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
   ];
   for (const entry of entries) {
     const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
@@ -12807,6 +12810,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
     const idCell = formatContentIndexAwnIdCell(entry.awnId);
+    const statusCell = formatContentIndexStatusCell(entry);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
     const recordCountCell = formatContentIndexRecordCount(entry.recordCount);
     const subsectionsCell =
@@ -12816,7 +12820,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
     const fileTypesCell = escapeContentIndexTableCell(entry.fileTypes) || "—";
     const typeCell = escapeContentIndexTableCell(entry.kind || entry.type) || "—";
     lines.push(
-      `| ${idCell} | ${typeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${subsectionsCell} | ${storageDriverCell} | ${fileTypesCell} |`
+      `| ${idCell} | ${statusCell} | ${typeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${subsectionsCell} | ${storageDriverCell} | ${fileTypesCell} |`
     );
   }
   return lines.join("\n");
@@ -13145,15 +13149,22 @@ async function readContentIndexEntryFileStats(entry = {}) {
     const ext = path.extname(relPath).toLowerCase();
     let lineCount = null;
 
+    let properties = entry?.properties && typeof entry.properties === "object" ? { ...entry.properties } : {};
+
     if (!ext || CONTENT_INDEX_TEXT_LINE_EXTENSIONS.has(ext)) {
       const maxReadBytes = 4 * 1024 * 1024;
       if (sizeBytes <= maxReadBytes) {
         const content = await fs.readFile(absolute, "utf-8");
         lineCount = countContentIndexTextLines(content);
+        const { frontmatter } = splitNodeFrontmatter(content);
+        const fromFile = getYamlScalar(frontmatter, "awn-status");
+        if (fromFile && !String(properties["awn-status"] || "").trim()) {
+          properties["awn-status"] = fromFile;
+        }
       }
     }
 
-    return { sizeBytes, lineCount };
+    return { sizeBytes, lineCount, properties };
   } catch {
     return { sizeBytes: null, lineCount: null };
   }
@@ -13163,7 +13174,10 @@ async function enrichContentIndexEntriesWithFileStats(entries = []) {
   return Promise.all(
     (entries || []).map(async (entry) => {
       const stats = await readContentIndexEntryFileStats(entry);
-      return { ...entry, ...stats };
+      const baseProps = entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
+      const statProps = stats?.properties && typeof stats.properties === "object" ? stats.properties : {};
+      const { properties: _drop, ...restStats } = stats;
+      return { ...entry, ...restStats, properties: { ...baseProps, ...statProps } };
     })
   );
 }
@@ -13179,6 +13193,22 @@ function formatIndexConfigurationsLabel(scope = {}) {
 function formatContentIndexAwnIdCell(awnId) {
   const parsed = parseAwnId(awnId);
   return parsed ? String(parsed) : "—";
+}
+
+function resolveContentIndexEntryAwnStatus(entry = {}) {
+  const props = entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
+  const raw =
+    props["awn-status"] ??
+    props.awnStatus ??
+    entry.status ??
+    entry.awnStatus ??
+    "";
+  return formatAwnStatusDisplay(raw);
+}
+
+function formatContentIndexStatusCell(entry = {}) {
+  const label = resolveContentIndexEntryAwnStatus(entry);
+  return escapeContentIndexTableCell(label) || "—";
 }
 
 function formatContentIndexCommentCountCell(count) {
@@ -13363,14 +13393,14 @@ function formatContentIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| ID | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
+    ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
     : includeSlotLabel
-      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
-      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
+      ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+      : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
   const divider = includeSlotsMode
-    ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
+    ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
     : includeSlotLabel
-      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
       : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
@@ -13382,26 +13412,27 @@ function formatContentIndexEntriesMarkdown(
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
     const idCell = formatContentIndexAwnIdCell(entry.awnId);
+    const statusCell = formatContentIndexStatusCell(entry);
     const commentsCell = formatContentIndexCommentCountCell(entry.commentCount);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
 
     if (includeSlotsMode) {
       const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
       lines.push(
-        `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
+        `| ${idCell} | ${statusCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
       );
       continue;
     }
 
     if (includeSlotLabel) {
       lines.push(
-        `| ${idCell} | ${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
+        `| ${idCell} | ${statusCell} | ${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
       );
       continue;
     }
 
     lines.push(
-      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
+      `| ${idCell} | ${statusCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
     );
   }
   return lines.join("\n");

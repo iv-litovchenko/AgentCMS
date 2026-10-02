@@ -984,6 +984,7 @@ delete_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-12
 | `awn-facts/` | корень workspace | «что решили / что запомнить» — 1–2 фразы |
 | `awn-dialogs/` | корень workspace | полный Q/A Shell/Voice (не в semantic index) |
 | `awn-temp/` | корень workspace | любые **временные** файлы (staging, scratch, экспорты) — не слот темы |
+| `awn-scripts/` | корень workspace | **общие** исполняемые скрипты workspace (обслуживание, cron, миграции) — не слот `scripts/` темы |
 | `awn-recycle/` | корень workspace | **корзина** (мягкое удаление, скоро) |
 | `discussion/` темы | слот discussion | дискуссия **одной** темы CMS |
 | `comments/` | слот comments | комментарий к manifest/записи |
@@ -1011,6 +1012,7 @@ HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
 - Подпапки по смыслу: `incoming/`, `scratch/`, `exports/` или по дате/задаче.
 - MCP: `write_file` / `upload_file` с путём `awn-temp/…`; просмотр — `list_folder`, `read_file`.
 - UI: sidebar static → **Временные файлы** (после «Настройки»).
+- **`awn-scripts/`** — постоянные **общие** скрипты (`.py`, `.js`, `.sh`…), не привязанные к одной теме. Слот темы `scripts/` — только для этой темы. Запуск — `run_script` (политика `confirm-exec` / `mcp-mode`). UI: sidebar → **Скрипты workspace** (`awn-scripts/`).
 - **`awn-recycle/`** — корзина (static, восстановление позже). Пока — просто папка в корне.
 
 ### Tools

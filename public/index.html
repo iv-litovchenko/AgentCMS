@@ -2448,6 +2448,107 @@
               </div>
             </section>
             <section
+              id="menu-awn-scripts-band"
+              class="menu-awn-scripts-band menu-awn-scripts-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
+              aria-label="Скрипты workspace — awn-scripts"
+            >
+              <div class="menu-awn-scripts-band-head">
+                <button
+                  id="menu-awn-scripts-band-toggle"
+                  type="button"
+                  class="menu-awn-scripts-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--awn-scripts"
+                  aria-expanded="false"
+                  aria-controls="menu-awn-scripts-band-body"
+                  title="Скрипты workspace — свернуть или показать"
+                >
+                  <span class="sidebar-accent-band-toggle-main">
+                    <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                    <svg
+                      class="sidebar-accent-band-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
+                    </svg>
+                    <span class="menu-awn-scripts-band-title sidebar-accent-band-title">Скрипты workspace — awn-scripts</span>
+                  </span>
+                </button>
+                <div class="menu-awn-scripts-band-head-actions" aria-label="Действия скриптов workspace">
+                  <button
+                    id="menu-awn-scripts-help-btn"
+                    type="button"
+                    class="menu-band-help-btn"
+                    title="Каталог awn-scripts/ — общие .py/.js/.sh вне тем. Слот scripts/ в теме — только для этой темы. Запуск через run_script; exec подтверждается в platform.yml. Список и run из UI — скоро."
+                    aria-label="Каталог awn-scripts/ — общие .py/.js/.sh вне тем. Слот scripts/ в теме — только для этой темы. Запуск через run_script; exec подтверждается в platform.yml. Список и run из UI — скоро."
+                  >
+                    ?
+                  </button>
+                  <button
+                    id="menu-awn-scripts-refresh-btn"
+                    type="button"
+                    class="menu-refresh-btn"
+                    disabled
+                    title="Обновить список (скоро)"
+                    aria-label="Обновить список (скоро)"
+                  >
+                    <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                        stroke="currentColor"
+                        stroke-width="2.25"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    id="menu-awn-scripts-search-btn"
+                    type="button"
+                    class="menu-band-search-btn"
+                    disabled
+                    title="Поиск (скоро)"
+                    aria-label="Поиск (скоро)"
+                  >
+                    <svg class="menu-band-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+                      <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div id="menu-awn-scripts-band-body" class="menu-awn-scripts-band-body" hidden>
+                <p class="menu-awn-scripts-intro">
+                  Общие скрипты без привязки к теме: обслуживание, индексация, миграции, cron. Не путать с
+                  <code>…/scripts/</code> внутри темы и с временным <code>awn-temp/</code>.
+                </p>
+                <div class="menu-awn-scripts-placeholder" role="status">
+                  <span class="menu-awn-scripts-placeholder-icon" aria-hidden="true">⚙️</span>
+                  <p class="menu-awn-scripts-placeholder-title">Список и запуск — скоро</p>
+                  <p class="menu-awn-scripts-placeholder-text">
+                    Пока кладите файлы в <code>awn-scripts/</code> и запускайте через MCP <code>run_script</code>. Панель
+                    «Запуск скриптов» в профиле агента подключится к тому же каталогу.
+                  </p>
+                </div>
+                <button
+                  id="menu-awn-scripts-open-btn"
+                  type="button"
+                  class="menu-awn-scripts-open-btn menu-static-action-btn"
+                  title="Открыть папку awn-scripts"
+                >
+                  Открыть awn-scripts
+                </button>
+                <p class="menu-awn-scripts-footer-caption">Корень workspace · <code>awn-scripts/</code></p>
+              </div>
+            </section>
+            <section
               id="menu-repositories-band"
               class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
               aria-label="Зависимости и репозитории"
@@ -3938,7 +4039,10 @@
           </div>
         </div>
         <div id="agent-run-scripts-info" class="agent-tool-info">
-          <p id="agent-run-scripts-meta" class="agent-tool-info-desc">Static — пока заглушка, скоро здесь появится список скриптов и кнопки запуска</p>
+          <p id="agent-run-scripts-meta" class="agent-tool-info-desc">
+            Static — список и запуск из <code>awn-scripts/</code> (общие скрипты workspace) появятся здесь; пока — MCP
+            <code>run_script</code> и кнопка «Открыть awn-scripts» в сайдбаре.
+          </p>
           <div id="agent-run-scripts-stats" class="agent-workspace-stats" aria-live="polite"></div>
         </div>
         <div id="agent-run-scripts-content" class="agent-tool-body agent-run-scripts-content"></div>

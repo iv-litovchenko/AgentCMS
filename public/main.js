@@ -61,6 +61,11 @@ const menuMediaLibraryBandNode = document.getElementById("menu-media-library-ban
 const menuMediaLibraryBandToggleBtn = document.getElementById("menu-media-library-band-toggle");
 const menuMediaLibraryBandBodyNode = document.getElementById("menu-media-library-band-body");
 const menuMediaLibraryHelpBtn = document.getElementById("menu-media-library-help-btn");
+const menuAwnScriptsBandNode = document.getElementById("menu-awn-scripts-band");
+const menuAwnScriptsBandToggleBtn = document.getElementById("menu-awn-scripts-band-toggle");
+const menuAwnScriptsBandBodyNode = document.getElementById("menu-awn-scripts-band-body");
+const menuAwnScriptsHelpBtn = document.getElementById("menu-awn-scripts-help-btn");
+const menuAwnScriptsOpenBtn = document.getElementById("menu-awn-scripts-open-btn");
 const menuRepositoriesBandNode = document.getElementById("menu-repositories-band");
 const menuRepositoriesBandToggleBtn = document.getElementById("menu-repositories-band-toggle");
 const menuRepositoriesBandBodyNode = document.getElementById("menu-repositories-band-body");
@@ -238,6 +243,7 @@ let awnDataViewLayoutToggleNode = null;
 let awnDataViewColumnsWrapNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_MEDIA_LIBRARY_BAND_OPEN_KEY = "yamlcms.menuMediaLibraryBandOpen.v1";
+const MENU_AWN_SCRIPTS_BAND_OPEN_KEY = "yamlcms.menuAwnScriptsBandOpen.v1";
 const MENU_REPOSITORIES_BAND_OPEN_KEY = "yamlcms.menuRepositoriesBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
@@ -16458,6 +16464,7 @@ const FREE_MEMORY_LABEL = "Свободная память";
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
+const AWN_SCRIPTS_FOLDER = "awn-scripts";
 const AWN_RECYCLE_FOLDER = "awn-recycle";
 const AWN_BACKUP_FOLDER = "awn-backup";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
@@ -76401,7 +76408,7 @@ function renderIblockOutsideStructureWarningPanel(report) {
   const isGroup = String(report?.kind || "") === "group";
   hint.textContent = isGroup
     ? "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/."
-    : "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/ и (при плоском хранении) записи и разделы; в awn-storage/ — только data/ и assets/.";
+    : "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/, для табличной CSV-коллекции — main.csv (или record.file из schema); при плоском MD-хранении — записи и разделы в корне; в awn-storage/ — только data/ и assets/.";
 
   header.append(title, hint);
 
@@ -109829,6 +109836,12 @@ function isSidebarBottomPanelActive() {
     return true;
   }
   if (
+    isMenuAwnScriptsBandExpanded() &&
+    Boolean(menuAwnScriptsBandBodyNode && !menuAwnScriptsBandBodyNode.hidden)
+  ) {
+    return true;
+  }
+  if (
     isMenuRepositoriesBandExpanded() &&
     Boolean(menuRepositoriesBandBodyNode && !menuRepositoriesBandBodyNode.hidden)
   ) {
@@ -109876,6 +109889,14 @@ function dismissSidebarBottomPanelForUpperZone() {
       // ignore storage errors
     }
     syncMenuMediaLibraryBandAccordionUi();
+  }
+  if (isMenuAwnScriptsBandExpanded()) {
+    try {
+      localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuAwnScriptsBandAccordionUi();
   }
   if (isMenuRepositoriesBandExpanded()) {
     try {
@@ -109995,6 +110016,42 @@ function setMenuMediaLibraryBandExpanded(expanded) {
 
 function toggleMenuMediaLibraryBandExpanded() {
   setMenuMediaLibraryBandExpanded(!isMenuMediaLibraryBandExpanded());
+}
+
+function isMenuAwnScriptsBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function syncMenuAwnScriptsBandAccordionUi() {
+  if (!menuAwnScriptsBandNode) return;
+  const expanded = isMenuAwnScriptsBandExpanded();
+  menuAwnScriptsBandNode.classList.toggle("is-collapsed", !expanded);
+  menuAwnScriptsBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuAwnScriptsBandBodyNode) {
+    menuAwnScriptsBandBodyNode.hidden = !expanded;
+    menuAwnScriptsBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function setMenuAwnScriptsBandExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+  syncMenuAwnScriptsBandAccordionUi();
+  syncSidebarBottomFocusMode();
+}
+
+function toggleMenuAwnScriptsBandExpanded() {
+  setMenuAwnScriptsBandExpanded(!isMenuAwnScriptsBandExpanded());
 }
 
 function isMenuRepositoriesBandExpanded() {
@@ -110496,6 +110553,18 @@ function setupMenuMediaLibraryBandGroup() {
     toggleMenuMediaLibraryBandExpanded();
   });
   wireMenuBandHelpButton(menuMediaLibraryHelpBtn);
+}
+
+function setupMenuAwnScriptsBandGroup() {
+  syncMenuAwnScriptsBandAccordionUi();
+  menuAwnScriptsBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuAwnScriptsBandExpanded();
+  });
+  wireMenuBandHelpButton(menuAwnScriptsHelpBtn);
+  menuAwnScriptsOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Скрипты workspace", AWN_SCRIPTS_FOLDER, { agentId: activeAgentId });
+  });
 }
 
 function setupMenuRepositoriesBandGroup() {
@@ -123637,6 +123706,7 @@ setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
 setupProjectSettingsScopeSearch();
 setupMenuMediaLibraryBandGroup();
+setupMenuAwnScriptsBandGroup();
 setupMenuRepositoriesBandGroup();
 setupMenuRepositoryGroupDragDrop();
 setupMenuStaticFooterGroup();
