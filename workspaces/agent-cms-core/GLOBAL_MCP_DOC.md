@@ -934,7 +934,7 @@ awn-description: Черновики и ресурсы для разбора
 |--------|-------|-----------|
 | Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage |
 | Дискуссия темы | `read_discussion`, `append_discussion` | Не писать в `discussion/` через `create_content` |
-| Discuss-комментарии | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не писать в `comments/` через `create_content` / `write_file` |
+| Discuss-комментарии | `list_comments`, `read_comment`, `append_comment`, `update_comment`, `delete_comment`, `toggle_comment_reaction` | Не писать в `comments/` через `create_content` / `write_file` |
 
 Новая intake-заметка — `create_content` в `slot: inbox` с `status: new`.
 
@@ -965,9 +965,12 @@ append_comment({
 })
 
 list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/razdel/zapis.md" })
+read_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-123.md" })
+update_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-123.md", "body": "…" })
+delete_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-123.md", "confirm": true })
 ```
 
-Файлы: `awn-storage/comments/{target}/{timestamp}.md` (не slug-имена записей).
+Файлы: `awn-storage/comments/{target}/{timestamp}.md` (не slug-имена записей). Новые комментарии: `awn-type: awn.annotation.comment` + **`awn-id`** (глобальный счётчик workspace).
 
 ---
 

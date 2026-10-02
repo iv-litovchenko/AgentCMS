@@ -3224,12 +3224,33 @@ function parseCommentFileContent(rawContent) {
   const mentions = [...new Set([...storedMentions, ...bodyMentions])];
   const reactionsUp = parseCommentReactionsUp(frontmatter);
   return {
+    awnId: parseAwnId(getYamlScalar(frontmatter, "awn-id")) || null,
+    awnType: getYamlScalar(frontmatter, "awn-type") || "",
     author: getYamlScalar(frontmatter, "awn-author") || "guest",
     created: getYamlScalar(frontmatter, "awn-created") || "",
+    updated: getYamlScalar(frontmatter, "awn-update") || "",
     replyTo: getYamlScalar(frontmatter, "awn-reply-to") || "",
     mentions,
     reactionsUp,
     body: String(body || "").trim()
+  };
+}
+
+function mapCommentFileEntry(fileName, commentsDirRel, parsed) {
+  return {
+    id: fileName,
+    label: formatCommentTimestampLabel(fileName),
+    relPath: `${commentsDirRel}/${fileName}`.replace(/\\/g, "/"),
+    awnId: parsed.awnId,
+    awnType: parsed.awnType || "awn.annotation.comment",
+    author: parsed.author,
+    created: parsed.created,
+    updated: parsed.updated || null,
+    replyTo: parsed.replyTo || null,
+    mentions: parsed.mentions,
+    reactionsUp: parsed.reactionsUp,
+    reactionsUpCount: parsed.reactionsUp.length,
+    body: parsed.body
   };
 }
 
@@ -3256,18 +3277,7 @@ async function readCommentsFromDir(commentsDirRel) {
       continue;
     }
     const parsed = parseCommentFileContent(content);
-    comments.push({
-      id: entry.name,
-      label: formatCommentTimestampLabel(entry.name),
-      relPath: `${commentsDirRel}/${entry.name}`.replace(/\\/g, "/"),
-      author: parsed.author,
-      created: parsed.created,
-      replyTo: parsed.replyTo || null,
-      mentions: parsed.mentions,
-      reactionsUp: parsed.reactionsUp,
-      reactionsUpCount: parsed.reactionsUp.length,
-      body: parsed.body
-    });
+    comments.push(mapCommentFileEntry(entry.name, commentsDirRel, parsed));
   }
 
   comments.sort((left, right) => right.id.localeCompare(left.id));
@@ -3336,13 +3346,17 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
   }
 
   const mentions = extractCommentMentions(text);
-  const frontmatterLines = [
+  let frontmatter = [
+    `awn-type: awn.annotation.comment`,
     `awn-author: ${formatYamlScalar(commentAuthor)}`,
     `awn-created: ${created}`
-  ];
-  if (parentId) frontmatterLines.push(`awn-reply-to: ${formatYamlScalar(parentId)}`);
-  if (mentions.length) frontmatterLines.push(`awn-mentions: ${formatYamlScalar(mentions.join(", "))}`);
-  const content = joinNodeFrontmatter(frontmatterLines.join("\n"), text);
+  ].join("\n");
+  if (parentId) frontmatter = upsertFrontmatterScalar(frontmatter, "awn-reply-to", parentId);
+  if (mentions.length) {
+    frontmatter = upsertFrontmatterScalar(frontmatter, "awn-mentions", mentions.join(", "));
+  }
+  frontmatter = applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter: "" });
+  const content = joinNodeFrontmatter(frontmatter, text);
 
   const fileName = buildCommentFileName();
   const commentRelPath = `${commentsDirRel}/${fileName}`.replace(/\\/g, "/");
@@ -3359,18 +3373,8 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
     fileKind: "content"
   });
 
-  return {
-    id: fileName,
-    label: formatCommentTimestampLabel(fileName),
-    relPath: commentRelPath,
-    author: commentAuthor,
-    created,
-    replyTo: parentId || null,
-    mentions,
-    reactionsUp: [],
-    reactionsUpCount: 0,
-    body: text
-  };
+  const parsed = parseCommentFileContent(content);
+  return mapCommentFileEntry(fileName, commentsDirRel, parsed);
 }
 
 async function resolveCommentFileAbsolute({ manifestRelPath, mode, file, systemName, commentId }) {
@@ -3390,13 +3394,111 @@ async function resolveCommentFileAbsolute({ manifestRelPath, mode, file, systemN
 
     try {
       await fs.access(fileAbsolute);
-      return { commentsDirAbsolute, fileAbsolute, relPath: safeId, commentsDirRel };
+      const commentsManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+      const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+      return {
+        commentsDirAbsolute,
+        fileAbsolute,
+        relPath: safeId,
+        commentsDirRel,
+        commentsManifestRel,
+        targetRelPath
+      };
     } catch (error) {
       if (!error || error.code !== "ENOENT") throw error;
     }
   }
 
   throw new Error("Comment not found");
+}
+
+async function readFileComment({ manifestRelPath, mode, file, systemName, commentId }) {
+  const resolved = await resolveCommentFileAbsolute({
+    manifestRelPath,
+    mode,
+    file,
+    systemName,
+    commentId
+  });
+  const raw = await fs.readFile(resolved.fileAbsolute, "utf-8");
+  const parsed = parseCommentFileContent(raw);
+  const relativeTarget =
+    resolved.commentsManifestRel && resolved.targetRelPath
+      ? getHistoryRelativeTargetPath(resolved.commentsManifestRel, resolved.targetRelPath)
+      : "";
+  return {
+    manifestPath: resolved.commentsManifestRel,
+    target: relativeTarget,
+    comment: mapCommentFileEntry(resolved.relPath, resolved.commentsDirRel, parsed)
+  };
+}
+
+async function updateFileComment({ manifestRelPath, mode, file, systemName, commentId, body }) {
+  const text = String(body || "").trim();
+  if (!text) throw new Error("Comment body is required");
+
+  const resolved = await resolveCommentFileAbsolute({
+    manifestRelPath,
+    mode,
+    file,
+    systemName,
+    commentId
+  });
+  const raw = await fs.readFile(resolved.fileAbsolute, "utf-8");
+  const { frontmatter, body: previousBody } = splitNodeFrontmatter(raw);
+  const mentions = extractCommentMentions(text);
+  let nextFrontmatter = String(frontmatter || "").trim();
+  if (!getYamlScalar(nextFrontmatter, "awn-type")) {
+    nextFrontmatter = upsertFrontmatterScalar(nextFrontmatter, "awn-type", "awn.annotation.comment");
+  }
+  if (mentions.length) {
+    nextFrontmatter = upsertFrontmatterScalar(nextFrontmatter, "awn-mentions", mentions.join(", "));
+  } else {
+    nextFrontmatter = String(nextFrontmatter || "")
+      .replace(/^awn-mentions:.*\n?/m, "")
+      .trim();
+  }
+  nextFrontmatter = applyAwnTimestampsToFrontmatter(nextFrontmatter, { diskFrontmatter: frontmatter });
+  const content = joinNodeFrontmatter(nextFrontmatter, text);
+  await fs.writeFile(resolved.fileAbsolute, content, "utf-8");
+  const commentRelPath = `${resolved.commentsDirRel}/${resolved.relPath}`.replace(/\\/g, "/");
+  await recordWorkspaceActivityAsync({
+    action: "update",
+    path: commentRelPath,
+    manifestPath: resolved.commentsManifestRel,
+    label: path.posix.basename(commentRelPath) || commentRelPath,
+    fileKind: "content"
+  });
+  const parsed = parseCommentFileContent(content);
+  return {
+    manifestPath: resolved.commentsManifestRel,
+    comment: mapCommentFileEntry(resolved.relPath, resolved.commentsDirRel, parsed)
+  };
+}
+
+async function deleteFileComment({ manifestRelPath, mode, file, systemName, commentId }) {
+  const resolved = await resolveCommentFileAbsolute({
+    manifestRelPath,
+    mode,
+    file,
+    systemName,
+    commentId
+  });
+  const commentRelPath = `${resolved.commentsDirRel}/${resolved.relPath}`.replace(/\\/g, "/");
+  await fs.rm(resolved.fileAbsolute, { force: false });
+  await recordWorkspaceActivityAsync({
+    action: "delete",
+    path: commentRelPath,
+    manifestPath: resolved.commentsManifestRel,
+    label: path.posix.basename(commentRelPath) || commentRelPath,
+    fileKind: "content"
+  });
+  return {
+    manifestPath: resolved.commentsManifestRel,
+    deleted: true,
+    id: resolved.relPath,
+    relPath: commentRelPath
+  };
 }
 
 async function toggleCommentReaction({ manifestRelPath, mode, file, systemName, commentId, reaction, author }) {
@@ -23249,6 +23351,107 @@ async function handleApiForAgent(req, res, url) {
         error: "Failed to toggle comment reaction",
         details: message
       });
+    }
+  }
+
+  const commentItemQuery = (searchParams) => ({
+    manifestRelPath: searchParams.get("path") || "",
+    mode: String(searchParams.get("mode") || "description").trim(),
+    file: searchParams.get("file") || "",
+    systemName: searchParams.get("name") || "",
+    commentId: String(searchParams.get("commentId") || searchParams.get("id") || "").trim()
+  });
+
+  if (req.method === "GET" && url.pathname === "/api/file/comment") {
+    const { manifestRelPath, mode, file, systemName, commentId } = commentItemQuery(url.searchParams);
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+    if (!commentId) return sendJson(res, 400, { error: "Missing comment id" });
+    try {
+      const payload = await readFileComment({
+        manifestRelPath,
+        mode,
+        file,
+        systemName,
+        commentId
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        target: payload.target,
+        manifestPath: payload.manifestPath,
+        comment: payload.comment
+      });
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (/not found/i.test(message)) return sendJson(res, 404, { error: message });
+      return sendJson(res, 500, { error: "Failed to read file comment", details: message });
+    }
+  }
+
+  if (req.method === "PATCH" && url.pathname === "/api/file/comment") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const mode = String(payload.mode || "description").trim();
+      const file = payload.file || "";
+      const systemName = payload.name || "";
+      const commentId = String(payload.commentId || payload.id || "").trim();
+      const body = String(payload.body || "").trim();
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!commentId) return sendJson(res, 400, { error: "Missing comment id" });
+      if (!body) return sendJson(res, 400, { error: "Comment body is required" });
+
+      const result = await updateFileComment({
+        manifestRelPath,
+        mode,
+        file,
+        systemName,
+        commentId,
+        body
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        manifestPath: result.manifestPath,
+        comment: result.comment
+      });
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (/not found/i.test(message)) return sendJson(res, 404, { error: message });
+      return sendJson(res, 500, { error: "Failed to update file comment", details: message });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/file/comment") {
+    const { manifestRelPath, mode, file, systemName, commentId } = commentItemQuery(url.searchParams);
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+    if (!commentId) return sendJson(res, 400, { error: "Missing comment id" });
+    try {
+      const result = await deleteFileComment({
+        manifestRelPath,
+        mode,
+        file,
+        systemName,
+        commentId
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        manifestPath: result.manifestPath,
+        deleted: true,
+        id: result.id,
+        relPath: result.relPath
+      });
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (/not found/i.test(message)) return sendJson(res, 404, { error: message });
+      return sendJson(res, 500, { error: "Failed to delete file comment", details: message });
     }
   }
 

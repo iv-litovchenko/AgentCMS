@@ -304,6 +304,44 @@ function createServer() {
       client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
   );
 
+  const commentTargetFields = {
+    path: pagePath,
+    commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+    mode: z.string().optional(),
+    file: z.string().optional(),
+    name: z.string().optional()
+  };
+
+  reg(
+    "read_comment",
+    "Read one discuss comment by commentId (awn-id in frontmatter when assigned).",
+    z.object(commentTargetFields),
+    ({ path, commentId, mode, file, name }) =>
+      client.get("/api/file/comment", { path, commentId, mode, file, name })
+  );
+
+  reg(
+    "update_comment",
+    "Update discuss comment body. Preserves author, replyTo, reactions; updates awn-update.",
+    z.object({
+      ...commentTargetFields,
+      body: z.string().min(1)
+    }),
+    ({ path, commentId, body, mode, file, name }) =>
+      client.patch("/api/file/comment", { path, commentId, body, mode, file, name })
+  );
+
+  reg(
+    "delete_comment",
+    "Delete discuss comment file. When platform confirm-delete is enabled, pass confirm=true.",
+    z.object({
+      ...commentTargetFields,
+      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
+    }),
+    ({ path, commentId, mode, file, name }) =>
+      client.delete("/api/file/comment", { path, commentId, mode, file, name })
+  );
+
   // ── Workspace pads + FS + system ───────────────────────────────────────────
 
   registerWorkspacePadTools(reg, client);

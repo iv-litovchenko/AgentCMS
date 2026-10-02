@@ -44632,6 +44632,26 @@ img.is-svg-media,
   cursor: pointer;
 }
 
+.node-comment-action--danger:not(:disabled) {
+  color: #b91c1c;
+}
+
+.node-comment-action--danger:not(:disabled):hover {
+  color: #991b1b;
+}
+
+.node-comment-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.node-comment-edit-field {
+  width: 100%;
+  min-height: 72px;
+}
+
 .node-comment-action:not(:disabled):hover {
   color: #2563eb;
 }

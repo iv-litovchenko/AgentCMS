@@ -80980,6 +80980,53 @@ async function postFileComment(context, body, author, agentId = activeAgentId, r
   return response.json();
 }
 
+async function patchFileComment(context, commentId, body, agentId = activeAgentId) {
+  const response = await fetch(buildApiUrl("/api/file/comment", {}, agentId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...buildFileCommentsApiParams(context),
+      commentId,
+      body
+    })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+async function deleteFileCommentApi(context, commentId, agentId = activeAgentId) {
+  const response = await fetch(
+    buildApiUrl("/api/file/comment", { ...buildFileCommentsApiParams(context), commentId }, agentId),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+function commentAuthorsMatch(commentAuthor) {
+  const mine = slugifyCommentMentionHandle(getStoredCommentAuthor());
+  const theirs = slugifyCommentMentionHandle(commentAuthor);
+  return Boolean(mine && theirs && mine === theirs);
+}
+
 async function postCommentReaction(context, commentId, author, agentId = activeAgentId, reaction = "up") {
   const response = await fetch(buildApiUrl("/api/file/comments/reaction", {}, agentId), {
     method: "POST",
@@ -85426,6 +85473,27 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
     reactBtn.disabled = true;
   }
 
+  const canManage =
+    typeof handlers.canManageComment === "function" ? handlers.canManageComment(comment) : false;
+
+  if (canManage && typeof handlers.onEdit === "function") {
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "node-comment-action";
+    editBtn.textContent = "Изменить";
+    editBtn.addEventListener("click", () => handlers.onEdit(comment, item, main, body));
+    foot.appendChild(editBtn);
+  }
+
+  if (canManage && typeof handlers.onDelete === "function") {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "node-comment-action node-comment-action--danger";
+    deleteBtn.textContent = "Удалить";
+    deleteBtn.addEventListener("click", () => handlers.onDelete(comment, deleteBtn));
+    foot.appendChild(deleteBtn);
+  }
+
   foot.append(replyBtn, reactBtn);
   main.append(commentHead, body, foot);
   item.append(avatar, main);
@@ -85591,6 +85659,82 @@ async function createNodeCommentsBlock(options = {}) {
         } catch (error) {
           showToast(`Не удалось поставить реакцию: ${error.message}`, "error");
           button.disabled = false;
+        }
+      })();
+    },
+    canManageComment(comment) {
+      return commentAuthorsMatch(comment.author);
+    },
+    onEdit(comment, itemNode, mainNode, bodyNode) {
+      if (bodyNode.dataset.editing === "1") return;
+      bodyNode.dataset.editing = "1";
+      const originalHtml = bodyNode.innerHTML;
+      const originalText = String(comment.body || "");
+      bodyNode.replaceChildren();
+      const field = document.createElement("textarea");
+      field.className = "node-comments-input node-comment-edit-field";
+      field.rows = 4;
+      field.value = originalText;
+      const actions = document.createElement("div");
+      actions.className = "node-comment-edit-actions";
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "node-comment-action";
+      cancelBtn.textContent = "Отмена";
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "node-comments-submit";
+      saveBtn.textContent = "Сохранить";
+      actions.append(cancelBtn, saveBtn);
+      bodyNode.append(field, actions);
+      attachCommentMentionAutocomplete(field, () => mentionCandidates);
+      field.focus();
+
+      const restoreView = () => {
+        delete bodyNode.dataset.editing;
+        bodyNode.replaceChildren();
+        renderCommentBodyWithMentions(bodyNode, originalText, commentHandlers.mentionLookup, {
+          nodePath: commentHandlers.nodePath
+        });
+      };
+
+      cancelBtn.addEventListener("click", restoreView);
+      saveBtn.addEventListener("click", () => {
+        void (async () => {
+          const nextBody = String(field.value || "").trim();
+          if (!nextBody) {
+            showToast("Текст комментария не может быть пустым", "error");
+            return;
+          }
+          saveBtn.disabled = true;
+          cancelBtn.disabled = true;
+          field.disabled = true;
+          try {
+            await patchFileComment(context, comment.id, nextBody, agentId);
+            await refreshComments();
+            showToast("Комментарий обновлён", "success");
+          } catch (error) {
+            showToast(`Не удалось сохранить: ${error.message}`, "error");
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            field.disabled = false;
+          }
+        })();
+      });
+    },
+    onDelete(comment, button) {
+      void (async () => {
+        const confirmed = await askConfirm("Удалить комментарий?", { okLabel: "Удалить" });
+        if (!confirmed) return;
+        if (button) button.disabled = true;
+        try {
+          await deleteFileCommentApi(context, comment.id, agentId);
+          closeActiveReplyComposer();
+          await refreshComments();
+          showToast("Комментарий удалён", "success");
+        } catch (error) {
+          showToast(`Не удалось удалить: ${error.message}`, "error");
+          if (button) button.disabled = false;
         }
       })();
     },
