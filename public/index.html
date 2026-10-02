@@ -1896,6 +1896,40 @@
                 </label>
               </div>
             </div>
+            <div
+              id="menu-awn-channels-flow-strip"
+              class="menu-awn-channels-flow-strip menu-view-ghost-strip"
+              role="tablist"
+              aria-label="Поток awn-channels"
+            >
+              <button
+                id="menu-awn-channels-flow-ingress-external-btn"
+                type="button"
+                class="menu-awn-channels-flow-btn menu-view-ghost-btn is-active"
+                data-awn-channels-flow="ingress-external"
+                aria-selected="true"
+              >
+                Входящие (внеш)
+              </button>
+              <button
+                id="menu-awn-channels-flow-ingress-internal-btn"
+                type="button"
+                class="menu-awn-channels-flow-btn menu-view-ghost-btn"
+                data-awn-channels-flow="ingress-internal"
+                aria-selected="false"
+              >
+                Входящие (внутр)
+              </button>
+              <button
+                id="menu-awn-channels-flow-outgoing-btn"
+                type="button"
+                class="menu-awn-channels-flow-btn menu-view-ghost-btn"
+                data-awn-channels-flow="outgoing"
+                aria-selected="false"
+              >
+                Исходящие
+              </button>
+            </div>
             <div class="menu-awn-channels-thesis" aria-label="Смысл awn-channels (заметка)">
               <p class="menu-awn-channels-thesis-p">
                 <strong>Кратко:</strong> ты попал в точку. <code>awn-channels</code> — это не «каналы показа» (лента, дайджест, блог как витрина), а <strong>единый шлюз входящего хаоса</strong>: всё с одной стороны приходит «грязным», с <code>untrusted</code>, потом triage → темы / инфоблоки / факты. Лента и дайджест — <strong>после</strong>; бортовой журнал — <strong>события системы</strong>, не Telegram и не закладки.
@@ -1928,7 +1962,7 @@
               aria-label="Каналы awn-channels (примеры)"
             ></ul>
             <p class="menu-awn-channels-footer-caption">
-              awn-channels — источники информации (хаотичная информация, хаотичные входящие). Дальше — triage в темы и инфоблоки.
+              awn-channels — источники информации (хаотичная информация, хаотичные входящие, сырье, источники). Дальше — triage в темы и инфоблоки.
             </p>
           </div>
         </section>
@@ -7759,7 +7793,7 @@
     <script src="/js/editor/marker-blocks-preview.js?v=10"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>
     <script src="/js/panels/api-docs-ui.js?v=2"></script>
-    <script src="/main.js?v=0.5.990"></script>
+    <script src="/main.js?v=0.5.991"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
     <script src="/js/app/privacy-mode.js?v=5"></script>
     <script src="/js/app/sensitive-input.js?v=3"></script>

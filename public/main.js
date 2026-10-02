@@ -76,6 +76,7 @@ const menuAwnChannelsCreateBtn = document.getElementById("menu-awn-channels-crea
 const menuAwnChannelsIndexOpenBtn = document.getElementById("menu-awn-channels-index-open-btn");
 const menuAwnChannelsIndexRefreshBtn = document.getElementById("menu-awn-channels-index-refresh-btn");
 const menuAwnChannelsSearchInputNode = document.getElementById("menu-awn-channels-search-input");
+const menuAwnChannelsFlowStripNode = document.getElementById("menu-awn-channels-flow-strip");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
@@ -255,6 +256,8 @@ const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
   { icon: "📦", label: "Другое (не знаю куда деть)" }
 ];
 let menuAwnChannelsSearchQuery = "";
+const MENU_AWN_CHANNELS_FLOW_KEY = "yamlcms.menuAwnChannelsFlow.v1";
+let menuAwnChannelsFlowMode = "ingress-external";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -109947,8 +109950,50 @@ function renderMenuAwnChannelsStaticList() {
   }
 }
 
+function syncMenuAwnChannelsFlowStripUi() {
+  if (!menuAwnChannelsFlowStripNode) return;
+  const buttons = menuAwnChannelsFlowStripNode.querySelectorAll("[data-awn-channels-flow]");
+  for (const btn of buttons) {
+    const mode = String(btn.getAttribute("data-awn-channels-flow") || "");
+    const active = mode === menuAwnChannelsFlowMode;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  }
+}
+
+function setMenuAwnChannelsFlowMode(mode) {
+  const next = String(mode || "").trim();
+  if (!next) return;
+  menuAwnChannelsFlowMode = next;
+  try {
+    localStorage.setItem(MENU_AWN_CHANNELS_FLOW_KEY, next);
+  } catch {
+    // ignore
+  }
+  syncMenuAwnChannelsFlowStripUi();
+}
+
+function setupMenuAwnChannelsFlowStrip() {
+  try {
+    const saved = localStorage.getItem(MENU_AWN_CHANNELS_FLOW_KEY);
+    if (saved === "ingress-external" || saved === "ingress-internal" || saved === "outgoing") {
+      menuAwnChannelsFlowMode = saved;
+    }
+  } catch {
+    // ignore
+  }
+  syncMenuAwnChannelsFlowStripUi();
+  menuAwnChannelsFlowStripNode?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-awn-channels-flow]");
+    if (!btn || !menuAwnChannelsFlowStripNode.contains(btn)) return;
+    event.preventDefault();
+    setMenuAwnChannelsFlowMode(btn.getAttribute("data-awn-channels-flow"));
+  });
+}
+
 function setupMenuAwnChannelsBandGroup() {
   syncMenuAwnChannelsBandAccordionUi();
+  setupMenuAwnChannelsFlowStrip();
   renderMenuAwnChannelsStaticList();
   menuAwnChannelsBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnChannelsBandExpanded();

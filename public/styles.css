@@ -67183,9 +67183,47 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-awn-channels-toolbar,
 .menu-awn-channels-toolbar-row--search,
+.menu-awn-channels-flow-strip,
 .menu-awn-channels-thesis,
 .menu-awn-channels-footer-caption {
   flex-shrink: 0;
+}
+
+.menu-awn-channels-band-body .menu-awn-channels-flow-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin: 0 0 0.35rem;
+  padding: 6px 8px;
+  background: linear-gradient(180deg, rgba(254, 226, 226, 0.45) 0%, rgba(255, 255, 255, 0) 100%);
+  box-sizing: border-box;
+}
+
+.menu-awn-channels-band-body .menu-awn-channels-flow-strip .menu-view-ghost-btn {
+  border: 0;
+  background: transparent;
+  color: #9f1239;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-awn-channels-band-body .menu-awn-channels-flow-strip .menu-view-ghost-btn:hover {
+  color: #991b1b;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.menu-awn-channels-band-body .menu-awn-channels-flow-strip .menu-view-ghost-btn.is-active {
+  color: #7f1d1d;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 -2px 0 #dc2626;
 }
 
 .menu-awn-channels-thesis {
