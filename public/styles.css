@@ -29565,6 +29565,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-databases-band:not(.is-collapsed) .sidebar-accent-band-chevron,
+.menu-media-library-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-repositories-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .sidebar-slab-menu-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
@@ -67716,6 +67717,199 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: 0;
 }
 
+.menu-media-library-band {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.menu-media-library-band-head {
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  background: linear-gradient(135deg, #0e7490 0%, #06b6d4 52%, #67e8f9 100%);
+}
+
+.menu-media-library-band-head .sidebar-accent-band-toggle--media-library {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  background: transparent;
+  color: #ecfeff;
+}
+
+.menu-media-library-band-head .sidebar-accent-band-toggle--media-library:hover {
+  filter: brightness(1.04);
+}
+
+.menu-media-library-band-head .sidebar-accent-band-toggle--media-library:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.88);
+  outline-offset: -2px;
+}
+
+.menu-media-library-band-head .sidebar-accent-band-chevron {
+  border-right-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.95);
+}
+
+.menu-media-library-band-title.sidebar-accent-band-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-media-library-band-head-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px 7px 0;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.menu-media-library-band-head-actions .menu-refresh-btn,
+.menu-media-library-band-head-actions .menu-band-help-btn,
+.menu-media-library-band-head-actions .menu-band-search-btn {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid rgba(14, 116, 144, 0.32);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.42);
+  color: #0e7490;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-media-library-band-head-actions .menu-band-help-btn {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-media-library-band-head-actions .menu-refresh-btn:hover:not(:disabled),
+.menu-media-library-band-head-actions .menu-band-help-btn:hover:not(:disabled),
+.menu-media-library-band-head-actions .menu-band-search-btn:hover:not(:disabled) {
+  border-color: rgba(14, 116, 144, 0.48);
+  background: rgba(255, 255, 255, 0.72);
+  color: #0891b2;
+}
+
+.menu-media-library-band-head-actions .menu-refresh-btn:focus,
+.menu-media-library-band-head-actions .menu-band-help-btn:focus,
+.menu-media-library-band-head-actions .menu-band-search-btn:focus {
+  outline: none;
+}
+
+.menu-media-library-band-head-actions .menu-refresh-btn:focus-visible,
+.menu-media-library-band-head-actions .menu-band-help-btn:focus-visible,
+.menu-media-library-band-head-actions .menu-band-search-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.32);
+}
+
+.menu-media-library-band-head-actions .menu-refresh-btn svg,
+.menu-media-library-band-head-actions .menu-band-search-btn svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 50% 50%;
+}
+
+.menu-media-library-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    180deg,
+    rgba(103, 232, 249, 0.35) 0%,
+    rgba(236, 254, 255, 0.95) 28%,
+    rgba(240, 253, 250, 0.98) 100%
+  );
+  border-bottom: 1px solid rgba(34, 211, 238, 0.35);
+}
+
+.menu-media-library-band-body[hidden],
+.menu-media-library-band-accordion.is-collapsed > .menu-media-library-band-body {
+  display: none !important;
+}
+
+.menu-media-library-band-accordion.is-collapsed .menu-media-library-band-head {
+  border-bottom: 0;
+}
+
+.menu-media-library-intro {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #155e75;
+}
+
+.menu-media-library-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 0.5rem;
+  border: 1px dashed rgba(14, 116, 144, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+.menu-media-library-placeholder-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.menu-media-library-placeholder-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0e7490;
+}
+
+.menu-media-library-placeholder-text {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: #64748b;
+  max-width: 16rem;
+}
+
+.menu-media-library-footer-caption {
+  margin: 0.15rem 0 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.35);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #0e7490;
+  text-align: center;
+  opacity: 0.85;
+}
+
 .menu-repositories-band {
   flex-shrink: 0;
   padding: 0;
@@ -69073,6 +69267,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-databases-band:not(.is-collapsed),
+.sidebar.is-menu-bottom-focus .menu-media-library-band:not(.is-collapsed),
 .sidebar.is-menu-bottom-focus .menu-repositories-band:not(.is-collapsed),
 .sidebar.is-menu-bottom-focus .menu-static-footer:not(.is-collapsed),
 .sidebar.is-menu-bottom-focus .menu-system-environment:not(.hidden).is-open {
@@ -69084,6 +69279,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-databases-band-head,
+.sidebar.is-menu-bottom-focus .menu-media-library-band-head,
 .sidebar.is-menu-bottom-focus .menu-repositories-band-head,
 .sidebar.is-menu-bottom-focus .menu-static-footer-toggle-btn,
 .sidebar.is-menu-bottom-focus .menu-system-environment-host {
@@ -69091,6 +69287,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-databases-band-body,
+.sidebar.is-menu-bottom-focus .menu-media-library-band-body,
 .sidebar.is-menu-bottom-focus .menu-repositories-band-body,
 .sidebar.is-menu-bottom-focus .menu-static-footer-body,
 .sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid {
@@ -69103,6 +69300,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-databases-band-body > *,
+.sidebar.is-menu-bottom-focus .menu-media-library-band-body > *,
 .sidebar.is-menu-bottom-focus .menu-repositories-band-body > *,
 .sidebar.is-menu-bottom-focus .menu-static-footer-body > *,
 .sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid > * {

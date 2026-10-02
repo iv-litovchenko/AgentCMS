@@ -57,6 +57,10 @@ const appFooterVoiceCmdBtn = document.getElementById("app-footer-voice-cmd-btn")
 const menuAwnDataBandNode = document.getElementById("menu-awn-databases-band");
 const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-databases-band-toggle");
 const menuAwnDataBandBodyNode = document.getElementById("menu-awn-databases-band-body");
+const menuMediaLibraryBandNode = document.getElementById("menu-media-library-band");
+const menuMediaLibraryBandToggleBtn = document.getElementById("menu-media-library-band-toggle");
+const menuMediaLibraryBandBodyNode = document.getElementById("menu-media-library-band-body");
+const menuMediaLibraryHelpBtn = document.getElementById("menu-media-library-help-btn");
 const menuRepositoriesBandNode = document.getElementById("menu-repositories-band");
 const menuRepositoriesBandToggleBtn = document.getElementById("menu-repositories-band-toggle");
 const menuRepositoriesBandBodyNode = document.getElementById("menu-repositories-band-body");
@@ -233,6 +237,7 @@ let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
 let awnDataViewColumnsWrapNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
+const MENU_MEDIA_LIBRARY_BAND_OPEN_KEY = "yamlcms.menuMediaLibraryBandOpen.v1";
 const MENU_REPOSITORIES_BAND_OPEN_KEY = "yamlcms.menuRepositoriesBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
@@ -109806,6 +109811,12 @@ function isSidebarBottomPanelActive() {
     return true;
   }
   if (
+    isMenuMediaLibraryBandExpanded() &&
+    Boolean(menuMediaLibraryBandBodyNode && !menuMediaLibraryBandBodyNode.hidden)
+  ) {
+    return true;
+  }
+  if (
     isMenuRepositoriesBandExpanded() &&
     Boolean(menuRepositoriesBandBodyNode && !menuRepositoriesBandBodyNode.hidden)
   ) {
@@ -109845,6 +109856,14 @@ function dismissSidebarBottomPanelForUpperZone() {
       // ignore storage errors
     }
     syncMenuAwnDataBandAccordionUi();
+  }
+  if (isMenuMediaLibraryBandExpanded()) {
+    try {
+      localStorage.setItem(MENU_MEDIA_LIBRARY_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuMediaLibraryBandAccordionUi();
   }
   if (isMenuRepositoriesBandExpanded()) {
     try {
@@ -109928,6 +109947,42 @@ function setMenuAwnDataBandExpanded(expanded) {
 
 function toggleMenuAwnDataBandExpanded() {
   setMenuAwnDataBandExpanded(!isMenuAwnDataBandExpanded());
+}
+
+function isMenuMediaLibraryBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_MEDIA_LIBRARY_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function syncMenuMediaLibraryBandAccordionUi() {
+  if (!menuMediaLibraryBandNode) return;
+  const expanded = isMenuMediaLibraryBandExpanded();
+  menuMediaLibraryBandNode.classList.toggle("is-collapsed", !expanded);
+  menuMediaLibraryBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuMediaLibraryBandBodyNode) {
+    menuMediaLibraryBandBodyNode.hidden = !expanded;
+    menuMediaLibraryBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function setMenuMediaLibraryBandExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_MEDIA_LIBRARY_BAND_OPEN_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+  syncMenuMediaLibraryBandAccordionUi();
+  syncSidebarBottomFocusMode();
+}
+
+function toggleMenuMediaLibraryBandExpanded() {
+  setMenuMediaLibraryBandExpanded(!isMenuMediaLibraryBandExpanded());
 }
 
 function isMenuRepositoriesBandExpanded() {
@@ -110421,6 +110476,14 @@ function setupMenuAwnDataIndexRow() {
     menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
     syncMenuAwnDataIndexRowState();
   });
+}
+
+function setupMenuMediaLibraryBandGroup() {
+  syncMenuMediaLibraryBandAccordionUi();
+  menuMediaLibraryBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuMediaLibraryBandExpanded();
+  });
+  wireMenuBandHelpButton(menuMediaLibraryHelpBtn);
 }
 
 function setupMenuRepositoriesBandGroup() {
@@ -123561,6 +123624,7 @@ setupMenuAwnChannelsBandGroup();
 setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
 setupProjectSettingsScopeSearch();
+setupMenuMediaLibraryBandGroup();
 setupMenuRepositoriesBandGroup();
 setupMenuRepositoryGroupDragDrop();
 setupMenuStaticFooterGroup();

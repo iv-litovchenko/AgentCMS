@@ -2355,6 +2355,99 @@
               </div>
             </section>
             <section
+              id="menu-media-library-band"
+              class="menu-media-library-band menu-media-library-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
+              aria-label="Медиатека — файлы без привязки"
+            >
+              <div class="menu-media-library-band-head">
+                <button
+                  id="menu-media-library-band-toggle"
+                  type="button"
+                  class="menu-media-library-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--media-library"
+                  aria-expanded="false"
+                  aria-controls="menu-media-library-band-body"
+                  title="Медиатека — свернуть или показать"
+                >
+                  <span class="sidebar-accent-band-toggle-main">
+                    <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                    <svg
+                      class="sidebar-accent-band-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <circle cx="8.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
+                      <path d="m21 16-5.5-5.5a2 2 0 0 0-2.8 0L3 20" />
+                    </svg>
+                    <span class="menu-media-library-band-title sidebar-accent-band-title">Медиатека — файлы без привязки</span>
+                  </span>
+                </button>
+                <div class="menu-media-library-band-head-actions" aria-label="Действия медиатеки">
+                  <button
+                    id="menu-media-library-help-btn"
+                    type="button"
+                    class="menu-band-help-btn"
+                    title="Файлы вне тем дерева и без записи в infoblock: вложения, импорт, черновики. Позже — дерево и загрузка здесь; хранилище связано с медиатекой workspace."
+                    aria-label="Файлы вне тем дерева и без записи в infoblock: вложения, импорт, черновики. Позже — дерево и загрузка здесь; хранилище связано с медиатекой workspace."
+                  >
+                    ?
+                  </button>
+                  <button
+                    id="menu-media-library-refresh-btn"
+                    type="button"
+                    class="menu-refresh-btn"
+                    disabled
+                    title="Обновить список (скоро)"
+                    aria-label="Обновить список (скоро)"
+                  >
+                    <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                        stroke="currentColor"
+                        stroke-width="2.25"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    id="menu-media-library-search-btn"
+                    type="button"
+                    class="menu-band-search-btn"
+                    disabled
+                    title="Поиск (скоро)"
+                    aria-label="Поиск (скоро)"
+                  >
+                    <svg class="menu-band-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+                      <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div id="menu-media-library-band-body" class="menu-media-library-band-body" hidden>
+                <p class="menu-media-library-intro">
+                  Здесь будут файлы без привязки к теме или накопителю: загрузки, вложения, «положил и разберу потом».
+                </p>
+                <div class="menu-media-library-placeholder" role="status">
+                  <span class="menu-media-library-placeholder-icon" aria-hidden="true">📂</span>
+                  <p class="menu-media-library-placeholder-title">Список файлов — скоро</p>
+                  <p class="menu-media-library-placeholder-text">
+                    Планируется дерево папок и быстрая загрузка; данные пойдут в медиатеку workspace, без дублирования
+                    репозиториев.
+                  </p>
+                </div>
+                <p class="menu-media-library-footer-caption">Плоские файлы (медиатека workspace)</p>
+              </div>
+            </section>
+            <section
               id="menu-repositories-band"
               class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
               aria-label="Зависимости и репозитории"
