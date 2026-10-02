@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>awn-channels v2 — секция → разделы → посты</title>
+    <style>
+      :root {
+        --border: #e2e8f0;
+        --muted: #64748b;
+        --red-900: #7f1d1d;
+        --red-600: #dc2626;
+        --red-50: #fff1f2;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.45 system-ui, sans-serif;
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+      .demo-banner {
+        padding: 8px 14px;
+        background: #334155;
+        color: #e2e8f0;
+        font-size: 11px;
+      }
+      .demo-banner em { color: #fda4af; font-style: normal; font-weight: 700; }
+      .layout {
+        display: grid;
+        grid-template-columns: 272px minmax(0, 1fr);
+        height: calc(100vh - 34px);
+      }
+      /* —— Rail: список секций (каналов) —— */
+      .rail {
+        background: #fff;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .rail-top {
+        padding: 10px 12px;
+        background: linear-gradient(135deg, #7f1d1d, #dc2626 55%, #fca5a5);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .rail-list {
+        flex: 1;
+        overflow: auto;
+        padding: 8px;
+      }
+      .rail-item {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 8px;
+        align-items: start;
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 6px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fff;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+        color: inherit;
+      }
+      .rail-item.is-active {
+        border-color: var(--red-600);
+        background: var(--red-50);
+        box-shadow: inset 3px 0 0 var(--red-600);
+      }
+      .rail-item-ico { font-size: 20px; line-height: 1; }
+      .rail-item-name { font-weight: 700; font-size: 13px; color: var(--red-900); }
+      .rail-item-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+      /* —— Секция (контент выбранного канала) —— */
+      .section-pane {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: #fff;
+      }
+      .section-head {
+        padding: 14px 18px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .section-head h1 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .section-head p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 52rem;
+      }
+      .section-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Разделы — компактные строки-карточки */
+      .divisions {
+        padding: 10px 18px 6px;
+        background: #fff;
+      }
+      .divisions-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+      }
+      .division-folder {
+        width: 100%;
+        height: auto;
+        min-height: 36px;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin: 0;
+        background: #fff;
+        font: inherit;
+        line-height: 1.2;
+        text-align: left;
+        cursor: pointer;
+        color: inherit;
+        transition: border-color 0.12s, box-shadow 0.12s;
+      }
+      .division-folder:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      }
+      .division-folder.is-active {
+        border-color: #93c5fd;
+        background: #f8fbff;
+      }
+      .division-folder.is-add {
+        border-style: dashed;
+        border-color: #94a3b8;
+        background: #fafafa;
+        color: var(--muted);
+      }
+      .division-folder.is-add:hover {
+        border-color: #64748b;
+        background: #f8fafc;
+      }
+      .division-folder-title {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        flex: 1;
+      }
+      .division-folder-icon {
+        flex-shrink: 0;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .division-folder-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .division-folder-meta {
+        flex-shrink: 0;
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      /* Посты — единственный тип контента */
+      .posts {
+        padding: 6px 18px 24px;
+      }
+      .post {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.12s, box-shadow 0.12s;
+      }
+      .post:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      }
+      .post.is-open {
+        border-color: #93c5fd;
+        background: #f8fbff;
+      }
+      .post-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+        margin-bottom: 6px;
+      }
+      .post-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .post-date {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .post-excerpt {
+        margin: 0;
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.5;
+      }
+      .post-foot {
+        margin-top: 8px;
+        font-size: 10px;
+        color: var(--muted);
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .post-foot .tag {
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+      }
+      .post-body-preview {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+        font-size: 12px;
+        color: #334155;
+        display: none;
+      }
+      .post.is-open .post-body-preview { display: block; }
+      .post-kind {
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+        margin-bottom: 6px;
+      }
+      .post--forum .post-kind { color: #6366f1; }
+      .post--blog .post-kind { color: #059669; }
+      .post--file .post-kind { color: #d97706; }
+      /* 1) пост форума */
+      .post--forum .post-forum-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .post--forum .post-forum-meta strong { color: #334155; font-weight: 600; }
+      .post--forum .post-forum-stats {
+        display: inline-flex;
+        gap: 10px;
+        margin-left: auto;
+        font-size: 10px;
+      }
+      .post--forum .post-forum-stats span {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        color: #4338ca;
+      }
+      /* 2) пост блога — фото + текст */
+      .post--blog .post-blog-row {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .post--blog .post-blog-thumb {
+        width: 112px;
+        height: 84px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        border: 1px solid var(--border);
+      }
+      .post--blog .post-blog-thumb.is-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: #94a3b8;
+      }
+      .post--blog .post-title { font-size: 15px; }
+      .post--blog .post-excerpt { margin-top: 4px; }
+      .post--blog.is-open .post-blog-row { grid-template-columns: 1fr; }
+      .post--blog.is-open .post-blog-thumb {
+        width: 100%;
+        max-width: 420px;
+        height: 200px;
+      }
+      /* 3) файл */
+      .post--file .post-file-row {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+      }
+      .post--file .post-file-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+      }
+      .post--file .post-file-name {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        word-break: break-all;
+      }
+      .post--file .post-file-sub {
+        margin: 2px 0 0;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .post--file .post-file-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .post--file .post-file-actions button {
+        font: inherit;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+        color: #334155;
+      }
+      .post--file .post-file-actions button:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-banner">
+      <em>Макет v2</em> — секция → разделы → <strong>пост</strong> (одна сущность), но <strong>форма</strong>: форум · блог (фото+текст) · файл.
+    </div>
+
+    <div class="layout">
+      <aside class="rail">
+        <div class="rail-top">awn-channels · секции</div>
+        <div class="rail-list">
+          <button type="button" class="rail-item">
+            <span class="rail-item-ico">💬</span>
+            <span><div class="rail-item-name">Форум</div><div class="rail-item-sub">секция · 12 постов</div></span>
+          </button>
+          <button type="button" class="rail-item is-active">
+            <span class="rail-item-ico">✈️</span>
+            <span><div class="rail-item-name">Telegram</div><div class="rail-item-sub">секция · 47 постов</div></span>
+          </button>
+          <button type="button" class="rail-item">
+            <span class="rail-item-ico">📥</span>
+            <span><div class="rail-item-name">Загрузки из браузера</div><div class="rail-item-sub">секция · 3 поста</div></span>
+          </button>
+          <button type="button" class="rail-item">
+            <span class="rail-item-ico">📓</span>
+            <span><div class="rail-item-name">Печатные тетради</div><div class="rail-item-sub">секция · 8 постов</div></span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="section-pane">
+        <header class="section-head">
+          <h1><span aria-hidden="true">✈️</span> Telegram</h1>
+          <p>Секция канала — контейнер разделов. Не «очередь triage», а живая лента постов внутри разделов.</p>
+        </header>
+
+        <div class="section-scroll">
+        <nav class="divisions" aria-label="Разделы секции">
+          <div class="divisions-row">
+            <button type="button" class="division-folder is-active">
+              <span class="division-folder-title">
+                <span class="division-folder-icon" aria-hidden="true">📁</span>
+                <span class="division-folder-name">Все посты</span>
+              </span>
+              <span class="division-folder-meta">47</span>
+            </button>
+            <button type="button" class="division-folder">
+              <span class="division-folder-title">
+                <span class="division-folder-icon" aria-hidden="true">📁</span>
+                <span class="division-folder-name">Входящий поток</span>
+              </span>
+              <span class="division-folder-meta">21</span>
+            </button>
+            <button type="button" class="division-folder">
+              <span class="division-folder-title">
+                <span class="division-folder-icon" aria-hidden="true">📁</span>
+                <span class="division-folder-name">Ссылки</span>
+              </span>
+              <span class="division-folder-meta">9</span>
+            </button>
+            <button type="button" class="division-folder">
+              <span class="division-folder-title">
+                <span class="division-folder-icon" aria-hidden="true">📁</span>
+                <span class="division-folder-name">Экспорты чатов</span>
+              </span>
+              <span class="division-folder-meta">6</span>
+            </button>
+            <button type="button" class="division-folder">
+              <span class="division-folder-title">
+                <span class="division-folder-icon" aria-hidden="true">📁</span>
+                <span class="division-folder-name">Фото и OCR</span>
+              </span>
+              <span class="division-folder-meta">11</span>
+            </button>
+            <button type="button" class="division-folder is-add">
+              <span class="division-folder-title">
+                <span class="division-folder-name">+ Новый раздел</span>
+              </span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="posts" aria-label="Посты">
+
+          <article class="post post--forum is-open" data-post-form="forum">
+            <div class="post-kind">Форум · тема</div>
+            <div class="post-top">
+              <h2 class="post-title">Multichannel: ingress vs presentation views</h2>
+              <time class="post-date">02.10.2026 14:08</time>
+            </div>
+            <div class="post-forum-meta">
+              <span>Автор: <strong>@yamlcms_ideas</strong></span>
+              <span>Раздел: <strong>Обсуждение архитектуры</strong></span>
+              <span class="post-forum-stats">
+                <span>12 ответов</span>
+                <span>340 просмотров</span>
+              </span>
+            </div>
+            <p class="post-excerpt">awn-channels — не слой показа, а секции с папками и постами. Дальше triage и инфоблоки…</p>
+            <div class="post-foot">
+              <span class="tag">forum</span>
+              <span class="tag">thread</span>
+              <span class="tag">untrusted</span>
+            </div>
+            <div class="post-body-preview">
+              <p><strong>OP:</strong> Полный текст первого сообщения темы (markdown). Ответы — отдельный thread под постом, но в индексе это один <strong>пост форума</strong>.</p>
+            </div>
+          </article>
+
+          <article class="post post--blog" data-post-form="blog">
+            <div class="post-kind">Блог · запись</div>
+            <div class="post-blog-row">
+              <div class="post-blog-thumb is-placeholder" aria-hidden="true">🖼</div>
+              <div>
+                <div class="post-top">
+                  <h2 class="post-title">PKM на практике: фото доски после встречи</h2>
+                  <time class="post-date">30.09.2026 09:12</time>
+                </div>
+                <p class="post-excerpt">Короткий лид: что на снимке, зачем сохранили, одна мысль для дайджеста. Обычно hero-image + заголовок + текст.</p>
+              </div>
+            </div>
+            <div class="post-foot">
+              <span class="tag">blog</span>
+              <span class="tag">cover</span>
+              <span class="tag">раздел: заметки</span>
+            </div>
+            <div class="post-body-preview">
+              Развёрнутый текст записи, галерея, теги. В свёрнутом виде — превью слева, заголовок и лид справа.
+            </div>
+          </article>
+
+          <article class="post post--file" data-post-form="file">
+            <div class="post-kind">Файл · вложение</div>
+            <div class="post-file-row">
+              <div class="post-file-icon" aria-hidden="true">📄</div>
+              <div>
+                <h2 class="post-file-name">export_yamlcms_ideas_2026-10-02.json</h2>
+                <p class="post-file-sub">application/json · 248 KB · из Telegram «YamlCMS идеи»</p>
+              </div>
+              <div class="post-file-actions">
+                <span>02.10.2026 14:08</span>
+                <button type="button" onclick="event.stopPropagation()">Открыть</button>
+              </div>
+            </div>
+            <div class="post-foot">
+              <span class="tag">file</span>
+              <span class="tag">attachment</span>
+              <span class="tag">раздел: экспорты</span>
+            </div>
+            <div class="post-body-preview">
+              Опционально: превью текста, checksum, путь в хранилище. Сущность всё равно <strong>post</strong>, форма — файл.
+            </div>
+          </article>
+        </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      document.querySelectorAll(".post").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.target.closest("button")) return;
+          document.querySelectorAll(".post").forEach((p) => p.classList.remove("is-open"));
+          el.classList.add("is-open");
+        });
+      });
+      document.querySelectorAll(".division-folder:not(.is-add)").forEach((el) => {
+        el.addEventListener("click", () => {
+          document.querySelectorAll(".division-folder").forEach((c) => c.classList.remove("is-active"));
+          el.classList.add("is-active");
+        });
+      });
+    </script>
+  </body>
+</html>
