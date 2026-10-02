@@ -264,7 +264,42 @@
       .post--forum .post-kind { color: #6366f1; }
       .post--blog .post-kind { color: #059669; }
       .post--file .post-kind { color: #d97706; }
-      /* 1) пост форума */
+      .post-kind--pill {
+        display: inline-flex;
+        align-items: center;
+        letter-spacing: 0.02em;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 5px;
+        border: 1px solid transparent;
+        margin-bottom: 0;
+      }
+      .post--forum .post-kind--pill {
+        background: #eef2ff;
+        color: #4338ca;
+        border-color: #c7d2fe;
+      }
+      .post--blog .post-kind--pill {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+      }
+      .post--file .post-kind--pill {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: #fde68a;
+      }
+      .post-labels {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .post--file .post-labels {
+        margin-bottom: 6px;
+      }
       .post--forum .post-forum-meta {
         display: flex;
         flex-wrap: wrap;
@@ -287,7 +322,6 @@
         border: 1px solid #c7d2fe;
         color: #4338ca;
       }
-      /* 2) пост блога — фото + текст */
       .post--blog .post-blog-row {
         display: grid;
         grid-template-columns: 112px minmax(0, 1fr);
@@ -317,7 +351,7 @@
         max-width: 420px;
         height: 200px;
       }
-      /* 3) файл */
+      /* файл */
       .post--file .post-file-row {
         display: grid;
         grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -349,10 +383,26 @@
       .post--file .post-file-actions {
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        gap: 4px;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .post-date--pill {
+        display: inline-flex;
+        align-items: center;
         font-size: 10px;
-        color: var(--muted);
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 5px;
+        border: 1px solid #cbd5e1;
+        background: #f1f5f9;
+        color: #475569;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+      .post--file .post-date--pill {
+        background: #f8fafc;
+        border-color: #94a3b8;
+        color: #334155;
       }
       .post--file .post-file-actions button {
         font: inherit;
@@ -373,7 +423,7 @@
   </head>
   <body>
     <div class="demo-banner">
-      <em>Макет v2</em> — секция → разделы → <strong>пост</strong> (одна сущность), но <strong>форма</strong>: форум · блог (фото+текст) · файл.
+      <em>Макет v2</em> — секция → разделы → <strong>посты</strong> (форум · блог · файл).
     </div>
 
     <div class="layout">
@@ -454,10 +504,12 @@
         <div class="posts" aria-label="Посты">
 
           <article class="post post--forum is-open" data-post-form="forum">
-            <div class="post-kind">Форум · тема</div>
+            <div class="post-labels">
+              <div class="post-kind post-kind--pill">Форум · тема</div>
+              <time class="post-date post-date--pill" datetime="2026-10-02T14:08">02.10.2026 14:08</time>
+            </div>
             <div class="post-top">
               <h2 class="post-title">Multichannel: ingress vs presentation views</h2>
-              <time class="post-date">02.10.2026 14:08</time>
             </div>
             <div class="post-forum-meta">
               <span>Автор: <strong>@yamlcms_ideas</strong></span>
@@ -479,14 +531,14 @@
           </article>
 
           <article class="post post--blog" data-post-form="blog">
-            <div class="post-kind">Блог · запись</div>
             <div class="post-blog-row">
               <div class="post-blog-thumb is-placeholder" aria-hidden="true">🖼</div>
               <div>
-                <div class="post-top">
-                  <h2 class="post-title">PKM на практике: фото доски после встречи</h2>
-                  <time class="post-date">30.09.2026 09:12</time>
+                <div class="post-labels">
+                  <div class="post-kind post-kind--pill">Блог · запись</div>
+                  <time class="post-date post-date--pill" datetime="2026-09-30T09:12">30.09.2026 09:12</time>
                 </div>
+                <h2 class="post-title">PKM на практике: фото доски после встречи</h2>
                 <p class="post-excerpt">Короткий лид: что на снимке, зачем сохранили, одна мысль для дайджеста. Обычно hero-image + заголовок + текст.</p>
               </div>
             </div>
@@ -501,7 +553,6 @@
           </article>
 
           <article class="post post--file" data-post-form="file">
-            <div class="post-kind">Файл · вложение</div>
             <div class="post-file-row">
               <div class="post-file-icon" aria-hidden="true">📄</div>
               <div>
@@ -509,7 +560,10 @@
                 <p class="post-file-sub">application/json · 248 KB · из Telegram «YamlCMS идеи»</p>
               </div>
               <div class="post-file-actions">
-                <span>02.10.2026 14:08</span>
+                <div class="post-labels">
+                  <div class="post-kind post-kind--pill">Файл · вложение</div>
+                  <time class="post-date post-date--pill" datetime="2026-10-02T14:08">02.10.2026 14:08</time>
+                </div>
                 <button type="button" onclick="event.stopPropagation()">Открыть</button>
               </div>
             </div>
