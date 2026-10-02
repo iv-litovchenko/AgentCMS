@@ -375,6 +375,21 @@
     releaseRetryBtnBusy();
   });
 
+  async function unregisterPanelWindow() {
+    try {
+      const win = await chrome.windows.getCurrent();
+      const windowId = Number(win?.id);
+      if (!Number.isFinite(windowId) || windowId <= 0) return;
+      await sendRuntimeMessage({ type: "COMPANION_UNREGISTER_PANEL", windowId });
+    } catch {
+      // ignore
+    }
+  }
+
+  window.addEventListener("pagehide", () => {
+    void unregisterPanelWindow();
+  });
+
   void registerPanelTab();
   void loadShellFrame();
 })();

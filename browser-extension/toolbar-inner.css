@@ -17,17 +17,44 @@
 .asc-shell {
   position: relative;
   display: flex;
+  flex-direction: column-reverse;
   align-items: center;
-  gap: 0;
+  gap: 8px;
   width: max-content;
   max-width: none;
-  padding: 4px;
+  padding: 0;
   overflow: visible;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* По умолчанию инструменты над капсулой; при asc-expand-down — под ней */
+:host(.asc-expand-down) .asc-shell {
+  flex-direction: column;
+}
+
+.asc-brand-dock {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 4px 8px 4px 4px;
   border-radius: 999px;
   background: rgba(17, 12, 32, 0.94);
   border: 1px solid rgba(167, 139, 250, 0.42);
   box-shadow: 0 10px 28px rgba(15, 10, 30, 0.28);
   backdrop-filter: blur(12px);
+  touch-action: none;
+  user-select: none;
+}
+
+:host(:not(.is-expanded)) .asc-brand-dock {
+  animation: asc-idle-glow 2.2s ease-in-out infinite;
+}
+
+:host(.is-dragging) .asc-brand-dock {
+  cursor: grabbing;
 }
 
 .asc-brand-cluster {
@@ -35,6 +62,60 @@
   align-items: center;
   gap: 2px;
   flex: 0 0 auto;
+  cursor: grab;
+  border-radius: 999px;
+}
+
+.asc-brand-cluster:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.95);
+  outline-offset: 2px;
+}
+
+:host(.is-dragging) .asc-brand-cluster {
+  cursor: grabbing;
+}
+
+.asc-toolbar-panel {
+  width: max-content;
+  max-width: min(640px, calc(100vw - 56px));
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 22px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+  transition:
+    max-height 0.12s ease-out,
+    opacity 0.08s ease-out,
+    padding 0.12s ease-out,
+    border-color 0.1s ease-out,
+    background 0.1s ease-out,
+    box-shadow 0.1s ease-out;
+}
+
+:host(.is-expanded) .asc-toolbar-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-height: 180px;
+  opacity: 1;
+  overflow: visible;
+  padding: 6px 8px;
+  border-color: rgba(167, 139, 250, 0.42);
+  background: rgba(17, 12, 32, 0.94);
+  box-shadow: 0 10px 28px rgba(15, 10, 30, 0.28);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+.asc-brand-dock .asc-brand {
+  width: auto;
+  min-width: 32px;
+  height: 32px;
 }
 
 .asc-shell button {
@@ -120,6 +201,11 @@
   cursor: grab;
 }
 
+.asc-brand-dock .asc-brand {
+  width: auto;
+  overflow: visible;
+}
+
 :host(.is-dragging) .asc-brand,
 :host(.is-dragging) .asc-brand-icon {
   cursor: grabbing;
@@ -152,14 +238,6 @@
   filter: brightness(1.08);
 }
 
-:host(.is-expanded) .asc-btn--expand {
-  display: none;
-}
-
-:host(:not(.is-expanded)) .asc-shell {
-  animation: asc-idle-glow 2.2s ease-in-out infinite;
-}
-
 :host(:not(.is-expanded)) .asc-brand-icon {
   animation: asc-idle-breathe 2.2s ease-in-out infinite;
 }
@@ -182,26 +260,15 @@
 }
 
 .asc-actions {
+  position: relative;
   display: flex;
   align-items: center;
-  width: max-content;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  gap: 0;
-  padding-left: 0;
-  padding-right: 0;
-  min-width: 0;
-  transition: max-width 0.22s ease, opacity 0.16s ease, padding 0.22s ease;
-}
-
-:host(.is-expanded) .asc-actions {
-  max-width: min(640px, calc(100vw - 56px));
-  opacity: 1;
-  overflow: visible;
-  padding-left: 6px;
-  padding-right: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
   gap: 2px;
+  box-sizing: border-box;
 }
 
 .asc-cluster {
@@ -327,6 +394,14 @@
   opacity: 1;
 }
 
+.asc-toolbar-panel .asc-menu-pop {
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
 .asc-menu-pop {
   position: absolute;
   left: 0;
@@ -336,7 +411,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  width: auto;
+  width: 100%;
   min-width: 0;
   padding: 6px;
   border-radius: 18px;
@@ -356,6 +431,17 @@
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+:host(.asc-expand-down) .asc-menu-pop {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translateY(-8px) scale(0.96);
+  transform-origin: top center;
+}
+
+:host(.asc-expand-down) .asc-menu.is-open .asc-menu-pop {
   transform: translateY(0) scale(1);
 }
 
@@ -405,16 +491,12 @@
 }
 
 .asc-menu-pop--screenshot {
-  left: 0;
-  right: auto;
-  width: max-content;
-  min-width: 0;
   padding: 8px 10px 10px;
 }
 
 .asc-shot-compact-head {
   display: grid;
-  grid-template-columns: 148px repeat(3, minmax(76px, 1fr));
+  grid-template-columns: minmax(72px, 1.1fr) repeat(3, minmax(0, 1fr));
   gap: 6px;
   align-items: end;
   padding-bottom: 6px;
@@ -459,7 +541,7 @@
 
 .asc-shot-compact-row {
   display: grid;
-  grid-template-columns: 148px repeat(3, minmax(76px, 1fr));
+  grid-template-columns: minmax(72px, 1.1fr) repeat(3, minmax(0, 1fr));
   gap: 6px;
   align-items: center;
 }
@@ -504,9 +586,6 @@
 }
 
 .asc-menu-pop--clipboard {
-  left: auto;
-  right: 0;
-  width: min(320px, calc(100vw - 24px));
   max-height: 280px;
   overflow: auto;
 }
@@ -585,7 +664,7 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -653,9 +732,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :host(:not(.is-expanded)) .asc-shell,
+  :host(:not(.is-expanded)) .asc-brand-dock,
   :host(:not(.is-expanded)) .asc-brand,
   :host(:not(.is-expanded)) .asc-brand::after,
+  .asc-toolbar-panel,
   .asc-menu-pop {
     animation: none;
     transition: none;

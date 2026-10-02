@@ -144,6 +144,43 @@ async function getShellFramePayload() {
 /** @type {Map<number, number>} */
 const pickerTabByWindow = new Map();
 
+/** @type {Set<number>} */
+const sidePanelOpenWindows = new Set();
+
+function markSidePanelOpen(windowId) {
+  const id = Number(windowId);
+  if (Number.isFinite(id) && id > 0) sidePanelOpenWindows.add(id);
+}
+
+function markSidePanelClosed(windowId) {
+  const id = Number(windowId);
+  if (Number.isFinite(id) && id > 0) sidePanelOpenWindows.delete(id);
+}
+
+function isSidePanelOpen(windowId) {
+  const id = Number(windowId);
+  return Number.isFinite(id) && id > 0 && sidePanelOpenWindows.has(id);
+}
+
+async function toggleCompanionSidePanel(tabId, windowId) {
+  const tab = Number(tabId);
+  const win = Number(windowId);
+  if (!Number.isFinite(tab) || tab <= 0 || !Number.isFinite(win) || win <= 0) {
+    throw new Error("No active tab");
+  }
+  rememberPickerTab(tab, win);
+
+  if (isSidePanelOpen(win) && typeof chrome.sidePanel?.close === "function") {
+    await chrome.sidePanel.close({ windowId: win });
+    markSidePanelClosed(win);
+    return { ok: true, open: false, tabId: tab };
+  }
+
+  await chrome.sidePanel.open({ tabId: tab });
+  markSidePanelOpen(win);
+  return { ok: true, open: true, tabId: tab };
+}
+
 function isPickerTargetUrl(url) {
   const value = String(url || "").trim();
   if (!value) return false;
@@ -707,11 +744,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       rememberPickerTab(sender.tab.id, sender.tab.windowId);
       chrome.sidePanel
         .open({ tabId: sender.tab.id })
-        .then(() => sendResponse({ ok: true, tabId: sender.tab.id }))
+        .then(() => {
+          markSidePanelOpen(sender.tab.windowId);
+          sendResponse({ ok: true, tabId: sender.tab.id, open: true });
+        })
         .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     } else {
       sendResponse({ ok: false, error: "No active tab" });
     }
+    return true;
+  }
+
+  if (message?.type === "COMPANION_TOGGLE_PANEL") {
+    if (!sender.tab?.id) {
+      sendResponse({ ok: false, error: "No active tab" });
+      return true;
+    }
+    toggleCompanionSidePanel(sender.tab.id, sender.tab.windowId)
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }
 
@@ -768,7 +819,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = Number(message.tabId);
     if (Number.isFinite(windowId) && windowId > 0 && Number.isFinite(tabId) && tabId > 0) {
       rememberPickerTab(tabId, windowId);
+      markSidePanelOpen(windowId);
     }
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message?.type === "COMPANION_UNREGISTER_PANEL") {
+    const windowId = Number(message.windowId ?? sender.tab?.windowId);
+    markSidePanelClosed(windowId);
     sendResponse({ ok: true });
     return true;
   }
@@ -842,6 +901,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "COMPANION_PAGE_PICKER_STATE") {
     const active = Boolean(message.active);
     void notifyCompanionVoiceTabs({ type: "agent-cms-voice:page-picker-state", active });
+    const tabId = sender.tab?.id;
+    if (tabId) {
+      chrome.tabs
+        .sendMessage(tabId, { type: "COMPANION_PAGE_PICKER_STATE", active })
+        .catch(() => {});
+    }
     sendResponse({ ok: true });
     return true;
   }

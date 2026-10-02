@@ -10,6 +10,8 @@
   const EDGE_MARGIN = 12;
   const DRAG_THRESHOLD = 5;
   const SNAP_DISTANCE = 10;
+  const TOOLBAR_EXPAND_GAP = 8;
+  const TOOLBAR_EXPAND_ESTIMATE = 196;
 
   const BRAND_ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">' +
@@ -35,6 +37,8 @@
       '<svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M9 18h6"/></svg>',
     screenshot:
       '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
+    forms:
+      '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>',
     clipboard:
       '<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="5" y="4" width="14" height="16" rx="2"/></svg>',
     compose:
@@ -42,7 +46,7 @@
     download:
       '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
-    expand: '<svg viewBox="0 0 24 24"><path d="M10 8l4 4-4 4M14 8l4 4-4 4"/></svg>',
+    expand: '<svg viewBox="0 0 24 24"><path d="M8 14l4-4 4 4M8 10l4-4 4 4"/></svg>',
     panel:
       '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>'
   };
@@ -86,6 +90,20 @@
     { key: "page-url-copy", label: "Копировать ссылку", hint: "URL страницы в буфер (кириллица, не %D0%…)" },
     { key: "clean", label: "Текст страницы", hint: "Статья абзацами, без меню и рекламы" },
     { key: "markdown", label: "Как Markdown", hint: "Заголовки, ссылки и списки в MD" }
+  ];
+
+  const FORM_MENU = [
+    { head: "Формы" },
+    {
+      key: "form-edit",
+      label: "Вставить/заменить/изменить",
+      hint: "Контекст полей формы — помочь заполнить или изменить"
+    },
+    {
+      key: "form-passwords",
+      label: "Пароли (найти в хранилище)",
+      hint: "Подобрать пароль из vault Agent CMS под эту страницу"
+    }
   ];
 
   const TEXT_MENU = [
@@ -148,8 +166,6 @@
   let offsetX = 0;
   let offsetY = 0;
   let dragState = null;
-  let expandBtn = null;
-
   function createBtn(key, label, title) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -162,22 +178,21 @@
 
   const brandCluster = document.createElement("div");
   brandCluster.className = "asc-brand-cluster";
+  brandCluster.title =
+    "Клик — инструменты · двойной клик — боковая панель (открыть/свернуть) · перетащите";
+  brandCluster.setAttribute("role", "button");
+  brandCluster.tabIndex = 0;
+  brandCluster.setAttribute("aria-expanded", "false");
+  brandCluster.setAttribute(
+    "aria-label",
+    "Agent CMS — клик: инструменты, двойной клик: боковая панель открыть или свернуть"
+  );
 
   const brand = document.createElement("div");
   brand.className = "asc-brand";
-  brand.title = "Двойной клик — боковая панель · перетащите, чтобы переместить";
-  brand.setAttribute("role", "button");
-  brand.tabIndex = 0;
-  brand.setAttribute(
-    "aria-label",
-    "Agent CMS — двойной клик открывает боковую панель, перетащите для перемещения"
-  );
   brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
 
-  expandBtn = createBtn("expand", "Развернуть", "Развернуть панель инструментов");
-  expandBtn.classList.add("asc-btn--expand", "asc-btn--icon-only");
-
-  brandCluster.append(brand, expandBtn);
+  brandCluster.append(brand);
 
   function closeMenus(except) {
     for (const menu of menus) {
@@ -335,7 +350,11 @@
   const left = document.createElement("div");
   left.className = "asc-cluster asc-cluster--left";
   const elementBtn = createBtn("element", "Захват", "Выбрать блок на странице (Esc — выключить)");
-  left.append(elementBtn, createScreenshotMenu());
+  left.append(
+    elementBtn,
+    createScreenshotMenu(),
+    createMenu("forms", "Формы", "Формы на странице", FORM_MENU)
+  );
 
   const divider = document.createElement("span");
   divider.className = "asc-divider";
@@ -358,9 +377,17 @@
   status.className = "asc-status";
   status.setAttribute("aria-live", "polite");
 
+  const brandDock = document.createElement("div");
+  brandDock.className = "asc-brand-dock";
+  brandDock.append(brandCluster);
+
+  const toolbarPanel = document.createElement("div");
+  toolbarPanel.className = "asc-toolbar-panel";
+  toolbarPanel.append(actions);
+
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brandCluster, actions, status);
+  shell.append(brandDock, toolbarPanel, status);
 
   const shadow = root.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -368,12 +395,42 @@
   shadow.append(style, shell);
   document.documentElement.appendChild(root);
 
+  function toggleExpanded() {
+    setExpanded(!root.classList.contains("is-expanded"));
+  }
+
+  function measureToolbarPanelHeight() {
+    if (!root.classList.contains("is-expanded")) return TOOLBAR_EXPAND_ESTIMATE;
+    return Math.max(
+      TOOLBAR_EXPAND_ESTIMATE,
+      Math.ceil(toolbarPanel.scrollHeight || 0),
+      Math.ceil(toolbarPanel.getBoundingClientRect().height || 0)
+    );
+  }
+
+  /** Панель инструментов над капсулой; если сверху мало места — под капсулой. */
+  function updateToolbarExpandDirection() {
+    const stackRect = brandDock.getBoundingClientRect();
+    const panelH = measureToolbarPanelHeight();
+    const need = panelH + TOOLBAR_EXPAND_GAP + EDGE_MARGIN;
+    const spaceAbove = stackRect.top;
+    const spaceBelow = window.innerHeight - stackRect.bottom;
+    let expandDown = false;
+    if (spaceAbove < need) {
+      expandDown = spaceBelow >= need || spaceBelow > spaceAbove;
+    }
+    root.classList.toggle("asc-expand-down", expandDown);
+  }
+
   function setExpanded(expanded) {
     const next = Boolean(expanded);
+    if (next) updateToolbarExpandDirection();
     root.classList.toggle("is-expanded", next);
-    expandBtn.hidden = next;
-    expandBtn.setAttribute("aria-hidden", next ? "true" : "false");
-    window.requestAnimationFrame(() => applyOffset({ x: offsetX, y: offsetY }, false));
+    brandCluster.setAttribute("aria-expanded", next ? "true" : "false");
+    window.requestAnimationFrame(() => {
+      updateToolbarExpandDirection();
+      applyOffset({ x: offsetX, y: offsetY }, false);
+    });
     try {
       localStorage.setItem(STORAGE_EXPANDED, next ? "1" : "0");
     } catch {
@@ -897,6 +954,159 @@
     );
   }
 
+  function isFormFieldElement(el) {
+    if (window.PagePickerExtract?.isFormField) {
+      return window.PagePickerExtract.isFormField(el);
+    }
+    return Boolean(
+      el?.matches?.(
+        'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="file"]), textarea, select'
+      )
+    );
+  }
+
+  function isPasswordFormField(field) {
+    if (!field) return false;
+    if (String(field.type || "").toLowerCase() === "password") return true;
+    if (String(field.autocomplete || "").toLowerCase().includes("password")) return true;
+    const label = formFieldLabel(field).toLowerCase();
+    return /парол|password|passwort/i.test(label) || /парол|password/i.test(String(field.name || ""));
+  }
+
+  function formFieldLabel(field) {
+    if (!field) return "поле";
+    const id = String(field.id || "").trim();
+    if (id) {
+      try {
+        const labelEl = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+        const text = String(labelEl?.innerText || labelEl?.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (text) return text;
+      } catch {
+        // ignore invalid selector
+      }
+    }
+    const wrapped = field.closest("label");
+    if (wrapped) {
+      const text = String(wrapped.innerText || wrapped.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text) return text;
+    }
+    return (
+      String(field.getAttribute("aria-label") || "").trim() ||
+      String(field.getAttribute("placeholder") || "").trim() ||
+      String(field.getAttribute("name") || "").trim() ||
+      id ||
+      "поле"
+    );
+  }
+
+  function readFormFieldValue(field) {
+    if (window.PagePickerExtract?.extractFormFieldValue) {
+      return String(window.PagePickerExtract.extractFormFieldValue(field) || "").trim();
+    }
+    return String(field?.value ?? "").trim();
+  }
+
+  function describeFormFieldLine(field, { maskPasswords = true } = {}) {
+    const label = formFieldLabel(field);
+    const type = String(field.type || field.tagName || "field").toLowerCase();
+    if (maskPasswords && isPasswordFormField(field)) {
+      return `- ${label} (${type}): [пароль — не передаём]`;
+    }
+    if (type === "checkbox") {
+      return `- ${label} (checkbox): ${field.checked ? "включён" : "выключен"}`;
+    }
+    if (type === "radio") {
+      return `- ${label} (radio): ${field.checked ? "выбран" : "не выбран"}`;
+    }
+    const value = readFormFieldValue(field);
+    return `- ${label} (${type}): ${value || "—"}`;
+  }
+
+  function collectPageFormFields() {
+    const fields = [];
+    const seen = new Set();
+
+    function pushField(el) {
+      if (!isFormFieldElement(el)) return;
+      if (seen.has(el)) return;
+      if (el.closest?.("#agent-shell-companion-toolbar, .cms-page-picker-root")) return;
+      seen.add(el);
+      fields.push(el);
+    }
+
+    const active = document.activeElement;
+    if (isFormFieldElement(active)) {
+      const form = active.closest("form");
+      if (form) {
+        form.querySelectorAll("input, textarea, select").forEach(pushField);
+      } else {
+        pushField(active);
+      }
+      if (fields.length) return fields;
+    }
+
+    for (const form of document.querySelectorAll("form")) {
+      if (form.closest("#agent-shell-companion-toolbar")) continue;
+      form.querySelectorAll("input, textarea, select").forEach(pushField);
+      if (fields.length >= 48) break;
+    }
+
+    return fields.slice(0, 48);
+  }
+
+  function buildFormFieldsBlock({ maskPasswords = true } = {}) {
+    const fields = collectPageFormFields();
+    if (!fields.length) {
+      return "На странице не найдено полей формы (или они в недоступном фрейме).";
+    }
+    return fields.map((field) => describeFormFieldLine(field, { maskPasswords })).join("\n");
+  }
+
+  function buildFormEditPayload() {
+    const title = document.title || location.hostname;
+    const url = currentPageUrl();
+    const fieldsBlock = buildFormFieldsBlock({ maskPasswords: true });
+    return [
+      "[Формы · вставить / заменить / изменить]",
+      url,
+      `Заголовок: ${title}`,
+      "---",
+      "Помоги вставить, заменить или изменить значения полей формы на этой странице.",
+      "Пароли в контекст не передаются — предложи безопасный способ или запроси у пользователя.",
+      "",
+      "Текущие поля:",
+      fieldsBlock
+    ].join("\n");
+  }
+
+  function buildFormPasswordsPayload() {
+    const title = document.title || location.hostname;
+    const url = currentPageUrl();
+    let host = location.hostname;
+    try {
+      host = new URL(url).hostname || host;
+    } catch {
+      // ignore
+    }
+    const fieldsBlock = buildFormFieldsBlock({ maskPasswords: true });
+    return [
+      "[Формы · пароли из хранилища]",
+      url,
+      `Заголовок: ${title}`,
+      `Домен: ${host}`,
+      "---",
+      "Найди в хранилище Agent CMS подходящие пароли и секреты для этого сайта или формы.",
+      "Используй vault, заметки с секретами и метки паролей; сопоставь с полями ниже.",
+      "",
+      "Поля на странице:",
+      fieldsBlock
+    ].join("\n");
+  }
+
   async function copyPageUrlToClipboard() {
     const url = currentPageUrl();
     if (writeClipboardSync(url)) {
@@ -945,13 +1155,13 @@
     });
   }
 
-  function openPanel() {
-    chrome.runtime.sendMessage({ type: "COMPANION_OPEN_PANEL" }, (response) => {
+  function toggleSidePanel() {
+    chrome.runtime.sendMessage({ type: "COMPANION_TOGGLE_PANEL" }, (response) => {
       if (chrome.runtime.lastError || !response?.ok) {
-        setStatus("Не удалось открыть панель", "error");
+        setStatus(response?.error || "Не удалось переключить панель", "error");
         return;
       }
-      setStatus("Панель открыта", "ok");
+      setStatus(response.open ? "Панель открыта" : "Панель свернута", "ok");
     });
   }
 
@@ -1004,6 +1214,14 @@
     }
     if (key === "markdown") {
       void insertIntoCompose(buildPagePayload("markdown"));
+      return;
+    }
+    if (key === "form-edit") {
+      void insertIntoCompose(buildFormEditPayload());
+      return;
+    }
+    if (key === "form-passwords") {
+      void insertIntoCompose(buildFormPasswordsPayload());
       return;
     }
     if (key === "selection") {
@@ -1774,6 +1992,7 @@
     offsetY = clamped.y;
     root.style.setProperty("--asc-x", `${offsetX}px`);
     root.style.setProperty("--asc-y", `${offsetY}px`);
+    window.requestAnimationFrame(() => updateToolbarExpandDirection());
     if (!persist) return;
     try {
       if (Math.abs(offsetX) < SNAP_DISTANCE) offsetX = 0;
@@ -1788,8 +2007,11 @@
 
   function isBrandTarget(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest(".asc-brand"));
+    return Boolean(target.closest(".asc-brand-dock"));
   }
+
+  let blockToggleAfterDrag = false;
+  let brandClickDelayTimer = null;
 
   function onPointerDown(event) {
     if (event.button !== 0) return;
@@ -1823,25 +2045,41 @@
     const moved = dragState.moved;
     dragState = null;
     root.classList.remove("is-dragging");
-    if (moved) applyOffset({ x: offsetX, y: offsetY }, true);
+    if (moved) {
+      blockToggleAfterDrag = true;
+      applyOffset({ x: offsetX, y: offsetY }, true);
+    }
   }
 
-  expandBtn.addEventListener("click", (event) => {
+  brandCluster.addEventListener("click", (event) => {
     event.stopPropagation();
-    setExpanded(true);
+    if (blockToggleAfterDrag) {
+      blockToggleAfterDrag = false;
+      return;
+    }
+    if (brandClickDelayTimer) window.clearTimeout(brandClickDelayTimer);
+    brandClickDelayTimer = window.setTimeout(() => {
+      brandClickDelayTimer = null;
+      toggleExpanded();
+    }, 220);
   });
 
-  brand.addEventListener("dblclick", (event) => {
+  brandCluster.addEventListener("dblclick", (event) => {
     event.stopPropagation();
     event.preventDefault();
-    openPanel();
+    if (brandClickDelayTimer) {
+      window.clearTimeout(brandClickDelayTimer);
+      brandClickDelayTimer = null;
+    }
+    blockToggleAfterDrag = true;
+    toggleSidePanel();
   });
 
-  brand.addEventListener("keydown", (event) => {
+  brandCluster.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     event.stopPropagation();
-    openPanel();
+    toggleExpanded();
   });
 
   collapseBtn.addEventListener("click", (event) => {
@@ -1855,7 +2093,10 @@
   window.addEventListener("pointermove", onPointerMove, { passive: false });
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointercancel", onPointerUp);
-  window.addEventListener("resize", () => applyOffset({ x: offsetX, y: offsetY }, true));
+  window.addEventListener("resize", () => {
+    applyOffset({ x: offsetX, y: offsetY }, true);
+    updateToolbarExpandDirection();
+  });
 
   document.addEventListener(
     "click",
@@ -1871,6 +2112,19 @@
     const anyOpen = menus.some((menu) => menu.wrap.classList.contains("is-open"));
     if (anyOpen) {
       closeMenus();
+      return;
+    }
+    if (pickerActive) {
+      setPickerActive(false);
+      try {
+        chrome.runtime.sendMessage({
+          type: "COMPANION_PAGE_PICKER_SET",
+          active: false,
+          useSenderTab: true
+        });
+      } catch {
+        // ignore
+      }
       return;
     }
     if (root.classList.contains("is-expanded")) setExpanded(false);
