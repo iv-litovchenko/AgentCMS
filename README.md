@@ -106,3 +106,7 @@
 
 - [GLOBAL_MCP_DOC.md](workspaces/agent-cms-core/GLOBAL_MCP_DOC.md) — карта MCP, workspace, правила работы с хранилищем
 - [GLOBAL_MARKDOWN_SHOWCASE.md](workspaces/agent-cms-core/GLOBAL_MARKDOWN_SHOWCASE.md) — поддерживаемая разметка в preview редактора
+
+## С чего начать?
+
+Общайтесь — знакомтесь!
