@@ -28930,10 +28930,12 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-band.sidebar-accent-band--muted {
+  container-type: inline-size;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
   min-height: 0;
-  padding: 5px 8px 5px 10px;
+  padding: 4px 6px 4px 8px;
+  align-items: center;
 }
 
 .menu-agent-stats-line {
@@ -29004,12 +29006,12 @@ body.workspace-pomodoro-break-active {
 .menu-agent-stats-open-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
   margin: 0;
-  padding: 2px 4px;
+  padding: 1px 2px;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -29054,8 +29056,20 @@ body.workspace-pomodoro-break-active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@container (max-width: 300px) {
+  .menu-agent-stats-open-icon {
+    display: none;
+  }
+
+  .menu-agent-stats-open-btn {
+    gap: 0;
+  }
 }
 
 .menu-agent-stats-env-popover.is-summary {
@@ -29152,7 +29166,8 @@ body.workspace-pomodoro-break-active {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
+  margin-left: 2px;
 }
 
 .menu-agent-stats-journal-btn,

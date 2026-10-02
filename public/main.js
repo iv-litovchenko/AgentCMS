@@ -85560,6 +85560,30 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
   return item;
 }
 
+function getNodeCommentsScrollRoot(section) {
+  let el = section?.parentElement;
+  while (el) {
+    if (
+      el.classList?.contains("workspace-scroll-host") ||
+      el.classList?.contains("doc-slab-content") ||
+      el.classList?.contains("node-overview") ||
+      el.classList?.contains("node-navigation-hub-main")
+    ) {
+      return el;
+    }
+    const style = window.getComputedStyle(el);
+    const overflowY = style.overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      el.scrollHeight > el.clientHeight + 2
+    ) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 async function createNodeCommentsBlock(options = {}) {
   const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
   const agentId = options.agentId || activeAgentId;
@@ -85704,7 +85728,7 @@ async function createNodeCommentsBlock(options = {}) {
           const author = resolveDialogAuthor();
           storeCommentAuthor(author);
           await postCommentReaction(context, comment.id, author, agentId);
-          await refreshComments();
+          await refreshComments({ soft: true });
         } catch (error) {
           showToast(`Не удалось поставить реакцию: ${error.message}`, "error");
           button.disabled = false;
@@ -85760,7 +85784,7 @@ async function createNodeCommentsBlock(options = {}) {
           field.disabled = true;
           try {
             await patchFileComment(context, comment.id, nextBody, agentId);
-            await refreshComments();
+            await refreshComments({ soft: true });
             showToast("Комментарий обновлён", "success");
           } catch (error) {
             showToast(`Не удалось сохранить: ${error.message}`, "error");
@@ -85779,7 +85803,7 @@ async function createNodeCommentsBlock(options = {}) {
         try {
           await deleteFileCommentApi(context, comment.id, agentId);
           closeActiveReplyComposer();
-          await refreshComments();
+          await refreshComments({ soft: true });
           showToast("Комментарий удалён", "success");
         } catch (error) {
           showToast(`Не удалось удалить: ${error.message}`, "error");
@@ -85803,7 +85827,7 @@ async function createNodeCommentsBlock(options = {}) {
               const saved = await submitComment(body, parentComment.id);
               if (!saved) return;
               closeActiveReplyComposer();
-              await refreshComments();
+              await refreshComments({ soft: true });
               showToast("Ответ сохранён", "success");
             } catch (error) {
               showToast(`Не удалось сохранить ответ: ${error.message}`, "error");
@@ -85838,17 +85862,34 @@ async function createNodeCommentsBlock(options = {}) {
     }
   };
 
-  const refreshComments = async () => {
+  const refreshComments = async ({ soft = false } = {}) => {
     closeActiveReplyComposer();
-    const loading = document.createElement("li");
-    loading.className = "node-comments-empty";
-    loading.textContent = "Загрузка…";
-    thread.replaceChildren(loading);
+    const scrollRoot = getNodeCommentsScrollRoot(section);
+    const scrollTop = scrollRoot?.scrollTop ?? null;
+
+    let loading = null;
+    if (!soft) {
+      loading = document.createElement("li");
+      loading.className = "node-comments-empty";
+      loading.textContent = "Загрузка…";
+      thread.replaceChildren(loading);
+    }
+
     try {
       const data = await fetchFileComments(context, agentId);
       renderComments(data.comments);
     } catch (error) {
-      loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
+      if (loading) {
+        loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
+      } else {
+        showToast(`Не удалось загрузить комментарии: ${error.message}`, "error");
+      }
+    }
+
+    if (scrollTop != null && scrollRoot) {
+      requestAnimationFrame(() => {
+        scrollRoot.scrollTop = scrollTop;
+      });
     }
   };
 
@@ -85864,11 +85905,8 @@ async function createNodeCommentsBlock(options = {}) {
           const saved = await submitComment(body);
           if (!saved) return;
           composerField.value = "";
-          await refreshComments();
-          requestAnimationFrame(() => {
-            composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
-            composerField.focus({ preventScroll: true });
-          });
+          await refreshComments({ soft: true });
+          composerField.focus({ preventScroll: true });
           showToast("Комментарий сохранён", "success");
         } catch (error) {
           showToast(`Не удалось сохранить комментарий: ${error.message}`, "error");
@@ -98318,7 +98356,7 @@ function formatMenuAgentStatsShortLine({ counts, workspace, summaryLine } = {}) 
   const files = workspace?.fileCount;
   const size = workspace?.totalSizeLabel;
   const parts = [`${topics} тем`];
-  if (files != null) parts.push(`${files} файлов`);
+  if (files != null) parts.push(`${files} ф.`);
   if (size) parts.push(size);
   return parts.join(" · ");
 }
@@ -98821,9 +98859,24 @@ function renderMenuAgentStatsContent({ counts, workspace = null, summaryLine = n
 
   const label = document.createElement("span");
   label.className = "menu-agent-stats-open-label";
-  label.textContent = loading
+  const shortLine = loading
     ? "Статистика…"
     : formatMenuAgentStatsShortLine({ counts, workspace, summaryLine });
+  label.textContent = shortLine;
+  if (!loading) {
+    const fromApi = String(summaryLine || "").trim();
+    if (fromApi) {
+      openBtn.title = fromApi;
+    } else {
+      const topics = counts?.total ?? 0;
+      const files = workspace?.fileCount;
+      const size = workspace?.totalSizeLabel;
+      const titleParts = [`${topics} тем`];
+      if (files != null) titleParts.push(`${files} файлов`);
+      if (size) titleParts.push(size);
+      openBtn.title = titleParts.join(" · ");
+    }
+  }
 
   openBtn.appendChild(label);
   line.append(reloadBtn, openBtn);
