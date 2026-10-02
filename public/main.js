@@ -85423,6 +85423,9 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
   const commentHead = document.createElement("header");
   commentHead.className = "node-comment-head";
 
+  const headMeta = document.createElement("div");
+  headMeta.className = "node-comment-head-meta";
+
   const author = document.createElement("strong");
   author.className = "node-comment-author";
   author.textContent = formatCommentAuthorLabel(comment.author);
@@ -85432,13 +85435,42 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
   time.textContent = comment.label || comment.id || "";
   time.dateTime = comment.created || comment.id || "";
 
-  commentHead.append(author, time);
+  headMeta.append(author, time);
+
+  const headActions = document.createElement("div");
+  headActions.className = "node-comment-head-actions";
+
+  const canManage =
+    typeof handlers.canManageComment === "function" ? handlers.canManageComment(comment) : false;
 
   const body = document.createElement("div");
   body.className = "node-comment-body";
   renderCommentBodyWithMentions(body, comment.body || "", handlers.mentionLookup, {
     nodePath: handlers.nodePath
   });
+
+  if (canManage && typeof handlers.onEdit === "function") {
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "node-comment-action node-comment-head-action";
+    editBtn.textContent = "Изменить";
+    editBtn.title = "Изменить комментарий";
+    editBtn.addEventListener("click", () => handlers.onEdit(comment, item, main, body));
+    headActions.appendChild(editBtn);
+  }
+
+  if (canManage && typeof handlers.onDelete === "function") {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "node-comment-action node-comment-action--danger node-comment-head-action";
+    deleteBtn.textContent = "Удалить";
+    deleteBtn.title = "Удалить комментарий";
+    deleteBtn.addEventListener("click", () => handlers.onDelete(comment, deleteBtn));
+    headActions.appendChild(deleteBtn);
+  }
+
+  commentHead.append(headMeta);
+  if (headActions.childElementCount) commentHead.appendChild(headActions);
 
   const foot = document.createElement("footer");
   foot.className = "node-comment-foot";
@@ -85471,27 +85503,6 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
     reactBtn.addEventListener("click", () => handlers.onReaction(comment, reactBtn));
   } else {
     reactBtn.disabled = true;
-  }
-
-  const canManage =
-    typeof handlers.canManageComment === "function" ? handlers.canManageComment(comment) : false;
-
-  if (canManage && typeof handlers.onEdit === "function") {
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "node-comment-action";
-    editBtn.textContent = "Изменить";
-    editBtn.addEventListener("click", () => handlers.onEdit(comment, item, main, body));
-    foot.appendChild(editBtn);
-  }
-
-  if (canManage && typeof handlers.onDelete === "function") {
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "node-comment-action node-comment-action--danger";
-    deleteBtn.textContent = "Удалить";
-    deleteBtn.addEventListener("click", () => handlers.onDelete(comment, deleteBtn));
-    foot.appendChild(deleteBtn);
   }
 
   foot.append(replyBtn, reactBtn);

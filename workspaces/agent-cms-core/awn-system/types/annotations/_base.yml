@@ -7,7 +7,12 @@ extends: awn.base
 description: >
   Привязки к объектам хранилища (sidecar 1:1 к файлу, comment N:1 к target).
   Не авторский контент слота — overlay поверх страниц, записей и бинарников.
-  Черновик резолва пути — блок idea (не поля формы, runtime не читает).
+
+  ИДЕЯ — резолв «куда писать файл аннотации» (поля группы attachment, runtime пока не читает):
+  · awn-annotation-bind — якорь (manifest / запись / файл).
+  · awn-annotation-storage-mode — co-located | storage-folder.
+  · awn-annotation-storage-folder — папка под awn-storage (comments, …).
+  Сейчас в коде: comment → comments/{target}/ + path/file API; sidecar → {stem}.sidecar.md.
 
 kind-ui:
   for: type
@@ -22,6 +27,10 @@ field-groups:
     name: "{A2!} Основное"
     description: Описание и связь с объектом
     collapsed: false
+  - id: attachment
+    name: "{A2!} Привязка и путь"
+    description: ИДЕЯ — как определить каталог/имя файла аннотации (пока не влияет на MCP/UI)
+    collapsed: true
   - id: work-note
     name: "{A2!} Служебная заметка"
     description: На чём остановились — для вас и агента
@@ -35,24 +44,42 @@ fields:
   awn-sort:
     hidden: true
 
-# ИДЕЯ — не входит в fields / topic-schema / форму записи (только документация типа).
-idea:
-  version: 1
-  status: draft
-  title: Куда сохранять файл аннотации
-  bind:
-    description: Якорь — manifest.md, запись в слоте или workspace-путь к файлу
-    comment: path + mode + file в API Discuss
-    sidecar: sourcePath или path + slot + file
-  storage:
-    modes:
-      co-located:
-        description: Рядом с файлом-якорем (*.sidecar.md)
-        example: sidecar
-      storage-folder:
-        description: awn-storage/<folder>/… от узла якоря; нет папки — подъём к родительскому manifest
-        folder: имя слоя (comments, …)
-        example: comment → comments/{target}/
-  runtime-today:
-    comment: comments/ + list_comments / append_comment
-    sidecar: co-located sidecar.md + create_sidecar
+  awn-annotation-bind:
+    type: awn.field.relation.one
+    title: "{A2!} [Идея] Якорь (к чему привязано)"
+    description: >
+      manifest.md, content ref в слоте или workspace-путь к бинарнику/файлу.
+      Comment: path + file/mode в API. Sidecar: sourcePath или path+slot+file.
+    placement: aside-body
+    group: attachment
+    sort: 1
+    locked: true
+    widget: relation
+
+  awn-annotation-storage-mode:
+    type: awn.field.choice.one
+    title: "{A2!} [Идея] Куда сохранять файл"
+    description: >
+      co-located — рядом с файлом-якорем (sidecar).
+      storage-folder — под awn-storage/<folder>/ от узла якоря; нет папки — подъём по дереву страниц.
+    placement: aside-body
+    group: attachment
+    sort: 2
+    locked: true
+    enum:
+      - key: co-located
+        name: Рядом с файлом (sidecar)
+      - key: storage-folder
+        name: Папка в awn-storage (comments/…)
+
+  awn-annotation-storage-folder:
+    type: awn.field.string
+    title: "{A2!} [Идея] Папка под awn-storage"
+    description: >
+      Имя слоя при storage-folder, напр. comments. Пусто при co-located.
+      Для comment сейчас фактически всегда comments/ (слот awn.slot.comments).
+    placement: aside-body
+    group: attachment
+    sort: 3
+    locked: true
+    placeholder: comments

@@ -44520,12 +44520,35 @@ img.is-svg-media,
 
 .node-comment-head {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 8px 14px;
   border-bottom: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.node-comment-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.node-comment-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.node-comment-head-action {
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .node-comment-author {
