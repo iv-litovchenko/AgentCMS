@@ -516,6 +516,7 @@ Sidecar **не создаётся автоматически** при upload/imp
 | `read_sidecar` | Прочитать sidecar (`exists:false` если ещё не создан) |
 | `create_sidecar` | **Создать** sidecar с шаблоном `awn.annotation.sidecar` (409 если уже есть) |
 | `write_sidecar` | **Обновить** существующий sidecar (404 если нет — сначала `create_sidecar`) |
+| `delete_sidecar` | **Удалить** sidecar (исходный файл не трогает; 404 если sidecar не был создан) |
 
 **Именование:** `photo.png` → `photo.sidecar.md` (та же папка). Работает **в любом месте workspace** через `sourcePath`.
 

@@ -88,4 +88,11 @@ export function registerSidecarTools(reg, client) {
         properties
       })
   );
+
+  reg(
+    "delete_sidecar",
+    "Delete sidecar for a source file. Does not delete the source file. 404 if sidecar was never created. Address: sourcePath or path+slot+file.",
+    sidecarAddress,
+    (args) => client.delete("/api/storage/sidecar", sidecarQuery(args))
+  );
 }

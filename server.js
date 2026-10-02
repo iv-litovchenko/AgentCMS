@@ -2156,6 +2156,9 @@ function getSidecarService() {
       buildStorageLayerRef,
       applyAwnTimestampsToMarkdownContent,
       writeWorkspaceTextFileWithHistory,
+      snapshotFileHistoryBeforeWrite,
+      recordWorkspaceActivityAsync,
+      queueWorkspaceIndexFileSync,
       splitNodeFrontmatter,
       getYamlScalar,
       mergeFrontmatterOverrides
@@ -14056,7 +14059,9 @@ const SESSION_CONTEXT_API_MAP = {
   sidecarRead:
     "GET /api/storage/sidecar?sourcePath=|path=&slot=&file= — read_sidecar MCP",
   sidecarWrite:
-    "POST /api/storage/sidecar — write_sidecar / create_sidecar MCP (mode=create for explicit create)"
+    "POST /api/storage/sidecar — write_sidecar / create_sidecar MCP (mode=create for explicit create)",
+  sidecarDelete:
+    "DELETE /api/storage/sidecar?sourcePath=|path=&slot=&file= — delete_sidecar MCP"
 };
 
 const SESSION_PATH_HINTS = {
@@ -26952,6 +26957,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to write sidecar",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/storage/sidecar") {
+    try {
+      const result = await getSidecarService().deleteSidecar({
+        sourcePath: url.searchParams.get("sourcePath") || undefined,
+        path: url.searchParams.get("path") || undefined,
+        slot: url.searchParams.get("slot") || undefined,
+        file: url.searchParams.get("file") || undefined
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete sidecar",
         details: String(error.message || error)
       });
     }
