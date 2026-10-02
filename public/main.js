@@ -67994,6 +67994,7 @@ function collectStorageSlotIndexEntries(
       title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
       description: normalizeYamlDisplayString(String(item.description || "").trim()),
       awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null,
+      status: String(getPropsEntryValueByKey(props, "awn-status") || "").trim() || undefined,
       importance: parseAwnImportanceValue(getPropsEntryValueByKey(props, AWN_IMPORTANCE_FIELD_KEY))
     });
   }
@@ -68027,6 +68028,7 @@ function collectStorageSlotIndexEntries(
       title: normalizeYamlDisplayString(String(folderLabels.get(path) || baseName).trim()) || baseName,
       description: normalizeYamlDisplayString(String(folderDescriptions.get(path) || "").trim()),
       awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null,
+      status: String(getPropsEntryValueByKey(props, "awn-status") || "").trim() || undefined,
       importance: parseAwnImportanceValue(getPropsEntryValueByKey(props, AWN_IMPORTANCE_FIELD_KEY))
     });
   }
@@ -68321,6 +68323,24 @@ function formatStorageIndexCommentCountCell(count) {
   return String(Math.max(0, Number(count) || 0));
 }
 
+function resolveContentIndexEntryAwnStatus(entry = {}) {
+  const props = entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
+  const raw =
+    props["awn-status"] ??
+    props.awnStatus ??
+    entry.status ??
+    entry.awnStatus ??
+    "";
+  const trimmed = String(raw).trim();
+  if (!trimmed) return "";
+  return resolveAwnStatusLabel(trimmed) || trimmed;
+}
+
+function formatContentIndexStatusCell(entry = {}) {
+  const label = resolveContentIndexEntryAwnStatus(entry);
+  return escapeStorageIndexTableCell(label) || "—";
+}
+
 const CONTENT_INDEX_IMPORTANCE_LEGEND =
   "* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.";
 
@@ -68351,18 +68371,18 @@ function formatStorageIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeAwnDatabase
-    ? "| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Подразделы | Хранение | Типы файлов |"
+    ? "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Подразделы | Хранение | Типы файлов |"
     : includeSlotsMode
-      ? "| ID | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
+      ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
       : includeSlotLabel
-        ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
-        : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
+        ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+        : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
   const divider = includeAwnDatabase
-    ? "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
+    ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
     : includeSlotsMode
-      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
+      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
       : includeSlotLabel
-        ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+        ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
         : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
@@ -68374,6 +68394,7 @@ function formatStorageIndexEntriesMarkdown(
     const sizeCell = formatStorageIndexFileSize(entry.sizeBytes);
     const linesCell = formatStorageIndexLineCount(entry.lineCount);
     const idCell = formatStorageIndexAwnIdCell(entry.awnId);
+    const statusCell = formatContentIndexStatusCell(entry);
     const commentsCell = formatStorageIndexCommentCountCell(entry.commentCount);
     const importanceCell = formatStorageIndexImportanceCell(entry.importance);
 
@@ -68386,7 +68407,7 @@ function formatStorageIndexEntriesMarkdown(
         escapeStorageIndexTableCell(entry.storageDriver || entry.configurations) || "—";
       const fileTypesCell = escapeStorageIndexTableCell(entry.fileTypes) || "—";
       lines.push(
-        `| ${idCell} | ${typeCell} | ${awnPathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${subsectionsCell} | ${storageDriverCell} | ${fileTypesCell} |`
+        `| ${idCell} | ${statusCell} | ${typeCell} | ${awnPathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${importanceCell} | ${recordCountCell} | ${subsectionsCell} | ${storageDriverCell} | ${fileTypesCell} |`
       );
       continue;
     }
@@ -68394,20 +68415,20 @@ function formatStorageIndexEntriesMarkdown(
     if (includeSlotsMode) {
       const configurationsCell = escapeStorageIndexTableCell(entry.configurations) || "—";
       lines.push(
-        `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
+        `| ${idCell} | ${statusCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
       );
       continue;
     }
 
     if (includeSlotLabel) {
       lines.push(
-        `| ${idCell} | ${slotLabelCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
+        `| ${idCell} | ${statusCell} | ${slotLabelCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
       );
       continue;
     }
 
     lines.push(
-      `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
+      `| ${idCell} | ${statusCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
     );
   }
   return lines.join("\n");
