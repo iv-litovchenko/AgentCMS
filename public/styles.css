@@ -30399,11 +30399,18 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn,
 .sidebar-tree-band-head-actions .menu-settings-btn,
-.sidebar-tree-band-head-actions .menu-refresh-btn {
+.sidebar-tree-band-head-actions .menu-refresh-btn,
+.sidebar-tree-band-head-actions .menu-band-search-btn {
   width: 22px;
+  min-width: 22px;
+  max-width: 22px;
   height: 22px;
   min-height: 22px;
+  max-height: 22px;
   flex: 0 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(22, 101, 52, 0.28);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.42);
@@ -30418,6 +30425,7 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-settings-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-refresh-btn:hover:not(:disabled),
+.sidebar-tree-band-head-actions .menu-band-search-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-settings-btn[aria-expanded="true"] {
   border-color: rgba(22, 101, 52, 0.42);
   background: rgba(255, 255, 255, 0.72);
@@ -30427,14 +30435,16 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn:focus,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:focus,
 .sidebar-tree-band-head-actions .menu-settings-btn:focus,
-.sidebar-tree-band-head-actions .menu-refresh-btn:focus {
+.sidebar-tree-band-head-actions .menu-refresh-btn:focus,
+.sidebar-tree-band-head-actions .menu-band-search-btn:focus {
   outline: none;
 }
 
 .sidebar-tree-band-head-actions .menu-pin-branch-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-settings-btn:focus-visible,
-.sidebar-tree-band-head-actions .menu-refresh-btn:focus-visible {
+.sidebar-tree-band-head-actions .menu-refresh-btn:focus-visible,
+.sidebar-tree-band-head-actions .menu-band-search-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.32);
 }
 
@@ -30462,7 +30472,8 @@ body.workspace-pomodoro-break-active {
   display: block;
 }
 
-.sidebar-tree-band-head-actions .menu-refresh-btn svg {
+.sidebar-tree-band-head-actions .menu-refresh-btn svg,
+.sidebar-tree-band-head-actions .menu-band-search-btn svg {
   width: 13px;
   height: 13px;
   display: block;
@@ -67150,7 +67161,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-band-head-actions .menu-refresh-btn,
-.menu-awn-channels-band-head-actions .menu-band-help-btn {
+.menu-awn-channels-band-head-actions .menu-band-help-btn,
+.menu-awn-channels-band-head-actions .menu-band-search-btn {
   position: relative;
   z-index: 1;
   width: 22px;
@@ -67178,23 +67190,27 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-band-head-actions .menu-refresh-btn:hover:not(:disabled),
-.menu-awn-channels-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
+.menu-awn-channels-band-head-actions .menu-band-help-btn:hover:not(:disabled),
+.menu-awn-channels-band-head-actions .menu-band-search-btn:hover:not(:disabled) {
   border-color: rgba(185, 28, 28, 0.48);
   background: rgba(255, 255, 255, 0.72);
   color: #dc2626;
 }
 
 .menu-awn-channels-band-head-actions .menu-refresh-btn:focus,
-.menu-awn-channels-band-head-actions .menu-band-help-btn:focus {
+.menu-awn-channels-band-head-actions .menu-band-help-btn:focus,
+.menu-awn-channels-band-head-actions .menu-band-search-btn:focus {
   outline: none;
 }
 
 .menu-awn-channels-band-head-actions .menu-refresh-btn:focus-visible,
-.menu-awn-channels-band-head-actions .menu-band-help-btn:focus-visible {
+.menu-awn-channels-band-head-actions .menu-band-help-btn:focus-visible,
+.menu-awn-channels-band-head-actions .menu-band-search-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.32);
 }
 
-.menu-awn-channels-band-head-actions .menu-refresh-btn svg {
+.menu-awn-channels-band-head-actions .menu-refresh-btn svg,
+.menu-awn-channels-band-head-actions .menu-band-search-btn svg {
   width: 13px;
   height: 13px;
   display: block;
@@ -67577,7 +67593,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-databases-band-head-actions .menu-refresh-btn,
-.menu-awn-databases-band-head-actions .menu-band-help-btn {
+.menu-awn-databases-band-head-actions .menu-band-help-btn,
+.menu-awn-databases-band-head-actions .menu-band-search-btn {
   position: relative;
   z-index: 1;
   width: 22px;
@@ -67605,23 +67622,27 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-databases-band-head-actions .menu-refresh-btn:hover:not(:disabled),
-.menu-awn-databases-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
+.menu-awn-databases-band-head-actions .menu-band-help-btn:hover:not(:disabled),
+.menu-awn-databases-band-head-actions .menu-band-search-btn:hover:not(:disabled) {
   border-color: rgba(91, 33, 182, 0.48);
   background: rgba(255, 255, 255, 0.72);
   color: #6d28d9;
 }
 
 .menu-awn-databases-band-head-actions .menu-refresh-btn:focus,
-.menu-awn-databases-band-head-actions .menu-band-help-btn:focus {
+.menu-awn-databases-band-head-actions .menu-band-help-btn:focus,
+.menu-awn-databases-band-head-actions .menu-band-search-btn:focus {
   outline: none;
 }
 
 .menu-awn-databases-band-head-actions .menu-refresh-btn:focus-visible,
-.menu-awn-databases-band-head-actions .menu-band-help-btn:focus-visible {
+.menu-awn-databases-band-head-actions .menu-band-help-btn:focus-visible,
+.menu-awn-databases-band-head-actions .menu-band-search-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.32);
 }
 
-.menu-awn-databases-band-head-actions .menu-refresh-btn svg {
+.menu-awn-databases-band-head-actions .menu-refresh-btn svg,
+.menu-awn-databases-band-head-actions .menu-band-search-btn svg {
   width: 13px;
   height: 13px;
   display: block;
@@ -67716,7 +67737,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-repositories-band-head-actions .menu-refresh-btn,
-.menu-repositories-band-head-actions .menu-band-help-btn {
+.menu-repositories-band-head-actions .menu-band-help-btn,
+.menu-repositories-band-head-actions .menu-band-search-btn {
   position: relative;
   z-index: 1;
   width: 22px;
@@ -67744,23 +67766,27 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-repositories-band-head-actions .menu-refresh-btn:hover:not(:disabled),
-.menu-repositories-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
+.menu-repositories-band-head-actions .menu-band-help-btn:hover:not(:disabled),
+.menu-repositories-band-head-actions .menu-band-search-btn:hover:not(:disabled) {
   border-color: rgba(37, 99, 235, 0.48);
   background: rgba(255, 255, 255, 0.72);
   color: #2563eb;
 }
 
 .menu-repositories-band-head-actions .menu-refresh-btn:focus,
-.menu-repositories-band-head-actions .menu-band-help-btn:focus {
+.menu-repositories-band-head-actions .menu-band-help-btn:focus,
+.menu-repositories-band-head-actions .menu-band-search-btn:focus {
   outline: none;
 }
 
 .menu-repositories-band-head-actions .menu-refresh-btn:focus-visible,
-.menu-repositories-band-head-actions .menu-band-help-btn:focus-visible {
+.menu-repositories-band-head-actions .menu-band-help-btn:focus-visible,
+.menu-repositories-band-head-actions .menu-band-search-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.32);
 }
 
-.menu-repositories-band-head-actions .menu-refresh-btn svg {
+.menu-repositories-band-head-actions .menu-refresh-btn svg,
+.menu-repositories-band-head-actions .menu-band-search-btn svg {
   width: 13px;
   height: 13px;
   display: block;
@@ -67779,6 +67805,11 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-repositories-band-head-actions .menu-refresh-btn.is-spinning svg {
   animation: workspace-refresh-spin 0.75s linear infinite;
+}
+
+.menu-band-search-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .menu-band-help-btn.ui-tooltip-host[data-tooltip]::after {
