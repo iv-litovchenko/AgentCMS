@@ -238,13 +238,15 @@ const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const MENU_AWN_CHANNELS_BAND_OPEN_KEY = "yamlcms.menuAwnChannelsBandOpen.v1";
 const AWN_CHANNELS_INDEX_REL_PATH = "awn-channels/index.md";
 const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
-  { icon: "💬", label: "Форум дискуссий (где люди могут" },
-  { icon: "📝", label: "Блог (куда агент анпример что то пишет что меня интересует)" },
-  { icon: "📰", label: "дайдесты сюда он собирает что-то" },
+  { icon: "💬", label: "Форум дискуссии и обсуждения (где люди могут" },
+  { icon: "📝", label: "Блог (куда агент анпример что то пишет что меня интересует), что интересного собрал агент сегодня — по моим запросам" },
+  { icon: "📰", label: "Дайджесты сюда он собирает что-то сводки" },
   { icon: "▶️", label: "Ютуб что то обсудить подискутироват" },
   { icon: "✈️", label: "Телеграмм (я могу например сюда выгружать темы)" },
   { icon: "💬", label: "Ватсап может быть" },
   { icon: "🌐", label: "Интернет" },
+  { icon: "🔖", label: "Закладки" },
+  { icon: "📥", label: "Загрузки из браузера" },
   { icon: "📓", label: "Печатные тетради" },
   { icon: "📊", label: "аналитика" }
 ];
@@ -109880,6 +109882,7 @@ function syncMenuAwnChannelsBandAccordionUi() {
     menuAwnChannelsBandBodyNode.hidden = !expanded;
     menuAwnChannelsBandBodyNode.classList.toggle("is-collapsed", !expanded);
   }
+  sidebarNode?.classList.toggle("is-channels-focus", expanded);
 }
 
 function applyMenuAwnChannelsBandExpanded(expanded, { persist = true } = {}) {
