@@ -28381,11 +28381,18 @@ body.workspace-pomodoro-break-active {
   pointer-events: auto;
 }
 
+.sidebar-slab-agent:has(+ .sidebar-slab-menu-channels-band) .agent-todo-preview-head.sidebar-accent-band-toggle--note,
 .sidebar-slab-agent:has(+ .sidebar-slab-menu-tree-band) .agent-todo-preview-head.sidebar-accent-band-toggle--note {
   border-bottom: none;
 }
 
+.sidebar-slab-agent:has(+ .sidebar-slab-menu-channels-band) + .sidebar-slab-menu-channels-band .sidebar-accent-band-toggle--channels,
 .sidebar-slab-agent:has(+ .sidebar-slab-menu-tree-band) + .sidebar-slab-menu-tree-band .sidebar-accent-band-toggle--tree {
+  border-top: none;
+  margin-top: 0;
+}
+
+.sidebar-slab-menu-channels-band + .sidebar-slab-menu-tree-band .sidebar-accent-band-toggle--tree {
   border-top: none;
   margin-top: 0;
 }
@@ -29525,6 +29532,8 @@ body.workspace-pomodoro-break-active {
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-databases-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-repositories-band:not(.is-collapsed) .sidebar-accent-band-chevron,
+.menu-awn-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
+.sidebar-slab-menu-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-system-environment.is-open > .sidebar-accent-band-toggle .sidebar-accent-band-chevron {
   transform: rotate(45deg);
   margin-top: -3px;
@@ -66980,6 +66989,300 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar-slab-menu .menu-shared-title {
   color: #1e40af;
   font-weight: 700;
+}
+
+.sidebar-slab.sidebar-slab-menu-channels-band {
+  flex-shrink: 0;
+  padding: 0;
+  border-bottom: none;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.menu-awn-channels-band-head {
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 52%, #fca5a5 100%);
+}
+
+.menu-awn-channels-band-head .sidebar-accent-band-toggle--channels {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  background: transparent;
+  color: #fef2f2;
+}
+
+.menu-awn-channels-band-head .sidebar-accent-band-toggle--channels:hover {
+  filter: brightness(1.04);
+}
+
+.menu-awn-channels-band-head .sidebar-accent-band-toggle--channels:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.88);
+  outline-offset: -2px;
+}
+
+.menu-awn-channels-band-head .sidebar-accent-band-chevron {
+  border-right-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.95);
+}
+
+.menu-awn-channels-band-title.sidebar-accent-band-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-awn-channels-band-head-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px 7px 0;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.menu-awn-channels-band-head-actions .menu-refresh-btn,
+.menu-awn-channels-band-head-actions .menu-band-help-btn {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid rgba(185, 28, 28, 0.32);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.42);
+  color: #991b1b;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-awn-channels-band-head-actions .menu-band-help-btn {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-awn-channels-band-head-actions .menu-refresh-btn:hover:not(:disabled),
+.menu-awn-channels-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
+  border-color: rgba(185, 28, 28, 0.48);
+  background: rgba(255, 255, 255, 0.72);
+  color: #dc2626;
+}
+
+.menu-awn-channels-band-head-actions .menu-refresh-btn:focus,
+.menu-awn-channels-band-head-actions .menu-band-help-btn:focus {
+  outline: none;
+}
+
+.menu-awn-channels-band-head-actions .menu-refresh-btn:focus-visible,
+.menu-awn-channels-band-head-actions .menu-band-help-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.32);
+}
+
+.menu-awn-channels-band-head-actions .menu-refresh-btn svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 50% 50%;
+}
+
+.menu-awn-channels-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    180deg,
+    rgba(252, 165, 165, 0.38) 0%,
+    rgba(254, 242, 242, 0.92) 22%,
+    rgba(255, 241, 242, 0.55) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-bottom: 1px solid rgba(252, 165, 165, 0.45);
+}
+
+.menu-awn-channels-band-body[hidden],
+.menu-awn-channels-band.is-collapsed > .menu-awn-channels-band-body {
+  display: none !important;
+}
+
+.menu-awn-channels-band.is-collapsed .menu-awn-channels-band-head {
+  border-bottom: 0;
+}
+
+.menu-awn-channels-scope-caption {
+  margin: 0 0 0.35rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: #991b1b;
+  text-align: center;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  box-sizing: border-box;
+}
+
+.menu-awn-channels-toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.menu-awn-channels-create-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  font-size: 0.6875rem;
+  padding: 0.28rem 0.45rem;
+  min-height: 1.75rem;
+  white-space: nowrap;
+  border-color: rgba(248, 113, 113, 0.65);
+  color: #991b1b;
+}
+
+.menu-awn-channels-create-btn:hover:not(:disabled) {
+  border-color: #dc2626;
+  background: rgba(254, 226, 226, 0.85);
+}
+
+.menu-awn-channels-shortcuts-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  margin: 0 0 0.35rem;
+}
+
+.menu-awn-channels-index-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  gap: 0.25rem;
+}
+
+.menu-awn-channels-index-open {
+  padding: 0 0.35rem;
+  font-size: 10px;
+  line-height: 1.15;
+  min-height: 28px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-awn-channels-index-refresh {
+  flex: 0 0 26px;
+  width: 26px;
+  min-width: 26px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 12px;
+}
+
+.menu-awn-channels-toolbar-row--search {
+  margin: 0 0 0.35rem;
+}
+
+.menu-awn-channels-search-wrap {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.menu-awn-channels-search-wrap .menu-search-bar {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-color: rgba(252, 165, 165, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.menu-awn-channels-search-wrap .menu-search-bar:focus-within {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+}
+
+.menu-awn-channels-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  max-height: min(32vh, 240px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.menu-awn-channels-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.35rem 0.45rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  padding: 0.35rem 0.4rem;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(254, 202, 202, 0.55);
+  cursor: default;
+}
+
+.menu-awn-channels-item.is-hidden-by-search {
+  display: none;
+}
+
+.menu-awn-channels-item--empty {
+  grid-template-columns: 1fr;
+  text-align: center;
+  color: #9f1239;
+  font-size: 0.6875rem;
+}
+
+.menu-awn-channels-item-icon {
+  font-size: 1rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.menu-awn-channels-item-label {
+  min-width: 0;
+  color: #7f1d1d;
+  word-break: break-word;
+}
+
+.menu-awn-channels-footer-caption {
+  margin: 0.35rem 0 0;
+  font-size: 0.625rem;
+  line-height: 1.35;
+  color: #9f1239;
+  text-align: center;
 }
 
 .menu-awn-databases-band {

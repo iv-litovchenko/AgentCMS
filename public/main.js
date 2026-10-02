@@ -66,6 +66,16 @@ const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-bod
 const menuTreeBandNode = document.getElementById("menu-tree-band");
 const menuTreeBandToggleBtn = document.getElementById("menu-tree-band-toggle");
 const menuTreeBandBodyNode = document.getElementById("menu-tree-band-body");
+const menuAwnChannelsBandNode = document.getElementById("menu-awn-channels-band");
+const menuAwnChannelsBandToggleBtn = document.getElementById("menu-awn-channels-band-toggle");
+const menuAwnChannelsBandBodyNode = document.getElementById("menu-awn-channels-band-body");
+const menuAwnChannelsListNode = document.getElementById("menu-awn-channels-list");
+const menuAwnChannelsRefreshBtn = document.getElementById("menu-awn-channels-refresh-btn");
+const menuAwnChannelsHelpBtn = document.getElementById("menu-awn-channels-help-btn");
+const menuAwnChannelsCreateBtn = document.getElementById("menu-awn-channels-create-btn");
+const menuAwnChannelsIndexOpenBtn = document.getElementById("menu-awn-channels-index-open-btn");
+const menuAwnChannelsIndexRefreshBtn = document.getElementById("menu-awn-channels-index-refresh-btn");
+const menuAwnChannelsSearchInputNode = document.getElementById("menu-awn-channels-search-input");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
@@ -225,6 +235,20 @@ const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_REPOSITORIES_BAND_OPEN_KEY = "yamlcms.menuRepositoriesBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
+const MENU_AWN_CHANNELS_BAND_OPEN_KEY = "yamlcms.menuAwnChannelsBandOpen.v1";
+const AWN_CHANNELS_INDEX_REL_PATH = "awn-channels/index.md";
+const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
+  { icon: "💬", label: "Форум дискуссий (где люди могут" },
+  { icon: "📝", label: "Блог (куда агент анпример что то пишет что меня интересует)" },
+  { icon: "📰", label: "дайдесты сюда он собирает что-то" },
+  { icon: "▶️", label: "Ютуб что то обсудить подискутироват" },
+  { icon: "✈️", label: "Телеграмм (я могу например сюда выгружать темы)" },
+  { icon: "💬", label: "Ватсап может быть" },
+  { icon: "🌐", label: "Интернет" },
+  { icon: "📓", label: "Печатные тетради" },
+  { icon: "📊", label: "аналитика" }
+];
+let menuAwnChannelsSearchQuery = "";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -109617,6 +109641,7 @@ function captureSidebarTreeZoneSnapshot() {
   sidebarTreeZoneSnapshot = {
     noteExpanded: isSidebarNotePreviewExpanded(),
     treeBandExpanded: isMenuTreeBandExpanded(),
+    channelsBandExpanded: isMenuAwnChannelsBandExpanded(),
   };
 }
 
@@ -109625,6 +109650,7 @@ function restoreSidebarTreeZoneFromSnapshot() {
   const snapshot = sidebarTreeZoneSnapshot;
   sidebarTreeZoneSnapshot = null;
   applySidebarNotePreviewExpanded(snapshot.noteExpanded);
+  applyMenuAwnChannelsBandExpanded(snapshot.channelsBandExpanded);
   applyMenuTreeBandExpanded(snapshot.treeBandExpanded);
 }
 
@@ -109689,6 +109715,7 @@ function syncSidebarBottomFocusMode() {
   if (active) {
     captureSidebarTreeZoneSnapshot();
     if (isSidebarNotePreviewExpanded()) applySidebarNotePreviewExpanded(false);
+    if (isMenuAwnChannelsBandExpanded()) applyMenuAwnChannelsBandExpanded(false);
     if (isMenuTreeBandExpanded()) applyMenuTreeBandExpanded(false);
     sidebarNode.classList.add("is-menu-bottom-focus");
     return;
@@ -109831,6 +109858,117 @@ function setMenuTreeBandExpanded(expanded) {
   }
   applyMenuTreeBandExpanded(expanded);
   syncSidebarBottomFocusMode();
+}
+
+function isMenuAwnChannelsBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_AWN_CHANNELS_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function syncMenuAwnChannelsBandAccordionUi() {
+  if (!menuAwnChannelsBandNode) return;
+  const expanded = isMenuAwnChannelsBandExpanded();
+  menuAwnChannelsBandNode.classList.toggle("is-collapsed", !expanded);
+  menuAwnChannelsBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuAwnChannelsBandBodyNode) {
+    menuAwnChannelsBandBodyNode.hidden = !expanded;
+    menuAwnChannelsBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function applyMenuAwnChannelsBandExpanded(expanded, { persist = true } = {}) {
+  if (persist) {
+    try {
+      localStorage.setItem(MENU_AWN_CHANNELS_BAND_OPEN_KEY, expanded ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  }
+  syncMenuAwnChannelsBandAccordionUi();
+}
+
+function setMenuAwnChannelsBandExpanded(expanded) {
+  if (expanded && isSidebarBottomPanelActive()) {
+    dismissSidebarBottomPanelForUpperZone();
+  }
+  applyMenuAwnChannelsBandExpanded(expanded);
+  syncSidebarBottomFocusMode();
+}
+
+function toggleMenuAwnChannelsBandExpanded() {
+  setMenuAwnChannelsBandExpanded(!isMenuAwnChannelsBandExpanded());
+}
+
+function renderMenuAwnChannelsStaticList() {
+  if (!menuAwnChannelsListNode) return;
+  menuAwnChannelsListNode.replaceChildren();
+  const query = String(menuAwnChannelsSearchQuery || "")
+    .trim()
+    .toLowerCase();
+  const items = MENU_AWN_CHANNELS_STATIC_EXAMPLES.filter((entry) => {
+    if (!query) return true;
+    return String(entry.label || "")
+      .toLowerCase()
+      .includes(query);
+  });
+  if (!items.length) {
+    const empty = document.createElement("li");
+    empty.className = "menu-awn-channels-item menu-awn-channels-item--empty";
+    empty.textContent = query ? "Ничего не найдено" : "Нет каналов";
+    menuAwnChannelsListNode.appendChild(empty);
+    return;
+  }
+  for (const entry of items) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-channels-item";
+    item.dataset.staticChannel = "1";
+    const icon = document.createElement("span");
+    icon.className = "menu-awn-channels-item-icon";
+    icon.textContent = entry.icon;
+    icon.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "menu-awn-channels-item-label";
+    label.textContent = entry.label;
+    item.appendChild(icon);
+    item.appendChild(label);
+    menuAwnChannelsListNode.appendChild(item);
+  }
+}
+
+function setupMenuAwnChannelsBandGroup() {
+  syncMenuAwnChannelsBandAccordionUi();
+  renderMenuAwnChannelsStaticList();
+  menuAwnChannelsBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuAwnChannelsBandExpanded();
+  });
+  menuAwnChannelsSearchInputNode?.addEventListener("input", (event) => {
+    menuAwnChannelsSearchQuery = String(event.target.value || "");
+    renderMenuAwnChannelsStaticList();
+  });
+  menuAwnChannelsCreateBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showToast("Создание канала — статичный набросок (awn-channels/{slug}/)", "info", 4800);
+  });
+  menuAwnChannelsIndexOpenBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showToast(`Открытие ${AWN_CHANNELS_INDEX_REL_PATH} — скоро`, "info", 4200);
+  });
+  menuAwnChannelsIndexRefreshBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showToast(`Обновление ${AWN_CHANNELS_INDEX_REL_PATH} — статичный набросок`, "info", 4200);
+  });
+  menuAwnChannelsRefreshBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    renderMenuAwnChannelsStaticList();
+    showToast("Список каналов (примеры) обновлён", "success", 2400);
+  });
+  wireMenuBandHelpButton(menuAwnChannelsHelpBtn);
 }
 
 function toggleMenuTreeBandExpanded() {
@@ -123152,6 +123290,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupAppFooterToggle();
 setupAppFooterJournalPopover();
+setupMenuAwnChannelsBandGroup();
 setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
 setupProjectSettingsScopeSearch();

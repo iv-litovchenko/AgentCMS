@@ -1790,6 +1790,129 @@
         </section>
 
         <section
+          id="menu-awn-channels-band"
+          class="sidebar-slab sidebar-slab-menu-channels-band menu-awn-channels-band"
+          aria-label="Мультиканальность — awn-channels"
+        >
+          <div class="menu-awn-channels-band-head">
+            <button
+              id="menu-awn-channels-band-toggle"
+              type="button"
+              class="menu-awn-channels-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--channels"
+              aria-expanded="false"
+              aria-controls="menu-awn-channels-band-body"
+              title="Мультиканальность (awn-channels) — свернуть или показать"
+            >
+              <span class="sidebar-accent-band-toggle-main">
+                <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                <svg class="sidebar-accent-band-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 11a9 9 0 0 1 9 9" />
+                  <path d="M4 4a16 16 0 0 1 16 16" />
+                  <circle cx="5" cy="19" r="1" />
+                </svg>
+                <span class="menu-awn-channels-band-title sidebar-accent-band-title">Мультиканальность</span>
+              </span>
+            </button>
+            <div class="menu-awn-channels-band-head-actions" aria-label="Действия каналов">
+              <button
+                id="menu-awn-channels-help-btn"
+                type="button"
+                class="menu-band-help-btn"
+                title="awn-channels — входящие источники: форум, блог, мессенджеры, дайджесты. Пока статичный набросок UI."
+                aria-label="awn-channels — входящие источники: форум, блог, мессенджеры, дайджесты. Пока статичный набросок UI."
+              >
+                ?
+              </button>
+              <button
+                id="menu-awn-channels-refresh-btn"
+                type="button"
+                class="menu-refresh-btn"
+                title="Обновить список каналов"
+                aria-label="Обновить список каналов"
+              >
+                <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                    stroke="currentColor"
+                    stroke-width="2.25"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="menu-awn-channels-band-body" class="menu-awn-channels-band-body" hidden>
+            <p class="menu-awn-channels-scope-caption">
+              Источники информации (хаотичная информация)
+            </p>
+            <div class="menu-awn-channels-toolbar">
+              <button
+                id="menu-awn-channels-create-btn"
+                type="button"
+                class="menu-static-action-btn menu-awn-channels-create-btn"
+                title="Создать awn-channels/{slug}/ с manifest.md (скоро)"
+              >
+                + Новый канал <span class="stub-static-mark">(static)</span>
+              </button>
+            </div>
+            <div id="menu-awn-channels-shortcuts-row" class="menu-awn-channels-shortcuts-row">
+              <div
+                id="menu-awn-channels-index-row"
+                class="menu-awn-channels-index-row node-navigation-workspace-counter-topic-index-row"
+              >
+                <button
+                  id="menu-awn-channels-index-open-btn"
+                  type="button"
+                  class="menu-awn-channels-index-open node-navigation-workspace-counter-topic-index is-generated"
+                  title="Открыть awn-channels/index.md"
+                >
+                  Индекс каналов
+                </button>
+                <button
+                  id="menu-awn-channels-index-refresh-btn"
+                  type="button"
+                  class="menu-awn-channels-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                  aria-label="Обновить index.md каналов"
+                  title="Обновить и сохранить awn-channels/index.md"
+                >
+                  ⟲
+                </button>
+              </div>
+            </div>
+            <div class="menu-awn-channels-toolbar-row menu-awn-channels-toolbar-row--search">
+              <div class="menu-search-wrap menu-awn-channels-search-wrap">
+                <label class="menu-search-bar" for="menu-awn-channels-search-input">
+                  <span class="menu-search-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3.5-3.5"></path>
+                    </svg>
+                  </span>
+                  <input
+                    id="menu-awn-channels-search-input"
+                    class="menu-search-input"
+                    type="search"
+                    placeholder="Поиск по каналам..."
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="Поиск по каналам"
+                  />
+                </label>
+              </div>
+            </div>
+            <ul
+              id="menu-awn-channels-list"
+              class="menu-awn-channels-list"
+              aria-label="Каналы awn-channels (примеры)"
+            ></ul>
+            <p class="menu-awn-channels-footer-caption">
+              awn-channels — хаотичные входящие. Дальше — triage в темы и инфоблоки.
+            </p>
+          </div>
+        </section>
+
+        <section
           id="menu-tree-band"
           class="sidebar-slab sidebar-slab-menu-tree-band"
           aria-label="Дерево и поиск"
@@ -7616,7 +7739,7 @@
     <script src="/js/editor/marker-blocks-preview.js?v=10"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>
     <script src="/js/panels/api-docs-ui.js?v=2"></script>
-    <script src="/main.js?v=0.5.975"></script>
+    <script src="/main.js?v=0.5.977"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
     <script src="/js/app/privacy-mode.js?v=5"></script>
     <script src="/js/app/sensitive-input.js?v=3"></script>
