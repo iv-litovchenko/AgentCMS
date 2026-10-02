@@ -80754,12 +80754,26 @@ function markAllCommentMentionsSeen(context, comments) {
   markCommentMentionsSeen(context, items[0].id);
 }
 
+function renderCommentMarkdownPreview(element, markdown, nodePath) {
+  if (!element) return;
+  const resolvedNodePath =
+    nodePath || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  if (resolvedNodePath) {
+    element.dataset.linkBasePath = resolvedNodePath;
+  }
+  element.innerHTML = renderMarkdownToHtml(String(markdown || ""), {
+    nodePath: resolvedNodePath,
+    hideFrontmatter: true
+  });
+  hydrateMarkdownPreviewElement(element, resolvedNodePath);
+}
+
 function appendCommentMarkdownChunk(container, markdown, nodePath) {
   const chunk = String(markdown || "");
   if (!chunk.trim()) return;
   const wrapper = document.createElement("div");
   wrapper.className = "node-comment-md-chunk";
-  wrapper.innerHTML = renderMarkdownToHtml(chunk, { nodePath, hideFrontmatter: true });
+  renderCommentMarkdownPreview(wrapper, chunk, nodePath);
   container.appendChild(wrapper);
 }
 
@@ -91891,7 +91905,11 @@ function enhanceMarkdownPreviewImages(root) {
   initPreviewImageExpand(root);
   initPreviewWikilinkNavigation(root);
   classifyPreviewImagesAuto(root);
-  const nodePath = getPropsContextPath() || getActiveTitleEditorPath();
+  const nodePath =
+    root.dataset.linkBasePath ||
+    getPropsContextPath() ||
+    getActiveTitleEditorPath() ||
+    getActiveNodeApiPath();
   root.querySelectorAll("img").forEach((img) => {
     bindMarkdownPreviewImageFallback(img, nodePath);
   });

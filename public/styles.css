@@ -44667,7 +44667,9 @@ img.is-svg-media,
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: 4px;
+  padding: 0 14px 12px;
+  box-sizing: border-box;
 }
 
 .node-comment-edit-field {
