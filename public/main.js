@@ -258,6 +258,9 @@ const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
   { icon: "📱", label: "Фотоархив (телефон)" },
   { icon: "📊", label: "аналитика" },
   { icon: "🌍", label: "Объекты реального мира" },
+  { icon: "🛒", label: "Барахолка" },
+  { icon: "📒", label: "Заметки" },
+  { icon: "🎞️", label: "Слайдер" },
   { icon: "📦", label: "Другое (не знаю куда деть)" }
 ];
 let menuAwnChannelsSearchQuery = "";
