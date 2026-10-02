@@ -119444,8 +119444,7 @@ function setupMenuRepositoryGroupDragDrop() {
       clearMenuRepositoryGroupDropTarget();
       menuRepositoryGroupDropTarget = groupNode;
       groupNode.classList.add("is-repository-group-drop-target");
-      const details = groupNode.querySelector(".menu-repository-group-details");
-      if (details && !details.open) details.open = true;
+      expandMenuRepositoryGroupNode(groupNode);
     }
   });
 
@@ -119607,15 +119606,30 @@ function groupMenuRepositories(repositories = [], unregistered = [], groupsCatal
   });
 }
 
+function expandMenuRepositoryGroupNode(groupNode) {
+  if (!groupNode) return;
+  groupNode.classList.remove("is-collapsed");
+  const bodyEl = groupNode.querySelector(":scope > .menu-repository-group-body");
+  if (bodyEl) bodyEl.hidden = false;
+  const hasChildren = Boolean(
+    groupNode.querySelector(
+      ".menu-repository-group-children .menu-repository-item:not(.menu-repository-group-drop-empty)"
+    )
+  );
+  const toggleBtn = groupNode.querySelector(":scope > .menu-repository-group-head .folder-toggle-btn");
+  if (toggleBtn && !toggleBtn.disabled) {
+    toggleBtn.textContent = formatMenuFolderToggleGlyph(false, hasChildren);
+    toggleBtn.title = "Скрыть";
+  }
+}
+
 function readMenuRepositoryGroupOpenState() {
   if (!menuRepositoriesListNode) return {};
   const state = {};
   menuRepositoriesListNode.querySelectorAll(".menu-repository-group").forEach((groupNode) => {
     const groupId = String(groupNode.dataset.repositoryGroupId || "").trim();
     if (!groupId) return;
-    const details = groupNode.querySelector(".menu-repository-group-details");
-    if (!details) return;
-    state[groupId] = details.open;
+    state[groupId] = !groupNode.classList.contains("is-collapsed");
   });
   return state;
 }
@@ -119675,56 +119689,85 @@ function createMenuRepositoryGroupNode(
     : "menu-repository-group";
   item.dataset.repositoryGroupId = String(groupId || "").trim();
 
-  const details = document.createElement("details");
-  details.className = "menu-repository-group-details";
-  details.dataset.repositoryGroupDropZone = "1";
   const resolvedGroupId = String(groupId || "").trim();
   const hasPreservedOpenState =
     openState && Object.prototype.hasOwnProperty.call(openState, resolvedGroupId);
-  details.open =
+  const defaultExpanded = items.length > 0;
+  const isExpanded =
     forceExpanded && items.length > 0
       ? true
       : hasPreservedOpenState
         ? Boolean(openState[resolvedGroupId])
-        : items.length > 0;
+        : defaultExpanded;
+  let isCollapsed = !isExpanded;
+  const hasChildren = items.length > 0;
+  if (!hasChildren) item.classList.add("is-empty");
 
-  const summary = document.createElement("summary");
-  summary.className = highlightUnregistered
-    ? "menu-repository-group-summary menu-repository-group-summary--unregistered"
-    : "menu-repository-group-summary";
-  summary.dataset.repositoryGroupDropZone = "1";
-  summary.textContent = title;
-
-  const count = document.createElement("span");
-  count.className = "menu-repository-group-count";
-  count.textContent = String(items.length);
-  summary.appendChild(count);
+  const headRow = document.createElement("div");
+  headRow.className = highlightUnregistered
+    ? "menu-repository-group-head menu-repository-group-head--unregistered"
+    : "menu-repository-group-head";
+  headRow.dataset.repositoryGroupDropZone = "1";
 
   const body = document.createElement("div");
   body.className = "menu-repository-group-body";
   body.dataset.repositoryGroupDropZone = "1";
 
+  const syncCollapsedUi = () => {
+    item.classList.toggle("is-collapsed", isCollapsed);
+    body.hidden = isCollapsed;
+    toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasChildren);
+    toggleBtn.title = hasChildren ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет репозиториев";
+  };
+
+  const toggleBtn = createFolderToggleButton(hasChildren, isCollapsed, () => {
+    isCollapsed = !isCollapsed;
+    syncCollapsedUi();
+  });
+  if (!hasChildren) {
+    toggleBtn.classList.add("folder-toggle-btn--empty-group");
+  }
+
+  const labelWrap = document.createElement("div");
+  labelWrap.className = "menu-repository-group-label";
+  labelWrap.dataset.repositoryGroupDropZone = "1";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "menu-repository-group-title";
+  titleNode.textContent = title;
+
+  const count = document.createElement("span");
+  count.className = "menu-repository-group-count";
+  count.textContent = String(items.length);
+
+  labelWrap.append(titleNode, count);
+  headRow.append(toggleBtn, labelWrap);
+
   const list = document.createElement("ul");
   list.className = "menu-repository-group-children";
   list.dataset.repositoryGroupDropZone = "1";
-  for (const row of items) {
-    if (row.kind === "unregistered") {
-      list.appendChild(createMenuRepositoryUnregisteredRow(row.entry));
-    } else {
-      list.appendChild(createMenuRepositoryRow(row.entry));
-    }
-  }
-  if (!items.length) {
+
+  if (!hasChildren) {
     const empty = document.createElement("li");
     empty.className = "menu-repository-group-drop-empty";
     empty.textContent = "Перетащите репозиторий";
     empty.dataset.repositoryGroupDropZone = "1";
     list.appendChild(empty);
+  } else {
+    items.forEach((row, index) => {
+      const child =
+        row.kind === "unregistered"
+          ? createMenuRepositoryUnregisteredRow(row.entry)
+          : createMenuRepositoryRow(row.entry);
+      child.classList.add("menu-tree-branch");
+      if (index === items.length - 1) child.classList.add("menu-tree-branch-last");
+      list.appendChild(child);
+    });
   }
 
   body.appendChild(list);
-  details.append(summary, body);
-  item.appendChild(details);
+  item.append(headRow, body);
+  syncCollapsedUi();
   return item;
 }
 
