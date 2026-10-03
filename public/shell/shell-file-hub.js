@@ -249,23 +249,78 @@ function isFileHubUsedOnSite(store, siteKey, fileId) {
   return Array.isArray(list) && list.includes(fid);
 }
 
-function showFileHubAttachToast(exportPane, message, kind = "info") {
-  if (!exportPane || !message) return;
-  let toast = exportPane.querySelector("[data-file-hub-attach-toast]");
-  if (!toast) {
-    toast = document.createElement("p");
-    toast.className = "shell-file-hub-attach-toast";
-    toast.dataset.fileHubAttachToast = "";
-    exportPane.appendChild(toast);
+const FILE_HUB_NOTICE_ICONS = { success: "✓", error: "!", info: "·" };
+
+function hideFileHubNotice(notice) {
+  if (!notice) return;
+  notice.classList.remove("is-visible");
+  window.setTimeout(() => {
+    if (!notice.classList.contains("is-visible")) notice.hidden = true;
+  }, 280);
+}
+
+function showFileHubAttachToast(fileHubRoot, payload, legacyKind = "info") {
+  const opts =
+    typeof payload === "string"
+      ? { message: payload, kind: legacyKind }
+      : payload && typeof payload === "object"
+        ? payload
+        : null;
+  const kind = opts?.kind || "info";
+  let message = String(opts?.message || "").trim();
+  if (!message) {
+    const title = String(opts?.title || "").trim();
+    const detail = String(opts?.detail || "").trim();
+    message = title && detail ? `${title} — ${detail}` : title || detail;
   }
-  toast.classList.toggle("is-error", kind === "error");
-  toast.classList.toggle("is-success", kind === "success");
-  toast.textContent = String(message);
-  toast.hidden = false;
+  if (!fileHubRoot || !message) return;
+
+  const panel = fileHubRoot.querySelector(".shell-file-hub-panel") || fileHubRoot;
+  let notice = panel.querySelector("[data-file-hub-notice]");
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.className = "shell-file-hub-notice";
+    notice.dataset.fileHubNotice = "";
+    notice.setAttribute("role", "status");
+    notice.hidden = true;
+
+    const icon = document.createElement("span");
+    icon.className = "shell-file-hub-notice-icon";
+    icon.setAttribute("aria-hidden", "true");
+    notice.appendChild(icon);
+
+    const text = document.createElement("span");
+    text.className = "shell-file-hub-notice-text";
+    notice.appendChild(text);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "shell-file-hub-notice-close";
+    closeBtn.setAttribute("aria-label", "Закрыть");
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", () => hideFileHubNotice(notice));
+    notice.appendChild(closeBtn);
+
+    panel.appendChild(notice);
+  }
+
+  const iconEl = notice.querySelector(".shell-file-hub-notice-icon");
+  const textEl = notice.querySelector(".shell-file-hub-notice-text");
+  notice.classList.remove("is-success", "is-error", "is-info");
+  notice.classList.add(`is-${kind === "error" || kind === "success" ? kind : "info"}`);
+  if (iconEl) iconEl.textContent = FILE_HUB_NOTICE_ICONS[kind] || FILE_HUB_NOTICE_ICONS.info;
+  if (textEl) textEl.textContent = message;
+
+  notice.hidden = false;
+  requestAnimationFrame(() => notice.classList.add("is-visible"));
+
   window.clearTimeout(showFileHubAttachToast._timer);
-  showFileHubAttachToast._timer = window.setTimeout(() => {
-    toast.hidden = true;
-  }, 5200);
+  showFileHubAttachToast._timer = window.setTimeout(() => hideFileHubNotice(notice), 3600);
+}
+
+function fileHubAttachSuccessToast(fileHubRoot, file) {
+  const name = String(file?.name || "файл").trim() || "файл";
+  showFileHubAttachToast(fileHubRoot, { kind: "success", message: `Выдано: ${name}` });
 }
 
 function shortenFileHubSiteLabel(label, siteKey) {
@@ -275,74 +330,33 @@ function shortenFileHubSiteLabel(label, siteKey) {
   return `${raw.slice(0, 49)}…`;
 }
 
-function ensureFileHubCompanionSiteUi(exportPane) {
-  if (!exportPane || !isFileHubCompanionPanel()) return;
-  if (exportPane.querySelector("[data-file-hub-companion-accordion]")) return;
+const FILE_HUB_EXPORT_HELP_BODY_BASE =
+  "⠿ grip — перетаскивание из очереди. С диска — перетащите grip в drop-зону сайта, если страница читает dataTransfer.files (как в обычном HTML).";
 
-  const details = document.createElement("details");
-  details.className = "shell-file-hub-companion-accordion";
-  details.dataset.fileHubCompanionAccordion = "";
+const FILE_HUB_EXPORT_HELP_BODY_COMPANION =
+  "С диска: перетащите ⠿ grip в drop-зону сайта — сработает, если сайт читает dataTransfer.files (как в обычном HTML). Из панели это не файл ОС: в чужую вкладку drag часто пустой. 📎 — прикрепить на открытую вкладку (загрузка → File → поле input или симуляция drop; по клику, через расширение; на mail.ru сначала «Прикрепить файл» в письме). Подсветка строки — файлы, уже переданные на эту вкладку.";
 
-  const summary = document.createElement("summary");
-  summary.className = "shell-file-hub-companion-accordion-summary";
-
-  const dot = document.createElement("span");
-  dot.className = "shell-file-hub-site-chip-dot";
-  dot.dataset.fileHubSiteDot = "";
-  dot.setAttribute("aria-hidden", "true");
-  dot.hidden = true;
-
-  const summaryText = document.createElement("span");
-  summaryText.className = "shell-file-hub-companion-accordion-summary-text";
-  summaryText.dataset.fileHubSiteSummaryText = "";
-  summaryText.textContent = "Подсказки для открытой вкладки";
-
-  summary.append(dot, summaryText);
-
-  const body = document.createElement("div");
-  body.className = "shell-file-hub-companion-accordion-body";
-
-  const notice = document.createElement("p");
-  notice.className = "shell-file-hub-companion-notice";
-  notice.textContent =
-    "С диска: перетащите grip в drop-зону сайта — сработает, если сайт читает dataTransfer.files (как в обычном HTML). Из панели это не файл ОС: в чужую вкладку drag часто пустой. 📎 — fetch → File → input или симуляция drop (расширение, по клику). Подсветка — уже переданные на эту вкладку.";
-
-  body.appendChild(notice);
-  details.append(summary, body);
-
-  const searchWrap = exportPane.querySelector(".shell-file-hub-search-wrap");
-  if (searchWrap) exportPane.insertBefore(details, searchWrap);
-  else exportPane.prepend(details);
+function buildFileHubExportHelpHint({ companion = false, siteKey = "", siteLabel = "" } = {}) {
+  if (!companion) return FILE_HUB_EXPORT_HELP_BODY_BASE;
+  const key = normalizeFileHubSiteKey(siteKey);
+  const parts = [];
+  if (key) {
+    const label = shortenFileHubSiteLabel(siteLabel, key);
+    parts.push(`Сайт: «${label}» — цвет подсветки для переданных файлов`);
+  }
+  parts.push(FILE_HUB_EXPORT_HELP_BODY_COMPANION);
+  return parts.join("\n\n");
 }
 
-function updateFileHubSiteChip(exportPane, siteKey, siteLabel) {
-  const accordion = exportPane?.querySelector("[data-file-hub-companion-accordion]");
-  if (!accordion) return;
-  const summaryText = accordion.querySelector("[data-file-hub-site-summary-text]");
-  const dot = accordion.querySelector("[data-file-hub-site-dot]");
-  if (!isFileHubCompanionPanel()) {
-    accordion.hidden = true;
-    return;
-  }
-  accordion.hidden = false;
-  const key = normalizeFileHubSiteKey(siteKey);
-  if (!key) {
-    accordion.style.removeProperty("border-color");
-    if (dot) dot.hidden = true;
-    if (summaryText) summaryText.textContent = "Подсказки для открытой вкладки";
-    return;
-  }
-  const colors = fileHubSiteHighlightColors(key);
-  const label = shortenFileHubSiteLabel(siteLabel, key);
-  accordion.style.setProperty("--file-hub-site-accent", colors.accent);
-  accordion.style.borderColor = colors.border;
-  if (dot) {
-    dot.hidden = false;
-    dot.style.background = colors.accent;
-  }
-  if (summaryText) {
-    summaryText.innerHTML = `Сайт: <strong>${escapeHtml(label)}</strong> — цвет подсветки для переданных файлов`;
-  }
+function syncFileHubExportPaneHelp(exportPane, { siteKey = "", siteLabel = "" } = {}) {
+  const help = exportPane?.querySelector(".shell-file-hub-pane-help");
+  if (!help) return;
+  const companion = isFileHubCompanionPanel();
+  help.dataset.hint = buildFileHubExportHelpHint({ companion, siteKey, siteLabel });
+  help.setAttribute(
+    "aria-label",
+    companion ? "Справка: сайт, скрепка, перетаскивание, подсветка" : "Справка: перетаскивание из очереди"
+  );
 }
 
 async function fetchWorkspaceFileForDrag(meta) {
@@ -693,8 +707,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   if (!root) return {};
 
   mountFileHubRoot(root, mainView);
+  syncFileHubExportPaneHelp(exportPane);
   bindShellHintsIn(root);
-  ensureFileHubCompanionSiteUi(exportPane);
   const confirmFileHubAction = bindFileHubConfirm(root);
 
   let files = [];
@@ -708,7 +722,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   function setActiveCompanionSite(payload = {}) {
     activeSiteKey = normalizeFileHubSiteKey(payload.hostname || payload.url || "");
     activeSiteLabel = String(payload.title || payload.hostname || activeSiteKey || "").trim();
-    updateFileHubSiteChip(exportPane, activeSiteKey, activeSiteLabel);
+    syncFileHubExportPaneHelp(exportPane, { siteKey: activeSiteKey, siteLabel: activeSiteLabel });
     if (open) renderList();
   }
 
@@ -869,42 +883,54 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         sizeEl.textContent = sizeLabel;
         trailing.appendChild(sizeEl);
       }
+      const siteKey =
+        activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+      const alreadyIssuedOnSite = Boolean(siteKey && isFileHubUsedOnSite(siteUsageStore, siteKey, file.id));
+      const issuedSiteLabel = activeSiteLabel || siteKey || "эту вкладку";
+
       if (isFileHubCompanionPanel()) {
         const attachBtn = document.createElement("button");
         attachBtn.type = "button";
         attachBtn.className = "shell-file-hub-item-attach";
-        attachBtn.title = "Отправить на вкладку (как drop или вложение), без сохранения на диск";
-        attachBtn.setAttribute("aria-label", "Отправить файл на открытую вкладку");
         attachBtn.textContent = "📎";
-        attachBtn.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
+        if (alreadyIssuedOnSite) {
           attachBtn.disabled = true;
-          void requestFileHubAttachToCompanionTab(file)
-            .then(() => {
-              const siteKey = activeSiteKey;
-              if (siteKey) {
-                markFileHubUsedOnSite(getShellAgentId(), siteKey, file.id);
-                siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
-              }
-              renderList();
-              attachBtn.title = "Прикреплено на страницу";
-              showFileHubAttachToast(
-                exportPane,
-                `«${file.name}» на вкладке (без диска — через расширение)`,
-                "success"
-              );
-            })
-            .catch((error) => {
-              console.warn("[file-hub] attach to tab failed", error);
-              const msg = String(error?.message || error);
-              attachBtn.title = msg;
-              showFileHubAttachToast(exportPane, msg, "error");
-            })
-            .finally(() => {
-              attachBtn.disabled = false;
-            });
-        });
+          attachBtn.classList.add("is-issued");
+          attachBtn.title = `Уже выдавали на ${issuedSiteLabel}`;
+          attachBtn.setAttribute("aria-label", "Файл уже выдан на эту вкладку");
+        } else {
+          attachBtn.title = "Отправить на вкладку (как drop или вложение), без сохранения на диск";
+          attachBtn.setAttribute("aria-label", "Отправить файл на открытую вкладку");
+          attachBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const issueKey = activeSiteKey;
+            if (issueKey && isFileHubUsedOnSite(siteUsageStore, issueKey, file.id)) {
+              showFileHubAttachToast(root, {
+                kind: "info",
+                message: `Уже выдавали — ${file.name}`
+              });
+              return;
+            }
+            attachBtn.disabled = true;
+            void requestFileHubAttachToCompanionTab(file)
+              .then(() => {
+                if (issueKey) {
+                  markFileHubUsedOnSite(getShellAgentId(), issueKey, file.id);
+                  siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
+                }
+                renderList();
+                fileHubAttachSuccessToast(root, file);
+              })
+              .catch((error) => {
+                console.warn("[file-hub] attach to tab failed", error);
+                const msg = String(error?.message || error);
+                attachBtn.title = msg;
+                showFileHubAttachToast(root, msg, "error");
+                attachBtn.disabled = false;
+              });
+          });
+        }
         trailing.appendChild(attachBtn);
       }
 
@@ -915,13 +941,12 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
       removeBtn.setAttribute("aria-label", "Убрать из списка");
       trailing.appendChild(removeBtn);
 
-      const siteKey = activeSiteKey || normalizeFileHubSiteKey(window.location.hostname);
-      if (siteKey && isFileHubUsedOnSite(siteUsageStore, siteKey, file.id)) {
+      if (alreadyIssuedOnSite) {
         row.classList.add("shell-file-hub-item--used-on-site");
         const colors = fileHubSiteHighlightColors(siteKey);
         row.style.setProperty("--file-hub-site-border", colors.border);
         row.style.setProperty("--file-hub-site-bg", colors.background);
-        row.title = `Уже передавали на ${activeSiteLabel || siteKey}`;
+        row.title = `Уже выдавали на ${issuedSiteLabel}`;
       }
 
       row.append(grip, visual, main, trailing);
@@ -956,6 +981,16 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
       });
       grip.addEventListener("dragstart", (event) => {
         event.stopPropagation();
+        const dragSiteKey =
+          activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+        if (dragSiteKey && isFileHubUsedOnSite(siteUsageStore, dragSiteKey, file.id)) {
+          event.preventDefault();
+          showFileHubAttachToast(root, {
+            kind: "info",
+            message: `Уже выдавали — ${file.name}`
+          });
+          return;
+        }
         const dt = event.dataTransfer;
         if (!dt) return;
         const ready = getResolvedDragFile(file.id);
@@ -1075,8 +1110,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     root.hidden = !open;
     openBtn?.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
-      ensureFileHubCompanionSiteUi(exportPane);
-      updateFileHubSiteChip(exportPane, activeSiteKey, activeSiteLabel);
+      syncFileHubExportPaneHelp(exportPane, { siteKey: activeSiteKey, siteLabel: activeSiteLabel });
       siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
       void reloadExportQueue();
       searchInput?.focus({ preventScroll: true });

@@ -71,7 +71,7 @@
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
-          "@shell/file-hub": "/shell/shell-file-hub.js?v=29",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=35",
           "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=4",
           "@shell/pomodoro": "/shell/shell-pomodoro.js?v=8",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -2992,7 +2992,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-file-hub-title-block">
               <div class="shell-file-hub-title-row">
                 <h2 class="shell-file-hub-title">Файлообменник</h2>
-                <span class="shell-file-hub-todo">TODO</span>
+                <span class="shell-file-hub-todo">BETA</span>
               </div>
               <p class="shell-file-hub-tagline">Файлы туда сюда</p>
             </div>
@@ -3074,7 +3074,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </div>
               </div>
             </section>
-            <section class="shell-file-hub-pane shell-file-hub-pane--export" aria-label="Передать файлы из хранилища">
+            <section class="shell-file-hub-pane shell-file-hub-pane--export" aria-label="Выдать файлы из хранилища">
               <header class="shell-file-hub-pane-header">
                 <h3 class="shell-file-hub-pane-title">
                   <span class="shell-file-hub-pane-title-icon" aria-hidden="true">
@@ -3085,7 +3085,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                       <path d="M9 7h6"></path>
                     </svg>
                   </span>
-                  <span class="shell-file-hub-pane-title-text">Передать файлы из хранилища</span>
+                  <span class="shell-file-hub-pane-title-text">Выдать файлы из хранилища</span>
                 </h3>
                 <button
                   type="button"
@@ -3117,8 +3117,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <button
                   type="button"
                   class="shell-file-hub-pane-help"
-                  data-hint="📎 — прикрепить на вкладку mail.ru (сначала «Прикрепить файл» в письме). ⠿ — перетаскивание. Подсветка — уже переданные на этот сайт."
-                  aria-label="Подсказка: перетаскивание и подсветка по сайту"
+                  data-hint="⠿ grip — перетаскивание из очереди. С диска — перетащите grip в drop-зону сайта, если страница читает dataTransfer.files (как в обычном HTML)."
+                  aria-label="Справка: перетаскивание из очереди"
                 >
                   <span aria-hidden="true">?</span>
                 </button>
