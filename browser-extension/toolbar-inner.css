@@ -57,6 +57,16 @@
   cursor: grabbing;
 }
 
+.asc-brand-dock-divider {
+  display: block;
+  width: 1px;
+  height: 20px;
+  margin: 0 2px 0 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
 .asc-brand-cluster {
   display: flex;
   align-items: center;
@@ -64,6 +74,11 @@
   flex: 0 0 auto;
   cursor: grab;
   border-radius: 999px;
+}
+
+.asc-brand-dock .asc-btn--viewport-shot {
+  flex-shrink: 0;
+  color: #ddd6fe;
 }
 
 .asc-brand-cluster:focus-visible {

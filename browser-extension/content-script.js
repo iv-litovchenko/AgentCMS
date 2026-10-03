@@ -194,6 +194,17 @@
 
   brandCluster.append(brand);
 
+  const brandDockDivider = document.createElement("span");
+  brandDockDivider.className = "asc-brand-dock-divider";
+  brandDockDivider.setAttribute("aria-hidden", "true");
+
+  const viewportShotBtn = createBtn(
+    "screenshot",
+    "Скрин",
+    "Скриншот видимой области — в буфер обмена"
+  );
+  viewportShotBtn.classList.add("asc-btn--viewport-shot", "asc-btn--icon-only");
+
   function closeMenus(except) {
     for (const menu of menus) {
       if (menu.wrap === except) continue;
@@ -379,7 +390,7 @@
 
   const brandDock = document.createElement("div");
   brandDock.className = "asc-brand-dock";
-  brandDock.append(brandCluster);
+  brandDock.append(brandCluster, brandDockDivider, viewportShotBtn);
 
   const toolbarPanel = document.createElement("div");
   toolbarPanel.className = "asc-toolbar-panel";
@@ -2007,7 +2018,7 @@
 
   function isBrandTarget(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest(".asc-brand-dock"));
+    return Boolean(target.closest(".asc-brand-cluster"));
   }
 
   let blockToggleAfterDrag = false;
@@ -2085,6 +2096,11 @@
   collapseBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     setExpanded(false);
+  });
+
+  viewportShotBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void runScreenshot({ region: false, destination: "clipboard" });
   });
 
   elementBtn.addEventListener("click", togglePagePicker);
