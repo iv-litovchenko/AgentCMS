@@ -837,8 +837,72 @@ const agentRoadmapMapHostNode = document.getElementById("agent-rmm-host");
 const agentRoadmapMapDetailNode = document.getElementById("agent-rmm-detail");
 const agentRoadmapMapDepthNode = document.getElementById("agent-rmm-depth");
 const agentRoadmapMapZoomNode = document.getElementById("agent-rmm-zoom");
+const AGENT_RMM_MARKDOWN_DEPTH_STORAGE_KEY = "agentcms.agentRmmMarkdownDepth.v1";
+const AGENT_RMM_MARKDOWN_DEPTH_LABELS = {
+  "md-file": "MD-файл",
+  "md-headings": "MD-файл + заголовки",
+  "md-links": "MD-файл + заголовки + ссылки и теги"
+};
 let agentRoadmapMapSubview = "graph";
-let agentRoadmapMapDepth = "files";
+
+function normalizeAgentRoadmapMapDepth(raw) {
+  const value = String(raw || "").trim();
+  if (value === "md-headings" || value === "headings") return "md-headings";
+  if (value === "md-links" || value === "links" || value === "rich" || value === "deep") return "md-links";
+  if (value === "md-file" || value === "files") return "md-file";
+  return "md-file";
+}
+
+function loadAgentRoadmapMapDepthFromStorage() {
+  try {
+    return normalizeAgentRoadmapMapDepth(localStorage.getItem(AGENT_RMM_MARKDOWN_DEPTH_STORAGE_KEY));
+  } catch {
+    return "md-file";
+  }
+}
+
+function persistAgentRoadmapMapDepth(depth) {
+  try {
+    localStorage.setItem(AGENT_RMM_MARKDOWN_DEPTH_STORAGE_KEY, normalizeAgentRoadmapMapDepth(depth));
+  } catch {
+    /* ignore */
+  }
+}
+
+let agentRoadmapMapDepth = loadAgentRoadmapMapDepthFromStorage();
+
+function getAgentRoadmapMapDepthLabel(depth = agentRoadmapMapDepth) {
+  return AGENT_RMM_MARKDOWN_DEPTH_LABELS[normalizeAgentRoadmapMapDepth(depth)] || AGENT_RMM_MARKDOWN_DEPTH_LABELS["md-file"];
+}
+
+function agentRmmDepthShowsMarkdownHeadingsAt(depth) {
+  const mode = normalizeAgentRoadmapMapDepth(depth);
+  return mode === "md-headings" || mode === "md-links";
+}
+
+function agentRmmDepthShowsMarkdownLinksAndTagsAt(depth) {
+  return normalizeAgentRoadmapMapDepth(depth) === "md-links";
+}
+
+function agentRmmDepthShowsMarkdownHeadings() {
+  return agentRmmDepthShowsMarkdownHeadingsAt(agentRoadmapMapDepth);
+}
+
+function agentRmmDepthShowsMarkdownLinksAndTags() {
+  return agentRmmDepthShowsMarkdownLinksAndTagsAt(agentRoadmapMapDepth);
+}
+
+function syncAgentRoadmapMapDepthSelectUi() {
+  if (!agentRoadmapMapDepthNode) return;
+  const normalized = normalizeAgentRoadmapMapDepth(agentRoadmapMapDepth);
+  if (agentRoadmapMapDepthNode.value !== normalized) {
+    agentRoadmapMapDepthNode.value = normalized;
+  }
+  const label = agentRoadmapMapDepthNode.closest("label");
+  if (label) {
+    label.title = `Заготовка: ${getAgentRoadmapMapDepthLabel(normalized)}`;
+  }
+}
 let agentRoadmapMapRenderSeq = 0;
 let agentRoadmapMapViewportApi = null;
 let agentRoadmapMapGraphViewportApi = null;
@@ -33931,6 +33995,9 @@ function renderGraphCanvas(container, graph, options = {}) {
 
   const wrap = document.createElement("div");
   wrap.className = "external-graph-wrap node-graph-wrap";
+  if (options.markdownDepth) {
+    wrap.dataset.rmmMarkdownDepth = normalizeAgentRoadmapMapDepth(options.markdownDepth);
+  }
   const canvasTheme = getAgentGraphSettings().canvasTheme;
   wrap.classList.add(canvasTheme === "light" ? "is-light" : "is-dark");
   if (showPreviews) wrap.classList.add("external-graph-wrap--previews");
@@ -106312,11 +106379,15 @@ function renderAgentRoadmapMapPlaceholderSubview(container) {
   if (!container) return;
   container.replaceChildren();
   const wrap = document.createElement("div");
-  wrap.className = "agent-rmm-roadmap-scroll";
+  wrap.className = "agent-rmm-roadmap-scroll agent-rmm-placeholder-scroll";
   wrap.setAttribute(
     "aria-label",
     AGENT_RMM_PLACEHOLDER_ARIA_LABELS[agentRoadmapMapSubview] || "Представление"
   );
+  const hint = document.createElement("p");
+  hint.className = "agent-rmm-depth-stub-hint";
+  hint.textContent = `Глубина: ${getAgentRoadmapMapDepthLabel()} — заготовка, логика представления позже.`;
+  wrap.appendChild(hint);
   container.appendChild(wrap);
 }
 
@@ -106332,8 +106403,11 @@ function ensureAgentRoadmapMapUiBindings() {
       if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
     });
   });
+  syncAgentRoadmapMapDepthSelectUi();
   agentRoadmapMapDepthNode?.addEventListener("change", () => {
-    agentRoadmapMapDepth = agentRoadmapMapDepthNode.value === "deep" ? "deep" : "files";
+    agentRoadmapMapDepth = normalizeAgentRoadmapMapDepth(agentRoadmapMapDepthNode.value);
+    persistAgentRoadmapMapDepth(agentRoadmapMapDepth);
+    syncAgentRoadmapMapDepthSelectUi();
     if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
   });
   document.querySelectorAll(".agent-rmm-view-notes").forEach((notes) => {
@@ -106476,14 +106550,23 @@ async function collectWorkspaceRoadmapColumns(menu, depth) {
     const label = getLabelFromPath(manifestPath.replace(/\/manifest\.md$/i, ""));
     const md = await fetchTopicRoadmapMarkdown(manifestPath);
     let stages = md ? parseAgentRoadmapMarkdown(md) : [];
-    if (!stages.length && depth === "files") {
+    const depthMode = normalizeAgentRoadmapMapDepth(depth);
+    if (!stages.length && depthMode === "md-file") {
       stages = [{ title: label, status: "todo", description: "Нет roadmap.md — только тема в меню" }];
     }
-    if (depth === "deep" && md) {
-      const deepHeads = parseMarkdownHeadingStages(md, 3).filter((s) => s.level >= 3);
+    if (agentRmmDepthShowsMarkdownHeadingsAt(depth) && md) {
+      const headingLevels = depthMode === "md-headings" ? 3 : 4;
+      const deepHeads = parseMarkdownHeadingStages(md, headingLevels).filter((s) => s.level >= 2);
       if (deepHeads.length) stages = [...stages, ...deepHeads];
     }
-    if (depth === "deep" && !md) {
+    if (agentRmmDepthShowsMarkdownLinksAndTagsAt(depth) && md) {
+      stages.push({
+        title: "Ссылки и теги",
+        status: "todo",
+        description: "Заготовка: wikilinks, URL и теги из markdown"
+      });
+    }
+    if (agentRmmDepthShowsMarkdownHeadingsAt(depth) && !md) {
       try {
         const payload = await fetchAgentContentIndexPayload(manifestPath);
         const firstMd = (payload?.liteEntries || []).find((e) => /\.md$/i.test(String(e.path || "")));
@@ -106543,7 +106626,7 @@ async function renderAgentRoadmapMapRoadmapView(renderSeq) {
 }
 
 async function enrichMindmapTreeWithContentFiles(tree, manifestPath) {
-  if (!tree || agentRoadmapMapDepth !== "deep") return tree;
+  if (!tree || !agentRmmDepthShowsMarkdownHeadings()) return tree;
   try {
     const payload = await fetchAgentContentIndexPayload(manifestPath);
     const files = (payload?.liteEntries || []).filter((e) => /\.md$/i.test(String(e.path || ""))).slice(0, 12);
@@ -106567,12 +106650,14 @@ async function buildWorkspaceMindmapTree(menu) {
   const rootPath = baseTree.indexPath || "manifest.md";
   const tree = buildMindmapTreeForNodePath(rootPath, getAgentTreeTitle());
   if (!tree) return null;
-  if (agentRoadmapMapDepth === "deep") {
-    const manifests = collectWorkspaceTopicManifestPaths(menu).slice(0, 8);
+  if (agentRmmDepthShowsMarkdownHeadings()) {
     for (const child of tree.children || []) {
       if (!child.targetPath) continue;
       await enrichMindmapTreeWithContentFiles(child, child.targetPath);
     }
+  }
+  if (agentRmmDepthShowsMarkdownLinksAndTags()) {
+    const manifests = collectWorkspaceTopicManifestPaths(menu).slice(0, 8);
     for (const mp of manifests) {
       const sub = buildMindmapTreeForNodePath(mp, getLabelFromPath(mp));
       if (sub?.children?.length) {
@@ -106735,6 +106820,7 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
     pageIndexPayload
   });
   agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
   if (graph.nodes.length <= 1) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "В workspace пока нет узлов для графа");
     return;
@@ -106743,6 +106829,7 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
   renderGraphCanvas(agentRoadmapMapHostNode, graph, {
     ariaLabel: "Граф хранилища workspace",
     fullViewport: true,
+    markdownDepth: agentRoadmapMapDepth,
     showPreviews: getAgentGraphSettings().showPreviews,
     controlsHost: agentRoadmapMapZoomNode,
     isNodeClickable: (node) => Boolean(node.nodePath || node.graphTarget),
