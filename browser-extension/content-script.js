@@ -260,6 +260,30 @@
     let open = false;
 
     const labelEl = btn.querySelector(".asc-brand-search-picker-label");
+    const SEARCH_PICKER_GAP = 8;
+    const SEARCH_PICKER_HEIGHT_ESTIMATE = 320;
+
+    /** Как у панели инструментов: вверх, если сверху мало места — вниз. */
+    function updateSearchPickerPopDirection() {
+      const anchorRect = wrap.getBoundingClientRect();
+      const measured = pop.hidden
+        ? SEARCH_PICKER_HEIGHT_ESTIMATE
+        : Math.max(
+            120,
+            Math.ceil(pop.getBoundingClientRect().height || 0),
+            Math.ceil(pop.scrollHeight || 0)
+          );
+      const maxPop = Math.min(360, Math.ceil(window.innerHeight * 0.58));
+      const popH = Math.min(maxPop, measured);
+      const need = popH + SEARCH_PICKER_GAP + 12;
+      const spaceAbove = anchorRect.top;
+      const spaceBelow = window.innerHeight - anchorRect.bottom;
+      let expandDown = false;
+      if (spaceAbove < need) {
+        expandDown = spaceBelow >= need || spaceBelow > spaceAbove;
+      }
+      wrap.classList.toggle("is-pop-down", expandDown);
+    }
 
     function setOpen(next) {
       open = Boolean(next);
@@ -270,7 +294,12 @@
         filterInput.value = "";
         filterText = "";
         renderList();
-        filterInput.focus();
+        window.requestAnimationFrame(() => {
+          updateSearchPickerPopDirection();
+          filterInput.focus();
+        });
+      } else {
+        wrap.classList.remove("is-pop-down");
       }
     }
 
@@ -324,11 +353,11 @@
         row.className = "asc-brand-search-picker-item";
         if (item.id === selectedId) row.classList.add("is-selected");
         if (!CSC?.isEnabled?.(item.id)) row.classList.add("is-soon");
+        appendBrandPickerIcon(row, item.id);
         const pick = document.createElement("button");
         pick.type = "button";
         pick.className = "asc-brand-search-picker-item-main";
         pick.dataset.engineId = item.id;
-        appendBrandPickerIcon(pick, item.id);
         const labelEl = document.createElement("span");
         labelEl.className = "asc-brand-search-picker-item-label";
         labelEl.textContent = item.label;
@@ -380,6 +409,9 @@
         const section = renderSection(cat.label, catItems);
         if (section) body.append(section);
       }
+      if (open) {
+        window.requestAnimationFrame(() => updateSearchPickerPopDirection());
+      }
     }
 
     btn.addEventListener("click", (event) => {
@@ -412,7 +444,8 @@
       setSelectedId,
       syncFromPage,
       setOpen,
-      isOpen: () => open
+      isOpen: () => open,
+      updatePopDirection: updateSearchPickerPopDirection
     };
   }
 
@@ -2572,7 +2605,12 @@
     offsetY = clamped.y;
     root.style.setProperty("--asc-x", `${offsetX}px`);
     root.style.setProperty("--asc-y", `${offsetY}px`);
-    window.requestAnimationFrame(() => updateToolbarExpandDirection());
+    window.requestAnimationFrame(() => {
+      updateToolbarExpandDirection();
+      if (brandSearchPicker?.isOpen?.()) {
+        brandSearchPicker.updatePopDirection?.();
+      }
+    });
     if (!persist) return;
     try {
       if (Math.abs(offsetX) < SNAP_DISTANCE) offsetX = 0;
@@ -2686,6 +2724,9 @@
   window.addEventListener("resize", () => {
     applyOffset({ x: offsetX, y: offsetY }, true);
     updateToolbarExpandDirection();
+    if (brandSearchPicker?.isOpen?.()) {
+      brandSearchPicker.updatePopDirection?.();
+    }
   });
 
   document.addEventListener(

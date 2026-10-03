@@ -6539,7 +6539,6 @@ function bindCompactStageUi() {
     });
   }
 
-  bindCompactTopbarSearch();
 }
 
 async function handleCameraSnapshotRequest(payload) {
