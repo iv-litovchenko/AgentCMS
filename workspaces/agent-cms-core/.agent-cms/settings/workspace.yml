@@ -1,9 +1,9 @@
 # Agent CMS — настройки workspace (только это хранилище)
 
 awn_settings:
-  awn-id-next: 22
-  awn-id-issued: 21
-  awn-id-updated-at: "2026-10-02T18:09:16.041Z"
+  awn-id-next: 23
+  awn-id-issued: 22
+  awn-id-updated-at: "2026-10-03T16:11:15.120Z"
   awn-id-model: workspace-id-autoincrement-v1
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
