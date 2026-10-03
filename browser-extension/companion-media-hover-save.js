@@ -13,7 +13,7 @@
   const MIN_VISIBLE_PX = 40;
   const HIDE_DELAY_MS = 120;
   const MOVE_THROTTLE_MS = 32;
-  /** Одинаковый отступ капсулы от верха и правого края картинки (px). */
+  /** Отступ капсулы от правого и верхнего края картинки (px). */
   const DOCK_INSET = 10;
   const STICKY_POINTER_PAD = 16;
   /** Прямой просмотр файла в браузере (body + одна картинка, часто промах мимо img). */
@@ -37,6 +37,27 @@
     '<rect x="8" y="2" width="8" height="4" rx="1"/>' +
     '<rect x="5" y="4" width="14" height="16" rx="2"/></svg>';
 
+  const KIND_ICON_IMAGE =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<rect x="3" y="5" width="18" height="14" rx="2"/>' +
+    '<circle cx="9" cy="10" r="1.5"/>' +
+    '<path d="M3 16l5-5 4 4 3-3 6 6"/></svg>';
+
+  const KIND_ICON_VIDEO =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<rect x="3" y="6" width="13" height="12" rx="2"/>' +
+    '<path d="M16 10l5-3v10l-5-3"/></svg>';
+
+  const KIND_ICON_AUDIO =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M9 18V6l10-2v14"/><path d="M6 15a3 3 0 1 0 0-6"/></svg>';
+
+  const KIND_BADGE = {
+    image: { icon: KIND_ICON_IMAGE, label: "Изображение" },
+    video: { icon: KIND_ICON_VIDEO, label: "Видео" },
+    audio: { icon: KIND_ICON_AUDIO, label: "Аудио" }
+  };
+
   let enabled = true;
   let activeMedia = null;
   let hideTimer = null;
@@ -46,11 +67,14 @@
   let trackRaf = 0;
   let resizeObserver = null;
   let hostEl = null;
+  let wrapEl = null;
   let dockEl = null;
   let copyBtnEl = null;
   let openBtnEl = null;
   let clipboardBtnEl = null;
   let downloadBtnEl = null;
+  let metaLeadEl = null;
+  let kindBadgeEl = null;
   let metaEl = null;
   let metaDividerEl = null;
   let statusEl = null;
@@ -76,11 +100,6 @@
       hostEl.setAttribute("aria-hidden", "true");
       if (statusEl) statusEl.hidden = true;
     }
-  }
-
-  function dockWidth() {
-    if (!dockEl) return 140;
-    return Math.max(140, Math.ceil(dockEl.getBoundingClientRect().width || 0));
   }
 
   function sendRuntimeMessage(payload) {
@@ -190,31 +209,31 @@
   }
 
   function pointerInVisibleMedia(media, x, y) {
-    const rect = media.getBoundingClientRect();
-    const vis = intersectWithViewport(rect);
-    if (!vis) return false;
+    const box = getMediaBoxRect(media);
+    if (!box) return false;
     const pad =
       isStandaloneImageDocument() && getStandalonePageImage() === media ? STANDALONE_IMG_HIT_PAD : 0;
     return (
-      x >= vis.left - pad &&
-      x <= vis.right + pad &&
-      y >= vis.top - pad &&
-      y <= vis.bottom + pad
+      x >= box.left - pad &&
+      x <= box.right + pad &&
+      y >= box.top - pad &&
+      y <= box.bottom + pad
     );
   }
 
-  /** Прямоугольник самого img/video/audio в координатах окна (левый верх + width/height). */
+  /** Якорь капсулы: border-box медиа в client-координатах (как getBoundingClientRect). */
   function getMediaBoxRect(media) {
     if (!media?.getBoundingClientRect) return null;
     const rect = media.getBoundingClientRect();
     if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null;
     if (rect.width <= 0 || rect.height <= 0) return null;
-    return rect;
+    const vis = intersectWithViewport(rect);
+    return vis || rect;
   }
 
   function getDockScreenRect() {
-    if (!hostEl || !isUiShown()) return null;
-    const rect = hostEl.getBoundingClientRect();
+    if (!dockEl || !isUiShown()) return null;
+    const rect = dockEl.getBoundingClientRect();
     if (!rect.width && !rect.height) return null;
     return rect;
   }
@@ -247,45 +266,47 @@
     return false;
   }
 
-  function clampHostPositionOnMedia(box, hostW, hostH) {
-    const pad = DOCK_INSET;
-    let left = box.right - pad - hostW;
-    let top = box.top + pad;
+  function clampDockTopLeft(box, dockW, dockH, pad) {
+    let dockRight = box.right - pad;
+    const minDockRight = box.left + pad + dockW;
+    if (dockRight < minDockRight) dockRight = minDockRight;
+    let dockLeft = dockRight - dockW;
 
-    const minLeft = box.left + pad;
-    const maxLeft = box.right - pad - hostW;
+    let dockTop = box.top + pad;
     const minTop = box.top + pad;
-    const maxTop = box.bottom - pad - hostH;
+    const maxTop = box.bottom - pad - dockH;
+    if (maxTop >= minTop) dockTop = Math.min(Math.max(dockTop, minTop), maxTop);
+    else dockTop = box.top + Math.max(pad, (box.height - dockH) / 2);
 
-    if (maxLeft >= minLeft) left = Math.min(Math.max(left, minLeft), maxLeft);
-    else left = box.left + (box.width - hostW) / 2;
-
-    if (maxTop >= minTop) top = Math.min(Math.max(top, minTop), maxTop);
-    else top = box.top + (box.height - hostH) / 2;
-
-    return { left, top };
+    return { dockLeft, dockTop };
   }
 
-  /** Выравнивание: отступ сверху = отступ справа (по фактической рамке .dock). */
-  function refineDockEqualInset(box) {
-    if (!hostEl || !dockEl || !box) return;
+  /**
+   * Капсулу ставим через position:fixed на .wrap в тех же client-координатах, что и медиа.
+   * Host не двигаем (0×0), чтобы не ломать связку shadow/light DOM.
+   */
+  function placeWrapAtMediaBox(box) {
+    if (!wrapEl || !dockEl || !box) return;
     const pad = DOCK_INSET;
     const dock = dockEl.getBoundingClientRect();
-    const dx = box.right - pad - dock.right;
-    const dy = box.top + pad - dock.top;
-    if (Math.abs(dx) < 0.35 && Math.abs(dy) < 0.35) return;
-    const left = (parseFloat(hostEl.style.left) || 0) + dx;
-    const top = (parseFloat(hostEl.style.top) || 0) + dy;
-    hostEl.style.left = `${Math.round(left)}px`;
-    hostEl.style.top = `${Math.round(top)}px`;
+    if (!dock.width || !dock.height) return;
+
+    const wrap = wrapEl.getBoundingClientRect();
+    const offsetX = dock.left - wrap.left;
+    const offsetY = dock.top - wrap.top;
+
+    const { dockLeft, dockTop } = clampDockTopLeft(box, dock.width, dock.height, pad);
+    wrapEl.style.left = `${Math.round(dockLeft - offsetX)}px`;
+    wrapEl.style.top = `${Math.round(dockTop - offsetY)}px`;
   }
 
-  function scheduleDockInsetRefine(media, box) {
-    requestAnimationFrame(() => {
+  function scheduleDockPositionSync(media, box) {
+    const run = () => {
       if (activeMedia !== media || !isUiShown()) return;
       const fresh = getMediaBoxRect(media) || box;
-      refineDockEqualInset(fresh);
-    });
+      if (fresh) placeWrapAtMediaBox(fresh);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
   }
 
   function resolveAbsoluteUrl(raw) {
@@ -453,13 +474,27 @@
     }
   }
 
+  function updateMediaKindBadge(media) {
+    if (!kindBadgeEl || !media) return;
+    const kind = mediaKind(media);
+    const spec = KIND_BADGE[kind] || KIND_BADGE.image;
+    kindBadgeEl.className = `dock-kind dock-kind--${kind}`;
+    kindBadgeEl.innerHTML = spec.icon;
+    kindBadgeEl.title = spec.label;
+    kindBadgeEl.setAttribute("aria-label", spec.label);
+    kindBadgeEl.hidden = false;
+    if (metaLeadEl) metaLeadEl.hidden = false;
+  }
+
   function updateMediaMeta(media) {
-    if (!metaEl || !media) return;
+    if (!media) return;
+    updateMediaKindBadge(media);
+    if (!metaEl) return;
     const text = buildMediaMetaText(media);
     metaEl.textContent = text;
     metaEl.hidden = !text;
     metaEl.title = text;
-    if (metaDividerEl) metaDividerEl.hidden = !text;
+    if (metaDividerEl) metaDividerEl.hidden = false;
   }
 
   function resolveMediaUrl(el) {
@@ -809,14 +844,8 @@
 
     updateMediaMeta(media);
     setUiVisible(true);
-
-    const hostW = Math.max(dockWidth(), Math.ceil(hostEl.offsetWidth || 0));
-    const hostH = Math.max(34, Math.ceil(hostEl.offsetHeight || dockEl.getBoundingClientRect().height || 0));
-    const { left, top } = clampHostPositionOnMedia(box, hostW, hostH);
-
-    hostEl.style.left = `${Math.round(left)}px`;
-    hostEl.style.top = `${Math.round(top)}px`;
-    scheduleDockInsetRefine(media, box);
+    placeWrapAtMediaBox(box);
+    scheduleDockPositionSync(media, box);
 
     const { copyLabel, openLabel, clipboardLabel, downloadLabel } = mediaActionLabels(media);
     if (copyBtnEl) {
@@ -892,9 +921,20 @@
     if (!hostEl) return;
     setUiVisible(false);
     activeMedia = null;
+    if (kindBadgeEl) kindBadgeEl.hidden = true;
+    if (metaLeadEl) metaLeadEl.hidden = true;
     if (metaEl) {
       metaEl.textContent = "";
       metaEl.hidden = true;
+    }
+    if (metaDividerEl) metaDividerEl.hidden = true;
+    if (wrapEl) {
+      wrapEl.style.left = "0px";
+      wrapEl.style.top = "0px";
+    }
+    if (hostEl) {
+      hostEl.style.left = "";
+      hostEl.style.top = "";
     }
   }
 
@@ -968,6 +1008,9 @@
         position: fixed;
         left: 0;
         top: 0;
+        width: 0;
+        height: 0;
+        overflow: visible;
         z-index: 2147483647;
         pointer-events: none;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -976,12 +1019,16 @@
         color: #f5f3ff;
       }
       .wrap {
+        position: fixed;
+        left: 0;
+        top: 0;
         pointer-events: none;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         gap: 5px;
         width: max-content;
+        margin: 0;
         opacity: 0;
         transform: translateY(4px);
         transition:
@@ -1005,12 +1052,64 @@
         box-shadow: 0 10px 28px rgba(15, 10, 30, 0.28);
         backdrop-filter: blur(12px);
       }
+      .dock-lead {
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: min(48vw, 260px);
+        margin: 2px 0 2px 2px;
+        padding: 1px 6px 1px 1px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .dock-lead[hidden] {
+        display: none;
+      }
+      .dock-kind {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+      }
+      .dock-kind[hidden] {
+        display: none;
+      }
+      .dock-kind svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        display: block;
+      }
+      .dock-kind--image {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+      }
+      .dock-kind--video {
+        color: #fff1f2;
+        background: rgba(220, 38, 38, 0.55);
+        box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.65);
+      }
+      .dock-kind--audio {
+        color: #422006;
+        background: rgba(250, 204, 21, 0.92);
+        box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.85);
+      }
       .dock-meta {
         pointer-events: none;
         flex: 0 1 auto;
         min-width: 0;
-        max-width: min(42vw, 220px);
-        padding: 0 4px 0 8px;
+        padding: 0 2px 0 0;
         font-size: 10px;
         font-weight: 600;
         line-height: 1.2;
@@ -1097,8 +1196,8 @@
       }
     `;
 
-    const wrap = document.createElement("div");
-    wrap.className = "wrap";
+    wrapEl = document.createElement("div");
+    wrapEl.className = "wrap";
 
     statusEl = document.createElement("div");
     statusEl.className = "status";
@@ -1107,9 +1206,19 @@
     dockEl = document.createElement("div");
     dockEl.className = "dock";
 
+    metaLeadEl = document.createElement("div");
+    metaLeadEl.className = "dock-lead";
+    metaLeadEl.hidden = true;
+
+    kindBadgeEl = document.createElement("span");
+    kindBadgeEl.className = "dock-kind dock-kind--image";
+    kindBadgeEl.hidden = true;
+
     metaEl = document.createElement("span");
     metaEl.className = "dock-meta";
     metaEl.hidden = true;
+
+    metaLeadEl.append(kindBadgeEl, metaEl);
 
     metaDividerEl = document.createElement("span");
     metaDividerEl.className = "dock-divider";
@@ -1176,7 +1285,7 @@
     dockEl.addEventListener("pointerleave", () => scheduleHide());
 
     dockEl.append(
-      metaEl,
+      metaLeadEl,
       metaDividerEl,
       copyBtnEl,
       dockDividerAfterCopy,
@@ -1186,8 +1295,8 @@
       dockDividerBeforeDownload,
       downloadBtnEl
     );
-    wrap.append(dockEl, statusEl);
-    shadow.append(style, wrap);
+    wrapEl.append(dockEl, statusEl);
+    shadow.append(style, wrapEl);
     setUiVisible(false);
     (document.body || document.documentElement).append(hostEl);
   }

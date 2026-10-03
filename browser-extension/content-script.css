@@ -1,7 +1,9 @@
 #agent-companion-media-save {
   position: fixed !important;
-  left: 0;
-  top: 0;
+  left: 0 !important;
+  top: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
   z-index: 2147483647 !important;
   display: none !important;
   margin: 0 !important;
@@ -14,6 +16,33 @@
 
 #agent-companion-media-save[data-visible="1"] {
   display: block !important;
+}
+
+#agent-companion-iframe-open {
+  position: fixed !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483645 !important;
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+#agent-companion-iframe-open[data-visible="1"] {
+  display: block !important;
+}
+
+html.asc-capturing-viewport #agent-companion-iframe-open,
+html.asc-capturing-fullpage #agent-companion-iframe-open,
+html.asc-screenshot-region-active #agent-companion-iframe-open,
+html.asc-screenshot-element-active #agent-companion-iframe-open {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 #agent-shell-companion-toolbar {
