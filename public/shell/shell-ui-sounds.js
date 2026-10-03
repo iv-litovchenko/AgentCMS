@@ -1168,20 +1168,14 @@ export async function playShellUiSound(kind = "saved") {
 
     if (kind === "issued") {
       const output = ctx.destination;
-      playSoftClockClick(ctx, output, "tick");
-      playSoftTone(ctx, output, {
-        frequency: 659.25,
-        duration: 0.17,
-        gain: 0.052,
-        type: "triangle",
-        slideTo: 987.77
+      playWarmTone(ctx, output, {
+        frequency: 392,
+        duration: 0.15,
+        gain: 0.03,
+        attack: 0.024,
+        lowpass: 1050
       });
-      playFilteredNoise(ctx, output, {
-        frequency: 2200,
-        q: 1.1,
-        gain: 0.022,
-        duration: 0.028
-      });
+      playTone(ctx, { frequency: 329.63, duration: 0.18, gain: 0.024, type: "sine", delay: 0.085 });
       return;
     }
 
