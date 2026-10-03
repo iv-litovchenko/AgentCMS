@@ -147,6 +147,11 @@ fieldGroups:
         name: Шаблоны compose
         description: Быстрые команды для поля сообщения в Voice Shell
         sort: 24
+      - id: voice-file-hub
+        name: Файлообменник
+        description: >
+          Очередь выдачи файлов из хранилища в Voice Shell и Companion (📎 на вкладку).
+        sort: 25
   - id: dependencies
     name: Зависимости
     description: >
@@ -1130,6 +1135,30 @@ fields:
     group: voice-client
     subgroup: voice-ui
     sort: 98
+
+  voice-file-hub-max-attach-mb:
+    type: awn.field.choice.one
+    title: Максимальный размер выдаваемого файла
+    description: >
+      Лимит для 📎 из файлообменника на открытую вкладку (файл загружается в память и
+      передаётся через расширение). Больше лимита — выдача отклоняется.
+    default: "25"
+    enum:
+      - key: "1"
+        name: 1 МБ
+      - key: "2.5"
+        name: 2,5 МБ
+      - key: "5"
+        name: 5 МБ
+      - key: "10"
+        name: 10 МБ
+      - key: "20"
+        name: 20 МБ
+      - key: "25"
+        name: 25 МБ
+    group: voice-client
+    subgroup: voice-file-hub
+    sort: 10
 
   voice-compose-templates:
     type: awn.field.repeater

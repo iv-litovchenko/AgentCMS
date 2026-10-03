@@ -13153,7 +13153,12 @@ function bindUi() {
 
   initCompactSensor();
   bindCompactStageUi();
-  shellFileHub = initShellFileHub({ shellApp: window, nodes, embedMode: shellEmbedMode });
+  shellFileHub = initShellFileHub({
+    shellApp: window,
+    nodes,
+    embedMode: shellEmbedMode,
+    getSettings: () => state.settings
+  });
   bindShellFileHubBridge(shellFileHub, { embedMode: shellEmbedMode });
   if (window.shellApp) {
     window.shellApp.openFileHub = () => shellFileHub?.open?.();

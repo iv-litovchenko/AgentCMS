@@ -163,6 +163,7 @@ const DEFAULT_SETTINGS = {
   proactiveQuietStart: "23:00",
   proactiveQuietEnd: "07:00",
   dialogScrollRatio: null,
+  fileHubMaxAttachMb: 25,
   composePromptTemplates: [
     {
       id: "very-brief",
@@ -512,6 +513,8 @@ function normalizeSettings(raw) {
   merged.proactiveQuietStart = normalizeProactiveQuietTime(merged.proactiveQuietStart, "23:00");
   merged.proactiveQuietEnd = normalizeProactiveQuietTime(merged.proactiveQuietEnd, "07:00");
   merged.composePromptTemplates = normalizeComposePromptTemplates(merged.composePromptTemplates);
+  const { normalizeFileHubMaxAttachMb } = require("../lib/workspace/workspace-file-hub-settings-bridge");
+  merged.fileHubMaxAttachMb = normalizeFileHubMaxAttachMb(merged.fileHubMaxAttachMb);
   if (merged.dialogScrollRatio == null || merged.dialogScrollRatio === "") {
     merged.dialogScrollRatio = null;
   } else {

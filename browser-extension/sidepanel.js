@@ -317,7 +317,8 @@
         filename: data.filename,
         mime: data.mime,
         fileBase64: data.fileBase64,
-        buffer: data.buffer
+        buffer: data.buffer,
+        maxAttachBytes: data.maxAttachBytes
       });
     } catch (error) {
       response = { ok: false, error: error.message || String(error) };

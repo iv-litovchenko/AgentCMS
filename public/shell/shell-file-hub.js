@@ -91,7 +91,22 @@ function isFileHubCompanionPanel() {
   return Boolean(window.shellCompanion?.isCompanion || window.shellCompanion?.surface === "side-panel");
 }
 
-const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
+const FILE_HUB_ATTACH_MB_ALLOWED = [1, 2.5, 5, 10, 20, 25];
+
+function normalizeFileHubMaxAttachMbClient(value) {
+  const n = Number(value);
+  return FILE_HUB_ATTACH_MB_ALLOWED.includes(n) ? n : 25;
+}
+
+function resolveFileHubMaxAttachBytes(getSettings) {
+  const mb = normalizeFileHubMaxAttachMbClient(getSettings?.()?.fileHubMaxAttachMb);
+  return Math.round(mb * 1024 * 1024);
+}
+
+function fileHubMaxAttachLimitLabel(getSettings) {
+  const mb = normalizeFileHubMaxAttachMbClient(getSettings?.()?.fileHubMaxAttachMb);
+  return Number.isInteger(mb) ? `${mb} МБ` : `${String(mb).replace(".", ",")} МБ`;
+}
 
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -104,16 +119,17 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-async function requestFileHubAttachToCompanionTab(file) {
+async function requestFileHubAttachToCompanionTab(file, getSettings) {
   const path = String(file?.path || "").trim();
   if (!path) throw new Error("Нет пути к файлу");
+  const maxBytes = resolveFileHubMaxAttachBytes(getSettings);
   const name = sanitizeFileHubDragFileName(file?.name || basenameFromPath(path));
   const response = await fetch(buildWorkspaceFilePreviewUrl(path), { credentials: "same-origin" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const blob = await response.blob();
   if (!blob.size) throw new Error("Файл не загрузился (0 байт) — проверьте путь в очереди");
-  if (blob.size > FILE_HUB_ATTACH_MAX_BYTES) {
-    throw new Error(`Файл больше ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ`);
+  if (blob.size > maxBytes) {
+    throw new Error(`Файл больше лимита (${fileHubMaxAttachLimitLabel(getSettings)})`);
   }
   const buffer = await blob.arrayBuffer();
   const fileBase64 = arrayBufferToBase64(buffer);
@@ -144,7 +160,8 @@ async function requestFileHubAttachToCompanionTab(file) {
         requestId,
         filename: name,
         mime: blob.type || guessFileHubMimeType(name),
-        fileBase64
+        fileBase64,
+        maxAttachBytes: maxBytes
       },
       "*"
     );
@@ -713,7 +730,7 @@ function bindFileHubConfirm(root) {
     });
 }
 
-export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
+export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettings = null } = {}) {
   const root = nodes?.fileHub || document.getElementById("shell-file-hub");
   const openBtn = nodes?.fileHubOpen || document.getElementById("shell-file-hub-open");
   const dropZone = root?.querySelector("[data-file-hub-drop]");
@@ -941,7 +958,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
               return;
             }
             attachBtn.disabled = true;
-            void requestFileHubAttachToCompanionTab(file)
+            void requestFileHubAttachToCompanionTab(file, getSettings)
               .then(() => {
                 if (issueKey) {
                   markFileHubUsedOnSite(getShellAgentId(), issueKey, file.id);

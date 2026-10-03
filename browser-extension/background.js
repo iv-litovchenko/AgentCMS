@@ -337,13 +337,29 @@ async function ensureFileHubPageScript(tabId) {
   });
 }
 
-async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime, buffer, fileBase64 } = {}) {
+function resolveFileHubAttachMaxBytes(maxAttachBytes) {
+  const n = Number(maxAttachBytes);
+  if (Number.isFinite(n) && n > 0) return Math.min(n, 64 * 1024 * 1024);
+  return FILE_HUB_ATTACH_MAX_BYTES;
+}
+
+async function relayFileHubAttachToTab({
+  tabId = 0,
+  windowId = 0,
+  filename,
+  mime,
+  buffer,
+  fileBase64,
+  maxAttachBytes
+} = {}) {
   const decode = globalThis.CompanionFileHubBuffer?.normalizeAttachBuffer;
   const bin = decode ? decode({ buffer, fileBase64 }) : buffer;
   const bytes = bin?.byteLength ?? 0;
   if (!bin || !bytes) throw new Error("Пустой файл (не дошёл с панели)");
-  if (bytes > FILE_HUB_ATTACH_MAX_BYTES) {
-    throw new Error(`Файл слишком большой (макс. ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ)`);
+  const attachLimit = resolveFileHubAttachMaxBytes(maxAttachBytes);
+  if (bytes > attachLimit) {
+    const mbLabel = Math.round((attachLimit / (1024 * 1024)) * 10) / 10;
+    throw new Error(`Файл слишком большой (лимит ${mbLabel} МБ)`);
   }
 
   const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
@@ -966,7 +982,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       filename: message.filename,
       mime: message.mime,
       buffer: message.buffer,
-      fileBase64: message.fileBase64
+      fileBase64: message.fileBase64,
+      maxAttachBytes: message.maxAttachBytes
     })
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
