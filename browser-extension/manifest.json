@@ -2,9 +2,18 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.57",
+  "version": "0.1.58",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
-  "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting", "clipboardRead", "clipboardWrite"],
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "clipboardRead",
+    "clipboardWrite",
+    "alarms"
+  ],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self' http://localhost:* http://127.0.0.1:* https://localhost:* https://127.0.0.1:*;"
@@ -44,12 +53,15 @@
       "js": [
         "companion-urls-global.js",
         "clipboard-history.js",
+        "companion-pomodoro-global.js",
+        "companion-pomodoro-overlay.js",
+        "companion-pomodoro-toolbar.js",
         "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",
         "companion-voice-relay.js"
       ],
-      "css": ["content-script.css"],
+      "css": ["content-script.css", "companion-pomodoro-break.css"],
       "run_at": "document_idle"
     },
     {

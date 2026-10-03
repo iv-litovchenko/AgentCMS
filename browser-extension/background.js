@@ -1,4 +1,9 @@
-importScripts("companion-urls-global.js", "clipboard-history.js");
+importScripts(
+  "companion-urls-global.js",
+  "clipboard-history.js",
+  "companion-pomodoro-global.js",
+  "companion-pomodoro-sw.js"
+);
 
 const {
   DEFAULT_CMS_BASE_URL,
@@ -960,6 +965,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       windowId: message.windowId
     })
       .then((result) => sendResponse({ ok: Boolean(result?.snapshot), snapshot: result?.snapshot || null }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  const pomodoro = globalThis.CompanionPomodoroService;
+  if (message?.type === "COMPANION_POMODORO_GET_STATE") {
+    if (!pomodoro) {
+      sendResponse({ ok: false });
+      return true;
+    }
+    pomodoro
+      .loadState()
+      .then(() => sendResponse({ ok: true, state: pomodoro.getCachedState() }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  if (message?.type === "COMPANION_POMODORO_START") {
+    if (!pomodoro) {
+      sendResponse({ ok: false });
+      return true;
+    }
+    pomodoro
+      .startWork()
+      .then(() => sendResponse({ ok: true, state: pomodoro.getCachedState() }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+  if (message?.type === "COMPANION_POMODORO_STOP") {
+    if (!pomodoro) {
+      sendResponse({ ok: false });
+      return true;
+    }
+    pomodoro
+      .stopSession()
+      .then(() => sendResponse({ ok: true, state: pomodoro.getCachedState() }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+  if (message?.type === "COMPANION_POMODORO_BREAK_DONE") {
+    if (!pomodoro) {
+      sendResponse({ ok: false });
+      return true;
+    }
+    pomodoro
+      .breakDone()
+      .then(() => sendResponse({ ok: true, state: pomodoro.getCachedState() }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }

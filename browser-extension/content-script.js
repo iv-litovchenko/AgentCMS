@@ -744,6 +744,7 @@
   actions.className = "asc-actions";
   const menus = [];
   let panelIdeasTodo = null;
+  let companionPomodoroDock = null;
   let pickerActive = false;
   let offsetX = 0;
   let offsetY = 0;
@@ -775,6 +776,11 @@
   brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
 
   brandCluster.append(brand);
+
+  companionPomodoroDock =
+    typeof globalThis.createCompanionPomodoroDock === "function"
+      ? globalThis.createCompanionPomodoroDock()
+      : null;
 
   const brandDockDivider = document.createElement("span");
   brandDockDivider.className = "asc-brand-dock-divider";
@@ -863,6 +869,7 @@
       menu.btn.setAttribute("aria-expanded", "false");
     }
     panelIdeasTodo?.setOpen(false);
+    companionPomodoroDock?.closePop?.();
   }
 
   function createPanelIdeasTodoModal(shellRef) {
@@ -1141,6 +1148,7 @@
   brandDock.className = "asc-brand-dock";
   brandDock.append(
     brandCluster,
+    ...(companionPomodoroDock ? [companionPomodoroDock.wrap] : []),
     brandDockDivider,
     viewportShotBtn,
     cmsDockDivider,
