@@ -326,6 +326,48 @@ async function ensurePagePickerScript(tabId) {
   });
 }
 
+const FILE_HUB_PAGE_SCRIPT = "companion-file-hub-page.js";
+const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
+
+async function ensureFileHubPageScript(tabId) {
+  try {
+    const ping = await chrome.tabs.sendMessage(tabId, { type: "COMPANION_FILE_HUB_PING" });
+    if (ping?.ok) return;
+  } catch {
+    // inject below
+  }
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: false },
+    files: [FILE_HUB_PAGE_SCRIPT]
+  });
+}
+
+async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime, buffer } = {}) {
+  const bytes = buffer?.byteLength ?? buffer?.length ?? 0;
+  if (!buffer || !bytes) throw new Error("Пустой файл");
+  if (bytes > FILE_HUB_ATTACH_MAX_BYTES) {
+    throw new Error(`Файл слишком большой (макс. ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ)`);
+  }
+
+  const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  if (!targetTabId) {
+    throw new Error("Нет вкладки сайта — откройте mail.ru и окно с письмом");
+  }
+
+  await ensureFileHubPageScript(targetTabId);
+  const response = await chrome.tabs.sendMessage(targetTabId, {
+    type: "COMPANION_FILE_HUB_INJECT_FILE",
+    filename: String(filename || "file"),
+    mime: String(mime || "application/octet-stream"),
+    buffer
+  });
+  if (!response?.ok) {
+    const hint = response?.hint ? ` ${response.hint}` : "";
+    throw new Error(String(response?.error || "Не удалось прикрепить файл") + hint);
+  }
+  return { ok: true, tabId: targetTabId };
+}
+
 async function broadcastPagePickerSet(tabId, active) {
   const nextActive = Boolean(active);
   const activateInFrame = (frameActive) => {
@@ -876,6 +918,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       join: message.join,
       tabId: sender.tab?.id,
       windowId: sender.tab?.windowId
+    })
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_FILE_HUB_ATTACH_TO_TAB") {
+    relayFileHubAttachToTab({
+      tabId: message.tabId,
+      windowId: message.windowId,
+      filename: message.filename,
+      mime: message.mime,
+      buffer: message.buffer
     })
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));

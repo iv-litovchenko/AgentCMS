@@ -286,17 +286,49 @@
 
   fileHubBtn?.addEventListener("click", () => {
     postToVoiceFrame({ type: "agent-cms-voice:file-hub", action: "toggle" });
+    void broadcastActiveTabToShell();
   });
 
   window.addEventListener("message", (event) => {
     if (event.source !== frame?.contentWindow) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
-    if (data.type !== "agent-cms-voice:file-hub-state") return;
-    const open = Boolean(data.open);
-    fileHubBtn?.classList.toggle("is-active", open);
-    fileHubBtn?.setAttribute("aria-pressed", open ? "true" : "false");
+    if (data.type === "agent-cms-voice:file-hub-state") {
+      const open = Boolean(data.open);
+      fileHubBtn?.classList.toggle("is-active", open);
+      fileHubBtn?.setAttribute("aria-pressed", open ? "true" : "false");
+      if (open) void broadcastActiveTabToShell();
+      return;
+    }
+    if (data.type === "agent-cms-voice:file-hub-attach-tab") {
+      void relayFileHubAttachToActiveTab(data);
+    }
   });
+
+  async function relayFileHubAttachToActiveTab(data) {
+    const requestId = String(data?.requestId || "").trim();
+    const ctx = await resolvePickerTabContext();
+    let response = { ok: false, error: "unknown" };
+    try {
+      response = await sendRuntimeMessage({
+        type: "COMPANION_FILE_HUB_ATTACH_TO_TAB",
+        tabId: ctx.tabId,
+        windowId: ctx.windowId,
+        filename: data.filename,
+        mime: data.mime,
+        buffer: data.buffer
+      });
+    } catch (error) {
+      response = { ok: false, error: error.message || String(error) };
+    }
+    if (!requestId) return;
+    postToVoiceFrame({
+      type: "agent-cms-voice:file-hub-attach-result",
+      requestId,
+      ok: Boolean(response?.ok),
+      error: String(response?.error || "")
+    });
+  }
 
   if (globalThis.CompanionStorage?.onChanged) {
     try {
@@ -312,6 +344,31 @@
   function postToVoiceFrame(payload) {
     if (!frame?.contentWindow || !payload || typeof payload !== "object") return;
     frame.contentWindow.postMessage(payload, "*");
+  }
+
+  async function broadcastActiveTabToShell() {
+    const ctx = await resolvePickerTabContext();
+    if (!ctx.tabId) return;
+    let tab = null;
+    try {
+      tab = await chrome.tabs.get(ctx.tabId);
+    } catch {
+      return;
+    }
+    const url = String(tab?.url || "").trim();
+    if (!url || url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname;
+    } catch {
+      return;
+    }
+    postToVoiceFrame({
+      type: "agent-cms-voice:companion-active-tab",
+      url,
+      hostname,
+      title: String(tab?.title || hostname).trim()
+    });
   }
 
   async function resolvePickerTabContext() {
@@ -427,6 +484,15 @@
     announceSurfaceHost();
     releaseRetryBtnBusy();
     if (lastVoiceUrl) updateUrlLabel(lastVoiceUrl);
+    void broadcastActiveTabToShell();
+  });
+
+  chrome.tabs?.onActivated?.addListener(() => {
+    void broadcastActiveTabToShell();
+  });
+  chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+    if (!changeInfo.url && changeInfo.status !== "complete") return;
+    void broadcastActiveTabToShell();
   });
 
   async function unregisterPanelWindow() {

@@ -48,6 +48,245 @@ function buildWorkspaceFilePreviewUrl(fileRel, options = {}) {
   return `/api/workspace/folder/file?${params.toString()}`;
 }
 
+const FILE_HUB_DRAG_MIME_BY_EXT = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".bmp": "image/bmp",
+  ".avif": "image/avif",
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".json": "application/json",
+  ".php": "application/x-php",
+  ".html": "text/html",
+  ".htm": "text/html"
+};
+
+function guessFileHubMimeType(fileName) {
+  const name = String(fileName || "");
+  const dot = name.lastIndexOf(".");
+  if (dot === -1) return "application/octet-stream";
+  return FILE_HUB_DRAG_MIME_BY_EXT[name.slice(dot).toLowerCase()] || "application/octet-stream";
+}
+
+function sanitizeFileHubDragFileName(fileName) {
+  return String(fileName || "file").replace(/[:]/g, "_").replace(/[\r\n]/g, "").trim() || "file";
+}
+
+function buildFileHubDownloadUrlDragPayload(file) {
+  const path = String(file?.path || "").trim();
+  if (!path) return "";
+  const name = sanitizeFileHubDragFileName(file?.name || basenameFromPath(path));
+  const mime = guessFileHubMimeType(name);
+  const fileUrl = new URL(buildWorkspaceFilePreviewUrl(path), window.location.origin).href;
+  return `${mime}:${name}:${fileUrl}`;
+}
+
+function isFileHubCompanionPanel() {
+  return Boolean(window.shellCompanion?.isCompanion || window.shellCompanion?.surface === "side-panel");
+}
+
+const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
+
+async function requestFileHubAttachToCompanionTab(file) {
+  const path = String(file?.path || "").trim();
+  if (!path) throw new Error("Нет пути к файлу");
+  const name = sanitizeFileHubDragFileName(file?.name || basenameFromPath(path));
+  const response = await fetch(buildWorkspaceFilePreviewUrl(path), { credentials: "same-origin" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  if (blob.size > FILE_HUB_ATTACH_MAX_BYTES) {
+    throw new Error(`Файл больше ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ`);
+  }
+  const buffer = await blob.arrayBuffer();
+  const requestId =
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("message", onResult);
+      reject(new Error("Таймаут прикрепления"));
+    }, 30_000);
+
+    function onResult(event) {
+      const data = event?.data;
+      if (!data || data.type !== "agent-cms-voice:file-hub-attach-result") return;
+      if (String(data.requestId || "") !== requestId) return;
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onResult);
+      if (data.ok) resolve(data);
+      else reject(new Error(String(data.error || "Не удалось прикрепить")));
+    }
+
+    window.addEventListener("message", onResult);
+    window.parent.postMessage(
+      {
+        type: "agent-cms-voice:file-hub-attach-tab",
+        requestId,
+        filename: name,
+        mime: blob.type || guessFileHubMimeType(name),
+        buffer
+      },
+      "*"
+    );
+  });
+}
+
+/** Chromium: DownloadURL — без text/uri-list (иначе открывается ссылка вместо вложения). */
+function applyFileHubGripDragDataTransfer(dt, file, { readyFile = null, companion = false } = {}) {
+  if (!dt || !file) return false;
+  const path = String(file.path || "").trim();
+  if (!path) return false;
+  const name = sanitizeFileHubDragFileName(file.name || basenameFromPath(path));
+  const downloadPayload = buildFileHubDownloadUrlDragPayload(file);
+
+  dt.effectAllowed = "copy";
+  if (downloadPayload) {
+    try {
+      dt.setData("DownloadURL", downloadPayload);
+    } catch {
+      // не Chromium
+    }
+  }
+  try {
+    dt.setData("text/plain", name);
+  } catch {
+    // ignore
+  }
+  if (!companion) {
+    if (readyFile && typeof dt.items?.add === "function") {
+      try {
+        dt.items.add(readyFile);
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      dt.setData("application/x-shell-file-hub", JSON.stringify(file));
+    } catch {
+      // ignore
+    }
+  }
+  return true;
+}
+
+const FILE_HUB_SITE_USAGE_STORAGE = "shell-file-hub-site-usage";
+
+function normalizeFileHubSiteKey(hostnameOrUrl) {
+  try {
+    const host = String(hostnameOrUrl || "").includes("://")
+      ? new URL(hostnameOrUrl).hostname
+      : String(hostnameOrUrl || "");
+    return host.replace(/^www\./i, "").trim().toLowerCase();
+  } catch {
+    return String(hostnameOrUrl || "").trim().toLowerCase();
+  }
+}
+
+function fileHubSiteHighlightColors(siteKey) {
+  const key = String(siteKey || "site");
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return {
+    border: `hsla(${hue}, 72%, 52%, 0.7)`,
+    background: `hsla(${hue}, 38%, 22%, 0.5)`,
+    accent: `hsl(${hue}, 72%, 58%)`
+  };
+}
+
+function loadFileHubSiteUsage(agentId) {
+  const id = String(agentId || "main").trim() || "main";
+  try {
+    const raw = sessionStorage.getItem(`${FILE_HUB_SITE_USAGE_STORAGE}:${id}`);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveFileHubSiteUsage(agentId, store) {
+  const id = String(agentId || "main").trim() || "main";
+  sessionStorage.setItem(`${FILE_HUB_SITE_USAGE_STORAGE}:${id}`, JSON.stringify(store || {}));
+}
+
+function markFileHubUsedOnSite(agentId, siteKey, fileId) {
+  const key = normalizeFileHubSiteKey(siteKey);
+  const fid = String(fileId || "").trim();
+  if (!key || !fid) return;
+  const store = loadFileHubSiteUsage(agentId);
+  const prev = Array.isArray(store[key]) ? store[key] : [];
+  if (prev.includes(fid)) return;
+  store[key] = [...prev, fid];
+  saveFileHubSiteUsage(agentId, store);
+}
+
+function isFileHubUsedOnSite(store, siteKey, fileId) {
+  const key = normalizeFileHubSiteKey(siteKey);
+  const fid = String(fileId || "").trim();
+  if (!key || !fid) return false;
+  const list = store?.[key];
+  return Array.isArray(list) && list.includes(fid);
+}
+
+function ensureFileHubCompanionSiteUi(exportPane) {
+  if (!exportPane || !isFileHubCompanionPanel()) return;
+  if (!exportPane.querySelector("[data-file-hub-site-chip]")) {
+    const chip = document.createElement("p");
+    chip.className = "shell-file-hub-site-chip";
+    chip.dataset.fileHubSiteChip = "";
+    chip.hidden = true;
+    const searchWrap = exportPane.querySelector(".shell-file-hub-search-wrap");
+    if (searchWrap) exportPane.insertBefore(chip, searchWrap);
+    else exportPane.prepend(chip);
+  }
+  if (!exportPane.querySelector("[data-file-hub-companion-notice]")) {
+    const notice = document.createElement("p");
+    notice.className = "shell-file-hub-companion-notice";
+    notice.dataset.fileHubCompanionNotice = "";
+    notice.textContent =
+      "Кнопка 📎 — прикрепить файл на открытую вкладку (mail.ru: сначала «Прикрепить» в письме). Подсветка — уже переданные на этот сайт.";
+    const chip = exportPane.querySelector("[data-file-hub-site-chip]");
+    if (chip?.nextSibling) exportPane.insertBefore(notice, chip.nextSibling);
+    else exportPane.prepend(notice);
+  }
+}
+
+function updateFileHubSiteChip(exportPane, siteKey, siteLabel) {
+  const chip = exportPane?.querySelector("[data-file-hub-site-chip]");
+  if (!chip) return;
+  const key = normalizeFileHubSiteKey(siteKey);
+  if (!key || !isFileHubCompanionPanel()) {
+    chip.hidden = true;
+    return;
+  }
+  const colors = fileHubSiteHighlightColors(key);
+  chip.hidden = false;
+  chip.style.setProperty("--file-hub-site-accent", colors.accent);
+  chip.style.borderColor = colors.border;
+  chip.innerHTML = `<span class="shell-file-hub-site-chip-dot" aria-hidden="true"></span> Сайт: <strong>${escapeHtml(
+    siteLabel || key
+  )}</strong> — цвет подсветки для переданных файлов`;
+}
+
+async function fetchWorkspaceFileForDrag(meta) {
+  const path = String(meta?.path || "").trim();
+  const name = String(meta?.name || basenameFromPath(path) || "file").trim();
+  if (!path) throw new Error("missing workspace path");
+  const response = await fetch(buildWorkspaceFilePreviewUrl(path), { credentials: "same-origin" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  const type =
+    blob.type && blob.type !== "application/octet-stream" ? blob.type : guessFileHubMimeType(name);
+  return new File([blob], name, { type, lastModified: Date.now() });
+}
+
 function fillFileHubItemVisual(container, file, iconSize = 28) {
   if (!container) return;
   const filePath = String(file?.path || "");
@@ -372,6 +611,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   const topicInput = root?.querySelector("[data-file-hub-topic-search]");
   const topicHidden = root?.querySelector("[data-file-hub-topic]");
   const topicSuggest = root?.querySelector("[data-file-hub-topic-suggest]");
+  const exportPane = root?.querySelector(".shell-file-hub-pane--export");
   const listEl = root?.querySelector("[data-file-hub-list]");
   const emptyEl = root?.querySelector("[data-file-hub-empty]");
   const exportRefreshBtn = root?.querySelector("[data-file-hub-export-refresh]");
@@ -384,12 +624,66 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
 
   mountFileHubRoot(root, mainView);
   bindShellHintsIn(root);
+  ensureFileHubCompanionSiteUi(exportPane);
   const confirmFileHubAction = bindFileHubConfirm(root);
 
   let files = [];
   let query = "";
   let open = false;
   let queueLoading = false;
+  let activeSiteKey = "";
+  let activeSiteLabel = "";
+  let siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
+
+  function setActiveCompanionSite(payload = {}) {
+    activeSiteKey = normalizeFileHubSiteKey(payload.hostname || payload.url || "");
+    activeSiteLabel = String(payload.title || payload.hostname || activeSiteKey || "").trim();
+    updateFileHubSiteChip(exportPane, activeSiteKey, activeSiteLabel);
+    if (open) renderList();
+  }
+
+  if (!window.__shellFileHubSiteMessageBound) {
+    window.__shellFileHubSiteMessageBound = true;
+    window.addEventListener("message", (event) => {
+      const data = event?.data;
+      if (!data || typeof data !== "object") return;
+      if (data.type !== "agent-cms-voice:companion-active-tab") return;
+      if (!isFileHubCompanionPanel()) return;
+      setActiveCompanionSite(data);
+    });
+  }
+  /** @type {Map<string, File | Promise<File | null>>} */
+  const dragFileById = new Map();
+
+  function getResolvedDragFile(fileId) {
+    const value = dragFileById.get(String(fileId || ""));
+    return value instanceof File ? value : null;
+  }
+
+  function prefetchDragFiles(fileItems) {
+    const keep = new Set();
+    for (const file of fileItems) {
+      const id = String(file?.id || "").trim();
+      if (!id) continue;
+      keep.add(id);
+      if (dragFileById.get(id) instanceof File) continue;
+      if (dragFileById.has(id)) continue;
+      const promise = fetchWorkspaceFileForDrag(file)
+        .then((ready) => {
+          dragFileById.set(id, ready);
+          return ready;
+        })
+        .catch((error) => {
+          dragFileById.delete(id);
+          console.warn("[file-hub] drag prefetch failed", file?.name, error);
+          return null;
+        });
+      dragFileById.set(id, promise);
+    }
+    for (const id of dragFileById.keys()) {
+      if (!keep.has(id)) dragFileById.delete(id);
+    }
+  }
 
   function syncExportToolbarUi() {
     const busy = queueLoading;
@@ -410,8 +704,10 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     try {
       const data = await fetchFileHubQueue(getShellAgentId());
       files = (Array.isArray(data.items) ? data.items : []).map((item) => ({ ...item }));
+      prefetchDragFiles(files);
     } catch (error) {
       files = [];
+      dragFileById.clear();
       console.warn("[file-hub] export queue load failed", error);
     } finally {
       queueLoading = false;
@@ -434,6 +730,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     try {
       await clearFileHubQueue(getShellAgentId());
       files = [];
+      dragFileById.clear();
     } catch (error) {
       console.warn("[file-hub] export queue clear failed", error);
       await reloadExportQueue();
@@ -477,7 +774,9 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
       const grip = document.createElement("span");
       grip.className = "shell-file-hub-item-grip";
       grip.setAttribute("aria-hidden", "true");
-      grip.title = "Перетащите за ручку в другое окно";
+      grip.draggable = true;
+      grip.dataset.downloadurl = buildFileHubDownloadUrlDragPayload(file);
+      grip.title = "Перетащите за ручку в окно открытого сайта (почта, форма, чат)";
       grip.textContent = "⠿";
 
       const visual = document.createElement("span");
@@ -500,12 +799,53 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         sizeEl.textContent = sizeLabel;
         trailing.appendChild(sizeEl);
       }
+      if (isFileHubCompanionPanel()) {
+        const attachBtn = document.createElement("button");
+        attachBtn.type = "button";
+        attachBtn.className = "shell-file-hub-item-attach";
+        attachBtn.title = "Прикрепить на открытую вкладку (mail.ru и др.)";
+        attachBtn.setAttribute("aria-label", "Прикрепить на открытую вкладку");
+        attachBtn.textContent = "📎";
+        attachBtn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          attachBtn.disabled = true;
+          void requestFileHubAttachToCompanionTab(file)
+            .then(() => {
+              const siteKey = activeSiteKey;
+              if (siteKey) {
+                markFileHubUsedOnSite(getShellAgentId(), siteKey, file.id);
+                siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
+              }
+              renderList();
+              attachBtn.title = "Прикреплено на страницу";
+            })
+            .catch((error) => {
+              console.warn("[file-hub] attach to tab failed", error);
+              attachBtn.title = String(error?.message || error);
+            })
+            .finally(() => {
+              attachBtn.disabled = false;
+            });
+        });
+        trailing.appendChild(attachBtn);
+      }
+
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
       removeBtn.className = "shell-file-hub-item-remove";
       removeBtn.title = "Убрать из списка";
       removeBtn.setAttribute("aria-label", "Убрать из списка");
       trailing.appendChild(removeBtn);
+
+      const siteKey = activeSiteKey || normalizeFileHubSiteKey(window.location.hostname);
+      if (siteKey && isFileHubUsedOnSite(siteUsageStore, siteKey, file.id)) {
+        row.classList.add("shell-file-hub-item--used-on-site");
+        const colors = fileHubSiteHighlightColors(siteKey);
+        row.style.setProperty("--file-hub-site-border", colors.border);
+        row.style.setProperty("--file-hub-site-bg", colors.background);
+        row.title = `Уже передавали на ${activeSiteLabel || siteKey}`;
+      }
 
       row.append(grip, visual, main, trailing);
       removeBtn.addEventListener("click", (event) => {
@@ -529,29 +869,40 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
           }
         })();
       });
-      grip?.addEventListener("pointerdown", () => {
-        row.draggable = true;
+      grip.addEventListener("pointerdown", () => {
+        grip.dataset.downloadurl = buildFileHubDownloadUrlDragPayload(file);
+        prefetchDragFiles([file]);
       });
-      row.addEventListener("dragstart", (event) => {
-        event.dataTransfer?.setData("text/plain", file.name);
-        event.dataTransfer?.setData("application/x-shell-file-hub", JSON.stringify(file));
-        event.dataTransfer.effectAllowed = "copy";
+      removeBtn.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      grip.addEventListener("dragstart", (event) => {
+        event.stopPropagation();
+        const dt = event.dataTransfer;
+        if (!dt) return;
+        const ready = getResolvedDragFile(file.id);
+        const ok = applyFileHubGripDragDataTransfer(dt, file, {
+          readyFile: ready,
+          companion: isFileHubCompanionPanel()
+        });
+        if (!ok) {
+          event.preventDefault();
+          grip.title = "Нет пути к файлу — обновите список";
+          return;
+        }
         row.classList.add("is-dragging");
       });
-      row.addEventListener("dragend", (event) => {
+      grip.addEventListener("dragend", (event) => {
         row.classList.remove("is-dragging");
-        row.draggable = false;
         const dropEffect = String(event.dataTransfer?.dropEffect || "").toLowerCase();
         if (!dropEffect || dropEffect === "none") return;
-        void (async () => {
-          try {
-            await removeFileFromFileHub({ id: file.id, path: file.path }, getShellAgentId());
-            files = files.filter((entry) => entry.id !== file.id);
-            renderList();
-          } catch {
-            await reloadExportQueue();
-          }
-        })();
+        const siteKey =
+          activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+        if (!siteKey) return;
+        markFileHubUsedOnSite(getShellAgentId(), siteKey, file.id);
+        siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
+        renderList();
       });
       listEl.appendChild(row);
     }
@@ -647,13 +998,16 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     root.hidden = !open;
     openBtn?.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
+      ensureFileHubCompanionSiteUi(exportPane);
+      updateFileHubSiteChip(exportPane, activeSiteKey, activeSiteLabel);
+      siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
       void reloadExportQueue();
       searchInput?.focus({ preventScroll: true });
     }
     if (shellApp) {
       shellApp.fileHubOpen = open;
     }
-    if (embedMode) {
+    if (embedMode || isFileHubCompanionPanel()) {
       try {
         window.parent.postMessage({ type: "agent-cms-voice:file-hub-state", open }, "*");
       } catch {

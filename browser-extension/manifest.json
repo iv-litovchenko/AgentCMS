@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.60",
+  "version": "0.1.63",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": [
     "storage",
@@ -59,7 +59,8 @@
         "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",
-        "companion-voice-relay.js"
+        "companion-voice-relay.js",
+        "companion-file-hub-page.js"
       ],
       "css": ["content-script.css", "companion-pomodoro-break.css"],
       "run_at": "document_idle"
