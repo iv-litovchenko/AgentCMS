@@ -35,16 +35,18 @@
     }
   }
 
-  /** Подпись в Side Panel: host с портом (если не 80/443) + path + query. */
+  /** Подпись в Side Panel: полный origin (https + host + port) + path + query. */
   function formatCompanionPanelUrlLabel(rawUrl) {
     try {
       const url = new URL(String(rawUrl || "").trim());
       if (url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0") {
         url.hostname = "localhost";
       }
-      return `${url.host}${url.pathname}${url.search}${url.hash}`;
+      return `${url.origin}${url.pathname}${url.search}${url.hash}`;
     } catch {
-      return String(rawUrl || "").replace(/^https?:\/\//, "");
+      const fallback = String(rawUrl || "").trim();
+      if (/^https?:\/\//i.test(fallback)) return fallback;
+      return fallback ? `https://${fallback.replace(/^\/\//, "")}` : "";
     }
   }
 

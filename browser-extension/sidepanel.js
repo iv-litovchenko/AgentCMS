@@ -37,9 +37,11 @@
         try {
           const url = new URL(String(rawUrl || "").trim());
           if (url.hostname === "127.0.0.1") url.hostname = "localhost";
-          return `${url.host}${url.pathname}${url.search}${url.hash}`;
+          return `${url.origin}${url.pathname}${url.search}${url.hash}`;
         } catch {
-          return String(rawUrl || "").replace(/^https?:\/\//, "");
+          const fallback = String(rawUrl || "").trim();
+          if (/^https?:\/\//i.test(fallback)) return fallback;
+          return fallback ? `https://${fallback.replace(/^\/\//, "")}` : "";
         }
       },
       voiceTabUrlFromShellHref(href) {

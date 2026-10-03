@@ -1,6 +1,8 @@
 {
   "paths": [
     "media/audio/example.opus",
+    "media/code/example.jsx",
+    "media/code/example.php",
     "media/documents/example.doc",
     "media/documents/example.docx",
     "media/documents/example.rtf",
@@ -15,5 +17,5 @@
     "media/sample.rtf",
     "media/sample.wav"
   ],
-  "updatedAt": "2026-09-27T20:58:57.400Z"
+  "updatedAt": "2026-10-03T19:41:37.523Z"
 }

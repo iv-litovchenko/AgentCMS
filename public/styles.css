@@ -39485,35 +39485,64 @@ img.is-svg-media,
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: var(--media-toolbar-action-height, 36px);
   margin: 0;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(74, 222, 128, 0.42);
+  border: 1px solid rgba(22, 163, 74, 0.45);
   background:
-    linear-gradient(180deg, rgba(34, 197, 94, 0.32) 0%, rgba(22, 163, 74, 0.22) 100%);
-  color: #ecfdf5;
+    linear-gradient(135deg, rgba(74, 222, 128, 0.22) 0%, rgba(34, 197, 94, 0.14) 55%, rgba(22, 163, 74, 0.1) 100%),
+    #f0fdf4;
+  color: #14532d;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  line-height: 1.25;
+  line-height: 1.3;
   cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(134, 239, 172, 0.18),
-    0 1px 2px rgba(15, 23, 42, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .node-entry-overview-file-hub-send-btn:hover:not(:disabled) {
-  border-color: rgba(134, 239, 172, 0.62);
+  border-color: rgba(22, 163, 74, 0.62);
   background:
-    linear-gradient(180deg, rgba(34, 197, 94, 0.42) 0%, rgba(22, 163, 74, 0.3) 100%);
+    linear-gradient(135deg, rgba(74, 222, 128, 0.32) 0%, rgba(34, 197, 94, 0.2) 55%, rgba(22, 163, 74, 0.14) 100%),
+    #ecfdf5;
+  color: #052e16;
+}
+
+.node-entry-overview-file-hub-send-btn.is-queued {
+  border-color: rgba(37, 99, 235, 0.48);
+  background:
+    linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.12) 100%),
+    #eff6ff;
+  color: #1e3a8a;
+}
+
+.node-entry-overview-file-hub-send-btn.is-queued:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.65);
+  background:
+    linear-gradient(135deg, rgba(96, 165, 250, 0.28) 0%, rgba(59, 130, 246, 0.18) 100%),
+    #dbeafe;
+  color: #1e40af;
 }
 
 .node-entry-overview-file-hub-send-btn:focus-visible {
-  outline: none;
-  box-shadow:
-    inset 0 1px 0 rgba(134, 239, 172, 0.18),
-    0 0 0 2px rgba(56, 189, 248, 0.35);
+  outline: 2px solid rgba(22, 163, 74, 0.45);
+  outline-offset: 2px;
+}
+
+.node-entry-overview-file-hub-send-btn.is-queued:focus-visible {
+  outline-color: rgba(37, 99, 235, 0.45);
+}
+
+.node-entry-overview-file-hub-send-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .node-entry-overview-media-asset .node-entry-overview-media-asset-kind {

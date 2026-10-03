@@ -1,12 +1,7 @@
-/** Заглушка «Файлообменник» — локальный буфер файлов (mock). */
+/** «Файлообменник» — выдача из .agent-cms/state/file-hub-queue.json; загрузка в inbox — локальный mock. */
 
 import { bindShellHintsIn } from "@shell/hints";
-
-const MOCK_SEED = [
-  { id: "1", name: "dogovor-2026.pdf", topic: "Договоры", place: "workspace/Юридическое/" },
-  { id: "2", name: "screenshot-price.png", topic: "Скриншоты", place: "inbox/загрузки/" },
-  { id: "3", name: "presentation-draft.pptx", topic: "Презентации", place: "workspace/Маркетинг/" }
-];
+import { fetchFileHubQueue, removeFileFromFileHub } from "@js/file-hub-queue";
 
 const FILE_HUB_TOPICS = {
   inbox: { topic: "Inbox", place: "inbox/загрузки/" },
@@ -223,9 +218,24 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   mountFileHubRoot(root, mainView);
   bindShellHintsIn(root);
 
-  let files = MOCK_SEED.map((item) => ({ ...item }));
+  let files = [];
   let query = "";
   let open = false;
+  let queueLoading = false;
+
+  async function reloadExportQueue() {
+    if (queueLoading) return;
+    queueLoading = true;
+    try {
+      const data = await fetchFileHubQueue(getShellAgentId());
+      files = (Array.isArray(data.items) ? data.items : []).map((item) => ({ ...item }));
+    } catch {
+      files = [];
+    } finally {
+      queueLoading = false;
+      renderList();
+    }
+  }
 
   function setTopicSelection(key) {
     const item = FILE_HUB_TOPIC_LIST.find((entry) => entry.key === key) || FILE_HUB_TOPIC_LIST[0];
@@ -267,7 +277,18 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         event.dataTransfer.effectAllowed = "copyMove";
         row.classList.add("is-dragging");
       });
-      row.addEventListener("dragend", () => row.classList.remove("is-dragging"));
+      row.addEventListener("dragend", () => {
+        row.classList.remove("is-dragging");
+        void (async () => {
+          try {
+            await removeFileFromFileHub({ id: file.id, path: file.path }, getShellAgentId());
+            files = files.filter((entry) => entry.id !== file.id);
+            renderList();
+          } catch {
+            await reloadExportQueue();
+          }
+        })();
+      });
       listEl.appendChild(row);
     }
   }
@@ -360,6 +381,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     root.hidden = !open;
     openBtn?.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
+      void reloadExportQueue();
       searchInput?.focus({ preventScroll: true });
     }
     if (shellApp) {

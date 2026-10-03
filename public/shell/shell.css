@@ -15972,14 +15972,6 @@ body.shell-file-hub-open .shell-path-header {
   text-align: center;
 }
 
-.shell-file-hub-footnote {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: rgba(148, 163, 184, 0.75);
-}
-
 .shell-pomodoro-launch {
   appearance: none;
   display: inline-flex;

@@ -111815,22 +111815,100 @@ function createEntryOverviewMediaAssetToolbar(context, entries = []) {
   return toolbar;
 }
 
+function dirnameWorkspaceHint(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return "workspace";
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return "workspace";
+  return `${normalized.slice(0, idx + 1)}`;
+}
+
+function basenameWorkspaceHint(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return "";
+  const idx = normalized.lastIndexOf("/");
+  return idx >= 0 ? normalized.slice(idx + 1) : normalized;
+}
+
+function refreshEntryOverviewFileHubSendButton(button, { queued = false } = {}) {
+  if (!button) return;
+  const inQueue = Boolean(queued);
+  button.textContent = inQueue ? "Забрать из файлообменника" : "Отправить в файлообменник";
+  button.title = inQueue
+    ? "Убрать файл из очереди выдачи Shell «Файлообменник»"
+    : "Добавить файл в очередь выдачи Shell «Файлообменник»";
+  button.classList.toggle("is-queued", inQueue);
+  button.setAttribute("aria-pressed", inQueue ? "true" : "false");
+}
+
 function createEntryOverviewFileHubSendButton(context = {}) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "node-entry-overview-file-hub-send-btn";
-  button.textContent = "Отправить в файлообменник";
-  button.title = "Заготовка: позже файл попадёт в Shell «Файлообменник»";
+  refreshEntryOverviewFileHubSendButton(button, { queued: false });
+
+  const filePath = String(context.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const client = window.FileHubQueueClient;
+
+  async function syncQueuedState() {
+    if (!client?.fetchQueue || !filePath) return;
+    try {
+      const data = await client.fetchQueue(activeAgentId);
+      const queued = client.isPathQueued(data.items, filePath);
+      refreshEntryOverviewFileHubSendButton(button, { queued });
+    } catch {
+      refreshEntryOverviewFileHubSendButton(button, { queued: false });
+    }
+  }
+
+  void syncQueuedState();
+
   button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const shellApp = window.shellApp || window.parent?.shellApp;
-    if (typeof shellApp?.openFileHub === "function") {
-      shellApp.openFileHub();
-      showToast("Файлообменник открыт — отправка файла скоро", "info");
+    if (!filePath) {
+      showToast("Путь к файлу недоступен", "error");
       return;
     }
-    showToast("Файлообменник: заготовка, скоро", "info");
+    if (!client?.sendToFileHub || !client?.removeFromFileHub) {
+      showToast("Файлообменник: клиент не загружен", "error");
+      return;
+    }
+    const queued = button.classList.contains("is-queued");
+    button.disabled = true;
+    const action = queued
+      ? client.removeFromFileHub({ path: filePath }, activeAgentId)
+      : client.sendToFileHub(
+          {
+            path: filePath,
+            name: basenameWorkspaceHint(filePath),
+            place: dirnameWorkspaceHint(filePath),
+            topic: "Файлообменник"
+          },
+          activeAgentId
+        );
+    void action
+      .then(() => {
+        refreshEntryOverviewFileHubSendButton(button, { queued: !queued });
+        showToast(
+          queued ? "Файл убран из файлообменника" : "Файл отправлен в файлообменник",
+          "success"
+        );
+        const shellApp = window.shellApp || window.parent?.shellApp;
+        if (!queued && typeof shellApp?.openFileHub === "function") {
+          shellApp.openFileHub();
+        }
+      })
+      .catch((error) => {
+        showToast(String(error?.message || error || "Ошибка файлообменника"), "error");
+        void syncQueuedState();
+      })
+      .finally(() => {
+        button.disabled = false;
+      });
   });
   return button;
 }

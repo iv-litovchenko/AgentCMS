@@ -388,6 +388,11 @@ const {
   readIdleScreensaverBreaks,
   writeIdleScreensaverBreaks
 } = require("./lib/api/idle-screensaver-rest-api");
+const {
+  readFileHubQueue,
+  sendFileToFileHub,
+  removeFileFromFileHub
+} = require("./lib/api/file-hub-queue-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
 const NodeConfigBundle = require("./lib/config/node-config-bundle");
 const {
@@ -14246,6 +14251,12 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
+  workspaceFileHubQueue:
+    "GET /api/workspace/file-hub/queue — read_file_hub_queue MCP (.agent-cms/state/file-hub-queue.json)",
+  workspaceFileHubSend:
+    "POST /api/workspace/file-hub/send — send_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
+  workspaceFileHubRemove:
+    "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
   moduleGit:
     "GET /api/git/status|diff|module-config + POST /api/git/init|commit|push|pull|remote|module-config — module_git_* (module-git)",
   execRunScript:
@@ -21849,6 +21860,56 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save idle screensaver breaks",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/file-hub/queue") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readFileHubQueue(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read file hub queue",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/file-hub/send") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await sendFileToFileHub(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 400, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to send file to file hub",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/file-hub/remove") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await removeFileFromFileHub(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 404, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to remove file from file hub",
         details: String(error.message || error)
       });
     }
