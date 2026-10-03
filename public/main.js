@@ -841,6 +841,8 @@ let agentRoadmapMapSubview = "graph";
 let agentRoadmapMapDepth = "files";
 let agentRoadmapMapRenderSeq = 0;
 let agentRoadmapMapViewportApi = null;
+let agentRoadmapMapGraphViewportApi = null;
+let agentRoadmapMapGraphSearchQuery = "";
 const agentRoadmapMapMindmapCollapsedIds = new Set();
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
 const topicSchemaTitleNode = topicSchemaPanelNode?.querySelector(".topic-schema-title");
@@ -2061,7 +2063,8 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-broken-links",
   "module-run-scripts",
   "module-todo-list",
-  "module-catalog"
+  "module-catalog",
+  "module-visualization"
 ]);
 
 const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
@@ -2074,7 +2077,8 @@ const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   "broken-links": "module-broken-links",
   "run-scripts": "module-run-scripts",
   "todo-list": "module-todo-list",
-  "module-catalog": "module-catalog"
+  "module-catalog": "module-catalog",
+  "roadmap-map": "module-visualization"
 };
 
 const MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW = Object.fromEntries(
@@ -2143,6 +2147,9 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-broken-links": "module-broken-links",
   "m-run-scripts": "module-run-scripts",
   "m-todo-list": "module-todo-list",
+  "m-visualization": "module-visualization",
+  "m-vizualization": "module-visualization",
+  "module-vizualization": "module-visualization",
   "m-mcp-methods": "module-catalog",
   "module-mcp-methods": "module-catalog"
 };
@@ -33044,6 +33051,50 @@ function buildGraphAdjacency(edges) {
   return adjacency;
 }
 
+function buildGraphParentChildMaps(linkElements) {
+  const parentsByChild = new Map();
+  const childrenByParent = new Map();
+  for (const line of linkElements) {
+    const from = line.from;
+    const to = line.to;
+    if (!parentsByChild.has(to)) parentsByChild.set(to, new Set());
+    parentsByChild.get(to).add(from);
+    if (!childrenByParent.has(from)) childrenByParent.set(from, new Set());
+    childrenByParent.get(from).add(to);
+  }
+  return { parentsByChild, childrenByParent };
+}
+
+/** Предки и потомки совпадений по дереву меню (рёбра parent → child). */
+function expandGraphSearchHighlightIds(matchedIds, linkElements) {
+  const highlighted = new Set(matchedIds);
+  if (!highlighted.size) return highlighted;
+
+  const { parentsByChild, childrenByParent } = buildGraphParentChildMaps(linkElements);
+
+  const upQueue = [...highlighted];
+  while (upQueue.length) {
+    const id = upQueue.shift();
+    for (const parentId of parentsByChild.get(id) || []) {
+      if (highlighted.has(parentId)) continue;
+      highlighted.add(parentId);
+      upQueue.push(parentId);
+    }
+  }
+
+  const downQueue = [...matchedIds];
+  while (downQueue.length) {
+    const id = downQueue.shift();
+    for (const childId of childrenByParent.get(id) || []) {
+      if (highlighted.has(childId)) continue;
+      highlighted.add(childId);
+      downQueue.push(childId);
+    }
+  }
+
+  return highlighted;
+}
+
 function getObsidianGraphLayoutSize(nodeCount, containerWidth, containerHeight, fullViewport) {
   const spread = Math.max(720, Math.sqrt(nodeCount) * 95);
   const width = fullViewport
@@ -33244,7 +33295,7 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
     if (!node) continue;
     const labelOffset = getGraphNodeLabelYOffset(
       nodeState.radius,
-      nodeState.previewSize,
+      nodeState.previewCardH || nodeState.previewSize,
       nodeState.labelSubLineCount || 0
     );
     if (nodeState.glow) {
@@ -33270,11 +33321,11 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
       nodeState.dotStatusEmoji.setAttribute("y", String(my + 0.5));
     }
     if (nodeState.previewGroup) {
-      const barH = nodeState.previewBarH || getGraphPreviewChromeBarHeight(nodeState.previewSize);
-      const cardH = nodeState.previewSize + barH;
+      const cardW = nodeState.previewCardW || nodeState.previewSize;
+      const cardH = nodeState.previewCardH || nodeState.previewSize;
       nodeState.previewGroup.setAttribute(
         "transform",
-        `translate(${node.x - nodeState.previewSize / 2} ${node.y - cardH / 2})`
+        `translate(${node.x - cardW / 2} ${node.y - cardH / 2})`
       );
     }
     if (nodeState.glyph) {
@@ -33298,19 +33349,63 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
   }
 }
 
+function nodeMatchesGraphSearch(node, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return false;
+  const haystack = [
+    node?.label,
+    node?.graphSubLabel,
+    node?.graphAwnId,
+    node?.nodePath,
+    node?.filePath,
+    node?.id
+  ]
+    .map((part) => String(part || "").toLowerCase())
+    .filter(Boolean);
+  return haystack.some((part) => part.includes(q));
+}
+
 function getGraphNodePreviewSize(node, showPreviews = false) {
   if (!showPreviews || !node.previewUrl) return 0;
   const nodePath = node.nodePath || node.filePath || "";
   if (isBrokenImageSrc(node.previewUrl, nodePath)) return 0;
-  return isGraphFolderLikeType(node.type) ? 56 : 46;
+  return isGraphFolderLikeType(node.type) ? 60 : 54;
+}
+
+function hasGraphPreviewTopMetaBar(node) {
+  const statusRaw = String(node?.graphStatus || "").trim();
+  const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
+  return Boolean(statusRaw || awnId);
+}
+
+function getGraphPreviewTopBarHeight(cardW) {
+  return Math.max(16, Math.round(cardW * 0.22));
+}
+
+function getGraphPreviewCardLayout(node, showPreviews = false) {
+  const cardW = getGraphNodePreviewSize(node, showPreviews);
+  if (!cardW) return null;
+  const topBarH = hasGraphPreviewTopMetaBar(node) ? getGraphPreviewTopBarHeight(cardW) : 0;
+  const imageH = cardW;
+  const cardH = topBarH + imageH;
+  return { cardW, topBarH, imageH, cardH };
+}
+
+function resolveGraphPreviewPathKey(scopePrefix, pathParts, endIndexInclusive) {
+  const rel = pathParts.slice(0, endIndexInclusive + 1).join("/");
+  if (!rel) return "";
+  return scopePrefix ? `${scopePrefix}/${rel}` : rel;
+}
+
+function resolveGraphFolderPreviewUrl(previewByDisplayPath, scopePrefix, pathParts, endIndexInclusive) {
+  if (!previewByDisplayPath?.size) return null;
+  const scopedKey = resolveGraphPreviewPathKey(scopePrefix, pathParts, endIndexInclusive);
+  const plainKey = pathParts.slice(0, endIndexInclusive + 1).join("/");
+  return previewByDisplayPath.get(scopedKey) || previewByDisplayPath.get(plainKey) || null;
 }
 
 function getGraphPreviewChromeBarHeight(previewSize) {
-  return Math.max(20, Math.round(previewSize * 0.2));
-}
-
-function getGraphPreviewCardHeight(previewSize) {
-  return previewSize + getGraphPreviewChromeBarHeight(previewSize);
+  return getGraphPreviewTopBarHeight(previewSize);
 }
 
 function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
@@ -33344,8 +33439,8 @@ function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
 }
 
 function getGraphNodeRadius(node, degrees, showPreviews = false) {
-  const previewSize = getGraphNodePreviewSize(node, showPreviews);
-  if (previewSize) return getGraphPreviewCardHeight(previewSize) / 2 + 2;
+  const layout = getGraphPreviewCardLayout(node, showPreviews);
+  if (layout) return layout.cardH / 2 + 3;
   const degree = degrees.get(node.id) || 1;
   if (node.id === "root" || node.id === "agent-root") return 5 + Math.min(4, degree * 0.35);
   if (node.isSatelliteRoot) return 11 + Math.min(3, Math.sqrt(degree) * 0.35);
@@ -33494,6 +33589,8 @@ function attachObsidianGraphViewport(
   wrap.classList.add("is-settled");
   rafId = requestAnimationFrame(runSimulationFrame);
 
+  let searchQuery = "";
+
   const clearFocus = () => {
     wrap.classList.remove("is-focusing");
     for (const group of nodeElements.values()) group.el.classList.remove("highlighted");
@@ -33515,6 +33612,40 @@ function attachObsidianGraphViewport(
         related.has(line.from) && related.has(line.to)
       );
     }
+  };
+
+  const applySearchQuery = (query) => {
+    searchQuery = String(query || "");
+    const q = searchQuery.trim();
+    if (!q) {
+      clearFocus();
+      return;
+    }
+    const matched = new Set();
+    for (const node of positioned) {
+      if (nodeMatchesGraphSearch(node, q)) matched.add(node.id);
+    }
+    wrap.classList.add("is-focusing");
+    if (!matched.size) {
+      for (const group of nodeElements.values()) group.el.classList.remove("highlighted");
+      for (const line of linkElements) line.el.classList.remove("highlighted");
+      return;
+    }
+    const highlighted = expandGraphSearchHighlightIds(matched, linkElements);
+    for (const [id, group] of nodeElements.entries()) {
+      group.el.classList.toggle("highlighted", highlighted.has(id));
+    }
+    for (const line of linkElements) {
+      line.el.classList.toggle(
+        "highlighted",
+        highlighted.has(line.from) && highlighted.has(line.to)
+      );
+    }
+  };
+
+  const restoreFocusAfterHover = () => {
+    if (searchQuery.trim()) applySearchQuery(searchQuery);
+    else clearFocus();
   };
 
   wrap.addEventListener("wheel", (event) => {
@@ -33607,8 +33738,11 @@ function attachObsidianGraphViewport(
   });
 
   for (const [nodeId, group] of nodeElements.entries()) {
-    group.el.addEventListener("mouseenter", () => focusNode(nodeId));
-    group.el.addEventListener("mouseleave", clearFocus);
+    group.el.addEventListener("mouseenter", () => {
+      if (searchQuery.trim()) return;
+      focusNode(nodeId);
+    });
+    group.el.addEventListener("mouseleave", restoreFocusAfterHover);
   }
 
   const getViewportContext = () =>
@@ -33635,6 +33769,13 @@ function attachObsidianGraphViewport(
     }
   });
   observer.observe(wrap.parentElement || document.body, { childList: true });
+
+  return {
+    setSearchQuery: applySearchQuery,
+    getSearchQuery: () => searchQuery,
+    clearFocus,
+    focusNode
+  };
 }
 
 function buildGraphDataFromExternalFiles(items) {
@@ -33773,7 +33914,8 @@ function renderGraphCanvas(container, graph, options = {}) {
     controlsHost = null,
     isNodeActive = () => false,
     isNodeClickable = (node) => Boolean(node.filePath || (node.modeId && !node.disabled)),
-    onNodeClick = () => {}
+    onNodeClick = () => {},
+    onViewportReady = null
   } = options;
 
   const ns = "http://www.w3.org/2000/svg";
@@ -33841,7 +33983,8 @@ function renderGraphCanvas(container, graph, options = {}) {
   const nodeElements = new Map();
 
   for (const node of positioned) {
-    const previewSize = getGraphNodePreviewSize(node, showPreviews);
+    const previewLayout = getGraphPreviewCardLayout(node, showPreviews);
+    const previewSize = previewLayout?.cardW || 0;
     const radius = getGraphNodeRadius(node, degrees, showPreviews);
     const isActive = isNodeActive(node);
     const isDisabled = Boolean(node.disabled);
@@ -33897,16 +34040,18 @@ function renderGraphCanvas(container, graph, options = {}) {
       group.appendChild(glyph);
     }
 
-    if (previewSize) {
+    if (previewLayout) {
       circle.setAttribute("visibility", "hidden");
-      const barH = getGraphPreviewChromeBarHeight(previewSize);
-      const cardH = getGraphPreviewCardHeight(previewSize);
+      const { cardW, topBarH, imageH, cardH } = previewLayout;
+      const imageY = topBarH;
       const clipId = `graph-preview-${sanitizeGraphDomId(node.id)}`;
       const clipPath = document.createElementNS(ns, "clipPath");
       clipPath.setAttribute("id", clipId);
       const clipShape = document.createElementNS(ns, "rect");
-      clipShape.setAttribute("width", String(previewSize));
-      clipShape.setAttribute("height", String(previewSize));
+      clipShape.setAttribute("x", "0");
+      clipShape.setAttribute("y", String(imageY));
+      clipShape.setAttribute("width", String(cardW));
+      clipShape.setAttribute("height", String(imageH));
       clipShape.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
       clipPath.appendChild(clipShape);
       defs.appendChild(clipPath);
@@ -33915,7 +34060,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewGroup.setAttribute("class", "external-graph-preview-group");
       previewGroup.setAttribute(
         "transform",
-        `translate(${node.x - previewSize / 2} ${node.y - cardH / 2})`
+        `translate(${node.x - cardW / 2} ${node.y - cardH / 2})`
       );
 
       const haloPad = 6;
@@ -33923,7 +34068,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       const previewHalo = document.createElementNS(ns, "rect");
       previewHalo.setAttribute("x", String(-haloPad));
       previewHalo.setAttribute("y", String(-haloPad));
-      previewHalo.setAttribute("width", String(previewSize + haloPad * 2));
+      previewHalo.setAttribute("width", String(cardW + haloPad * 2));
       previewHalo.setAttribute("height", String(cardH + haloPad * 2));
       previewHalo.setAttribute("rx", String(haloRx));
       previewHalo.setAttribute(
@@ -33932,28 +34077,31 @@ function renderGraphCanvas(container, graph, options = {}) {
       );
       previewGroup.appendChild(previewHalo);
 
-      appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize);
+      appendGraphNodePreviewMeta(previewGroup, ns, node, cardW, topBarH);
 
       previewFrame = document.createElementNS(ns, "rect");
-      previewFrame.setAttribute("y", String(barH));
-      previewFrame.setAttribute("width", String(previewSize));
-      previewFrame.setAttribute("height", String(previewSize));
+      previewFrame.setAttribute("x", "0");
+      previewFrame.setAttribute("y", String(imageY));
+      previewFrame.setAttribute("width", String(cardW));
+      previewFrame.setAttribute("height", String(imageH));
       previewFrame.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
       previewFrame.setAttribute(
         "class",
-        `external-graph-preview-frame ${node.type}${isActive ? " active" : ""}`.trim()
+        `external-graph-preview-media-bg external-graph-preview-frame ${node.type}${isActive ? " active" : ""}`.trim()
       );
       previewGroup.appendChild(previewFrame);
 
       previewImage = document.createElementNS(ns, "image");
-      previewImage.setAttribute("y", String(barH));
+      previewImage.setAttribute("x", "0");
+      previewImage.setAttribute("y", String(imageY));
       previewImage.setAttribute("href", resolveGraphPreviewUrl(node));
-      previewImage.setAttribute("width", String(previewSize));
-      previewImage.setAttribute("height", String(previewSize));
+      previewImage.setAttribute("width", String(cardW));
+      previewImage.setAttribute("height", String(imageH));
       previewImage.setAttribute("clip-path", `url(#${clipId})`);
-      previewImage.setAttribute("preserveAspectRatio", "xMidYMid slice");
+      previewImage.setAttribute("preserveAspectRatio", "none");
       previewImage.setAttribute("class", "external-graph-preview-image");
       previewGroup.appendChild(previewImage);
+
       group.appendChild(previewGroup);
     }
 
@@ -33968,7 +34116,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       node.x,
       node.y,
       radius,
-      previewSize
+      previewLayout?.cardH || 0
     );
 
     const lines = linkElements.filter((line) => line.from === node.id || line.to === node.id);
@@ -33983,8 +34131,12 @@ function renderGraphCanvas(container, graph, options = {}) {
       labelOffset,
       labelSubLineCount,
       radius,
-      previewSize,
-      previewBarH: previewSize ? getGraphPreviewChromeBarHeight(previewSize) : 0,
+      previewSize: previewLayout?.cardW || 0,
+      previewCardW: previewLayout?.cardW || 0,
+      previewCardH: previewLayout?.cardH || 0,
+      previewTopBarH: previewLayout?.topBarH || 0,
+      previewImageH: previewLayout?.imageH || 0,
+      previewBarH: previewLayout?.topBarH || 0,
       previewGroup,
       previewFrame,
       previewImage,
@@ -33995,6 +34147,13 @@ function renderGraphCanvas(container, graph, options = {}) {
     };
 
     if (previewImage) {
+      previewImage.addEventListener(
+        "load",
+        () => {
+          previewImage.classList.add("is-loaded");
+        },
+        { once: true }
+      );
       previewImage.addEventListener(
         "error",
         () => markGraphNodePreviewMissing(group, nodeState, node, degrees),
@@ -34030,7 +34189,7 @@ function renderGraphCanvas(container, graph, options = {}) {
   wrap.appendChild(svg);
   container.appendChild(wrap);
 
-  attachObsidianGraphViewport(
+  const graphViewportApi = attachObsidianGraphViewport(
     wrap,
     svg,
     viewport,
@@ -34041,6 +34200,9 @@ function renderGraphCanvas(container, graph, options = {}) {
     showPreviews,
     controlsHost
   );
+  if (typeof onViewportReady === "function") {
+    onViewportReady(graphViewportApi, wrap);
+  }
 }
 
 function renderNodeGraphView() {
@@ -102028,7 +102190,7 @@ function setAgentWorkspaceView(
     showHomeView();
     applyAgentWorkspaceCanvasUi();
     if (!skipRouteSync) {
-      syncAppRouteToUrl({ replace: true });
+      syncAppRouteToUrl({ push, replace: !push });
     }
     return;
   }
@@ -102040,7 +102202,7 @@ function setAgentWorkspaceView(
 
   applyAgentWorkspaceCanvasUi();
   if (!skipRouteSync) {
-    syncAppRouteToUrl({ replace: true });
+    syncAppRouteToUrl({ push, replace: !push });
   }
 }
 
@@ -103007,7 +103169,7 @@ function openSidebarRoadmapGlobePage() {
   } else if (!isAgentWorkspaceCanvasVisible()) {
     showAgentHomeView();
   }
-  setAgentWorkspaceView(AGENT_ROADMAP_MAP_WORKSPACE_VIEW, { persistWorkspaceConfig: false });
+  setAgentWorkspaceView(AGENT_ROADMAP_MAP_WORKSPACE_VIEW, { persistWorkspaceConfig: false, push: true });
   syncSidebarRoadmapGlobeToolbarUi();
 }
 
@@ -106090,19 +106252,38 @@ function renderAgentSchemaSizeChart(ranking = [], totalTopicBytes = 0) {
   return section;
 }
 
+function syncAgentRoadmapMapViewNotesVisibility() {
+  document.querySelectorAll("[data-rmm-view-notes]").forEach((panel) => {
+    const match = panel.dataset.rmmViewNotes === agentRoadmapMapSubview;
+    panel.classList.toggle("hidden", !match);
+  });
+}
+
 function renderAgentRoadmapMapView() {
   if (!agentRoadmapMapHostNode) return;
   ensureAgentRoadmapMapUiBindings();
+  syncAgentRoadmapMapViewNotesVisibility();
   applyAgentGraphSettingsUi();
   const renderSeq = ++agentRoadmapMapRenderSeq;
   agentRoadmapMapHostNode.replaceChildren();
   agentRoadmapMapDetailNode?.classList.add("hidden");
   agentRoadmapMapViewportApi = null;
-  agentRoadmapMapZoomNode?.classList.remove("hidden");
+  const showZoom =
+    agentRoadmapMapSubview === "graph" || agentRoadmapMapSubview === "mindmap";
+  agentRoadmapMapZoomNode?.classList.toggle("hidden", !showZoom);
   const graphChrome = document.getElementById("agent-rmm-graph-chrome");
   const showGraphToolbar = agentRoadmapMapSubview === "graph";
   graphChrome?.classList.toggle("hidden", !showGraphToolbar);
   graphChrome?.setAttribute("aria-hidden", showGraphToolbar ? "false" : "true");
+
+  if (
+    agentRoadmapMapSubview === "live" ||
+    agentRoadmapMapSubview === "toc" ||
+    agentRoadmapMapSubview === "kanban"
+  ) {
+    renderAgentRoadmapMapPlaceholderSubview(agentRoadmapMapHostNode);
+    return;
+  }
 
   if (!currentMenuData) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
@@ -106110,7 +106291,6 @@ function renderAgentRoadmapMapView() {
   }
 
   applyAgentGraphSettingsUi();
-
   if (agentRoadmapMapSubview === "graph") {
     void renderAgentRoadmapMapGraphView(renderSeq);
     return;
@@ -106120,6 +106300,24 @@ function renderAgentRoadmapMapView() {
     return;
   }
   void renderAgentRoadmapMapRoadmapView(renderSeq);
+}
+
+const AGENT_RMM_PLACEHOLDER_ARIA_LABELS = {
+  live: "Живая трансляция",
+  toc: "Оглавление",
+  kanban: "Канбан"
+};
+
+function renderAgentRoadmapMapPlaceholderSubview(container) {
+  if (!container) return;
+  container.replaceChildren();
+  const wrap = document.createElement("div");
+  wrap.className = "agent-rmm-roadmap-scroll";
+  wrap.setAttribute(
+    "aria-label",
+    AGENT_RMM_PLACEHOLDER_ARIA_LABELS[agentRoadmapMapSubview] || "Представление"
+  );
+  container.appendChild(wrap);
 }
 
 let agentRoadmapMapUiBound = false;
@@ -106138,6 +106336,17 @@ function ensureAgentRoadmapMapUiBindings() {
     agentRoadmapMapDepth = agentRoadmapMapDepthNode.value === "deep" ? "deep" : "files";
     if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
   });
+  document.querySelectorAll(".agent-rmm-view-notes").forEach((notes) => {
+    const collapse = notes.querySelector(".agent-rmm-view-notes-collapse");
+    if (!collapse || collapse.dataset.rmmViewNotesBound === "1") return;
+    collapse.dataset.rmmViewNotesBound = "1";
+    collapse.addEventListener("click", () => {
+      const collapsed = notes.classList.toggle("is-collapsed");
+      collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      collapse.textContent = collapsed ? "+" : "−";
+      collapse.title = collapsed ? "Развернуть" : "Свернуть";
+    });
+  });
   const scratchNotes = document.getElementById("agent-rmm-scratch-notes");
   const scratchCollapse = scratchNotes?.querySelector(".agent-rmm-scratch-notes-collapse");
   scratchCollapse?.addEventListener("click", () => {
@@ -106146,11 +106355,27 @@ function ensureAgentRoadmapMapUiBindings() {
     scratchCollapse.textContent = collapsed ? "+" : "−";
     scratchCollapse.title = collapsed ? "Развернуть" : "Свернуть";
   });
+  syncAgentRoadmapMapViewNotesVisibility();
   document.querySelectorAll("#agent-rmm-graph-theme [data-graph-theme]").forEach((btn) => {
     btn.addEventListener("click", () => {
       setAgentGraphCanvasTheme(btn.dataset.graphTheme || "dark");
     });
   });
+  const graphSearchInput = document.getElementById("agent-rmm-graph-search");
+  if (graphSearchInput && graphSearchInput.dataset.rmmGraphSearchBound !== "1") {
+    graphSearchInput.dataset.rmmGraphSearchBound = "1";
+    graphSearchInput.addEventListener("input", () => {
+      agentRoadmapMapGraphSearchQuery = graphSearchInput.value;
+      agentRoadmapMapGraphViewportApi?.setSearchQuery(agentRoadmapMapGraphSearchQuery);
+    });
+    graphSearchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      graphSearchInput.value = "";
+      agentRoadmapMapGraphSearchQuery = "";
+      agentRoadmapMapGraphViewportApi?.setSearchQuery("");
+      graphSearchInput.blur();
+    });
+  }
   applyAgentGraphCanvasThemeUi();
 }
 
@@ -106514,6 +106739,7 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "В workspace пока нет узлов для графа");
     return;
   }
+  agentRoadmapMapGraphViewportApi = null;
   renderGraphCanvas(agentRoadmapMapHostNode, graph, {
     ariaLabel: "Граф хранилища workspace",
     fullViewport: true,
@@ -106523,6 +106749,14 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
     onNodeClick: (node) => {
       setAgentRoadmapMapDetail(node.label || node.id, node.nodePath || node.graphTarget?.path || "");
       handleAgentGraphNodeClick(node);
+    },
+    onViewportReady: (api) => {
+      agentRoadmapMapGraphViewportApi = api;
+      const searchInput = document.getElementById("agent-rmm-graph-search");
+      if (searchInput && agentRoadmapMapGraphSearchQuery) {
+        searchInput.value = agentRoadmapMapGraphSearchQuery;
+        api.setSearchQuery(agentRoadmapMapGraphSearchQuery);
+      }
     }
   });
 }
@@ -106814,8 +107048,8 @@ function countGraphNodeLabelSubLines(node) {
   return count;
 }
 
-function getGraphNodeLabelYOffset(radius, previewSize, subLineCount) {
-  const baseOffset = previewSize ? getGraphPreviewCardHeight(previewSize) / 2 + 10 : radius + 11;
+function getGraphNodeLabelYOffset(radius, previewCardHeight, subLineCount) {
+  const baseOffset = previewCardHeight ? previewCardHeight / 2 + 11 : radius + 11;
   if (!subLineCount) return baseOffset;
   return baseOffset + 8 + Math.max(0, subLineCount - 1) * 10;
 }
@@ -106832,7 +107066,7 @@ function resolveGraphStatusDotFill(statusRaw) {
   return fills[tone] || fills.default;
 }
 
-function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
+function appendGraphNodePreviewMeta(previewGroup, ns, node, cardW, topBarH) {
   const statusRaw = String(node?.graphStatus || "").trim();
   const awnId = normalizeAwnIdDisplayValue(node?.graphAwnId || "");
   if (!statusRaw && !awnId) return null;
@@ -106848,9 +107082,9 @@ function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
     group.setAttribute("aria-label", hintParts.join(" · "));
   }
 
-  const barH = getGraphPreviewChromeBarHeight(previewSize);
+  const barH = topBarH || getGraphPreviewTopBarHeight(cardW);
   const bar = document.createElementNS(ns, "rect");
-  bar.setAttribute("width", String(previewSize));
+  bar.setAttribute("width", String(cardW));
   bar.setAttribute("height", String(barH));
   bar.setAttribute("y", "0");
   bar.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
@@ -106859,12 +107093,13 @@ function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
 
   if (awnId) {
     const idText = document.createElementNS(ns, "text");
-    idText.setAttribute("x", "10");
-    idText.setAttribute("y", String(barH - 6));
+    const display = awnId.length > 8 ? `${awnId.slice(0, 7)}…` : awnId;
+    idText.setAttribute("x", "8");
+    idText.setAttribute("y", String(barH - 5));
     idText.setAttribute("text-anchor", "start");
     idText.setAttribute("class", "external-graph-preview-chrome-id");
-    idText.textContent = awnId.length > 6 ? `${awnId.slice(0, 5)}…` : awnId;
-    if (awnId.length > 6) {
+    idText.textContent = display;
+    if (awnId.length > 8) {
       const title = document.createElementNS(ns, "title");
       title.textContent = awnId;
       idText.appendChild(title);
@@ -106874,7 +107109,7 @@ function appendGraphNodePreviewMeta(previewGroup, ns, node, previewSize) {
 
   if (statusRaw) {
     const dotR = 6;
-    const dotCx = previewSize - dotR - 8;
+    const dotCx = cardW - dotR - 8;
     const dotCy = barH / 2;
     const statusDot = document.createElementNS(ns, "circle");
     statusDot.setAttribute("cx", String(dotCx));
@@ -106950,12 +107185,12 @@ function appendGraphNodeDotMeta(group, ns, node, x, y, radius, circle) {
   return meta;
 }
 
-function appendGraphNodeLabel(group, ns, node, x, y, radius, previewSize) {
+function appendGraphNodeLabel(group, ns, node, x, y, radius, previewCardHeight) {
   const subLines = [];
   if (node.graphSubLabel) subLines.push(node.graphSubLabel);
   subLines.push(...resolveGraphNodeCardMetaLines(node));
   const labelSubLineCount = subLines.length;
-  const labelOffset = getGraphNodeLabelYOffset(radius, previewSize, labelSubLineCount);
+  const labelOffset = getGraphNodeLabelYOffset(radius, previewCardHeight, labelSubLineCount);
 
   const label = document.createElementNS(ns, "text");
   label.setAttribute("x", String(x));
@@ -107198,22 +107433,24 @@ function buildGraphDataFromAgentMenu(
 
   const previewByDisplayPath = new Map();
   for (const entry of workspaceEntries) {
-    if (!entry.hasPreview || !entry.previewUrl) continue;
+    if (!entry.previewUrl) continue;
     const displayPath = entry.displayPath || getNodeDisplayPath(entry.path);
     if (!displayPath) continue;
     previewByDisplayPath.set(displayPath, entry.previewUrl);
   }
   for (const entry of serviceEntries) {
-    if (!entry.hasPreview || !entry.previewUrl) continue;
+    if (!entry.previewUrl) continue;
     const displayPath = getServiceGraphRelativePath(entry);
     if (!displayPath) continue;
     previewByDisplayPath.set(displayPath, entry.previewUrl);
+    previewByDisplayPath.set(`service/${displayPath}`, entry.previewUrl);
   }
   for (const entry of containerEntries) {
-    if (!entry.hasPreview || !entry.previewUrl) continue;
+    if (!entry.previewUrl) continue;
     const displayPath = getContainerGraphRelativePath(entry);
     if (!displayPath) continue;
     previewByDisplayPath.set(displayPath, entry.previewUrl);
+    previewByDisplayPath.set(`container/${displayPath}`, entry.previewUrl);
   }
 
   const rootId = "agent-root";
@@ -107332,7 +107569,7 @@ function buildGraphDataFromAgentMenu(
             type: "folder",
             depth: (scopePrefix ? 1 : 0) + i + 1,
             nodePath: null,
-            previewUrl: previewByDisplayPath.get(parts.slice(0, i + 1).join("/")) || null
+            previewUrl: resolveGraphFolderPreviewUrl(previewByDisplayPath, scopePrefix, parts, i)
           });
           edges.push({ from: parentId, to: folderId });
           folderIds.set(built, folderId);

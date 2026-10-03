@@ -4738,9 +4738,12 @@
           </div>
           <div class="agent-canvas-head-aside agent-graph-head-actions agent-rmm-head-actions" role="toolbar" aria-label="Режим визуализации">
             <div class="agent-rmm-mode-tabs" role="tablist" aria-label="Тип представления">
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="live" role="tab">Живая трансляция</button>
               <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф связей</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Интеллект-карта</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Дорожная карта</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="toc" role="tab">Оглавление</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="kanban" role="tab">Канбан</button>
             </div>
           </div>
         </div>
@@ -4755,6 +4758,21 @@
             </label>
           </div>
           <div id="agent-rmm-graph-chrome" class="agent-rmm-graph-chrome hidden" aria-hidden="true">
+            <div class="agent-rmm-graph-chrome-top-center">
+              <label class="agent-rmm-graph-search" for="agent-rmm-graph-search">
+                <span class="agent-rmm-graph-search-icon" aria-hidden="true">⌕</span>
+                <input
+                  id="agent-rmm-graph-search"
+                  class="agent-rmm-graph-search-input"
+                  type="search"
+                  name="agent-rmm-graph-search"
+                  placeholder="Поиск по темам и связям…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  enterkeyhint="search"
+                />
+              </label>
+            </div>
             <div class="agent-rmm-graph-chrome-top-left">
               <label class="agent-graph-setting agent-rmm-preview-setting" for="agent-rmm-show-previews">
                 <input id="agent-rmm-show-previews" type="checkbox" checked />
@@ -4800,8 +4818,196 @@
               <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
             </div>
           </div>
+          <nav
+            id="agent-rmm-mockup-links"
+            class="agent-rmm-mockup-links"
+            aria-label="Макеты визуализации"
+          >
+            <a
+              class="agent-rmm-mockup-btn"
+              href="/examples/agent-cms-core-three-views.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="agent-cms-core-three-views"
+            >
+              Макет 1
+            </a>
+            <a
+              class="agent-rmm-mockup-btn"
+              href="/examples/study-ecosystem/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="study-ecosystem"
+            >
+              Макет 2
+            </a>
+          </nav>
           <div id="agent-rmm-detail" class="agent-rmm-detail hidden" aria-live="polite"></div>
           <div id="agent-rmm-host" class="agent-rmm-host"></div>
+          <div id="agent-rmm-corner-panels" class="agent-rmm-corner-panels">
+          <div id="agent-rmm-view-notes-stack" class="agent-rmm-view-notes-stack" aria-live="polite">
+            <aside
+              class="agent-rmm-view-notes is-collapsed hidden"
+              data-rmm-view-notes="live"
+              aria-label="О представлении: живая трансляция"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Тестовый текст: режим «Живая трансляция» — здесь будет описание потока событий workspace в реальном
+                  времени. Поток изменений и активности в workspace как они происходят, без сводки «на конец дня».
+                </p>
+              </div>
+            </aside>
+            <aside
+              class="agent-rmm-view-notes is-collapsed"
+              data-rmm-view-notes="graph"
+              aria-label="О представлении: граф связей"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Тестовый текст: режим «Граф связей» — узлы тем и файлов, рёбра по ссылкам и метаданным. Граф —
+                  реальная физическая структура: никаких ограничений и тяги. Связей — любое количество.
+                </p>
+              </div>
+            </aside>
+            <aside
+              class="agent-rmm-view-notes is-collapsed hidden"
+              data-rmm-view-notes="mindmap"
+              aria-label="О представлении: интеллект-карта"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Тестовый текст: режим «Интеллект-карта» — иерархия знаний и ветки, привязанные к markdown. Карта
+                  знаний (идей) — структурированный набросок идей и частей; может быть дополнена «виртуальными
+                  ветками»; всегда имеет одного родителя. Отвечает на вопрос, как темы связаны между собой.
+                </p>
+              </div>
+            </aside>
+            <aside
+              class="agent-rmm-view-notes is-collapsed hidden"
+              data-rmm-view-notes="roadmap"
+              aria-label="О представлении: дорожная карта"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Тестовый текст: режим «Дорожная карта» — этапы по темам из roadmap.md и статусов в markdown. Roadmap
+                  (прогресс изучения или создания) — отвечает на вопрос, как дойти к цели и в каком порядке
+                  (последовательность). Имеет три статуса колонок: Learn, Done, Skip.
+                </p>
+              </div>
+            </aside>
+            <aside
+              class="agent-rmm-view-notes is-collapsed hidden"
+              data-rmm-view-notes="toc"
+              aria-label="О представлении: оглавление"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Тестовый текст: режим «Оглавление» — навигация по структуре workspace как по содержанию книги.
+                  Оглавление — статическая информация с основными разделами источника данных.
+                </p>
+              </div>
+            </aside>
+            <aside
+              class="agent-rmm-view-notes is-collapsed hidden"
+              data-rmm-view-notes="kanban"
+              aria-label="О представлении: канбан"
+            >
+              <div class="agent-rmm-view-notes-head">
+                <span class="agent-rmm-view-notes-badge">Справка</span>
+                <strong class="agent-rmm-view-notes-title">О представлении</strong>
+                <button
+                  type="button"
+                  class="agent-rmm-view-notes-collapse"
+                  aria-expanded="false"
+                  title="Развернуть"
+                >
+                  +
+                </button>
+              </div>
+              <div class="agent-rmm-view-notes-body">
+                <p>
+                  Заготовка: режим «Канбан» — доска задач workspace по колонкам статуса и потока работы (пока без
+                  данных, только макет вкладки).
+                </p>
+                <p>
+                  Сейчас странно, что по сути одна колонка «статус» — и никаких других колонок: ни плана по времени,
+                  ни конфликтов, ни очереди. Для рабочего канбана этого мало.
+                </p>
+                <p>
+                  Обычный канбан — минимум три колонки: <strong>К выполнению</strong> (запланировано, работа ещё не
+                  начата), <strong>В работе</strong> (задачи у исполнителей), <strong>Готово</strong> (завершено).
+                </p>
+                <p>
+                  В реальных проектах «В работе» часто дробят: <strong>Тестирование / проверка</strong> (контроль
+                  качества перед финалом) и <strong>На паузе / заблокировано</strong> (ждёт внешних причин). Плюс
+                  имеет смысл отдельно смотреть <strong>план времени</strong> (сроки, дедлайны) и
+                  <strong>конфликты</strong> (пересечения, блокеры между задачами) — не сводить всё к одному полю
+                  статуса.
+                </p>
+              </div>
+            </aside>
+          </div>
           <aside id="agent-rmm-scratch-notes" class="agent-rmm-scratch-notes is-collapsed" aria-label="Шпаргалка по картам">
             <div class="agent-rmm-scratch-notes-head">
               <span class="agent-rmm-scratch-notes-badge">Шпаргалка</span>
@@ -4843,6 +5049,7 @@
               </p>
             </div>
           </aside>
+          </div>
         </div>
       </main>
 

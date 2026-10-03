@@ -72,3 +72,8 @@ entries:
     implementation: stub
     ui-surfaces: [picker]
     mcp: [list_tools]
+  - module-id: module-visualization
+    label: Визуализация workspace
+    view: roadmap-map
+    implementation: active
+    ui-surfaces: [picker, sidebar-globe]
