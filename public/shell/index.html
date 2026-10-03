@@ -71,8 +71,8 @@
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
-          "@shell/file-hub": "/shell/shell-file-hub.js?v=8",
-          "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=2",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=11",
+          "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=4",
           "@shell/pomodoro": "/shell/shell-pomodoro.js?v=8",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
@@ -3087,6 +3087,27 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   </span>
                   <span class="shell-file-hub-pane-title-text">Передать файлы из хранилища</span>
                 </h3>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-clear"
+                  data-file-hub-export-clear
+                  title="Очистить весь список очереди"
+                  aria-label="Очистить список"
+                >
+                  Очистить список
+                </button>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-refresh"
+                  data-file-hub-export-refresh
+                  title="Обновить список из workspace"
+                  aria-label="Обновить список файлов"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <path d="M21 3v6h-6"></path>
+                  </svg>
+                </button>
                 <button
                   type="button"
                   class="shell-file-hub-pane-help"

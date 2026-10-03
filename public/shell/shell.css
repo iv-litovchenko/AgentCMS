@@ -15590,6 +15590,38 @@ body.shell-file-hub-open .shell-path-header {
   background: rgba(14, 165, 233, 0.12);
 }
 
+.shell-file-hub-pane-clear {
+  appearance: none;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shell-file-hub-pane-clear:hover:not(:disabled),
+.shell-file-hub-pane-clear:focus-visible:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.65);
+  color: #fff1f2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
+}
+
+.shell-file-hub-pane-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shell-file-hub-pane-refresh,
 .shell-file-hub-pane-help {
   appearance: none;
   flex-shrink: 0;
@@ -15608,7 +15640,34 @@ body.shell-file-hub-open .shell-path-header {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  cursor: pointer;
+}
+
+.shell-file-hub-pane-help {
   cursor: help;
+}
+
+.shell-file-hub-pane-refresh:hover:not(:disabled),
+.shell-file-hub-pane-refresh:focus-visible:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #bae6fd;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+.shell-file-hub-pane-refresh:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.shell-file-hub-pane-refresh.is-loading svg {
+  animation: shell-file-hub-refresh-spin 0.75s linear infinite;
+}
+
+@keyframes shell-file-hub-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .shell-file-hub-pane-help:hover,

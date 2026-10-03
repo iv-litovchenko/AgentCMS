@@ -54,10 +54,25 @@
     return data;
   }
 
+  function normalizeQueuePath(raw) {
+    return String(raw || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  }
+
+  function queuePathsMatch(left, right) {
+    const a = normalizeQueuePath(left);
+    const b = normalizeQueuePath(right);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.endsWith(`/${b}`) || b.endsWith(`/${a}`)) return true;
+    return false;
+  }
+
   function isPathQueued(items, filePath) {
-    const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    const normalized = normalizeQueuePath(filePath);
     if (!normalized) return false;
-    return (Array.isArray(items) ? items : []).some((item) => String(item?.path || "") === normalized);
+    return (Array.isArray(items) ? items : []).some((item) =>
+      queuePathsMatch(item?.path, normalized)
+    );
   }
 
   global.FileHubQueueClient = {

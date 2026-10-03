@@ -35,4 +35,11 @@ export function registerFileHubQueueTools(reg, client) {
     }),
     (payload) => client.post("/api/workspace/file-hub/remove", payload)
   );
+
+  reg(
+    "clear_file_hub_queue",
+    "Clear the entire Shell file hub export queue (.agent-cms/state/file-hub-queue.json).",
+    z.object({}),
+    () => client.post("/api/workspace/file-hub/clear", {})
+  );
 }

@@ -1,7 +1,8 @@
 /** «Файлообменник» — выдача из .agent-cms/state/file-hub-queue.json; загрузка в inbox — локальный mock. */
 
 import { bindShellHintsIn } from "@shell/hints";
-import { fetchFileHubQueue, removeFileFromFileHub } from "@js/file-hub-queue";
+import { parseVoiceShellPath } from "@shell/voice-chpu";
+import { clearFileHubQueue, fetchFileHubQueue, removeFileFromFileHub } from "@js/file-hub-queue";
 
 const FILE_HUB_TOPICS = {
   inbox: { topic: "Inbox", place: "inbox/загрузки/" },
@@ -33,10 +34,12 @@ function mountFileHubRoot(root, mainView) {
 
 function getShellAgentId() {
   try {
-    const parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
-    if (parts[0] === "shell" && parts[1]) return decodeURIComponent(parts[1]);
     const fromQuery = new URLSearchParams(location.search).get("agent");
     if (fromQuery) return fromQuery.trim();
+    const { agentId } = parseVoiceShellPath(location.pathname);
+    if (agentId) return agentId;
+    const parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+    if (parts[0] === "shell" && parts[1]) return decodeURIComponent(parts[1]);
   } catch {
     // ignore
   }
@@ -210,6 +213,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   const topicSuggest = root?.querySelector("[data-file-hub-topic-suggest]");
   const listEl = root?.querySelector("[data-file-hub-list]");
   const emptyEl = root?.querySelector("[data-file-hub-empty]");
+  const exportRefreshBtn = root?.querySelector("[data-file-hub-export-refresh]");
+  const exportClearBtn = root?.querySelector("[data-file-hub-export-clear]");
   const app = nodes?.shellApp || document.getElementById("shell-app");
   const mainView = nodes?.mainView || document.getElementById("shell-main-view");
 
@@ -223,16 +228,52 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   let open = false;
   let queueLoading = false;
 
+  function syncExportToolbarUi() {
+    const busy = queueLoading;
+    if (exportRefreshBtn) {
+      exportRefreshBtn.disabled = busy;
+      exportRefreshBtn.classList.toggle("is-loading", busy);
+      exportRefreshBtn.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+    if (exportClearBtn) {
+      exportClearBtn.disabled = busy || files.length === 0;
+    }
+  }
+
   async function reloadExportQueue() {
     if (queueLoading) return;
     queueLoading = true;
+    syncExportToolbarUi();
     try {
       const data = await fetchFileHubQueue(getShellAgentId());
       files = (Array.isArray(data.items) ? data.items : []).map((item) => ({ ...item }));
-    } catch {
+    } catch (error) {
       files = [];
+      console.warn("[file-hub] export queue load failed", error);
     } finally {
       queueLoading = false;
+      syncExportToolbarUi();
+      renderList();
+    }
+  }
+
+  async function clearExportQueue() {
+    if (!files.length || queueLoading) return;
+    if (!window.confirm("Очистить весь список файлообменника? Файлы в workspace не удалятся.")) {
+      return;
+    }
+    queueLoading = true;
+    syncExportToolbarUi();
+    try {
+      await clearFileHubQueue(getShellAgentId());
+      files = [];
+    } catch (error) {
+      console.warn("[file-hub] export queue clear failed", error);
+      await reloadExportQueue();
+      return;
+    } finally {
+      queueLoading = false;
+      syncExportToolbarUi();
       renderList();
     }
   }
@@ -258,6 +299,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     const items = filteredFiles();
     listEl.replaceChildren();
     if (emptyEl) emptyEl.hidden = items.length > 0;
+    syncExportToolbarUi();
     for (const file of items) {
       const row = document.createElement("li");
       row.className = "shell-file-hub-item";
@@ -403,6 +445,18 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   openBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     toggleOpen();
+  });
+
+  exportRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void reloadExportQueue();
+  });
+
+  exportClearBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void clearExportQueue();
   });
 
   for (const closeEl of root.querySelectorAll("[data-file-hub-close]")) {

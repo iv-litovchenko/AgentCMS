@@ -392,7 +392,8 @@ const {
 const {
   readFileHubQueue,
   addFileToFileHub,
-  removeFileFromFileHub
+  removeFileFromFileHub,
+  clearFileHubQueue
 } = require("./lib/api/file-hub-queue-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
 const NodeConfigBundle = require("./lib/config/node-config-bundle");
@@ -14271,6 +14272,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/add — add_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
   workspaceFileHubRemove:
     "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
+  workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
   moduleGit:
     "GET /api/git/status|diff|module-config + POST /api/git/init|commit|push|pull|remote|module-config — module_git_* (module-git)",
   execRunScript:
@@ -21927,6 +21929,20 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to remove file from file hub",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/file-hub/clear") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const written = await clearFileHubQueue(agentRoot);
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear file hub queue",
         details: String(error.message || error)
       });
     }

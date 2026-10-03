@@ -111845,16 +111845,37 @@ function refreshEntryOverviewFileHubSendButton(button, { queued = false } = {}) 
   button.setAttribute("aria-pressed", inQueue ? "true" : "false");
 }
 
+function resolveFileHubQueueWorkspacePath(context = {}) {
+  const relPath = String(context.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (relPath && /\/(?:awn-storage|storage)\//i.test(relPath)) return relPath;
+
+  const slotRel = String(context.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!slotRel) return relPath;
+
+  const memoryKind = context.memoryKind === "assets" ? "assets" : "media";
+  if (memoryKind === "media" || memoryKind === "assets" || context.memoryKind === "external") {
+    const kind = context.memoryKind === "external" ? "external" : memoryKind;
+    if (kind === "external") {
+      return getExternalItemContextPath({ path: slotRel });
+    }
+    return getMediaLibraryItemContextPath(slotRel, kind, activePath);
+  }
+  return relPath || slotRel;
+}
+
 function createEntryOverviewFileHubSendButton(context = {}) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "node-entry-overview-file-hub-send-btn";
   refreshEntryOverviewFileHubSendButton(button, { queued: false });
 
-  const filePath = String(context.relativePath || "")
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .trim();
+  const filePath = resolveFileHubQueueWorkspacePath(context);
   const client = window.FileHubQueueClient;
 
   async function syncQueuedState() {
