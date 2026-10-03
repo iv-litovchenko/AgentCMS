@@ -67,7 +67,7 @@ awn_settings:
   voice-window-keep-awake: true
   voice-window-background: wallpaper
   voice-window-processing-sound: off
-  voice-window-compact-mode: false
+  voice-window-compact-mode: true
   voice-window-dialog-auto-scroll: true
   voice-compose-templates:
     - "[object Object]"

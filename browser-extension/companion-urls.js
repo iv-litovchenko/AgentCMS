@@ -82,8 +82,11 @@ export function voiceBaseFromCmsHost(cmsBase) {
     }
     const editorHttps = Number(port);
     if (Number.isFinite(editorHttps) && editorHttps > 0 && url.protocol === "https:") {
-      url.port = String(editorHttps + VOICE_HTTPS_OFFSET);
-      return url.origin;
+      if (editorHttps === DEFAULT_EDITOR_HTTPS_PORT) {
+        url.port = String(DEFAULT_VOICE_HTTPS_PORT);
+        return url.origin;
+      }
+      return DEFAULT_VOICE_BASE_URL;
     }
   } catch {
     // ignore

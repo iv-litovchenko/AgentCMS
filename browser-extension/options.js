@@ -1,5 +1,10 @@
-const { DEFAULT_CMS_BASE_URL, buildExtensionShellUrl, resolveVoiceBaseUrl, readDecodeUrlsSetting } =
-  globalThis.CompanionUrls;
+const {
+  DEFAULT_CMS_BASE_URL,
+  buildExtensionShellUrl,
+  resolveVoiceBaseUrl,
+  readDecodeUrlsSetting,
+  formatCompanionPanelUrlLabel
+} = globalThis.CompanionUrls;
 
 const cmsBaseUrlInput = document.getElementById("cmsBaseUrl");
 const agentIdInput = document.getElementById("agentId");
@@ -69,7 +74,9 @@ async function buildShellPreview(base, agentId) {
 async function updatePreview() {
   const base = String(cmsBaseUrlInput.value || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(agentIdInput.value || "").trim();
-  if (previewNode) previewNode.textContent = await buildShellPreview(base, agentId);
+  if (previewNode) {
+    previewNode.textContent = formatCompanionPanelUrlLabel(await buildShellPreview(base, agentId));
+  }
 }
 
 async function loadOptions() {

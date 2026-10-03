@@ -35,6 +35,49 @@
     }
   }
 
+  /** Подпись в Side Panel: host с портом (если не 80/443) + path + query. */
+  function formatCompanionPanelUrlLabel(rawUrl) {
+    try {
+      const url = new URL(String(rawUrl || "").trim());
+      if (url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0") {
+        url.hostname = "localhost";
+      }
+      return `${url.host}${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return String(rawUrl || "").replace(/^https?:\/\//, "");
+    }
+  }
+
+  /** Открыть Voice во вкладке из URL iframe (…/extension/ → …/). */
+  function voiceTabUrlFromShellHref(href) {
+    const raw = String(href || "").trim();
+    if (!raw) return "";
+    try {
+      const url = new URL(raw);
+      if (url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0") {
+        url.hostname = "localhost";
+      }
+      const parts = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (parts.length >= 1 && parts[0] !== "extension") {
+        let agent = parts[0];
+        try {
+          agent = decodeURIComponent(parts[0]);
+        } catch {
+          agent = parts[0];
+        }
+        url.pathname = `/${encodeURIComponent(agent)}/`;
+      }
+      url.searchParams.delete("companion");
+      url.searchParams.delete("_asc_reload");
+      const query = url.searchParams.toString();
+      url.search = query ? `?${query}` : "";
+      url.hash = "";
+      return url.href;
+    } catch {
+      return raw;
+    }
+  }
+
   function buildExtensionShellUrl(voiceBase, agentId) {
     const base = normalizeVoiceBaseForBrowser(voiceBase);
     const agent = String(agentId || "").trim();
@@ -80,8 +123,12 @@
       }
       const editorHttps = Number(port);
       if (Number.isFinite(editorHttps) && editorHttps > 0 && url.protocol === "https:") {
-        url.port = String(editorHttps + VOICE_HTTPS_OFFSET);
-        return url.origin;
+        if (editorHttps === DEFAULT_EDITOR_HTTPS_PORT) {
+          url.port = String(DEFAULT_VOICE_HTTPS_PORT);
+          return url.origin;
+        }
+        // Кастомные пары портов (напр. 3002/4002) — только из HTML CMS (__AGENT_CMS_PORTS__).
+        return DEFAULT_VOICE_BASE_URL;
       }
     } catch {
       // ignore
@@ -238,6 +285,8 @@
     CMS_PROBE_CANDIDATES,
     uniqueUrls,
     normalizeVoiceBaseForBrowser,
+    formatCompanionPanelUrlLabel,
+    voiceTabUrlFromShellHref,
     buildExtensionShellUrl,
     buildVoiceShellTabUrl,
     voiceBaseFromCmsHost,

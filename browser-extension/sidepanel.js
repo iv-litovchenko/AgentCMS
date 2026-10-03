@@ -10,11 +10,56 @@
 
   let lastVoiceUrl = "";
 
+  function readFrameLocationHref() {
+    try {
+      return String(frame?.contentWindow?.location?.href || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function updateUrlLabel(shellUrl) {
+    if (!urlLabel) return;
+    const frameHref = readFrameLocationHref();
+    const display = frameHref
+      ? formatCompanionPanelUrlLabel(frameHref)
+      : formatCompanionPanelUrlLabel(shellUrl);
+    urlLabel.textContent = display;
+    urlLabel.title = frameHref || shellUrl;
+  }
+
   function ensureCompanionUrls() {
     if (globalThis.CompanionUrls) return globalThis.CompanionUrls;
     globalThis.CompanionUrls = {
       DEFAULT_CMS_BASE_URL: "https://localhost:3443",
       DEFAULT_VOICE_BASE_URL: "https://localhost:3488",
+      formatCompanionPanelUrlLabel(rawUrl) {
+        try {
+          const url = new URL(String(rawUrl || "").trim());
+          if (url.hostname === "127.0.0.1") url.hostname = "localhost";
+          return `${url.host}${url.pathname}${url.search}${url.hash}`;
+        } catch {
+          return String(rawUrl || "").replace(/^https?:\/\//, "");
+        }
+      },
+      voiceTabUrlFromShellHref(href) {
+        const raw = String(href || "").trim();
+        if (!raw) return "";
+        try {
+          const url = new URL(raw);
+          if (url.hostname === "127.0.0.1") url.hostname = "localhost";
+          const parts = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+          if (parts.length >= 1 && parts[0] !== "extension") {
+            url.pathname = `/${encodeURIComponent(parts[0])}/`;
+          }
+          url.searchParams.delete("companion");
+          url.searchParams.delete("_asc_reload");
+          url.search = url.searchParams.toString() ? `?${url.searchParams}` : "";
+          return url.href;
+        } catch {
+          return raw;
+        }
+      },
       buildExtensionShellUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
@@ -31,8 +76,14 @@
     return globalThis.CompanionUrls;
   }
 
-  const { DEFAULT_CMS_BASE_URL, DEFAULT_VOICE_BASE_URL, buildExtensionShellUrl, buildVoiceShellTabUrl } =
-    ensureCompanionUrls();
+  const {
+    DEFAULT_CMS_BASE_URL,
+    DEFAULT_VOICE_BASE_URL,
+    buildExtensionShellUrl,
+    buildVoiceShellTabUrl,
+    formatCompanionPanelUrlLabel,
+    voiceTabUrlFromShellHref
+  } = ensureCompanionUrls();
 
   function sendRuntimeMessage(message) {
     return new Promise((resolve, reject) => {
@@ -144,10 +195,7 @@
     const shellUrl = await resolveShellUrl();
     lastVoiceUrl = shellUrl;
 
-    if (urlLabel) {
-      urlLabel.textContent = shellUrl.replace(/^https?:\/\//, "");
-      urlLabel.title = shellUrl;
-    }
+    updateUrlLabel(shellUrl);
 
     const voiceUp = await isVoiceServerReachable(shellUrl);
     const stubUrl = getOfflineStubUrl();
@@ -182,6 +230,9 @@
   }
 
   async function resolveVoiceTabUrl() {
+    const fromFrame = voiceTabUrlFromShellHref(readFrameLocationHref());
+    if (fromFrame) return fromFrame;
+
     if (globalThis.CompanionStorage?.hasRuntimeMessaging?.()) {
       try {
         const response = await sendRuntimeMessage({ type: "COMPANION_GET_SHELL_URL" });
@@ -373,6 +424,7 @@
   frame?.addEventListener("load", () => {
     announceSurfaceHost();
     releaseRetryBtnBusy();
+    if (lastVoiceUrl) updateUrlLabel(lastVoiceUrl);
   });
 
   async function unregisterPanelWindow() {
