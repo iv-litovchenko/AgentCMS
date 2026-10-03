@@ -5,6 +5,59 @@
 
   const STORAGE_EXPANDED = "asc-toolbar-expanded";
   const STORAGE_OFFSET = "asc-toolbar-offset";
+  const STORAGE_SEARCH_ENGINE = "asc-web-search-engine";
+
+  const WEB_SEARCH_ENGINES = {
+    google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+    yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
+    duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+    bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+    youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+  };
+
+  function isWebSearchEngineHost(engineId) {
+    const host = String(window.location.hostname || "").toLowerCase();
+    if (!host) return false;
+    switch (engineId) {
+      case "google":
+        return /(^|\.)google\.[a-z.]{2,}$/i.test(host);
+      case "yandex":
+        return host.includes("yandex.") || host === "ya.ru";
+      case "duckduckgo":
+        return host.endsWith("duckduckgo.com");
+      case "bing":
+        return host.endsWith("bing.com");
+      case "youtube":
+        return host.endsWith("youtube.com") || host === "youtu.be";
+      default:
+        return false;
+    }
+  }
+
+  function readWebSearchEngineId() {
+    try {
+      const raw = String(localStorage.getItem(STORAGE_SEARCH_ENGINE) || "google").trim();
+      return Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, raw) ? raw : "google";
+    } catch {
+      return "google";
+    }
+  }
+
+  function openWebSearch(query) {
+    const q = String(query || "").trim();
+    if (!q) return;
+    const engineId = readWebSearchEngineId();
+    const build = WEB_SEARCH_ENGINES[engineId];
+    if (!build) return;
+    const url = build(q);
+    if (isWebSearchEngineHost(engineId)) {
+      window.location.assign(url);
+      setStatus("Поиск…", "ok");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+    setStatus("Поиск открыт", "ok");
+  }
   const MAX_PAGE_LEN = 4000;
   const BASE_BOTTOM = 18;
   const EDGE_MARGIN = 12;
@@ -205,6 +258,88 @@
   );
   viewportShotBtn.classList.add("asc-btn--viewport-shot", "asc-btn--icon-only");
 
+  const searchDockDivider = document.createElement("span");
+  searchDockDivider.className = "asc-brand-dock-divider";
+  searchDockDivider.setAttribute("aria-hidden", "true");
+
+  const webSearchForm = document.createElement("form");
+  webSearchForm.className = "asc-brand-search";
+  webSearchForm.setAttribute("role", "search");
+  webSearchForm.title = "Поиск в интернете — откроется в новой вкладке";
+
+  const searchEngineSelect = document.createElement("select");
+  searchEngineSelect.className = "asc-brand-search-engine";
+  searchEngineSelect.setAttribute("aria-label", "Поисковик");
+  for (const [id, label] of [
+    ["google", "Google"],
+    ["yandex", "Яндекс"],
+    ["duckduckgo", "DDG"],
+    ["bing", "Bing"],
+    ["youtube", "YouTube"]
+  ]) {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = label;
+    searchEngineSelect.append(option);
+  }
+  searchEngineSelect.value = readWebSearchEngineId();
+
+  const searchInput = document.createElement("input");
+  searchInput.type = "search";
+  searchInput.className = "asc-brand-search-input";
+  searchInput.placeholder = "Поиск…";
+  searchInput.maxLength = 500;
+  searchInput.setAttribute("aria-label", "Поисковая фраза");
+  searchInput.setAttribute("enterkeyhint", "search");
+
+  const searchSubmitBtn = document.createElement("button");
+  searchSubmitBtn.type = "submit";
+  searchSubmitBtn.className = "asc-brand-search-submit";
+  searchSubmitBtn.title = "Искать в новой вкладке";
+  searchSubmitBtn.setAttribute("aria-label", "Искать в новой вкладке");
+  searchSubmitBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+
+  webSearchForm.append(searchInput, searchEngineSelect, searchSubmitBtn);
+
+  function setBrandSearchExpanded(expanded) {
+    webSearchForm.classList.toggle("is-search-expanded", expanded);
+  }
+
+  searchInput.addEventListener("focus", () => setBrandSearchExpanded(true));
+
+  webSearchForm.addEventListener("focusout", () => {
+    requestAnimationFrame(() => {
+      const root = webSearchForm.getRootNode();
+      const active =
+        root && typeof root.activeElement !== "undefined"
+          ? root.activeElement
+          : document.activeElement;
+      if (active && webSearchForm.contains(active)) return;
+      setBrandSearchExpanded(false);
+    });
+  });
+
+  searchEngineSelect.addEventListener("change", () => {
+    try {
+      localStorage.setItem(STORAGE_SEARCH_ENGINE, searchEngineSelect.value);
+    } catch {
+      // ignore
+    }
+  });
+
+  webSearchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openWebSearch(searchInput.value);
+  });
+
+  for (const eventName of ["pointerdown", "mousedown", "click", "dblclick"]) {
+    webSearchForm.addEventListener(eventName, (event) => {
+      event.stopPropagation();
+    });
+  }
+
   function closeMenus(except) {
     for (const menu of menus) {
       if (menu.wrap === except) continue;
@@ -390,7 +525,13 @@
 
   const brandDock = document.createElement("div");
   brandDock.className = "asc-brand-dock";
-  brandDock.append(brandCluster, brandDockDivider, viewportShotBtn);
+  brandDock.append(
+    brandCluster,
+    brandDockDivider,
+    viewportShotBtn,
+    searchDockDivider,
+    webSearchForm
+  );
 
   const toolbarPanel = document.createElement("div");
   toolbarPanel.className = "asc-toolbar-panel";

@@ -81,6 +81,121 @@
   color: #ddd6fe;
 }
 
+.asc-brand-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 112px;
+  max-width: 148px;
+  margin-left: auto;
+  padding: 3px 4px 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  touch-action: auto;
+  user-select: text;
+  cursor: text;
+  overflow: hidden;
+  transition:
+    min-width 0.24s ease,
+    max-width 0.24s ease,
+    flex-grow 0.24s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.asc-brand-search.is-search-expanded {
+  flex: 1 1 228px;
+  min-width: 228px;
+  max-width: min(78vw, 440px);
+}
+
+.asc-brand-search:focus-within,
+.asc-brand-search.is-search-expanded {
+  border-color: rgba(196, 181, 253, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.asc-brand-search-engine {
+  flex: 0 0 auto;
+  max-width: 78px;
+  padding: 4px 4px 4px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ddd6fe;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.asc-brand-search-engine:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.85);
+  outline-offset: 1px;
+}
+
+.asc-brand-search-input {
+  flex: 1 1 44px;
+  min-width: 44px;
+  width: auto;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: #f5f3ff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: text;
+  transition: min-width 0.24s ease, flex-grow 0.24s ease;
+}
+
+.asc-brand-search.is-search-expanded .asc-brand-search-input {
+  flex: 2 1 148px;
+  min-width: 148px;
+  padding: 6px 6px;
+}
+
+.asc-brand-search-input::placeholder {
+  color: rgba(237, 233, 254, 0.62);
+}
+
+.asc-brand-search-input:focus {
+  outline: none;
+}
+
+.asc-brand-search-submit {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: 999px;
+  color: #ede9fe;
+  background: rgba(124, 58, 237, 0.35);
+  cursor: pointer;
+}
+
+.asc-brand-search-submit svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.asc-brand-search-submit:hover {
+  color: #fff;
+  background: rgba(124, 58, 237, 0.52);
+}
+
 .asc-brand-cluster:focus-visible {
   outline: 2px solid rgba(196, 181, 253, 0.95);
   outline-offset: 2px;

@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=630" />
+    <link rel="stylesheet" href="/shell/shell.css?v=632" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/js/core/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -2115,7 +2115,49 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </div>
             </div>
           </div>
-          <div class="shell-compact-topbar-actions" aria-label="Выход из компакта">
+          <div class="shell-compact-topbar-actions" aria-label="Поиск и выход из компакта">
+            <form
+              class="shell-compact-topbar-search"
+              id="shell-compact-topbar-search"
+              role="search"
+              action="#"
+              autocomplete="off"
+            >
+              <label class="shell-sr-only" for="shell-compact-search-input">Поисковая фраза</label>
+              <input
+                type="search"
+                class="shell-compact-search-input"
+                id="shell-compact-search-input"
+                placeholder="Поиск…"
+                enterkeyhint="search"
+                maxlength="500"
+              />
+              <label class="shell-sr-only" for="shell-compact-search-engine">Поисковик</label>
+              <select
+                class="shell-compact-search-engine"
+                id="shell-compact-search-engine"
+                title="Поисковик"
+                aria-label="Поисковик"
+              >
+                <option value="google">Google</option>
+                <option value="yandex">Яндекс</option>
+                <option value="duckduckgo">DuckDuckGo</option>
+                <option value="bing">Bing</option>
+                <option value="youtube">YouTube</option>
+              </select>
+              <button
+                type="submit"
+                class="shell-compact-search-submit"
+                id="shell-compact-search-submit"
+                title="Искать в новой вкладке"
+                aria-label="Искать в новой вкладке"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+              </button>
+            </form>
             <button
               type="button"
               class="shell-compact-exit"
@@ -3534,6 +3576,6 @@ CMS workspace</pre>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
-    <script src="/shell/shell.js?v=682" type="module"></script>
+    <script src="/shell/shell.js?v=685" type="module"></script>
   </body>
 </html>

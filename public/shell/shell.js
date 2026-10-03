@@ -2255,6 +2255,9 @@ const nodes = {
   compactTopbarAgent: document.getElementById("shell-compact-topbar-agent"),
   compactTopbarRuntime: document.getElementById("shell-compact-topbar-runtime"),
   compactTopbarStatus: document.getElementById("shell-compact-topbar-status"),
+  compactSearchForm: document.getElementById("shell-compact-topbar-search"),
+  compactSearchEngine: document.getElementById("shell-compact-search-engine"),
+  compactSearchInput: document.getElementById("shell-compact-search-input"),
   heroAvatarStage: document.querySelector(".shell-hero-avatar-stage"),
   compactSensor: document.getElementById("shell-agent-avatar"),
   compactSensorStatus: document.getElementById("shell-compact-topbar-status"),
@@ -6282,6 +6285,111 @@ function exitCompactMode() {
   setWindowCompactMode(false);
 }
 
+const SHELL_COMPACT_SEARCH_ENGINES = Object.freeze({
+  google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+  yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
+  duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+  bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+  youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+});
+
+function isCompactSearchEngineHost(engineId) {
+  const host = String(window.location.hostname || "").toLowerCase();
+  if (!host) return false;
+  switch (engineId) {
+    case "google":
+      return /(^|\.)google\.[a-z.]{2,}$/i.test(host);
+    case "yandex":
+      return host.includes("yandex.") || host === "ya.ru";
+    case "duckduckgo":
+      return host.endsWith("duckduckgo.com");
+    case "bing":
+      return host.endsWith("bing.com");
+    case "youtube":
+      return host.endsWith("youtube.com") || host === "youtu.be";
+    default:
+      return false;
+  }
+}
+
+function readCompactSearchEngineId() {
+  try {
+    const raw = String(localStorage.getItem(SHELL_STORAGE.compactSearchEngine) || "google").trim();
+    return Object.prototype.hasOwnProperty.call(SHELL_COMPACT_SEARCH_ENGINES, raw) ? raw : "google";
+  } catch {
+    return "google";
+  }
+}
+
+function writeCompactSearchEngineId(id) {
+  if (!Object.prototype.hasOwnProperty.call(SHELL_COMPACT_SEARCH_ENGINES, id)) return;
+  try {
+    localStorage.setItem(SHELL_STORAGE.compactSearchEngine, id);
+  } catch {
+    /* ignore */
+  }
+}
+
+function openCompactWebSearch(query) {
+  const q = String(query || "").trim();
+  if (!q) return false;
+  const engineId = readCompactSearchEngineId();
+  const buildUrl = SHELL_COMPACT_SEARCH_ENGINES[engineId];
+  if (!buildUrl) return false;
+  const url = buildUrl(q);
+  if (isCompactSearchEngineHost(engineId)) {
+    window.location.assign(url);
+    return true;
+  }
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  return Boolean(opened);
+}
+
+function bindCompactSearchExpand(form, input) {
+  if (!form || !input || form.dataset.shellSearchExpandBound === "1") return;
+  form.dataset.shellSearchExpandBound = "1";
+
+  const setExpanded = (expanded) => {
+    form.classList.toggle("is-search-expanded", expanded);
+  };
+
+  input.addEventListener("focus", () => setExpanded(true));
+
+  form.addEventListener("focusout", () => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active && form.contains(active)) return;
+      setExpanded(false);
+    });
+  });
+}
+
+function bindCompactTopbarSearch() {
+  const form = nodes.compactSearchForm || document.getElementById("shell-compact-topbar-search");
+  const engineSelect = nodes.compactSearchEngine || document.getElementById("shell-compact-search-engine");
+  const input = nodes.compactSearchInput || document.getElementById("shell-compact-search-input");
+  nodes.compactSearchForm = form;
+  nodes.compactSearchEngine = engineSelect;
+  nodes.compactSearchInput = input;
+  if (!form || form.dataset.shellBound === "1") return;
+  form.dataset.shellBound = "1";
+
+  bindCompactSearchExpand(form, input);
+
+  if (engineSelect) {
+    engineSelect.value = readCompactSearchEngineId();
+    engineSelect.addEventListener("change", () => {
+      writeCompactSearchEngineId(engineSelect.value);
+    });
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openCompactWebSearch(input?.value);
+  });
+}
+
 function bindCompactStageUi() {
   refreshShellHeaderNodes();
   const exitBtn = nodes.compactExit || document.getElementById("shell-compact-exit");
@@ -6308,6 +6416,8 @@ function bindCompactStageUi() {
       exitCompactMode();
     });
   }
+
+  bindCompactTopbarSearch();
 }
 
 async function handleCameraSnapshotRequest(payload) {

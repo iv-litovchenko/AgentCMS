@@ -145,6 +145,42 @@
         color: #64748b;
         font-weight: 600;
       }
+      .featured {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #eef2ff;
+        border: 1px solid rgba(99, 102, 241, 0.35);
+      }
+      .featured h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #312e81;
+      }
+      .featured p {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.45;
+      }
+      .featured ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .featured a {
+        color: #4338ca;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .featured a:hover {
+        text-decoration: underline;
+      }
+      .featured code {
+        font-size: 11px;
+      }
     </style>
   </head>
   <body>
@@ -164,6 +200,20 @@
       />
     </div>
     <p class="meta" id="examples-count" aria-live="polite"></p>
+    <aside class="featured" aria-labelledby="featured-title">
+      <h2 id="featured-title">Voice / Shell — вне серии ui-variant</h2>
+      <p>
+        Серые кружки на карточках — только порядок в этом каталоге (1…33), не номер ui-variant.
+        Шапка компакта — <strong>отдельная страница</strong> с макетами <strong>01–10</strong> внутри.
+      </p>
+      <ul>
+        <li>
+          <a href="./shell-compact-topbar-ideas/">shell-compact-topbar — 10 макетов (01–10)</a>
+          — поиск: <code>compact topbar</code> или <code>shell-compact</code>
+          <span id="shell-compact-catalog-hint"></span>
+        </li>
+      </ul>
+    </aside>
     <div class="grid" id="examples-grid">
       <article class="card" data-keywords="ui-variant-1 shell layout rail sidebar header макет">
         <span class="tag">серия</span>
@@ -333,6 +383,19 @@
         <p>Voice agent image demo.</p>
         <a class="demo" href="./agent-cms-voice-agent-image/">Открыть →</a>
       </article>
+      <article
+        class="card"
+        id="shell-compact-topbar-card"
+        data-keywords="shell compact topbar voice embed side panel шапка compact 01 02 03 04 05 06 07 08 09 10 вариант"
+      >
+        <span class="tag">voice · shell</span>
+        <h2>shell-compact-topbar — макеты 01–10</h2>
+        <p>
+          Компактная шапка <code>#shell-compact-topbar</code>: все 10 раскладок на одной странице (якоря
+          <code>#v01</code>…<code>#v10</code>). Не путать с ui-variant-1…15.
+        </p>
+        <a class="demo" href="./shell-compact-topbar-ideas/">Варианты 01–10 →</a>
+      </article>
       <article class="card" data-keywords="three views roadmap mindmap graph">
         <span class="tag">демо</span>
         <h2>agent-cms-core-three-views</h2>
@@ -373,10 +436,19 @@
           const badge = document.createElement("span");
           badge.className = "example-index-badge";
           badge.textContent = String(index + 1);
-          badge.title = `Пример ${index + 1}`;
+          badge.title = `Пункт каталога ${index + 1}`;
           h2.parentNode.insertBefore(head, h2);
           head.append(badge, h2);
         });
+
+        const compactCard = document.getElementById("shell-compact-topbar-card");
+        const compactHint = document.getElementById("shell-compact-catalog-hint");
+        if (compactCard && compactHint) {
+          const idx = cards.indexOf(compactCard);
+          if (idx >= 0) {
+            compactHint.textContent = `(в сетке ниже — кружок №${idx + 1})`;
+          }
+        }
 
         function normalize(value) {
           return String(value || "")
