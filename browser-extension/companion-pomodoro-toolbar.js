@@ -101,7 +101,7 @@
         btn.title = "Помидор: перерыв";
         btn.classList.add("is-break");
         btn.classList.remove("is-work");
-        status.textContent = `Перерыв: ${formatMmSs(rem)} — закройте заставку кнопкой «Отдохнули».`;
+        status.textContent = `Перерыв: ${formatMmSs(rem)} — «Отдохнули» начнёт новый фокус (как в CMS).`;
         startBtn.hidden = true;
         stopBtn.hidden = false;
         return;
@@ -131,6 +131,7 @@
     function applyState(state) {
       updateUi(state);
       if (state?.phase === "work" || state?.phase === "break") ensureTick();
+      window.__ascPomodoroOverlay?.applyState?.(state);
     }
 
     btn.addEventListener("click", (event) => {

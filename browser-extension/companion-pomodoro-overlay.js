@@ -4,6 +4,7 @@
   window.__ascPomodoroOverlayMounted = true;
 
   const EMOJIS = ["🚴", "💧", "🏊", "🍎", "🚶", "🍵", "🏃", "😴", "🧘", "👀", "☀️", "💪"];
+  const POLL_MS = 2000;
 
   const root = document.createElement("div");
   root.id = "asc-pomodoro-break";
@@ -35,12 +36,19 @@
   let lastPhase = "idle";
   let breakEndsAt = 0;
   let breakTickTimer = null;
+  let pollTimer = null;
 
   function formatMmSs(ms) {
     const sec = Math.max(0, Math.ceil(ms / 1000));
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function mountRoot() {
+    if (root.isConnected) return;
+    const parent = document.body || document.documentElement;
+    parent.appendChild(root);
   }
 
   function startEmoji() {
@@ -104,9 +112,13 @@
   }
 
   function setVisible(show) {
+    mountRoot();
     root.hidden = !show;
     root.setAttribute("aria-hidden", show ? "false" : "true");
     document.documentElement.classList.toggle("asc-pomodoro-break-active", show);
+    if (document.body) {
+      document.body.classList.toggle("asc-pomodoro-break-active", show);
+    }
     if (show) {
       startEmoji();
       startBreakTick();
@@ -130,7 +142,7 @@
 
     if (phase === "break") {
       breakEndsAt = endsAt || Date.now() + rem;
-      if (lastPhase === "work" && document.visibilityState === "visible") playChime();
+      if (lastPhase !== "break" && document.visibilityState === "visible") playChime();
       if (clockEl) clockEl.textContent = formatMmSs(rem);
       setVisible(true);
     } else {
@@ -139,11 +151,29 @@
     lastPhase = phase;
   }
 
+  function pullState() {
+    if (!chrome.runtime?.sendMessage) return;
+    chrome.runtime.sendMessage({ type: "COMPANION_POMODORO_GET_STATE" }, (response) => {
+      if (chrome.runtime.lastError) return;
+      if (response?.state) applyState(response.state);
+    });
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") pullState();
+    }, POLL_MS);
+  }
+
   doneBtn?.addEventListener("click", () => {
     chrome.runtime?.sendMessage?.({ type: "COMPANION_POMODORO_BREAK_DONE" });
   });
 
-  document.documentElement.appendChild(root);
+  mountRoot();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountRoot, { once: true });
+  }
 
   chrome.runtime?.onMessage?.addListener((message) => {
     if (message?.type === "COMPANION_POMODORO_SYNC") {
@@ -151,9 +181,11 @@
     }
   });
 
-  chrome.runtime?.sendMessage?.({ type: "COMPANION_POMODORO_GET_STATE" }, (response) => {
-    if (response?.state) applyState(response.state);
+  pullState();
+  startPolling();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") pullState();
   });
 
-  window.__ascPomodoroOverlay = { applyState, root };
+  window.__ascPomodoroOverlay = { applyState, pullState, root };
 })();

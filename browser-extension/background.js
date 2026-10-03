@@ -2,6 +2,7 @@ importScripts(
   "companion-urls-global.js",
   "clipboard-history.js",
   "companion-pomodoro-global.js",
+  "companion-pomodoro-remote.js",
   "companion-pomodoro-sw.js"
 );
 
@@ -976,7 +977,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
     pomodoro
-      .loadState()
+      .reconcileFromSources()
       .then(() => sendResponse({ ok: true, state: pomodoro.getCachedState() }))
       .catch(() => sendResponse({ ok: false }));
     return true;
@@ -1015,3 +1016,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+if (globalThis.CompanionPomodoroService) {
+  globalThis.CompanionPomodoroService.setConfigProvider(async () => {
+    const settings = await getSettings();
+    return {
+      cmsBaseUrl: settings.cmsBaseUrl,
+      agentId: settings.agentId || "main"
+    };
+  });
+  void globalThis.CompanionPomodoroService.init();
+}

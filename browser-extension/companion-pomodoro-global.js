@@ -1,6 +1,9 @@
 (function initCompanionPomodoroGlobal(global) {
   const STORAGE_KEY = "asc-companion-pomodoro.v1";
   const ALARM_PHASE = "asc-companion-pomodoro-phase";
+  const ALARM_SYNC = "asc-companion-pomodoro-sync";
+  const SYNC_INTERVAL_MINUTES = 1;
+  const PERSIST_MS = 15_000;
   const DEFAULT_WORK_MINUTES = 25;
   const DEFAULT_BREAK_MINUTES = 5;
 
@@ -15,7 +18,8 @@
       workMinutes: DEFAULT_WORK_MINUTES,
       breakMinutes: DEFAULT_BREAK_MINUTES,
       breaksToday: 0,
-      breaksTodayDate: todayKey()
+      breaksTodayDate: todayKey(),
+      updatedAt: 0
     };
   }
 
@@ -26,13 +30,21 @@
     const phaseEndsAt = Number(raw.phaseEndsAt) || 0;
     const workMinutes = Number(raw.workMinutes) || DEFAULT_WORK_MINUTES;
     const breakMinutes = Number(raw.breakMinutes) || DEFAULT_BREAK_MINUTES;
+    const updatedAt = Number(raw.updatedAt) || 0;
     let breaksToday = Number(raw.breaksToday) || 0;
     const breaksTodayDate = String(raw.breaksTodayDate || todayKey());
     if (breaksTodayDate !== todayKey()) {
       breaksToday = 0;
     }
     if (phase !== "work" && phase !== "break") {
-      return { ...base, workMinutes, breakMinutes, breaksToday, breaksTodayDate: todayKey() };
+      return {
+        ...base,
+        workMinutes,
+        breakMinutes,
+        breaksToday,
+        breaksTodayDate: todayKey(),
+        updatedAt
+      };
     }
     return {
       phase,
@@ -40,7 +52,81 @@
       workMinutes,
       breakMinutes,
       breaksToday,
-      breaksTodayDate: todayKey()
+      breaksTodayDate: todayKey(),
+      updatedAt
+    };
+  }
+
+  function snapshotFromApiResponse(data) {
+    const state = data?.state;
+    if (!state || typeof state !== "object") return null;
+    const phase = String(state.phase || "").trim();
+    const phaseEndsAt = Number(state.phaseEndsAt);
+    if (phase !== "work" && phase !== "break") return null;
+    if (!Number.isFinite(phaseEndsAt) || phaseEndsAt <= 0) return null;
+    const updatedMs = Date.parse(state.updatedAt);
+    return {
+      phase,
+      phaseEndsAt,
+      workMinutes: state.workMinutes != null ? Number(state.workMinutes) : null,
+      breakMinutes: state.breakMinutes != null ? Number(state.breakMinutes) : null,
+      updatedAt: Number.isFinite(updatedMs) ? updatedMs : Date.now()
+    };
+  }
+
+  function pickNewestSnapshot(local, remote) {
+    if (!local && !remote) return null;
+    if (!local) return remote;
+    if (!remote) return local;
+    const localAt = Number(local.updatedAt) || 0;
+    const remoteAt = Number(remote.updatedAt) || 0;
+    return remoteAt >= localAt ? remote : local;
+  }
+
+  function toActiveSnapshot(state) {
+    const s = normalizeState(state);
+    if (s.phase === "idle") return null;
+    return {
+      phase: s.phase,
+      phaseEndsAt: s.phaseEndsAt,
+      workMinutes: s.workMinutes,
+      breakMinutes: s.breakMinutes,
+      updatedAt: s.updatedAt || Date.now()
+    };
+  }
+
+  function stateFromSnapshot(snapshot, base) {
+    const next = normalizeState(base);
+    if (!snapshot) {
+      return normalizeState({
+        ...next,
+        phase: "idle",
+        phaseEndsAt: 0,
+        updatedAt: next.updatedAt || 0
+      });
+    }
+    return normalizeState({
+      ...next,
+      phase: snapshot.phase,
+      phaseEndsAt: snapshot.phaseEndsAt,
+      workMinutes: snapshot.workMinutes ?? next.workMinutes,
+      breakMinutes: snapshot.breakMinutes ?? next.breakMinutes,
+      updatedAt: snapshot.updatedAt
+    });
+  }
+
+  function toApiBody(state) {
+    const s = normalizeState(state);
+    const now = Date.now();
+    if (s.phase === "idle") {
+      return { phase: "idle", phaseEndsAt: 0, updatedAt: now };
+    }
+    return {
+      phase: s.phase,
+      phaseEndsAt: s.phaseEndsAt,
+      workMinutes: s.workMinutes,
+      breakMinutes: s.breakMinutes,
+      updatedAt: s.updatedAt || now
     };
   }
 
@@ -82,6 +168,14 @@
     workMs,
     breakMs,
     snapshotForClients,
-    todayKey
+    snapshotFromApiResponse,
+    pickNewestSnapshot,
+    toActiveSnapshot,
+    stateFromSnapshot,
+    toApiBody,
+    todayKey,
+    ALARM_SYNC,
+    SYNC_INTERVAL_MINUTES,
+    PERSIST_MS
   };
 })(globalThis);
