@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=629" />
+    <link rel="stylesheet" href="/shell/shell.css?v=630" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/js/core/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -45,7 +45,7 @@
           "@shell/permissions": "/shell/shell-permissions.js?v=216",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
           "@shell/dialog": "/shell/shell-dialog.js?v=318",
-          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=9",
+          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=10",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=210",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=7",
           "@shell/compose-page": "/shell/shell-compose-page.js?v=3",
@@ -2093,11 +2093,26 @@ aya_bar_v2 тоже читает те же файлы</pre>
             class="shell-compact-topbar-avatar"
             id="shell-compact-topbar-avatar"
             hidden
-            aria-label="Аватар агента"
+            aria-label="Аватар агента — удерживайте для голоса"
           ></div>
-          <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос">
-            <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
-              <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+          <div class="shell-compact-topbar-main">
+            <div class="shell-compact-topbar-meta">
+              <div class="shell-compact-topbar-ident">
+                <span class="shell-compact-topbar-agent" id="shell-compact-topbar-agent">Агент</span>
+                <span class="shell-compact-topbar-runtime" id="shell-compact-topbar-runtime" hidden></span>
+              </div>
+              <p
+                class="shell-compact-topbar-status is-idle"
+                id="shell-compact-topbar-status"
+                aria-live="polite"
+              >
+                Ожидаю
+              </p>
+            </div>
+            <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос">
+              <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
+                <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+              </div>
             </div>
           </div>
           <div class="shell-compact-topbar-actions" aria-label="Выход из компакта">
@@ -2127,9 +2142,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <img class="shell-path-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
           <span class="shell-compact-brand-title">Agent CMS Voice</span>
         </button>
-        <p class="shell-compact-sensor-status shell-compact-sensor-status--hidden" id="shell-compact-sensor-status" aria-live="polite">
-          Ожидание касания…
-        </p>
       </section>
       <section class="shell-hero" id="shell-hero" data-hero-state="idle">
         <div class="shell-hero-bg" aria-hidden="true">
@@ -3522,6 +3534,6 @@ CMS workspace</pre>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
-    <script src="/shell/shell.js?v=681" type="module"></script>
+    <script src="/shell/shell.js?v=682" type="module"></script>
   </body>
 </html>

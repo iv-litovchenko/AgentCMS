@@ -96,7 +96,7 @@ export function createShellCompactQa(options = {}) {
       lastPairKey = "";
       const empty = document.createElement("p");
       empty.className = "shell-compact-qa-placeholder";
-      empty.textContent = "Скажите — ответ появится здесь";
+      empty.textContent = "Удерживайте аватар — голосом";
       pane.append(empty);
       return;
     }
@@ -108,6 +108,14 @@ export function createShellCompactQa(options = {}) {
       const askBlock = document.createElement("section");
       askBlock.className = "shell-compact-qa-block shell-compact-qa-block--ask";
       askBlock.setAttribute("aria-label", "Ваш вопрос");
+
+      const questionOnly = Boolean(options.questionOnly);
+      if (questionOnly) {
+        const labelEl = document.createElement("p");
+        labelEl.className = "shell-compact-qa-ask-label";
+        labelEl.textContent = "Ваш вопрос";
+        askBlock.append(labelEl);
+      }
 
       const questionEl = document.createElement("p");
       questionEl.className = "shell-compact-qa-question";

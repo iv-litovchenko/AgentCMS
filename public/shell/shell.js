@@ -2252,9 +2252,12 @@ const nodes = {
   compactQaFrame: document.getElementById("shell-compact-qa-frame"),
   compactQaPane: document.getElementById("shell-compact-qa-pane"),
   compactTopbarAvatar: document.getElementById("shell-compact-topbar-avatar"),
+  compactTopbarAgent: document.getElementById("shell-compact-topbar-agent"),
+  compactTopbarRuntime: document.getElementById("shell-compact-topbar-runtime"),
+  compactTopbarStatus: document.getElementById("shell-compact-topbar-status"),
   heroAvatarStage: document.querySelector(".shell-hero-avatar-stage"),
   compactSensor: document.getElementById("shell-agent-avatar"),
-  compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
+  compactSensorStatus: document.getElementById("shell-compact-topbar-status"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
   ttsProgressClock: document.getElementById("shell-tts-progress-clock"),
@@ -2426,6 +2429,54 @@ function prepareDialogScrollRestore({ restoreOnLoad = false } = {}) {
 
 function syncCompactQa() {
   shellCompactQa.render?.();
+  syncCompactTopbarMeta();
+}
+
+function syncCompactTopbarMeta() {
+  if (!isWindowCompactEnabled()) return;
+
+  const agentEl = nodes.compactTopbarAgent || document.getElementById("shell-compact-topbar-agent");
+  const runtimeEl = nodes.compactTopbarRuntime || document.getElementById("shell-compact-topbar-runtime");
+  nodes.compactTopbarAgent = agentEl;
+  nodes.compactTopbarRuntime = runtimeEl;
+  nodes.compactTopbarStatus =
+    nodes.compactTopbarStatus ||
+    document.getElementById("shell-compact-topbar-status") ||
+    nodes.compactSensorStatus;
+  nodes.compactSensorStatus = nodes.compactTopbarStatus;
+
+  if (agentEl) {
+    agentEl.textContent = String(state.agentLabel || state.agentId || "Агент").trim() || "Агент";
+    agentEl.title = state.agentId ? `Агент: ${state.agentLabel || state.agentId}` : "";
+  }
+
+  if (runtimeEl) {
+    const runtime = normalizeMessageRuntime(
+      state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw"
+    );
+    const label = String(SHELL_RUNTIME_LABELS[runtime] || runtime || "").trim();
+    runtimeEl.textContent = label;
+    runtimeEl.hidden = !label;
+    runtimeEl.title = label ? `Маршрут: ${label}` : "";
+  }
+
+  const phaseLabel = nodes.phaseLabel;
+  if (phaseLabel?.textContent) {
+    const badge =
+      ["is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing"].find((c) =>
+        phaseLabel.classList.contains(c)
+      ) || "is-idle";
+    syncCompactTopbarStatusLabel(phaseLabel.textContent, badge);
+  }
+}
+
+function syncCompactTopbarStatusLabel(label, badgeClass = "is-idle") {
+  const statusEl = nodes.compactTopbarStatus || nodes.compactSensorStatus;
+  if (!statusEl || !isWindowCompactEnabled()) return;
+  const text = String(label || "").trim() || "Ожидаю";
+  statusEl.textContent = text;
+  statusEl.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
+  statusEl.classList.add(badgeClass || "is-idle");
 }
 
 function isCompactDialogQaEnabled() {
@@ -3412,6 +3463,7 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
     }
     nodes.phaseLabel.textContent = label;
     nodes.phaseLabel.classList.add(badgeClass);
+    syncCompactTopbarStatusLabel(label, badgeClass);
   }
 
   syncProcessingSound(displayPhase);
@@ -6001,6 +6053,7 @@ function mountCompactTopbarAvatar(compact = isWindowCompactEnabled()) {
 
 function syncCompactSensorUi(compact = isWindowCompactEnabled()) {
   mountCompactTopbarAvatar(compact);
+  syncCompactTopbarMeta();
   syncCompactSensorAvailability();
   if (!compact) {
     setCompactSensorScanning(false);
@@ -6026,7 +6079,6 @@ function syncCompactSensorPhase(phase, phrase = "") {
 
   sensor.dataset.phase = displayPhase;
   sensor.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
-  if (!status) return;
   let label = resolveHeroStatusLabel(phase, phrase);
   if (
     shouldShowTtsProgressInHero() &&
@@ -6034,9 +6086,12 @@ function syncCompactSensorPhase(phase, phrase = "") {
   ) {
     label = buildTtsProgressLabel(label);
   }
+  const badgeClass = resolveHeroStatusBadgeClass(displayPhase, heroBackdropState);
+  syncCompactTopbarStatusLabel(label, badgeClass);
+  if (!status) return;
   status.textContent = label;
   status.classList.remove("is-active", "is-busy", "is-speaking", "is-typing", "is-idle", "is-ready");
-  status.classList.add(resolveHeroStatusBadgeClass(displayPhase, heroBackdropState));
+  status.classList.add(badgeClass);
 }
 
 function setCompactSensorScanning(active) {
@@ -6050,9 +6105,13 @@ function setCompactSensorScanning(active) {
   if (on) {
     sensor.dataset.activity = "listening";
     const voiceReady = sensor.dataset.voiceReady !== "0";
-    status.textContent = voiceReady ? "Сканирование…" : "Сканирование… (демо)";
-    status.classList.remove("is-busy", "is-speaking", "is-typing");
-    status.classList.add("is-active");
+    const scanLabel = voiceReady ? "Слушаю…" : "Слушаю… (демо)";
+    syncCompactTopbarStatusLabel(scanLabel, "is-active");
+    if (status) {
+      status.textContent = scanLabel;
+      status.classList.remove("is-busy", "is-speaking", "is-typing");
+      status.classList.add("is-active");
+    }
     return;
   }
   syncCompactSensorPhase(sensor.dataset.phase || "waiting", nodes.phaseLabel?.textContent || "");
@@ -6200,6 +6259,7 @@ function setWindowCompactMode(next) {
   state.windowSettings = nextSettings;
   applyWindowAppearance(nextSettings);
   syncCompactActionUi(compact);
+  syncCompactTopbarMeta();
   if (compact) {
     setShellView("main");
     void shellDialog.refreshHistory?.().then(() => syncCompactQa());
@@ -8364,6 +8424,7 @@ async function resolveShellAgent() {
   }
   const agent = selectable.find((entry) => entry.id === state.agentId);
   state.agentLabel = agent?.name || state.agentId || "";
+  syncCompactTopbarMeta();
   syncAgentSelects();
   updateSettingsSaveHints();
   shellPresenceController?.setAgentId(state.agentId);
@@ -9702,8 +9763,12 @@ function refreshTtsProgressHeroLabels() {
   if (nodes.phaseLabel) {
     nodes.phaseLabel.textContent = label;
   }
-  if (nodes.compactSensorStatus && isWindowCompactEnabled() && !isCompactSensorScanning()) {
-    nodes.compactSensorStatus.textContent = label;
+  if (isWindowCompactEnabled() && !isCompactSensorScanning()) {
+    const badge =
+      ["is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing"].find((c) =>
+        nodes.phaseLabel?.classList.contains(c)
+      ) || "is-speaking";
+    syncCompactTopbarStatusLabel(label, badge);
   }
 }
 
@@ -12726,6 +12791,7 @@ function handleMessageTargetChange() {
   markSettingsDirty("route");
   syncRuntimeSelects("header");
   updateRuntimeUi({ runtime });
+  syncCompactTopbarMeta();
   if (!isSettingsViewOpen()) {
     void persistMessageTarget(runtime);
   }
@@ -12741,6 +12807,7 @@ function handleRouteRuntimeChange() {
   syncRuntimeSelects("route");
   updateRuntimeUi({ runtime, reloadForms: true });
   markSettingsDirty("route");
+  syncCompactTopbarMeta();
   if (!isSettingsViewOpen()) {
     void persistMessageTarget(runtime);
   }
