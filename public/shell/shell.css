@@ -10464,14 +10464,14 @@ body.shell-embed.shell-compact .shell-main-view {
 .shell-app[data-compact="1"] .shell-compact-topbar-search {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 108px;
-  max-width: 156px;
-  padding: 3px 4px 3px 8px;
-  border-radius: 10px;
+  gap: 4px;
+  min-width: 158px;
+  max-width: 172px;
+  padding: 1px 3px 1px 6px;
+  border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: #f8fafc;
-  overflow: hidden;
+  overflow: visible;
   transition:
     min-width 0.24s ease,
     max-width 0.24s ease,
@@ -10487,14 +10487,15 @@ body.shell-embed.shell-compact .shell-main-view {
 
 .shell-app[data-compact="1"] .shell-compact-search-engine {
   flex: 0 0 auto;
-  max-width: 72px;
-  padding: 4px 4px 4px 6px;
+  flex-shrink: 0;
+  max-width: 70px;
+  padding: 2px 2px 2px 4px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #475569;
   font: inherit;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -10505,17 +10506,21 @@ body.shell-embed.shell-compact .shell-main-view {
   outline-offset: 0;
 }
 
+.shell-app[data-compact="1"] .shell-compact-search-engine option:disabled {
+  color: #94a3b8;
+}
+
 .shell-app[data-compact="1"] .shell-compact-search-input {
-  flex: 1 1 40px;
-  min-width: 40px;
+  flex: 1 1 0;
+  min-width: 0;
   width: auto;
-  padding: 6px 4px;
+  padding: 2px 2px;
   border: 0;
   background: transparent;
   color: #0f172a;
   font: inherit;
-  font-size: 13px;
-  line-height: 1.25;
+  font-size: 12px;
+  line-height: 1.15;
   transition: min-width 0.24s ease, flex-grow 0.24s ease;
 }
 
@@ -10544,11 +10549,11 @@ body.shell-embed.shell-compact .shell-main-view {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(99, 102, 241, 0.12);
   color: #4338ca;
   cursor: pointer;

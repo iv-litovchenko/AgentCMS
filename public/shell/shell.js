@@ -6290,26 +6290,119 @@ const SHELL_COMPACT_SEARCH_ENGINES = Object.freeze({
   yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
   duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
   bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
-  youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+  youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+  wikipedia: (q) => {
+    const host = String(window.location.hostname || "").toLowerCase();
+    if (host.endsWith(".wikipedia.org") || host === "wikipedia.org") {
+      return `https://${host}/w/index.php?search=${encodeURIComponent(q)}`;
+    }
+    return `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}`;
+  }
 });
 
-function isCompactSearchEngineHost(engineId) {
-  const host = String(window.location.hostname || "").toLowerCase();
-  if (!host) return false;
-  switch (engineId) {
-    case "google":
-      return /(^|\.)google\.[a-z.]{2,}$/i.test(host);
-    case "yandex":
-      return host.includes("yandex.") || host === "ya.ru";
-    case "duckduckgo":
-      return host.endsWith("duckduckgo.com");
-    case "bing":
-      return host.endsWith("bing.com");
-    case "youtube":
-      return host.endsWith("youtube.com") || host === "youtu.be";
-    default:
-      return false;
+const SHELL_COMPACT_SEARCH_OPTION_IDS = new Set([
+  "google",
+  "yandex",
+  "duckduckgo",
+  "bing",
+  "youtube",
+  "wikipedia",
+  "agentcms",
+  "clauder",
+  "chaggpt",
+  "geminit",
+  "grok",
+  "qwen",
+  "deepseek"
+]);
+
+/** @type {[string, (host: string) => boolean][]} */
+const SHELL_COMPACT_SEARCH_HOST_DETECTORS = [
+  ["geminit", (h) => h === "gemini.google.com" || h.endsWith(".gemini.google.com")],
+  ["google", (h) => /(^|\.)google\.[a-z.]{2,}$/i.test(h)],
+  ["yandex", (h) => h.includes("yandex.") || h === "ya.ru"],
+  ["duckduckgo", (h) => h.endsWith("duckduckgo.com")],
+  ["bing", (h) => h.endsWith("bing.com")],
+  ["youtube", (h) => h.endsWith("youtube.com") || h === "youtu.be"],
+  ["wikipedia", (h) => h === "wikipedia.org" || h.endsWith(".wikipedia.org")],
+  [
+    "chaggpt",
+    (h) =>
+      h === "chatgpt.com" ||
+      h.endsWith(".chatgpt.com") ||
+      h === "chat.openai.com" ||
+      h.endsWith(".chat.openai.com")
+  ],
+  ["clauder", (h) => h === "claude.ai" || h.endsWith(".claude.ai") || h === "anthropic.com"],
+  ["grok", (h) => h === "grok.com" || h.endsWith(".grok.com") || h === "x.ai" || h.endsWith(".x.ai")],
+  ["qwen", (h) => h === "qwen.com" || h.endsWith(".qwen.com") || h.includes("qwen.ai")],
+  ["deepseek", (h) => h === "deepseek.com" || h.endsWith(".deepseek.com")]
+];
+
+function detectCompactSearchEngineIdFromHostname(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (!host) return null;
+  for (const [id, test] of SHELL_COMPACT_SEARCH_HOST_DETECTORS) {
+    if (test(host)) return id;
   }
+  return null;
+}
+
+function isCompactSearchEngineHost(engineId) {
+  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  return detected === engineId && Boolean(SHELL_COMPACT_SEARCH_ENGINES[engineId]);
+}
+
+function syncCompactSearchEngineSelectToPage(selectEl) {
+  if (!selectEl) return;
+  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  const saved = readCompactSearchEngineId();
+  const next = detected && SHELL_COMPACT_SEARCH_OPTION_IDS.has(detected) ? detected : saved;
+  if (selectEl.value !== next) selectEl.value = next;
+}
+
+function bindCompactSearchEngineSelectPageSync(selectEl) {
+  if (!selectEl || selectEl.dataset.shellPageSyncBound === "1") return;
+  selectEl.dataset.shellPageSyncBound = "1";
+
+  const run = () => syncCompactSearchEngineSelectToPage(selectEl);
+  run();
+
+  window.addEventListener("pageshow", run);
+  window.addEventListener("focus", run);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") run();
+  });
+
+  let lastHref = location.href;
+  const onNavigate = () => {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    run();
+  };
+  window.addEventListener("popstate", onNavigate);
+
+  const { pushState, replaceState } = history;
+  history.pushState = function shellSearchPushState(...args) {
+    const result = pushState.apply(this, args);
+    onNavigate();
+    return result;
+  };
+  history.replaceState = function shellSearchReplaceState(...args) {
+    const result = replaceState.apply(this, args);
+    onNavigate();
+    return result;
+  };
+}
+
+function resolveCompactSearchEngineIdForSubmit(selectEl) {
+  const fromSelect = String(selectEl?.value || "").trim();
+  if (Object.prototype.hasOwnProperty.call(SHELL_COMPACT_SEARCH_ENGINES, fromSelect)) {
+    return fromSelect;
+  }
+  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  if (detected && SHELL_COMPACT_SEARCH_ENGINES[detected]) return detected;
+  return readCompactSearchEngineId();
 }
 
 function readCompactSearchEngineId() {
@@ -6333,7 +6426,9 @@ function writeCompactSearchEngineId(id) {
 function openCompactWebSearch(query) {
   const q = String(query || "").trim();
   if (!q) return false;
-  const engineId = readCompactSearchEngineId();
+  const engineId = resolveCompactSearchEngineIdForSubmit(
+    nodes.compactSearchEngine || document.getElementById("shell-compact-search-engine")
+  );
   const buildUrl = SHELL_COMPACT_SEARCH_ENGINES[engineId];
   if (!buildUrl) return false;
   const url = buildUrl(q);
@@ -6377,8 +6472,13 @@ function bindCompactTopbarSearch() {
   bindCompactSearchExpand(form, input);
 
   if (engineSelect) {
-    engineSelect.value = readCompactSearchEngineId();
+    syncCompactSearchEngineSelectToPage(engineSelect);
+    bindCompactSearchEngineSelectPageSync(engineSelect);
     engineSelect.addEventListener("change", () => {
+      if (!Object.prototype.hasOwnProperty.call(SHELL_COMPACT_SEARCH_ENGINES, engineSelect.value)) {
+        syncCompactSearchEngineSelectToPage(engineSelect);
+        return;
+      }
       writeCompactSearchEngineId(engineSelect.value);
     });
   }

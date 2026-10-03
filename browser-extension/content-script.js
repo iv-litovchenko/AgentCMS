@@ -12,26 +12,70 @@
     yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
     duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
     bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
-    youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+    youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+    wikipedia: (q) => {
+      const host = String(window.location.hostname || "").toLowerCase();
+      if (host.endsWith(".wikipedia.org") || host === "wikipedia.org") {
+        return `https://${host}/w/index.php?search=${encodeURIComponent(q)}`;
+      }
+      return `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}`;
+    }
   };
 
-  function isWebSearchEngineHost(engineId) {
-    const host = String(window.location.hostname || "").toLowerCase();
-    if (!host) return false;
-    switch (engineId) {
-      case "google":
-        return /(^|\.)google\.[a-z.]{2,}$/i.test(host);
-      case "yandex":
-        return host.includes("yandex.") || host === "ya.ru";
-      case "duckduckgo":
-        return host.endsWith("duckduckgo.com");
-      case "bing":
-        return host.endsWith("bing.com");
-      case "youtube":
-        return host.endsWith("youtube.com") || host === "youtu.be";
-      default:
-        return false;
+  /** @type {[string, string, boolean?][]} */
+  const WEB_SEARCH_ENGINE_OPTIONS = [
+    ["google", "Google"],
+    ["yandex", "Яндекс"],
+    ["duckduckgo", "DDG"],
+    ["bing", "Microsoft"],
+    ["youtube", "YouTube"],
+    ["wikipedia", "Wikipedia"],
+    ["agentcms", "Agent CMS", true],
+    ["clauder", "clauder.ai", true],
+    ["chaggpt", "chaggpt.com", true],
+    ["geminit", "geminit.com", true],
+    ["grok", "grok.com", true],
+    ["qwen", "qwen.com", true],
+    ["deepseek", "deepseek.com", true]
+  ];
+
+  const WEB_SEARCH_OPTION_IDS = new Set(WEB_SEARCH_ENGINE_OPTIONS.map(([id]) => id));
+
+  /** @type {[string, (host: string) => boolean][]} */
+  const WEB_SEARCH_HOST_DETECTORS = [
+    ["geminit", (h) => h === "gemini.google.com" || h.endsWith(".gemini.google.com")],
+    ["google", (h) => /(^|\.)google\.[a-z.]{2,}$/i.test(h)],
+    ["yandex", (h) => h.includes("yandex.") || h === "ya.ru"],
+    ["duckduckgo", (h) => h.endsWith("duckduckgo.com")],
+    ["bing", (h) => h.endsWith("bing.com")],
+    ["youtube", (h) => h.endsWith("youtube.com") || h === "youtu.be"],
+    ["wikipedia", (h) => h === "wikipedia.org" || h.endsWith(".wikipedia.org")],
+    [
+      "chaggpt",
+      (h) =>
+        h === "chatgpt.com" ||
+        h.endsWith(".chatgpt.com") ||
+        h === "chat.openai.com" ||
+        h.endsWith(".chat.openai.com")
+    ],
+    ["clauder", (h) => h === "claude.ai" || h.endsWith(".claude.ai") || h === "anthropic.com"],
+    ["grok", (h) => h === "grok.com" || h.endsWith(".grok.com") || h === "x.ai" || h.endsWith(".x.ai")],
+    ["qwen", (h) => h === "qwen.com" || h.endsWith(".qwen.com") || h.includes("qwen.ai")],
+    ["deepseek", (h) => h === "deepseek.com" || h.endsWith(".deepseek.com")]
+  ];
+
+  function detectSearchEngineIdFromHostname(hostname) {
+    const host = String(hostname || "").toLowerCase();
+    if (!host) return null;
+    for (const [id, test] of WEB_SEARCH_HOST_DETECTORS) {
+      if (test(host)) return id;
     }
+    return null;
+  }
+
+  function isWebSearchEngineHost(engineId) {
+    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+    return detected === engineId && Boolean(WEB_SEARCH_ENGINES[engineId]);
   }
 
   function readWebSearchEngineId() {
@@ -43,10 +87,63 @@
     }
   }
 
+  function resolveWebSearchEngineIdForSubmit(selectEl) {
+    const fromSelect = String(selectEl?.value || "").trim();
+    if (Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, fromSelect)) {
+      return fromSelect;
+    }
+    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+    if (detected && WEB_SEARCH_ENGINES[detected]) return detected;
+    return readWebSearchEngineId();
+  }
+
+  function syncSearchEngineSelectToPage(selectEl) {
+    if (!selectEl) return;
+    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+    const saved = readWebSearchEngineId();
+    const next =
+      detected && WEB_SEARCH_OPTION_IDS.has(detected) ? detected : saved;
+    if (selectEl.value !== next) selectEl.value = next;
+  }
+
+  function bindSearchEngineSelectPageSync(selectEl) {
+    if (!selectEl || selectEl.dataset.ascPageSyncBound === "1") return;
+    selectEl.dataset.ascPageSyncBound = "1";
+
+    const run = () => syncSearchEngineSelectToPage(selectEl);
+    run();
+
+    window.addEventListener("pageshow", run);
+    window.addEventListener("focus", run);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") run();
+    });
+
+    let lastHref = location.href;
+    const onNavigate = () => {
+      if (location.href === lastHref) return;
+      lastHref = location.href;
+      run();
+    };
+    window.addEventListener("popstate", onNavigate);
+
+    const { pushState, replaceState } = history;
+    history.pushState = function ascSearchPushState(...args) {
+      const result = pushState.apply(this, args);
+      onNavigate();
+      return result;
+    };
+    history.replaceState = function ascSearchReplaceState(...args) {
+      const result = replaceState.apply(this, args);
+      onNavigate();
+      return result;
+    };
+  }
+
   function openWebSearch(query) {
     const q = String(query || "").trim();
     if (!q) return;
-    const engineId = readWebSearchEngineId();
+    const engineId = resolveWebSearchEngineIdForSubmit(searchEngineSelect);
     const build = WEB_SEARCH_ENGINES[engineId];
     if (!build) return;
     const url = build(q);
@@ -101,7 +198,9 @@
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
     expand: '<svg viewBox="0 0 24 24"><path d="M8 14l4-4 4 4M8 10l4-4 4 4"/></svg>',
     panel:
-      '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>'
+      '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>',
+    openCms:
+      '<svg viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
   };
 
   const SELECTION_PROMPTS = [
@@ -258,9 +357,16 @@
   );
   viewportShotBtn.classList.add("asc-btn--viewport-shot", "asc-btn--icon-only");
 
-  const searchDockDivider = document.createElement("span");
-  searchDockDivider.className = "asc-brand-dock-divider";
-  searchDockDivider.setAttribute("aria-hidden", "true");
+  const openCmsBtn = createBtn(
+    "openCms",
+    "CMS",
+    "Открыть Agent CMS в браузере"
+  );
+  openCmsBtn.classList.add("asc-btn--open-cms", "asc-btn--icon-only");
+
+  const cmsDockDivider = document.createElement("span");
+  cmsDockDivider.className = "asc-brand-dock-divider";
+  cmsDockDivider.setAttribute("aria-hidden", "true");
 
   const webSearchForm = document.createElement("form");
   webSearchForm.className = "asc-brand-search";
@@ -270,19 +376,21 @@
   const searchEngineSelect = document.createElement("select");
   searchEngineSelect.className = "asc-brand-search-engine";
   searchEngineSelect.setAttribute("aria-label", "Поисковик");
-  for (const [id, label] of [
-    ["google", "Google"],
-    ["yandex", "Яндекс"],
-    ["duckduckgo", "DDG"],
-    ["bing", "Bing"],
-    ["youtube", "YouTube"]
-  ]) {
+  for (const [id, label, disabled] of WEB_SEARCH_ENGINE_OPTIONS) {
     const option = document.createElement("option");
     option.value = id;
     option.textContent = label;
+    if (id === "bing") {
+      option.title = "Microsoft Bing";
+    } else if (disabled) {
+      option.disabled = true;
+      option.title =
+        id === "agentcms" ? "Поиск по Agent CMS — скоро" : `${label} — скоро`;
+    }
     searchEngineSelect.append(option);
   }
-  searchEngineSelect.value = readWebSearchEngineId();
+  syncSearchEngineSelectToPage(searchEngineSelect);
+  bindSearchEngineSelectPageSync(searchEngineSelect);
 
   const searchInput = document.createElement("input");
   searchInput.type = "search";
@@ -321,6 +429,10 @@
   });
 
   searchEngineSelect.addEventListener("change", () => {
+    if (!Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, searchEngineSelect.value)) {
+      syncSearchEngineSelectToPage(searchEngineSelect);
+      return;
+    }
     try {
       localStorage.setItem(STORAGE_SEARCH_ENGINE, searchEngineSelect.value);
     } catch {
@@ -529,7 +641,8 @@
     brandCluster,
     brandDockDivider,
     viewportShotBtn,
-    searchDockDivider,
+    cmsDockDivider,
+    openCmsBtn,
     webSearchForm
   );
 
@@ -1304,6 +1417,16 @@
         setStatus("Вставлено", "ok");
         resolve(response);
       });
+    });
+  }
+
+  function openAgentCmsTab() {
+    chrome.runtime.sendMessage({ type: "COMPANION_OPEN_CMS_TAB" }, (response) => {
+      if (chrome.runtime.lastError || !response?.ok) {
+        setStatus(response?.error || "Не удалось открыть Agent CMS", "error");
+        return;
+      }
+      setStatus(response.sameTab ? "Agent CMS…" : "Agent CMS открыт", "ok");
     });
   }
 
@@ -2242,6 +2365,11 @@
   viewportShotBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     void runScreenshot({ region: false, destination: "clipboard" });
+  });
+
+  openCmsBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openAgentCmsTab();
   });
 
   elementBtn.addEventListener("click", togglePagePicker);

@@ -141,6 +141,31 @@ async function getShellFramePayload() {
   return { shellUrl, tabUrl, panelUrl: shellUrl, cmsBaseUrl, agentId, voiceBase };
 }
 
+function normalizeCmsOpenUrl(cmsBaseUrl) {
+  return `${String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "")}/`;
+}
+
+async function openAgentCmsInBrowser(senderTab) {
+  const { cmsBaseUrl } = await getSettings();
+  const url = normalizeCmsOpenUrl(cmsBaseUrl);
+  const tabId = Number(senderTab?.id);
+  const tabUrl = String(senderTab?.url || "");
+  if (Number.isFinite(tabId) && tabId > 0 && tabUrl && !tabUrl.startsWith("chrome://")) {
+    try {
+      const cmsOrigin = new URL(url).origin;
+      const pageOrigin = new URL(tabUrl).origin;
+      if (cmsOrigin === pageOrigin) {
+        await chrome.tabs.update(tabId, { url, active: true });
+        return { ok: true, sameTab: true, tabId };
+      }
+    } catch {
+      // fall through to new tab
+    }
+  }
+  const tab = await chrome.tabs.create({ url, active: true });
+  return { ok: true, tabId: tab.id };
+}
+
 /** @type {Map<number, number>} */
 const pickerTabByWindow = new Map();
 
@@ -770,6 +795,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     getShellFramePayload()
       .then(({ tabUrl }) => chrome.tabs.create({ url: tabUrl, active: true }))
       .then((tab) => sendResponse({ ok: true, tabId: tab.id }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_OPEN_CMS_TAB") {
+    openAgentCmsInBrowser(sender.tab)
+      .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }

@@ -39,7 +39,7 @@
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  padding: 4px 8px 4px 4px;
+  padding: 2px 6px 2px 3px;
   border-radius: 999px;
   background: rgba(17, 12, 32, 0.94);
   border: 1px solid rgba(167, 139, 250, 0.42);
@@ -60,8 +60,8 @@
 .asc-brand-dock-divider {
   display: block;
   width: 1px;
-  height: 20px;
-  margin: 0 2px 0 4px;
+  height: 16px;
+  margin: 0 2px 0 3px;
   background: rgba(255, 255, 255, 0.18);
   border-radius: 1px;
   flex-shrink: 0;
@@ -76,27 +76,31 @@
   border-radius: 999px;
 }
 
-.asc-brand-dock .asc-btn--viewport-shot {
+.asc-brand-dock .asc-btn--viewport-shot,
+.asc-brand-dock .asc-btn--open-cms {
   flex-shrink: 0;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
   color: #ddd6fe;
 }
 
 .asc-brand-search {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 0 1 auto;
-  min-width: 112px;
-  max-width: 148px;
+  min-width: 162px;
+  max-width: 176px;
   margin-left: auto;
-  padding: 3px 4px 3px 8px;
+  padding: 1px 3px 1px 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(167, 139, 250, 0.28);
   touch-action: auto;
   user-select: text;
   cursor: text;
-  overflow: hidden;
+  overflow: visible;
   transition:
     min-width 0.24s ease,
     max-width 0.24s ease,
@@ -119,14 +123,15 @@
 
 .asc-brand-search-engine {
   flex: 0 0 auto;
-  max-width: 78px;
-  padding: 4px 4px 4px 2px;
+  flex-shrink: 0;
+  max-width: 70px;
+  padding: 2px 2px 2px 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: #ddd6fe;
   font: inherit;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -137,17 +142,21 @@
   outline-offset: 1px;
 }
 
+.asc-brand-search-engine option:disabled {
+  color: rgba(237, 233, 254, 0.38);
+}
+
 .asc-brand-search-input {
-  flex: 1 1 44px;
-  min-width: 44px;
+  flex: 1 1 0;
+  min-width: 0;
   width: auto;
-  padding: 6px 4px;
+  padding: 2px 2px;
   border: 0;
   background: transparent;
   color: #f5f3ff;
   font: inherit;
-  font-size: 13px;
-  line-height: 1.25;
+  font-size: 12px;
+  line-height: 1.15;
   cursor: text;
   transition: min-width 0.24s ease, flex-grow 0.24s ease;
 }
@@ -155,7 +164,7 @@
 .asc-brand-search.is-search-expanded .asc-brand-search-input {
   flex: 2 1 148px;
   min-width: 148px;
-  padding: 6px 6px;
+  padding: 2px 4px;
 }
 
 .asc-brand-search-input::placeholder {
@@ -171,9 +180,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
   padding: 0;
   border-radius: 999px;
   color: #ede9fe;
@@ -182,8 +191,8 @@
 }
 
 .asc-brand-search-submit svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   stroke: currentColor;
   fill: none;
   stroke-width: 2;
