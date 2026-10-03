@@ -27,7 +27,8 @@ const {
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
 const {
-  WORKSPACE_WSMAP_FILE,
+  WORKSPACE_WS_MAP_FILE,
+  WORKSPACE_WSMAP_LEGACY_FILE,
   collectWorkspaceIndexMdPaths,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
@@ -681,7 +682,7 @@ const SYSTEM_FILE_NAMES = [
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
   ROOT_SYSTEM_TODO_FILE,
-  WORKSPACE_WSMAP_FILE
+  WORKSPACE_WS_MAP_FILE
 ];
 
 const ROOT_SYSTEM_CONFIG_FILE_NAMES = new Set([
@@ -846,7 +847,9 @@ async function resolveExistingSystemFileAbsolute(name) {
       ? [ROOT_SYSTEM_TODO_FILE, "todo.md"]
       : canonical === ROOT_SYSTEM_NOTE_FILE
         ? [ROOT_SYSTEM_NOTE_FILE, "note.md", "notes.md"]
-        : [canonical];
+        : canonical === WORKSPACE_WS_MAP_FILE
+          ? [WORKSPACE_WS_MAP_FILE, WORKSPACE_WSMAP_LEGACY_FILE]
+          : [canonical];
   for (const candidate of candidates) {
     const absolute = path.join(agentRoot, candidate);
     if (!absolute.startsWith(agentRoot)) continue;
@@ -12691,7 +12694,7 @@ async function writeAgentWorkspacePageIndex(options = {}) {
 }
 
 function getWorkspaceWsmapRelPath() {
-  return WORKSPACE_WSMAP_FILE;
+  return WORKSPACE_WS_MAP_FILE;
 }
 
 async function readWorkspaceIndexFileContent(relPath) {
@@ -12710,10 +12713,10 @@ async function buildAgentWorkspaceWsmap() {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Сводка всех index.md / INDEX.md в workspace в одном WSMAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
+      "Сводка всех index.md / INDEX.md в workspace в одном WS-MAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
     whenToUse: {
-      get_workspace_wsmap: "Список источников и метаданные WSMAP без записи на диск.",
-      refresh_workspace_wsmap: "Пересобрать и сохранить WSMAP.md в корне workspace."
+      get_workspace_wsmap: "Список источников и метаданные WS-MAP без записи на диск.",
+      refresh_workspace_wsmap: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {
@@ -12732,7 +12735,7 @@ async function writeAgentWorkspaceWsmap(options = {}) {
   const indexPath = payload.indexFile.path;
   if (payload.indexFile.exists && !overwrite) {
     return {
-      error: "WSMAP file already exists",
+      error: "WS-MAP file already exists",
       status: 409,
       path: payload.path,
       indexFile: { path: indexPath, exists: true }
@@ -12744,11 +12747,22 @@ async function writeAgentWorkspaceWsmap(options = {}) {
   });
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  const legacyPath = WORKSPACE_WSMAP_LEGACY_FILE;
+  if (legacyPath !== indexPath && (await workspaceRelFileExists(legacyPath))) {
+    try {
+      const legacyAbs = path.join(getAgentRoot(), legacyPath);
+      if (legacyAbs.startsWith(getAgentRoot())) {
+        await fs.unlink(legacyAbs);
+      }
+    } catch {
+      // ignore legacy cleanup errors
+    }
+  }
   return {
     version: 1,
     model: "workspace-wsmap-write",
     ok: true,
-    hint: "WSMAP.md обновлён в корне workspace.",
+    hint: "WS-MAP.md обновлён в корне workspace.",
     whenToUse: payload.whenToUse,
     path: payload.path,
     overwrite,
@@ -14163,7 +14177,7 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
-    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WSMAP.md",
+    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP.md",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
@@ -14202,9 +14216,9 @@ const SESSION_CONTEXT_API_MAP = {
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   workspaceWsmap:
-    "GET /api/agent/workspace-wsmap — метаданные WSMAP.md (список всех index.md / INDEX.md)",
+    "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (список всех index.md / INDEX.md)",
   workspaceWsmapWrite:
-    "POST /api/agent/workspace-wsmap — собрать и сохранить WSMAP.md в корне workspace (body: overwrite?)",
+    "POST /api/agent/workspace-wsmap — собрать и сохранить WS-MAP.md в корне workspace (body: overwrite?)",
   awnDataIndex:
     "GET /api/agent/awn-databases-index — оглавление awn-databases/index.md (kind, group, path, title, description; инфоблоки)",
   awnDataIndexWrite: "POST /api/agent/awn-databases-index — обновить awn-databases/index.md (body: overwrite?)",
@@ -22562,7 +22576,7 @@ async function handleApiForAgent(req, res, url) {
             : {
                 ok: true,
                 sourceCount: wsmapResult.sourceCount || 0,
-                path: wsmapResult.written?.path || WORKSPACE_WSMAP_FILE
+                path: wsmapResult.written?.path || WORKSPACE_WS_MAP_FILE
               };
         } catch (error) {
           wsmap = { ok: false, error: String(error.message || error) };
@@ -22581,7 +22595,7 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter → WSMAP.md",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter → WS-MAP.md",
         steps,
         ocr,
         fulltext,

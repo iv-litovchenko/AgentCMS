@@ -1871,7 +1871,7 @@ const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
-const WORKSPACE_WSMAP_FILE = "WSMAP.md";
+const WORKSPACE_WSMAP_FILE = "WS-MAP.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -1949,7 +1949,8 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
   "README.md": "README",
-  "WSMAP.md": "WSMAP",
+  "WS-MAP.md": "WS-MAP",
+  "WSMAP.md": "WS-MAP",
   ".env": ".env",
   ".gitignore": ".gitignore"
 };
@@ -76931,7 +76932,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     footer.title = hasIndex
       ? `Открыть ${indexRelPath}`
       : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
-    refreshBtn.title = "Обновить INDEX.md и собрать WSMAP.md из всех index.md в workspace";
+    refreshBtn.title = "Обновить INDEX.md и собрать WS-MAP.md из всех index.md в workspace";
   };
 
   const setWorkspacePageIndexRefreshLoading = (loading) => {
@@ -76983,9 +76984,9 @@ function ensureSidebarWorkspacePageIndexRow() {
           }
           void loadSystemFiles();
           if (indexOk && wsmapOk) {
-            showToast("INDEX.md и WSMAP.md обновлены", "success");
+            showToast("INDEX.md и WS-MAP.md обновлены", "success");
           } else if (indexOk) {
-            showToast("INDEX.md обновлён; WSMAP.md не собран", "warning");
+            showToast("INDEX.md обновлён; WS-MAP.md не собран", "warning");
           } else {
             showToast("Не удалось обновить оглавление workspace", "error");
           }
@@ -95330,6 +95331,9 @@ function normalizeSystemFileName(name) {
   if (lower === "onboarding.md" || lower === "onboarding") return "ONBOARDING.md";
   if (lower === "skill.md" || lower === "skill") return "SKILL.md";
   if (lower === "readme.md" || lower === "readme") return "README.md";
+  if (lower === "wsmap.md" || lower === "ws-map.md" || lower === "wsmap" || lower === "ws-map") {
+    return WORKSPACE_WSMAP_FILE;
+  }
   if (lower === ".env" || lower === "env") return ".env";
   if (lower === ".gitignore" || lower === "gitignore") return ".gitignore";
   return base;

@@ -1215,6 +1215,7 @@
     storageRebuildFullBtn,
     linkRebuildBtn,
     workspaceIdSyncBtn,
+    wsmapRebuildBtn,
     navFlagsRebuildBtn
   ].forEach((button) => rememberButtonLabel(button));
 
@@ -1294,8 +1295,8 @@
       "/api/agent/workspace-wsmap",
       wsmapStatusNode,
       (payload) =>
-        `WSMAP.md: ${payload.sourceCount ?? payload.written?.sourceCount ?? 0} index-файлов`,
-      { loadingLabel: "Сборка WSMAP.md…" }
+        `WS-MAP.md: ${payload.sourceCount ?? payload.written?.sourceCount ?? 0} index-файлов`,
+      { loadingLabel: "Сборка WS-MAP.md…" }
     );
     if (data) {
       window.dispatchEvent(new CustomEvent("agentcms-system-files-changed"));
@@ -1304,7 +1305,7 @@
 
   wsmapOpenBtn?.addEventListener("click", () => {
     window.dispatchEvent(
-      new CustomEvent("agentcms-open-root-system-file", { detail: { name: "WSMAP.md" } })
+      new CustomEvent("agentcms-open-root-system-file", { detail: { name: "WS-MAP.md" } })
     );
   });
 

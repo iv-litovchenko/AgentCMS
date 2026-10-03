@@ -350,8 +350,8 @@ fields:
 
   index-wsmap-enabled:
     type: awn.field.boolean
-    title: Карта (WSMAP)
-    description: Шаг 7 pipeline — собрать WSMAP.md из всех index.md / INDEX.md в workspace
+    title: Карта (WS-MAP)
+    description: Шаг 7 pipeline — собрать WS-MAP.md из всех index.md / INDEX.md в workspace
     default: true
     group: indexing
     sort: 26

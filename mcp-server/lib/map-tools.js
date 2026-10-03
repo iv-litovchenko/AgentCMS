@@ -255,7 +255,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WSMAP.md. Same as UI pipeline button.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md. Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()
@@ -399,19 +399,19 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "get_workspace_wsmap",
-    "Metadata for WSMAP.md: all index.md/INDEX.md paths in workspace (no file body).",
+    "Metadata for WS-MAP.md: all index.md/INDEX.md paths in workspace (no file body).",
     z.object({}),
     () => client.get("/api/agent/workspace-wsmap")
   );
 
   reg(
     "refresh_workspace_wsmap",
-    "Rebuild and save WSMAP.md at workspace root by merging all index.md/INDEX.md files.",
+    "Rebuild and save WS-MAP.md at workspace root by merging all index.md/INDEX.md files.",
     z.object({
       overwrite: z
         .boolean()
         .optional()
-        .describe("Replace existing WSMAP.md if present (default true). false → 409 when file exists.")
+        .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
     }),
     ({ overwrite }) =>
       client.post("/api/agent/workspace-wsmap", {

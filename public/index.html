@@ -1102,7 +1102,7 @@
                     type="button"
                     class="header-index-flush-btn header-index-flush-btn--all"
                     data-index-flush="pipeline"
-                    title="Слова → смысл → поля → связи → id (OCR пропускается)"
+                    title="Слова → смысл → поля → связи → id → карта (OCR пропускается)"
                   >
                     <span class="header-index-flush-icon" aria-hidden="true">⚡</span>
                     <span>Вся цепочка</span>
@@ -1132,10 +1132,13 @@
                   <button type="button" class="header-index-flush-btn" data-index-flush="workspace-id" title="Синхронизировать счётчик awn-id">
                     ID
                   </button>
+                  <button type="button" class="header-index-flush-btn" data-index-flush="wsmap" title="Собрать WS-MAP.md из всех index.md в workspace">
+                    Карта
+                  </button>
                 </div>
                 <div class="header-index-popover-body menu-static-body menu-index-panel-body">
                   <p class="menu-static-description">
-                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей → awn-id → WSMAP.md.
+                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей → awn-id → WS-MAP.md.
                     После сохранения .md sidecar индексы обновляются автоматически.
                   </p>
 
@@ -1318,16 +1321,16 @@
                   </div>
 
                   <div class="menu-index-block" data-index-layer="wsmap">
-                    <div class="menu-index-block-title">7. Карта (WSMAP)</div>
+                    <div class="menu-index-block-title">7. Карта</div>
                     <p class="menu-static-description">
-                      Сводка всех <code>index.md</code> / <code>INDEX.md</code> в <code>WSMAP.md</code> (корень workspace)
+                      Сводка всех <code>index.md</code> / <code>INDEX.md</code> в <code>WS-MAP.md</code> (корень workspace)
                     </p>
                     <p id="menu-wsmap-status" class="menu-static-description" aria-live="polite"></p>
                     <button type="button" id="menu-wsmap-rebuild-btn" class="menu-static-action-btn">
-                      Собрать WSMAP.md
+                      Собрать WS-MAP.md
                     </button>
                     <button type="button" id="menu-wsmap-open-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
-                      Открыть WSMAP.md
+                      Открыть WS-MAP.md
                     </button>
                   </div>
 
