@@ -6287,7 +6287,11 @@ function exitCompactMode() {
 
 const SHELL_COMPACT_SEARCH_ENGINES = Object.freeze({
   google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+  "google-images": (q) =>
+    `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
   yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
+  "yandex-images": (q) =>
+    `https://yandex.ru/images/search?text=${encodeURIComponent(q)}`,
   duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
   bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
   youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
@@ -6302,7 +6306,9 @@ const SHELL_COMPACT_SEARCH_ENGINES = Object.freeze({
 
 const SHELL_COMPACT_SEARCH_OPTION_IDS = new Set([
   "google",
+  "google-images",
   "yandex",
+  "yandex-images",
   "duckduckgo",
   "bing",
   "youtube",
@@ -6339,9 +6345,25 @@ const SHELL_COMPACT_SEARCH_HOST_DETECTORS = [
   ["deepseek", (h) => h === "deepseek.com" || h.endsWith(".deepseek.com")]
 ];
 
-function detectCompactSearchEngineIdFromHostname(hostname) {
-  const host = String(hostname || "").toLowerCase();
+function detectCompactSearchEngineIdFromPage(loc = window.location) {
+  const host = String(loc.hostname || "").toLowerCase();
+  const path = String(loc.pathname || "");
+  const tbm = new URLSearchParams(loc.search || "").get("tbm");
   if (!host) return null;
+
+  if (host === "images.google.com" || host.endsWith(".images.google.com")) {
+    return "google-images";
+  }
+  if (/(^|\.)google\.[a-z.]{2,}$/i.test(host) && tbm === "isch") {
+    return "google-images";
+  }
+  if (
+    (host.includes("yandex.") || host === "ya.ru") &&
+    (path === "/images" || path.startsWith("/images/"))
+  ) {
+    return "yandex-images";
+  }
+
   for (const [id, test] of SHELL_COMPACT_SEARCH_HOST_DETECTORS) {
     if (test(host)) return id;
   }
@@ -6349,13 +6371,13 @@ function detectCompactSearchEngineIdFromHostname(hostname) {
 }
 
 function isCompactSearchEngineHost(engineId) {
-  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  const detected = detectCompactSearchEngineIdFromPage();
   return detected === engineId && Boolean(SHELL_COMPACT_SEARCH_ENGINES[engineId]);
 }
 
 function syncCompactSearchEngineSelectToPage(selectEl) {
   if (!selectEl) return;
-  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  const detected = detectCompactSearchEngineIdFromPage();
   const saved = readCompactSearchEngineId();
   const next = detected && SHELL_COMPACT_SEARCH_OPTION_IDS.has(detected) ? detected : saved;
   if (selectEl.value !== next) selectEl.value = next;
@@ -6400,7 +6422,7 @@ function resolveCompactSearchEngineIdForSubmit(selectEl) {
   if (Object.prototype.hasOwnProperty.call(SHELL_COMPACT_SEARCH_ENGINES, fromSelect)) {
     return fromSelect;
   }
-  const detected = detectCompactSearchEngineIdFromHostname(window.location.hostname);
+  const detected = detectCompactSearchEngineIdFromPage();
   if (detected && SHELL_COMPACT_SEARCH_ENGINES[detected]) return detected;
   return readCompactSearchEngineId();
 }

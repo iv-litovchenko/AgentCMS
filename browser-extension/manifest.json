@@ -29,7 +29,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["panel-host.html", "panel-host.js", "toolbar-inner.css"],
+      "resources": [
+        "panel-host.html",
+        "panel-host.js",
+        "toolbar-inner.css",
+        "icons/brands/yandex.svg"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
@@ -39,6 +44,7 @@
       "js": [
         "companion-urls-global.js",
         "clipboard-history.js",
+        "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",
         "companion-voice-relay.js"

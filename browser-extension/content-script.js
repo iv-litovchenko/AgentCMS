@@ -6,44 +6,16 @@
   const STORAGE_EXPANDED = "asc-toolbar-expanded";
   const STORAGE_OFFSET = "asc-toolbar-offset";
   const STORAGE_SEARCH_ENGINE = "asc-web-search-engine";
+  const STORAGE_SEARCH_FAVORITES = "asc-web-search-favorites.v1";
+  const STORAGE_SEARCH_NEW_WINDOW = "asc-web-search-new-window.v1";
 
-  const WEB_SEARCH_ENGINES = {
-    google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
-    yandex: (q) => `https://yandex.ru/search/?text=${encodeURIComponent(q)}`,
-    duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
-    bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
-    youtube: (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-    wikipedia: (q) => {
-      const host = String(window.location.hostname || "").toLowerCase();
-      if (host.endsWith(".wikipedia.org") || host === "wikipedia.org") {
-        return `https://${host}/w/index.php?search=${encodeURIComponent(q)}`;
-      }
-      return `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}`;
-    }
-  };
-
-  /** @type {[string, string, boolean?][]} */
-  const WEB_SEARCH_ENGINE_OPTIONS = [
-    ["google", "Google"],
-    ["yandex", "Яндекс"],
-    ["duckduckgo", "DDG"],
-    ["bing", "Microsoft"],
-    ["youtube", "YouTube"],
-    ["wikipedia", "Wikipedia"],
-    ["agentcms", "Agent CMS", true],
-    ["clauder", "clauder.ai", true],
-    ["chaggpt", "chaggpt.com", true],
-    ["geminit", "geminit.com", true],
-    ["grok", "grok.com", true],
-    ["qwen", "qwen.com", true],
-    ["deepseek", "deepseek.com", true]
-  ];
-
-  const WEB_SEARCH_OPTION_IDS = new Set(WEB_SEARCH_ENGINE_OPTIONS.map(([id]) => id));
+  const CSC = globalThis.CompanionWebSearch;
+  const WEB_SEARCH_ENGINES = CSC?.BUILD || {};
+  const WEB_SEARCH_OPTION_IDS = CSC?.ALL_IDS || new Set(["google"]);
 
   /** @type {[string, (host: string) => boolean][]} */
   const WEB_SEARCH_HOST_DETECTORS = [
-    ["geminit", (h) => h === "gemini.google.com" || h.endsWith(".gemini.google.com")],
+    ["gemini", (h) => h === "gemini.google.com" || h.endsWith(".gemini.google.com")],
     ["google", (h) => /(^|\.)google\.[a-z.]{2,}$/i.test(h)],
     ["yandex", (h) => h.includes("yandex.") || h === "ya.ru"],
     ["duckduckgo", (h) => h.endsWith("duckduckgo.com")],
@@ -51,22 +23,53 @@
     ["youtube", (h) => h.endsWith("youtube.com") || h === "youtu.be"],
     ["wikipedia", (h) => h === "wikipedia.org" || h.endsWith(".wikipedia.org")],
     [
-      "chaggpt",
+      "chatgpt",
       (h) =>
         h === "chatgpt.com" ||
         h.endsWith(".chatgpt.com") ||
         h === "chat.openai.com" ||
         h.endsWith(".chat.openai.com")
     ],
-    ["clauder", (h) => h === "claude.ai" || h.endsWith(".claude.ai") || h === "anthropic.com"],
+    ["claude", (h) => h === "claude.ai" || h.endsWith(".claude.ai") || h === "anthropic.com"],
+    ["copilot", (h) => h === "copilot.microsoft.com" || h.endsWith(".copilot.microsoft.com")],
     ["grok", (h) => h === "grok.com" || h.endsWith(".grok.com") || h === "x.ai" || h.endsWith(".x.ai")],
     ["qwen", (h) => h === "qwen.com" || h.endsWith(".qwen.com") || h.includes("qwen.ai")],
-    ["deepseek", (h) => h === "deepseek.com" || h.endsWith(".deepseek.com")]
+    ["deepseek", (h) => h === "deepseek.com" || h.endsWith(".deepseek.com")],
+    ["perplexity", (h) => h === "perplexity.ai" || h.endsWith(".perplexity.ai")]
   ];
 
-  function detectSearchEngineIdFromHostname(hostname) {
-    const host = String(hostname || "").toLowerCase();
+  function detectSearchEngineIdFromPage(loc = window.location) {
+    const host = String(loc.hostname || "").toLowerCase();
+    const path = String(loc.pathname || "");
+    const tbm = new URLSearchParams(loc.search || "").get("tbm");
     if (!host) return null;
+
+    if (host === "images.google.com" || host.endsWith(".images.google.com")) {
+      return "google-images";
+    }
+    if (/(^|\.)google\.[a-z.]{2,}$/i.test(host) && tbm === "isch") {
+      return "google-images";
+    }
+    if (
+      (host.includes("yandex.") || host === "ya.ru") &&
+      (path === "/images" || path.startsWith("/images/"))
+    ) {
+      return "yandex-images";
+    }
+    if (
+      host === "maps.google.com" ||
+      host.endsWith(".maps.google.com") ||
+      (/(^|\.)google\.[a-z.]{2,}$/i.test(host) && path.startsWith("/maps"))
+    ) {
+      return "google-maps";
+    }
+    if (
+      (host.includes("yandex.") || host === "ya.ru") &&
+      (path === "/maps" || path.startsWith("/maps/"))
+    ) {
+      return "yandex-maps";
+    }
+
     for (const [id, test] of WEB_SEARCH_HOST_DETECTORS) {
       if (test(host)) return id;
     }
@@ -74,7 +77,7 @@
   }
 
   function isWebSearchEngineHost(engineId) {
-    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+    const detected = detectSearchEngineIdFromPage();
     return detected === engineId && Boolean(WEB_SEARCH_ENGINES[engineId]);
   }
 
@@ -87,30 +90,337 @@
     }
   }
 
-  function resolveWebSearchEngineIdForSubmit(selectEl) {
-    const fromSelect = String(selectEl?.value || "").trim();
-    if (Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, fromSelect)) {
-      return fromSelect;
+  function readSearchFavorites() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_SEARCH_FAVORITES) || "[]");
+      if (!Array.isArray(raw)) return [];
+      return raw.filter((id) => WEB_SEARCH_OPTION_IDS.has(id));
+    } catch {
+      return [];
     }
-    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+  }
+
+  function writeSearchFavorites(ids) {
+    try {
+      localStorage.setItem(STORAGE_SEARCH_FAVORITES, JSON.stringify(ids));
+    } catch {
+      // ignore
+    }
+  }
+
+  function readSearchOpenInNewWindow() {
+    try {
+      return localStorage.getItem(STORAGE_SEARCH_NEW_WINDOW) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function writeSearchOpenInNewWindow(enabled) {
+    try {
+      localStorage.setItem(STORAGE_SEARCH_NEW_WINDOW, enabled ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
+
+  function toggleSearchFavorite(id) {
+    if (!WEB_SEARCH_OPTION_IDS.has(id)) return readSearchFavorites();
+    const set = new Set(readSearchFavorites());
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    const next = [...set];
+    writeSearchFavorites(next);
+    return next;
+  }
+
+  function resolveWebSearchEngineIdForSubmit(pickerApi) {
+    const fromPicker = String(pickerApi?.getSelectedId?.() || "").trim();
+    if (Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, fromPicker)) {
+      return fromPicker;
+    }
+    const detected = detectSearchEngineIdFromPage();
     if (detected && WEB_SEARCH_ENGINES[detected]) return detected;
     return readWebSearchEngineId();
   }
 
-  function syncSearchEngineSelectToPage(selectEl) {
-    if (!selectEl) return;
-    const detected = detectSearchEngineIdFromHostname(window.location.hostname);
+  function resolveSearchEngineIdForDisplay() {
+    const detected = detectSearchEngineIdFromPage();
     const saved = readWebSearchEngineId();
-    const next =
-      detected && WEB_SEARCH_OPTION_IDS.has(detected) ? detected : saved;
-    if (selectEl.value !== next) selectEl.value = next;
+    return detected && WEB_SEARCH_OPTION_IDS.has(detected) ? detected : saved;
   }
 
-  function bindSearchEngineSelectPageSync(selectEl) {
-    if (!selectEl || selectEl.dataset.ascPageSyncBound === "1") return;
-    selectEl.dataset.ascPageSyncBound = "1";
+  const DEFAULT_SEARCH_PICKER_ICON_SVG =
+    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
 
-    const run = () => syncSearchEngineSelectToPage(selectEl);
+  function resolveBrandIconUrl(itemId) {
+    const resolveExtensionUrl = (path) => {
+      try {
+        return chrome.runtime?.getURL ? chrome.runtime.getURL(path) : "";
+      } catch {
+        return "";
+      }
+    };
+    return CSC?.getIconUrl?.(itemId, resolveExtensionUrl) || "";
+  }
+
+  function applyDefaultPickerIcon(iconWrap) {
+    iconWrap.classList.add("asc-brand-search-picker-icon--default");
+    iconWrap.innerHTML = DEFAULT_SEARCH_PICKER_ICON_SVG;
+  }
+
+  function appendBrandPickerIcon(parent, itemId) {
+    const iconWrap = document.createElement("span");
+    iconWrap.className = "asc-brand-search-picker-icon";
+    iconWrap.setAttribute("aria-hidden", "true");
+    const iconUrl = resolveBrandIconUrl(itemId);
+    const isLocalBrand = Boolean(CSC?.getIconLocalPath?.(itemId));
+    if (iconUrl) {
+      const img = document.createElement("img");
+      img.src = iconUrl;
+      img.width = 16;
+      img.height = 16;
+      img.alt = "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      if (isLocalBrand) {
+        iconWrap.classList.add("asc-brand-search-picker-icon--brand");
+      }
+      img.addEventListener(
+        "error",
+        () => {
+          iconWrap.classList.remove("asc-brand-search-picker-icon--brand");
+          applyDefaultPickerIcon(iconWrap);
+        },
+        { once: true }
+      );
+      iconWrap.append(img);
+    } else {
+      applyDefaultPickerIcon(iconWrap);
+    }
+    parent.append(iconWrap);
+  }
+
+  function createBrandSearchPicker() {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-brand-search-picker";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "asc-brand-search-picker-btn";
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.setAttribute("aria-expanded", "false");
+    btn.title = "Выбрать сервис поиска";
+    btn.innerHTML =
+      '<span class="asc-brand-search-picker-label">Google</span>' +
+      '<svg class="asc-brand-search-picker-chevron" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+    const pop = document.createElement("div");
+    pop.className = "asc-brand-search-picker-pop";
+    pop.hidden = true;
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", "Сервисы поиска");
+
+    const filterInput = document.createElement("input");
+    filterInput.type = "search";
+    filterInput.className = "asc-brand-search-picker-filter";
+    filterInput.placeholder = "Найти сервис…";
+    filterInput.setAttribute("aria-label", "Фильтр списка");
+
+    const body = document.createElement("div");
+    body.className = "asc-brand-search-picker-body";
+
+    const footer = document.createElement("div");
+    footer.className = "asc-brand-search-picker-footer";
+
+    const newWindowLabel = document.createElement("label");
+    newWindowLabel.className = "asc-brand-search-picker-newwin";
+
+    const newWindowCheck = document.createElement("input");
+    newWindowCheck.type = "checkbox";
+    newWindowCheck.className = "asc-brand-search-picker-newwin-input";
+    newWindowCheck.checked = readSearchOpenInNewWindow();
+    newWindowCheck.addEventListener("change", () => {
+      writeSearchOpenInNewWindow(newWindowCheck.checked);
+    });
+
+    const newWindowText = document.createElement("span");
+    newWindowText.textContent = "Открывать запрос в новом окне";
+
+    newWindowLabel.append(newWindowCheck, newWindowText);
+    footer.append(newWindowLabel);
+
+    pop.append(filterInput, body, footer);
+    wrap.append(btn, pop);
+
+    let selectedId = readWebSearchEngineId();
+    let filterText = "";
+    let open = false;
+
+    const labelEl = btn.querySelector(".asc-brand-search-picker-label");
+
+    function setOpen(next) {
+      open = Boolean(next);
+      pop.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.classList.toggle("is-open", open);
+      if (open) {
+        filterInput.value = "";
+        filterText = "";
+        renderList();
+        filterInput.focus();
+      }
+    }
+
+    function setSelectedId(id, persist) {
+      if (!WEB_SEARCH_OPTION_IDS.has(id)) return;
+      if (persist && !CSC?.isEnabled?.(id)) return;
+      selectedId = id;
+      if (labelEl) {
+        labelEl.textContent = CSC?.getShortLabel?.(id, id) || id;
+      }
+      if (persist) {
+        try {
+          localStorage.setItem(STORAGE_SEARCH_ENGINE, id);
+        } catch {
+          // ignore
+        }
+      }
+      renderList();
+    }
+
+    function syncFromPage() {
+      setSelectedId(resolveSearchEngineIdForDisplay(), false);
+    }
+
+    function normalizeFilter(s) {
+      return String(s || "")
+        .trim()
+        .toLowerCase();
+    }
+
+    function itemMatchesFilter(item) {
+      const q = normalizeFilter(filterText);
+      if (!q) return true;
+      const hay = `${item.label} ${item.shortLabel} ${item.id}`.toLowerCase();
+      return hay.includes(q);
+    }
+
+    function renderSection(title, items) {
+      if (!items.length) return null;
+      const section = document.createElement("div");
+      section.className = "asc-brand-search-picker-section";
+      const head = document.createElement("div");
+      head.className = "asc-brand-search-picker-section-head";
+      head.textContent = title;
+      section.append(head);
+      const list = document.createElement("div");
+      list.className = "asc-brand-search-picker-list";
+      const favorites = new Set(readSearchFavorites());
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "asc-brand-search-picker-item";
+        if (item.id === selectedId) row.classList.add("is-selected");
+        if (!CSC?.isEnabled?.(item.id)) row.classList.add("is-soon");
+        const pick = document.createElement("button");
+        pick.type = "button";
+        pick.className = "asc-brand-search-picker-item-main";
+        pick.dataset.engineId = item.id;
+        appendBrandPickerIcon(pick, item.id);
+        const labelEl = document.createElement("span");
+        labelEl.className = "asc-brand-search-picker-item-label";
+        labelEl.textContent = item.label;
+        pick.append(labelEl);
+        if (!CSC?.isEnabled?.(item.id)) {
+          const soonEl = document.createElement("span");
+          soonEl.className = "asc-brand-search-picker-soon";
+          soonEl.textContent = "скоро";
+          pick.append(soonEl);
+        }
+        pick.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (!CSC?.isEnabled?.(item.id)) return;
+          setSelectedId(item.id, true);
+          setOpen(false);
+        });
+        const fav = document.createElement("button");
+        fav.type = "button";
+        fav.className = "asc-brand-search-picker-fav";
+        fav.title = favorites.has(item.id) ? "Убрать из избранного" : "В избранное";
+        fav.setAttribute(
+          "aria-label",
+          favorites.has(item.id) ? "Убрать из избранного" : "В избранное"
+        );
+        fav.textContent = favorites.has(item.id) ? "★" : "☆";
+        fav.classList.toggle("is-on", favorites.has(item.id));
+        fav.addEventListener("click", (event) => {
+          event.stopPropagation();
+          toggleSearchFavorite(item.id);
+          renderList();
+        });
+        row.append(pick, fav);
+        list.append(row);
+      }
+      section.append(list);
+      return section;
+    }
+
+    function renderList() {
+      body.replaceChildren();
+      if (!CSC?.ITEMS) return;
+      const items = CSC.ITEMS.filter(itemMatchesFilter);
+      const favIds = new Set(readSearchFavorites());
+      const favItems = items.filter((item) => favIds.has(item.id));
+      const favSection = renderSection("Избранное", favItems);
+      if (favSection) body.append(favSection);
+      for (const cat of CSC.CATEGORIES) {
+        const catItems = items.filter((item) => item.category === cat.id && !favIds.has(item.id));
+        const section = renderSection(cat.label, catItems);
+        if (section) body.append(section);
+      }
+    }
+
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setOpen(!open);
+    });
+
+    filterInput.addEventListener("input", () => {
+      filterText = filterInput.value;
+      renderList();
+    });
+
+    filterInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setOpen(false);
+        btn.focus();
+      }
+    });
+
+    for (const eventName of ["pointerdown", "mousedown", "click", "dblclick"]) {
+      pop.addEventListener(eventName, (event) => event.stopPropagation());
+    }
+
+    return {
+      wrap,
+      pop,
+      btn,
+      getSelectedId: () => selectedId,
+      setSelectedId,
+      syncFromPage,
+      setOpen,
+      isOpen: () => open
+    };
+  }
+
+  function bindSearchPickerPageSync(pickerApi) {
+    if (!pickerApi || pickerApi.wrap?.dataset?.ascPageSyncBound === "1") return;
+    pickerApi.wrap.dataset.ascPageSyncBound = "1";
+
+    const run = () => pickerApi.syncFromPage();
     run();
 
     window.addEventListener("pageshow", run);
@@ -140,14 +450,25 @@
     };
   }
 
+  let brandSearchPicker = null;
+
   function openWebSearch(query) {
     const q = String(query || "").trim();
     if (!q) return;
-    const engineId = resolveWebSearchEngineIdForSubmit(searchEngineSelect);
+    const engineId = resolveWebSearchEngineIdForSubmit(brandSearchPicker);
     const build = WEB_SEARCH_ENGINES[engineId];
-    if (!build) return;
+    if (!build) {
+      setStatus("Поиск для этого сервиса скоро", "error");
+      return;
+    }
     const url = build(q);
-    if (isWebSearchEngineHost(engineId)) {
+    const detectedOnPage = detectSearchEngineIdFromPage();
+    const crossEngine =
+      Boolean(detectedOnPage) && detectedOnPage !== engineId;
+    const forceNewWindow = readSearchOpenInNewWindow() || crossEngine;
+    const sameTab =
+      !forceNewWindow && isWebSearchEngineHost(engineId);
+    if (sameTab) {
       window.location.assign(url);
       setStatus("Поиск…", "ok");
       return;
@@ -373,24 +694,9 @@
   webSearchForm.setAttribute("role", "search");
   webSearchForm.title = "Поиск в интернете — откроется в новой вкладке";
 
-  const searchEngineSelect = document.createElement("select");
-  searchEngineSelect.className = "asc-brand-search-engine";
-  searchEngineSelect.setAttribute("aria-label", "Поисковик");
-  for (const [id, label, disabled] of WEB_SEARCH_ENGINE_OPTIONS) {
-    const option = document.createElement("option");
-    option.value = id;
-    option.textContent = label;
-    if (id === "bing") {
-      option.title = "Microsoft Bing";
-    } else if (disabled) {
-      option.disabled = true;
-      option.title =
-        id === "agentcms" ? "Поиск по Agent CMS — скоро" : `${label} — скоро`;
-    }
-    searchEngineSelect.append(option);
-  }
-  syncSearchEngineSelectToPage(searchEngineSelect);
-  bindSearchEngineSelectPageSync(searchEngineSelect);
+  brandSearchPicker = createBrandSearchPicker();
+  bindSearchPickerPageSync(brandSearchPicker);
+  brandSearchPicker.syncFromPage();
 
   const searchInput = document.createElement("input");
   searchInput.type = "search";
@@ -408,7 +714,7 @@
   searchSubmitBtn.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
 
-  webSearchForm.append(searchInput, searchEngineSelect, searchSubmitBtn);
+  webSearchForm.append(searchInput, brandSearchPicker.wrap, searchSubmitBtn);
 
   function setBrandSearchExpanded(expanded) {
     webSearchForm.classList.toggle("is-search-expanded", expanded);
@@ -424,20 +730,9 @@
           ? root.activeElement
           : document.activeElement;
       if (active && webSearchForm.contains(active)) return;
+      if (brandSearchPicker?.isOpen?.()) return;
       setBrandSearchExpanded(false);
     });
-  });
-
-  searchEngineSelect.addEventListener("change", () => {
-    if (!Object.prototype.hasOwnProperty.call(WEB_SEARCH_ENGINES, searchEngineSelect.value)) {
-      syncSearchEngineSelectToPage(searchEngineSelect);
-      return;
-    }
-    try {
-      localStorage.setItem(STORAGE_SEARCH_ENGINE, searchEngineSelect.value);
-    } catch {
-      // ignore
-    }
   });
 
   webSearchForm.addEventListener("submit", (event) => {
@@ -659,6 +954,16 @@
   style.textContent = String(globalThis.__agentShellToolbarCss || "");
   shadow.append(style, shell);
   document.documentElement.appendChild(root);
+
+  function closeBrandSearchPickerIfOutside(event) {
+    if (!brandSearchPicker?.isOpen?.()) return;
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    if (path.includes(brandSearchPicker.wrap)) return;
+    brandSearchPicker.setOpen(false);
+  }
+
+  document.addEventListener("pointerdown", closeBrandSearchPickerIfOutside, true);
+  document.addEventListener("mousedown", closeBrandSearchPickerIfOutside, true);
 
   function toggleExpanded() {
     setExpanded(!root.classList.contains("is-expanded"));
@@ -2394,6 +2699,10 @@
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    if (brandSearchPicker?.isOpen?.()) {
+      brandSearchPicker.setOpen(false);
+      return;
+    }
     const anyOpen = menus.some((menu) => menu.wrap.classList.contains("is-open"));
     if (anyOpen) {
       closeMenus();
