@@ -3173,7 +3173,7 @@ async function applyChpuResolvedRoute(resolved) {
           return;
         }
       }
-      await selectFile(label, topicEntry.path);
+      await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
       await openEntryOverviewFromResolvedRecord(resolved, contentMode);
       return;
     }
@@ -29224,7 +29224,7 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
     if (!topicEntry?.path) throw new Error("Тема не найдена");
     const contentMode = resolved.contentMode || getChpuMemoryKindForSlotFolder(resolved.slotFolder);
     const label = topicEntry.label || getLabelFromPath(topicEntry.path);
-    await selectFile(label, topicEntry.path);
+    await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
     await openEntryOverviewFromResolvedRecord(resolved, contentMode);
     return;
   }
