@@ -5,7 +5,7 @@ import {
   writePomodoroWorkspaceState
 } from "/js/pomodoro/pomodoro-state-api.js?v=1";
 import { createPomodoroBreakCheckpoint } from "/js/pomodoro/pomodoro-break-checkpoint.js?v=1";
-import { createPomodoroBreakEmojiRotator } from "/js/pomodoro/pomodoro-break-emoji.js?v=1";
+import { createPomodoroBreakEmojiRotator } from "/js/pomodoro/pomodoro-break-emoji.js?v=3";
 
 const BREAK_MS_DEFAULT = 5 * 60_000;
 const TICK_MS = 1000;
