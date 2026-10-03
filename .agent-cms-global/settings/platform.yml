@@ -30,6 +30,7 @@ awn_settings:
   index-storage-enabled: true
   index-links-enabled: true
   index-workspace-id-enabled: true
+  index-wsmap-enabled: true
   index-storage-mode: quick
   index-file-extensions:
     - .md

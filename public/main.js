@@ -1871,6 +1871,7 @@ const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
+const WORKSPACE_WSMAP_FILE = "WSMAP.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -1948,6 +1949,7 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
   "README.md": "README",
+  "WSMAP.md": "WSMAP",
   ".env": ".env",
   ".gitignore": ".gitignore"
 };
@@ -1971,6 +1973,7 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "dependencies.csv", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: WORKSPACE_WSMAP_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true }
 ];
@@ -68043,7 +68046,8 @@ function getTopicStorageIndexRelPath(topicPath) {
 }
 
 function isReadOnlyWorkspacePageIndexSystemFile(name = activeSystemFile) {
-  return normalizeSystemFileName(name) === WORKSPACE_PAGE_INDEX_FILE;
+  const normalized = normalizeSystemFileName(name);
+  return normalized === WORKSPACE_PAGE_INDEX_FILE || normalized === WORKSPACE_WSMAP_FILE;
 }
 
 function isStorageIndexMdEntryContext(context) {
@@ -76832,6 +76836,19 @@ async function refreshWorkspacePageIndexOverview() {
   }
 }
 
+async function refreshWorkspaceWsmapOverview() {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-wsmap"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overwrite: true })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function openWorkspacePageIndexOverview() {
   await selectSystemFile(WORKSPACE_PAGE_INDEX_FILE);
 }
@@ -76893,7 +76910,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     footer.title = hasIndex
       ? `Открыть ${indexRelPath}`
       : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
-    refreshBtn.title = `Обновить и сохранить ${indexRelPath}`;
+    refreshBtn.title = "Обновить INDEX.md и собрать WSMAP.md из всех index.md в workspace";
   };
 
   const setWorkspacePageIndexRefreshLoading = (loading) => {
@@ -76929,16 +76946,28 @@ function ensureSidebarWorkspacePageIndexRow() {
     if (refreshBtn.disabled || refreshBtn.classList.contains("is-loading")) return;
     setWorkspacePageIndexRefreshLoading(true);
     void refreshWorkspacePageIndexOverview()
-      .then((ok) => {
+      .then((indexOk) =>
+        refreshWorkspaceWsmapOverview().then((wsmapOk) => ({ indexOk, wsmapOk }))
+      )
+      .then(({ indexOk, wsmapOk }) => {
         if (!row.isConnected) return;
-        if (ok) {
+        if (indexOk) {
           row.dataset.workspaceHasIndex = "1";
           syncWorkspacePageIndexRowState();
           if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_PAGE_INDEX_FILE) {
             void selectSystemFile(WORKSPACE_PAGE_INDEX_FILE, { skipRouteSync: true });
           }
+          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_WSMAP_FILE && wsmapOk) {
+            void selectSystemFile(WORKSPACE_WSMAP_FILE, { skipRouteSync: true });
+          }
           void loadSystemFiles();
-          showToast("Оглавление workspace обновлено", "success");
+          if (indexOk && wsmapOk) {
+            showToast("INDEX.md и WSMAP.md обновлены", "success");
+          } else if (indexOk) {
+            showToast("INDEX.md обновлён; WSMAP.md не собран", "warning");
+          } else {
+            showToast("Не удалось обновить оглавление workspace", "error");
+          }
           return;
         }
         showToast("Не удалось обновить оглавление workspace", "error");
@@ -125727,6 +125756,16 @@ void loadContentSearchPolicy();
 window.addEventListener("workspace-index-policy-changed", () => {
   contentSearchPolicyCache = null;
   void loadContentSearchPolicy();
+});
+
+window.addEventListener("agentcms-open-root-system-file", (event) => {
+  const name = String(event?.detail?.name || "").trim();
+  if (!name) return;
+  void selectSystemFile(name);
+});
+
+window.addEventListener("agentcms-system-files-changed", () => {
+  void loadSystemFiles();
 });
 
 window.AgentCmsLinkDrag = {

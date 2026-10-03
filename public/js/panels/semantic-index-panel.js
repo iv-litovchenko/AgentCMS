@@ -28,17 +28,20 @@
   const workspaceIdProbeInput = document.getElementById("menu-workspace-id-probe-input");
   const workspaceIdProbeBtn = document.getElementById("menu-workspace-id-probe-btn");
   const workspaceIdProbeResultNode = document.getElementById("menu-workspace-id-probe-result");
+  const wsmapStatusNode = document.getElementById("menu-wsmap-status");
+  const wsmapRebuildBtn = document.getElementById("menu-wsmap-rebuild-btn");
+  const wsmapOpenBtn = document.getElementById("menu-wsmap-open-btn");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
   const runLogBtn = document.getElementById("menu-workspace-index-run-log-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const indexPolicyHintNode = document.getElementById("menu-workspace-index-policy-hint");
   const storageModeSelect = document.getElementById("menu-storage-index-mode-select");
   const PIPELINE_BTN_LABEL_FULL =
-    "Полная цепочка (OCR → слова → смысл → поля → связи → id)";
+    "Полная цепочка (OCR → слова → смысл → поля → связи → id → карта)";
   const PIPELINE_BTN_TITLE_WITH_OCR =
-    "OCR → слова → смысл → поля → связи → id";
+    "OCR → слова → смысл → поля → связи → id → карта";
   const PIPELINE_BTN_TITLE_NO_OCR =
-    "Слова → смысл → поля → связи → id (OCR пропускается)";
+    "Слова → смысл → поля → связи → id → карта (OCR пропускается)";
   const navFlagsStatusNode = document.getElementById("menu-nav-flags-registry-status");
   const navFlagsRebuildBtn = document.getElementById("menu-nav-flags-registry-rebuild-btn");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
@@ -566,7 +569,8 @@
       semantic: true,
       storage: true,
       link: true,
-      "workspace-id": true
+      "workspace-id": true,
+      wsmap: true
     };
   }
 
@@ -581,6 +585,7 @@
     if (steps.storage) parts.push("поля");
     if (steps.link) parts.push("связи");
     if (steps["workspace-id"]) parts.push("id");
+    if (steps.wsmap) parts.push("карта");
     const chain = parts.join(" → ");
     if (OCR_INDEXING_ENABLED && steps.ocr) {
       pipelineBtn.title = chain || PIPELINE_BTN_TITLE_WITH_OCR;
@@ -610,7 +615,8 @@
       [storageRebuildQuickBtn, "storage"],
       [storageRebuildFullBtn, "storage"],
       [linkRebuildBtn, "link"],
-      [workspaceIdSyncBtn, "workspaceId"]
+      [workspaceIdSyncBtn, "workspaceId"],
+      [wsmapRebuildBtn, "wsmap"]
     ]);
     const layerKey = layerByButton.get(button);
     if (layerKey && indexPolicyCache?.layers && indexPolicyCache.layers[layerKey] === false) {
@@ -657,6 +663,7 @@
     applyLayerButtonState(storageRebuildQuickBtn, policy.layers?.storage);
     applyLayerButtonState(linkRebuildBtn, policy.layers?.link);
     applyLayerButtonState(workspaceIdSyncBtn, policy.layers?.workspaceId);
+    applyLayerButtonState(wsmapRebuildBtn, policy.layers?.wsmap);
 
     syncLayerBlockBadges(policy);
 
@@ -1282,6 +1289,25 @@
     );
   });
 
+  bindActionButton(wsmapRebuildBtn, async () => {
+    const data = await runRebuild(
+      "/api/agent/workspace-wsmap",
+      wsmapStatusNode,
+      (payload) =>
+        `WSMAP.md: ${payload.sourceCount ?? payload.written?.sourceCount ?? 0} index-файлов`,
+      { loadingLabel: "Сборка WSMAP.md…" }
+    );
+    if (data) {
+      window.dispatchEvent(new CustomEvent("agentcms-system-files-changed"));
+    }
+  });
+
+  wsmapOpenBtn?.addEventListener("click", () => {
+    window.dispatchEvent(
+      new CustomEvent("agentcms-open-root-system-file", { detail: { name: "WSMAP.md" } })
+    );
+  });
+
   bindActionButton(workspaceIdProbeBtn, async () => {
     if (!workspaceIdProbeResultNode) return;
     const idValue = workspaceIdProbeInput?.value?.trim() || "";
@@ -1360,6 +1386,7 @@
     if (steps.storage) enabledLabels.push("поля");
     if (steps.link) enabledLabels.push("связи");
     if (steps["workspace-id"]) enabledLabels.push("id");
+    if (steps.wsmap) enabledLabels.push("карта");
     if (!enabledLabels.length) {
       pipelineStatusNode.textContent = "Все шаги pipeline отключены в settings.global.yml";
       return;
@@ -1395,6 +1422,9 @@
     if (resolvedSteps["workspace-id"] && data.workspaceId && !data.workspaceId.skipped) {
       parts.push(`id ${data.workspaceId.assignedCount || 0}`);
     }
+    if (resolvedSteps.wsmap && data.wsmap && !data.wsmap.skipped) {
+      parts.push(`карта ${data.wsmap.sourceCount ?? "?"}`);
+    }
     const runLogHint =
       data.runLog?.fileCount != null
         ? `лог ${data.runLog.fileCount} файлов → ${data.runLog.logPath || ".agent-cms/cache/indexes/last-run-files.txt"}`
@@ -1416,7 +1446,8 @@
     semantic: semanticRebuildBtn,
     storage: storageRebuildQuickBtn,
     link: linkRebuildBtn,
-    "workspace-id": workspaceIdSyncBtn
+    "workspace-id": workspaceIdSyncBtn,
+    wsmap: wsmapRebuildBtn
   };
   for (const flushBtn of document.querySelectorAll("[data-index-flush]")) {
     flushBtn.addEventListener("click", (event) => {

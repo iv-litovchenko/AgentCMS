@@ -27,6 +27,11 @@ const {
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
 const {
+  WORKSPACE_WSMAP_FILE,
+  collectWorkspaceIndexMdPaths,
+  buildWsmapMarkdown
+} = require("./lib/workspace/wsmap-service");
+const {
   clampThumbMax,
   readOrCreateImageThumb,
   wantsThumbVariant
@@ -670,7 +675,8 @@ const SYSTEM_FILE_NAMES = [
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
-  ROOT_SYSTEM_TODO_FILE
+  ROOT_SYSTEM_TODO_FILE,
+  WORKSPACE_WSMAP_FILE
 ];
 
 const ROOT_SYSTEM_CONFIG_FILE_NAMES = new Set([
@@ -12679,6 +12685,79 @@ async function writeAgentWorkspacePageIndex(options = {}) {
   };
 }
 
+function getWorkspaceWsmapRelPath() {
+  return WORKSPACE_WSMAP_FILE;
+}
+
+async function readWorkspaceIndexFileContent(relPath) {
+  const data = await readWorkspaceTextFile(relPath);
+  return String(data?.content || "");
+}
+
+async function buildAgentWorkspaceWsmap() {
+  const agentRoot = getAgentRoot();
+  const indexPath = getWorkspaceWsmapRelPath();
+  const sources = await collectWorkspaceIndexMdPaths(collectSearchableFiles, agentRoot);
+  const indexExists = await workspaceRelFileExists(indexPath);
+  const manifestPath = await resolveWorkspacePageIndexManifestRel();
+
+  return {
+    version: 1,
+    model: "workspace-wsmap",
+    hint:
+      "Сводка всех index.md / INDEX.md в workspace в одном WSMAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
+    whenToUse: {
+      get_workspace_wsmap: "Список источников и метаданные WSMAP без записи на диск.",
+      refresh_workspace_wsmap: "Пересобрать и сохранить WSMAP.md в корне workspace."
+    },
+    path: manifestPath,
+    indexFile: {
+      path: indexPath,
+      exists: indexExists,
+      source: indexExists ? "file" : "generated"
+    },
+    sources,
+    sourceCount: sources.length
+  };
+}
+
+async function writeAgentWorkspaceWsmap(options = {}) {
+  const overwrite = options.overwrite !== false;
+  const payload = await buildAgentWorkspaceWsmap();
+  const indexPath = payload.indexFile.path;
+  if (payload.indexFile.exists && !overwrite) {
+    return {
+      error: "WSMAP file already exists",
+      status: 409,
+      path: payload.path,
+      indexFile: { path: indexPath, exists: true }
+    };
+  }
+  const markdown = await buildWsmapMarkdown({
+    sources: payload.sources,
+    readFileContent: readWorkspaceIndexFileContent
+  });
+  const manifestRel = await resolveWorkspacePageIndexManifestRel();
+  await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  return {
+    version: 1,
+    model: "workspace-wsmap-write",
+    ok: true,
+    hint: "WSMAP.md обновлён в корне workspace.",
+    whenToUse: payload.whenToUse,
+    path: payload.path,
+    overwrite,
+    written: {
+      path: indexPath,
+      created: !payload.indexFile.exists,
+      overwritten: Boolean(payload.indexFile.exists),
+      sourceCount: payload.sourceCount
+    },
+    indexFile: { path: indexPath, exists: true, source: "file" },
+    sourceCount: payload.sourceCount
+  };
+}
+
 const AWN_DATA_INDEX_FILE = "index.md";
 const AWN_DATA_INDEX_LEGACY_FILE = "INDEX.md";
 
@@ -14079,7 +14158,7 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
-    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id",
+    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WSMAP.md",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
@@ -14117,6 +14196,10 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/agent/workspace-page-index — оглавление INDEX.md (awn-id, path, type, комментарии, конфигурации; страницы workspace)",
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
+  workspaceWsmap:
+    "GET /api/agent/workspace-wsmap — метаданные WSMAP.md (список всех index.md / INDEX.md)",
+  workspaceWsmapWrite:
+    "POST /api/agent/workspace-wsmap — собрать и сохранить WSMAP.md в корне workspace (body: overwrite?)",
   awnDataIndex:
     "GET /api/agent/awn-databases-index — оглавление awn-databases/index.md (kind, group, path, title, description; инфоблоки)",
   awnDataIndexWrite: "POST /api/agent/awn-databases-index — обновить awn-databases/index.md (body: overwrite?)",
@@ -21254,6 +21337,40 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-wsmap") {
+    try {
+      const payload = await buildAgentWorkspaceWsmap();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace WSMAP",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-wsmap") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await writeAgentWorkspaceWsmap({
+        overwrite: payload.overwrite !== false
+      });
+      if (result.error) {
+        return sendJson(res, result.status || 400, {
+          error: result.error,
+          path: result.path,
+          indexFile: result.indexFile
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write workspace WSMAP",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/awn-databases-index") {
     try {
       const payload = await buildAgentAwnDataIndex();
@@ -22372,6 +22489,21 @@ async function handleApiForAgent(req, res, url) {
       const workspaceId = steps["workspace-id"]
         ? await getWorkspaceIdService().syncCounterWithAssigned()
         : { ok: false, skipped: true, reason: "step_disabled" };
+      let wsmap = { ok: false, skipped: true, reason: "step_disabled" };
+      if (steps.wsmap) {
+        try {
+          const wsmapResult = await writeAgentWorkspaceWsmap({ overwrite: true });
+          wsmap = wsmapResult.error
+            ? { ok: false, error: wsmapResult.error }
+            : {
+                ok: true,
+                sourceCount: wsmapResult.sourceCount || 0,
+                path: wsmapResult.written?.path || WORKSPACE_WSMAP_FILE
+              };
+        } catch (error) {
+          wsmap = { ok: false, error: String(error.message || error) };
+        }
+      }
       const indexedFiles = await collectPolicyIndexableFiles(agentRoot, getIndexRunLogDeps(agentRoot));
       const runLog = await writeIndexRunLog(agentRoot, {
         kind: "pipeline",
@@ -22379,13 +22511,13 @@ async function handleApiForAgent(req, res, url) {
         finishedAt: new Date().toISOString(),
         files: indexedFiles,
         enabledSteps: steps,
-        steps: { ocr, fulltext, semantic, storage, link, workspaceId }
+        steps: { ocr, fulltext, semantic, storage, link, workspaceId, wsmap }
       });
       finishWorkspaceIndexProgress(agentRoot);
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter → WSMAP.md",
         steps,
         ocr,
         fulltext,
@@ -22393,6 +22525,7 @@ async function handleApiForAgent(req, res, url) {
         storage,
         link,
         workspaceId,
+        wsmap,
         runLog
       });
     } catch (error) {

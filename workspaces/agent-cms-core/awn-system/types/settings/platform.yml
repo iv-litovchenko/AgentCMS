@@ -348,6 +348,14 @@ fields:
     group: indexing
     sort: 25
 
+  index-wsmap-enabled:
+    type: awn.field.boolean
+    title: Карта (WSMAP)
+    description: Шаг 7 pipeline — собрать WSMAP.md из всех index.md / INDEX.md в workspace
+    default: true
+    group: indexing
+    sort: 26
+
   index-storage-mode:
     type: awn.field.choice.one
     title: Режим индекса полей
@@ -359,7 +367,7 @@ fields:
       - key: full
         name: Полный — schema + типы
     group: indexing
-    sort: 26
+    sort: 27
 
   index-file-extensions:
     type: awn.field.choice.many
@@ -384,7 +392,7 @@ fields:
       - key: ".yaml"
         name: YAML (.yaml)
     group: indexing
-    sort: 27
+    sort: 28
 
   index-exclude-patterns:
     type: awn.field.text
