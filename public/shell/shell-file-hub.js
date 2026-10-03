@@ -191,15 +191,42 @@ function applyFileHubGripDragDataTransfer(dt, file, { readyFile = null, companio
 
 const FILE_HUB_SITE_USAGE_STORAGE = "shell-file-hub-site-usage";
 
-function normalizeFileHubSiteKey(hostnameOrUrl) {
+/** Ключ «уже выдавали»: origin + pathname, без ?query и #hash; иначе hostname. */
+function normalizeFileHubSiteKey(urlOrHostname) {
+  const raw = String(urlOrHostname || "").trim();
+  if (!raw) return "";
   try {
-    const host = String(hostnameOrUrl || "").includes("://")
-      ? new URL(hostnameOrUrl).hostname
-      : String(hostnameOrUrl || "");
-    return host.replace(/^www\./i, "").trim().toLowerCase();
+    if (raw.includes("://")) {
+      const url = new URL(raw);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+      let host = url.hostname.replace(/^www\./i, "");
+      if (host === "127.0.0.1") host = "localhost";
+      let path = url.pathname || "/";
+      if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+      return `${url.protocol}//${host}${path}`;
+    }
+    return raw.replace(/^www\./i, "").trim().toLowerCase();
   } catch {
-    return String(hostnameOrUrl || "").trim().toLowerCase();
+    return raw.replace(/^www\./i, "").trim().toLowerCase();
   }
+}
+
+function fileHubPageKeyLabel(siteLabel, pageKey) {
+  const title = String(siteLabel || "").trim();
+  if (title) return shortenFileHubSiteLabel(title, pageKey);
+  const key = String(pageKey || "").trim();
+  if (!key) return "вкладка";
+  try {
+    if (key.includes("://")) {
+      const url = new URL(key);
+      const path = url.pathname && url.pathname !== "/" ? url.pathname : "";
+      const text = path ? `${url.hostname}${path}` : url.hostname;
+      return shortenFileHubSiteLabel(text, key);
+    }
+  } catch {
+    // ignore
+  }
+  return shortenFileHubSiteLabel(key, key);
 }
 
 function fileHubSiteHighlightColors(siteKey) {
@@ -325,7 +352,7 @@ function fileHubAttachSuccessToast(fileHubRoot, file) {
 
 function shortenFileHubSiteLabel(label, siteKey) {
   const raw = String(label || siteKey || "").trim();
-  if (!raw) return siteKey || "вкладка";
+  if (!raw) return siteKey || "страница";
   if (raw.length <= 52) return raw;
   return `${raw.slice(0, 49)}…`;
 }
@@ -334,15 +361,15 @@ const FILE_HUB_EXPORT_HELP_BODY_BASE =
   "⠿ grip — перетаскивание из очереди. С диска — перетащите grip в drop-зону сайта, если страница читает dataTransfer.files (как в обычном HTML).";
 
 const FILE_HUB_EXPORT_HELP_BODY_COMPANION =
-  "С диска: перетащите ⠿ grip в drop-зону сайта — сработает, если сайт читает dataTransfer.files (как в обычном HTML). Из панели это не файл ОС: в чужую вкладку drag часто пустой. 📎 — прикрепить на открытую вкладку (загрузка → File → поле input или симуляция drop; по клику, через расширение; на mail.ru сначала «Прикрепить файл» в письме). Подсветка строки — файлы, уже переданные на эту вкладку.";
+  "С диска: перетащите ⠿ grip в drop-зону сайта — сработает, если сайт читает dataTransfer.files (как в обычном HTML). Из панели это не файл ОС: в чужую вкладку drag часто пустой. 📎 — прикрепить на открытую вкладку (загрузка → File → поле input или симуляция drop; по клику, через расширение; на mail.ru сначала «Прикрепить файл» в письме). Подсветка — уже выдавали на этот адрес (путь без ?параметров).";
 
 function buildFileHubExportHelpHint({ companion = false, siteKey = "", siteLabel = "" } = {}) {
   if (!companion) return FILE_HUB_EXPORT_HELP_BODY_BASE;
   const key = normalizeFileHubSiteKey(siteKey);
   const parts = [];
   if (key) {
-    const label = shortenFileHubSiteLabel(siteLabel, key);
-    parts.push(`Сайт: «${label}» — цвет подсветки для переданных файлов`);
+    const label = fileHubPageKeyLabel(siteLabel, key);
+    parts.push(`Страница: «${label}» — цвет подсветки для переданных файлов`);
   }
   parts.push(FILE_HUB_EXPORT_HELP_BODY_COMPANION);
   return parts.join("\n\n");
@@ -720,8 +747,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   let siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
 
   function setActiveCompanionSite(payload = {}) {
-    activeSiteKey = normalizeFileHubSiteKey(payload.hostname || payload.url || "");
-    activeSiteLabel = String(payload.title || payload.hostname || activeSiteKey || "").trim();
+    activeSiteKey = normalizeFileHubSiteKey(payload.url || payload.hostname || "");
+    activeSiteLabel = String(payload.title || "").trim() || fileHubPageKeyLabel("", activeSiteKey);
     syncFileHubExportPaneHelp(exportPane, { siteKey: activeSiteKey, siteLabel: activeSiteLabel });
     if (open) renderList();
   }
@@ -884,9 +911,10 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         trailing.appendChild(sizeEl);
       }
       const siteKey =
-        activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+        activeSiteKey ||
+        (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.href || window.location.hostname));
       const alreadyIssuedOnSite = Boolean(siteKey && isFileHubUsedOnSite(siteUsageStore, siteKey, file.id));
-      const issuedSiteLabel = activeSiteLabel || siteKey || "эту вкладку";
+      const issuedSiteLabel = fileHubPageKeyLabel(activeSiteLabel, siteKey) || "эту страницу";
 
       if (isFileHubCompanionPanel()) {
         const attachBtn = document.createElement("button");
@@ -982,7 +1010,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
       grip.addEventListener("dragstart", (event) => {
         event.stopPropagation();
         const dragSiteKey =
-          activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+          activeSiteKey ||
+          (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.href || window.location.hostname));
         if (dragSiteKey && isFileHubUsedOnSite(siteUsageStore, dragSiteKey, file.id)) {
           event.preventDefault();
           showFileHubAttachToast(root, {
@@ -1010,7 +1039,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         const dropEffect = String(event.dataTransfer?.dropEffect || "").toLowerCase();
         if (!dropEffect || dropEffect === "none") return;
         const siteKey =
-          activeSiteKey || (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.hostname));
+          activeSiteKey ||
+          (isFileHubCompanionPanel() ? "" : normalizeFileHubSiteKey(window.location.href || window.location.hostname));
         if (!siteKey) return;
         markFileHubUsedOnSite(getShellAgentId(), siteKey, file.id);
         siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
