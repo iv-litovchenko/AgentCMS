@@ -15844,7 +15844,7 @@ body.shell-file-hub-open .shell-path-header {
   left: 0;
   right: 0;
   z-index: 8;
-  max-height: min(200px, 32vh);
+  max-height: min(280px, 40vh);
   margin: 0;
   padding: 4px;
   list-style: none;
@@ -15860,10 +15860,12 @@ body.shell-file-hub-open .shell-path-header {
 }
 
 .shell-file-hub-suggest-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -15872,6 +15874,20 @@ body.shell-file-hub-open .shell-path-header {
   font: inherit;
   font-size: 13px;
   line-height: 1.35;
+}
+
+.shell-file-hub-suggest-item-visual {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.shell-file-hub-suggest-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
 .shell-file-hub-suggest-item:hover,

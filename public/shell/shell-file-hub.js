@@ -48,7 +48,7 @@ function buildWorkspaceFilePreviewUrl(fileRel, options = {}) {
   return `/api/workspace/folder/file?${params.toString()}`;
 }
 
-function fillFileHubItemVisual(container, file) {
+function fillFileHubItemVisual(container, file, iconSize = 28) {
   if (!container) return;
   const filePath = String(file?.path || "");
   const fileName = String(file?.name || filePath);
@@ -68,8 +68,8 @@ function fillFileHubItemVisual(container, file) {
       if (icons?.fillInlineFileIcon) {
         icons.fillInlineFileIcon(container, fileName, "🖼", {
           className: "shell-file-hub-item-icon",
-          width: 28,
-          height: 28
+          width: iconSize,
+          height: iconSize
         });
       } else {
         container.textContent = "🖼";
@@ -83,12 +83,26 @@ function fillFileHubItemVisual(container, file) {
   if (icons?.fillInlineFileIcon) {
     icons.fillInlineFileIcon(container, fileName, "📎", {
       className: "shell-file-hub-item-icon",
-      width: 28,
-      height: 28
+      width: iconSize,
+      height: iconSize
     });
   } else {
     container.textContent = "📎";
   }
+}
+
+function fillFileHubSuggestVisual(container, option) {
+  if (!container) return;
+  const kind = String(option?.kind || "");
+  if (kind === "topic") {
+    container.classList.add("shell-file-hub-item-visual--icon");
+    container.textContent = "📁";
+    container.setAttribute("aria-hidden", "true");
+    return;
+  }
+  const filePath = String(option.filePath || option.path || "").trim();
+  const fileName = String(option.label || basenameFromPath(filePath) || "").trim();
+  fillFileHubItemVisual(container, { path: filePath, name: fileName }, 22);
 }
 
 function mountFileHubRoot(root, mainView) {
@@ -179,7 +193,8 @@ function bindInteractiveSearch({
   onPick,
   onInput,
   fetchRemote,
-  debounceMs = 280
+  debounceMs = 280,
+  withFileVisual = false
 }) {
   if (!input || !suggestEl) return;
 
@@ -212,10 +227,23 @@ function bindInteractiveSearch({
       btn.className = "shell-file-hub-suggest-item";
       btn.setAttribute("role", "option");
       btn.dataset.index = String(index);
-      btn.innerHTML = `
-        <span class="shell-file-hub-suggest-item-label">${escapeHtml(option.label)}</span>
-        ${option.meta ? `<span class="shell-file-hub-suggest-item-meta">${escapeHtml(option.meta)}</span>` : ""}
-      `;
+      if (withFileVisual) {
+        const visual = document.createElement("span");
+        visual.className = "shell-file-hub-item-visual shell-file-hub-suggest-item-visual";
+        fillFileHubSuggestVisual(visual, option);
+        const body = document.createElement("span");
+        body.className = "shell-file-hub-suggest-item-body";
+        body.innerHTML = `
+          <span class="shell-file-hub-suggest-item-label">${escapeHtml(option.label)}</span>
+          ${option.meta ? `<span class="shell-file-hub-suggest-item-meta">${escapeHtml(option.meta)}</span>` : ""}
+        `;
+        btn.append(visual, body);
+      } else {
+        btn.innerHTML = `
+          <span class="shell-file-hub-suggest-item-label">${escapeHtml(option.label)}</span>
+          ${option.meta ? `<span class="shell-file-hub-suggest-item-meta">${escapeHtml(option.meta)}</span>` : ""}
+        `;
+      }
       btn.addEventListener("mousedown", (event) => {
         event.preventDefault();
         onPick(option, input);
@@ -585,6 +613,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
           kind: "buffer",
           label: file.name,
           meta: `${file.topic} · ${file.place}`,
+          filePath: file.path,
           query: file.name
         }));
       const fromTopics = filterTopicOptions(value)
@@ -606,7 +635,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
       query = value;
       renderList();
     },
-    fetchRemote: fetchWorkspaceSearch
+    fetchRemote: fetchWorkspaceSearch,
+    withFileVisual: true
   });
 
   function setOpen(next) {
