@@ -17273,8 +17273,9 @@ const AWN_IMPORTANCE_FIELD_KEY = "awn-importance";
 const AWN_IMPORTANCE_DEFAULT = 0;
 const AWN_IMPORTANCE_HIGH_THRESHOLD = 8;
 
-const AWN_NOTE_TODO_STICKER_FIELD_KEY = "awn-note-todo-sticker";
-const AWN_NOTE_TODO_STICKER_LABEL = "Заметка остановки";
+const AWN_TODO_FIELD_KEY = "awn-todo";
+const AWN_NOTE_TODO_STICKER_LEGACY_FIELD_KEY = "awn-note-todo-sticker";
+const AWN_TODO_STICKER_LABEL = "Todo";
 const DOC_ASIDE_TODO_STICKER_OPEN_KEY = "agentcms.docAside.todoStickerOpen.v1";
 
 function parseAwnQualityValue(raw, fallback = AWN_QUALITY_DEFAULT) {
@@ -17342,7 +17343,11 @@ function awnImportanceIsHigh(value) {
 }
 
 function getAwnNoteTodoStickerValue(entries = propsFormEntries) {
-  return String(getPropsEntryValueByKey(entries, AWN_NOTE_TODO_STICKER_FIELD_KEY) || "").trim();
+  const todo = String(getPropsEntryValueByKey(entries, AWN_TODO_FIELD_KEY) || "").trim();
+  if (todo) return todo;
+  return String(
+    getPropsEntryValueByKey(entries, AWN_NOTE_TODO_STICKER_LEGACY_FIELD_KEY) || ""
+  ).trim();
 }
 
 const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
@@ -56671,7 +56676,7 @@ function renderPropsWebUrlBlock() {
 
 const DEFAULT_PROPS_FIELD_GROUPS = [
   { id: "content", name: "Основное", collapsed: false },
-  { id: "work-note", name: "Служебная заметка", collapsed: false },
+  { id: "work-note", name: "Заметки", collapsed: false },
   { id: "infoblock", name: "Накопитель", collapsed: false },
   { id: "nav", name: "Дерево и вид", collapsed: true },
   { id: "runtime", name: "Runtime агента", collapsed: true },
@@ -56685,6 +56690,9 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-emoji": "content",
   "awn-status": "content",
   "awn-description": "content",
+  "awn-summary": "work-note",
+  "awn-note": "work-note",
+  "awn-todo": "work-note",
   "awn-note-todo-sticker": "work-note",
   "awn-tags": "taxonomy",
   "awn-preview": "content",

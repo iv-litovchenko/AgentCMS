@@ -31,8 +31,8 @@ field-groups:
     description: Что заполняет человек или агент
     collapsed: false
   - id: work-note
-    name: "{A2!} Служебная заметка"
-    description: На чём остановились — для вас и агента
+    name: "{A2!} Заметки"
+    description: Саммари, заметки и следующий шаг — для вас и агента
     collapsed: false
   - id: nav
     name: "{A2!} Дерево и вид"
@@ -44,7 +44,7 @@ field-groups:
     collapsed: true
   - id: indexing
     name: "{A2!} Индексирование"
-    description: Поиск, индексы workspace, автооглавление и суммаризация для агента
+    description: Поиск, индексы workspace и автооглавление
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
@@ -153,16 +153,46 @@ fields:
     sort: 3.5
     default: 0
 
-  awn-note-todo-sticker:
+  awn-summary:
     type: awn.field.text
-    title: "{A2!} Заметка остановки"
+    title: "{A2!} Саммари"
     description: >
-      Техническая заметка для вас и агента: на чём остановились,
-      что сделать дальше, блокеры.
-    hint: "Кратко: статус, следующий шаг, блокер"
+      Развёрнутое резюме записи для вас и агента: может быть объёмнее и
+      содержательнее, чем awn-description (факты, контекст, выводы).
+    hint: "Несколько предложений или абзацев; удобно для поиска и контекста LLM"
     placement: aside-body
     group: work-note
     sort: 1
+
+  awn-note:
+    type: awn.field.text
+    title: "{A2!} Заметка"
+    description: >
+      Рабочая заметка по этой записи: уточнения, договорённости, черновые мысли.
+    hint: "Свободный текст; не обязательно про «следующий шаг»"
+    placement: aside-body
+    group: work-note
+    sort: 2
+
+  awn-todo:
+    type: awn.field.text
+    title: "{A2!} Todo"
+    description: >
+      На чём остановились и что сделать дальше; блокеры — одной строкой или списком.
+    hint: "На чём остановились — следующий шаг"
+    placement: aside-body
+    group: work-note
+    sort: 3
+
+  awn-note-todo-sticker:
+    type: awn.field.text
+    title: "{A2!} Заметка остановки (устар.)"
+    description: >
+      Устарело: используйте awn-todo. Оставлено для чтения старых manifest.
+    placement: hidden
+    group: work-note
+    sort: 99
+    hidden: true
 
   awn-emoji:
     type: awn.field.string
@@ -383,17 +413,6 @@ fields:
     placement: aside-body
     group: indexing
     sort: 3
-
-  awn-summary:
-    type: awn.field.text
-    title: "{A2!} Суммаризация"
-    description: >
-      Развёрнутое резюме записи для вас и агента: может быть объёмнее и
-      содержательнее, чем awn-description (факты, контекст, выводы).
-    hint: "Несколько предложений или абзацев; удобно для поиска и контекста LLM"
-    placement: aside-body
-    group: indexing
-    sort: 4
 
   # --- taxonomy ---
   awn-tags:

@@ -23,8 +23,8 @@ field-groups:
     description: Что заполняет человек или агент
     collapsed: false
   - id: work-note
-    name: "{A2!} Служебная заметка"
-    description: На чём остановились — для вас и агента
+    name: "{A2!} Заметки"
+    description: Саммари, заметки и следующий шаг — для вас и агента
     collapsed: false
   - id: nav
     name: "{A2!} Дерево и вид"

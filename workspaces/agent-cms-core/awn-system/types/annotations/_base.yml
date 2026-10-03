@@ -32,8 +32,8 @@ field-groups:
     description: ИДЕЯ — как определить каталог/имя файла аннотации (пока не влияет на MCP/UI)
     collapsed: true
   - id: work-note
-    name: "{A2!} Служебная заметка"
-    description: На чём остановились — для вас и агента
+    name: "{A2!} Заметки"
+    description: Саммари, заметки и следующий шаг — для вас и агента
     collapsed: false
   - id: system
     name: "{A2!} Системные"
