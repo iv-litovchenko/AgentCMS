@@ -20,6 +20,25 @@
     return new File([buffer], filename, { type: mime, lastModified: Date.now() });
   }
 
+  function isMailHost() {
+    return /(^|\.)mail\.ru$/i.test(location.hostname) || /e\.mail\.ru/i.test(location.hostname);
+  }
+
+  function collectFileInputs(doc, depth = 0) {
+    if (!doc || depth > 4) return [];
+    const list = [...doc.querySelectorAll('input[type="file"]')];
+    const iframes = doc.querySelectorAll("iframe");
+    for (const frame of iframes) {
+      try {
+        const child = frame.contentDocument;
+        if (child) list.push(...collectFileInputs(child, depth + 1));
+      } catch {
+        // cross-origin iframe
+      }
+    }
+    return list;
+  }
+
   function isVisibleInput(input) {
     if (!input || input.disabled) return false;
     if (input.offsetParent !== null) return true;
@@ -30,7 +49,10 @@
   function scoreFileInput(input, file) {
     let score = 0;
     if (!input || input.type !== "file" || input.disabled) return -1;
+
+    // Скрытый input — норма для почтовиков
     if (isVisibleInput(input)) score += 2;
+    else score += 3;
 
     const accept = String(input.accept || "").toLowerCase();
     const mime = String(file.type || "").toLowerCase();
@@ -38,23 +60,26 @@
 
     if (accept && mime && accept.includes(mime.split("/")[0])) score += 4;
     if (accept && ext && accept.includes(ext)) score += 5;
-    if (!accept) score += 1;
+    if (!accept || accept === "*" || accept.includes("*")) score += 2;
 
     const meta = `${input.id || ""} ${input.name || ""} ${input.className || ""}`.toLowerCase();
-    if (/attach|upload|file|скан|влож/i.test(meta)) score += 4;
+    if (/attach|upload|file|скан|влож|letter|compose|mail/i.test(meta)) score += 4;
 
     const root = input.closest(
-      '[class*="attach"], [class*="Attach"], [class*="upload"], [class*="Upload"], [data-testid*="attach"], [data-testid*="file"]'
+      '[class*="attach"], [class*="Attach"], [class*="upload"], [class*="Upload"], [class*="compose"], [class*="Compose"], [class*="letter"], [data-testid*="attach"], [data-testid*="file"]'
     );
     if (root) score += 6;
 
-    if (/mail\.ru|e\.mail\.ru/i.test(location.hostname) && root) score += 4;
+    if (isMailHost()) {
+      score += 2;
+      if (root) score += 4;
+    }
 
     return score;
   }
 
   function findBestFileInput(file) {
-    const inputs = [...document.querySelectorAll('input[type="file"]')];
+    const inputs = collectFileInputs(document);
     const ranked = inputs
       .map((input) => ({ input, score: scoreFileInput(input, file) }))
       .filter((row) => row.score >= 0)
@@ -81,13 +106,13 @@
       return {
         ok: false,
         error: "Не найдено поле загрузки",
-        hint: "На странице откройте «Прикрепить файл» / «Обзор», затем нажмите кнопку снова"
+        hint: "На mail.ru нажмите «Прикрепить файл» в письме, затем 📎 снова"
       };
     }
 
     try {
       assignInputFiles(input, [file]);
-      return { ok: true };
+      return { ok: true, frame: location.href };
     } catch (error) {
       return { ok: false, error: String(error?.message || error) };
     }
@@ -96,7 +121,7 @@
   try {
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message?.type === "COMPANION_FILE_HUB_PING") {
-        sendResponse({ ok: true });
+        sendResponse({ ok: true, href: location.href });
         return true;
       }
       if (message?.type === "COMPANION_FILE_HUB_INJECT_FILE") {

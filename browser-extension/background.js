@@ -330,14 +330,8 @@ const FILE_HUB_PAGE_SCRIPT = "companion-file-hub-page.js";
 const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
 
 async function ensureFileHubPageScript(tabId) {
-  try {
-    const ping = await chrome.tabs.sendMessage(tabId, { type: "COMPANION_FILE_HUB_PING" });
-    if (ping?.ok) return;
-  } catch {
-    // inject below
-  }
   await chrome.scripting.executeScript({
-    target: { tabId, allFrames: false },
+    target: { tabId, allFrames: true },
     files: [FILE_HUB_PAGE_SCRIPT]
   });
 }
@@ -355,17 +349,52 @@ async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime
   }
 
   await ensureFileHubPageScript(targetTabId);
-  const response = await chrome.tabs.sendMessage(targetTabId, {
+
+  const payload = {
     type: "COMPANION_FILE_HUB_INJECT_FILE",
     filename: String(filename || "file"),
     mime: String(mime || "application/octet-stream"),
     buffer
-  });
-  if (!response?.ok) {
-    const hint = response?.hint ? ` ${response.hint}` : "";
-    throw new Error(String(response?.error || "Не удалось прикрепить файл") + hint);
+  };
+
+  let frameProbe = [];
+  try {
+    frameProbe = await chrome.scripting.executeScript({
+      target: { tabId: targetTabId, allFrames: true },
+      func: () => Boolean(window.__companionFileHubPage)
+    });
+  } catch {
+    frameProbe = [{ frameId: 0, result: true }];
   }
-  return { ok: true, tabId: targetTabId };
+
+  let lastError = "Не найдено поле загрузки";
+  let lastHint = "На mail.ru откройте «Прикрепить файл» в письме";
+
+  for (const row of frameProbe) {
+    if (!row?.result) continue;
+    const frameId = Number(row.frameId);
+    try {
+      const response = await chrome.tabs.sendMessage(targetTabId, payload, { frameId });
+      if (response?.ok) {
+        return { ok: true, tabId: targetTabId, frameId };
+      }
+      if (response?.error) lastError = String(response.error);
+      if (response?.hint) lastHint = String(response.hint);
+    } catch {
+      // frame without listener
+    }
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(targetTabId, payload);
+    if (response?.ok) return { ok: true, tabId: targetTabId };
+    if (response?.error) lastError = String(response.error);
+    if (response?.hint) lastHint = String(response.hint);
+  } catch {
+    // ignore
+  }
+
+  throw new Error(`${lastError}. ${lastHint}`);
 }
 
 async function broadcastPagePickerSet(tabId, active) {

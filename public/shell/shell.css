@@ -15782,6 +15782,33 @@ body.shell-file-hub-open .shell-path-header {
   vertical-align: middle;
 }
 
+.shell-file-hub-attach-toast {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(8, 47, 73, 0.55);
+  color: #bae6fd;
+}
+
+.shell-file-hub-attach-toast.is-success {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(20, 83, 45, 0.45);
+  color: #bbf7d0;
+}
+
+.shell-file-hub-attach-toast.is-error {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.4);
+  color: #fecaca;
+}
+
+.shell-file-hub-attach-toast[hidden] {
+  display: none;
+}
+
 .shell-file-hub-companion-notice {
   margin: 0 0 8px;
   padding: 8px 10px;

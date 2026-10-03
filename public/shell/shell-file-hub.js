@@ -235,6 +235,25 @@ function isFileHubUsedOnSite(store, siteKey, fileId) {
   return Array.isArray(list) && list.includes(fid);
 }
 
+function showFileHubAttachToast(exportPane, message, kind = "info") {
+  if (!exportPane || !message) return;
+  let toast = exportPane.querySelector("[data-file-hub-attach-toast]");
+  if (!toast) {
+    toast = document.createElement("p");
+    toast.className = "shell-file-hub-attach-toast";
+    toast.dataset.fileHubAttachToast = "";
+    exportPane.appendChild(toast);
+  }
+  toast.classList.toggle("is-error", kind === "error");
+  toast.classList.toggle("is-success", kind === "success");
+  toast.textContent = String(message);
+  toast.hidden = false;
+  window.clearTimeout(showFileHubAttachToast._timer);
+  showFileHubAttachToast._timer = window.setTimeout(() => {
+    toast.hidden = true;
+  }, 5200);
+}
+
 function ensureFileHubCompanionSiteUi(exportPane) {
   if (!exportPane || !isFileHubCompanionPanel()) return;
   if (!exportPane.querySelector("[data-file-hub-site-chip]")) {
@@ -819,10 +838,13 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
               }
               renderList();
               attachBtn.title = "Прикреплено на страницу";
+              showFileHubAttachToast(exportPane, `«${file.name}» отправлен на вкладку`, "success");
             })
             .catch((error) => {
               console.warn("[file-hub] attach to tab failed", error);
-              attachBtn.title = String(error?.message || error);
+              const msg = String(error?.message || error);
+              attachBtn.title = msg;
+              showFileHubAttachToast(exportPane, msg, "error");
             })
             .finally(() => {
               attachBtn.disabled = false;
