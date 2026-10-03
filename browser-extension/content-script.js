@@ -793,6 +793,96 @@
   );
   viewportShotBtn.classList.add("asc-btn--viewport-shot", "asc-btn--icon-only");
 
+  function readMediaHoverSaveEnabledSetting() {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "COMPANION_GET_SETTINGS" }, (response) => {
+          if (!chrome.runtime.lastError && response && typeof response === "object") {
+            resolve(response.mediaHoverSaveEnabled !== false);
+            return;
+          }
+          chrome.storage.local.get(["mediaHoverSaveEnabled"], (stored) => {
+            resolve(stored.mediaHoverSaveEnabled !== false);
+          });
+        });
+      } catch {
+        resolve(true);
+      }
+    });
+  }
+
+  function createMediaHoverDockToggle() {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-media-dock-toggle-wrap";
+    wrap.title = "Панель на картинках: скачать и копировать URL";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "asc-media-dock-toggle";
+    btn.setAttribute("role", "switch");
+    btn.setAttribute("aria-checked", "true");
+    btn.setAttribute(
+      "aria-label",
+      "Панель на картинках при наведении — включить или выключить"
+    );
+
+    const track = document.createElement("span");
+    track.className = "asc-media-dock-toggle-track";
+    track.setAttribute("aria-hidden", "true");
+
+    const icon = document.createElement("span");
+    icon.className = "asc-media-dock-toggle-icon";
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4.5-4.5a1 1 0 0 1 1.4 0L14 16"/><path d="M12 12l2-2a1 1 0 0 1 1.4 0L20 14"/></svg>';
+
+    const thumb = document.createElement("span");
+    thumb.className = "asc-media-dock-toggle-thumb";
+
+    track.append(icon, thumb);
+    btn.append(track);
+    wrap.append(btn);
+
+    function setToggleOn(on) {
+      const enabled = Boolean(on);
+      btn.classList.toggle("is-on", enabled);
+      btn.setAttribute("aria-checked", enabled ? "true" : "false");
+      btn.title = enabled
+        ? "Панель на картинках: вкл. — нажмите, чтобы выключить"
+        : "Панель на картинках: выкл. — нажмите, чтобы включить";
+      wrap.title = btn.title;
+    }
+
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const next = !btn.classList.contains("is-on");
+      setToggleOn(next);
+      try {
+        chrome.storage.local.set({ mediaHoverSaveEnabled: next });
+      } catch {
+        // ignore
+      }
+    });
+
+    for (const eventName of ["pointerdown", "mousedown", "dblclick"]) {
+      wrap.addEventListener(eventName, (event) => event.stopPropagation());
+    }
+
+    void readMediaHoverSaveEnabledSetting().then(setToggleOn);
+
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== "local" || !changes.mediaHoverSaveEnabled) return;
+        setToggleOn(changes.mediaHoverSaveEnabled.newValue !== false);
+      });
+    } catch {
+      // ignore
+    }
+
+    return wrap;
+  }
+
+  const mediaHoverDockToggle = createMediaHoverDockToggle();
+
   const openCmsBtn = createBtn(
     "openCms",
     "CMS",
@@ -1151,6 +1241,7 @@
     ...(companionPomodoroDock ? [companionPomodoroDock.wrap] : []),
     brandDockDivider,
     viewportShotBtn,
+    mediaHoverDockToggle,
     cmsDockDivider,
     openCmsBtn,
     webSearchForm
@@ -2538,7 +2629,7 @@
     const hidden = [];
     for (const el of document.querySelectorAll("body *")) {
       if (!(el instanceof Element)) continue;
-      if (el.closest("#agent-shell-companion-toolbar")) continue;
+      if (el.closest("#agent-shell-companion-toolbar, #agent-companion-media-save")) continue;
       let position = "";
       try {
         position = getComputedStyle(el).position;

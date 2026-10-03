@@ -10,6 +10,7 @@ const cmsBaseUrlInput = document.getElementById("cmsBaseUrl");
 const agentIdInput = document.getElementById("agentId");
 const decodeUrlsInput = document.getElementById("decodeUrls");
 const clipboardHistoryEnabledInput = document.getElementById("clipboardHistoryEnabled");
+const mediaHoverSaveEnabledInput = document.getElementById("mediaHoverSaveEnabled");
 const saveBtn = document.getElementById("save-btn");
 const resetBtn = document.getElementById("reset-btn");
 const previewNode = document.getElementById("shell-url-preview");
@@ -50,7 +51,8 @@ async function readSettings() {
     "decodeUrls",
     "decodeUrlsInCompanion",
     "decodeUrlsOnCopy",
-    "clipboardHistoryEnabled"
+    "clipboardHistoryEnabled",
+    "mediaHoverSaveEnabled"
   ]);
 }
 
@@ -89,6 +91,9 @@ async function loadOptions() {
   if (clipboardHistoryEnabledInput) {
     clipboardHistoryEnabledInput.checked = Boolean(stored.clipboardHistoryEnabled);
   }
+  if (mediaHoverSaveEnabledInput) {
+    mediaHoverSaveEnabledInput.checked = stored.mediaHoverSaveEnabled !== false;
+  }
   await updatePreview();
 }
 
@@ -101,7 +106,8 @@ saveBtn?.addEventListener("click", async () => {
       agentId,
       _migratedFromSync: true,
       decodeUrls: Boolean(decodeUrlsInput?.checked),
-      clipboardHistoryEnabled: Boolean(clipboardHistoryEnabledInput?.checked)
+      clipboardHistoryEnabled: Boolean(clipboardHistoryEnabledInput?.checked),
+      mediaHoverSaveEnabled: Boolean(mediaHoverSaveEnabledInput?.checked)
     });
     statusNode.style.color = "#166534";
     statusNode.textContent = "Сохранено";
@@ -120,13 +126,15 @@ resetBtn?.addEventListener("click", async () => {
   agentIdInput.value = "";
   if (decodeUrlsInput) decodeUrlsInput.checked = true;
   if (clipboardHistoryEnabledInput) clipboardHistoryEnabledInput.checked = false;
+  if (mediaHoverSaveEnabledInput) mediaHoverSaveEnabledInput.checked = true;
   try {
     await writeSettings({
       cmsBaseUrl: DEFAULT_CMS_BASE_URL,
       agentId: "",
       _migratedFromSync: true,
       decodeUrls: true,
-      clipboardHistoryEnabled: false
+      clipboardHistoryEnabled: false,
+      mediaHoverSaveEnabled: true
     });
     statusNode.style.color = "#166534";
     statusNode.textContent = `Сброшено на ${DEFAULT_CMS_BASE_URL}`;

@@ -47,7 +47,8 @@ async function getSettings() {
     "decodeUrls",
     "decodeUrlsInCompanion",
     "decodeUrlsOnCopy",
-    "clipboardHistoryEnabled"
+    "clipboardHistoryEnabled",
+    "mediaHoverSaveEnabled"
   ]);
   const cmsBaseUrl = String(stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(stored.agentId || "").trim();
@@ -56,7 +57,8 @@ async function getSettings() {
     agentId,
     _migratedFromSync: Boolean(stored._migratedFromSync),
     decodeUrls: readDecodeUrlsSetting(stored),
-    clipboardHistoryEnabled: Boolean(stored.clipboardHistoryEnabled)
+    clipboardHistoryEnabled: Boolean(stored.clipboardHistoryEnabled),
+    mediaHoverSaveEnabled: stored.mediaHoverSaveEnabled !== false
   };
 }
 
@@ -965,6 +967,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "COMPANION_GET_SETTINGS") {
     getSettings().then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === "COMPANION_DOWNLOAD_URL") {
+    const url = String(message.url || "").trim();
+    const filename = String(message.filename || "").trim();
+    if (!url) {
+      sendResponse({ ok: false, error: "Пустой URL" });
+      return false;
+    }
+    try {
+      chrome.downloads.download(
+        {
+          url,
+          filename: filename || undefined,
+          saveAs: false
+        },
+        (downloadId) => {
+          if (chrome.runtime.lastError) {
+            sendResponse({ ok: false, error: chrome.runtime.lastError.message || "download failed" });
+            return;
+          }
+          sendResponse({ ok: true, downloadId });
+        }
+      );
+    } catch (error) {
+      sendResponse({ ok: false, error: error?.message || String(error) });
+    }
     return true;
   }
 
