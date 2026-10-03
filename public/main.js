@@ -267,6 +267,7 @@ const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
   { icon: "🛒", label: "Барахолка" },
   { icon: "📒", label: "Заметки" },
   { icon: "🎞️", label: "Слайдер" },
+  { icon: "🖥️", label: "Скриншоты" },
   { icon: "📦", label: "Другое (не знаю куда деть)" }
 ];
 let menuAwnChannelsSearchQuery = "";
