@@ -598,6 +598,44 @@
     { key: "markdown", label: "Как Markdown", hint: "Заголовки, ссылки и списки в MD" }
   ];
 
+  const PANEL_IDEAS_TODO = `Вот что ещё часто окупается для такой капсулы (кратко):
+
+**Контекст страницы**
+- «Спросить агента про эту вкладку» — title + URL + выделенный текст в compose
+- Быстрое копирование ссылки / markdown-ссылки / «чистый» URL
+- TL;DR / выжимка видимого текста (с лимитом символов)
+
+**Навигация и вкладки**
+- Закрепить / заметка к вкладке (локально или в CMS)
+- История поиска с капсулы (не только избранные сервисы)
+- «Открыть в…» — та же ссылка в другом браузере/профиле (если применимо)
+
+**Работа с CMS**
+- Быстрый inbox / последние страницы workspace без полного перехода
+- Создать заметку / задачу из выделения
+- Статус: какой агент/workspace активен (иконка + tooltip)
+
+**Захват и ввод**
+- Область скриншота (у вас уже есть полный — crop удобен)
+- Запись короткого voice-to-text в буфер или в поиск
+- OCR выделенной области → текст в буфер
+
+**Удобство панели**
+- Горячая клавиша показать/скрыть капсулу
+- «Не мешать» — авто-прозрачность / сдвиг к краю при скролле
+- Запомнить позицию отдельно для домена (опционально)
+
+**Поиск (раз уже есть)**
+- Agent CMS / semantic search по workspace, когда будет API
+- Повтор последнего запроса по клику на лупу с пустым полем
+- Детект «мы уже на этом поисковике» — вы уже частично сделали
+
+**Надёжность**
+- Офлайн-индикатор CMS / переподключение voice
+- Мини-лог последнего действия (скрин ок / ошибка / копия)
+
+Если приоритизировать три «самых полезных» под ваш стек: **контекст вкладки в агента**, **crop скрин**, **быстрый доступ к workspace/inbox из CMS**.`;
+
   const FORM_MENU = [
     { head: "Формы" },
     {
@@ -668,6 +706,7 @@
   const actions = document.createElement("div");
   actions.className = "asc-actions";
   const menus = [];
+  let panelIdeasTodo = null;
   let pickerActive = false;
   let offsetX = 0;
   let offsetY = 0;
@@ -786,6 +825,104 @@
       menu.wrap.classList.remove("is-open");
       menu.btn.setAttribute("aria-expanded", "false");
     }
+    panelIdeasTodo?.setOpen(false);
+  }
+
+  function createPanelIdeasTodoModal(shellRef) {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-panel-todo-trigger";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "asc-btn asc-btn--panel-todo asc-btn--icon-only";
+    btn.title = "Идеи для панели (TODO)";
+    btn.setAttribute("aria-label", "Идеи для панели — TODO");
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = '<span class="asc-panel-todo-qmark" aria-hidden="true">?</span>';
+
+    const backdrop = document.createElement("button");
+    backdrop.type = "button";
+    backdrop.className = "asc-panel-todo-backdrop";
+    backdrop.hidden = true;
+    backdrop.setAttribute("aria-label", "Закрыть окно TODO");
+
+    const dialog = document.createElement("div");
+    dialog.className = "asc-panel-todo-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "asc-panel-todo-title");
+    dialog.hidden = true;
+
+    const head = document.createElement("div");
+    head.className = "asc-panel-todo-head";
+
+    const title = document.createElement("h2");
+    title.className = "asc-panel-todo-title";
+    title.id = "asc-panel-todo-title";
+    title.textContent = "TODO — идеи для панели";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "asc-panel-todo-close";
+    closeBtn.title = "Закрыть";
+    closeBtn.setAttribute("aria-label", "Закрыть");
+    closeBtn.textContent = "×";
+
+    const body = document.createElement("pre");
+    body.className = "asc-panel-todo-body";
+    body.textContent = PANEL_IDEAS_TODO;
+
+    head.append(title, closeBtn);
+    dialog.append(head, body);
+    shellRef.append(backdrop, dialog);
+    wrap.append(btn);
+
+    let open = false;
+
+    function setOpen(next) {
+      open = Boolean(next);
+      backdrop.hidden = !open;
+      dialog.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.classList.toggle("is-active", open);
+      root.classList.toggle("asc-panel-todo-open", open);
+      if (open) {
+        for (const menu of menus) {
+          menu.wrap.classList.remove("is-open");
+          menu.btn.setAttribute("aria-expanded", "false");
+        }
+        closeBtn.focus();
+      }
+    }
+
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setOpen(!open);
+    });
+    closeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setOpen(false);
+      btn.focus();
+    });
+    backdrop.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setOpen(false);
+      btn.focus();
+    });
+
+    for (const eventName of ["pointerdown", "mousedown", "click", "dblclick"]) {
+      dialog.addEventListener(eventName, (event) => event.stopPropagation());
+    }
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !open) return;
+      event.stopPropagation();
+      setOpen(false);
+      btn.focus();
+    });
+
+    return { wrap, btn, setOpen, isOpen: () => open };
   }
 
   function createMenu(key, label, title, items) {
@@ -981,6 +1118,9 @@
   const shell = document.createElement("div");
   shell.className = "asc-shell";
   shell.append(brandDock, toolbarPanel, status);
+
+  panelIdeasTodo = createPanelIdeasTodoModal(shell);
+  right.append(panelIdeasTodo.wrap);
 
   const shadow = root.attachShadow({ mode: "open" });
   const style = document.createElement("style");
