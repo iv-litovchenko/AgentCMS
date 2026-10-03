@@ -835,6 +835,85 @@ async function writeImageDataUrlToClipboardInTab(tabId, dataUrl) {
   throw new Error(result?.error || "Не удалось скопировать");
 }
 
+async function writeTextToClipboardInTab(tabId, text) {
+  if (!tabId) throw new Error("Нет вкладки для копирования");
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: async (value) => {
+      try {
+        const t = String(value || "");
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(t);
+          return { ok: true };
+        }
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.append(ta);
+        ta.select();
+        const copied = document.execCommand("copy");
+        ta.remove();
+        if (!copied) throw new Error("Буфер обмена недоступен");
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, error: error?.message || String(error) };
+      }
+    },
+    args: [String(text || "")]
+  });
+
+  const result = results?.[0]?.result;
+  if (result?.ok) return;
+  throw new Error(result?.error || "Не удалось скопировать");
+}
+
+async function blobToImageClipboardDataUrl(blob) {
+  const type = String(blob?.type || "").toLowerCase();
+  if (type === "image/png" || type === "image/jpeg" || type === "image/jpg") {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    const mime = type === "image/jpg" ? "image/jpeg" : type;
+    return `data:${mime};base64,${btoa(binary)}`;
+  }
+  if (typeof createImageBitmap === "function" && typeof OffscreenCanvas === "function") {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      throw new Error("Canvas недоступен");
+    }
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const out = await canvas.convertToBlob({ type: "image/png" });
+    return blobToImageClipboardDataUrl(out);
+  }
+  return blobToJpegDataUrl(blob);
+}
+
+async function copyRemoteMediaToClipboard(tabId, url) {
+  const res = await fetch(String(url || ""), { credentials: "omit", redirect: "follow" });
+  if (!res.ok) throw new Error(`Не удалось загрузить (${res.status})`);
+  const blob = await res.blob();
+  const mime = String(blob.type || "").toLowerCase();
+  const looksLikeImage =
+    mime.startsWith("image/") || mime === "" || mime === "application/octet-stream";
+  if (looksLikeImage) {
+    const dataUrl = await blobToImageClipboardDataUrl(blob);
+    await writeImageDataUrlToClipboardInTab(tabId, dataUrl);
+    return { ok: true, mode: "image" };
+  }
+  await writeTextToClipboardInTab(tabId, String(url || ""));
+  return { ok: true, mode: "url" };
+}
+
 async function uploadTabScreenshot({ dataUrl, tabUrl = "" } = {}) {
   const { agentId } = await getSettings();
   const baseUrl = await resolveCmsBase();
@@ -995,6 +1074,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } catch (error) {
       sendResponse({ ok: false, error: error?.message || String(error) });
     }
+    return true;
+  }
+
+  if (message?.type === "COMPANION_COPY_MEDIA_TO_CLIPBOARD") {
+    const url = String(message.url || "").trim();
+    const tabId = sender.tab?.id;
+    if (!url) {
+      sendResponse({ ok: false, error: "Пустой URL" });
+      return false;
+    }
+    if (!tabId) {
+      sendResponse({ ok: false, error: "Нет вкладки" });
+      return false;
+    }
+    copyRemoteMediaToClipboard(tabId, url)
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
     return true;
   }
 

@@ -28,6 +28,15 @@
     '<svg viewBox="0 0 24 24" aria-hidden="true">' +
     '<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>';
 
+  const ICON_OPEN =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+
+  const ICON_CLIPBOARD =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<rect x="8" y="2" width="8" height="4" rx="1"/>' +
+    '<rect x="5" y="4" width="14" height="16" rx="2"/></svg>';
+
   let enabled = true;
   let activeMedia = null;
   let hideTimer = null;
@@ -39,6 +48,8 @@
   let hostEl = null;
   let dockEl = null;
   let copyBtnEl = null;
+  let openBtnEl = null;
+  let clipboardBtnEl = null;
   let downloadBtnEl = null;
   let metaEl = null;
   let metaDividerEl = null;
@@ -68,8 +79,8 @@
   }
 
   function dockWidth() {
-    if (!dockEl) return 68;
-    return Math.max(68, Math.ceil(dockEl.getBoundingClientRect().width || 0));
+    if (!dockEl) return 140;
+    return Math.max(140, Math.ceil(dockEl.getBoundingClientRect().width || 0));
   }
 
   function sendRuntimeMessage(payload) {
@@ -673,6 +684,64 @@
     }
   }
 
+  function openMediaInNewTab(media) {
+    const url = resolveMediaUrl(media);
+    if (!url) {
+      flashStatus("Нет URL", false);
+      return;
+    }
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) flashStatus("Не удалось открыть", false);
+    else flashStatus("Открыто", true);
+  }
+
+  async function copyMediaBlobFromImgElement(media) {
+    if (!media || media.tagName !== "IMG") return false;
+    const w = media.naturalWidth || media.width;
+    const h = media.naturalHeight || media.height;
+    if (!w || !h) return false;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    try {
+      ctx.drawImage(media, 0, 0);
+    } catch {
+      return false;
+    }
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob || typeof ClipboardItem !== "function" || !navigator.clipboard?.write) return false;
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return true;
+  }
+
+  async function copyMediaToClipboard(media) {
+    const url = resolveMediaUrl(media);
+    if (!url) {
+      flashStatus("Нет URL", false);
+      return;
+    }
+    flashStatus("Копирование…", true);
+    try {
+      if (await copyMediaBlobFromImgElement(media)) {
+        flashStatus("В буфере", true);
+        return;
+      }
+    } catch {
+      // fall through to background fetch
+    }
+    const res = await sendRuntimeMessage({
+      type: "COMPANION_COPY_MEDIA_TO_CLIPBOARD",
+      url
+    });
+    if (res?.ok) {
+      flashStatus(res.mode === "url" ? "URL в буфере" : "В буфере", true);
+      return;
+    }
+    flashStatus(res?.error || "Не удалось скопировать", false);
+  }
+
   async function downloadMedia(media) {
     const url = resolveMediaUrl(media);
     if (!url) {
@@ -710,9 +779,16 @@
     const kind = mediaKind(media);
     const copyLabel =
       kind === "video" ? "Копировать URL видео" : kind === "audio" ? "Копировать URL аудио" : "Копировать URL изображения";
+    const openLabel = "Открыть в новой вкладке";
+    const clipboardLabel =
+      kind === "video"
+        ? "Копировать видео в буфер (URL)"
+        : kind === "audio"
+          ? "Копировать аудио в буфер (URL)"
+          : "Копировать изображение в буфер";
     const downloadLabel =
       kind === "video" ? "Скачать видео" : kind === "audio" ? "Скачать аудио" : "Скачать изображение";
-    return { copyLabel, downloadLabel };
+    return { copyLabel, openLabel, clipboardLabel, downloadLabel };
   }
 
   function shouldShowForMedia(media) {
@@ -742,10 +818,18 @@
     hostEl.style.top = `${Math.round(top)}px`;
     scheduleDockInsetRefine(media, box);
 
-    const { copyLabel, downloadLabel } = mediaActionLabels(media);
+    const { copyLabel, openLabel, clipboardLabel, downloadLabel } = mediaActionLabels(media);
     if (copyBtnEl) {
       copyBtnEl.title = copyLabel;
       copyBtnEl.setAttribute("aria-label", copyLabel);
+    }
+    if (openBtnEl) {
+      openBtnEl.title = openLabel;
+      openBtnEl.setAttribute("aria-label", openLabel);
+    }
+    if (clipboardBtnEl) {
+      clipboardBtnEl.title = clipboardLabel;
+      clipboardBtnEl.setAttribute("aria-label", clipboardLabel);
     }
     if (downloadBtnEl) {
       downloadBtnEl.title = downloadLabel;
@@ -1037,9 +1121,27 @@
     copyBtnEl.className = "asc-btn asc-btn--copy-url";
     copyBtnEl.innerHTML = ICON_LINK;
 
-    const dockDivider = document.createElement("span");
-    dockDivider.className = "dock-divider";
-    dockDivider.setAttribute("aria-hidden", "true");
+    const dockDividerAfterCopy = document.createElement("span");
+    dockDividerAfterCopy.className = "dock-divider";
+    dockDividerAfterCopy.setAttribute("aria-hidden", "true");
+
+    openBtnEl = document.createElement("button");
+    openBtnEl.type = "button";
+    openBtnEl.className = "asc-btn asc-btn--open-new";
+    openBtnEl.innerHTML = ICON_OPEN;
+
+    const dockDividerAfterOpen = document.createElement("span");
+    dockDividerAfterOpen.className = "dock-divider";
+    dockDividerAfterOpen.setAttribute("aria-hidden", "true");
+
+    clipboardBtnEl = document.createElement("button");
+    clipboardBtnEl.type = "button";
+    clipboardBtnEl.className = "asc-btn asc-btn--clipboard-media";
+    clipboardBtnEl.innerHTML = ICON_CLIPBOARD;
+
+    const dockDividerBeforeDownload = document.createElement("span");
+    dockDividerBeforeDownload.className = "dock-divider";
+    dockDividerBeforeDownload.setAttribute("aria-hidden", "true");
 
     downloadBtnEl = document.createElement("button");
     downloadBtnEl.type = "button";
@@ -1052,6 +1154,18 @@
       if (activeMedia) void copyMediaUrl(activeMedia);
     });
 
+    openBtnEl.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (activeMedia) openMediaInNewTab(activeMedia);
+    });
+
+    clipboardBtnEl.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (activeMedia) void copyMediaToClipboard(activeMedia);
+    });
+
     downloadBtnEl.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -1061,7 +1175,17 @@
     dockEl.addEventListener("pointerenter", () => window.clearTimeout(hideTimer));
     dockEl.addEventListener("pointerleave", () => scheduleHide());
 
-    dockEl.append(metaEl, metaDividerEl, copyBtnEl, dockDivider, downloadBtnEl);
+    dockEl.append(
+      metaEl,
+      metaDividerEl,
+      copyBtnEl,
+      dockDividerAfterCopy,
+      openBtnEl,
+      dockDividerAfterOpen,
+      clipboardBtnEl,
+      dockDividerBeforeDownload,
+      downloadBtnEl
+    );
     wrap.append(dockEl, statusEl);
     shadow.append(style, wrap);
     setUiVisible(false);
