@@ -708,14 +708,16 @@
 }
 
 .asc-brand-label {
-  max-width: 88px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: none;
   opacity: 1;
-  overflow: hidden;
+  overflow: visible;
   white-space: nowrap;
-  margin-right: 2px;
-  font-size: 12px;
+  margin-right: 4px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.1;
   letter-spacing: 0.01em;
   color: #f5f3ff;
 }

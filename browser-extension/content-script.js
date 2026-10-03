@@ -738,7 +738,7 @@
   const root = document.createElement("div");
   root.id = "agent-shell-companion-toolbar";
   root.setAttribute("role", "toolbar");
-  root.setAttribute("aria-label", "Agent Shell Companion");
+  root.setAttribute("aria-label", "Agent CMS Toolbar");
 
   const actions = document.createElement("div");
   actions.className = "asc-actions";
@@ -768,12 +768,12 @@
   brandCluster.setAttribute("aria-expanded", "false");
   brandCluster.setAttribute(
     "aria-label",
-    "Agent CMS — клик: инструменты, двойной клик: боковая панель открыть или свернуть"
+    "Agent CMS Toolbar — клик: инструменты, двойной клик: боковая панель открыть или свернуть"
   );
 
   const brand = document.createElement("div");
   brand.className = "asc-brand";
-  brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
+  brand.innerHTML = `<span class="asc-brand-icon" aria-hidden="true">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS Toolbar</span>`;
 
   brandCluster.append(brand);
 
