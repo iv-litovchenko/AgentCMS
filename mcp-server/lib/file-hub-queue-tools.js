@@ -14,8 +14,8 @@ export function registerFileHubQueueTools(reg, client) {
   );
 
   reg(
-    "send_file_to_file_hub",
-    "Add a workspace file to the Shell file hub export queue (CMS «Отправить в файлообменник»).",
+    "add_file_to_file_hub",
+    "Add a workspace file to the Shell file hub export queue (CMS «Добавить в файлообменник»).",
     z.object({
       path: workspacePath,
       name: z.string().optional(),
@@ -23,12 +23,12 @@ export function registerFileHubQueueTools(reg, client) {
       place: z.string().optional(),
       size: z.number().int().nonnegative().optional()
     }),
-    (payload) => client.post("/api/workspace/file-hub/send", payload)
+    (payload) => client.post("/api/workspace/file-hub/add", payload)
   );
 
   reg(
     "remove_file_from_file_hub",
-    "Remove a file from the Shell file hub export queue (after «забрать» / drag-out).",
+    "Remove a file from the Shell file hub export queue (CMS «Убрать из файлообменника»).",
     z.object({
       id: z.string().optional().describe("Queue item id"),
       path: workspacePath.optional().describe("Workspace path if id unknown")

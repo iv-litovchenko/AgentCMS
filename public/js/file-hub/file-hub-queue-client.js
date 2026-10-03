@@ -2,7 +2,7 @@
   "use strict";
 
   const QUEUE_API_PATH = "/api/workspace/file-hub/queue";
-  const SEND_API_PATH = "/api/workspace/file-hub/send";
+  const ADD_API_PATH = "/api/workspace/file-hub/add";
   const REMOVE_API_PATH = "/api/workspace/file-hub/remove";
 
   function resolveAgentId(agentId, getAgentId) {
@@ -26,8 +26,8 @@
     return { ...data, items };
   }
 
-  async function sendToFileHub(payload, agentId, getAgentId) {
-    const response = await fetch(buildUrl(SEND_API_PATH, agentId, getAgentId), {
+  async function addToFileHub(payload, agentId, getAgentId) {
+    const response = await fetch(buildUrl(ADD_API_PATH, agentId, getAgentId), {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -62,10 +62,12 @@
 
   global.FileHubQueueClient = {
     QUEUE_API_PATH,
-    SEND_API_PATH,
+    ADD_API_PATH,
     REMOVE_API_PATH,
     fetchQueue,
-    sendToFileHub,
+    addToFileHub,
+    /** @deprecated use addToFileHub */
+    sendToFileHub: addToFileHub,
     removeFromFileHub,
     isPathQueued,
     buildUrl

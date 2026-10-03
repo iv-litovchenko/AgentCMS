@@ -111833,7 +111833,7 @@ function basenameWorkspaceHint(filePath) {
 function refreshEntryOverviewFileHubSendButton(button, { queued = false } = {}) {
   if (!button) return;
   const inQueue = Boolean(queued);
-  button.textContent = inQueue ? "Забрать из файлообменника" : "Отправить в файлообменник";
+  button.textContent = inQueue ? "Убрать из файлообменника" : "Добавить в файлообменник";
   button.title = inQueue
     ? "Убрать файл из очереди выдачи Shell «Файлообменник»"
     : "Добавить файл в очередь выдачи Shell «Файлообменник»";
@@ -111873,7 +111873,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
       showToast("Путь к файлу недоступен", "error");
       return;
     }
-    if (!client?.sendToFileHub || !client?.removeFromFileHub) {
+    if (!client?.addToFileHub || !client?.removeFromFileHub) {
       showToast("Файлообменник: клиент не загружен", "error");
       return;
     }
@@ -111881,7 +111881,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
     button.disabled = true;
     const action = queued
       ? client.removeFromFileHub({ path: filePath }, activeAgentId)
-      : client.sendToFileHub(
+      : client.addToFileHub(
           {
             path: filePath,
             name: basenameWorkspaceHint(filePath),
@@ -111894,7 +111894,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
       .then(() => {
         refreshEntryOverviewFileHubSendButton(button, { queued: !queued });
         showToast(
-          queued ? "Файл убран из файлообменника" : "Файл отправлен в файлообменник",
+          queued ? "Файл убран из файлообменника" : "Файл добавлен в файлообменник",
           "success"
         );
         const shellApp = window.shellApp || window.parent?.shellApp;

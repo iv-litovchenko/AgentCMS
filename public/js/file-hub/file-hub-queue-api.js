@@ -1,7 +1,7 @@
 /** ES module — те же endpoint'ы, что FileHubQueueClient (CMS script). */
 
 export const QUEUE_API_PATH = "/api/workspace/file-hub/queue";
-export const SEND_API_PATH = "/api/workspace/file-hub/send";
+export const ADD_API_PATH = "/api/workspace/file-hub/add";
 export const REMOVE_API_PATH = "/api/workspace/file-hub/remove";
 
 function resolveAgentId(agentId) {
@@ -34,8 +34,8 @@ export async function fetchFileHubQueue(agentId) {
   return { ...data, items };
 }
 
-export async function sendFileToFileHub(payload, agentId) {
-  const response = await fetch(buildUrl(SEND_API_PATH, agentId), {
+export async function addFileToFileHub(payload, agentId) {
+  const response = await fetch(buildUrl(ADD_API_PATH, agentId), {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
@@ -47,6 +47,9 @@ export async function sendFileToFileHub(payload, agentId) {
   }
   return data;
 }
+
+/** @deprecated use addFileToFileHub */
+export const sendFileToFileHub = addFileToFileHub;
 
 export async function removeFileFromFileHub(payload, agentId) {
   const response = await fetch(buildUrl(REMOVE_API_PATH, agentId), {

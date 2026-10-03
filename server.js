@@ -390,7 +390,7 @@ const {
 } = require("./lib/api/idle-screensaver-rest-api");
 const {
   readFileHubQueue,
-  sendFileToFileHub,
+  addFileToFileHub,
   removeFileFromFileHub
 } = require("./lib/api/file-hub-queue-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
@@ -14253,8 +14253,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   workspaceFileHubQueue:
     "GET /api/workspace/file-hub/queue — read_file_hub_queue MCP (.agent-cms/state/file-hub-queue.json)",
-  workspaceFileHubSend:
-    "POST /api/workspace/file-hub/send — send_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
+  workspaceFileHubAdd:
+    "POST /api/workspace/file-hub/add — add_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
   workspaceFileHubRemove:
     "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
   moduleGit:
@@ -21879,19 +21879,22 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/workspace/file-hub/send") {
+  if (
+    req.method === "POST" &&
+    (url.pathname === "/api/workspace/file-hub/add" || url.pathname === "/api/workspace/file-hub/send")
+  ) {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const body = await readJsonBody(req);
-      const written = await sendFileToFileHub(agentRoot, body);
+      const written = await addFileToFileHub(agentRoot, body);
       if (written.error) {
         return sendJson(res, written.status || 400, { error: written.error });
       }
       return sendJson(res, 200, written);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to send file to file hub",
+        error: "Failed to add file to file hub",
         details: String(error.message || error)
       });
     }
