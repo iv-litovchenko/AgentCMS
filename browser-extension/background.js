@@ -343,6 +343,52 @@ function resolveFileHubAttachMaxBytes(maxAttachBytes) {
   return FILE_HUB_ATTACH_MAX_BYTES;
 }
 
+async function countFileHubFormsOnTab({ tabId = 0, windowId = 0 } = {}) {
+  const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  if (!targetTabId) {
+    throw new Error("Нет вкладки сайта");
+  }
+
+  await ensureFileHubPageScript(targetTabId);
+
+  let frameProbe = [];
+  try {
+    frameProbe = await chrome.scripting.executeScript({
+      target: { tabId: targetTabId, allFrames: true },
+      func: () => Boolean(window.__companionFileHubPage)
+    });
+  } catch {
+    frameProbe = [{ frameId: 0, result: true }];
+  }
+
+  let maxForms = 0;
+  for (const row of frameProbe) {
+    if (!row?.result) continue;
+    const frameId = Number(row.frameId);
+    try {
+      const response = await chrome.tabs.sendMessage(
+        targetTabId,
+        { type: "COMPANION_FILE_HUB_COUNT_FORMS" },
+        { frameId }
+      );
+      const n = Number(response?.formCount);
+      if (Number.isFinite(n)) maxForms = Math.max(maxForms, n);
+    } catch {
+      // frame without listener
+    }
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(targetTabId, { type: "COMPANION_FILE_HUB_COUNT_FORMS" });
+    const n = Number(response?.formCount);
+    if (Number.isFinite(n)) maxForms = Math.max(maxForms, n);
+  } catch {
+    // ignore
+  }
+
+  return { ok: true, tabId: targetTabId, formCount: maxForms };
+}
+
 async function relayFileHubAttachToTab({
   tabId = 0,
   windowId = 0,
@@ -972,6 +1018,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_FILE_HUB_COUNT_FORMS") {
+    countFileHubFormsOnTab({
+      tabId: message.tabId,
+      windowId: message.windowId
+    })
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error), formCount: 0 }));
     return true;
   }
 

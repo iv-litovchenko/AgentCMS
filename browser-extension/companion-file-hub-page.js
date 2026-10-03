@@ -165,6 +165,13 @@
     return dropped;
   }
 
+  function countAttachFormTargets() {
+    const inputs = collectFileInputs(document);
+    const stub = { type: "application/octet-stream", name: "file.bin" };
+    const formCount = inputs.filter((input) => scoreFileInput(input, stub) >= 0).length;
+    return { ok: true, formCount };
+  }
+
   function injectFile(message) {
     const file = buildFileFromMessage(message);
     if (!file) return { ok: false, error: "Пустой файл" };
@@ -200,6 +207,10 @@
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message?.type === "COMPANION_FILE_HUB_PING") {
         sendResponse({ ok: true, href: location.href });
+        return true;
+      }
+      if (message?.type === "COMPANION_FILE_HUB_COUNT_FORMS") {
+        sendResponse(countAttachFormTargets());
         return true;
       }
       if (message?.type === "COMPANION_FILE_HUB_INJECT_FILE") {
