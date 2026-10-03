@@ -300,10 +300,36 @@
       if (open) void broadcastActiveTabToShell();
       return;
     }
+    if (data.type === "agent-cms-voice:file-hub-count-forms") {
+      void relayFileHubCountFormsToActiveTab(data);
+    }
     if (data.type === "agent-cms-voice:file-hub-attach-tab") {
       void relayFileHubAttachToActiveTab(data);
     }
   });
+
+  async function relayFileHubCountFormsToActiveTab(data) {
+    const requestId = String(data?.requestId || "").trim();
+    const ctx = await resolvePickerTabContext();
+    let response = { ok: false, formCount: 0, error: "unknown" };
+    try {
+      response = await sendRuntimeMessage({
+        type: "COMPANION_FILE_HUB_COUNT_FORMS",
+        tabId: ctx.tabId,
+        windowId: ctx.windowId
+      });
+    } catch (error) {
+      response = { ok: false, formCount: 0, error: error.message || String(error) };
+    }
+    if (!requestId) return;
+    postToVoiceFrame({
+      type: "agent-cms-voice:file-hub-count-forms-result",
+      requestId,
+      ok: Boolean(response?.ok),
+      formCount: Number(response?.formCount) || 0,
+      error: String(response?.error || "")
+    });
+  }
 
   async function relayFileHubAttachToActiveTab(data) {
     const requestId = String(data?.requestId || "").trim();

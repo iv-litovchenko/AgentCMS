@@ -165,10 +165,13 @@
     return dropped;
   }
 
+  /** Только этот frame (без вложенных iframe — иначе одна форма считается дважды). */
   function countAttachFormTargets() {
-    const inputs = collectFileInputs(document);
+    const inputs = [...document.querySelectorAll('input[type="file"]')];
     const stub = { type: "application/octet-stream", name: "file.bin" };
-    const formCount = inputs.filter((input) => scoreFileInput(input, stub) >= 0).length;
+    const formCount = inputs.filter(
+      (input) => isVisibleInput(input) && scoreFileInput(input, stub) >= 0
+    ).length;
     return { ok: true, formCount };
   }
 

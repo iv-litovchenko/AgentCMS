@@ -119,6 +119,37 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+async function requestFileHubFormCountOnCompanionTab() {
+  const requestId =
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("message", onResult);
+      reject(new Error("Таймаут проверки страницы"));
+    }, 12_000);
+
+    function onResult(event) {
+      const data = event?.data;
+      if (!data || data.type !== "agent-cms-voice:file-hub-count-forms-result") return;
+      if (String(data.requestId || "") !== requestId) return;
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onResult);
+      if (data.ok) resolve({ formCount: Number(data.formCount) || 0 });
+      else reject(new Error(String(data.error || "Не удалось проверить формы на странице")));
+    }
+
+    window.addEventListener("message", onResult);
+    window.parent.postMessage(
+      {
+        type: "agent-cms-voice:file-hub-count-forms",
+        requestId
+      },
+      "*"
+    );
+  });
+}
+
 async function requestFileHubAttachToCompanionTab(file, getSettings) {
   const path = String(file?.path || "").trim();
   if (!path) throw new Error("Нет пути к файлу");
@@ -699,6 +730,7 @@ function bindFileHubConfirm(root) {
 
   const close = (value) => {
     layer.hidden = true;
+    cancelBtn.hidden = false;
     const done = settle;
     settle = null;
     done?.(value);
@@ -715,7 +747,7 @@ function bindFileHubConfirm(root) {
     }
   });
 
-  return ({ title, message, confirmLabel = "Убрать", danger = true } = {}) =>
+  return ({ title, message, confirmLabel = "Убрать", danger = true, alertOnly = false } = {}) =>
     new Promise((resolve) => {
       if (settle) {
         settle(false);
@@ -723,10 +755,11 @@ function bindFileHubConfirm(root) {
       settle = resolve;
       titleEl.textContent = String(title || "Подтвердите действие");
       messageEl.textContent = String(message || "");
-      okBtn.textContent = String(confirmLabel || "Убрать");
-      okBtn.classList.toggle("is-danger", Boolean(danger));
+      okBtn.textContent = String(confirmLabel || (alertOnly ? "Понятно" : "Убрать"));
+      okBtn.classList.toggle("is-danger", Boolean(danger) && !alertOnly);
+      cancelBtn.hidden = Boolean(alertOnly);
       layer.hidden = false;
-      cancelBtn.focus();
+      (alertOnly ? okBtn : cancelBtn).focus();
     });
 }
 
@@ -958,22 +991,44 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
               return;
             }
             attachBtn.disabled = true;
-            void requestFileHubAttachToCompanionTab(file, getSettings)
-              .then(() => {
+            void (async () => {
+              try {
+                let formCount = 0;
+                try {
+                  const counted = await requestFileHubFormCountOnCompanionTab();
+                  formCount = Number(counted?.formCount) || 0;
+                } catch (countError) {
+                  console.warn("[file-hub] form count skipped", countError);
+                }
+                if (formCount >= 2) {
+                  await confirmFileHubAction({
+                    title: "Несколько форм на странице",
+                    message:
+                      "На странице две или больше видимых форм загрузки файлов. Выбор конкретной формы пока не поддерживается — оставьте одну форму или прикрепите файл на сайте вручную.",
+                    confirmLabel: "Понятно",
+                    danger: false,
+                    alertOnly: true
+                  });
+                  return;
+                }
+                await requestFileHubAttachToCompanionTab(file, getSettings);
                 if (issueKey) {
                   markFileHubUsedOnSite(getShellAgentId(), issueKey, file.id);
                   siteUsageStore = loadFileHubSiteUsage(getShellAgentId());
                 }
                 renderList();
                 fileHubAttachSuccessToast(root, file);
-              })
-              .catch((error) => {
+              } catch (error) {
                 console.warn("[file-hub] attach to tab failed", error);
                 const msg = String(error?.message || error);
                 attachBtn.title = msg;
                 showFileHubAttachToast(root, msg, "error");
-                attachBtn.disabled = false;
-              });
+              } finally {
+                if (!issueKey || !isFileHubUsedOnSite(siteUsageStore, issueKey, file.id)) {
+                  attachBtn.disabled = false;
+                }
+              }
+            })();
           });
         }
         trailing.appendChild(attachBtn);

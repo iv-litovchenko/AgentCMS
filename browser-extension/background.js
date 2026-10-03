@@ -362,6 +362,7 @@ async function countFileHubFormsOnTab({ tabId = 0, windowId = 0 } = {}) {
   }
 
   let maxForms = 0;
+  let sumForms = 0;
   for (const row of frameProbe) {
     if (!row?.result) continue;
     const frameId = Number(row.frameId);
@@ -372,21 +373,17 @@ async function countFileHubFormsOnTab({ tabId = 0, windowId = 0 } = {}) {
         { frameId }
       );
       const n = Number(response?.formCount);
-      if (Number.isFinite(n)) maxForms = Math.max(maxForms, n);
+      if (Number.isFinite(n) && n > 0) {
+        maxForms = Math.max(maxForms, n);
+        sumForms += n;
+      }
     } catch {
       // frame without listener
     }
   }
 
-  try {
-    const response = await chrome.tabs.sendMessage(targetTabId, { type: "COMPANION_FILE_HUB_COUNT_FORMS" });
-    const n = Number(response?.formCount);
-    if (Number.isFinite(n)) maxForms = Math.max(maxForms, n);
-  } catch {
-    // ignore
-  }
-
-  return { ok: true, tabId: targetTabId, formCount: maxForms };
+  const formCount = maxForms >= 2 ? maxForms : sumForms >= 2 ? sumForms : maxForms;
+  return { ok: true, tabId: targetTabId, formCount };
 }
 
 async function relayFileHubAttachToTab({
