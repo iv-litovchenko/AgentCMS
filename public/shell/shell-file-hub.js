@@ -19,11 +19,76 @@ const FILE_HUB_TOPIC_LIST = Object.entries(FILE_HUB_TOPICS).map(([key, value]) =
   label: `${value.topic} · ${value.place}`
 }));
 
-function formatFileSize(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+function formatFileSizeLabel(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const FILE_HUB_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".avif"]);
+
+function isFileHubImagePath(filePath) {
+  const name = String(filePath || "");
+  const dot = name.lastIndexOf(".");
+  if (dot === -1) return false;
+  return FILE_HUB_IMAGE_EXTENSIONS.has(name.slice(dot).toLowerCase());
+}
+
+function buildWorkspaceFilePreviewUrl(fileRel, options = {}) {
+  const params = new URLSearchParams({
+    file: String(fileRel || "").replace(/\\/g, "/")
+  });
+  if (options.thumb) {
+    params.set("thumb", "1");
+    params.set("max", String(options.max || 96));
+  }
+  const agent = getShellAgentId();
+  if (agent) params.set("agent", agent);
+  return `/api/workspace/folder/file?${params.toString()}`;
+}
+
+function fillFileHubItemVisual(container, file) {
+  if (!container) return;
+  const filePath = String(file?.path || "");
+  const fileName = String(file?.name || filePath);
+  const icons = globalThis.MaterialFileIcons;
+
+  const showThumb = isFileHubImagePath(fileName) && filePath.includes("/");
+  if (showThumb) {
+    const img = document.createElement("img");
+    img.className = "shell-file-hub-item-thumb";
+    img.alt = "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src = buildWorkspaceFilePreviewUrl(filePath, { thumb: true, max: 96 });
+    img.addEventListener("error", () => {
+      container.classList.add("shell-file-hub-item-visual--icon");
+      container.replaceChildren();
+      if (icons?.fillInlineFileIcon) {
+        icons.fillInlineFileIcon(container, fileName, "🖼", {
+          className: "shell-file-hub-item-icon",
+          width: 28,
+          height: 28
+        });
+      } else {
+        container.textContent = "🖼";
+      }
+    });
+    container.appendChild(img);
+    return;
+  }
+
+  container.classList.add("shell-file-hub-item-visual--icon");
+  if (icons?.fillInlineFileIcon) {
+    icons.fillInlineFileIcon(container, fileName, "📎", {
+      className: "shell-file-hub-item-icon",
+      width: 28,
+      height: 28
+    });
+  } else {
+    container.textContent = "📎";
+  }
 }
 
 function mountFileHubRoot(root, mainView) {
@@ -62,6 +127,22 @@ function filterTopicOptions(query) {
   );
 }
 
+function basenameFromPath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const slash = normalized.lastIndexOf("/");
+  return slash === -1 ? normalized : normalized.slice(slash + 1);
+}
+
+function normalizeSuggestOption(option) {
+  const meta = String(
+    option.meta || option.locationHint || option.filePath || option.path || option.folderPath || ""
+  ).trim();
+  let label = String(option.label || option.displayName || option.name || option.title || "").trim();
+  if (!label) label = basenameFromPath(meta);
+  if (!label) return null;
+  return { ...option, label, meta };
+}
+
 async function fetchWorkspaceSearch(query) {
   const q = String(query || "").trim();
   const agentId = getShellAgentId();
@@ -72,15 +153,20 @@ async function fetchWorkspaceSearch(query) {
     url.searchParams.set("q", q);
     url.searchParams.set("scope", "filename");
     url.searchParams.set("limit", "12");
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), { credentials: "same-origin" });
     if (!response.ok) return [];
     const data = await response.json();
-    return (Array.isArray(data.results) ? data.results : []).map((row) => ({
-      kind: "workspace",
-      label: String(row.name || row.title || row.path || "").trim(),
-      meta: String(row.path || row.folderPath || "").trim(),
-      query: q
-    }));
+    return (Array.isArray(data.results) ? data.results : [])
+      .map((row) =>
+        normalizeSuggestOption({
+          kind: "workspace",
+          label: row.displayName,
+          meta: row.locationHint || row.filePath,
+          filePath: row.filePath,
+          query: q
+        })
+      )
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -109,7 +195,9 @@ function bindInteractiveSearch({
   };
 
   const renderSuggest = () => {
-    const local = getOptions(input.value);
+    const local = getOptions(input.value)
+      .map((row) => normalizeSuggestOption(row))
+      .filter(Boolean);
     const merged = [...local, ...remoteOptions];
     visibleOptions = merged;
     suggestEl.replaceChildren();
@@ -202,6 +290,51 @@ function bindInteractiveSearch({
   };
 }
 
+function bindFileHubConfirm(root) {
+  const layer = root?.querySelector("[data-file-hub-confirm]");
+  const titleEl = root?.querySelector("[data-file-hub-confirm-title]");
+  const messageEl = root?.querySelector("[data-file-hub-confirm-message]");
+  const okBtn = root?.querySelector("[data-file-hub-confirm-ok]");
+  const cancelBtn = root?.querySelector("[data-file-hub-confirm-cancel]");
+  if (!layer || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+    return async () => false;
+  }
+
+  let settle = null;
+
+  const close = (value) => {
+    layer.hidden = true;
+    const done = settle;
+    settle = null;
+    done?.(value);
+  };
+
+  okBtn.addEventListener("click", () => close(true));
+  cancelBtn.addEventListener("click", () => close(false));
+  layer.addEventListener("keydown", (event) => {
+    if (layer.hidden) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close(false);
+    }
+  });
+
+  return ({ title, message, confirmLabel = "Убрать", danger = true } = {}) =>
+    new Promise((resolve) => {
+      if (settle) {
+        settle(false);
+      }
+      settle = resolve;
+      titleEl.textContent = String(title || "Подтвердите действие");
+      messageEl.textContent = String(message || "");
+      okBtn.textContent = String(confirmLabel || "Убрать");
+      okBtn.classList.toggle("is-danger", Boolean(danger));
+      layer.hidden = false;
+      cancelBtn.focus();
+    });
+}
+
 export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   const root = nodes?.fileHub || document.getElementById("shell-file-hub");
   const openBtn = nodes?.fileHubOpen || document.getElementById("shell-file-hub-open");
@@ -215,6 +348,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
   const emptyEl = root?.querySelector("[data-file-hub-empty]");
   const exportRefreshBtn = root?.querySelector("[data-file-hub-export-refresh]");
   const exportClearBtn = root?.querySelector("[data-file-hub-export-clear]");
+  const confirmLayer = root?.querySelector("[data-file-hub-confirm]");
   const app = nodes?.shellApp || document.getElementById("shell-app");
   const mainView = nodes?.mainView || document.getElementById("shell-main-view");
 
@@ -222,6 +356,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
 
   mountFileHubRoot(root, mainView);
   bindShellHintsIn(root);
+  const confirmFileHubAction = bindFileHubConfirm(root);
 
   let files = [];
   let query = "";
@@ -259,9 +394,13 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
 
   async function clearExportQueue() {
     if (!files.length || queueLoading) return;
-    if (!window.confirm("Очистить весь список файлообменника? Файлы в workspace не удалятся.")) {
-      return;
-    }
+    const confirmed = await confirmFileHubAction({
+      title: "Очистить список?",
+      message: "Все файлы исчезнут из очереди выдачи. Сами файлы в workspace не удалятся.",
+      confirmLabel: "Очистить",
+      danger: true
+    });
+    if (!confirmed) return;
     queueLoading = true;
     syncExportToolbarUi();
     try {
@@ -303,24 +442,79 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
     for (const file of items) {
       const row = document.createElement("li");
       row.className = "shell-file-hub-item";
-      row.draggable = true;
+      row.draggable = false;
       row.dataset.fileId = file.id;
-      row.innerHTML = `
-        <span class="shell-file-hub-item-grip" aria-hidden="true">⠿</span>
-        <span class="shell-file-hub-item-main">
-          <span class="shell-file-hub-item-name">${escapeHtml(file.name)}</span>
-          <span class="shell-file-hub-item-meta">${escapeHtml(file.topic)} · ${escapeHtml(file.place)}</span>
-        </span>
-        <span class="shell-file-hub-item-size">${escapeHtml(formatFileSize(file.size))}</span>
+      const sizeLabel = formatFileSizeLabel(file.size);
+
+      const grip = document.createElement("span");
+      grip.className = "shell-file-hub-item-grip";
+      grip.setAttribute("aria-hidden", "true");
+      grip.title = "Перетащите за ручку в другое окно";
+      grip.textContent = "⠿";
+
+      const visual = document.createElement("span");
+      visual.className = "shell-file-hub-item-visual";
+      fillFileHubItemVisual(visual, file);
+
+      const main = document.createElement("span");
+      main.className = "shell-file-hub-item-main";
+      main.innerHTML = `
+        <span class="shell-file-hub-item-name">${escapeHtml(file.name)}</span>
+        <span class="shell-file-hub-item-meta">${escapeHtml(file.topic)} · ${escapeHtml(file.place)}</span>
       `;
+
+      const trailing = document.createElement("div");
+      trailing.className = "shell-file-hub-item-trailing";
+      if (sizeLabel) {
+        const sizeEl = document.createElement("span");
+        sizeEl.className = "shell-file-hub-item-size";
+        sizeEl.title = "Размер файла";
+        sizeEl.textContent = sizeLabel;
+        trailing.appendChild(sizeEl);
+      }
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "shell-file-hub-item-remove";
+      removeBtn.title = "Убрать из списка";
+      removeBtn.setAttribute("aria-label", "Убрать из списка");
+      trailing.appendChild(removeBtn);
+
+      row.append(grip, visual, main, trailing);
+      removeBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void (async () => {
+          const confirmed = await confirmFileHubAction({
+            title: `Убрать «${file.name}»?`,
+            message: "Файл пропадёт из очереди выдачи. В workspace он останется.",
+            confirmLabel: "Убрать",
+            danger: true
+          });
+          if (!confirmed) return;
+          try {
+            await removeFileFromFileHub({ id: file.id, path: file.path }, getShellAgentId());
+            files = files.filter((entry) => entry.id !== file.id);
+            renderList();
+          } catch (error) {
+            console.warn("[file-hub] remove item failed", error);
+            await reloadExportQueue();
+          }
+        })();
+      });
+      grip?.addEventListener("pointerdown", () => {
+        row.draggable = true;
+      });
       row.addEventListener("dragstart", (event) => {
         event.dataTransfer?.setData("text/plain", file.name);
         event.dataTransfer?.setData("application/x-shell-file-hub", JSON.stringify(file));
-        event.dataTransfer.effectAllowed = "copyMove";
+        event.dataTransfer.effectAllowed = "copy";
         row.classList.add("is-dragging");
       });
-      row.addEventListener("dragend", () => {
+      row.addEventListener("dragend", (event) => {
         row.classList.remove("is-dragging");
+        row.draggable = false;
+        const dropEffect = String(event.dataTransfer?.dropEffect || "").toLowerCase();
+        if (!dropEffect || dropEffect === "none") return;
         void (async () => {
           try {
             await removeFileFromFileHub({ id: file.id, path: file.path }, getShellAgentId());
@@ -468,6 +662,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
 
   root.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    if (confirmLayer && !confirmLayer.hidden) return;
     const suggestOpen =
       (searchSuggest && !searchSuggest.hidden) || (topicSuggest && !topicSuggest.hidden);
     if (suggestOpen) {

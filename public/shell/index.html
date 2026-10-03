@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=638" />
+    <link rel="stylesheet" href="/shell/shell.css?v=639" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/js/core/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -71,7 +71,7 @@
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
-          "@shell/file-hub": "/shell/shell-file-hub.js?v=11",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=18",
           "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=4",
           "@shell/pomodoro": "/shell/shell-pomodoro.js?v=8",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -3091,10 +3091,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   type="button"
                   class="shell-file-hub-pane-clear"
                   data-file-hub-export-clear
-                  title="Очистить весь список очереди"
+                  title="Очистить список"
                   aria-label="Очистить список"
                 >
-                  Очистить список
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M8 6V4h8v2"></path>
+                    <path d="M19 6l-1 14H6L5 6"></path>
+                    <path d="M10 11v6"></path>
+                    <path d="M14 11v6"></path>
+                  </svg>
                 </button>
                 <button
                   type="button"
@@ -3162,6 +3168,24 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <p class="shell-file-hub-empty" data-file-hub-empty hidden>По запросу ничего не нашлось</p>
               <ul class="shell-file-hub-list" data-file-hub-list aria-label="Файлы для выгрузки"></ul>
             </section>
+          </div>
+          <div
+            class="shell-file-hub-confirm"
+            data-file-hub-confirm
+            hidden
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="shell-file-hub-confirm-title"
+            aria-describedby="shell-file-hub-confirm-message"
+          >
+            <div class="shell-file-hub-confirm-panel">
+              <h4 class="shell-file-hub-confirm-title" id="shell-file-hub-confirm-title" data-file-hub-confirm-title></h4>
+              <p class="shell-file-hub-confirm-message" id="shell-file-hub-confirm-message" data-file-hub-confirm-message></p>
+              <div class="shell-file-hub-confirm-actions">
+                <button type="button" class="shell-file-hub-confirm-cancel" data-file-hub-confirm-cancel>Отмена</button>
+                <button type="button" class="shell-file-hub-confirm-ok" data-file-hub-confirm-ok>Убрать</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -3556,6 +3580,8 @@ CMS workspace</pre>
       <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
     </div>
 
+    <script src="/vendor/material-file-icons/map.js?v=1"></script>
+    <script src="/js/editor/material-file-icons.js?v=1"></script>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
