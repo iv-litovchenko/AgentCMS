@@ -9434,10 +9434,25 @@ html:has(body.shell-embed) {
   height: 100%;
 }
 
+html:has(body.shell-embed.shell-compact) {
+  background: #f4f7ff;
+}
+
 body.shell-embed.shell-compact {
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
+  padding-bottom: 0;
+  background-color: #f4f7ff !important;
+  background-image: none !important;
+  color: #1e293b;
+}
+
+body.shell-embed.shell-compact.shell-bg-wallpaper,
+body.shell-embed.shell-compact.shell-bg-dark,
+body.shell-embed.shell-compact.shell-bg-custom {
+  background-color: #f4f7ff !important;
+  background-image: none !important;
 }
 
 body.shell-embed.shell-bg-wallpaper,
@@ -9471,6 +9486,17 @@ body.shell-embed .shell-path-header {
   max-width: none;
   gap: 0;
   background: transparent;
+  color-scheme: light;
+  --text: #1e293b;
+  --muted: #64748b;
+  --panel: #ffffff;
+  --panel-border: rgba(148, 163, 184, 0.35);
+  --border: rgba(148, 163, 184, 0.32);
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --shell-surface-bg: #f4f7ff;
+  --shell-surface-border: rgba(148, 163, 184, 0.35);
+  --shell-surface-divider: rgba(148, 163, 184, 0.22);
+  color: var(--text);
 }
 
 .shell-app[data-compact="1"] .shell-path-header {
@@ -9496,20 +9522,20 @@ body.shell-embed .shell-path-header {
   gap: 0;
 }
 
-.shell-app[data-compact="1"] .shell-main-view > :not(.shell-compact-stage) {
+.shell-app[data-compact="1"] .shell-main-view > .shell-hero {
   display: none !important;
 }
 
 .shell-compact-stage {
   display: none;
   position: relative;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 220px;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
   overflow: hidden;
-  padding: 24px var(--shell-surface-inset-x);
+  padding: 8px var(--shell-surface-inset-x) 6px;
   border-radius: 0;
   background:
     radial-gradient(ellipse 90% 70% at 50% 38%, rgba(255, 255, 255, 0.55) 0%, #eef2ff 46%, #dce6ff 100%);
@@ -9517,34 +9543,999 @@ body.shell-embed .shell-path-header {
   -webkit-backdrop-filter: none;
   border: 0;
   box-shadow: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .shell-app[data-compact="1"] .shell-compact-stage {
   display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.shell-app[data-compact="1"] .shell-main-view > .shell-chat-section--reply,
+.shell-app[data-compact="1"] .shell-main-view > .shell-chat-section--compose {
+  display: flex !important;
+}
+
+.shell-app[data-compact="1"] .shell-main-view > .shell-chat-section--reply {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.shell-app[data-compact="1"][data-compact-qa="1"] .shell-compact-stage {
-  justify-content: flex-start;
-  padding-top: 8px;
-  padding-bottom: 8px;
+.shell-app[data-compact="1"] .shell-main-view {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(255, 255, 255, 0.65) 0%, #eef2ff 42%, #e8eeff 100%);
+}
+
+.shell-app[data-compact="1"] .shell-main-view > .shell-chat-section--reply {
+  padding: 4px 12px 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-reply-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.98);
+  background: #ffffff;
+  box-shadow:
+    0 8px 22px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(148, 163, 184, 0.18);
+}
+
+.shell-app[data-compact="1"] .shell-reply-panel .shell-dialog-scroll {
+  gap: 8px;
+  padding: 2px 2px 4px;
+}
+
+.shell-app[data-compact="1"] .shell-dialog-scroll-progress {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-dialog-scroll-bottom {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.96);
+  color: #475569;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-dialog-scroll-bottom:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: #ffffff;
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-chat-msg--user {
+  background: linear-gradient(180deg, #f5f3ff 0%, #eef2ff 100%);
+  border-color: rgba(99, 102, 241, 0.28);
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-chat-msg--agent {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-bubble--error .shell-chat-msg--error {
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #991b1b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-speak,
+.shell-app[data-compact="1"] .shell-chat-copy {
+  background: rgba(241, 245, 249, 0.95);
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-speak:hover,
+.shell-app[data-compact="1"] .shell-chat-copy:hover {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-dialog-live-reply,
+.shell-app[data-compact="1"] .shell-reply-panel .shell-reply-body {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-reply-panel .shell-reply-body.shell-dialog-live-reply,
+.shell-app[data-compact="1"] #shell-last-reply.shell-dialog-live-reply {
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-live-reply-stream {
+  gap: 6px 8px;
+}
+
+.shell-app[data-compact="1"] .shell-live-reply-wait,
+.shell-app[data-compact="1"] .shell-live-tools-pending {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-reply-text,
+.shell-app[data-compact="1"] .shell-reply-text.shell-md {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-reply-text.shell-md a {
+  color: #0369a1;
+}
+
+.shell-app[data-compact="1"] .shell-reply-text.shell-md code,
+.shell-app[data-compact="1"] .shell-reply-text.shell-md pre {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.shell-app[data-compact="1"] .shell-reply-text.shell-reply-text--stub {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-last-ask {
+  background: linear-gradient(180deg, #f5f3ff 0%, #eef2ff 100%);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-last-ask-label {
+  color: #94a3b8;
+}
+
+.shell-app[data-compact="1"] .shell-last-ask-text {
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-chat-bubble--tool .shell-chat-msg--tool {
+  background: #f1f5f9;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  color: #334155;
+}
+
+.shell-app[data-compact="1"] .shell-tool-bubble-section {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-agent-activity:not(.hidden) {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.shell-app[data-compact="1"] .shell-agent-activity-label {
+  color: #94a3b8;
+}
+
+.shell-app[data-compact="1"] .shell-agent-activity-item {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-agent-activity-item.is-active {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-dialog-error {
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #991b1b;
+}
+
+.shell-app[data-compact="1"] .shell-dialog-empty-title {
+  color: #334155;
+}
+
+.shell-app[data-compact="1"] .shell-dialog-empty-hint,
+.shell-app[data-compact="1"] .shell-dialog-history-loading-hint {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-history-item {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.shell-app[data-compact="1"] .shell-history-item--error .shell-history-text {
+  color: #b91c1c;
+}
+
+.shell-app[data-compact="1"] .shell-history-item--tool .shell-history-text {
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-reply-tts-block {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.32);
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-reply-tts-block-label {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-reply-tts-block-text {
+  color: #1e293b;
+}
+
+/* Компакт: диалог — светлая тема для всего содержимого #shell-reply-panel */
+.shell-app[data-compact="1"] .shell-chat-section--reply {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-dialog-thread,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-history-text,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-history-role {
+  color: #334155;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-history-time {
+  color: #94a3b8;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-dialog-history-loading {
+  color: #334155;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-dialog-history-loading-text {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-dialog-history-loading-icon {
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-pull-hint {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-agent-activity-item:not(:last-child)::after {
+  color: #cbd5e1;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-row--proactive-empty .shell-chat-bubble {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-proactive-empty-marker {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-proactive-empty-label {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-reply-panel.is-streaming .shell-reply-text::after {
+  color: #6366f1;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md code:not(pre code),
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md code:not(pre code),
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md code:not(pre code) {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md pre,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md pre,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md pre,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-tts-block-text.shell-md pre {
+  background: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #0f172a;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-md-code-label {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.28);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-md-code-copy {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-md-code-copy:hover {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-md-code-copy.is-copied {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md blockquote,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md blockquote,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md blockquote,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md .markdown-alert,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md .markdown-alert,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md .markdown-alert {
+  background: rgba(99, 102, 241, 0.06);
+  border-left-color: rgba(99, 102, 241, 0.45);
+  color: #334155;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md .shell-md-table-wrap,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md .shell-md-table-wrap,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md .shell-md-table-wrap {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.35);
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md thead,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md thead,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md thead {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md th,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md th,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md th {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md th,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md td,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md th,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md td,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md th,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md td {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md tbody tr:nth-child(even),
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md tbody tr:nth-child(even),
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-text.shell-md tbody tr:hover,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-chat-msg .shell-md tbody tr:hover,
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-reply-segment.shell-md tbody tr:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply .shell-show-item {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: #f8fafc;
+}
+
+.shell-app[data-compact="1"] .shell-chat-msg--agent.shell-md pre,
+.shell-app[data-compact="1"] .shell-chat-msg--agent.shell-md blockquote {
+  color: inherit;
+}
+
+.shell-app[data-compact="1"] .shell-main-view > .shell-chat-section--compose {
+  padding: 4px 12px max(10px, env(safe-area-inset-bottom, 0px));
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-compose-panel {
+  gap: 6px;
+}
+
+.shell-app[data-compact="1"] .shell-compose-card {
+  border: 1.5px solid rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow:
+    0 8px 22px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.shell-app[data-compact="1"] .shell-compose-options-row .shell-compose-options {
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.shell-app[data-compact="1"] .shell-compose-option {
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-compose-option:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar {
+  margin-top: 2px;
+  padding: 6px 6px 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%);
+  gap: 5px;
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar .shell-icon-btn:not(.shell-compose-send),
+.shell-app[data-compact="1"] .shell-compose-toolbar .shell-compose-tool:not(.shell-compose-send) {
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar .shell-icon-btn:not(.shell-compose-send):hover,
+.shell-app[data-compact="1"] .shell-compose-toolbar .shell-compose-tool:not(.shell-compose-send):hover {
+  background: #eef2ff;
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--attach,
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--media,
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--send {
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--send .shell-compose-stop {
+  border-left-color: rgba(148, 163, 184, 0.35);
+}
+
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--send .shell-compose-outbox-spec {
+  color: #dc2626;
+}
+
+.shell-app[data-compact="1"] .shell-compose-voice--compact {
+  border: 1px solid rgba(99, 102, 241, 0.32);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.shell-app[data-compact="1"] .shell-compose-voice--compact #shell-voice-mode,
+.shell-app[data-compact="1"] .shell-compose-voice--compact .shell-compose-voice-select {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.shell-app[data-compact="1"] .shell-compose-voice--compact #shell-mic-btn {
+  color: #4f46e5;
+}
+
+.shell-app[data-compact="1"] .shell-compose-voice--compact #shell-mic-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-compose-tool[aria-pressed="true"]:not(.shell-compose-mic) {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.14);
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-compose-mic.is-meeting-active,
+.shell-app[data-compact="1"] .shell-compose-mic.is-live-active,
+.shell-app[data-compact="1"] .shell-compose-mic.is-active {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(254, 226, 226, 0.9);
+  color: #b91c1c;
+}
+
+.shell-app[data-compact="1"] .shell-compose-mic.is-live-active {
+  border-color: rgba(14, 165, 233, 0.55);
+  background: rgba(224, 242, 254, 0.95);
+  color: #0369a1;
+}
+
+.shell-app[data-compact="1"] .shell-textarea--compose,
+.shell-app[data-compact="1"] .shell-compose-panel .shell-compose-input-wrap .shell-textarea.shell-textarea--compose {
+  color: #1e293b;
+  background: #ffffff;
+}
+
+.shell-app[data-compact="1"] .shell-textarea--compose::placeholder {
+  color: rgba(100, 116, 139, 0.65);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-label,
+.shell-app[data-compact="1"] .shell-compose-context-stats {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-compose-field-meta {
+  background: #f8fafc;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter-label-title {
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter-label-stats {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter-window-select {
+  background-color: #ffffff;
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.45);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter-window-select:hover {
+  background-color: #f1f5f9;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter-track {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter--comfort .shell-compose-context-meter-status {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter--warn .shell-compose-context-meter-status {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.18);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter--split .shell-compose-context-meter-status {
+  color: #c2410c;
+  background: rgba(249, 115, 22, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter--overflow .shell-compose-context-meter-status {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-meter--blocked .shell-compose-context-meter-label-stats {
+  color: #b91c1c;
+}
+
+.shell-app[data-compact="1"] .shell-compose-draft-status {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.shell-app[data-compact="1"] .shell-compose-draft-status.is-saving {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.shell-app[data-compact="1"] .shell-compose-draft-status.is-saved {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-draft-status.is-error {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-compose-draft-status.is-dirty {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-bar {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.shell-app[data-compact="1"] .shell-compose-context-bar-fill {
+  background: linear-gradient(90deg, #6366f1, #38bdf8);
+}
+
+.shell-app[data-compact="1"] .shell-compose-file-hub-launch {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.12), rgba(34, 197, 94, 0.08));
+  border-color: rgba(22, 163, 74, 0.35);
+  color: #166534;
+}
+
+.shell-app[data-compact="1"] .shell-compose-error {
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #991b1b;
+}
+
+/* Компакт: очередь сообщений */
+.shell-app[data-compact="1"] .shell-compose-panel .shell-message-queue {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-compose-panel .shell-message-queue.is-single {
+  background: transparent;
+  border: 0;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-bar:has(.shell-message-queue-active.hidden)::before {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-accordion-btn {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-accordion-btn:hover {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-count {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-active,
+.shell-app[data-compact="1"] .shell-message-queue.is-single .shell-message-queue-active {
+  background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-badge {
+  color: #0284c7;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-active-label {
+  color: #0369a1;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-text,
+.shell-app[data-compact="1"] .shell-message-queue-item-text {
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-item {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-item.is-editing {
+  background: #f8fafc;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-index {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-edit {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #1e293b;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-edit:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-action {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-action:hover {
+  background: #f1f5f9;
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #312e81;
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-action--save {
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-action--danger {
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.shell-app[data-compact="1"] .shell-message-queue-action--muted {
+  color: #64748b;
+}
+
+.shell-app[data-compact="1"] .shell-compose-expand-toggle {
+  color: #94a3b8;
+}
+
+.shell-app[data-compact="1"] .shell-compose-expand-toggle:hover,
+.shell-app[data-compact="1"] .shell-compose-expand-toggle[aria-pressed="true"] {
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.shell-app[data-compact="1"] .shell-compose-voice {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: #f8fafc;
+}
+
+.shell-app[data-compact="1"] .shell-chat-msg--agent.shell-md a {
+  color: #0369a1;
+}
+
+.shell-app[data-compact="1"] .shell-chat-msg--agent.shell-md code {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+body.shell-embed.shell-compact .shell-main-view {
+  --shell-surface-inset-x: 10px;
+  --shell-surface-inset-y: 4px;
+}
+
+.shell-app[data-compact="1"] .shell-compact-cosmos {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-compact-stage {
+  background: #f4f7ff;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 8px var(--shell-surface-inset-x) 8px;
+}
+
+.shell-app[data-compact="1"] .shell-compact-brand--hidden,
+.shell-app[data-compact="1"] .shell-compact-brand[hidden] {
+  display: none !important;
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar {
+  align-items: center;
   gap: 10px;
   min-height: 0;
+  color: #0f172a;
+  padding: 6px 8px 6px 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar .shell-hero-avatar-stage {
+  width: 46px;
+  height: 46px;
+  margin: 0;
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar .shell-agent-avatar.shell-hero-sensor {
+  width: 46px;
+  height: 46px;
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar .shell-hero-agent-preview {
+  inset: 5px;
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar .shell-hero-status-badge,
+.shell-app[data-compact="1"] .shell-compact-topbar-avatar .shell-tts-progress-clock {
+  display: none !important;
+}
+
+.shell-app[data-compact="1"] .shell-compact-topbar-actions {
+  flex-direction: row;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  padding-top: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.shell-app[data-compact="1"] .shell-compact-qa {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.shell-app[data-compact="1"] .shell-compact-qa-frame {
+  max-height: 52px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-app[data-compact="1"] .shell-compact-qa-block--ask {
+  padding: 2px 4px 2px 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.shell-app[data-compact="1"] .shell-compact-qa-block--ask::before {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-compact-qa-question {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #0f172a;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
+}
+
+.shell-app[data-compact="1"] .shell-compact-sensor--topbar {
+  width: 46px;
+  height: 46px;
+  box-shadow:
+    inset 0 1px 4px rgba(255, 255, 255, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compact-exit {
+  width: 28px;
+  height: 28px;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  color: #475569;
+}
+
+.shell-app[data-compact="1"] .shell-compact-exit:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* Компакт (side panel / embed): только поле ввода и отправка */
+.shell-app[data-compact="1"] .shell-compose-dock-inner > .shell-compose-file-hub-row,
+.shell-app[data-compact="1"] .shell-compose-options-row,
+.shell-app[data-compact="1"] .shell-compose-toolbar-group--media {
+  display: none !important;
+}
+
+.shell-app[data-compact="1"] .shell-compose-dock-inner > .shell-compose-file-hub-row + .shell-compose-field {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.shell-app[data-compact="1"] .shell-chat-section--reply {
+  background: none !important;
+}
+
+.shell-app[data-compact="1"] .shell-chat-row {
+  max-width: min(96%, 100%);
+}
+
+.shell-app[data-compact="1"] .shell-chat-meta {
+  color: #94a3b8;
+}
+
+.shell-app[data-compact="1"] .shell-reply-panel {
+  border-radius: 14px;
+  padding: 6px 8px 8px;
+  box-shadow:
+    0 4px 16px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-card {
+  border-radius: 14px;
+  box-shadow:
+    0 4px 16px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
+.shell-app[data-compact="1"] .shell-compose-option {
+  font-size: 11px;
+}
+
+.shell-app[data-compact="1"] .shell-compose-file-hub-launch-label {
+  font-size: 12px;
+}
+
+body.shell-embed.shell-compact.shell-keyboard-open.shell-layout-mobile .shell-compose-dock {
+  background: #ffffff;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.shell-compact-topbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.shell-compact-topbar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.shell-compact-topbar:not(:has(.shell-compact-qa[data-visible="1"])) {
+  justify-content: flex-end;
+}
+
+.shell-compact-sensor--topbar {
+  width: 56px;
+  height: 56px;
+}
+
+.shell-compact-brand--hidden,
+.shell-compact-sensor-status--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+
+.shell-app[data-compact="1"][data-compact-qa="1"] .shell-compact-stage {
+  padding-top: 8px;
+  padding-bottom: 6px;
+  gap: 0;
 }
 
 .shell-compact-qa {
   position: relative;
   z-index: 1;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
-  width: 100%;
+  min-width: 0;
+  width: auto;
   max-width: none;
   display: none;
   flex-direction: column;
   align-self: stretch;
-  padding: 0 12px;
+  padding: 0;
   overflow: hidden;
   pointer-events: none;
 }
@@ -9556,18 +10547,19 @@ body.shell-embed .shell-path-header {
 .shell-compact-qa-frame {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
-  height: 100%;
-  border-radius: 16px;
+  max-width: none;
+  margin: 0;
+  height: auto;
+  max-height: 120px;
+  border-radius: 14px;
   border: 1.5px solid rgba(255, 255, 255, 0.98);
   background: #ffffff;
   box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.11),
-    0 0 0 1px rgba(148, 163, 184, 0.2);
+    0 8px 22px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(148, 163, 184, 0.18);
   overflow: hidden;
   pointer-events: auto;
 }
@@ -9798,14 +10790,14 @@ body.shell-embed .shell-path-header {
   display: none;
 }
 
-.shell-app[data-compact-qa="1"] .shell-compact-sensor {
+.shell-app[data-compact-qa="1"] .shell-compact-sensor:not(.shell-compact-sensor--topbar) {
   width: 92px;
   height: 92px;
 }
 
-.shell-app[data-compact-qa="1"] .shell-compact-sensor-wrap {
-  gap: 10px;
-  flex-shrink: 0;
+.shell-app[data-compact-qa="1"] .shell-compact-sensor--topbar {
+  width: 46px;
+  height: 46px;
 }
 
 .shell-app[data-compact-qa="1"] .shell-compact-brand-title {

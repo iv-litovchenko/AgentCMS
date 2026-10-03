@@ -2251,7 +2251,9 @@ const nodes = {
   compactQa: document.getElementById("shell-compact-qa"),
   compactQaFrame: document.getElementById("shell-compact-qa-frame"),
   compactQaPane: document.getElementById("shell-compact-qa-pane"),
-  compactSensor: document.getElementById("shell-compact-sensor"),
+  compactTopbarAvatar: document.getElementById("shell-compact-topbar-avatar"),
+  heroAvatarStage: document.querySelector(".shell-hero-avatar-stage"),
+  compactSensor: document.getElementById("shell-agent-avatar"),
   compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
@@ -2576,6 +2578,7 @@ const shellCompactQa = createShellCompactQa({
   root: nodes.compactQa,
   frame: nodes.compactQaFrame,
   pane: nodes.compactQaPane,
+  questionOnly: true,
   getHistory: () => shellDialog.getHistory?.() || [],
   getLastAsk: () => shellDialog.getLastAskText?.() || "",
   getLiveReply: () => shellDialog.getLastReplyRaw?.() || "",
@@ -5957,7 +5960,47 @@ function applyWindowSoundAndAwake(settings = {}) {
   }
 }
 
+let compactAvatarStageRestore = null;
+
+function mountCompactTopbarAvatar(compact = isWindowCompactEnabled()) {
+  const mount = nodes.compactTopbarAvatar || document.getElementById("shell-compact-topbar-avatar");
+  const stage =
+    nodes.heroAvatarStage || nodes.agentAvatar?.closest(".shell-hero-avatar-stage");
+  if (!mount || !stage) return;
+
+  nodes.heroAvatarStage = stage;
+  nodes.compactTopbarAvatar = mount;
+  nodes.compactSensor = nodes.agentAvatar;
+
+  if (compact) {
+    if (!compactAvatarStageRestore) {
+      compactAvatarStageRestore = {
+        parent: stage.parentElement,
+        next: stage.nextElementSibling
+      };
+    }
+    if (stage.parentElement !== mount) {
+      mount.append(stage);
+    }
+    mount.hidden = false;
+    nodes.agentAvatar?.classList.add("shell-compact-sensor--topbar");
+    return;
+  }
+
+  if (compactAvatarStageRestore?.parent) {
+    const { parent, next } = compactAvatarStageRestore;
+    if (next && next.parentElement === parent) {
+      parent.insertBefore(stage, next);
+    } else {
+      parent.appendChild(stage);
+    }
+  }
+  mount.hidden = true;
+  nodes.agentAvatar?.classList.remove("shell-compact-sensor--topbar");
+}
+
 function syncCompactSensorUi(compact = isWindowCompactEnabled()) {
+  mountCompactTopbarAvatar(compact);
   syncCompactSensorAvailability();
   if (!compact) {
     setCompactSensorScanning(false);
@@ -5978,11 +6021,12 @@ function syncCompactSensorPhase(phase, phrase = "") {
   const heroBackdropState = resolveHeroBackdropState(phase);
   const sensor = nodes.compactSensor;
   const status = nodes.compactSensorStatus;
-  if (!sensor || !status || !isWindowCompactEnabled()) return;
+  if (!sensor || !isWindowCompactEnabled()) return;
   if (isCompactSensorScanning()) return;
 
   sensor.dataset.phase = displayPhase;
   sensor.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
+  if (!status) return;
   let label = resolveHeroStatusLabel(phase, phrase);
   if (
     shouldShowTtsProgressInHero() &&
@@ -6082,6 +6126,7 @@ function initCompactSensor() {
   };
 
   sensor.addEventListener("pointerdown", (event) => {
+    if (!isWindowCompactEnabled()) return;
     if (pointerHeld) return;
     event.preventDefault();
     pointerHeld = true;
@@ -6112,6 +6157,7 @@ function initCompactSensor() {
   });
 
   sensor.addEventListener("keydown", (event) => {
+    if (!isWindowCompactEnabled()) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (keyboardHeld) return;
@@ -6121,6 +6167,7 @@ function initCompactSensor() {
   });
 
   sensor.addEventListener("keyup", (event) => {
+    if (!isWindowCompactEnabled()) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (!keyboardHeld) return;
@@ -6135,7 +6182,10 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   const pressed = compact ? "true" : "false";
   nodes.windowCompact?.setAttribute("aria-pressed", pressed);
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
-  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Один клик — компактный режим");
+  nodes.agentAvatar?.setAttribute(
+    "title",
+    compact ? "Удерживайте — голосовой ввод" : "Один клик — компактный режим"
+  );
   syncCompactSensorUi(compact);
   syncCompactQa();
 }

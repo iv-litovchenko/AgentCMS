@@ -117,7 +117,8 @@ export function createShellCompactQa(options = {}) {
       pane.append(askBlock);
     }
 
-    if (pair.answer || pair.pending) {
+    const questionOnly = Boolean(options.questionOnly);
+    if (!questionOnly && (pair.answer || pair.pending)) {
       const replyBlock = document.createElement("section");
       replyBlock.className = "shell-compact-qa-block shell-compact-qa-block--reply";
       replyBlock.setAttribute("aria-label", "Ответ агента");
@@ -148,7 +149,7 @@ export function createShellCompactQa(options = {}) {
 
     const pair = buildLatestPair(options);
     const key = pairKey(pair);
-    if (pair && key && key === lastPairKey && updateAnswerOnly(pair)) return;
+    if (!options.questionOnly && pair && key && key === lastPairKey && updateAnswerOnly(pair)) return;
     renderPane(pair);
   }
 

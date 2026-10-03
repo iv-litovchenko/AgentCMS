@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=619" />
+    <link rel="stylesheet" href="/shell/shell.css?v=629" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/js/core/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -45,7 +45,7 @@
           "@shell/permissions": "/shell/shell-permissions.js?v=216",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
           "@shell/dialog": "/shell/shell-dialog.js?v=318",
-          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=8",
+          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=9",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=210",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=7",
           "@shell/compose-page": "/shell/shell-compose-page.js?v=3",
@@ -2088,57 +2088,19 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--5"></span>
           <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--6"></span>
         </div>
-        <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос и ответ">
-          <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
-            <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+        <div class="shell-compact-topbar">
+          <div
+            class="shell-compact-topbar-avatar"
+            id="shell-compact-topbar-avatar"
+            hidden
+            aria-label="Аватар агента"
+          ></div>
+          <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос">
+            <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
+              <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+            </div>
           </div>
-        </div>
-        <div class="shell-compact-sensor-wrap">
-          <button
-            type="button"
-            class="shell-compact-sensor"
-            id="shell-compact-sensor"
-            data-phase="waiting"
-            data-activity="idle"
-            aria-label="Говорить с агентом"
-          >
-            <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
-            <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
-            <span class="shell-compact-sensor-ring" aria-hidden="true"></span>
-            <span class="shell-compact-sensor-waves" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
-            <span class="shell-compact-sensor-typing" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
-            <svg class="shell-compact-sensor-cloud" viewBox="0 0 64 64" role="presentation" aria-hidden="true">
-              <circle class="shell-compact-cloud-ring" cx="32" cy="32" r="29" />
-              <circle class="shell-compact-cloud-face" cx="32" cy="30" r="17" />
-              <circle class="shell-compact-cloud-eye" cx="26" cy="28" r="2.5" />
-              <circle class="shell-compact-cloud-eye" cx="38" cy="28" r="2.5" />
-              <path class="shell-compact-cloud-mouth" d="M24 38 Q32 44 40 38" />
-              <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="shell-compact-brand"
-            id="shell-compact-brand"
-            title="На главную"
-            aria-label="Agent CMS Voice — на главную"
-          >
-            <img class="shell-path-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
-            <span class="shell-compact-brand-title">Agent CMS Voice</span>
-          </button>
-          <span class="shell-compact-sensor-hint">Удерживай круг — говори, отпусти — отправлю</span>
-          <div class="shell-compact-status-row">
-            <p class="shell-compact-sensor-status" id="shell-compact-sensor-status">Ожидание касания…</p>
+          <div class="shell-compact-topbar-actions" aria-label="Выход из компакта">
             <button
               type="button"
               class="shell-compact-exit"
@@ -2152,6 +2114,22 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          class="shell-compact-brand shell-compact-brand--hidden"
+          id="shell-compact-brand"
+          title="На главную"
+          aria-label="Agent CMS Voice — на главную"
+          tabindex="-1"
+          hidden
+          aria-hidden="true"
+        >
+          <img class="shell-path-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
+          <span class="shell-compact-brand-title">Agent CMS Voice</span>
+        </button>
+        <p class="shell-compact-sensor-status shell-compact-sensor-status--hidden" id="shell-compact-sensor-status" aria-live="polite">
+          Ожидание касания…
+        </p>
       </section>
       <section class="shell-hero" id="shell-hero" data-hero-state="idle">
         <div class="shell-hero-bg" aria-hidden="true">
@@ -3544,6 +3522,6 @@ CMS workspace</pre>
     <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
     <script src="/js/app/app-lock.js?v=15"></script>
     <script src="/js/core/platform-status.js"></script>
-    <script src="/shell/shell.js?v=679" type="module"></script>
+    <script src="/shell/shell.js?v=681" type="module"></script>
   </body>
 </html>
