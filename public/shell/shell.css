@@ -15756,30 +15756,64 @@ body.shell-file-hub-open .shell-path-header {
   color: rgba(226, 232, 240, 0.88);
 }
 
-.shell-file-hub-site-chip {
-  margin: 0 0 6px;
-  padding: 6px 10px;
+.shell-file-hub-companion-accordion {
+  margin: 0 0 8px;
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.65);
-  color: rgba(226, 232, 240, 0.95);
-  font-size: 11px;
-  line-height: 1.4;
+  overflow: hidden;
 }
 
-.shell-file-hub-site-chip strong {
+.shell-file-hub-companion-accordion[hidden] {
+  display: none;
+}
+
+.shell-file-hub-companion-accordion-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(226, 232, 240, 0.95);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.shell-file-hub-companion-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.shell-file-hub-companion-accordion-summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 10px;
+  color: rgba(148, 163, 184, 0.9);
+  transition: transform 0.15s ease;
+}
+
+.shell-file-hub-companion-accordion[open] .shell-file-hub-companion-accordion-summary::after {
+  transform: rotate(180deg);
+}
+
+.shell-file-hub-companion-accordion-summary-text strong {
   font-weight: 600;
   color: #f8fafc;
+}
+
+.shell-file-hub-companion-accordion-body {
+  padding: 0 10px 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .shell-file-hub-site-chip-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-right: 6px;
+  flex-shrink: 0;
   border-radius: 999px;
   background: var(--file-hub-site-accent, #38bdf8);
-  vertical-align: middle;
 }
 
 .shell-file-hub-attach-toast {
@@ -15810,11 +15844,8 @@ body.shell-file-hub-open .shell-path-header {
 }
 
 .shell-file-hub-companion-notice {
-  margin: 0 0 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(30, 41, 59, 0.45);
+  margin: 8px 0 0;
+  padding: 0;
   color: rgba(203, 213, 225, 0.95);
   font-size: 11px;
   line-height: 1.45;

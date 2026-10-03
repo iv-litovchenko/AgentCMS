@@ -316,6 +316,7 @@
         windowId: ctx.windowId,
         filename: data.filename,
         mime: data.mime,
+        fileBase64: data.fileBase64,
         buffer: data.buffer
       });
     } catch (error) {

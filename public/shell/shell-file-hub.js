@@ -93,6 +93,17 @@ function isFileHubCompanionPanel() {
 
 const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
 
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (!bytes.length) return "";
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 async function requestFileHubAttachToCompanionTab(file) {
   const path = String(file?.path || "").trim();
   if (!path) throw new Error("Нет пути к файлу");
@@ -100,10 +111,13 @@ async function requestFileHubAttachToCompanionTab(file) {
   const response = await fetch(buildWorkspaceFilePreviewUrl(path), { credentials: "same-origin" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const blob = await response.blob();
+  if (!blob.size) throw new Error("Файл не загрузился (0 байт) — проверьте путь в очереди");
   if (blob.size > FILE_HUB_ATTACH_MAX_BYTES) {
     throw new Error(`Файл больше ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ`);
   }
   const buffer = await blob.arrayBuffer();
+  const fileBase64 = arrayBufferToBase64(buffer);
+  if (!fileBase64) throw new Error("Не удалось подготовить файл для отправки");
   const requestId =
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
@@ -130,7 +144,7 @@ async function requestFileHubAttachToCompanionTab(file) {
         requestId,
         filename: name,
         mime: blob.type || guessFileHubMimeType(name),
-        buffer
+        fileBase64
       },
       "*"
     );
@@ -254,44 +268,81 @@ function showFileHubAttachToast(exportPane, message, kind = "info") {
   }, 5200);
 }
 
+function shortenFileHubSiteLabel(label, siteKey) {
+  const raw = String(label || siteKey || "").trim();
+  if (!raw) return siteKey || "вкладка";
+  if (raw.length <= 52) return raw;
+  return `${raw.slice(0, 49)}…`;
+}
+
 function ensureFileHubCompanionSiteUi(exportPane) {
   if (!exportPane || !isFileHubCompanionPanel()) return;
-  if (!exportPane.querySelector("[data-file-hub-site-chip]")) {
-    const chip = document.createElement("p");
-    chip.className = "shell-file-hub-site-chip";
-    chip.dataset.fileHubSiteChip = "";
-    chip.hidden = true;
-    const searchWrap = exportPane.querySelector(".shell-file-hub-search-wrap");
-    if (searchWrap) exportPane.insertBefore(chip, searchWrap);
-    else exportPane.prepend(chip);
-  }
-  if (!exportPane.querySelector("[data-file-hub-companion-notice]")) {
-    const notice = document.createElement("p");
-    notice.className = "shell-file-hub-companion-notice";
-    notice.dataset.fileHubCompanionNotice = "";
-    notice.textContent =
-      "Кнопка 📎 — прикрепить файл на открытую вкладку (mail.ru: сначала «Прикрепить» в письме). Подсветка — уже переданные на этот сайт.";
-    const chip = exportPane.querySelector("[data-file-hub-site-chip]");
-    if (chip?.nextSibling) exportPane.insertBefore(notice, chip.nextSibling);
-    else exportPane.prepend(notice);
-  }
+  if (exportPane.querySelector("[data-file-hub-companion-accordion]")) return;
+
+  const details = document.createElement("details");
+  details.className = "shell-file-hub-companion-accordion";
+  details.dataset.fileHubCompanionAccordion = "";
+
+  const summary = document.createElement("summary");
+  summary.className = "shell-file-hub-companion-accordion-summary";
+
+  const dot = document.createElement("span");
+  dot.className = "shell-file-hub-site-chip-dot";
+  dot.dataset.fileHubSiteDot = "";
+  dot.setAttribute("aria-hidden", "true");
+  dot.hidden = true;
+
+  const summaryText = document.createElement("span");
+  summaryText.className = "shell-file-hub-companion-accordion-summary-text";
+  summaryText.dataset.fileHubSiteSummaryText = "";
+  summaryText.textContent = "Подсказки для открытой вкладки";
+
+  summary.append(dot, summaryText);
+
+  const body = document.createElement("div");
+  body.className = "shell-file-hub-companion-accordion-body";
+
+  const notice = document.createElement("p");
+  notice.className = "shell-file-hub-companion-notice";
+  notice.textContent =
+    "С диска: перетащите grip в drop-зону сайта — сработает, если сайт читает dataTransfer.files (как в обычном HTML). Из панели это не файл ОС: в чужую вкладку drag часто пустой. 📎 — fetch → File → input или симуляция drop (расширение, по клику). Подсветка — уже переданные на эту вкладку.";
+
+  body.appendChild(notice);
+  details.append(summary, body);
+
+  const searchWrap = exportPane.querySelector(".shell-file-hub-search-wrap");
+  if (searchWrap) exportPane.insertBefore(details, searchWrap);
+  else exportPane.prepend(details);
 }
 
 function updateFileHubSiteChip(exportPane, siteKey, siteLabel) {
-  const chip = exportPane?.querySelector("[data-file-hub-site-chip]");
-  if (!chip) return;
+  const accordion = exportPane?.querySelector("[data-file-hub-companion-accordion]");
+  if (!accordion) return;
+  const summaryText = accordion.querySelector("[data-file-hub-site-summary-text]");
+  const dot = accordion.querySelector("[data-file-hub-site-dot]");
+  if (!isFileHubCompanionPanel()) {
+    accordion.hidden = true;
+    return;
+  }
+  accordion.hidden = false;
   const key = normalizeFileHubSiteKey(siteKey);
-  if (!key || !isFileHubCompanionPanel()) {
-    chip.hidden = true;
+  if (!key) {
+    accordion.style.removeProperty("border-color");
+    if (dot) dot.hidden = true;
+    if (summaryText) summaryText.textContent = "Подсказки для открытой вкладки";
     return;
   }
   const colors = fileHubSiteHighlightColors(key);
-  chip.hidden = false;
-  chip.style.setProperty("--file-hub-site-accent", colors.accent);
-  chip.style.borderColor = colors.border;
-  chip.innerHTML = `<span class="shell-file-hub-site-chip-dot" aria-hidden="true"></span> Сайт: <strong>${escapeHtml(
-    siteLabel || key
-  )}</strong> — цвет подсветки для переданных файлов`;
+  const label = shortenFileHubSiteLabel(siteLabel, key);
+  accordion.style.setProperty("--file-hub-site-accent", colors.accent);
+  accordion.style.borderColor = colors.border;
+  if (dot) {
+    dot.hidden = false;
+    dot.style.background = colors.accent;
+  }
+  if (summaryText) {
+    summaryText.innerHTML = `Сайт: <strong>${escapeHtml(label)}</strong> — цвет подсветки для переданных файлов`;
+  }
 }
 
 async function fetchWorkspaceFileForDrag(meta) {
@@ -822,8 +873,8 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
         const attachBtn = document.createElement("button");
         attachBtn.type = "button";
         attachBtn.className = "shell-file-hub-item-attach";
-        attachBtn.title = "Прикрепить на открытую вкладку (mail.ru и др.)";
-        attachBtn.setAttribute("aria-label", "Прикрепить на открытую вкладку");
+        attachBtn.title = "Отправить на вкладку (как drop или вложение), без сохранения на диск";
+        attachBtn.setAttribute("aria-label", "Отправить файл на открытую вкладку");
         attachBtn.textContent = "📎";
         attachBtn.addEventListener("click", (event) => {
           event.preventDefault();
@@ -838,7 +889,11 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false } = {}) {
               }
               renderList();
               attachBtn.title = "Прикреплено на страницу";
-              showFileHubAttachToast(exportPane, `«${file.name}» отправлен на вкладку`, "success");
+              showFileHubAttachToast(
+                exportPane,
+                `«${file.name}» на вкладке (без диска — через расширение)`,
+                "success"
+              );
             })
             .catch((error) => {
               console.warn("[file-hub] attach to tab failed", error);

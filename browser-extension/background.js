@@ -3,7 +3,8 @@ importScripts(
   "clipboard-history.js",
   "companion-pomodoro-global.js",
   "companion-pomodoro-remote.js",
-  "companion-pomodoro-sw.js"
+  "companion-pomodoro-sw.js",
+  "companion-file-hub-buffer.js"
 );
 
 const {
@@ -332,13 +333,15 @@ const FILE_HUB_ATTACH_MAX_BYTES = 25 * 1024 * 1024;
 async function ensureFileHubPageScript(tabId) {
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: true },
-    files: [FILE_HUB_PAGE_SCRIPT]
+    files: ["companion-file-hub-buffer.js", FILE_HUB_PAGE_SCRIPT]
   });
 }
 
-async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime, buffer } = {}) {
-  const bytes = buffer?.byteLength ?? buffer?.length ?? 0;
-  if (!buffer || !bytes) throw new Error("Пустой файл");
+async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime, buffer, fileBase64 } = {}) {
+  const decode = globalThis.CompanionFileHubBuffer?.normalizeAttachBuffer;
+  const bin = decode ? decode({ buffer, fileBase64 }) : buffer;
+  const bytes = bin?.byteLength ?? 0;
+  if (!bin || !bytes) throw new Error("Пустой файл (не дошёл с панели)");
   if (bytes > FILE_HUB_ATTACH_MAX_BYTES) {
     throw new Error(`Файл слишком большой (макс. ${Math.round(FILE_HUB_ATTACH_MAX_BYTES / (1024 * 1024))} МБ)`);
   }
@@ -350,11 +353,14 @@ async function relayFileHubAttachToTab({ tabId = 0, windowId = 0, filename, mime
 
   await ensureFileHubPageScript(targetTabId);
 
+  const encode = globalThis.CompanionFileHubBuffer?.arrayBufferToBase64;
+  const wireBase64 = typeof fileBase64 === "string" && fileBase64.length ? fileBase64 : encode?.(bin) || "";
+
   const payload = {
     type: "COMPANION_FILE_HUB_INJECT_FILE",
     filename: String(filename || "file"),
     mime: String(mime || "application/octet-stream"),
-    buffer
+    fileBase64: wireBase64
   };
 
   let frameProbe = [];
@@ -959,7 +965,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       windowId: message.windowId,
       filename: message.filename,
       mime: message.mime,
-      buffer: message.buffer
+      buffer: message.buffer,
+      fileBase64: message.fileBase64
     })
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
