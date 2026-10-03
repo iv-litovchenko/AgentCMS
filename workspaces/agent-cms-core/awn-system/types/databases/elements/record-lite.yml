@@ -89,6 +89,28 @@ fields:
     group: system
     sort: 3
 
+  awn-viewed:
+    type: awn.field.date.datetime
+    title: "{A2!} Просмотрен (последний раз)"
+    description: >
+      Когда запись последний раз открывали в интерфейсе (заглушка: пока не заполняется автоматически).
+    locked: true
+    readonly: true
+    placement: aside-body
+    group: system
+    sort: 3.5
+
+  awn-deadline:
+    type: awn.field.date.datetime
+    title: "{A2!} Дедлайн"
+    description: >
+      Крайний срок по записи (заглушка: пока ни на что не влияет).
+    locked: true
+    readonly: true
+    placement: aside-body
+    group: system
+    sort: 3.6
+
   awn-version:
     type: awn.field.number.integer
     title: "{A2!} Версия"

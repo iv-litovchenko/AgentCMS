@@ -18885,6 +18885,7 @@ const DOC_MARKER_BLOCK_TYPE_ICON_CLASS = {
   mistake: "moe-oshibka",
   term: "moe-termin",
   repeat: "moe-povtorit",
+  stiker: "moe-stiker",
 };
 
 function resolveDocMarkerBlockIconTypeClass(blockId) {
@@ -45157,6 +45158,14 @@ const PROPS_FIELD_META = {
     label: "Изменён",
     hint: "Дата последнего изменения"
   },
+  "awn-viewed": {
+    label: "Просмотрен (последний раз)",
+    hint: "Когда запись последний раз открывали (пока заглушка)"
+  },
+  "awn-deadline": {
+    label: "Дедлайн",
+    hint: "Крайний срок по записи (пока заглушка)"
+  },
   "awn-description": {
     label: "Описание",
     hint: "Краткое назначение темы для агента"
@@ -53159,6 +53168,8 @@ const PROPS_FIELD_ICONS = {
   "awn-name": "✏️",
   "awn-create": "📅",
   "awn-update": "🕒",
+  "awn-viewed": "👁",
+  "awn-deadline": "⏰",
   "awn-description": "📝",
   "awn-focus": "⊙",
   "awn-main": "🏠",
@@ -56138,7 +56149,7 @@ function renderDocAsideTodoSticker() {
       title="${isOpen ? "Свернуть заметку" : "Развернуть заметку"}"
     >
       <span class="doc-aside-todo-sticker-chevron" aria-hidden="true"></span>
-      <span class="doc-aside-todo-sticker-label">${escapeHtml(AWN_NOTE_TODO_STICKER_LABEL)}</span>
+      <span class="doc-aside-todo-sticker-label">${escapeHtml(AWN_TODO_STICKER_LABEL)}</span>
     </button>
     <div id="doc-aside-todo-sticker-body" class="doc-aside-todo-sticker-body"${isOpen ? "" : " hidden"}>${escapeHtml(text)}</div>
   `;
@@ -56170,7 +56181,7 @@ function createNavigationHeroTodoSticker(text) {
 
   const label = document.createElement("span");
   label.className = "node-navigation-hero-todo-sticker-label";
-  label.textContent = AWN_NOTE_TODO_STICKER_LABEL;
+  label.textContent = AWN_TODO_STICKER_LABEL;
 
   const body = document.createElement("p");
   body.className = "node-navigation-hero-todo-sticker-body";
@@ -56716,6 +56727,8 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-type": "system",
   "awn-create": "system",
   "awn-update": "system",
+  "awn-viewed": "system",
+  "awn-deadline": "system",
   "awn-version": "system",
   "awn-collection-type": "infoblock",
   "awn-record-storage": "infoblock",

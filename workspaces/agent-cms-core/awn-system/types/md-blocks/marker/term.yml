@@ -3,7 +3,7 @@ name: Маркер · Термин
 kind: block
 group: markers
 status: active
-sort: 7
+sort: 8
 icon: "§"
 description: Блок awn-marker-term — определение термина
 template: |

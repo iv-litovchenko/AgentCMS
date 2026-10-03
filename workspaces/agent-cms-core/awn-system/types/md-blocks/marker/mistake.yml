@@ -3,7 +3,7 @@ name: Маркер · Ошибка
 kind: block
 group: markers
 status: active
-sort: 6
+sort: 7
 icon: "✕"
 description: Блок awn-marker-mistake — типичная ошибка
 template: |

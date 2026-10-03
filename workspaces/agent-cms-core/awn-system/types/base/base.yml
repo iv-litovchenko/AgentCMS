@@ -159,7 +159,7 @@ fields:
     description: >
       Развёрнутое резюме записи для вас и агента: может быть объёмнее и
       содержательнее, чем awn-description (факты, контекст, выводы).
-    hint: "Несколько предложений или абзацев; удобно для поиска и контекста LLM"
+    hint: "Несколько предложений или абзацев (краткое изложение записи); удобно для поиска и контекста LLM"
     placement: aside-body
     group: work-note
     sort: 1
@@ -465,6 +465,28 @@ fields:
     placement: aside-body
     group: system
     sort: 3
+
+  awn-viewed:
+    type: awn.field.date.datetime
+    title: "{A2!} Просмотрен (последний раз)"
+    description: >
+      Когда запись последний раз открывали в интерфейсе (заглушка: пока не заполняется автоматически).
+    locked: true
+    readonly: true
+    placement: aside-body
+    group: system
+    sort: 3.5
+
+  awn-deadline:
+    type: awn.field.date.datetime
+    title: "{A2!} Дедлайн"
+    description: >
+      Крайний срок по записи (заглушка: пока ни на что не влияет).
+    locked: true
+    readonly: true
+    placement: aside-body
+    group: system
+    sort: 3.6
 
   awn-version:
     type: awn.field.number.integer

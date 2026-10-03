@@ -101,6 +101,7 @@ header p {
 .filter-moe-oshibka.is-active { border-color: #dc2626; background: #450a0a; color: #f87171; }
 .filter-moe-ideya.is-active { border-color: #10b981; background: #064e3b; color: #6ee7b7; }
 .filter-moe-todo.is-active { border-color: #94a3b8; background: #1e293b; color: #e2e8f0; }
+.filter-moe-stiker.is-active { border-color: #fbbf24; background: #713f12; color: #fde68a; }
 
 main {
   display: grid;
@@ -195,6 +196,7 @@ aside pre {
 .type-moe-oshibka { background: #450a0a; color: #f87171; }
 .type-moe-ideya { background: #064e3b; color: #6ee7b7; }
 .type-moe-todo { background: #1e293b; color: #e2e8f0; }
+.type-moe-stiker { background: #713f12; color: #fde68a; }
 
 .file-group {
   margin-bottom: 1.25rem;

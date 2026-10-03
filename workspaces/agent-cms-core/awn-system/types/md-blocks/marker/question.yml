@@ -3,7 +3,7 @@ name: Маркер · Вопрос
 kind: block
 group: markers
 status: active
-sort: 5
+sort: 6
 icon: "?"
 description: Блок awn-marker-question в тексте конспекта
 template: |

@@ -3,7 +3,7 @@ name: Маркер · Повторить
 kind: block
 group: markers
 status: active
-sort: 8
+sort: 9
 icon: "↻"
 description: Блок awn-marker-repeat — spaced repetition
 template: |

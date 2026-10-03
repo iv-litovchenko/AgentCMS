@@ -31,6 +31,7 @@
     mistake: { icon: "✕", label: "Ошибка", typeClass: "moe-oshibka" },
     term: { icon: "§", label: "Термин", typeClass: "moe-termin" },
     repeat: { icon: "↻", label: "Повторить", typeClass: "moe-povtorit" },
+    stiker: { icon: "▤", label: "Стикер", typeClass: "moe-stiker" },
   };
 
   const CHIP_META_KEYS = new Set(["added", "updated", "status", "review", "created", "topic"]);
