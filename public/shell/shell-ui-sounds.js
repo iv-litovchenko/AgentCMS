@@ -1159,12 +1159,31 @@ export async function previewShellProcessingAmbient(id, ms = 6200) {
 }
 
 /**
- * @param {"saved" | "toggle" | "switch"} kind
+ * @param {"saved" | "toggle" | "switch" | "issued"} kind
  */
 export async function playShellUiSound(kind = "saved") {
   try {
     const ctx = await ensureAudioContext();
     if (!ctx) return;
+
+    if (kind === "issued") {
+      const output = ctx.destination;
+      playSoftClockClick(ctx, output, "tick");
+      playSoftTone(ctx, output, {
+        frequency: 659.25,
+        duration: 0.17,
+        gain: 0.052,
+        type: "triangle",
+        slideTo: 987.77
+      });
+      playFilteredNoise(ctx, output, {
+        frequency: 2200,
+        q: 1.1,
+        gain: 0.022,
+        duration: 0.028
+      });
+      return;
+    }
 
     if (kind === "toggle") {
       playTone(ctx, { frequency: 523.25, duration: 0.038, gain: 0.045, type: "sine" });

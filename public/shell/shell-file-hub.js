@@ -1,6 +1,7 @@
 /** «Файлообменник» — выдача из .agent-cms/state/file-hub-queue.json; загрузка в inbox — локальный mock. */
 
 import { bindShellHintsIn } from "@shell/hints";
+import { playShellUiSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 import { parseVoiceShellPath } from "@shell/voice-chpu";
 import { clearFileHubQueue, fetchFileHubQueue, removeFileFromFileHub } from "@js/file-hub-queue";
 
@@ -46,6 +47,108 @@ function buildWorkspaceFilePreviewUrl(fileRel, options = {}) {
   const agent = getShellAgentId();
   if (agent) params.set("agent", agent);
   return `/api/workspace/folder/file?${params.toString()}`;
+}
+
+function buildWorkspaceFileOpenUrl(fileRel) {
+  const rel = buildWorkspaceFilePreviewUrl(fileRel);
+  return new URL(rel, window.location.origin).href;
+}
+
+function copyFileHubTextWithExecCommand(value) {
+  const node = document.createElement("textarea");
+  node.value = value;
+  node.setAttribute("readonly", "");
+  node.style.cssText = "position:fixed;top:0;left:0;width:2px;height:2px;opacity:0";
+  document.body.appendChild(node);
+  node.focus();
+  node.select();
+  node.setSelectionRange(0, value.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  node.remove();
+  return ok;
+}
+
+function requestFileHubCopyViaCompanionPanel(text) {
+  const value = String(text ?? "").trim();
+  if (!value || !isFileHubCompanionPanel()) return Promise.resolve(false);
+  const requestId =
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("message", onResult);
+      resolve(false);
+    }, 4000);
+
+    function onResult(event) {
+      const data = event?.data;
+      if (!data || data.type !== "agent-cms-voice:file-hub-copy-result") return;
+      if (String(data.requestId || "") !== requestId) return;
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onResult);
+      resolve(Boolean(data.ok));
+    }
+
+    window.addEventListener("message", onResult);
+    window.parent.postMessage(
+      {
+        type: "agent-cms-voice:file-hub-copy",
+        requestId,
+        text: value
+      },
+      "*"
+    );
+  });
+}
+
+async function copyFileHubClipboard(fileHubRoot, text, toastMessage) {
+  const value = String(text ?? "").trim();
+  if (!value) return false;
+
+  let copied = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+  if (!copied) copied = copyFileHubTextWithExecCommand(value);
+  if (!copied) copied = await requestFileHubCopyViaCompanionPanel(value);
+
+  if (copied) {
+    showFileHubAttachToast(fileHubRoot, { kind: "success", message: toastMessage || "Скопировано" });
+    return true;
+  }
+  console.warn("[file-hub] clipboard copy failed");
+  showFileHubAttachToast(fileHubRoot, { kind: "error", message: "Не удалось скопировать" });
+  return false;
+}
+
+function bindFileHubVisualCopy(visual, file, fileHubRoot) {
+  const path = String(file?.path || "").trim();
+  if (!path || !visual) return;
+  visual.classList.add("shell-file-hub-item-visual--copy");
+  visual.title = "Скопировать ссылку для открытия файла в браузере";
+  visual.setAttribute("role", "button");
+  visual.tabIndex = 0;
+  const copyLink = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void copyFileHubClipboard(fileHubRoot, buildWorkspaceFileOpenUrl(path), "Ссылка на файл скопирована");
+  };
+  visual.addEventListener("click", copyLink);
+  visual.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      copyLink(event);
+    }
+  });
 }
 
 const FILE_HUB_DRAG_MIME_BY_EXT = {
@@ -396,6 +499,7 @@ function showFileHubAttachToast(fileHubRoot, payload, legacyKind = "info") {
 function fileHubAttachSuccessToast(fileHubRoot, file) {
   const name = String(file?.name || "файл").trim() || "файл";
   showFileHubAttachToast(fileHubRoot, { kind: "success", message: `Выдано: ${name}` });
+  void playShellUiSound("issued");
 }
 
 function shortenFileHubSiteLabel(label, siteKey) {
@@ -943,13 +1047,41 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
       const visual = document.createElement("span");
       visual.className = "shell-file-hub-item-visual";
       fillFileHubItemVisual(visual, file);
+      bindFileHubVisualCopy(visual, file, root);
 
       const main = document.createElement("span");
       main.className = "shell-file-hub-item-main";
-      main.innerHTML = `
-        <span class="shell-file-hub-item-name">${escapeHtml(file.name)}</span>
-        <span class="shell-file-hub-item-meta">${escapeHtml(file.topic)} · ${escapeHtml(file.place)}</span>
-      `;
+
+      const nameEl = document.createElement("span");
+      nameEl.className = "shell-file-hub-item-name shell-file-hub-item-copy";
+      nameEl.textContent = String(file.name || "");
+      nameEl.title = "Скопировать имя файла";
+      nameEl.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void copyFileHubClipboard(root, file.name, "Имя файла скопировано");
+      });
+
+      const metaEl = document.createElement("span");
+      metaEl.className = "shell-file-hub-item-meta shell-file-hub-item-copy";
+      const filePath = String(file.path || "").trim();
+      const topicLine = [file.topic, file.place].filter(Boolean).join(" · ");
+      metaEl.textContent = filePath || topicLine;
+      metaEl.title = filePath
+        ? "Скопировать путь к файлу в workspace"
+        : "Скопировать тему и папку";
+      metaEl.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const payload = filePath || topicLine;
+        void copyFileHubClipboard(
+          root,
+          payload,
+          filePath ? "Путь к файлу скопирован" : "Скопировано"
+        );
+      });
+
+      main.append(nameEl, metaEl);
 
       const trailing = document.createElement("div");
       trailing.className = "shell-file-hub-item-trailing";
@@ -990,6 +1122,7 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
               });
               return;
             }
+            primeShellProcessingAudio();
             attachBtn.disabled = true;
             void (async () => {
               try {

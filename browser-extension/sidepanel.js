@@ -300,6 +300,9 @@
       if (open) void broadcastActiveTabToShell();
       return;
     }
+    if (data.type === "agent-cms-voice:file-hub-copy") {
+      void relayFileHubCopyFromShell(data);
+    }
     if (data.type === "agent-cms-voice:file-hub-count-forms") {
       void relayFileHubCountFormsToActiveTab(data);
     }
@@ -307,6 +310,46 @@
       void relayFileHubAttachToActiveTab(data);
     }
   });
+
+  async function copyTextInSidePanel(text) {
+    const value = String(text || "");
+    if (!value) return false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        // fall through
+      }
+    }
+    const node = document.createElement("textarea");
+    node.value = value;
+    node.setAttribute("readonly", "");
+    node.style.cssText = "position:fixed;top:0;left:0;width:2px;height:2px;opacity:0";
+    document.body.appendChild(node);
+    node.focus();
+    node.select();
+    node.setSelectionRange(0, value.length);
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    node.remove();
+    return ok;
+  }
+
+  async function relayFileHubCopyFromShell(data) {
+    const requestId = String(data?.requestId || "").trim();
+    const ok = await copyTextInSidePanel(data?.text);
+    if (!requestId) return;
+    postToVoiceFrame({
+      type: "agent-cms-voice:file-hub-copy-result",
+      requestId,
+      ok
+    });
+  }
 
   async function relayFileHubCountFormsToActiveTab(data) {
     const requestId = String(data?.requestId || "").trim();

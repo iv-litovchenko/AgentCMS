@@ -16143,6 +16143,22 @@ body.shell-file-hub-open .shell-path-header {
   border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+.shell-file-hub-item-visual--copy {
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.shell-file-hub-item-visual--copy:hover,
+.shell-file-hub-item-visual--copy:focus-visible {
+  border-color: rgba(250, 204, 21, 0.9);
+  background: rgba(234, 179, 8, 0.14);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.32);
+  outline: none;
+}
+
 .shell-file-hub-item-visual--icon {
   background: rgba(15, 23, 42, 0.45);
 }
@@ -16176,6 +16192,21 @@ body.shell-file-hub-open .shell-path-header {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shell-file-hub-item-copy {
+  cursor: copy;
+  border-radius: 4px;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.shell-file-hub-item-copy:hover,
+.shell-file-hub-item-copy:focus-visible {
+  color: #fde047;
+  background: rgba(234, 179, 8, 0.12);
+  outline: none;
 }
 
 .shell-file-hub-item-meta {
