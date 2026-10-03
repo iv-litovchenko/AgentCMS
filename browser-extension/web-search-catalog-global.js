@@ -18,7 +18,11 @@
     },
     "google-maps": (q) =>
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
-    "yandex-maps": (q) => `https://yandex.ru/maps/?text=${encodeURIComponent(q)}`
+    "yandex-maps": (q) => `https://yandex.ru/maps/?text=${encodeURIComponent(q)}`,
+    "google-translate": (q) =>
+      `https://translate.google.com/?sl=auto&tl=auto&text=${encodeURIComponent(q)}&op=translate`,
+    "yandex-translate": (q) =>
+      `https://translate.yandex.ru/?source_lang=auto&target_lang=ru&text=${encodeURIComponent(q)}`
   };
 
   /**
@@ -34,6 +38,7 @@
     bing: "microsoftbing",
     youtube: "youtube",
     wikipedia: "wikipedia",
+    "google-translate": "googletranslate",
     instagram: "instagram",
     facebook: "facebook",
     tiktok: "tiktok",
@@ -79,7 +84,8 @@
   const ICON_LOCAL = {
     yandex: "icons/brands/yandex.svg",
     "yandex-images": "icons/brands/yandex.svg",
-    "yandex-maps": "icons/brands/yandex.svg"
+    "yandex-maps": "icons/brands/yandex.svg",
+    "yandex-translate": "icons/brands/yandex.svg"
   };
 
   const CATEGORIES = [
@@ -116,6 +122,20 @@
     { id: "bing", label: "Microsoft Bing", shortLabel: "Microsoft", category: "search", enabled: true },
     { id: "youtube", label: "YouTube", shortLabel: "YouTube", category: "search", enabled: true },
     { id: "wikipedia", label: "Wikipedia", shortLabel: "Wiki", category: "search", enabled: true },
+    {
+      id: "google-translate",
+      label: "Google Переводчик",
+      shortLabel: "G Перевод",
+      category: "search",
+      enabled: true
+    },
+    {
+      id: "yandex-translate",
+      label: "Яндекс Переводчик",
+      shortLabel: "Я.Перевод",
+      category: "search",
+      enabled: true
+    },
     { id: "agentcms", label: "Agent CMS", shortLabel: "CMS", category: "search" },
 
     { id: "instagram", label: "Instagram", shortLabel: "Insta", category: "social" },

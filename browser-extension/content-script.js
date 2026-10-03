@@ -69,6 +69,18 @@
     ) {
       return "yandex-maps";
     }
+    if (host === "translate.google.com" || host.endsWith(".translate.google.com")) {
+      return "google-translate";
+    }
+    if (
+      host === "translate.yandex.ru" ||
+      host === "translate.yandex.com" ||
+      host.endsWith(".translate.yandex.ru") ||
+      host.endsWith(".translate.yandex.com") ||
+      (host.startsWith("translate.yandex.") && host.includes("yandex."))
+    ) {
+      return "yandex-translate";
+    }
 
     for (const [id, test] of WEB_SEARCH_HOST_DETECTORS) {
       if (test(host)) return id;
@@ -170,10 +182,9 @@
     iconWrap.innerHTML = DEFAULT_SEARCH_PICKER_ICON_SVG;
   }
 
-  function appendBrandPickerIcon(parent, itemId) {
-    const iconWrap = document.createElement("span");
-    iconWrap.className = "asc-brand-search-picker-icon";
-    iconWrap.setAttribute("aria-hidden", "true");
+  function populateSearchServiceIcon(iconWrap, itemId) {
+    iconWrap.replaceChildren();
+    iconWrap.classList.remove("asc-brand-search-picker-icon--default", "asc-brand-search-picker-icon--brand");
     const iconUrl = resolveBrandIconUrl(itemId);
     const isLocalBrand = Boolean(CSC?.getIconLocalPath?.(itemId));
     if (iconUrl) {
@@ -199,6 +210,13 @@
     } else {
       applyDefaultPickerIcon(iconWrap);
     }
+  }
+
+  function appendBrandPickerIcon(parent, itemId) {
+    const iconWrap = document.createElement("span");
+    iconWrap.className = "asc-brand-search-picker-icon";
+    iconWrap.setAttribute("aria-hidden", "true");
+    populateSearchServiceIcon(iconWrap, itemId);
     parent.append(iconWrap);
   }
 
@@ -212,10 +230,29 @@
     btn.setAttribute("aria-haspopup", "dialog");
     btn.setAttribute("aria-expanded", "false");
     btn.title = "Выбрать сервис поиска";
-    btn.innerHTML =
-      '<span class="asc-brand-search-picker-label">Google</span>' +
-      '<svg class="asc-brand-search-picker-chevron" viewBox="0 0 24 24" aria-hidden="true">' +
-      '<path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+    const btnIcon = document.createElement("span");
+    btnIcon.className = "asc-brand-search-picker-btn-icon asc-brand-search-picker-icon";
+    btnIcon.setAttribute("aria-hidden", "true");
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "asc-brand-search-picker-label";
+    labelEl.textContent = CSC?.getShortLabel?.(readWebSearchEngineId(), "Google") || "Google";
+
+    const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    chevron.setAttribute("class", "asc-brand-search-picker-chevron");
+    chevron.setAttribute("viewBox", "0 0 24 24");
+    chevron.setAttribute("aria-hidden", "true");
+    const chevronPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    chevronPath.setAttribute("d", "M7 10l5 5 5-5");
+    chevronPath.setAttribute("fill", "none");
+    chevronPath.setAttribute("stroke", "currentColor");
+    chevronPath.setAttribute("stroke-width", "2");
+    chevronPath.setAttribute("stroke-linecap", "round");
+    chevron.append(chevronPath);
+
+    btn.append(btnIcon, labelEl, chevron);
+    populateSearchServiceIcon(btnIcon, readWebSearchEngineId());
 
     const pop = document.createElement("div");
     pop.className = "asc-brand-search-picker-pop";
@@ -259,7 +296,6 @@
     let filterText = "";
     let open = false;
 
-    const labelEl = btn.querySelector(".asc-brand-search-picker-label");
     const SEARCH_PICKER_GAP = 8;
     const SEARCH_PICKER_HEIGHT_ESTIMATE = 320;
 
@@ -307,9 +343,10 @@
       if (!WEB_SEARCH_OPTION_IDS.has(id)) return;
       if (persist && !CSC?.isEnabled?.(id)) return;
       selectedId = id;
-      if (labelEl) {
-        labelEl.textContent = CSC?.getShortLabel?.(id, id) || id;
-      }
+      labelEl.textContent = CSC?.getShortLabel?.(id, id) || id;
+      populateSearchServiceIcon(btnIcon, selectedId);
+      const fullLabel = CSC?.getItem?.(id)?.label || labelEl.textContent;
+      btn.title = `Сервис: ${fullLabel}`;
       if (persist) {
         try {
           localStorage.setItem(STORAGE_SEARCH_ENGINE, id);

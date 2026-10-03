@@ -1,38 +1,30 @@
 # Рефакторинг — часть 3
 
-Префикс `0-` (план) — **только** системные store внутри `awn-databases/`.  
-Имена **`awn-agent-kit`** и **`awn-shared`** — зарезервированные корни workspace, **не переименовываем**.
+**Задача:** переименовать slug по таблицам ниже (код, пути, миграция данных в workspace).
 
-**✅** — есть в `agent-cms-core` или стабильно автосоздаётся · **❌** — только пресет в коде / в sort, без данных в core.
+**✅** сделано · **❌** не сделано.  
+`0-` — только группа в `awn-databases/`. Корни `awn-agent-kit`, `awn-shared` не меняем.  
+`awn-agent-kit/taxonomies/…`, `awn-shared/taxonomies/…` — устарело.
 
-Справочники для `awn-taxonomy` — **только** `awn-databases/…` (план: `0-taxonomies/…`).  
-`awn-agent-kit/taxonomies/…` и `awn-shared/taxonomies/…` — **устарели**, миграция → `/api/platform/catalogs/migrate`.
-
-## Таксономии (`awn-databases`)
+## `awn-databases`
 
 | Статус | Slug (сейчас) | Slug (план) |
 |--------|---------------|-------------|
-| ✅ | `awn-taxonomies` (группа) | `0-taxonomies` |
+| ❌ | `awn-taxonomies` | `0-taxonomies` |
 
-Подколлекции (`tags`, `categories`, `colors`, …) — **актуальная** модель: CSV в `…/{slug}/main.csv`, ключ в `awn-taxonomy` = slug папки. В refactor меняется только **имя группы**; slug коллекций **без** `0-` (например `0-taxonomies/tags`, не `0-tags`).
-
-Автосид при scaffold группы: **tags, categories, colors** — ✅; остальные коллекции — по необходимости (`priorities` есть в core, `statuses` в sort без папки).
-
-## `awn-agent-kit` (корень без изменений)
+## `awn-agent-kit`
 
 | Статус | Slug (сейчас) | Slug (план) |
 |--------|---------------|-------------|
 | ❌ | `agent` | `0-agent` |
 | ❌ | `user` | `0-user` |
 | ❌ | `users` | `0-users` |
-| ❌ | `agent-rules` (`agent.rules`) | `0-agent-rules` |
-| ❌ | `agent-voice-tts` (`agent.voice.tts`) | `0-agent-voice-tts` |
-| ❌ | `agent-voice-stt` (`agent.voice.stt`) | `0-agent-voice-stt` |
+| ❌ | `agent-rules` | `0-agent-rules` |
+| ❌ | `agent-voice-tts` | `0-agent-voice-tts` |
+| ❌ | `agent-voice-stt` | `0-agent-voice-stt` |
 | ❌ | `devices` | `0-devices` |
 
-Корень kit в **core нет**. Темы service-doc в корне kit — пресеты `SYSTEM_REFERENCE_SCAFFOLDS`.
-
-## `awn-shared` (корень без изменений)
+## `awn-shared`
 
 | Статус | Slug (сейчас) | Slug (план) |
 |--------|---------------|-------------|
@@ -44,4 +36,6 @@
 | ❌ | `media` | `media` |
 | ❌ | `context` | `context` |
 
-В **core** только корень. Темы — `SHARED_THEME_PRESETS`, по кнопке; slug пресетов пока **без** `0-`.
+## Чат (Cursor)
+
+`c2a29c0b-9f8c-49e2-a31d-0bdc4802b609`

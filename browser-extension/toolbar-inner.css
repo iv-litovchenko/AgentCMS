@@ -90,8 +90,8 @@
   align-items: center;
   gap: 4px;
   flex: 0 1 auto;
-  min-width: 162px;
-  max-width: 176px;
+  min-width: 200px;
+  max-width: 220px;
   margin-left: auto;
   padding: 1px 3px 1px 6px;
   border-radius: 999px;
@@ -123,17 +123,21 @@
 
 .asc-brand-search-picker {
   position: relative;
-  flex: 0 0 auto;
+  flex: 0 0 92px;
+  width: 92px;
   flex-shrink: 0;
 }
 
 .asc-brand-search-picker-btn {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 1px;
-  max-width: 76px;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 24px;
-  padding: 2px 5px 2px 6px;
+  padding: 2px 5px 2px 5px;
   border: 0;
   border-radius: 999px;
   background: rgba(124, 58, 237, 0.22);
@@ -143,6 +147,7 @@
   font-weight: 600;
   line-height: 1.1;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .asc-brand-search-picker-btn:hover,
@@ -156,11 +161,29 @@
   outline-offset: 1px;
 }
 
+.asc-brand-search-picker-btn-icon {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.asc-brand-search-picker-btn .asc-brand-search-picker-btn-icon img {
+  width: 14px;
+  height: 14px;
+}
+
+.asc-brand-search-picker-btn .asc-brand-search-picker-btn-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
 .asc-brand-search-picker-label {
+  flex: 1 1 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  max-width: 100%;
 }
 
 .asc-brand-search-picker-chevron {
