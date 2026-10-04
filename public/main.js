@@ -93173,19 +93173,15 @@ function syncEditorWysiwygToolbarBottomDock() {
 
   const contentRect = content.getBoundingClientRect();
   const toolbarHeight = toolbar.offsetHeight || 46;
-  const tooltipGap = 28;
   const bottomOffset = Math.max(0, Math.round(window.innerHeight - contentRect.bottom));
 
-  content.style.setProperty(
-    "--editor-wysiwyg-toolbar-dock-height",
-    `${toolbarHeight + tooltipGap}px`
-  );
+  content.style.setProperty("--editor-wysiwyg-toolbar-dock-height", `${toolbarHeight}px`);
   editorWysiwygWrapNode.classList.add("is-editor-toolbar-bottom-docked");
   toolbar.classList.add("is-editor-toolbar-bottom-docked");
   toolbar.style.position = "fixed";
   toolbar.style.left = `${Math.round(contentRect.left)}px`;
   toolbar.style.width = `${Math.round(contentRect.width)}px`;
-  toolbar.style.bottom = `${bottomOffset + tooltipGap}px`;
+  toolbar.style.bottom = `${bottomOffset}px`;
   toolbar.style.top = "auto";
   toolbar.style.right = "auto";
 }

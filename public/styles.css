@@ -53003,29 +53003,14 @@ button.node-navigation-memory-title:focus-visible {
   box-sizing: border-box;
 }
 
-.doc-body-main:has(> .doc-slab-content.is-doc-editor-scroll-host) > .doc-body-status-bar:not(.hidden) {
-  z-index: 8;
-}
-
 .doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-toolbar.is-editor-toolbar-bottom-docked {
   position: fixed;
-  z-index: 120;
+  z-index: 100;
   margin: 0;
   box-sizing: border-box;
   background: #f7f9fc;
   box-shadow: 0 -1px 0 #ebedf2;
   overflow: visible;
-}
-
-.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-tooltip {
-  z-index: 500;
-  transform: translateY(calc(-100% - 10px));
-}
-
-.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-tooltip .arrow {
-  top: auto;
-  bottom: -3px;
-  transform: rotate(45deg);
 }
 
 .doc-slab-content.is-doc-editor-scroll-host
@@ -53048,11 +53033,6 @@ button.node-navigation-memory-title:focus-visible {
 .editor-wysiwyg-wrap .toastui-editor-tooltip {
   z-index: 200;
   pointer-events: none;
-}
-
-.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-defaultUI-toolbar,
-.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-toolbar-item-wrapper {
-  overflow: visible;
 }
 
 .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-dropdown-toolbar,
