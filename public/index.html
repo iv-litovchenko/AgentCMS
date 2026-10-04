@@ -3699,15 +3699,15 @@
             <span>Описание агента</span>
             <textarea id="app-landing-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении агента" spellcheck="true"></textarea>
           </label>
-          <label class="agents-registry-field agents-registry-create-field agents-registry-create-slug-field">
-            <span>Slug (ID агента)</span>
-            <input id="app-landing-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
-            <p class="agents-registry-create-footnote">Уникальный идентификатор и имя папки workspace. Не связан с названием.</p>
-          </label>
           <label class="agents-registry-field agents-registry-create-path-field">
             <span>Путь workspace</span>
             <input id="app-landing-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-project" spellcheck="false" autocomplete="off" />
-            <p class="agents-registry-create-footnote">Последний сегмент пути совпадает со slug (можно сменить родительскую папку).</p>
+            <p class="agents-registry-create-footnote">Родительская папка; slug (ID) задаётся ниже.</p>
+          </label>
+          <label class="agents-registry-field agents-registry-create-field agents-registry-create-slug-field">
+            <span>Slug (ID агента)</span>
+            <input id="app-landing-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
+            <p class="agents-registry-create-footnote">Уникальный идентификатор и имя последней папки в пути. Не связан с названием.</p>
           </label>
           <div class="modal-actions">
             <button id="app-landing-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -7142,7 +7142,7 @@
 
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
-        <div class="modal-message">Агенты</div>
+        <div class="modal-message">Хранилища (агенты)</div>
         <p class="agents-registry-hint">Платформа хранит список workspace: путь, среду и «по умолчанию». Название, описание, статус активности и превью — в корневом <code>manifest.md</code> (<code>awn.page.ws</code>): <code>awn-name</code>, <code>awn-description</code>, <code>awn-status</code>, <code>awn-preview</code>.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
@@ -7153,7 +7153,7 @@
         <div id="agents-registry-list" class="agents-registry-list"></div>
         <div class="agents-registry-footer">
           <div class="agents-registry-footer-actions">
-            <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать агента</button>
+            <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать хранилище</button>
             <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти хранилища (manifest.md → awn.page.ws)</button>
           </div>
           <div class="modal-actions">
@@ -7190,15 +7190,15 @@
           <span>Описание агента</span>
           <textarea id="agents-registry-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Кратко о назначении агента" spellcheck="true"></textarea>
         </label>
-        <label class="agents-registry-field agents-registry-create-field agents-registry-create-slug-field">
-          <span>Slug (ID агента)</span>
-          <input id="agents-registry-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
-          <p class="agents-registry-create-footnote">Уникальный идентификатор и имя папки workspace. Не связан с названием.</p>
-        </label>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Путь workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-project" spellcheck="false" autocomplete="off" />
-          <p class="agents-registry-create-footnote">Последний сегмент пути совпадает со slug (можно сменить родительскую папку).</p>
+          <p class="agents-registry-create-footnote">Родительская папка; slug (ID) задаётся ниже.</p>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field agents-registry-create-slug-field">
+          <span>Slug (ID агента)</span>
+          <input id="agents-registry-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
+          <p class="agents-registry-create-footnote">Уникальный идентификатор и имя последней папки в пути. Не связан с названием.</p>
         </label>
         <div class="modal-actions">
           <button id="agents-registry-create-cancel-btn" class="save-btn" type="button">Отмена</button>
