@@ -17071,6 +17071,9 @@ const FOLDER_BROWSE_MODE = "folder-browse";
 const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const AWN_DATA_VIEW_MODE = "awn-databases-view";
 const FREE_MEMORY_LABEL = "Свободная память";
+const ADOPT_ACTION_ICON = "✨🔮";
+const SECTION_README_OFFER_ACTION_SHORT = "Подхватить раздел (создать описание)";
+const SECTION_README_OFFER_ACTION_LABEL = `${ADOPT_ACTION_ICON} ${SECTION_README_OFFER_ACTION_SHORT}`;
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
@@ -18634,7 +18637,7 @@ function appendNavigationHeroSlugSegment(
   fixBtn.textContent = "Преобразовать";
   fixBtn.title = canFix
     ? `Переименовать в «${issue.suggested}»`
-    : "Сначала необходимо создать описание раздела";
+    : `Сначала ${SECTION_README_OFFER_ACTION_SHORT.toLowerCase()}`;
   fixBtn.disabled = !canFix;
   fixBtn.addEventListener("click", (event) => {
     event.preventDefault();
@@ -38848,7 +38851,7 @@ function createSectionReadmeSettingsButton(sectionFolder, { exists, onEdit }) {
   btn.textContent = "⚙";
   btn.title = exists
     ? `Редактировать ${AREA_MANIFEST_FILE}`
-    : `Создать ${AREA_MANIFEST_FILE}`;
+    : `${SECTION_README_OFFER_ACTION_SHORT} (${AREA_MANIFEST_FILE})`;
   btn.setAttribute("aria-label", btn.title);
   btn.classList.toggle("is-missing", !exists);
   btn.addEventListener("click", (event) => {
@@ -38884,7 +38887,8 @@ function appendSectionReadmeOffer(
   btn.type = "button";
   btn.className =
     "workspace-system-notice-action workspace-system-notice-action--accent section-readme-card-btn";
-  btn.textContent = "Создать описание раздела";
+  btn.textContent = SECTION_README_OFFER_ACTION_LABEL;
+  btn.setAttribute("aria-label", SECTION_README_OFFER_ACTION_SHORT);
   btn.addEventListener("click", () => onCreate(getSectionReadmeRelPath(sectionFolder)));
 
   actions.appendChild(btn);
@@ -39057,9 +39061,9 @@ function isMemorySectionUnregistered(sectionFolder, readmeExists) {
 function getMemorySectionUnregisteredTitle(sectionFolder, { context = "tree" } = {}) {
   const segment = String(sectionFolder || "").split("/").filter(Boolean).pop() || "раздел";
   if (context === "navigation") {
-    return `Раздел «${segment}» без ${AREA_MANIFEST_FILE} — откройте каталог или создайте описание раздела`;
+    return `Раздел «${segment}» без ${AREA_MANIFEST_FILE} — откройте каталог и нажмите «${SECTION_README_OFFER_ACTION_SHORT}»`;
   }
-  return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — нажмите ⚙, чтобы создать описание раздела`;
+  return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — в каталоге «${SECTION_README_OFFER_ACTION_SHORT}» или ⚙ в дереве`;
 }
 
 const MEMORY_FILE_DRAG_MIME = "application/x-yamlcms-memory-file";
@@ -98998,7 +99002,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         folderLabel.type = "button";
         folderLabel.className = "menu-folder menu-folder--adopt";
         folderLabel.dataset.folderPath = adoptTargetPath;
-        folderLabel.title = `${FREE_MEMORY_LABEL} — клик: просмотр; +: подхват (область или тема)`;
+        folderLabel.title = `${FREE_MEMORY_LABEL} — клик: просмотр; ✨🔮: подхват (область или тема)`;
         setMenuLabelWithMarkers(
           folderLabel,
           formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
@@ -99021,8 +99025,8 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
         const addBtn = document.createElement("button");
         addBtn.type = "button";
-        addBtn.className = "add-node-btn";
-        addBtn.textContent = "+";
+        addBtn.className = "add-node-btn add-node-btn--adopt";
+        addBtn.textContent = ADOPT_ACTION_ICON;
         addBtn.title = `Подхватить ${FREE_MEMORY_LABEL.toLowerCase()} (область или тема)`;
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -118072,7 +118076,7 @@ function resolveAwnDataSectionReadmeFolder(record) {
 
 function getAwnDataSectionUnregisteredTitle(record) {
   const segment = String(record?.id || "раздел").trim() || "раздел";
-  return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — создайте описание раздела`;
+  return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — «${SECTION_README_OFFER_ACTION_SHORT}»`;
 }
 
 function getAwnDataSectionRecordSlugIssue(record, store = awnDataViewStoreCache) {
@@ -118188,7 +118192,7 @@ function createAwnDataViewSectionTreeSlugFixButton(record, store) {
   btn.textContent = "ЧПУ";
   btn.title = canFix
     ? `Преобразовать slug в «${issue.suggested}»`
-    : "Сначала необходимо создать описание раздела";
+    : `Сначала ${SECTION_README_OFFER_ACTION_SHORT.toLowerCase()}`;
   btn.setAttribute("aria-label", "Преобразовать slug");
   btn.disabled = !canFix;
   btn.addEventListener("click", (event) => {
