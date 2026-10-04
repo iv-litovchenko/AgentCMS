@@ -1939,6 +1939,8 @@ const appHomeTitleNode = document.getElementById("app-home-title");
 const agentsRegistryModalNode = document.getElementById("agents-registry-modal");
 const agentsRegistryListNode = document.getElementById("agents-registry-list");
 const agentsRegistryAddBtn = document.getElementById("agents-registry-add-btn");
+const agentsRegistryDiscoverHelpBtn = document.getElementById("agents-registry-discover-help-btn");
+const agentsRegistryDiscoverHelpPopoverNode = document.getElementById("agents-registry-discover-help-popover");
 const agentsRegistryCreateBtn = document.getElementById("agents-registry-create-btn");
 const agentsRegistryCreateModalNode = document.getElementById("agents-registry-create-modal");
 const agentsRegistryCreateNameInputNode = document.getElementById("agents-registry-create-name-input");
@@ -15308,6 +15310,7 @@ function toggleAgentsRegistryDraftActive(index) {
 
 function closeAgentsRegistryModal() {
   agentsRegistryModalNode?.classList.add("hidden");
+  setAgentsRegistryDiscoverHelpOpen(false);
   agentsRegistryDraft = [];
   agentsRegistryListNode.innerHTML = "";
   if (agentsRegistryPathValidateTimer) {
@@ -16387,6 +16390,22 @@ function renderAgentsRegistryList() {
 
 function addAgentsRegistryDraftRow() {
   openAgentDiscoverModal();
+}
+
+function isAgentsRegistryDiscoverHelpOpen() {
+  return Boolean(
+    agentsRegistryDiscoverHelpPopoverNode && !agentsRegistryDiscoverHelpPopoverNode.classList.contains("hidden")
+  );
+}
+
+function setAgentsRegistryDiscoverHelpOpen(open) {
+  if (!agentsRegistryDiscoverHelpPopoverNode || !agentsRegistryDiscoverHelpBtn) return;
+  agentsRegistryDiscoverHelpPopoverNode.classList.toggle("hidden", !open);
+  agentsRegistryDiscoverHelpBtn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function toggleAgentsRegistryDiscoverHelp() {
+  setAgentsRegistryDiscoverHelpOpen(!isAgentsRegistryDiscoverHelpOpen());
 }
 
 function openAgentsRegistryCreateModal() {
@@ -125902,6 +125921,20 @@ agentsRegistryModalNode?.addEventListener("click", (event) => {
   if (event.target === agentsRegistryModalNode) closeAgentsRegistryModal();
 });
 agentsRegistryAddBtn?.addEventListener("click", addAgentsRegistryDraftRow);
+agentsRegistryDiscoverHelpBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAgentsRegistryDiscoverHelp();
+});
+document.addEventListener("click", (event) => {
+  if (!isAgentsRegistryDiscoverHelpOpen()) return;
+  if (
+    agentsRegistryDiscoverHelpBtn?.contains(event.target) ||
+    agentsRegistryDiscoverHelpPopoverNode?.contains(event.target)
+  ) {
+    return;
+  }
+  setAgentsRegistryDiscoverHelpOpen(false);
+});
 agentsRegistryCreateBtn?.addEventListener("click", openAgentsRegistryCreateModal);
 agentsRegistryCreateCancelBtn?.addEventListener("click", closeAgentsRegistryCreateModal);
 agentsRegistryCreateSubmitBtn?.addEventListener("click", () => {

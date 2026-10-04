@@ -64839,6 +64839,94 @@ button.node-navigation-memory-title:focus-visible {
   gap: 8px;
 }
 
+.agents-registry-discover-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.agents-registry-discover-help-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.agents-registry-discover-help-btn:hover,
+.agents-registry-discover-help-btn[aria-expanded="true"] {
+  background: #eef2ff;
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #4338ca;
+}
+
+.agents-registry-discover-help-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: min(320px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+
+.agents-registry-discover-help-popover.hidden {
+  display: none;
+}
+
+.agents-registry-discover-help-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.agents-registry-discover-help-lead,
+.agents-registry-discover-help-foot,
+.agents-registry-discover-help-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.agents-registry-discover-help-label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.agents-registry-discover-help-lead code,
+.agents-registry-discover-help-foot code {
+  font-size: 10px;
+}
+
+.agents-registry-discover-help-sample {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #0f172a;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .agents-registry-create-card,
 .app-landing-create-card {
   width: min(420px, calc(100vw - 32px));

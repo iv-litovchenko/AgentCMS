@@ -7154,7 +7154,33 @@
         <div class="agents-registry-footer">
           <div class="agents-registry-footer-actions">
             <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать хранилище</button>
-            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти хранилища (manifest.md → awn.page.ws)</button>
+            <div class="agents-registry-discover-actions">
+              <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти хранилища (manifest.md → awn.page.ws)</button>
+              <button
+                type="button"
+                id="agents-registry-discover-help-btn"
+                class="agents-registry-discover-help-btn"
+                aria-label="Минимальный manifest.md для workspace"
+                aria-expanded="false"
+                aria-controls="agents-registry-discover-help-popover"
+                title="Минимальный manifest.md"
+              >?</button>
+              <div
+                id="agents-registry-discover-help-popover"
+                class="agents-registry-discover-help-popover hidden"
+                role="dialog"
+                aria-label="Минимальный manifest.md для workspace"
+              >
+                <div class="agents-registry-discover-help-title">Минимум для распознавания хранилища</div>
+                <p class="agents-registry-discover-help-lead">Файл <code>manifest.md</code> в <strong>корне</strong> папки агента, frontmatter с <code>awn-type: awn.page.ws</code>. Имя папки — slug (латиница, нижний регистр).</p>
+                <p class="agents-registry-discover-help-label">Пример:</p>
+                <pre class="agents-registry-discover-help-sample">---
+awn-type: awn.page.ws
+---
+# Моё хранилище</pre>
+                <p class="agents-registry-discover-help-foot">Папка: <code>workspaces/my-project</code></p>
+              </div>
+            </div>
           </div>
           <div class="modal-actions">
             <button id="agents-registry-cancel-btn" class="save-btn" type="button">Отмена</button>
