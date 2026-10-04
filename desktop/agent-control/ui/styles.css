@@ -862,21 +862,10 @@ body.is-booting {
   border-color: var(--panel-border);
 }
 
-.hero-clock-cluster {
+.hero-clock-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(120, 140, 180, 0.14);
-  background: rgba(4, 8, 18, 0.45);
-}
-
-.hero-clock-divider {
-  width: 1px;
-  height: 1.35rem;
-  background: rgba(120, 140, 180, 0.22);
-  flex-shrink: 0;
+  gap: 10px;
 }
 
 .flip-clock {

@@ -67,15 +67,15 @@
           </div>
         </div>
         <div class="hero-actions">
-          <div class="hero-clock-cluster" title="Слева — минут работы сервера сегодня (журнал в .agent-cms-global/server-runtime.json)">
+          <div class="hero-clock-row">
             <div
               class="flip-clock flip-clock--runtime"
               id="flip-runtime"
               role="status"
               aria-live="polite"
               aria-label="Сервер сегодня, минуты"
+              title="Минут работы сервера сегодня · .agent-cms-global/server-runtime.json"
             ></div>
-            <span class="hero-clock-divider" aria-hidden="true"></span>
             <div class="flip-clock" id="flip-clock" role="timer" aria-live="off" aria-label="Текущее время"></div>
           </div>
           <div class="status-chip hero-status" id="server-status" data-state="unknown">
