@@ -337,6 +337,11 @@ const agentGitCommitMessageNoteNode = document.getElementById("agent-git-commit-
 const agentGitCommitMessagePreviewNode = document.getElementById("agent-git-commit-message-preview");
 const agentGitCommitModalCancelBtn = document.getElementById("agent-git-commit-modal-cancel-btn");
 const agentGitCommitModalSubmitBtn = document.getElementById("agent-git-commit-modal-submit-btn");
+const agentGitCommitResultModal = document.getElementById("agent-git-commit-result-modal");
+const agentGitCommitResultTitleNode = document.getElementById("agent-git-commit-result-title");
+const agentGitCommitResultSummaryNode = document.getElementById("agent-git-commit-result-summary");
+const agentGitCommitResultDetailsNode = document.getElementById("agent-git-commit-result-details");
+const agentGitCommitResultCloseBtn = document.getElementById("agent-git-commit-result-close-btn");
 const agentGitDiffModal = document.getElementById("agent-git-diff-modal");
 const agentGitDiffModalPathNode = document.getElementById("agent-git-diff-modal-path");
 const agentGitDiffModalBodyNode = document.getElementById("agent-git-diff-modal-body");
@@ -105448,9 +105453,118 @@ async function commitAgentGitChanges({ batchIds = null, messageSuffix = "" } = {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+    const err = new Error(payload.error || payload.details || `HTTP ${response.status}`);
+    err.httpStatus = response.status;
+    err.code = payload.code;
+    err.details = payload.details;
+    err.payload = payload;
+    throw err;
   }
   return payload;
+}
+
+function formatAgentGitCommitBatchReason(reason) {
+  if (reason === "size_limit_filtered") {
+    return "все файлы партии отсеяны лимитом maxFileSizeMb (размер одного файла)";
+  }
+  if (reason === "nothing_to_commit") {
+    return "git не нашёл файлов для этой партии (пустой status или нет совпадений по расширениям)";
+  }
+  return String(reason || "не создан");
+}
+
+function buildAgentGitCommitResultDetailsText(result, context = {}) {
+  const lines = [];
+  const agentLabel = String(context.agentId || activeAgentId || "").trim();
+  if (agentLabel) lines.push(`Агент: ${agentLabel}`);
+  if (context.batchLabel) lines.push(`Партия (UI): ${context.batchLabel}`);
+  if (Array.isArray(context.batchIds) && context.batchIds.length) {
+    lines.push(`batchIds: ${context.batchIds.join(", ")}`);
+  }
+  if (context.committableCount != null) {
+    lines.push(`Файлов в UI (до запроса): ${context.committableCount}`);
+  }
+  if (result?.repoRel || result?.repoPath) {
+    lines.push(`Репозиторий: ${result.repoRel || result.repoPath}`);
+  }
+  if (result?.branch) lines.push(`Ветка: ${result.branch}`);
+  if (result?.statusChangeCount != null) {
+    lines.push(`Всего изменений в git status: ${result.statusChangeCount}`);
+  }
+  if (result?.committedBatchCount != null) {
+    lines.push(`Создано коммитов: ${result.committedBatchCount} из ${result.batchCount ?? "?"}`);
+  }
+  const batches = Array.isArray(result?.batches) ? result.batches : [];
+  for (const item of batches) {
+    lines.push("");
+    lines.push(`—— ${item.label || item.batchId || "партия"} ——`);
+    lines.push(`committed: ${Boolean(item.committed)}`);
+    if (item.reason) lines.push(`reason: ${formatAgentGitCommitBatchReason(item.reason)}`);
+    if (item.matchedCount != null) lines.push(`совпало с партией в status: ${item.matchedCount}`);
+    if (item.afterSizeFilterCount != null) {
+      lines.push(`после лимита размера файла: ${item.afterSizeFilterCount}`);
+    }
+    if (item.statusChangeCount != null) {
+      lines.push(`всего в status при коммите: ${item.statusChangeCount}`);
+    }
+    if (item.maxFileBytes > 0) {
+      const mb = Math.round((item.maxFileBytes / (1024 * 1024)) * 100) / 100;
+      lines.push(`maxFileSizeMb (партия): ${mb}`);
+    }
+    if (Array.isArray(item.stagedPaths) && item.stagedPaths.length) {
+      lines.push(`git add paths (${item.stagedPaths.length}):`);
+      for (const p of item.stagedPaths.slice(0, 20)) lines.push(`  • ${p}`);
+      if (item.stagedPaths.length > 20) {
+        lines.push(`  … ещё ${item.stagedPaths.length - 20}`);
+      }
+    } else if (Array.isArray(item.pathSample) && item.pathSample.length) {
+      lines.push("примеры путей из status:");
+      for (const p of item.pathSample) lines.push(`  • ${p}`);
+    }
+    if (item.shortHash || item.hash) lines.push(`hash: ${item.shortHash || item.hash}`);
+    if (item.gitDetail) lines.push(`git: ${item.gitDetail}`);
+    if (item.stdout) lines.push(`stdout: ${item.stdout}`);
+  }
+  if (context.errorPayload) {
+    lines.push("");
+    lines.push("—— ответ сервера (ошибка) ——");
+    try {
+      lines.push(JSON.stringify(context.errorPayload, null, 2));
+    } catch {
+      lines.push(String(context.errorPayload));
+    }
+  }
+  return lines.join("\n").trim();
+}
+
+function closeAgentGitCommitResultModal() {
+  if (!agentGitCommitResultModal) return;
+  agentGitCommitResultModal.classList.add("hidden");
+  agentGitCommitResultModal.setAttribute("aria-hidden", "true");
+  agentGitCommitResultModal.querySelector(".agent-git-commit-result-modal-card")?.classList.remove(
+    "is-success",
+    "is-error"
+  );
+}
+
+function showAgentGitCommitResultModal({ title, summary, details = "", success = false } = {}) {
+  if (!agentGitCommitResultModal) {
+    window.alert([title, summary, details].filter(Boolean).join("\n\n"));
+    return;
+  }
+  const card = agentGitCommitResultModal.querySelector(".agent-git-commit-result-modal-card");
+  if (agentGitCommitResultTitleNode) agentGitCommitResultTitleNode.textContent = title || "Результат коммита";
+  if (agentGitCommitResultSummaryNode) {
+    agentGitCommitResultSummaryNode.textContent = summary || "";
+    agentGitCommitResultSummaryNode.classList.toggle("hidden", !summary);
+  }
+  if (agentGitCommitResultDetailsNode) {
+    agentGitCommitResultDetailsNode.textContent = String(details || "").trim();
+  }
+  card?.classList.toggle("is-success", Boolean(success));
+  card?.classList.toggle("is-error", !success);
+  agentGitCommitResultModal.classList.remove("hidden");
+  agentGitCommitResultModal.removeAttribute("aria-hidden");
 }
 
 function agentGitBasenameMatchesConfigExtras(filePath) {
@@ -105936,43 +106050,57 @@ async function openAgentGitDiffModal(changeItem) {
   }
 }
 
-function reportAgentGitCommitResult(result) {
+function reportAgentGitCommitResult(result, context = {}) {
+  const details = buildAgentGitCommitResultDetailsText(result, context);
   if (result?.batched && Array.isArray(result.batches)) {
     const committed = result.batches.filter((item) => item.committed);
     const skipped = result.batches.filter((item) => !item.committed);
     if (!committed.length) {
-      const detail = skipped
-        .map((item) => {
-          const label = item.label || item.batchId || "партия";
-          const reason =
-            item.reason === "size_limit_filtered"
-              ? "все файлы партии больше лимита размера одного файла (maxFileSizeMb)"
-              : item.reason === "nothing_to_commit"
-                ? "нет подходящих файлов в git status для этой партии"
-                : String(item.reason || "не создан");
-          return `${label}: ${reason}`;
-        })
-        .join("\n");
-      window.alert(
-        detail
-          ? `Коммит не создан.\n${detail}`
-          : "Нет изменений для коммита в выбранной партии"
-      );
+      const summary =
+        skipped
+          .map((item) => {
+            const label = item.label || item.batchId || "партия";
+            return `${label}: ${formatAgentGitCommitBatchReason(item.reason)}`;
+          })
+          .join("; ") || "Нет изменений для коммита в выбранной партии";
+      showAgentGitCommitResultModal({
+        title: "Коммит не создан",
+        summary,
+        details,
+        success: false
+      });
       return;
     }
-    const lines = committed.map((item) => {
-      const label = item.label || item.batchId || "коммит";
-      const hash = item.shortHash || item.hash || "";
-      return hash ? `${label}: ${hash}` : label;
+    const summary = committed
+      .map((item) => {
+        const label = item.label || item.batchId || "коммит";
+        const hash = item.shortHash || item.hash || "";
+        return hash ? `${label} → ${hash}` : label;
+      })
+      .join("; ");
+    showAgentGitCommitResultModal({
+      title: `Создано коммитов: ${committed.length}`,
+      summary,
+      details,
+      success: true
     });
-    window.alert(`Создано коммитов: ${committed.length}\n${lines.join("\n")}`);
     return;
   }
   if (result?.committed) {
     const hash = result.shortHash || result.hash || "";
-    window.alert(hash ? `Коммит создан: ${hash}` : "Коммит создан");
+    showAgentGitCommitResultModal({
+      title: "Коммит создан",
+      summary: hash ? `Хеш: ${hash}` : "Изменения сохранены в git",
+      details,
+      success: true
+    });
   } else {
-    window.alert("Нет изменений для коммита в выбранных типах файлов");
+    showAgentGitCommitResultModal({
+      title: "Коммит не создан",
+      summary: "Нет изменений для коммита в выбранных типах файлов",
+      details,
+      success: false
+    });
   }
 }
 
@@ -126960,6 +127088,14 @@ agentGitCommitModal?.addEventListener("click", (event) => {
   if (event.target === agentGitCommitModal) closeAgentGitCommitModal();
 });
 
+agentGitCommitResultCloseBtn?.addEventListener("click", () => {
+  closeAgentGitCommitResultModal();
+});
+
+agentGitCommitResultModal?.addEventListener("click", (event) => {
+  if (event.target === agentGitCommitResultModal) closeAgentGitCommitResultModal();
+});
+
 agentGitDiffModalCloseBtn?.addEventListener("click", () => {
   closeAgentGitDiffModal();
 });
@@ -126970,8 +127106,9 @@ agentGitDiffModal?.addEventListener("click", (event) => {
 
 agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
   void (async () => {
+    let batchIds = [];
     ensureAgentGitCommitBatchRadioSelection();
-    let batchIds = getAgentGitSelectedCommitBatchIds();
+    batchIds = getAgentGitSelectedCommitBatchIds();
     if (!batchIds.length) {
       window.alert("Выберите партию для коммита");
       return;
@@ -127009,9 +127146,30 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
       }
       closeAgentGitCommitModal();
       const result = await commitAgentGitChanges({ batchIds, messageSuffix });
-      reportAgentGitCommitResult(result);
+      reportAgentGitCommitResult(result, {
+        batchIds,
+        batchLabel: batch?.label || batch?.id,
+        committableCount,
+        agentId: activeAgentId
+      });
     } catch (error) {
-      window.alert(`Не удалось сохранить: ${error.message}`);
+      const failBatchId = batchIds[0] || "";
+      showAgentGitCommitResultModal({
+        title: "Ошибка коммита",
+        summary: error?.message || "Не удалось выполнить запрос",
+        details: buildAgentGitCommitResultDetailsText({}, {
+          batchIds,
+          batchLabel: getAgentGitCommitBatchById(failBatchId)?.label,
+          agentId: activeAgentId,
+          errorPayload: error?.payload || {
+            code: error?.code,
+            details: error?.details,
+            httpStatus: error?.httpStatus,
+            message: error?.message
+          }
+        }),
+        success: false
+      });
     } finally {
       if (agentGitCommitModalSubmitBtn) agentGitCommitModalSubmitBtn.disabled = false;
       void renderAgentGitView();

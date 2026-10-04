@@ -13711,6 +13711,71 @@ body.workspace-idle-screensaver-active {
   color: var(--muted);
 }
 
+.agent-git-commit-result-modal-card {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(88vh, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+
+.agent-git-commit-result-modal-card.is-success {
+  border-top: 3px solid #16a34a;
+}
+
+.agent-git-commit-result-modal-card.is-error {
+  border-top: 3px solid #dc2626;
+}
+
+.agent-git-commit-result-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-git-commit-result-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.agent-git-commit-result-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.agent-git-commit-result-details {
+  margin: 0;
+  flex: 1;
+  min-height: 120px;
+  max-height: min(50vh, 360px);
+  overflow: auto;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 92%, #0f172a 8%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.agent-git-commit-result-details:empty {
+  display: none;
+}
+
+.agent-git-commit-result-actions {
+  justify-content: flex-end;
+}
+
 .agent-git-commit-batch-limit-note {
   margin: 0;
   padding: 8px 10px;

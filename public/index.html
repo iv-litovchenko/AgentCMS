@@ -4514,6 +4514,29 @@
           </div>
         </div>
         <div
+          id="agent-git-commit-result-modal"
+          class="modal-overlay agent-git-commit-result-modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-git-commit-result-title"
+          aria-hidden="true"
+        >
+          <div class="modal-card agent-git-commit-result-modal-card">
+            <header class="agent-git-commit-result-head">
+              <h3 id="agent-git-commit-result-title" class="agent-git-commit-result-title">Результат коммита</h3>
+              <p id="agent-git-commit-result-summary" class="agent-git-commit-result-summary"></p>
+            </header>
+            <pre
+              id="agent-git-commit-result-details"
+              class="agent-git-commit-result-details"
+              aria-label="Подробности"
+            ></pre>
+            <div class="modal-actions agent-git-commit-result-actions">
+              <button id="agent-git-commit-result-close-btn" class="save-btn" type="button">Закрыть</button>
+            </div>
+          </div>
+        </div>
+        <div
           id="agent-git-diff-modal"
           class="modal-overlay agent-git-diff-modal hidden"
           role="dialog"

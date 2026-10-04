@@ -20972,7 +20972,17 @@ async function handleApiForAgent(req, res, url) {
         messageSuffix,
         maxCommitBatchBytes: commitBatchSettings.maxCommitBatchBytes || 0
       });
-      return sendJson(res, 200, { moduleId: "module-git", batched: true, ...result });
+      const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
+      return sendJson(res, 200, {
+        moduleId: "module-git",
+        batched: true,
+        repoPath: repoAbsolute,
+        repoRel,
+        branch: parsed.branch || "main",
+        requestedBatchIds,
+        statusChangeCount: parsed.changes.length,
+        ...result
+      });
     } catch (error) {
       if (error?.code === "COMMIT_BATCH_TOTAL_SIZE_EXCEEDED") {
         return sendJson(res, 400, {
