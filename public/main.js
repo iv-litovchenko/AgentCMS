@@ -93127,10 +93127,99 @@ function handleSourceEditorViewportResize() {
   syncEditorFillMinHeightCssVar();
 }
 
+function isDocSlabContentEditorScrollHost() {
+  return Boolean(getDocEditorScrollTargetsForPropsAside() || getDocBodyMainEditorScrollTargets());
+}
+
+function syncDocEditorScrollHostClass() {
+  const docSlabContent = getDocSlabContentNode();
+  if (!docSlabContent) return;
+  docSlabContent.classList.toggle("is-doc-editor-scroll-host", isDocSlabContentEditorScrollHost());
+}
+
+function getEditorWysiwygToolbarNode() {
+  return editorWysiwygWrapNode?.querySelector(".toastui-editor-toolbar") ?? null;
+}
+
+function clearEditorWysiwygToolbarBottomDock() {
+  const toolbar = getEditorWysiwygToolbarNode();
+  const content = getDocSlabContentNode();
+  editorWysiwygWrapNode?.classList.remove("is-editor-toolbar-bottom-docked");
+  toolbar?.classList.remove("is-editor-toolbar-bottom-docked");
+  content?.style.removeProperty("--editor-wysiwyg-toolbar-dock-height");
+  if (toolbar) {
+    toolbar.style.position = "";
+    toolbar.style.left = "";
+    toolbar.style.width = "";
+    toolbar.style.bottom = "";
+    toolbar.style.top = "";
+    toolbar.style.right = "";
+  }
+}
+
+function syncEditorWysiwygToolbarBottomDock() {
+  const content = getDocSlabContentNode();
+  const toolbar = getEditorWysiwygToolbarNode();
+  if (
+    !content ||
+    !toolbar ||
+    !editorWysiwygWrapNode ||
+    editorWysiwygWrapNode.classList.contains("hidden") ||
+    !isDocSlabContentEditorScrollHost()
+  ) {
+    clearEditorWysiwygToolbarBottomDock();
+    return;
+  }
+
+  const contentRect = content.getBoundingClientRect();
+  const toolbarHeight = toolbar.offsetHeight || 46;
+  const tooltipGap = 28;
+  const bottomOffset = Math.max(0, Math.round(window.innerHeight - contentRect.bottom));
+
+  content.style.setProperty(
+    "--editor-wysiwyg-toolbar-dock-height",
+    `${toolbarHeight + tooltipGap}px`
+  );
+  editorWysiwygWrapNode.classList.add("is-editor-toolbar-bottom-docked");
+  toolbar.classList.add("is-editor-toolbar-bottom-docked");
+  toolbar.style.position = "fixed";
+  toolbar.style.left = `${Math.round(contentRect.left)}px`;
+  toolbar.style.width = `${Math.round(contentRect.width)}px`;
+  toolbar.style.bottom = `${bottomOffset + tooltipGap}px`;
+  toolbar.style.top = "auto";
+  toolbar.style.right = "auto";
+}
+
+let editorToolbarBottomDockResizeObserver = null;
+
+function ensureEditorToolbarBottomDockObserver() {
+  if (typeof ResizeObserver === "undefined") return;
+  if (!editorToolbarBottomDockResizeObserver) {
+    editorToolbarBottomDockResizeObserver = new ResizeObserver(() => {
+      syncEditorWysiwygToolbarBottomDock();
+    });
+  }
+  editorToolbarBottomDockResizeObserver.disconnect();
+  const content = getDocSlabContentNode();
+  if (content) editorToolbarBottomDockResizeObserver.observe(content);
+  if (editorWysiwygWrapNode) editorToolbarBottomDockResizeObserver.observe(editorWysiwygWrapNode);
+  const toolbar = getEditorWysiwygToolbarNode();
+  if (toolbar) editorToolbarBottomDockResizeObserver.observe(toolbar);
+  const statusBar = document.getElementById("doc-body-status-bar");
+  if (statusBar) editorToolbarBottomDockResizeObserver.observe(statusBar);
+}
+
+function syncEditorStickyChromeUi() {
+  syncDocEditorScrollHostClass();
+  syncEditorWysiwygToolbarBottomDock();
+  ensureEditorToolbarBottomDockObserver();
+}
+
 function applyEditorAutoHeightUi() {
   if (!appRootNode) return;
   appRootNode.classList.toggle("editor-autoheight", shouldUseEditorAutoHeight());
   syncEditorFillMinHeightCssVar();
+  syncEditorStickyChromeUi();
   syncWorkspaceScrollChrome();
 }
 
@@ -123126,6 +123215,7 @@ function ensureWorkspaceScrollHost(hostTarget) {
 }
 
 function syncWorkspaceScrollChrome() {
+  syncEditorStickyChromeUi();
   let { scrollElement, hostTarget } = getWorkspaceScrollContext();
   if (hostTarget) {
     if (isOverviewDocSlabScrollChromeHost(hostTarget)) {

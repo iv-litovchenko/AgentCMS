@@ -33390,7 +33390,8 @@ body.workspace-pomodoro-break-active {
 .workspace-body {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
   padding: 0;
   background: var(--panel);
   display: flex;
@@ -33402,6 +33403,7 @@ body.workspace-pomodoro-break-active {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  overflow: visible;
 }
 
 .content {
@@ -33417,12 +33419,31 @@ body.workspace-pomodoro-break-active {
   gap: 12px;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 12px 16px 0;
 }
 
 .doc-stack > #workspace-path-header {
   flex: 0 0 auto;
+  position: relative;
+  z-index: 40;
+  overflow: visible;
+}
+
+#workspace-path-header .workspace-path-crumbs-block,
+#workspace-path-header .workspace-path-toolbar-block,
+#workspace-path-header .workspace-path-crumbs-actions,
+#workspace-path-header .editor-view-cluster {
+  overflow: visible;
+}
+
+#workspace-path-header .ui-tooltip-host[data-tooltip]::after,
+#workspace-path-header .ui-tooltip-host[data-tooltip]::before,
+#workspace-path-header .editor-view-btn[data-tooltip]::after,
+#workspace-path-header .editor-view-btn[data-tooltip]::before,
+#workspace-path-header .editor-cluster-btn[data-tooltip]::after,
+#workspace-path-header .editor-cluster-btn[data-tooltip]::before {
+  z-index: 300;
 }
 
 .doc-stack > #doc-body-grid {
@@ -52941,6 +52962,8 @@ button.node-navigation-memory-title:focus-visible {
   border: 0;
   border-radius: 0;
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar {
@@ -52952,6 +52975,90 @@ button.node-navigation-memory-title:focus-visible {
   padding-right: 0;
   border-radius: 0;
   box-sizing: border-box;
+}
+
+/* WYSIWYG: внешний скролл doc-slab-content (класс is-doc-editor-scroll-host из JS) */
+.doc-body-main > .doc-slab-content.is-doc-editor-scroll-host {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.doc-slab-content.is-doc-editor-scroll-host .doc-slab-main:has(> .editor-surface:not(.hidden)),
+.doc-slab-content.is-doc-editor-scroll-host .doc-slab-main > .editor-surface:not(.hidden) {
+  overflow: visible;
+}
+
+.doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap:not(.hidden) {
+  overflow: visible;
+}
+
+/* WYSIWYG: toolbar внизу doc-slab-content (над status-bar), title-bar уезжает при скролле */
+.doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked {
+  padding-bottom: var(--editor-wysiwyg-toolbar-dock-height, 46px);
+  box-sizing: border-box;
+}
+
+.doc-body-main:has(> .doc-slab-content.is-doc-editor-scroll-host) > .doc-body-status-bar:not(.hidden) {
+  z-index: 8;
+}
+
+.doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-toolbar.is-editor-toolbar-bottom-docked {
+  position: fixed;
+  z-index: 120;
+  margin: 0;
+  box-sizing: border-box;
+  background: #f7f9fc;
+  box-shadow: 0 -1px 0 #ebedf2;
+  overflow: visible;
+}
+
+.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-tooltip {
+  z-index: 500;
+  transform: translateY(calc(-100% - 10px));
+}
+
+.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-tooltip .arrow {
+  top: auto;
+  bottom: -3px;
+  transform: rotate(45deg);
+}
+
+.doc-slab-content.is-doc-editor-scroll-host
+  .editor-wysiwyg-wrap:not(.hidden)
+  .toastui-editor-toolbar.is-editor-toolbar-bottom-docked
+  .toastui-editor-defaultUI-toolbar {
+  background: #f7f9fc;
+}
+
+.editor-wysiwyg-wrap .toastui-editor-toolbar {
+  position: relative;
+  z-index: 3;
+  overflow: visible;
+}
+
+.editor-wysiwyg-wrap .toastui-editor-main {
+  z-index: 1;
+}
+
+.editor-wysiwyg-wrap .toastui-editor-tooltip {
+  z-index: 200;
+  pointer-events: none;
+}
+
+.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-defaultUI-toolbar,
+.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-toolbar-item-wrapper {
+  overflow: visible;
+}
+
+.editor-wysiwyg-wrap:not(.hidden) .toastui-editor-dropdown-toolbar,
+.editor-wysiwyg-wrap:not(.hidden) .toastui-editor-popup,
+.editor-wysiwyg-wrap:not(.hidden) .toastui-editor-context-menu {
+  z-index: 115;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-toolbar {
@@ -53445,7 +53552,7 @@ button.node-navigation-memory-title:focus-visible {
 .app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-stack {
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .app.editor-autoheight:has(.doc-slab-main > .editor-surface:not(.hidden)) .doc-body-grid,
