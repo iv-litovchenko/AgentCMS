@@ -40246,6 +40246,7 @@ img.is-svg-media,
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   width: 100%;
   min-height: var(--media-toolbar-action-height, 36px);
   margin: 0;
@@ -40305,6 +40306,17 @@ img.is-svg-media,
 .node-entry-overview-file-hub-send-btn:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+.node-entry-overview-file-hub-send-btn-icon {
+  flex-shrink: 0;
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.node-entry-overview-file-hub-send-btn-label {
+  min-width: 0;
 }
 
 .node-entry-overview-media-asset .node-entry-overview-media-asset-kind {

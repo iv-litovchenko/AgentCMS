@@ -51,17 +51,6 @@
       ]
     },
     {
-      "blob": "gd_3e2fee56.docx",
-      "mediaRel": "awn-container/php/awn-storage/media/gd_61baf013.docx",
-      "providers": [
-        {
-          "id": "google-drive",
-          "status": "local",
-          "remoteUrl": ""
-        }
-      ]
-    },
-    {
       "blob": "gd_4201f749.png",
       "mediaRel": "awn-container/test-1000-soobscheniy/awn-storage/media/Снимок экрана 2026-09-12 в 22.57.18.png",
       "providers": [

@@ -113531,10 +113531,48 @@ function basenameWorkspaceHint(filePath) {
   return idx >= 0 ? normalized.slice(idx + 1) : normalized;
 }
 
+const ENTRY_OVERVIEW_FILE_HUB_SEND_BTN_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"></path><path d="M8 15l4-4 4 4"></path><path d="M5 3h14"></path><path d="M9 7h6"></path></svg>';
+
+function createEntryOverviewFileHubSendButtonIcon() {
+  const host = document.createElement("span");
+  host.innerHTML = ENTRY_OVERVIEW_FILE_HUB_SEND_BTN_ICON_SVG;
+  const icon = host.firstElementChild;
+  if (!icon) return null;
+  icon.classList.add("node-entry-overview-file-hub-send-btn-icon");
+  icon.setAttribute("aria-hidden", "true");
+  return icon;
+}
+
+function ensureEntryOverviewFileHubSendButtonStructure(button) {
+  if (!button) return { label: null };
+  let label = button.querySelector(".node-entry-overview-file-hub-send-btn-label");
+  let icon = button.querySelector(":scope > svg.node-entry-overview-file-hub-send-btn-icon");
+  if (!icon) {
+    const legacyWrap = button.querySelector(".node-entry-overview-file-hub-send-btn-icon");
+    icon = legacyWrap?.matches("svg")
+      ? legacyWrap
+      : legacyWrap?.querySelector("svg") || null;
+  }
+  if (!label || !icon) {
+    button.replaceChildren();
+    button.classList.remove("has-icon");
+    icon = createEntryOverviewFileHubSendButtonIcon();
+    label = document.createElement("span");
+    label.className = "node-entry-overview-file-hub-send-btn-label";
+    if (icon) button.append(icon, label);
+    else button.append(label);
+  }
+  return { label };
+}
+
 function refreshEntryOverviewFileHubSendButton(button, { queued = false } = {}) {
   if (!button) return;
   const inQueue = Boolean(queued);
-  button.textContent = inQueue ? "Убрать из файлообменника" : "Добавить в файлообменник";
+  const { label } = ensureEntryOverviewFileHubSendButtonStructure(button);
+  if (label) {
+    label.textContent = inQueue ? "Убрать из файлообменника" : "Добавить в файлообменник";
+  }
   button.title = inQueue
     ? "Убрать файл из очереди выдачи Shell «Файлообменник»"
     : "Добавить файл в очередь выдачи Shell «Файлообменник»";
