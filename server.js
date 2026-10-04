@@ -17057,7 +17057,7 @@ async function buildAgentTopicSizeReport() {
 function enrichModuleGitConfigWithCommitBatches(moduleConfig, commitBatchSettings) {
   return {
     ...moduleConfig,
-    commitBatchOrder: commitBatchSettings?.batchOrder || "system-first",
+    commitBatchOrder: commitBatchSettings?.batchOrder || "records-first",
     commitBatches: Array.isArray(commitBatchSettings?.batches) ? commitBatchSettings.batches : []
   };
 }

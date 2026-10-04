@@ -105407,6 +105407,39 @@ function countAgentGitChangesInBatch(batch, changes = []) {
   }).length;
 }
 
+function formatAgentGitCommitBatchFileCountLabel(count) {
+  const n = Number(count) || 0;
+  if (n <= 0) return "0";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  let word = "файлов";
+  if (mod10 === 1 && mod100 !== 11) word = "файл";
+  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) word = "файла";
+  return `${n} ${word}`;
+}
+
+/** Партии в порядке integrations (records-first); в модалке — с изменениями выше, по убыванию счётчика. */
+function listAgentGitCommitBatchesForDisplay(changes = [], { sortByActivity = false } = {}) {
+  const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
+    ? agentGitModuleConfig.commitBatches
+    : [];
+  if (!sortByActivity) return batches;
+  return batches
+    .map((batch, index) => ({
+      batch,
+      index,
+      count: countAgentGitChangesForCommitBatch(batch, changes)
+    }))
+    .sort((left, right) => {
+      const leftActive = left.count > 0 ? 1 : 0;
+      const rightActive = right.count > 0 ? 1 : 0;
+      if (rightActive !== leftActive) return rightActive - leftActive;
+      if (right.count !== left.count) return right.count - left.count;
+      return left.index - right.index;
+    })
+    .map((entry) => entry.batch);
+}
+
 function buildAgentGitBatchCommitMessagePrefix(batch, now = new Date()) {
   const pad = (value) => String(value).padStart(2, "0");
   const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -105469,10 +105502,12 @@ function openAgentGitCommitModal() {
     empty.textContent = "Партии коммита не настроены (integrations.yml → module-git-commit-batches).";
     agentGitCommitBatchListNode.appendChild(empty);
   } else {
-    for (const batch of batches) {
+    const displayBatches = listAgentGitCommitBatchesForDisplay(changes, { sortByActivity: true });
+    for (const batch of displayBatches) {
       const count = countAgentGitChangesForCommitBatch(batch, changes);
       const option = document.createElement("label");
       option.className = "agent-git-commit-batch-option";
+      if (count === 0) option.classList.add("is-empty");
 
       const input = document.createElement("input");
       input.type = "checkbox";
@@ -105494,10 +105529,10 @@ function openAgentGitCommitModal() {
 
       const meta = document.createElement("span");
       meta.className = "agent-git-commit-batch-option-meta";
-      meta.textContent =
-        count > 0
-          ? `${count} файл(ов) · id: ${batch.id || "—"}`
-          : `Нет изменений в этой партии · id: ${batch.id || "—"}`;
+      meta.textContent = formatAgentGitCommitBatchFileCountLabel(count);
+      if (count === 0) {
+        option.title = "Нет изменений в этой партии";
+      }
 
       body.append(title, meta);
       option.append(input, body);

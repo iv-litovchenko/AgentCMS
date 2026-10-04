@@ -13709,22 +13709,22 @@ body.workspace-idle-screensaver-active {
 .agent-git-commit-batch-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
+  gap: 4px;
+  max-height: 240px;
   overflow: auto;
   padding: 2px 0;
 }
 
 .agent-git-commit-batch-option {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 
 .agent-git-commit-batch-option:has(input:disabled) {
@@ -13733,24 +13733,37 @@ body.workspace-idle-screensaver-active {
 }
 
 .agent-git-commit-batch-option input {
-  margin-top: 2px;
+  margin: 0;
   flex-shrink: 0;
 }
 
 .agent-git-commit-batch-option-body {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
 .agent-git-commit-batch-option-title {
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-git-commit-batch-option-meta {
-  font-size: 11px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+
+.agent-git-commit-batch-option:not(.is-empty) .agent-git-commit-batch-option-meta {
+  color: var(--text);
+  font-weight: 500;
 }
 
 .agent-git-commit-modal-field {

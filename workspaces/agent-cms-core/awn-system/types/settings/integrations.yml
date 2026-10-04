@@ -90,8 +90,6 @@ fields:
           mdx
           csv
           txt
-          jsonl
-          ndjson
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Records"
         maxFileSizeMb: 1
       - id: records-history
@@ -194,6 +192,8 @@ fields:
           yml
           yaml
           json
+          jsonl
+          ndjson
           toml
           ini
           cfg
