@@ -1943,12 +1943,14 @@ const agentsRegistryCreateBtn = document.getElementById("agents-registry-create-
 const agentsRegistryCreateModalNode = document.getElementById("agents-registry-create-modal");
 const agentsRegistryCreateNameInputNode = document.getElementById("agents-registry-create-name-input");
 const agentsRegistryCreateDescriptionInputNode = document.getElementById("agents-registry-create-description-input");
+const agentsRegistryCreateSlugInputNode = document.getElementById("agents-registry-create-slug-input");
 const agentsRegistryCreatePathInputNode = document.getElementById("agents-registry-create-path-input");
 const agentsRegistryCreateCancelBtn = document.getElementById("agents-registry-create-cancel-btn");
 const agentsRegistryCreateSubmitBtn = document.getElementById("agents-registry-create-submit-btn");
 const appLandingCreateModalNode = document.getElementById("app-landing-create-modal");
 const appLandingCreateNameInputNode = document.getElementById("app-landing-create-name-input");
 const appLandingCreateDescriptionInputNode = document.getElementById("app-landing-create-description-input");
+const appLandingCreateSlugInputNode = document.getElementById("app-landing-create-slug-input");
 const appLandingCreatePathInputNode = document.getElementById("app-landing-create-path-input");
 const appLandingCreateCancelBtn = document.getElementById("app-landing-create-cancel-btn");
 const appLandingCreateSubmitBtn = document.getElementById("app-landing-create-submit-btn");
@@ -10840,8 +10842,11 @@ function openAppLandingCreateModal() {
   if (appLandingCreateDescriptionInputNode) {
     appLandingCreateDescriptionInputNode.value = "";
   }
+  if (appLandingCreateSlugInputNode) {
+    appLandingCreateSlugInputNode.value = "";
+  }
   if (appLandingCreatePathInputNode) {
-    appLandingCreatePathInputNode.value = "./workspaces/";
+    appLandingCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
   appLandingCreateModalNode.classList.remove("hidden");
@@ -10907,8 +10912,9 @@ async function appendCreatedAgentToRegistry(discovered) {
 async function submitAppLandingCreate() {
   if (!appLandingCreateSubmitBtn || !appLandingCreatePathInputNode) return;
 
-  const workspacePath = normalizeCreateAgentWorkspacePath(appLandingCreatePathInputNode.value.trim());
-  appLandingCreatePathInputNode.value = workspacePath;
+  prepareCreateAgentFormForSubmit("app-landing");
+  const workspacePath = appLandingCreatePathInputNode.value.trim();
+  const agentSlug = appLandingCreateSlugInputNode?.value.trim() || "";
   const agentName = appLandingCreateNameInputNode?.value.trim() || "";
   const agentDescription = appLandingCreateDescriptionInputNode?.value.trim() || "";
 
@@ -10923,6 +10929,7 @@ async function submitAppLandingCreate() {
   const validationError = validateCreateAgentForm({
     name: agentName,
     description: agentDescription,
+    slug: agentSlug,
     path: workspacePath,
     checkRegistry: true
   });
@@ -15234,10 +15241,16 @@ function invalidateMenuAgentCache(agentId = activeAgentId) {
   menuRuntimeFlagsByAgent.delete(agentId);
 }
 
+function canonicalizeRegistryDraftPath(rawPath) {
+  const trimmed = String(rawPath || "").trim();
+  if (!trimmed) return trimmed;
+  return normalizeCreateAgentWorkspacePath(trimmed) || trimmed;
+}
+
 function openAgentsRegistryModal() {
   agentsRegistryDraft = getRegistryAgentsForUi().map((agent) => ({
       id: agent.id,
-      path: agent.path,
+      path: canonicalizeRegistryDraftPath(agent.path),
       environment: normalizeAgentEnvironmentDraft(agent.environment),
       name: agent.name || agent.id,
       comment: agent.comment || "",
@@ -15328,7 +15341,8 @@ function slugifyAgentFolderSegment(raw) {
 }
 
 function normalizeAgentFolderName(rawFolderName) {
-  return slugifyAgentFolderSegment(rawFolderName);
+  const slug = slugifyAgentFolderSegment(rawFolderName);
+  return slug ? slug.toLowerCase() : "";
 }
 
 function getCreateAgentIdFromPath(rawPath) {
@@ -15359,7 +15373,8 @@ function normalizeCreateAgentWorkspacePath(rawPath) {
   const folderName = getWorkspaceFolderNameFromPath(trimmed);
   if (!folderName) return trimmed;
   const normalizedFolder = normalizeAgentFolderName(folderName);
-  if (!normalizedFolder || normalizedFolder === folderName) return trimmed;
+  if (!normalizedFolder) return trimmed;
+  if (normalizedFolder === folderName) return trimmed;
   const parent = trimmed.slice(0, Math.max(0, trimmed.length - folderName.length)).replace(/[\\/]+$/, "");
   if (!parent) return normalizedFolder;
   const sep = trimmed.includes("\\") ? "\\" : "/";
@@ -15383,18 +15398,39 @@ function getCreateAgentDescriptionError(rawDescription) {
   return null;
 }
 
-function getCreateAgentWorkspacePathError(rawPath) {
+function normalizeCreateAgentSlugInput(rawSlug) {
+  return normalizeAgentFolderName(rawSlug);
+}
+
+function getCreateAgentSlugError(rawSlug) {
+  const slug = normalizeCreateAgentSlugInput(rawSlug);
+  if (!slug) return "Укажите slug (ID агента)";
+  if (slug === "workspaces") {
+    return "Укажите другой slug (не «workspaces»)";
+  }
+  if (!CREATE_AGENT_ID_FOLDER_RE.test(slug)) {
+    return "Slug: латиница, цифры, дефис и подчёркивание";
+  }
+  return null;
+}
+
+function getCreateAgentWorkspacePathError(rawPath, slug) {
   const trimmedPath = String(rawPath || "").trim();
   if (!trimmedPath) return "Укажите путь workspace";
 
-  const normalizedPath = normalizeCreateAgentWorkspacePath(trimmedPath);
-  const folderName = getWorkspaceFolderNameFromPath(normalizedPath);
-  if (!folderName) return "Укажите путь workspace";
-  if (folderName === "workspaces" || folderName === "Workspaces") {
-    return "Укажите ID агента в имени последней папки (например ./workspaces/my-project)";
+  const rawFolderName = getWorkspaceFolderNameFromPath(trimmedPath);
+  if (!rawFolderName) return "Укажите путь workspace";
+  const pathSlug = normalizeAgentFolderName(rawFolderName);
+  if (!pathSlug) return "Укажите путь с именем папки (например ./workspaces/my-project)";
+  if (pathSlug === "workspaces") {
+    return "Укажите slug в имени последней папки (например ./workspaces/my-project)";
   }
-  if (!CREATE_AGENT_ID_FOLDER_RE.test(folderName)) {
-    return "ID агента (имя папки): латиница, цифры, дефис и подчёркивание";
+  if (!CREATE_AGENT_ID_FOLDER_RE.test(pathSlug)) {
+    return "Имя папки в пути: латиница, цифры, дефис и подчёркивание";
+  }
+  const normalizedSlug = normalizeCreateAgentSlugInput(slug);
+  if (normalizedSlug && pathSlug !== normalizedSlug) {
+    return "Последняя папка в пути должна совпадать со slug";
   }
   return null;
 }
@@ -15402,17 +15438,21 @@ function getCreateAgentWorkspacePathError(rawPath) {
 function getCreateAgentFormFields(prefix) {
   const nameInput = document.getElementById(`${prefix}-create-name-input`);
   const descriptionInput = document.getElementById(`${prefix}-create-description-input`);
+  const slugInput = document.getElementById(`${prefix}-create-slug-input`);
   const pathInput = document.getElementById(`${prefix}-create-path-input`);
   return {
     nameInput,
     descriptionInput,
+    slugInput,
     pathInput,
     nameField: nameInput?.closest(".agents-registry-create-field") || null,
     descriptionField: descriptionInput?.closest(".agents-registry-create-field") || null,
+    slugField: slugInput?.closest(".agents-registry-create-slug-field") || null,
     pathField: pathInput?.closest(".agents-registry-create-path-field") || null,
     fieldNodes: [
       nameInput?.closest(".agents-registry-create-field"),
       descriptionInput?.closest(".agents-registry-create-field"),
+      slugInput?.closest(".agents-registry-create-slug-field"),
       pathInput?.closest(".agents-registry-create-path-field")
     ].filter(Boolean)
   };
@@ -15438,25 +15478,28 @@ function showCreateAgentFieldError(fieldNode, message) {
   errorNode.textContent = message;
 }
 
-function validateCreateAgentForm({ name, description, path, checkRegistry = false, checkDraft = false }) {
+function validateCreateAgentForm({ name, description, slug, path, checkRegistry = false, checkDraft = false }) {
   const nameError = getCreateAgentNameError(name);
   if (nameError) return { field: "name", message: nameError };
 
   const descriptionError = getCreateAgentDescriptionError(description);
   if (descriptionError) return { field: "description", message: descriptionError };
 
-  const pathError = getCreateAgentWorkspacePathError(path);
+  const slugError = getCreateAgentSlugError(slug);
+  if (slugError) return { field: "slug", message: slugError };
+
+  const pathError = getCreateAgentWorkspacePathError(path, slug);
   if (pathError) return { field: "path", message: pathError };
 
-  const normalizedPath = normalizeCreateAgentWorkspacePath(path);
-  const agentId = getCreateAgentIdFromPath(normalizedPath);
+  const agentId = normalizeCreateAgentSlugInput(slug);
   if (isAgentIdInRegistry(agentId)) {
-    return { field: "path", message: `Агент с ID «${agentId}» уже есть в реестре` };
+    return { field: "slug", message: `Агент с ID «${agentId}» уже есть в реестре` };
   }
   if (checkDraft && isAgentIdAlreadyInDraft(agentId)) {
-    return { field: "path", message: `Агент с ID «${agentId}» уже в списке` };
+    return { field: "slug", message: `Агент с ID «${agentId}» уже в списке` };
   }
 
+  const normalizedPath = normalizeCreateAgentWorkspacePath(path);
   if (checkRegistry && isAgentPathInRegistry(normalizedPath)) {
     return { field: "path", message: "Агент с таким путём уже в реестре" };
   }
@@ -15475,11 +15518,13 @@ function applyCreateAgentFormValidation(prefix, validationError) {
   const fieldMap = {
     name: fields.nameField,
     description: fields.descriptionField,
+    slug: fields.slugField,
     path: fields.pathField
   };
   const inputMap = {
     name: fields.nameInput,
     description: fields.descriptionInput,
+    slug: fields.slugInput,
     path: fields.pathInput
   };
   const fieldNode = fieldMap[validationError.field];
@@ -15524,26 +15569,56 @@ function buildCreateAgentWorkspacePath(parentPath, folderName) {
   return `${parent}${sep}${folder}`;
 }
 
-function syncCreateAgentPathFromName(prefix) {
-  const { nameInput, pathInput } = getCreateAgentFormFields(prefix);
+function syncCreateAgentPathFromSlug(prefix) {
+  const { slugInput, pathInput } = getCreateAgentFormFields(prefix);
   if (!pathInput) return;
-  const folderName = normalizeAgentFolderName(nameInput?.value || "");
+  const slug = normalizeCreateAgentSlugInput(slugInput?.value || "");
+  if (slugInput && slugInput.value !== slug) {
+    slugInput.value = slug;
+  }
+  if (!slug) return;
   const parentPath = getCreateAgentPathParent(pathInput.value);
-  pathInput.value = buildCreateAgentWorkspacePath(parentPath, folderName);
+  pathInput.value = buildCreateAgentWorkspacePath(parentPath, slug);
 }
 
-function bindCreateAgentPathAutoSync(prefix) {
-  const { nameInput, pathInput } = getCreateAgentFormFields(prefix);
-  if (!nameInput || !pathInput) return;
+function syncCreateAgentSlugFromPath(prefix) {
+  const { slugInput, pathInput } = getCreateAgentFormFields(prefix);
+  if (!slugInput || !pathInput) return;
+  const normalized = normalizeCreateAgentWorkspacePath(pathInput.value.trim());
+  if (normalized) {
+    pathInput.value = normalized;
+  }
+  const slug = getCreateAgentIdFromPath(pathInput.value);
+  if (slug) {
+    slugInput.value = slug;
+  }
+}
 
-  nameInput.addEventListener("input", () => {
-    syncCreateAgentPathFromName(prefix);
+function prepareCreateAgentFormForSubmit(prefix) {
+  const fields = getCreateAgentFormFields(prefix);
+  syncCreateAgentPathFromSlug(prefix);
+  if (fields.slugInput) {
+    fields.slugInput.value = normalizeCreateAgentSlugInput(fields.slugInput.value) || fields.slugInput.value.trim();
+  }
+  if (fields.pathInput) {
+    fields.pathInput.value =
+      normalizeCreateAgentWorkspacePath(fields.pathInput.value.trim()) || fields.pathInput.value.trim();
+  }
+  return fields;
+}
+
+function bindCreateAgentSlugPathSync(prefix) {
+  const { slugInput, pathInput } = getCreateAgentFormFields(prefix);
+  if (!slugInput || !pathInput) return;
+
+  slugInput.addEventListener("input", () => {
+    syncCreateAgentPathFromSlug(prefix);
+  });
+  slugInput.addEventListener("blur", () => {
+    syncCreateAgentPathFromSlug(prefix);
   });
   pathInput.addEventListener("blur", () => {
-    const normalized = normalizeCreateAgentWorkspacePath(pathInput.value.trim());
-    if (normalized && normalized !== pathInput.value.trim()) {
-      pathInput.value = normalized;
-    }
+    syncCreateAgentSlugFromPath(prefix);
   });
 }
 
@@ -15553,6 +15628,8 @@ function buildRegistryPathResultMap(results) {
   for (const result of results) {
     const inputKey = normalizeRegistryPathKey(result?.path);
     if (inputKey) byPath.set(inputKey, result);
+    const registryKey = normalizeRegistryPathKey(result?.registryPath);
+    if (registryKey) byPath.set(registryKey, result);
     const absoluteKey = normalizeRegistryPathKey(result?.absolute);
     if (absoluteKey) byPath.set(absoluteKey, result);
   }
@@ -15999,6 +16076,9 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
     if (!statusNode) return;
     if (result) {
       agentsRegistryDraft[index].folderExists = result.exists !== false;
+      if (result.registryPath) {
+        agentsRegistryDraft[index].path = canonicalizeRegistryDraftPath(result.registryPath);
+      }
       applyManifestToRegistryDraft(index, result);
       updateAgentsRegistryPathStatusNode(statusNode, result);
       return;
@@ -16317,8 +16397,11 @@ function openAgentsRegistryCreateModal() {
   if (agentsRegistryCreateDescriptionInputNode) {
     agentsRegistryCreateDescriptionInputNode.value = "";
   }
+  if (agentsRegistryCreateSlugInputNode) {
+    agentsRegistryCreateSlugInputNode.value = "";
+  }
   if (agentsRegistryCreatePathInputNode) {
-    agentsRegistryCreatePathInputNode.value = "./workspaces/";
+    agentsRegistryCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
   agentsRegistryCreateModalNode.classList.remove("hidden");
@@ -16336,13 +16419,15 @@ function closeAgentsRegistryCreateModal() {
 async function submitAgentsRegistryCreate() {
   if (!agentsRegistryCreateSubmitBtn || !agentsRegistryCreatePathInputNode) return;
 
-  const workspacePath = normalizeCreateAgentWorkspacePath(agentsRegistryCreatePathInputNode.value.trim());
-  agentsRegistryCreatePathInputNode.value = workspacePath;
+  prepareCreateAgentFormForSubmit("agents-registry");
+  const workspacePath = agentsRegistryCreatePathInputNode.value.trim();
+  const agentSlug = agentsRegistryCreateSlugInputNode?.value.trim() || "";
   const agentName = agentsRegistryCreateNameInputNode?.value.trim() || "";
   const agentDescription = agentsRegistryCreateDescriptionInputNode?.value.trim() || "";
   const validationError = validateCreateAgentForm({
     name: agentName,
     description: agentDescription,
+    slug: agentSlug,
     path: workspacePath,
     checkDraft: true
   });
@@ -16413,9 +16498,10 @@ function syncAgentsRegistryOrchestratorFromForm() {
 }
 
 function applyDiscoverAgentToDraft(discovered) {
+  const path = canonicalizeRegistryDraftPath(discovered.path);
   const entry = {
     id: discovered.id,
-    path: discovered.path,
+    path,
     environment: "local",
     name: getDiscoverAgentDisplayName(discovered),
     comment: getDiscoverAgentDisplayComment(discovered),
@@ -125837,8 +125923,8 @@ window.addEventListener("resize", () => {
 init();
 bindCreateAgentFormValidation("app-landing");
 bindCreateAgentFormValidation("agents-registry");
-bindCreateAgentPathAutoSync("app-landing");
-bindCreateAgentPathAutoSync("agents-registry");
+bindCreateAgentSlugPathSync("app-landing");
+bindCreateAgentSlugPathSync("agents-registry");
 updateContentSearchPlaceholder();
 
 appHomeLink?.addEventListener("click", (event) => {
