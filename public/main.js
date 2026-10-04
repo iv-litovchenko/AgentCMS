@@ -1208,8 +1208,8 @@ Desktop.ini
 .idea/
 .vscode/
 
-# Runtime CMS / Shell
-.agent-cms/
+# Runtime CMS — кэш индексов (настройки в .agent-cms/settings/ — в git)
+.agent-cms/cache/
 
 # Временные файлы workspace
 awn-temp/
@@ -1224,15 +1224,22 @@ temp/
 # Зависимости (если есть npm-скрипты)
 node_modules/
 
-# Слоты awn-storage — media (крупные файлы; .md — sidecar и подписи — в git)
-**/awn-storage/**/media/**
-!**/awn-storage/**/media/**/
-!**/awn-storage/**/media/**/*.md
+# Облако / выгрузки провайдеров — не в git
+awn-media-cloud/
+awn-google-drive/
 
-# Каталог исходников — в git только manifest + README карточки
-awn-repositories/**/*
+# Каталог клонов — корень: index.md + groups.yml; в {slug}/ — manifest/readme; код — нет
+awn-repositories/**
+!awn-repositories/**/
+!awn-repositories/index.md
+!awn-repositories/groups.yml
+!awn-repositories/**/index.md
 !awn-repositories/**/manifest.md
+!awn-repositories/**/Manifest.md
+!awn-repositories/**/readme.md
 !awn-repositories/**/README.md
+!awn-repositories/**/Readme.md
+!awn-repositories/**/ReadMe.md
 `;
 
 let projectSettingsEnvFocusPending = false;
@@ -6732,8 +6739,8 @@ function getSystemFileHintSpec(name) {
     return {
       title: "Git — что не попадает в репозиторий",
       text:
-        "Корневой <code>.gitignore</code> workspace: runtime <code>.agent-cms/</code>, временные <code>awn-temp/</code>, OS-мусор, бинарники в <code>awn-storage/…/media/</code> (файлы <code>.md</code> там — в git). " +
-        "В <code>awn-repositories/</code> коммитим только <code>manifest.md</code> и <code>README.md</code>.",
+        "Корневой <code>.gitignore</code> workspace: кэш <code>.agent-cms/cache/</code>, временные <code>awn-temp/</code>, OS-мусор, <code>awn-media-cloud/</code> и <code>awn-google-drive/</code>. " +
+        "В <code>awn-repositories/</code> в git: в корне <code>index.md</code> и <code>groups.yml</code>; у карточек — <code>manifest.md</code> и <code>readme.md</code> (варианты регистра в шаблоне); код клона — нет.",
       example: RECOMMENDED_AGENT_GITIGNORE
     };
   }
