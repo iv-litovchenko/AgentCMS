@@ -17071,7 +17071,7 @@ const FOLDER_BROWSE_MODE = "folder-browse";
 const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const AWN_DATA_VIEW_MODE = "awn-databases-view";
 const FREE_MEMORY_LABEL = "Свободная память";
-const ADOPT_ACTION_ICON = "✨🔮";
+const ADOPT_ACTION_ICON = "🔮";
 const SECTION_README_OFFER_ACTION_SHORT = "Подхватить раздел (создать описание)";
 const SECTION_README_OFFER_ACTION_LABEL = `${ADOPT_ACTION_ICON} ${SECTION_README_OFFER_ACTION_SHORT}`;
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
@@ -99002,7 +99002,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         folderLabel.type = "button";
         folderLabel.className = "menu-folder menu-folder--adopt";
         folderLabel.dataset.folderPath = adoptTargetPath;
-        folderLabel.title = `${FREE_MEMORY_LABEL} — клик: просмотр; ✨🔮: подхват (область или тема)`;
+        folderLabel.title = `${FREE_MEMORY_LABEL} — клик: просмотр; ${ADOPT_ACTION_ICON}: подхват (область или тема)`;
         setMenuLabelWithMarkers(
           folderLabel,
           formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
