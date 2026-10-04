@@ -74,8 +74,9 @@ fields:
     type: awn.field.repeater
     title: Партии коммита при сохранении
     description: >
-      До восьми коммитов подряд (пустые пропускаются): записи → изображения → исходник →
-      документы → медиа → архивы → прочее → конфиги. Плейсшолдеры — {branch}, {date}, {time}.
+      До девяти коммитов подряд (пустые пропускаются): записи → история записей (mdback) →
+      изображения → исходник → документы → медиа → архивы → прочее → конфиги.
+      Плейсхолдеры — {branch}, {date}, {time}.
       Дополнительно в конфигах по имени: .gitignore, .env / .env.*, *.lock.
     group: module-git
     locked: true
@@ -92,6 +93,12 @@ fields:
           jsonl
           ndjson
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Records"
+        maxFileSizeMb: 1
+      - id: records-history
+        label: Записи (контент) — история
+        extensions: |
+          mdback
+        messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Records history"
         maxFileSizeMb: 1
       - id: images
         label: Изображения (контент)

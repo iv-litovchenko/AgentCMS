@@ -16593,7 +16593,7 @@ const {
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
-const { enrichGitChangesWithCommitLimits, summarizeOutOfBatchGitChanges } = require("./lib/git/module-git-commit-limits");
+const { findEmptyFolderGitkeepHints } = require("./lib/git/git-empty-folder-hints");
 
 async function runGitInRepo(repoAbsolute, args) {
   const result = await runGitInRepoResult(repoAbsolute, args);
@@ -17089,6 +17089,7 @@ async function buildAgentGitStatus(options = {}) {
       extensions: commitBatchSettings.unionExtensions,
       totalChangeCount: 0,
       outOfBatch: { count: 0, extensions: [], extensionCounts: {}, changes: [] },
+      emptyFolderHints: { count: 0, folders: [], truncated: false },
       remotes: [],
       moduleConfig: enrichModuleGitConfigWithCommitBatches(
         await loadModuleGitConfig(agentRoot),
@@ -17135,6 +17136,11 @@ async function buildAgentGitStatus(options = {}) {
         repoAbsolute
       )
     };
+    const emptyFolderHints = await findEmptyFolderGitkeepHints(repoAbsolute).catch(() => ({
+      count: 0,
+      folders: [],
+      truncated: false
+    }));
     const commits = includeCommits ? parseGitLogOneline(logRaw) : [];
     const counts = countGitChangesByKind(changes);
     const totalCounts = countGitChangesByKind(allChanges);
@@ -17158,6 +17164,7 @@ async function buildAgentGitStatus(options = {}) {
       extensions: normalizedExtensions,
       totalChangeCount: allChanges.length,
       outOfBatch,
+      emptyFolderHints,
       remotes,
       moduleConfig
     };
@@ -17180,6 +17187,7 @@ async function buildAgentGitStatus(options = {}) {
       extensions: normalizedExtensions,
       totalChangeCount: 0,
       outOfBatch: { count: 0, extensions: [], extensionCounts: {}, changes: [] },
+      emptyFolderHints: { count: 0, folders: [], truncated: false },
       remotes: [],
       moduleConfig,
       error: String(error?.message || error)

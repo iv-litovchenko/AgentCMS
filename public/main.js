@@ -442,6 +442,18 @@ function appendAgentGitExtensionTags(container, extensions) {
   }
 }
 
+function appendAgentGitFolderHintTags(container, folders) {
+  for (const folder of folders || []) {
+    const rel = String(folder || "").trim();
+    if (!rel) continue;
+    const tag = document.createElement("span");
+    tag.className = "agent-git-ext-tag agent-git-folder-hint-tag";
+    tag.textContent = rel;
+    tag.title = `Рекомендуется: ${rel}/.gitkeep`;
+    container.appendChild(tag);
+  }
+}
+
 function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   const n = Number(maxFileSizeMb);
   if (!Number.isFinite(n) || n <= 0) return "—";
@@ -489,6 +501,57 @@ function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
   limitCell.className = "agent-git-extensions-limit";
   limitCell.textContent = "—";
   limitCell.title = "Не коммитится выбранными партиями";
+
+  row.append(typeCell, extCell, countCell, limitCell);
+  tbody.appendChild(row);
+}
+
+function appendAgentGitExtensionsEmptyFoldersRow(tbody, statusData) {
+  const hints = statusData?.emptyFolderHints || {};
+  const folders = Array.isArray(hints.folders) ? hints.folders : [];
+  const totalCount = Number(hints.count) || folders.length || 0;
+  const truncated = Boolean(hints.truncated);
+
+  const row = document.createElement("tr");
+  row.className = "agent-git-extensions-row is-empty-folders";
+
+  const typeCell = document.createElement("th");
+  typeCell.scope = "row";
+  typeCell.className = "agent-git-extensions-type";
+  typeCell.textContent = "Пустые папки";
+  typeCell.title =
+    "Каталоги без файлов — git их не сохранит. Рекомендуется положить .gitkeep, чтобы зафиксировать структуру.";
+
+  const extCell = document.createElement("td");
+  extCell.className = "agent-git-extensions-cell";
+  const extList = document.createElement("div");
+  extList.className = "agent-git-extensions-list";
+  if (folders.length) {
+    appendAgentGitFolderHintTags(extList, folders);
+    if (truncated) {
+      const note = document.createElement("span");
+      note.className = "agent-git-folder-hint-more";
+      note.textContent = `… ещё ${Math.max(0, totalCount - folders.length)}`;
+      extList.appendChild(note);
+    }
+  } else {
+    extList.textContent = "—";
+  }
+  extCell.appendChild(extList);
+
+  const countCell = document.createElement("td");
+  countCell.className = "agent-git-extensions-count";
+  countCell.textContent = String(totalCount);
+  if (totalCount === 0) {
+    countCell.classList.add("is-zero");
+  } else {
+    countCell.classList.add("is-hint");
+  }
+
+  const limitCell = document.createElement("td");
+  limitCell.className = "agent-git-extensions-limit";
+  limitCell.textContent = ".gitkeep";
+  limitCell.title = "Рекомендуемый файл-заглушка";
 
   row.append(typeCell, extCell, countCell, limitCell);
   tbody.appendChild(row);
@@ -564,6 +627,7 @@ function ensureAgentGitExtensionsLegend(statusData = null) {
       tbody.appendChild(row);
     }
     appendAgentGitExtensionsOutOfBatchRow(tbody, statusData);
+    appendAgentGitExtensionsEmptyFoldersRow(tbody, statusData);
   } else {
     const row = document.createElement("tr");
     row.className = "agent-git-extensions-row";
@@ -105472,14 +105536,137 @@ function renderAgentGitStatChip(label, value, tone = "") {
   return createAgentWorkspaceStatElement(value, label, mappedTone);
 }
 
-function appendAgentGitChangeGroup(container, title, items) {
+function buildAgentGitChangeSearchHaystack(item) {
+  return [item?.path, item?.oldPath, item?.label, item?.kind]
+    .map((part) => String(part || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function agentGitChangeSearchTokens(query) {
+  return String(query || "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function agentGitChangeSearchHaystackMatchesQuery(haystack, query) {
+  const tokens = agentGitChangeSearchTokens(query);
+  if (!tokens.length) return true;
+  const normalized = String(haystack || "").toLowerCase();
+  return tokens.every((token) => normalized.includes(token));
+}
+
+function appendAgentGitChangeSearchToolbar(changesMount) {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-git-change-search-wrap";
+
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "agent-git-change-search";
+  input.placeholder = "Поиск по пути файла…";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", "Поиск по пути среди изменений git");
+  input.addEventListener("input", () => {
+    applyAgentGitChangeListSearch(changesMount, input.value);
+  });
+
+  wrap.appendChild(input);
+  changesMount.appendChild(wrap);
+
+  const empty = document.createElement("p");
+  empty.className = "agent-git-change-search-empty hidden";
+  empty.textContent = "Нет файлов по этому запросу";
+  changesMount.appendChild(empty);
+}
+
+function applyAgentGitChangeListSearch(changesMount, query = "") {
+  if (!changesMount) return;
+  const tokens = agentGitChangeSearchTokens(query);
+  let totalVisible = 0;
+  for (const section of changesMount.querySelectorAll(".agent-git-group--changes")) {
+    let sectionVisible = 0;
+    for (const row of section.querySelectorAll(".agent-git-change-item")) {
+      const haystack = row.dataset.searchHaystack || "";
+      const match = agentGitChangeSearchHaystackMatchesQuery(haystack, query);
+      row.classList.toggle("hidden", !match);
+      if (match) sectionVisible += 1;
+    }
+    section.classList.toggle("hidden", sectionVisible === 0 && tokens.length > 0);
+    totalVisible += sectionVisible;
+  }
+  const emptyNode = changesMount.querySelector(".agent-git-change-search-empty");
+  if (emptyNode) {
+    emptyNode.classList.toggle("hidden", totalVisible > 0 || tokens.length === 0);
+  }
+}
+
+function buildAgentGitCommitSearchHaystack(commit) {
+  return [commit?.hash, commit?.shortHash, commit?.subject, commit?.when, commit?.author]
+    .map((part) => String(part || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function appendAgentGitCommitSearchToolbar(commitsMount) {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-git-commit-search-wrap";
+
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "agent-git-commit-search";
+  input.placeholder = "Поиск по коммитам (hash, сообщение, автор)…";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", "Поиск среди последних коммитов");
+  input.addEventListener("input", () => {
+    applyAgentGitCommitListSearch(commitsMount, input.value);
+  });
+
+  wrap.appendChild(input);
+  commitsMount.appendChild(wrap);
+
+  const empty = document.createElement("p");
+  empty.className = "agent-git-commit-search-empty hidden";
+  empty.textContent = "Нет коммитов по этому запросу";
+  commitsMount.appendChild(empty);
+}
+
+function applyAgentGitCommitListSearch(commitsMount, query = "") {
+  if (!commitsMount) return;
+  const tokens = agentGitChangeSearchTokens(query);
+  let totalVisible = 0;
+  const section = commitsMount.querySelector(".agent-git-group--commits");
+  if (section) {
+    for (const row of section.querySelectorAll(".agent-git-commit-row")) {
+      const haystack = row.dataset.searchHaystack || "";
+      const match = agentGitChangeSearchHaystackMatchesQuery(haystack, query);
+      row.classList.toggle("hidden", !match);
+      if (match) totalVisible += 1;
+    }
+    section.classList.toggle("hidden", totalVisible === 0 && tokens.length > 0);
+  }
+  const emptyNode = commitsMount.querySelector(".agent-git-commit-search-empty");
+  if (emptyNode) {
+    emptyNode.classList.toggle("hidden", totalVisible > 0 || tokens.length === 0);
+  }
+}
+
+function appendAgentGitChangeGroup(container, title, items, options = {}) {
   if (!items.length) return;
   const section = document.createElement("section");
-  section.className = "agent-git-group";
+  section.className = "agent-git-group agent-git-group--changes";
+  if (options.tone === "out-of-batch") {
+    section.classList.add("agent-git-group--out-of-batch");
+  }
 
   const heading = document.createElement("h3");
   heading.className = "agent-git-group-title";
-  heading.textContent = `${title} (${items.length})`;
+  const countLabel = `${title} (${items.length})`;
+  const groupHint = String(options.groupHint || "").trim();
+  heading.textContent = groupHint ? `${countLabel} — ${groupHint}` : countLabel;
   section.appendChild(heading);
 
   const list = document.createElement("ul");
@@ -105488,12 +105675,17 @@ function appendAgentGitChangeGroup(container, title, items) {
   for (const item of items) {
     const row = document.createElement("li");
     row.className = "agent-git-change-item";
+    row.dataset.searchHaystack = buildAgentGitChangeSearchHaystack(item);
 
     const rowShell = document.createElement("div");
     rowShell.className = `agent-git-change-row is-${item.kind || "modified"}`;
     rowShell.title = item.path;
     if (item.commitAllowed === false) {
-      rowShell.classList.add("is-commit-blocked");
+      const skipBlockedChrome =
+        options.hideRowBlockedReason && !item.commitBatchId;
+      if (!skipBlockedChrome) {
+        rowShell.classList.add("is-commit-blocked");
+      }
     }
     if (!item.commitBatchId) {
       rowShell.classList.add("is-out-of-batch");
@@ -105525,7 +105717,7 @@ function appendAgentGitChangeGroup(container, title, items) {
     sizeNode.textContent = item.sizeLabel || "—";
     meta.appendChild(sizeNode);
 
-    if (item.commitAllowed === false) {
+    if (item.commitAllowed === false && !options.hideRowBlockedReason) {
       const blocked = document.createElement("span");
       blocked.className = "agent-git-change-blocked";
       blocked.textContent =
@@ -105692,36 +105884,56 @@ async function renderAgentGitView() {
     const shell = document.createElement("div");
     shell.className = "agent-tool-shell agent-git-shell";
 
+    const outOfBatchItems = Array.isArray(data.outOfBatch?.changes) ? data.outOfBatch.changes : [];
+    const changeGroups = data.clean
+      ? []
+      : [
+          ["В индексе", data.changes.filter((item) => item.kind === "staged")],
+          ["Изменено", data.changes.filter((item) => item.kind === "modified")],
+          ["Неотслеживаемые", data.changes.filter((item) => item.kind === "untracked")],
+          ["Удалено", data.changes.filter((item) => item.kind === "deleted")],
+          ["Переименовано", data.changes.filter((item) => item.kind === "renamed")],
+          ["Конфликты", data.changes.filter((item) => item.kind === "conflict")]
+        ];
+    const changeListItemCount =
+      changeGroups.reduce((sum, [, items]) => sum + items.length, 0) + outOfBatchItems.length;
+
     if (data.clean) {
       const clean = document.createElement("p");
       clean.className = "agent-git-clean-banner";
       clean.textContent = "Рабочая копия чистая — нет незакоммиченных изменений.";
       shell.appendChild(clean);
-    } else if (data.filteredClean) {
-      const filtered = document.createElement("p");
-      filtered.className = "agent-git-clean-banner";
-      filtered.textContent = `Нет изменений в отфильтрованных файлах (${getAgentGitFilterLabel()}) — в репозитории другие правки (${data.totalChangeCount ?? 0}).`;
-      shell.appendChild(filtered);
     } else {
-      const groups = [
-        ["В индексе", data.changes.filter((item) => item.kind === "staged")],
-        ["Изменено", data.changes.filter((item) => item.kind === "modified")],
-        ["Неотслеживаемые", data.changes.filter((item) => item.kind === "untracked")],
-        ["Удалено", data.changes.filter((item) => item.kind === "deleted")],
-        ["Переименовано", data.changes.filter((item) => item.kind === "renamed")],
-        ["Конфликты", data.changes.filter((item) => item.kind === "conflict")]
-      ];
-      for (const [title, items] of groups) {
-        appendAgentGitChangeGroup(shell, title, items);
+      if (data.filteredClean) {
+        const filtered = document.createElement("p");
+        filtered.className = "agent-git-clean-banner";
+        filtered.textContent = `Нет изменений в отфильтрованных файлах (${getAgentGitFilterLabel()}) — в репозитории другие правки (${data.totalChangeCount ?? 0}).`;
+        shell.appendChild(filtered);
+      }
+
+      if (changeListItemCount > 0) {
+        const changesMount = document.createElement("div");
+        changesMount.className = "agent-git-changes-mount";
+        shell.appendChild(changesMount);
+        appendAgentGitChangeSearchToolbar(changesMount);
+        for (const [title, items] of changeGroups) {
+          appendAgentGitChangeGroup(changesMount, title, items);
+        }
+        if (outOfBatchItems.length) {
+          appendAgentGitChangeGroup(changesMount, "Вне списка партий", outOfBatchItems, {
+            tone: "out-of-batch",
+            groupHint: "нет партии для этих файлов — не попадут в batched commit",
+            hideRowBlockedReason: true
+          });
+        }
       }
     }
 
-    const outOfBatchItems = Array.isArray(data.outOfBatch?.changes) ? data.outOfBatch.changes : [];
-    if (outOfBatchItems.length) {
-      appendAgentGitChangeGroup(shell, "Вне списка партий", outOfBatchItems);
-    }
-
     if (Array.isArray(data.commits) && data.commits.length) {
+      const commitsMount = document.createElement("div");
+      commitsMount.className = "agent-git-commits-mount";
+      appendAgentGitCommitSearchToolbar(commitsMount);
+
       const commitsSection = document.createElement("section");
       commitsSection.className = "agent-git-group agent-git-group--commits";
 
@@ -105752,10 +105964,12 @@ async function renderAgentGitView() {
           <span class="agent-git-commit-subject">${escapeHtml(commit.subject || "")}</span>
           <span class="agent-git-commit-meta">${escapeHtml([commit.when, commit.author].filter(Boolean).join(" · "))}</span>
         `;
+        item.dataset.searchHaystack = buildAgentGitCommitSearchHaystack(commit);
         commitsList.appendChild(item);
       }
       commitsSection.appendChild(commitsList);
-      shell.appendChild(commitsSection);
+      commitsMount.appendChild(commitsSection);
+      shell.appendChild(commitsMount);
     }
 
     agentGitContentNode.appendChild(shell);

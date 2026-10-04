@@ -18537,6 +18537,97 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   gap: 18px;
 }
 
+.agent-git-changes-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-git-change-search-wrap {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 0 4px;
+}
+
+.agent-git-change-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.agent-git-change-search:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
+  border-color: #93c5fd;
+}
+
+.agent-git-change-search-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  font-size: 13px;
+  color: #64748b;
+}
+
+.agent-git-change-search-empty.hidden,
+.agent-git-group--changes.hidden,
+.agent-git-change-item.hidden {
+  display: none;
+}
+
+.agent-git-commits-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-git-commit-search-wrap {
+  width: 100%;
+  max-width: 480px;
+}
+
+.agent-git-commit-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.agent-git-commit-search:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
+  border-color: #93c5fd;
+}
+
+.agent-git-commit-search-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  font-size: 13px;
+  color: #64748b;
+}
+
+.agent-git-commit-search-empty.hidden,
+.agent-git-group--commits.hidden,
+.agent-git-commit-row.hidden {
+  display: none;
+}
+
 .agent-git-meta-bar {
   display: flex;
   align-items: flex-start;
@@ -18676,6 +18767,40 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   border-color: rgba(239, 68, 68, 0.45);
   background: #fff1f2;
   color: #b91c1c;
+}
+
+.agent-git-extensions-row.is-empty-folders th,
+.agent-git-extensions-row.is-empty-folders td {
+  background: #fffbeb;
+  border-top-color: #fde68a;
+}
+
+.agent-git-extensions-row.is-empty-folders .agent-git-extensions-type {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.agent-git-extensions-row.is-empty-folders .agent-git-folder-hint-tag {
+  border-color: rgba(217, 119, 6, 0.4);
+  background: #fffbeb;
+  color: #92400e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-git-folder-hint-more {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  color: #b45309;
+  padding: 2px 6px;
+}
+
+.agent-git-extensions-count.is-hint {
+  color: #b45309;
 }
 
 .agent-git-extensions-limit {
