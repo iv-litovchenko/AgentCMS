@@ -30923,6 +30923,7 @@ body.workspace-pomodoro-break-active {
   border-radius: 10px;
   background: var(--panel);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  overflow: visible;
 }
 
 .menu-context-menu.hidden {
@@ -30933,6 +30934,7 @@ body.workspace-pomodoro-break-active {
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: visible;
 }
 
 .menu-context-menu-btn {
@@ -31017,6 +31019,88 @@ body.workspace-pomodoro-break-active {
 .menu-context-menu-status-btn.is-active {
   background: #eef2ff;
   color: #1e3a8a;
+}
+
+.menu-context-menu-item--submenu {
+  position: relative;
+  list-style: none;
+}
+
+.menu-context-menu-submenu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  cursor: default;
+}
+
+.menu-context-menu-submenu-trigger-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-context-menu-submenu-trigger-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 52%;
+}
+
+.menu-context-menu-submenu-trigger-value .menu-context-menu-status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-context-menu-submenu-trigger-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.menu-context-menu-submenu-chevron {
+  flex-shrink: 0;
+  opacity: 0.55;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.menu-context-menu-item--submenu:hover > .menu-context-menu-submenu-trigger,
+.menu-context-menu-item--submenu:focus-within > .menu-context-menu-submenu-trigger {
+  background: var(--panel-soft);
+}
+
+.menu-context-menu-submenu {
+  display: none;
+  position: absolute;
+  left: calc(100% - 2px);
+  top: 0;
+  z-index: 2;
+  min-width: 196px;
+  max-width: min(280px, calc(100vw - 24px));
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.menu-context-menu-submenu.is-flip-left {
+  left: auto;
+  right: calc(100% - 2px);
+}
+
+.menu-context-menu-item--submenu:hover .menu-context-menu-submenu,
+.menu-context-menu-item--submenu:focus-within .menu-context-menu-submenu {
+  display: block;
 }
 
 .menu-settings-popover-title {

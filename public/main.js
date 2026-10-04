@@ -21797,6 +21797,116 @@ function populateMenuContextStatusButton(btn, optionKey, optionName) {
   btn.appendChild(label);
 }
 
+function positionContextMenuStatusSubmenu(submenuItem) {
+  const submenu = submenuItem?.querySelector(".menu-context-menu-submenu");
+  if (!submenu) return;
+  submenu.classList.remove("is-flip-left");
+  submenu.style.top = "";
+  const rect = submenu.getBoundingClientRect();
+  if (rect.right > window.innerWidth - 8) {
+    submenu.classList.add("is-flip-left");
+  }
+  const nextRect = submenu.getBoundingClientRect();
+  if (nextRect.bottom > window.innerHeight - 8) {
+    const overflow = nextRect.bottom - window.innerHeight + 8;
+    submenu.style.top = `${-overflow}px`;
+  } else if (nextRect.top < 8) {
+    submenu.style.top = `${8 - nextRect.top}px`;
+  }
+}
+
+function createContextMenuStatusSubmenuListItem(currentStatus = "") {
+  const options = getMenuAwnStatusOptions();
+  const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
+  const api = awnEnumOptionsApi();
+
+  let activeOptionName = "";
+  for (const option of options) {
+    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    if (optionKey === activeStatus) {
+      activeOptionName =
+        typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+      break;
+    }
+  }
+
+  const item = document.createElement("li");
+  item.className = "menu-context-menu-item menu-context-menu-item--submenu";
+  item.setAttribute("role", "none");
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "menu-context-menu-btn menu-context-menu-submenu-trigger";
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("role", "menuitem");
+
+  const labelSpan = document.createElement("span");
+  labelSpan.className = "menu-context-menu-submenu-trigger-label";
+  labelSpan.textContent = "Статус";
+
+  const valueSpan = document.createElement("span");
+  valueSpan.className = "menu-context-menu-submenu-trigger-value";
+  if (activeStatus) {
+    const preview = document.createElement("span");
+    preview.className = "menu-context-menu-submenu-trigger-preview";
+    populateMenuContextStatusButton(preview, activeStatus, activeOptionName);
+    valueSpan.appendChild(preview);
+  }
+
+  const chevron = document.createElement("span");
+  chevron.className = "menu-context-menu-submenu-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = "›";
+
+  trigger.append(labelSpan, valueSpan, chevron);
+
+  const submenu = document.createElement("ul");
+  submenu.className = "menu-context-menu-submenu menu-context-menu-status-list";
+  submenu.setAttribute("role", "menu");
+  submenu.setAttribute("aria-label", "Статус");
+
+  for (const option of options) {
+    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+    const statusItem = document.createElement("li");
+    statusItem.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-status-btn";
+    btn.dataset.status = optionKey;
+    populateMenuContextStatusButton(btn, optionKey, optionName);
+    btn.setAttribute("role", "menuitemradio");
+    const isActive = optionKey === activeStatus;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-checked", isActive ? "true" : "false");
+    statusItem.appendChild(btn);
+    submenu.appendChild(statusItem);
+  }
+
+  item.append(trigger, submenu);
+  item.addEventListener("mouseenter", () => {
+    trigger.setAttribute("aria-expanded", "true");
+    positionContextMenuStatusSubmenu(item);
+  });
+  item.addEventListener("mouseleave", () => {
+    trigger.setAttribute("aria-expanded", "false");
+    submenu.classList.remove("is-flip-left");
+    submenu.style.top = "";
+  });
+
+  return item;
+}
+
+function appendContextMenuListSeparator(listNode) {
+  if (!listNode) return;
+  const separator = document.createElement("li");
+  separator.className = "menu-context-menu-separator";
+  separator.setAttribute("role", "separator");
+  listNode.appendChild(separator);
+}
+
 function createHeroTitleCopyButton(title) {
   const value = String(title || "").trim();
   const btn = document.createElement("button");
@@ -21908,10 +22018,12 @@ const MENU_CONTEXT_MENU_ACTIONS = {
 const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["edit", "rename", "move", "delete", "container"]);
 
 const MENU_CLIPBOARD_ACTIONS = [
-  { id: "cut", label: "✂️ Вырезать" },
-  { id: "copy", label: "Копировать" },
+  { id: "cut", label: "✂️ Вырезать (todo)" },
+  { id: "copy", label: "📄 Копировать (todo)" },
   { id: "paste", label: "📋 Вставить" }
 ];
+
+const MENU_CLIPBOARD_TODO_ACTIONS = new Set(["cut", "copy"]);
 
 let workspaceTreeClipboard = null;
 let workspaceTreeSelection = new Map();
@@ -22285,7 +22397,10 @@ function appendMenuClipboardMenuItems(kind) {
     btn.className = "menu-context-menu-btn";
     btn.dataset.action = action.id;
     btn.textContent = action.label;
+    const isTodo = MENU_CLIPBOARD_TODO_ACTIONS.has(action.id);
+    btn.disabled = isTodo;
     btn.setAttribute("role", "menuitem");
+    btn.setAttribute("aria-disabled", isTodo ? "true" : "false");
     item.appendChild(btn);
     menuContextMenuListNode.appendChild(item);
   }
@@ -22750,61 +22865,19 @@ function positionMenuContextMenu(clientX, clientY) {
 }
 
 function appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId = activeAgentId) {
-  if (!menuContextMenuListNode || !canShowMenuContextStatusPicker(nodePath)) return;
-
-  const options = getMenuAwnStatusOptions();
-  const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
-  const hasActions = menuContextMenuListNode.childElementCount > 0;
-
-  if (hasActions) {
-    const separator = document.createElement("li");
-    separator.className = "menu-context-menu-separator";
-    separator.setAttribute("role", "separator");
-    menuContextMenuListNode.appendChild(separator);
-  }
-
-  const group = document.createElement("li");
-  group.className = "menu-context-menu-status-group";
-  group.setAttribute("role", "none");
-
-  const label = document.createElement("div");
-  label.className = "menu-context-menu-status-label";
-  label.textContent = "Статус";
-  group.appendChild(label);
-
-  const list = document.createElement("ul");
-  list.className = "menu-context-menu-status-list";
-  list.setAttribute("role", "group");
-  list.setAttribute("aria-label", "Статус");
-
-  for (const option of options) {
-    const api = awnEnumOptionsApi();
-    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
-    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
-    const item = document.createElement("li");
-    item.setAttribute("role", "none");
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "menu-context-menu-status-btn";
-    btn.dataset.status = optionKey;
-    populateMenuContextStatusButton(btn, optionKey, optionName);
-    btn.setAttribute("role", "menuitemradio");
-    const isActive = optionKey === activeStatus;
-    btn.classList.toggle("is-active", isActive);
-    btn.setAttribute("aria-checked", isActive ? "true" : "false");
-    item.appendChild(btn);
-    list.appendChild(item);
-  }
-
-  group.appendChild(list);
-  menuContextMenuListNode.appendChild(group);
+  if (!menuContextMenuListNode || !canShowMenuContextStatusPicker(nodePath)) return false;
+  menuContextMenuListNode.appendChild(createContextMenuStatusSubmenuListItem(currentStatus));
+  return true;
 }
 
 function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId, currentStatus = "") {
   if (!menuContextMenuListNode) return;
   menuContextMenuListNode.replaceChildren();
+  const hadStatus = appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId);
   const actions = getMenuContextMenuActions(kind, nodePath, agentId);
+  if (hadStatus && actions.length) {
+    appendContextMenuListSeparator(menuContextMenuListNode);
+  }
   for (const action of actions) {
     const item = document.createElement("li");
     item.className = "menu-context-menu-item";
@@ -22823,7 +22896,6 @@ function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId, cur
     menuContextMenuListNode.appendChild(item);
   }
   appendMenuClipboardMenuItems(kind);
-  appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId);
 }
 
 function handleMenuContextMenuAction(actionId) {
@@ -22910,10 +22982,12 @@ const RESOURCE_CONTEXT_MENU_ACTIONS = {
 };
 
 const RESOURCE_CLIPBOARD_ACTIONS = [
-  { id: "cut", label: "✂️ Вырезать" },
-  { id: "copy", label: "Копировать" },
+  { id: "cut", label: "✂️ Вырезать (todo)" },
+  { id: "copy", label: "📄 Копировать (todo)" },
   { id: "paste", label: "📋 Вставить" }
 ];
+
+const RESOURCE_CLIPBOARD_TODO_ACTIONS = new Set(["cut", "copy"]);
 
 let navigationSlotClipboard = null;
 let navigationSlotSelection = new Map();
@@ -23311,7 +23385,10 @@ function appendResourceClipboardMenuItems(kind) {
     btn.className = "menu-context-menu-btn";
     btn.dataset.action = action.id;
     btn.textContent = action.label;
+    const isTodo = RESOURCE_CLIPBOARD_TODO_ACTIONS.has(action.id);
+    btn.disabled = isTodo;
     btn.setAttribute("role", "menuitem");
+    btn.setAttribute("aria-disabled", isTodo ? "true" : "false");
     item.appendChild(btn);
     resourceContextMenuListNode.appendChild(item);
   }
@@ -23828,7 +23905,7 @@ function positionResourceContextMenu(clientX, clientY) {
 }
 
 function appendResourceContextMenuStatusSection(currentStatus = "") {
-  if (!resourceContextMenuListNode) return;
+  if (!resourceContextMenuListNode) return false;
   const state = resourceContextMenuState;
   if (
     !state ||
@@ -23838,62 +23915,20 @@ function appendResourceContextMenuStatusSection(currentStatus = "") {
       state.kind !== "mediaFile" &&
       state.kind !== "awnDataRecord")
   ) {
-    return;
+    return false;
   }
-
-  const options = getMenuAwnStatusOptions();
-  const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
-  const hasActions = resourceContextMenuListNode.childElementCount > 0;
-
-  if (hasActions) {
-    const separator = document.createElement("li");
-    separator.className = "menu-context-menu-separator";
-    separator.setAttribute("role", "separator");
-    resourceContextMenuListNode.appendChild(separator);
-  }
-
-  const group = document.createElement("li");
-  group.className = "menu-context-menu-status-group";
-  group.setAttribute("role", "none");
-
-  const label = document.createElement("div");
-  label.className = "menu-context-menu-status-label";
-  label.textContent = "Статус";
-  group.appendChild(label);
-
-  const list = document.createElement("ul");
-  list.className = "menu-context-menu-status-list";
-  list.setAttribute("role", "group");
-  list.setAttribute("aria-label", "Статус");
-
-  for (const option of options) {
-    const api = awnEnumOptionsApi();
-    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
-    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
-    const item = document.createElement("li");
-    item.setAttribute("role", "none");
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "menu-context-menu-status-btn";
-    btn.dataset.status = optionKey;
-    populateMenuContextStatusButton(btn, optionKey, optionName);
-    btn.setAttribute("role", "menuitemradio");
-    const isActive = optionKey === activeStatus;
-    btn.classList.toggle("is-active", isActive);
-    btn.setAttribute("aria-checked", isActive ? "true" : "false");
-    item.appendChild(btn);
-    list.appendChild(item);
-  }
-
-  group.appendChild(list);
-  resourceContextMenuListNode.appendChild(group);
+  resourceContextMenuListNode.appendChild(createContextMenuStatusSubmenuListItem(currentStatus));
+  return true;
 }
 
 function renderResourceContextMenuItems(kind, currentStatus = "") {
   if (!resourceContextMenuListNode) return;
   resourceContextMenuListNode.replaceChildren();
+  const hadStatus = appendResourceContextMenuStatusSection(currentStatus);
   const actions = RESOURCE_CONTEXT_MENU_ACTIONS[kind] || [];
+  if (hadStatus && actions.length) {
+    appendContextMenuListSeparator(resourceContextMenuListNode);
+  }
   for (const action of actions) {
     const item = document.createElement("li");
     item.className = "menu-context-menu-item";
@@ -23909,7 +23944,6 @@ function renderResourceContextMenuItems(kind, currentStatus = "") {
     resourceContextMenuListNode.appendChild(item);
   }
   appendResourceClipboardMenuItems(kind);
-  appendResourceContextMenuStatusSection(currentStatus);
 }
 
 function openResourceContextMenu(event, state) {
