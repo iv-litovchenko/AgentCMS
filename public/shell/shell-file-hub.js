@@ -211,6 +211,12 @@ function fileHubMaxAttachLimitLabel(getSettings) {
   return Number.isInteger(mb) ? `${mb} МБ` : `${String(mb).replace(".", ",")} МБ`;
 }
 
+function isFileHubOverAttachLimit(file, getSettings) {
+  const size = Number(file?.size);
+  if (!Number.isFinite(size) || size <= 0) return false;
+  return size > resolveFileHubMaxAttachBytes(getSettings);
+}
+
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   if (!bytes.length) return "";
@@ -1085,10 +1091,16 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
 
       const trailing = document.createElement("div");
       trailing.className = "shell-file-hub-item-trailing";
+      const overAttachLimit = isFileHubOverAttachLimit(file, getSettings);
       if (sizeLabel) {
         const sizeEl = document.createElement("span");
         sizeEl.className = "shell-file-hub-item-size";
-        sizeEl.title = "Размер файла";
+        if (overAttachLimit) {
+          sizeEl.classList.add("is-over-attach-limit");
+          sizeEl.title = `Больше лимита 📎 (${fileHubMaxAttachLimitLabel(getSettings)})`;
+        } else {
+          sizeEl.title = "Размер файла";
+        }
         sizeEl.textContent = sizeLabel;
         trailing.appendChild(sizeEl);
       }
@@ -1108,6 +1120,12 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
           attachBtn.classList.add("is-issued");
           attachBtn.title = `Уже выдавали на ${issuedSiteLabel}`;
           attachBtn.setAttribute("aria-label", "Файл уже выдан на эту вкладку");
+        } else if (overAttachLimit) {
+          attachBtn.disabled = true;
+          attachBtn.classList.add("is-over-limit");
+          const limitLabel = fileHubMaxAttachLimitLabel(getSettings);
+          attachBtn.title = `Файл больше лимита 📎 (${limitLabel}). Уменьшите файл или поднимите лимит в настройках workspace.`;
+          attachBtn.setAttribute("aria-label", `Прикрепление недоступно: больше ${limitLabel}`);
         } else {
           attachBtn.title = "Отправить на вкладку (как drop или вложение), без сохранения на диск";
           attachBtn.setAttribute("aria-label", "Отправить файл на открытую вкладку");
@@ -1157,7 +1175,10 @@ export function initShellFileHub({ shellApp, nodes, embedMode = false, getSettin
                 attachBtn.title = msg;
                 showFileHubAttachToast(root, msg, "error");
               } finally {
-                if (!issueKey || !isFileHubUsedOnSite(siteUsageStore, issueKey, file.id)) {
+                if (
+                  !isFileHubOverAttachLimit(file, getSettings) &&
+                  (!issueKey || !isFileHubUsedOnSite(siteUsageStore, issueKey, file.id))
+                ) {
                   attachBtn.disabled = false;
                 }
               }
