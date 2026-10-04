@@ -105422,11 +105422,15 @@ async function fetchAgentGitFileDiff(changeItem) {
 
 async function openAgentGitDiffModal(changeItem) {
   if (!agentGitDiffModal || !agentGitDiffModalBodyNode) return;
-  const pathLabel = changeItem?.oldPath
-    ? `${changeItem.oldPath} → ${changeItem.path}`
-    : String(changeItem?.path || "");
+  const pathLabel = formatAgentGitDisplayPathLabel(changeItem?.path, changeItem?.oldPath);
   if (agentGitDiffModalPathNode) {
     agentGitDiffModalPathNode.textContent = pathLabel || "—";
+    agentGitDiffModalPathNode.title = buildAgentGitPathTooltip(
+      changeItem?.oldPath
+        ? `${changeItem.oldPath} → ${changeItem.path}`
+        : changeItem?.path,
+      pathLabel
+    );
   }
   setAgentGitDiffModalBodyMessage("Загрузка diff…");
   agentGitDiffModal.classList.remove("hidden");
@@ -105629,8 +105633,86 @@ function renderAgentGitStatChip(label, value, tone = "") {
   return createAgentWorkspaceStatElement(value, label, mappedTone);
 }
 
+function decodeUtf8OctalFilesystemSegment(segment) {
+  const raw = String(segment || "");
+  if (!raw || !/^[0-7]+$/.test(raw) || raw.length % 3 !== 0 || raw.length < 6) {
+    return raw;
+  }
+  const bytes = new Uint8Array(raw.length / 3);
+  for (let i = 0; i < raw.length; i += 3) {
+    bytes[i / 3] = parseInt(raw.slice(i, i + 3), 8);
+  }
+  try {
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (!decoded || /^[0-7]+$/.test(decoded)) return raw;
+    return decoded;
+  } catch {
+    return raw;
+  }
+}
+
+function formatAgentGitDisplayPath(path) {
+  const normalized = String(path || "").replace(/\\/g, "/");
+  if (!normalized) return "";
+  return normalized
+    .split("/")
+    .map((segment) => decodeUtf8OctalFilesystemSegment(segment))
+    .join("/");
+}
+
+function formatAgentGitDisplayPathLabel(path, oldPath) {
+  const nextPath = String(path || "");
+  const prevPath = String(oldPath || "").trim();
+  if (prevPath) {
+    return `${formatAgentGitDisplayPath(prevPath)} → ${formatAgentGitDisplayPath(nextPath)}`;
+  }
+  return formatAgentGitDisplayPath(nextPath);
+}
+
+function buildAgentGitPathTooltip(rawPath, displayPath) {
+  const raw = String(rawPath || "").replace(/\\/g, "/");
+  const display = String(displayPath || raw).replace(/\\/g, "/");
+  if (!raw || display === raw) return display || raw;
+  return `${display}\n${raw}`;
+}
+
+function createAgentGitSearchField(options = {}) {
+  const {
+    wrapClassName,
+    inputClassName,
+    placeholder = "",
+    ariaLabel = placeholder,
+    onInput
+  } = options;
+
+  const wrap = document.createElement("div");
+  wrap.className = wrapClassName;
+
+  const label = document.createElement("label");
+  label.className = "agent-git-search-bar menu-search-bar";
+
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = inputClassName;
+  input.placeholder = placeholder;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", ariaLabel);
+  input.addEventListener("input", () => {
+    onInput?.(input.value);
+  });
+
+  const icon = createMenuSearchIconNode();
+  icon.classList.add("agent-git-search-icon");
+  label.append(input, icon);
+  wrap.appendChild(label);
+
+  return { wrap, input };
+}
+
 function buildAgentGitChangeSearchHaystack(item) {
-  return [item?.path, item?.oldPath, item?.label, item?.kind]
+  const displayPath = formatAgentGitDisplayPathLabel(item?.path, item?.oldPath);
+  return [item?.path, item?.oldPath, displayPath, item?.label, item?.kind]
     .map((part) => String(part || "").trim().toLowerCase())
     .filter(Boolean)
     .join(" ");
@@ -105652,21 +105734,13 @@ function agentGitChangeSearchHaystackMatchesQuery(haystack, query) {
 }
 
 function appendAgentGitChangeSearchToolbar(changesMount) {
-  const wrap = document.createElement("div");
-  wrap.className = "agent-git-change-search-wrap";
-
-  const input = document.createElement("input");
-  input.type = "search";
-  input.className = "agent-git-change-search";
-  input.placeholder = "Поиск по пути файла…";
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  input.setAttribute("aria-label", "Поиск по пути среди изменений git");
-  input.addEventListener("input", () => {
-    applyAgentGitChangeListSearch(changesMount, input.value);
+  const { wrap } = createAgentGitSearchField({
+    wrapClassName: "agent-git-change-search-wrap",
+    inputClassName: "agent-git-change-search menu-search-input",
+    placeholder: "Поиск по пути файла…",
+    ariaLabel: "Поиск по пути среди изменений git",
+    onInput: (value) => applyAgentGitChangeListSearch(changesMount, value)
   });
-
-  wrap.appendChild(input);
   changesMount.appendChild(wrap);
 
   const empty = document.createElement("p");
@@ -105704,21 +105778,13 @@ function buildAgentGitCommitSearchHaystack(commit) {
 }
 
 function appendAgentGitCommitSearchToolbar(commitsMount) {
-  const wrap = document.createElement("div");
-  wrap.className = "agent-git-commit-search-wrap";
-
-  const input = document.createElement("input");
-  input.type = "search";
-  input.className = "agent-git-commit-search";
-  input.placeholder = "Поиск по коммитам (hash, сообщение, автор)…";
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  input.setAttribute("aria-label", "Поиск среди последних коммитов");
-  input.addEventListener("input", () => {
-    applyAgentGitCommitListSearch(commitsMount, input.value);
+  const { wrap } = createAgentGitSearchField({
+    wrapClassName: "agent-git-commit-search-wrap",
+    inputClassName: "agent-git-commit-search menu-search-input",
+    placeholder: "Поиск по коммитам (hash, сообщение, автор)…",
+    ariaLabel: "Поиск среди последних коммитов",
+    onInput: (value) => applyAgentGitCommitListSearch(commitsMount, value)
   });
-
-  wrap.appendChild(input);
   commitsMount.appendChild(wrap);
 
   const empty = document.createElement("p");
@@ -105770,9 +105836,14 @@ function appendAgentGitChangeGroup(container, title, items, options = {}) {
     row.className = "agent-git-change-item";
     row.dataset.searchHaystack = buildAgentGitChangeSearchHaystack(item);
 
+    const displayPathLabel = formatAgentGitDisplayPathLabel(item.path, item.oldPath);
+
     const rowShell = document.createElement("div");
     rowShell.className = `agent-git-change-row is-${item.kind || "modified"}`;
-    rowShell.title = item.path;
+    rowShell.title = buildAgentGitPathTooltip(
+      item.oldPath ? `${item.oldPath} → ${item.path}` : item.path,
+      displayPathLabel
+    );
     if (item.commitAllowed === false) {
       const skipBlockedChrome =
         options.hideRowBlockedReason && !item.commitBatchId;
@@ -105794,10 +105865,10 @@ function appendAgentGitChangeGroup(container, title, items, options = {}) {
 
     const pathNode = document.createElement("span");
     pathNode.className = "agent-git-change-path";
-    pathNode.textContent = item.oldPath ? `${item.oldPath} → ${item.path}` : item.path;
+    pathNode.textContent = displayPathLabel;
 
     openBtn.append(badge, pathNode);
-    openBtn.title = item.path;
+    openBtn.title = buildAgentGitPathTooltip(item.path, formatAgentGitDisplayPath(item.path));
     openBtn.addEventListener("click", () => {
       void revealWorkspacePath(item.path);
     });
