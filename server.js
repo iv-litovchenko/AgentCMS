@@ -16593,6 +16593,10 @@ const {
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
+const {
+  enrichGitChangesWithCommitLimits,
+  summarizeOutOfBatchGitChanges
+} = require("./lib/git/module-git-commit-limits");
 const { findEmptyFolderGitkeepHints } = require("./lib/git/git-empty-folder-hints");
 
 async function runGitInRepo(repoAbsolute, args) {
