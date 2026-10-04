@@ -16593,7 +16593,7 @@ const {
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
-const { enrichGitChangesWithCommitLimits } = require("./lib/git/module-git-commit-limits");
+const { enrichGitChangesWithCommitLimits, summarizeOutOfBatchGitChanges } = require("./lib/git/module-git-commit-limits");
 
 async function runGitInRepo(repoAbsolute, args) {
   const result = await runGitInRepoResult(repoAbsolute, args);
@@ -17088,6 +17088,7 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts: emptyCounts,
       extensions: commitBatchSettings.unionExtensions,
       totalChangeCount: 0,
+      outOfBatch: { count: 0, extensions: [], extensionCounts: {}, changes: [] },
       remotes: [],
       moduleConfig: enrichModuleGitConfigWithCommitBatches(
         await loadModuleGitConfig(agentRoot),
@@ -17125,6 +17126,15 @@ async function buildAgentGitStatus(options = {}) {
       commitBatchSettings.batches,
       repoAbsolute
     );
+    const outOfBatchRaw = summarizeOutOfBatchGitChanges(allChanges, commitBatchSettings.batches);
+    const outOfBatch = {
+      ...outOfBatchRaw,
+      changes: await enrichGitChangesWithCommitLimits(
+        outOfBatchRaw.changes,
+        commitBatchSettings.batches,
+        repoAbsolute
+      )
+    };
     const commits = includeCommits ? parseGitLogOneline(logRaw) : [];
     const counts = countGitChangesByKind(changes);
     const totalCounts = countGitChangesByKind(allChanges);
@@ -17147,6 +17157,7 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts,
       extensions: normalizedExtensions,
       totalChangeCount: allChanges.length,
+      outOfBatch,
       remotes,
       moduleConfig
     };
@@ -17168,6 +17179,7 @@ async function buildAgentGitStatus(options = {}) {
       totalCounts: emptyCounts,
       extensions: normalizedExtensions,
       totalChangeCount: 0,
+      outOfBatch: { count: 0, extensions: [], extensionCounts: {}, changes: [] },
       remotes: [],
       moduleConfig,
       error: String(error?.message || error)

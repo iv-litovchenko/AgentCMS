@@ -450,6 +450,50 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   return `${text} МБ`;
 }
 
+function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
+  const outOfBatch = statusData?.outOfBatch || {};
+  const count = Number(outOfBatch.count) || 0;
+  const extensions = Array.isArray(outOfBatch.extensions) ? outOfBatch.extensions : [];
+
+  const row = document.createElement("tr");
+  row.className = "agent-git-extensions-row is-out-of-batch";
+
+  const typeCell = document.createElement("th");
+  typeCell.scope = "row";
+  typeCell.className = "agent-git-extensions-type";
+  typeCell.textContent = "Вне списка";
+  typeCell.title =
+    "Нет партии для этих файлов — не попадут в коммит по галочкам. Добавьте расширение в integrations или закоммитьте вручную.";
+
+  const extCell = document.createElement("td");
+  extCell.className = "agent-git-extensions-cell";
+  const extList = document.createElement("div");
+  extList.className = "agent-git-extensions-list";
+  if (extensions.length) {
+    appendAgentGitExtensionTags(extList, extensions);
+  } else {
+    extList.textContent = "—";
+  }
+  extCell.appendChild(extList);
+
+  const countCell = document.createElement("td");
+  countCell.className = "agent-git-extensions-count";
+  countCell.textContent = String(count);
+  if (count === 0) {
+    countCell.classList.add("is-zero");
+  } else {
+    countCell.classList.add("is-alert");
+  }
+
+  const limitCell = document.createElement("td");
+  limitCell.className = "agent-git-extensions-limit";
+  limitCell.textContent = "—";
+  limitCell.title = "Не коммитится выбранными партиями";
+
+  row.append(typeCell, extCell, countCell, limitCell);
+  tbody.appendChild(row);
+}
+
 function ensureAgentGitExtensionsLegend(statusData = null) {
   if (agentGitExtensionsLegendNode?.isConnected) {
     return agentGitExtensionsLegendNode;
@@ -519,6 +563,7 @@ function ensureAgentGitExtensionsLegend(statusData = null) {
       row.append(typeCell, extCell, countCell, limitCell);
       tbody.appendChild(row);
     }
+    appendAgentGitExtensionsOutOfBatchRow(tbody, statusData);
   } else {
     const row = document.createElement("tr");
     row.className = "agent-git-extensions-row";
@@ -105450,6 +105495,9 @@ function appendAgentGitChangeGroup(container, title, items) {
     if (item.commitAllowed === false) {
       rowShell.classList.add("is-commit-blocked");
     }
+    if (!item.commitBatchId) {
+      rowShell.classList.add("is-out-of-batch");
+    }
 
     const openBtn = document.createElement("button");
     openBtn.type = "button";
@@ -105666,6 +105714,11 @@ async function renderAgentGitView() {
       for (const [title, items] of groups) {
         appendAgentGitChangeGroup(shell, title, items);
       }
+    }
+
+    const outOfBatchItems = Array.isArray(data.outOfBatch?.changes) ? data.outOfBatch.changes : [];
+    if (outOfBatchItems.length) {
+      appendAgentGitChangeGroup(shell, "Вне списка партий", outOfBatchItems);
     }
 
     if (Array.isArray(data.commits) && data.commits.length) {

@@ -18657,6 +18657,27 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   color: #94a3b8;
 }
 
+.agent-git-extensions-count.is-alert {
+  color: #b91c1c;
+}
+
+.agent-git-extensions-row.is-out-of-batch th,
+.agent-git-extensions-row.is-out-of-batch td {
+  background: #fef2f2;
+  border-top-color: #fecaca;
+}
+
+.agent-git-extensions-row.is-out-of-batch .agent-git-extensions-type {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.agent-git-extensions-row.is-out-of-batch .agent-git-ext-tag {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
 .agent-git-extensions-limit {
   width: 1%;
   white-space: nowrap;
@@ -19441,6 +19462,11 @@ ol .live-diff-preview-removed {
   color: #b45309;
   text-align: right;
   max-width: 220px;
+}
+
+.agent-git-change-row.is-out-of-batch {
+  border-color: #fca5a5;
+  background: #fff1f2;
 }
 
 .agent-git-change-row.is-commit-blocked {
