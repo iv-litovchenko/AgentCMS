@@ -4153,6 +4153,26 @@
               <span class="agent-git-action-btn-label">LFS</span>
             </button>
             <button
+              id="agent-git-logs-btn"
+              class="agent-workspace-refresh-btn agent-git-logs-btn"
+              type="button"
+              title="Логи module-git (.agent-cms/logs/module-git.log)"
+              aria-label="Логи module-git"
+              aria-haspopup="dialog"
+              aria-controls="agent-git-logs-modal"
+            >
+              <span class="agent-git-logs-btn-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
               id="agent-git-settings-btn"
               class="agent-workspace-refresh-btn agent-git-settings-btn"
               type="button"
@@ -4194,6 +4214,29 @@
                 />
               </svg>
             </button>
+          </div>
+        </div>
+        <div
+          id="agent-git-logs-modal"
+          class="modal-overlay agent-git-logs-modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-git-logs-modal-title"
+          aria-hidden="true"
+        >
+          <div class="modal-card agent-git-logs-modal-card">
+            <header class="agent-git-logs-modal-head">
+              <h3 id="agent-git-logs-modal-title" class="agent-git-logs-modal-title">Логи module-git</h3>
+              <p class="agent-git-logs-modal-lead">
+                Файл: <code>.agent-cms/logs/module-git.log</code> в корне workspace агента
+              </p>
+            </header>
+            <pre id="agent-git-logs-content" class="agent-git-logs-content" aria-live="polite"></pre>
+            <div class="modal-actions agent-git-logs-modal-actions">
+              <button id="agent-git-logs-refresh-btn" class="ghost-btn" type="button">Обновить</button>
+              <button id="agent-git-logs-clear-btn" class="ghost-btn" type="button">Очистить лог</button>
+              <button id="agent-git-logs-close-btn" class="save-btn" type="button">Закрыть</button>
+            </div>
           </div>
         </div>
         <div id="agent-git-settings-panel" class="agent-git-settings-panel hidden" role="region" aria-label="Настройки git">

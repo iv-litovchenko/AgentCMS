@@ -14121,6 +14121,84 @@ body.workspace-idle-screensaver-active {
   justify-content: flex-end;
 }
 
+.agent-git-logs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.agent-git-logs-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 35%, var(--border));
+}
+
+.agent-git-logs-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.agent-git-logs-modal-card {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(88vh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  overflow: hidden;
+}
+
+.agent-git-logs-modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-git-logs-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.agent-git-logs-modal-lead {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.agent-git-logs-content {
+  margin: 0;
+  flex: 1;
+  min-height: 200px;
+  max-height: min(60vh, 480px);
+  overflow: auto;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 92%, #0f172a 8%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.agent-git-logs-modal-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .agent-git-settings-btn {
   display: inline-flex;
   align-items: center;
@@ -14432,6 +14510,7 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
 .agent-workspace-refresh-btn:hover:not(:disabled),
 .agent-timeline-refresh-btn:hover:not(:disabled),
 .agent-git-refresh-btn:hover:not(:disabled),
+.agent-git-logs-btn:hover:not(:disabled),
 .agent-git-settings-btn:hover:not(:disabled),
 .agent-large-files-refresh-btn:hover:not(:disabled),
 .agent-broken-links-refresh-btn:hover:not(:disabled) {

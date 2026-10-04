@@ -14283,7 +14283,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
   moduleGit:
-    "GET /api/git/status|diff|module-config + POST /api/git/init|commit|push|pull|remote|module-config — module_git_* (module-git)",
+    "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
     "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
@@ -16602,6 +16602,12 @@ const {
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
+const {
+  appendModuleGitLog,
+  readModuleGitLog,
+  clearModuleGitLog,
+  MODULE_GIT_LOG_REL
+} = require("./lib/git/module-git-logger");
 const {
   enrichGitChangesWithCommitLimits,
   summarizeOutOfBatchGitChanges,
@@ -21113,9 +21119,20 @@ async function handleApiForAgent(req, res, url) {
         date: datePart,
         time: timePart,
         messageSuffix,
-        maxCommitBatchBytes: commitBatchSettings.maxCommitBatchBytes || 0
+        maxCommitBatchBytes: commitBatchSettings.maxCommitBatchBytes || 0,
+        agentRoot
       });
       const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
+      await appendModuleGitLog(agentRoot, {
+        level: "info",
+        event: "api-commit",
+        message: result.committed ? "batched commit ok" : "batched commit empty",
+        detail: {
+          requestedBatchIds,
+          committedBatchCount: result.committedBatchCount,
+          batchCount: result.batchCount
+        }
+      }).catch(() => {});
       return sendJson(res, 200, {
         moduleId: "module-git",
         batched: true,
@@ -21127,6 +21144,15 @@ async function handleApiForAgent(req, res, url) {
         ...result
       });
     } catch (error) {
+      const agentRoot = getAgentRoot();
+      if (agentRoot) {
+        await appendModuleGitLog(agentRoot, {
+          level: "error",
+          event: "api-commit",
+          message: String(error?.message || error),
+          detail: { code: error?.code || "" }
+        }).catch(() => {});
+      }
       if (error?.code === "COMMIT_BATCH_TOTAL_SIZE_EXCEEDED") {
         return sendJson(res, 400, {
           error: String(error.message || "Commit batch size limit exceeded"),
@@ -21135,6 +21161,39 @@ async function handleApiForAgent(req, res, url) {
       }
       return sendJson(res, 500, {
         error: "Failed to commit git changes",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/git/logs") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readModuleGitLog(agentRoot);
+      return sendJson(res, 200, { moduleId: "module-git", ...payload });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read module git log",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/git/logs/clear") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await clearModuleGitLog(agentRoot);
+      await appendModuleGitLog(agentRoot, {
+        level: "info",
+        event: "log-clear",
+        message: "log cleared from UI"
+      }).catch(() => {});
+      return sendJson(res, 200, { moduleId: "module-git", path: MODULE_GIT_LOG_REL, ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear module git log",
         details: String(error.message || error)
       });
     }

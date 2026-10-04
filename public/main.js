@@ -321,6 +321,12 @@ function setAgentGitUpstreamChip(data) {
 }
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
 const agentGitSaveBtn = document.getElementById("agent-git-save-btn");
+const agentGitLogsBtn = document.getElementById("agent-git-logs-btn");
+const agentGitLogsModal = document.getElementById("agent-git-logs-modal");
+const agentGitLogsContentNode = document.getElementById("agent-git-logs-content");
+const agentGitLogsRefreshBtn = document.getElementById("agent-git-logs-refresh-btn");
+const agentGitLogsClearBtn = document.getElementById("agent-git-logs-clear-btn");
+const agentGitLogsCloseBtn = document.getElementById("agent-git-logs-close-btn");
 const agentGitSettingsBtn = document.getElementById("agent-git-settings-btn");
 const agentGitSettingsPanel = document.getElementById("agent-git-settings-panel");
 const agentGitInitBtn = document.getElementById("agent-git-init-btn");
@@ -105522,6 +105528,9 @@ function buildAgentGitCommitResultDetailsText(result, context = {}) {
       for (const p of item.pathSample) lines.push(`  • ${p}`);
     }
     if (item.shortHash || item.hash) lines.push(`hash: ${item.shortHash || item.hash}`);
+    if (item.indexResetBeforeCommit) {
+      lines.push("перед коммитом: git reset (сняли весь индекс, add только файлы партии)");
+    }
     if (item.gitDetail) lines.push(`git: ${item.gitDetail}`);
     if (item.stdout) lines.push(`stdout: ${item.stdout}`);
   }
@@ -105535,6 +105544,49 @@ function buildAgentGitCommitResultDetailsText(result, context = {}) {
     }
   }
   return lines.join("\n").trim();
+}
+
+async function fetchAgentGitModuleLogs() {
+  const response = await fetch(buildApiUrl("/api/git/logs"));
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+async function clearAgentGitModuleLogs() {
+  const response = await fetch(buildApiUrl("/api/git/logs/clear"), { method: "POST" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+function closeAgentGitLogsModal() {
+  if (!agentGitLogsModal) return;
+  agentGitLogsModal.classList.add("hidden");
+  agentGitLogsModal.setAttribute("aria-hidden", "true");
+}
+
+async function refreshAgentGitLogsModalContent() {
+  if (!agentGitLogsContentNode) return;
+  agentGitLogsContentNode.textContent = "Загрузка…";
+  try {
+    const data = await fetchAgentGitModuleLogs();
+    const text = String(data.content || "").trim();
+    agentGitLogsContentNode.textContent = text || "(лог пуст)";
+  } catch (error) {
+    agentGitLogsContentNode.textContent = `Ошибка: ${error?.message || error}`;
+  }
+}
+
+async function openAgentGitLogsModal() {
+  if (!agentGitLogsModal) return;
+  agentGitLogsModal.classList.remove("hidden");
+  agentGitLogsModal.removeAttribute("aria-hidden");
+  await refreshAgentGitLogsModalContent();
 }
 
 function closeAgentGitCommitResultModal() {
@@ -105592,12 +105644,24 @@ function agentGitChangeMatchesCommitBatch(change, batch) {
   return false;
 }
 
+function resolveAgentGitChangeCommitBatch(change, batches = agentGitModuleConfig?.commitBatches) {
+  const list = Array.isArray(batches) ? batches : [];
+  const batchId = String(change?.commitBatchId || "").trim();
+  if (batchId) {
+    const byId = list.find((entry) => String(entry?.id || "") === batchId);
+    if (byId) return byId;
+  }
+  for (const entry of list) {
+    if (agentGitChangeMatchesCommitBatch(change, entry)) return entry;
+  }
+  return null;
+}
+
 function countAgentGitChangesForCommitBatch(batch, changes = []) {
   const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    if (change?.commitBatchId) return change.commitBatchId === batchId;
-    return agentGitChangeMatchesCommitBatch(change, batch);
+    return resolveAgentGitChangeCommitBatch(change)?.id === batchId;
   }).length;
 }
 
@@ -105678,10 +105742,11 @@ function formatAgentGitByteSizeLabel(bytes) {
 }
 
 function sumAgentGitCommitBatchByteTotal(batch, changes = []) {
+  const batchId = String(batch?.id || "");
   let total = 0;
   for (const change of Array.isArray(changes) ? changes : []) {
     if (change?.commitAllowed === false) continue;
-    if (!agentGitChangeMatchesCommitBatch(change, batch)) continue;
+    if (resolveAgentGitChangeCommitBatch(change)?.id !== batchId) continue;
     if (change?.kind === "deleted") continue;
     const size = Number(change?.sizeBytes);
     if (Number.isFinite(size) && size > 0) total += size;
@@ -105704,12 +105769,9 @@ function getAgentGitCommitBatchById(batchId) {
   return batches.find((batch) => String(batch.id || "") === id) || null;
 }
 
-/** Партии в порядке integrations (records-first); в модалке — с изменениями выше, по убыванию счётчика. */
-function listAgentGitCommitBatchesForDisplay(changes = [], { sortByActivity = false } = {}) {
-  const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
-    ? agentGitModuleConfig.commitBatches
-    : [];
-  if (!sortByActivity) return batches;
+/** Порядок как в integrations.yml; партии с файлами (count > 0) — выше, с 0 — внизу. */
+function listAgentGitCommitBatchesForDisplay(changes = []) {
+  const batches = Array.isArray(agentGitModuleConfig?.commitBatches) ? agentGitModuleConfig.commitBatches : [];
   return batches
     .map((batch, index) => ({
       batch,
@@ -105720,7 +105782,6 @@ function listAgentGitCommitBatchesForDisplay(changes = [], { sortByActivity = fa
       const leftActive = left.count > 0 ? 1 : 0;
       const rightActive = right.count > 0 ? 1 : 0;
       if (rightActive !== leftActive) return rightActive - leftActive;
-      if (right.count !== left.count) return right.count - left.count;
       return left.index - right.index;
     })
     .map((entry) => entry.batch);
@@ -105859,7 +105920,7 @@ function openAgentGitCommitModal() {
     empty.textContent = "Партии коммита не настроены (integrations.yml → module-git-commit-batches).";
     agentGitCommitBatchListNode.appendChild(empty);
   } else {
-    const displayBatches = listAgentGitCommitBatchesForDisplay(changes, { sortByActivity: true });
+    const displayBatches = listAgentGitCommitBatchesForDisplay(changes);
     const defaultBatchId = pickDefaultAgentGitCommitBatchId(displayBatches, changes);
     const maxBatchBytes = getAgentGitCommitMaxBatchBytes();
     const maxBatchMb = Number(agentGitModuleConfig?.commitMaxBatchMb);
@@ -105893,8 +105954,13 @@ function openAgentGitCommitModal() {
       const meta = document.createElement("span");
       meta.className = "agent-git-commit-batch-option-meta";
       const countLabel = formatAgentGitCommitBatchFileCountLabel(count);
-      meta.textContent =
-        count > 0 && byteTotal > 0 ? `${countLabel} · ${formatAgentGitByteSizeLabel(byteTotal)}` : countLabel;
+      if (count > 0 && byteTotal > 0) {
+        meta.textContent = `${countLabel} · ${formatAgentGitByteSizeLabel(byteTotal)}`;
+      } else if (count > 0) {
+        meta.textContent = `${countLabel}${byteTotal <= 0 ? " · размер ?" : ""}`;
+      } else {
+        meta.textContent = countLabel;
+      }
       if (overLimit && Number.isFinite(maxBatchMb) && maxBatchMb > 0) {
         option.title = `Сумма файлов больше лимита одного коммита (${maxBatchMb} МБ)`;
       } else if (count === 0) {
@@ -126877,6 +126943,34 @@ agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
     void renderAgentGitView();
   }
+});
+
+agentGitLogsBtn?.addEventListener("click", () => {
+  void openAgentGitLogsModal();
+});
+
+agentGitLogsCloseBtn?.addEventListener("click", () => {
+  closeAgentGitLogsModal();
+});
+
+agentGitLogsRefreshBtn?.addEventListener("click", () => {
+  void refreshAgentGitLogsModalContent();
+});
+
+agentGitLogsClearBtn?.addEventListener("click", () => {
+  void (async () => {
+    if (!window.confirm("Очистить module-git.log для этого workspace?")) return;
+    try {
+      await clearAgentGitModuleLogs();
+      await refreshAgentGitLogsModalContent();
+    } catch (error) {
+      window.alert(error?.message || "Не удалось очистить лог");
+    }
+  })();
+});
+
+agentGitLogsModal?.addEventListener("click", (event) => {
+  if (event.target === agentGitLogsModal) closeAgentGitLogsModal();
 });
 
 agentGitSettingsBtn?.addEventListener("click", () => {
