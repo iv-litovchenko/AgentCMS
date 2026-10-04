@@ -86,6 +86,7 @@ fields:
     default:
       - id: records
         label: Записи (контент)
+        emoji: "📝"
         extensions: |
           md
           mdx
@@ -95,12 +96,14 @@ fields:
         maxFileSizeMb: 1
       - id: records-history
         label: Записи (контент) — история
+        emoji: "🕓"
         extensions: |
           mdback
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Records history"
         maxFileSizeMb: 1
       - id: images
         label: Изображения (контент)
+        emoji: "🖼️"
         extensions: |
           png
           jpg
@@ -121,6 +124,7 @@ fields:
         maxFileSizeMb: 5
       - id: sources
         label: Исходник (код)
+        emoji: "💻"
         extensions: |
           html
           htm
@@ -141,6 +145,7 @@ fields:
         maxFileSizeMb: 5
       - id: documents
         label: Документы
+        emoji: "📄"
         extensions: |
           pdf
           doc
@@ -153,6 +158,7 @@ fields:
         maxFileSizeMb: 5
       - id: media
         label: Медиа
+        emoji: "🎬"
         extensions: |
           mp4
           mp3
@@ -169,6 +175,7 @@ fields:
         maxFileSizeMb: 5
       - id: design-2d
         label: 2D — дизайн
+        emoji: "🎨"
         extensions: |
           psd
           psb
@@ -182,6 +189,7 @@ fields:
         maxFileSizeMb: 5
       - id: design-3d
         label: 3D — моделирование
+        emoji: "📐"
         extensions: |
           blend
           fbx
@@ -199,6 +207,7 @@ fields:
         maxFileSizeMb: 5
       - id: design-bim
         label: Архитектура / BIM
+        emoji: "🏗️"
         extensions: |
           dwg
           dxf
@@ -213,6 +222,7 @@ fields:
         maxFileSizeMb: 5
       - id: archives
         label: Архивы
+        emoji: "📦"
         extensions: |
           zip
           tar
@@ -225,6 +235,7 @@ fields:
         maxFileSizeMb: 5
       - id: other
         label: Прочее
+        emoji: "📎"
         extensions: |
           wasm
           woff
@@ -233,6 +244,7 @@ fields:
         maxFileSizeMb: 5
       - id: configs
         label: Конфиги, настройки (служебное)
+        emoji: "⚙️"
         extensions: |
           yml
           yaml
@@ -254,6 +266,10 @@ fields:
       label:
         type: awn.field.string
         title: Название
+      emoji:
+        type: awn.field.string
+        title: Эмодзи в UI
+        description: Одна иконка для таблицы партий и модалки коммита (например 📝)
       extensions:
         type: awn.field.text
         title: Расширения

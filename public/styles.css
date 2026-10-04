@@ -19969,12 +19969,15 @@ ol .live-diff-preview-removed {
   white-space: nowrap;
 }
 
-.agent-git-change-blocked {
-  font-size: 10px;
-  line-height: 1.3;
-  color: #b45309;
-  text-align: right;
-  max-width: 220px;
+.agent-git-change-size.is-commit-blocked-size {
+  color: #dc2626;
+  font-weight: 700;
+  cursor: help;
+}
+
+.agent-git-change-size.is-commit-blocked-size:hover {
+  text-decoration: line-through;
+  text-decoration-color: rgba(220, 38, 38, 0.85);
 }
 
 .agent-git-change-row.is-out-of-batch {
@@ -19983,8 +19986,18 @@ ol .live-diff-preview-removed {
 }
 
 .agent-git-change-row.is-commit-blocked {
-  border-color: #fcd34d;
-  background: #fffbeb;
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.agent-git-change-row.is-commit-blocked:hover {
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+.agent-git-change-row.is-commit-blocked.is-out-of-batch {
+  border-color: #f87171;
+  background: #fef2f2;
 }
 
 .agent-git-change-row {

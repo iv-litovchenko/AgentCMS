@@ -510,6 +510,27 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   return `${text} МБ`;
 }
 
+const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
+  records: "📝",
+  "records-history": "🕓",
+  images: "🖼️",
+  sources: "💻",
+  documents: "📄",
+  media: "🎬",
+  "design-2d": "🎨",
+  "design-3d": "📐",
+  "design-bim": "🏗️",
+  archives: "📦",
+  other: "📎",
+  configs: "⚙️"
+};
+
+function formatAgentGitCommitBatchDisplayLabel(batch) {
+  const emoji = String(batch?.emoji || AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK[batch?.id] || "").trim();
+  const label = String(batch?.label || batch?.id || "").trim() || "Партия";
+  return emoji ? `${emoji} ${label}` : label;
+}
+
 function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
   const outOfBatch = statusData?.outOfBatch || {};
   const count = Number(outOfBatch.count) || 0;
@@ -656,7 +677,7 @@ function ensureAgentGitExtensionsLegend(statusData = null) {
       const typeCell = document.createElement("th");
       typeCell.scope = "row";
       typeCell.className = "agent-git-extensions-type";
-      typeCell.textContent = batch.label || batch.id || "Коммит";
+      typeCell.textContent = formatAgentGitCommitBatchDisplayLabel(batch);
       const extCell = document.createElement("td");
       extCell.className = "agent-git-extensions-cell";
       const extList = document.createElement("div");
@@ -105949,7 +105970,7 @@ function openAgentGitCommitModal() {
 
       const title = document.createElement("span");
       title.className = "agent-git-commit-batch-option-title";
-      title.textContent = batch.label || batch.id || "Партия";
+      title.textContent = formatAgentGitCommitBatchDisplayLabel(batch);
 
       const meta = document.createElement("span");
       meta.className = "agent-git-commit-batch-option-meta";
@@ -106590,16 +106611,15 @@ function appendAgentGitChangeGroup(container, title, items, options = {}) {
     const sizeNode = document.createElement("span");
     sizeNode.className = "agent-git-change-size";
     sizeNode.textContent = item.sizeLabel || "—";
-    meta.appendChild(sizeNode);
-
     if (item.commitAllowed === false && !options.hideRowBlockedReason) {
-      const blocked = document.createElement("span");
-      blocked.className = "agent-git-change-blocked";
-      blocked.textContent =
+      const blockedHint =
         item.commitBlockedReason ||
-        `Не попадёт в коммит (лимит ${item.maxFileSizeMb ?? "?"} МБ)`;
-      meta.appendChild(blocked);
+        `Не попадёт в коммит — больше ${item.maxFileSizeMb ?? "?"} МБ`;
+      sizeNode.classList.add("is-commit-blocked-size");
+      sizeNode.title = blockedHint;
+      sizeNode.setAttribute("aria-label", `${item.sizeLabel || "—"}: ${blockedHint}`);
     }
+    meta.appendChild(sizeNode);
 
     const viewBtn = document.createElement("button");
     viewBtn.type = "button";
