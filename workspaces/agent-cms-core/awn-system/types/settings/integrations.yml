@@ -74,8 +74,9 @@ fields:
     type: awn.field.repeater
     title: Партии коммита при сохранении
     description: >
-      До девяти коммитов подряд (пустые пропускаются): записи → история записей (mdback) →
-      изображения → исходник → документы → медиа → архивы → прочее → конфиги.
+      До двенадцати коммитов подряд (пустые пропускаются): записи → история записей (mdback) →
+      изображения → исходник → документы → медиа → 2D дизайн → 3D моделирование →
+      архитектура/BIM → архивы → прочее → конфиги.
       Плейсхолдеры — {branch}, {date}, {time}.
       Дополнительно в конфигах по имени: .gitignore, .env / .env.*, *.lock.
     group: module-git
@@ -165,6 +166,50 @@ fields:
           mkv
           avi
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Media"
+        maxFileSizeMb: 5
+      - id: design-2d
+        label: 2D — дизайн
+        extensions: |
+          psd
+          psb
+          ai
+          eps
+          sketch
+          xd
+          indd
+          afdesign
+        messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Design 2D"
+        maxFileSizeMb: 5
+      - id: design-3d
+        label: 3D — моделирование
+        extensions: |
+          blend
+          fbx
+          obj
+          glb
+          gltf
+          stl
+          usdz
+          c4d
+          max
+          ma
+          mb
+          ztl
+        messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Design 3D"
+        maxFileSizeMb: 5
+      - id: design-bim
+        label: Архитектура / BIM
+        extensions: |
+          dwg
+          dxf
+          rvt
+          ifc
+          skp
+          3dm
+          pln
+          nwd
+          nwc
+        messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Architecture BIM"
         maxFileSizeMb: 5
       - id: archives
         label: Архивы
