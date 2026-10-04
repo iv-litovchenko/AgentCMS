@@ -4462,6 +4462,61 @@
             </div>
           </div>
         </div>
+        <div
+          id="agent-git-commit-modal"
+          class="modal-overlay agent-git-commit-modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-git-commit-modal-title"
+          aria-hidden="true"
+        >
+          <div class="modal-card agent-git-commit-modal-card">
+            <header class="agent-git-commit-modal-head">
+              <h3 id="agent-git-commit-modal-title" class="agent-git-commit-modal-title">Сохранить в git</h3>
+              <p class="agent-git-commit-modal-lead">
+                Отметьте партии — каждая создаёт отдельный коммит. Сообщение = шаблон из настроек и необязательный текст ниже.
+              </p>
+            </header>
+            <div id="agent-git-commit-batch-list" class="agent-git-commit-batch-list" role="group" aria-label="Партии коммита"></div>
+            <label class="agent-git-commit-modal-field" for="agent-git-commit-message-note">
+              <span class="agent-git-commit-modal-field-label">Дополнение к сообщению (необязательно)</span>
+              <textarea
+                id="agent-git-commit-message-note"
+                class="agent-git-commit-message-note"
+                rows="3"
+                placeholder="Будет добавлено с новой строки после шаблона каждого выбранного коммита"
+                spellcheck="true"
+              ></textarea>
+            </label>
+            <div class="agent-git-commit-preview-wrap">
+              <span class="agent-git-commit-preview-label">Пример сообщения</span>
+              <pre id="agent-git-commit-message-preview" class="agent-git-commit-message-preview"></pre>
+            </div>
+            <div class="modal-actions agent-git-commit-modal-actions">
+              <button id="agent-git-commit-modal-cancel-btn" class="ghost-btn" type="button">Отмена</button>
+              <button id="agent-git-commit-modal-submit-btn" class="save-btn" type="button">Закоммитить</button>
+            </div>
+          </div>
+        </div>
+        <div
+          id="agent-git-diff-modal"
+          class="modal-overlay agent-git-diff-modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-git-diff-modal-title"
+          aria-hidden="true"
+        >
+          <div class="modal-card agent-git-diff-modal-card">
+            <header class="agent-git-diff-modal-head">
+              <h3 id="agent-git-diff-modal-title" class="agent-git-diff-modal-title">Изменения</h3>
+              <p id="agent-git-diff-modal-path" class="agent-git-diff-modal-path"></p>
+            </header>
+            <div id="agent-git-diff-modal-body" class="agent-git-diff-modal-body" aria-live="polite"></div>
+            <div class="modal-actions agent-git-diff-modal-actions">
+              <button id="agent-git-diff-modal-close-btn" class="save-btn" type="button">Закрыть</button>
+            </div>
+          </div>
+        </div>
       </main>
 
       <main id="agent-journal-pane" class="agent-canvas-pane agent-tool-pane agent-journal-pane hidden" aria-label="Бортовой журнал">

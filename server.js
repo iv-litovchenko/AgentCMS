@@ -16593,6 +16593,7 @@ const {
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
+const { enrichGitChangesWithCommitLimits } = require("./lib/git/module-git-commit-limits");
 
 async function runGitInRepo(repoAbsolute, args) {
   const result = await runGitInRepoResult(repoAbsolute, args);
@@ -17118,7 +17119,12 @@ async function buildAgentGitStatus(options = {}) {
 
     const parsed = parseGitStatusPorcelain(statusRaw);
     const allChanges = parsed.changes;
-    const changes = filterChangesByExtensions(allChanges, normalizedExtensions);
+    const filteredChanges = filterChangesByExtensions(allChanges, normalizedExtensions);
+    const changes = await enrichGitChangesWithCommitLimits(
+      filteredChanges,
+      commitBatchSettings.batches,
+      repoAbsolute
+    );
     const commits = includeCommits ? parseGitLogOneline(logRaw) : [];
     const counts = countGitChangesByKind(changes);
     const totalCounts = countGitChangesByKind(allChanges);
@@ -20867,12 +20873,30 @@ async function handleApiForAgent(req, res, url) {
       const pad = (value) => String(value).padStart(2, "0");
       const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const requestedBatchIds = Array.isArray(payload?.batchIds)
+        ? payload.batchIds.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+      let batches = commitBatchSettings.batches;
+      if (requestedBatchIds.length) {
+        const allowed = new Set(requestedBatchIds);
+        batches = batches.filter((batch) => allowed.has(String(batch.id || "")));
+      }
+      if (!batches.length) {
+        return sendJson(res, 400, {
+          error: "No commit batches selected",
+          details: "batchIds is empty or does not match configured batches"
+        });
+      }
+      const messageSuffix = String(
+        payload?.messageSuffix ?? payload?.messageNote ?? payload?.customMessage ?? ""
+      ).trim();
       const result = await commitModuleGitChangesInBatches(repoAbsolute, {
-        batches: commitBatchSettings.batches,
+        batches,
         author,
         branch: parsed.branch || "main",
         date: datePart,
-        time: timePart
+        time: timePart,
+        messageSuffix
       });
       return sendJson(res, 200, { moduleId: "module-git", batched: true, ...result });
     } catch (error) {

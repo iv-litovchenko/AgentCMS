@@ -329,6 +329,16 @@ const agentGitPullBtn = document.getElementById("agent-git-pull-btn");
 const agentGitLfsBtn = document.getElementById("agent-git-lfs-btn");
 const agentGitLfsModal = document.getElementById("agent-git-lfs-modal");
 const agentGitLfsModalCloseBtn = document.getElementById("agent-git-lfs-modal-close-btn");
+const agentGitCommitModal = document.getElementById("agent-git-commit-modal");
+const agentGitCommitBatchListNode = document.getElementById("agent-git-commit-batch-list");
+const agentGitCommitMessageNoteNode = document.getElementById("agent-git-commit-message-note");
+const agentGitCommitMessagePreviewNode = document.getElementById("agent-git-commit-message-preview");
+const agentGitCommitModalCancelBtn = document.getElementById("agent-git-commit-modal-cancel-btn");
+const agentGitCommitModalSubmitBtn = document.getElementById("agent-git-commit-modal-submit-btn");
+const agentGitDiffModal = document.getElementById("agent-git-diff-modal");
+const agentGitDiffModalPathNode = document.getElementById("agent-git-diff-modal-path");
+const agentGitDiffModalBodyNode = document.getElementById("agent-git-diff-modal-body");
+const agentGitDiffModalCloseBtn = document.getElementById("agent-git-diff-modal-close-btn");
 const agentGitRemoteNameInput = document.getElementById("agent-git-remote-name");
 const agentGitBranchInput = document.getElementById("agent-git-branch-input");
 const agentGitBranchToolbarSelect = document.getElementById("agent-git-branch-toolbar-select");
@@ -398,7 +408,10 @@ const AGENT_GIT_EXTRA_BASENAMES = [".gitignore", ".env*", "*.lock"];
 const MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS = new Set([
   "module-git-commit-extensions",
   "module-git-commit-extensions-content",
-  "module-git-commit-extensions-system"
+  "module-git-commit-extensions-system",
+  "module-git-commit-extensions-images",
+  "module-git-commit-extensions-content-images",
+  "module-git-commit-extensions-system-images"
 ]);
 let agentGitExtensionsLegendNode = null;
 
@@ -420,6 +433,23 @@ function getAgentGitActiveExtensions() {
   return [...AGENT_GIT_FILE_EXTENSIONS];
 }
 
+function appendAgentGitExtensionTags(container, extensions) {
+  for (const ext of extensions || []) {
+    const tag = document.createElement("span");
+    tag.className = "agent-git-ext-tag";
+    tag.textContent = ext;
+    container.appendChild(tag);
+  }
+}
+
+function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
+  const n = Number(maxFileSizeMb);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  const rounded = Math.round(n * 100) / 100;
+  const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  return `${text} МБ`;
+}
+
 function ensureAgentGitExtensionsLegend() {
   if (agentGitExtensionsLegendNode?.isConnected) {
     return agentGitExtensionsLegendNode;
@@ -432,41 +462,79 @@ function ensureAgentGitExtensionsLegend() {
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
     ? agentGitModuleConfig.commitBatches
     : [];
+
+  const table = document.createElement("table");
+  table.className = "agent-git-extensions-table";
+  table.setAttribute("aria-label", "Партии коммита и расширения файлов");
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const thType = document.createElement("th");
+  thType.scope = "col";
+  thType.textContent = "Тип";
+  const thExt = document.createElement("th");
+  thExt.scope = "col";
+  thExt.textContent = "Расширения";
+  const thLimit = document.createElement("th");
+  thLimit.scope = "col";
+  thLimit.className = "agent-git-extensions-limit-col";
+  thLimit.textContent = "Лимит на 1 файл";
+  headRow.append(thType, thExt, thLimit);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
   if (batches.length) {
     for (const batch of batches) {
-      const group = document.createElement("div");
-      group.className = "agent-git-extensions-batch";
-      const title = document.createElement("div");
-      title.className = "agent-git-extensions-batch-title";
-      title.textContent = batch.label || batch.id || "Коммит";
-      group.appendChild(title);
-      const list = document.createElement("div");
-      list.className = "agent-git-extensions-list";
-      for (const ext of batch.extensions || []) {
-        const tag = document.createElement("span");
-        tag.className = "agent-git-ext-tag";
-        tag.textContent = ext;
-        list.appendChild(tag);
-      }
-      group.appendChild(list);
-      wrap.appendChild(group);
+      const row = document.createElement("tr");
+      row.className = "agent-git-extensions-row";
+      const typeCell = document.createElement("th");
+      typeCell.scope = "row";
+      typeCell.className = "agent-git-extensions-type";
+      typeCell.textContent = batch.label || batch.id || "Коммит";
+      const extCell = document.createElement("td");
+      extCell.className = "agent-git-extensions-cell";
+      const extList = document.createElement("div");
+      extList.className = "agent-git-extensions-list";
+      appendAgentGitExtensionTags(extList, batch.extensions);
+      extCell.appendChild(extList);
+      const limitCell = document.createElement("td");
+      limitCell.className = "agent-git-extensions-limit";
+      limitCell.textContent = formatAgentGitBatchMaxFileSizeLabel(batch.maxFileSizeMb);
+      row.append(typeCell, extCell, limitCell);
+      tbody.appendChild(row);
     }
   } else {
-    const list = document.createElement("div");
-    list.className = "agent-git-extensions-list";
-    list.setAttribute("aria-label", "Расширения файлов для коммита");
-    for (const ext of AGENT_GIT_FILE_EXTENSIONS) {
-      const tag = document.createElement("span");
-      tag.className = "agent-git-ext-tag";
-      tag.textContent = ext;
-      list.appendChild(tag);
-    }
-    wrap.appendChild(list);
+    const row = document.createElement("tr");
+    row.className = "agent-git-extensions-row";
+    const typeCell = document.createElement("th");
+    typeCell.scope = "row";
+    typeCell.className = "agent-git-extensions-type";
+    typeCell.textContent = "Файлы";
+    const extCell = document.createElement("td");
+    extCell.className = "agent-git-extensions-cell";
+    const extList = document.createElement("div");
+    extList.className = "agent-git-extensions-list";
+    appendAgentGitExtensionTags(extList, AGENT_GIT_FILE_EXTENSIONS);
+    extCell.appendChild(extList);
+    const limitCell = document.createElement("td");
+    limitCell.className = "agent-git-extensions-limit";
+    limitCell.textContent = "—";
+    row.append(typeCell, extCell, limitCell);
+    tbody.appendChild(row);
   }
+
+  table.appendChild(tbody);
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "agent-git-extensions-table-wrap";
+  tableWrap.appendChild(table);
+  wrap.appendChild(tableWrap);
 
   const extras = document.createElement("p");
   extras.className = "agent-git-extensions-extras";
-  extras.textContent = `Также по имени: ${AGENT_GIT_EXTRA_BASENAMES.join(", ")}`;
+  extras.textContent = `Также по имени (партия «Конфиги»): ${AGENT_GIT_EXTRA_BASENAMES.join(", ")}`;
   wrap.appendChild(extras);
 
   agentGitExtensionsLegendNode = wrap;
@@ -477,10 +545,10 @@ function syncAgentGitExtensionsLegend(data) {
   const mount = agentGitExtensionsMountNode;
   if (!mount) return;
   mount.replaceChildren();
+  agentGitExtensionsLegendNode = null;
   if (!data?.isRepo) {
     mount.classList.add("hidden");
     mount.setAttribute("aria-hidden", "true");
-    agentGitExtensionsLegendNode = null;
     return;
   }
   mount.classList.remove("hidden");
@@ -57964,6 +58032,8 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
           ? ["enabled", "pin", "weight"]
           : settingsFieldKey === "awn-viz-roadmap"
             ? ["enabled", "order", "parallel-group", "column"]
+          : settingsFieldKey === "module-git-commit-batches"
+            ? ["id", "label", "extensions", "messageTemplate", "maxFileSizeMb"]
             : ["id", "key", "label", "text", "group"];
   const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
   if (inlineProperties && Object.keys(inlineProperties).length) {
@@ -104852,19 +104922,324 @@ async function postAgentGitModuleConfig(patch) {
   return payload;
 }
 
-async function commitAgentGitChanges() {
+async function commitAgentGitChanges({ batchIds = null, messageSuffix = "" } = {}) {
+  const body = {
+    batched: true,
+    messageSuffix: String(messageSuffix || "").trim()
+  };
+  if (Array.isArray(batchIds) && batchIds.length) {
+    body.batchIds = batchIds;
+  }
   const response = await fetch(buildApiUrl("/api/git/commit"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      batched: true
-    })
+    body: JSON.stringify(body)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
   }
   return payload;
+}
+
+function agentGitBasenameMatchesConfigExtras(filePath) {
+  const base = String(filePath || "").replace(/\\/g, "/").split("/").pop() || "";
+  const lower = base.toLowerCase();
+  if (lower === ".gitignore") return true;
+  if (lower === ".env" || lower.startsWith(".env.")) return true;
+  if (lower.endsWith(".lock")) return true;
+  return AGENT_GIT_EXTRA_BASENAMES.some((name) => String(name || "").toLowerCase() === lower);
+}
+
+function agentGitChangeMatchesCommitBatch(change, batch) {
+  if (!change || !batch) return false;
+  const extSet = new Set(
+    (Array.isArray(batch.extensions) ? batch.extensions : []).map((entry) =>
+      String(entry || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^\./, "")
+    )
+  );
+  const paths = [change.path, change.oldPath].filter(Boolean);
+  for (const filePath of paths) {
+    if (String(batch.id || "") === "configs" && agentGitBasenameMatchesConfigExtras(filePath)) {
+      return true;
+    }
+    const normalized = String(filePath || "").replace(/\\/g, "/");
+    const dot = normalized.lastIndexOf(".");
+    const ext = dot >= 0 ? normalized.slice(dot + 1).toLowerCase() : "";
+    if (ext && extSet.has(ext)) return true;
+  }
+  return false;
+}
+
+function countAgentGitChangesForCommitBatch(batch, changes = []) {
+  const batchId = String(batch?.id || "");
+  return (Array.isArray(changes) ? changes : []).filter((change) => {
+    if (change?.commitAllowed === false) return false;
+    if (change?.commitBatchId) return change.commitBatchId === batchId;
+    return agentGitChangeMatchesCommitBatch(change, batch);
+  }).length;
+}
+
+function buildAgentGitBatchCommitMessagePrefix(batch, now = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const template =
+    String(batch?.messageTemplate || "").trim() || AGENT_GIT_COMMIT_MESSAGE_TEMPLATE_FALLBACK;
+  return applyAgentGitCommitMessageTemplate(template, {
+    branch: getAgentGitCommitBranchLabel(),
+    date: datePart,
+    time: timePart
+  });
+}
+
+function getAgentGitCommitModalSelectedBatch() {
+  if (!agentGitCommitBatchListNode) return null;
+  const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
+    ? agentGitModuleConfig.commitBatches
+    : [];
+  const checked = agentGitCommitBatchListNode.querySelector('input[type="checkbox"]:checked');
+  if (!checked) return batches[0] || null;
+  const batchId = String(checked.value || "").trim();
+  return batches.find((batch) => String(batch.id || "") === batchId) || null;
+}
+
+function syncAgentGitCommitModalSubmitState() {
+  if (!agentGitCommitModalSubmitBtn) return;
+  agentGitCommitModalSubmitBtn.disabled = getAgentGitSelectedCommitBatchIds().length === 0;
+}
+
+function syncAgentGitCommitMessagePreview() {
+  if (!agentGitCommitMessagePreviewNode) return;
+  const batch = getAgentGitCommitModalSelectedBatch();
+  if (!batch) {
+    agentGitCommitMessagePreviewNode.textContent = "—";
+    return;
+  }
+  const prefix = buildAgentGitBatchCommitMessagePrefix(batch);
+  const note = String(agentGitCommitMessageNoteNode?.value || "").trim();
+  agentGitCommitMessagePreviewNode.textContent = note ? `${prefix}\n${note}` : prefix;
+  syncAgentGitCommitModalSubmitState();
+}
+
+function closeAgentGitCommitModal() {
+  if (!agentGitCommitModal) return;
+  agentGitCommitModal.classList.add("hidden");
+  agentGitCommitModal.setAttribute("aria-hidden", "true");
+}
+
+function openAgentGitCommitModal() {
+  if (!agentGitCommitModal || !agentGitCommitBatchListNode) return;
+  const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
+    ? agentGitModuleConfig.commitBatches
+    : [];
+  const changes = agentGitLastStatus?.changes || [];
+  agentGitCommitBatchListNode.replaceChildren();
+
+  if (!batches.length) {
+    const empty = document.createElement("p");
+    empty.className = "agent-git-commit-batch-empty";
+    empty.textContent = "Партии коммита не настроены (integrations.yml → module-git-commit-batches).";
+    agentGitCommitBatchListNode.appendChild(empty);
+  } else {
+    for (const batch of batches) {
+      const count = countAgentGitChangesForCommitBatch(batch, changes);
+      const option = document.createElement("label");
+      option.className = "agent-git-commit-batch-option";
+
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "agent-git-commit-batch";
+      input.value = String(batch.id || "");
+      input.checked = count > 0;
+      input.disabled = count === 0;
+      input.addEventListener("change", () => {
+        syncAgentGitCommitMessagePreview();
+        syncAgentGitCommitModalSubmitState();
+      });
+
+      const body = document.createElement("span");
+      body.className = "agent-git-commit-batch-option-body";
+
+      const title = document.createElement("span");
+      title.className = "agent-git-commit-batch-option-title";
+      title.textContent = batch.label || batch.id || "Партия";
+
+      const meta = document.createElement("span");
+      meta.className = "agent-git-commit-batch-option-meta";
+      meta.textContent =
+        count > 0
+          ? `${count} файл(ов) · id: ${batch.id || "—"}`
+          : `Нет изменений в этой партии · id: ${batch.id || "—"}`;
+
+      body.append(title, meta);
+      option.append(input, body);
+      agentGitCommitBatchListNode.appendChild(option);
+    }
+  }
+
+  if (agentGitCommitMessageNoteNode) {
+    agentGitCommitMessageNoteNode.value = "";
+    agentGitCommitMessageNoteNode.oninput = () => syncAgentGitCommitMessagePreview();
+  }
+  if (agentGitCommitModalSubmitBtn) {
+    syncAgentGitCommitModalSubmitState();
+  }
+  syncAgentGitCommitMessagePreview();
+  agentGitCommitModal.classList.remove("hidden");
+  agentGitCommitModal.removeAttribute("aria-hidden");
+  agentGitCommitMessageNoteNode?.focus();
+}
+
+function getAgentGitSelectedCommitBatchIds() {
+  if (!agentGitCommitBatchListNode) return [];
+  return [...agentGitCommitBatchListNode.querySelectorAll('input[type="checkbox"]:checked')].map(
+    (input) => String(input.value || "").trim()
+  ).filter(Boolean);
+}
+
+function closeAgentGitDiffModal() {
+  if (!agentGitDiffModal) return;
+  agentGitDiffModal.classList.add("hidden");
+  agentGitDiffModal.setAttribute("aria-hidden", "true");
+}
+
+function classifyAgentGitUnifiedDiffLine(line) {
+  const text = String(line ?? "");
+  if (
+    text.startsWith("diff --git") ||
+    text.startsWith("index ") ||
+    text.startsWith("new file mode") ||
+    text.startsWith("deleted file mode") ||
+    text.startsWith("old mode ") ||
+    text.startsWith("new mode ") ||
+    text.startsWith("rename from ") ||
+    text.startsWith("rename to ") ||
+    text.startsWith("copy from ") ||
+    text.startsWith("copy to ") ||
+    text.startsWith("similarity index ") ||
+    text.startsWith("dissimilarity index ") ||
+    text.startsWith("Binary files ")
+  ) {
+    return "meta";
+  }
+  if (text.startsWith("---")) return "file-old";
+  if (text.startsWith("+++")) return "file-new";
+  if (text.startsWith("@@")) return "hunk";
+  if (text.startsWith("+")) return "add";
+  if (text.startsWith("-")) return "remove";
+  if (text.startsWith("\\")) return "meta";
+  return "context";
+}
+
+function setAgentGitDiffModalBodyMessage(message) {
+  if (!agentGitDiffModalBodyNode) return;
+  agentGitDiffModalBodyNode.classList.remove("is-colored");
+  agentGitDiffModalBodyNode.replaceChildren();
+  agentGitDiffModalBodyNode.textContent = message;
+}
+
+function renderAgentGitDiffModalBodyDiff(diffText) {
+  if (!agentGitDiffModalBodyNode) return;
+  agentGitDiffModalBodyNode.classList.add("is-colored");
+  agentGitDiffModalBodyNode.replaceChildren();
+  const lines = String(diffText ?? "").split("\n");
+  for (const line of lines) {
+    const row = document.createElement("div");
+    row.className = `agent-git-diff-line agent-git-diff-line--${classifyAgentGitUnifiedDiffLine(line)}`;
+    row.textContent = line.length ? line : " ";
+    agentGitDiffModalBodyNode.appendChild(row);
+  }
+}
+
+function appendAgentGitDiffModalBodyNotice(message) {
+  if (!agentGitDiffModalBodyNode) return;
+  const row = document.createElement("div");
+  row.className = "agent-git-diff-line agent-git-diff-line--notice";
+  row.textContent = message;
+  agentGitDiffModalBodyNode.appendChild(row);
+}
+
+async function fetchAgentGitFileDiff(changeItem) {
+  const filePath = String(changeItem?.path || "").trim();
+  if (!filePath) throw new Error("Путь к файлу не задан");
+  const response = await fetch(
+    buildApiUrl("/api/git/diff", {
+      path: filePath,
+      extensions: getAgentGitActiveExtensions().join(",")
+    })
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.details || `HTTP ${response.status}`);
+  }
+  const files = Array.isArray(payload.files) ? payload.files : [];
+  const match =
+    files.find((entry) => entry.path === filePath) ||
+    files.find((entry) => entry.oldPath === filePath) ||
+    files[0];
+  const diffText = String(match?.diff ?? payload.diff ?? "").trim();
+  return {
+    diff: diffText,
+    truncated: Boolean(payload.truncated),
+    kind: changeItem?.kind || match?.kind || "modified"
+  };
+}
+
+async function openAgentGitDiffModal(changeItem) {
+  if (!agentGitDiffModal || !agentGitDiffModalBodyNode) return;
+  const pathLabel = changeItem?.oldPath
+    ? `${changeItem.oldPath} → ${changeItem.path}`
+    : String(changeItem?.path || "");
+  if (agentGitDiffModalPathNode) {
+    agentGitDiffModalPathNode.textContent = pathLabel || "—";
+  }
+  setAgentGitDiffModalBodyMessage("Загрузка diff…");
+  agentGitDiffModal.classList.remove("hidden");
+  agentGitDiffModal.removeAttribute("aria-hidden");
+  try {
+    const { diff, truncated, kind } = await fetchAgentGitFileDiff(changeItem);
+    if (!diff) {
+      setAgentGitDiffModalBodyMessage(
+        kind === "deleted"
+          ? "(файл удалён — diff недоступен или пустой)"
+          : "(нет текстового diff для этого файла)"
+      );
+      return;
+    }
+    renderAgentGitDiffModalBodyDiff(diff);
+    if (truncated) {
+      appendAgentGitDiffModalBodyNotice("… diff обрезан по лимиту");
+    }
+  } catch (error) {
+    setAgentGitDiffModalBodyMessage(error?.message || "Не удалось загрузить diff");
+  }
+}
+
+function reportAgentGitCommitResult(result) {
+  if (result?.batched && Array.isArray(result.batches)) {
+    const committed = result.batches.filter((item) => item.committed);
+    if (!committed.length) {
+      window.alert("Нет изменений для коммита в выбранных партиях");
+      return;
+    }
+    const lines = committed.map((item) => {
+      const label = item.label || item.batchId || "коммит";
+      const hash = item.shortHash || item.hash || "";
+      return hash ? `${label}: ${hash}` : label;
+    });
+    window.alert(`Создано коммитов: ${committed.length}\n${lines.join("\n")}`);
+    return;
+  }
+  if (result?.committed) {
+    const hash = result.shortHash || result.hash || "";
+    window.alert(hash ? `Коммит создан: ${hash}` : "Коммит создан");
+  } else {
+    window.alert("Нет изменений для коммита в выбранных типах файлов");
+  }
 }
 
 function setAgentGitSettingsOpen(open) {
@@ -105038,9 +105413,18 @@ function appendAgentGitChangeGroup(container, title, items) {
 
   for (const item of items) {
     const row = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `agent-git-change-row is-${item.kind || "modified"}`;
+    row.className = "agent-git-change-item";
+
+    const rowShell = document.createElement("div");
+    rowShell.className = `agent-git-change-row is-${item.kind || "modified"}`;
+    rowShell.title = item.path;
+    if (item.commitAllowed === false) {
+      rowShell.classList.add("is-commit-blocked");
+    }
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "agent-git-change-open";
 
     const badge = document.createElement("span");
     badge.className = "agent-git-change-badge";
@@ -105050,12 +105434,42 @@ function appendAgentGitChangeGroup(container, title, items) {
     pathNode.className = "agent-git-change-path";
     pathNode.textContent = item.oldPath ? `${item.oldPath} → ${item.path}` : item.path;
 
-    btn.append(badge, pathNode);
-    btn.title = item.path;
-    btn.addEventListener("click", () => {
+    openBtn.append(badge, pathNode);
+    openBtn.title = item.path;
+    openBtn.addEventListener("click", () => {
       void revealWorkspacePath(item.path);
     });
-    row.appendChild(btn);
+
+    const meta = document.createElement("div");
+    meta.className = "agent-git-change-meta";
+
+    const sizeNode = document.createElement("span");
+    sizeNode.className = "agent-git-change-size";
+    sizeNode.textContent = item.sizeLabel || "—";
+    meta.appendChild(sizeNode);
+
+    if (item.commitAllowed === false) {
+      const blocked = document.createElement("span");
+      blocked.className = "agent-git-change-blocked";
+      blocked.textContent =
+        item.commitBlockedReason ||
+        `Не попадёт в коммит (лимит ${item.maxFileSizeMb ?? "?"} МБ)`;
+      meta.appendChild(blocked);
+    }
+
+    const viewBtn = document.createElement("button");
+    viewBtn.type = "button";
+    viewBtn.className = "agent-git-change-view-btn";
+    viewBtn.textContent = "Посмотреть";
+    viewBtn.title = `Diff: ${item.path}`;
+    viewBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openAgentGitDiffModal(item);
+    });
+
+    rowShell.append(openBtn, meta, viewBtn);
+    row.appendChild(rowShell);
     list.appendChild(row);
   }
 
@@ -125474,34 +125888,44 @@ agentGitModuleConfigSaveBtn?.addEventListener("click", () => {
 
 agentGitSaveBtn?.addEventListener("click", () => {
   if (agentWorkspaceView !== "git") return;
-  agentGitSaveBtn.disabled = true;
-  void commitAgentGitChanges()
+  openAgentGitCommitModal();
+});
+
+agentGitCommitModalCancelBtn?.addEventListener("click", () => {
+  closeAgentGitCommitModal();
+});
+
+agentGitCommitModal?.addEventListener("click", (event) => {
+  if (event.target === agentGitCommitModal) closeAgentGitCommitModal();
+});
+
+agentGitDiffModalCloseBtn?.addEventListener("click", () => {
+  closeAgentGitDiffModal();
+});
+
+agentGitDiffModal?.addEventListener("click", (event) => {
+  if (event.target === agentGitDiffModal) closeAgentGitDiffModal();
+});
+
+agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
+  const batchIds = getAgentGitSelectedCommitBatchIds();
+  if (!batchIds.length) {
+    window.alert("Выберите хотя бы одну партию для коммита");
+    return;
+  }
+  const messageSuffix = String(agentGitCommitMessageNoteNode?.value || "").trim();
+  closeAgentGitCommitModal();
+  if (agentGitSaveBtn) agentGitSaveBtn.disabled = true;
+  if (agentGitCommitModalSubmitBtn) agentGitCommitModalSubmitBtn.disabled = true;
+  void commitAgentGitChanges({ batchIds, messageSuffix })
     .then((result) => {
-      if (result?.batched && Array.isArray(result.batches)) {
-        const committed = result.batches.filter((item) => item.committed);
-        if (!committed.length) {
-          window.alert("Нет изменений для коммита в настроенных партиях (Content / System)");
-          return;
-        }
-        const lines = committed.map((item) => {
-          const label = item.label || item.batchId || "коммит";
-          const hash = item.shortHash || item.hash || "";
-          return hash ? `${label}: ${hash}` : label;
-        });
-        window.alert(`Создано коммитов: ${committed.length}\n${lines.join("\n")}`);
-        return;
-      }
-      if (result?.committed) {
-        const hash = result.shortHash || result.hash || "";
-        window.alert(hash ? `Коммит создан: ${hash}` : "Коммит создан");
-      } else {
-        window.alert("Нет изменений для коммита в выбранных типах файлов");
-      }
+      reportAgentGitCommitResult(result);
     })
     .catch((error) => {
       window.alert(`Не удалось сохранить: ${error.message}`);
     })
     .finally(() => {
+      if (agentGitCommitModalSubmitBtn) agentGitCommitModalSubmitBtn.disabled = false;
       void renderAgentGitView();
     });
 });
