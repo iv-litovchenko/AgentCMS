@@ -53309,13 +53309,27 @@ function buildPropsFieldKeyLabelElement(
     label.appendChild(labelNode);
   }
 
-  if (title) {
-    label.title = title;
-  } else if (meta.hint) {
-    label.title = `${normalizedKey} — ${meta.hint}`;
-  } else {
-    label.title = nameLabel ? `${normalizedKey} — ${nameLabel}` : normalizedKey;
-  }
+  bindPropsFormFieldLabelInteractions(label, normalizedKey || key, meta);
+  return label;
+}
+
+/** Панель над редактором: только человекочитаемое имя, без `demo_string`. */
+function buildEditorCustomPropsFieldLabelElement(
+  key,
+  meta,
+  { tag = "label", className = "props-form-field-label", required = false } = {}
+) {
+  const { label: overviewLabel } = getPropsFieldOverviewLabel(key);
+  const text = overviewLabel || String(meta?.label || "").trim() || key;
+  const label = buildFieldLabelElement(text, {
+    tag,
+    className,
+    typeId: meta.typeId || meta.fieldDef?.type,
+    key,
+    required,
+    title: text
+  });
+  bindPropsFormFieldLabelInteractions(label, key, meta);
   return label;
 }
 
@@ -56937,9 +56951,9 @@ function appendEditorCustomPropsFieldRow(container, entry, index, { readOnly = f
     field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
     field.dataset.index = String(index);
     decorateEditorCustomPropsFormRow(field, entry);
-    const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
+    const label = buildEditorCustomPropsFieldLabelElement(entry.key, meta, {
       tag: "span",
-      className: "props-preview-label props-preview-label--with-key"
+      className: "props-preview-label"
     });
     const value = document.createElement("span");
     value.className = "props-preview-value";
@@ -56949,7 +56963,7 @@ function appendEditorCustomPropsFieldRow(container, entry, index, { readOnly = f
     container.appendChild(field);
     return;
   }
-  const row = createPropsFormFieldRow(entry, index, { showFieldKey: true, editorCompact: true });
+  const row = createPropsFormFieldRow(entry, index, { showFieldKey: false, editorCompact: true });
   row.classList.add("editor-custom-props-field");
   decorateEditorCustomPropsFormRow(row, entry);
   container.appendChild(row);
@@ -58119,8 +58133,13 @@ function createPropsFormObjectGroupControl(entry, meta, { locked = false } = {})
       className: "props-form-field-label",
       typeId: propDef?.type,
       key,
-      required: Boolean(propDef?.required),
-      title: propDef?.description || propDef?.hint || key
+      required: Boolean(propDef?.required)
+    });
+    bindPropsFormFieldLabelInteractions(subLabel, key, {
+      label: getFieldDefDisplayName(propDef, key),
+      hint: propDef?.hint || propDef?.description || "",
+      typeId: propDef?.type,
+      fieldDef: propDef
     });
     subHead.appendChild(subLabel);
 
@@ -62641,9 +62660,11 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
           className: "props-form-field-label",
           typeId: meta.typeId || meta.fieldDef?.type,
           key: entry.key,
-          required: meta.required,
-          title: meta.hint ? `${entry.key} — ${meta.hint}` : entry.key
+          required: meta.required
         });
+    if (!showFieldKey) {
+      bindPropsFormFieldLabelInteractions(label, entry.key, meta);
+    }
     head.appendChild(label);
   } else if (!entry.key) {
     const keyInput = document.createElement("input");
@@ -65721,6 +65742,195 @@ function applyUiTooltip(element, text, { position = "top" } = {}) {
   } else {
     element.removeAttribute("data-tooltip-pos");
   }
+}
+
+let propsFieldInfoPopoverNode = null;
+let propsFieldInfoPopoverAnchor = null;
+let propsFieldInfoPopoverListenersBound = false;
+
+function formatPropsFieldTypeLine(typeId, fieldDef, key = "") {
+  const canonical = normalizeCanonicalFieldTypeId(typeId || fieldDef?.type || "awn.field.string");
+  const short = canonical.replace(/^awn\./, "").replace(/\./g, " · ");
+  const widget = fieldDef ? resolvePropsFieldWidget(key, fieldDef) : "";
+  const lookupSource = fieldDef ? resolveLookupSource(fieldDef) : "";
+  const parts = [short];
+  if (lookupSource) parts.push(`lookup: ${lookupSource}`);
+  else if (widget && widget !== short) parts.push(widget);
+  return parts.join(" · ");
+}
+
+function fillPropsFieldInfoPopover(popover, key, meta) {
+  const normalizedKey = normalizePropsKey(key);
+  const fieldDef = meta?.fieldDef || getPropsFieldDef(normalizedKey);
+  const displayName =
+    formatSchemaDisplayTitle(meta?.label || getFieldDefDisplayName(fieldDef, normalizedKey), {
+      typeId: meta?.typeId || fieldDef?.type,
+      key: normalizedKey,
+      replaceMarker: true
+    }) || normalizedKey;
+  const hint = String(meta?.hint || fieldDef?.hint || fieldDef?.description || "").trim();
+  const typeLine = formatPropsFieldTypeLine(meta?.typeId, fieldDef, normalizedKey);
+
+  popover.replaceChildren();
+
+  const title = document.createElement("div");
+  title.className = "props-field-info-popover-title";
+  title.textContent = displayName;
+
+  const keyRow = document.createElement("div");
+  keyRow.className = "props-field-info-popover-key";
+  const keyCode = document.createElement("code");
+  keyCode.textContent = normalizedKey;
+  keyRow.appendChild(keyCode);
+
+  const typeRow = document.createElement("div");
+  typeRow.className = "props-field-info-popover-type";
+  typeRow.textContent = typeLine;
+
+  popover.append(title, keyRow, typeRow);
+
+  if (hint) {
+    const hintRow = document.createElement("p");
+    hintRow.className = "props-field-info-popover-hint";
+    hintRow.textContent = hint;
+    popover.appendChild(hintRow);
+  }
+
+  const enumOptions = getEnumOptionsForField(fieldDef);
+  if (enumOptions.length) {
+    const enumTitle = document.createElement("div");
+    enumTitle.className = "props-field-info-popover-enum-title";
+    enumTitle.textContent = "Варианты";
+    const list = document.createElement("ul");
+    list.className = "props-field-info-popover-enum-list";
+    const api = awnEnumOptionsApi();
+    for (const option of enumOptions) {
+      const item = document.createElement("li");
+      const optionKey =
+        typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+      const optionName =
+        typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+      item.textContent = optionName || optionKey;
+      if (optionKey && optionName && optionName !== optionKey) {
+        item.title = optionKey;
+      }
+      list.appendChild(item);
+    }
+    popover.append(enumTitle, list);
+  }
+}
+
+function ensurePropsFieldInfoPopover() {
+  if (propsFieldInfoPopoverNode) return propsFieldInfoPopoverNode;
+
+  const popover = document.createElement("div");
+  popover.id = "props-field-info-popover";
+  popover.className = "props-field-info-popover hidden";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", "Описание поля");
+  document.body.appendChild(popover);
+  propsFieldInfoPopoverNode = popover;
+
+  if (!propsFieldInfoPopoverListenersBound) {
+    propsFieldInfoPopoverListenersBound = true;
+    document.addEventListener("click", (event) => {
+      if (!propsFieldInfoPopoverNode || propsFieldInfoPopoverNode.classList.contains("hidden")) return;
+      const target = event.target;
+      if (target instanceof Node && propsFieldInfoPopoverNode.contains(target)) return;
+      if (propsFieldInfoPopoverAnchor?.contains(target)) return;
+      closePropsFieldInfoPopover();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closePropsFieldInfoPopover();
+    });
+    window.addEventListener(
+      "resize",
+      () => {
+        if (propsFieldInfoPopoverAnchor && !propsFieldInfoPopoverNode?.classList.contains("hidden")) {
+          positionPropsFieldInfoPopover(propsFieldInfoPopoverAnchor);
+        }
+      },
+      { passive: true }
+    );
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (propsFieldInfoPopoverAnchor && !propsFieldInfoPopoverNode?.classList.contains("hidden")) {
+          positionPropsFieldInfoPopover(propsFieldInfoPopoverAnchor);
+        }
+      },
+      { capture: true, passive: true }
+    );
+  }
+
+  return popover;
+}
+
+function positionPropsFieldInfoPopover(anchor) {
+  const popover = propsFieldInfoPopoverNode;
+  if (!popover || !anchor) return;
+  const width = Math.min(320, Math.max(240, window.innerWidth - 24));
+  const rect = anchor.getBoundingClientRect();
+  let left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  popover.style.width = `${width}px`;
+  popover.style.left = `${left}px`;
+  popover.style.top = "0px";
+  popover.classList.remove("hidden");
+  const popHeight = popover.offsetHeight;
+  let top = rect.bottom + 6;
+  if (top + popHeight > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - popHeight - 6);
+  }
+  popover.style.top = `${top}px`;
+}
+
+function closePropsFieldInfoPopover() {
+  if (!propsFieldInfoPopoverNode) return;
+  propsFieldInfoPopoverNode.classList.add("hidden");
+  propsFieldInfoPopoverAnchor?.setAttribute("aria-expanded", "false");
+  propsFieldInfoPopoverAnchor = null;
+}
+
+function togglePropsFieldInfoPopover(anchor, key, meta) {
+  const popover = ensurePropsFieldInfoPopover();
+  if (
+    !popover.classList.contains("hidden") &&
+    propsFieldInfoPopoverAnchor === anchor &&
+    popover.dataset.fieldKey === normalizePropsKey(key)
+  ) {
+    closePropsFieldInfoPopover();
+    return;
+  }
+  const fullMeta = meta?.fieldDef || meta?.typeId ? meta : getPropsFieldMeta(key);
+  fillPropsFieldInfoPopover(popover, key, fullMeta);
+  popover.dataset.fieldKey = normalizePropsKey(key);
+  propsFieldInfoPopoverAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  positionPropsFieldInfoPopover(anchor);
+}
+
+function bindPropsFormFieldLabelInteractions(label, key, meta = {}) {
+  if (!label || !key) return;
+  const normalizedKey = normalizePropsKey(key);
+  label.classList.add("props-form-field-label--interactive");
+  label.removeAttribute("title");
+  applyUiTooltip(label, normalizedKey, { position: "top" });
+
+  const openInfo = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    togglePropsFieldInfoPopover(label, normalizedKey, meta);
+  };
+
+  label.addEventListener("click", openInfo);
+  label.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    openInfo(event);
+  });
+  if (!label.hasAttribute("tabindex")) label.setAttribute("tabindex", "0");
+  label.setAttribute("role", "button");
+  label.setAttribute("aria-haspopup", "dialog");
+  label.setAttribute("aria-expanded", "false");
 }
 
 function createNavigationHeroDateIconSvg(kind) {

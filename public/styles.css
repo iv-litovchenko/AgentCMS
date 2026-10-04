@@ -50930,6 +50930,89 @@ button.node-navigation-memory-title:focus-visible {
   line-height: 1;
 }
 
+.props-form-field-label--interactive {
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.props-form-field-label--interactive:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.45);
+  outline-offset: 1px;
+}
+
+.props-field-info-popover {
+  position: fixed;
+  z-index: 2400;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+  max-height: min(420px, calc(100vh - 24px));
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.props-field-info-popover.hidden {
+  display: none;
+}
+
+.props-field-info-popover-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.props-field-info-popover-key {
+  margin-bottom: 4px;
+}
+
+.props-field-info-popover-key code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.props-field-info-popover-type {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.props-field-info-popover-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #475569;
+  white-space: pre-wrap;
+}
+
+.props-field-info-popover-enum-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.props-field-info-popover-enum-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #334155;
+  display: grid;
+  gap: 3px;
+}
+
 .field-label-icon--runtime-cron,
 .field-label-icon--runtime-cron-schedule,
 .field-label-icon--runtime-heartbeat,
