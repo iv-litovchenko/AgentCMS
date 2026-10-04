@@ -16596,7 +16596,8 @@ const {
 const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
 const {
   enrichGitChangesWithCommitLimits,
-  summarizeOutOfBatchGitChanges
+  summarizeOutOfBatchGitChanges,
+  extensionLabelForOutOfBatchChange
 } = require("./lib/git/module-git-commit-limits");
 const { findEmptyFolderGitkeepHints } = require("./lib/git/git-empty-folder-hints");
 
@@ -17110,9 +17111,8 @@ async function buildAgentGitStatus(options = {}) {
     commitBatchSettings
   );
   const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
-  const normalizedExtensions = options.extensions
-    ? normalizeGitExtensions(options.extensions)
-    : commitBatchSettings.unionExtensions;
+  // Список для отображения status всегда = union партий коммита (не узкий legacy-фильтр с клиента).
+  const normalizedExtensions = commitBatchSettings.unionExtensions;
   const includeCommits = options.includeCommits !== false;
 
   try {
@@ -17135,14 +17135,37 @@ async function buildAgentGitStatus(options = {}) {
       repoAbsolute
     );
     const outOfBatchRaw = summarizeOutOfBatchGitChanges(allChanges, commitBatchSettings.batches);
+    const visiblePaths = new Set();
+    for (const change of [...filteredChanges, ...outOfBatchRaw.changes]) {
+      if (change?.path) visiblePaths.add(change.path);
+    }
+    const hiddenFromView = allChanges.filter((change) => change?.path && !visiblePaths.has(change.path));
+    const outOfBatchChanges = hiddenFromView.length
+      ? [...outOfBatchRaw.changes, ...hiddenFromView]
+      : outOfBatchRaw.changes;
+    const outOfBatchCount = outOfBatchChanges.length;
     const outOfBatch = {
-      ...outOfBatchRaw,
+      count: outOfBatchCount,
+      extensions: outOfBatchRaw.extensions,
+      extensionCounts: outOfBatchRaw.extensionCounts,
       changes: await enrichGitChangesWithCommitLimits(
-        outOfBatchRaw.changes,
+        outOfBatchChanges,
         commitBatchSettings.batches,
         repoAbsolute
       )
     };
+    if (hiddenFromView.length) {
+      const extensionCounts = { ...(outOfBatchRaw.extensionCounts || {}) };
+      for (const change of hiddenFromView) {
+        const label = extensionLabelForOutOfBatchChange(change);
+        extensionCounts[label] = (extensionCounts[label] || 0) + 1;
+      }
+      outOfBatch.extensions = [...new Set([...outOfBatch.extensions, ...Object.keys(extensionCounts)])].sort(
+        (a, b) => a.localeCompare(b, "ru")
+      );
+      outOfBatch.extensionCounts = extensionCounts;
+      outOfBatch.count = outOfBatchChanges.length;
+    }
     const emptyFolderHints = await findEmptyFolderGitkeepHints(repoAbsolute).catch(() => ({
       count: 0,
       folders: [],

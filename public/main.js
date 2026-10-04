@@ -418,9 +418,6 @@ const MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS = new Set([
 let agentGitExtensionsLegendNode = null;
 
 function getAgentGitActiveExtensions() {
-  if (Array.isArray(agentGitLastStatus?.extensions) && agentGitLastStatus.extensions.length) {
-    return [...agentGitLastStatus.extensions];
-  }
   const batches = agentGitModuleConfig?.commitBatches;
   if (Array.isArray(batches) && batches.length) {
     const union = new Set();
@@ -105345,11 +105342,7 @@ async function renderAgentRuntimeRegistryView() {
 }
 
 async function fetchAgentGitStatus() {
-  const response = await fetch(
-    buildApiUrl("/api/git/status", {
-      extensions: getAgentGitActiveExtensions().join(",")
-    })
-  );
+  const response = await fetch(buildApiUrl("/api/git/status"));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
