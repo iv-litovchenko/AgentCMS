@@ -586,6 +586,7 @@ const {
   discoverAgentManifests,
   createAgentWorkspace,
   createWorkspaceAndRegister,
+  registerWorkspaceFromPath,
   updateAgentWorkspace,
   setDefaultAgentWorkspace,
   setOrchestratorAgentWorkspace,
@@ -29659,6 +29660,28 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to discover agents",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/register") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = registerWorkspaceFromPath({
+        path: payload?.path,
+        comment: payload?.comment ?? payload?.description,
+        description: payload?.description ?? payload?.comment,
+        environment: payload?.environment,
+        active: payload?.active,
+        default: payload?.default,
+        orchestrator: payload?.orchestrator,
+        groupId: payload?.groupId
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to register workspace",
         details: String(error?.message || error)
       });
     }

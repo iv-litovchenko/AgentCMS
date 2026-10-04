@@ -36,6 +36,50 @@ export function registerWorkspaceTools(reg, client) {
   );
 
   reg(
+    "register_workspace",
+    "Adopt an existing workspace folder into the platform registry (подхват). The folder must already exist and contain manifest.md with awn-type awn.page.ws. Does not create the folder or manifest — use create_workspace for that. Idempotent if the path is already in the registry (alreadyRegistered: true).",
+    z.object({
+      path: z
+        .string()
+        .min(1)
+        .describe("Existing workspace folder path, e.g. workspaces/my-agent"),
+      description: z.string().optional().describe("Registry comment (manifest awn-description is unchanged)"),
+      groupId: z.string().optional().describe("Sidebar group id after register"),
+      default: z.boolean().optional().describe("Make default active workspace"),
+      orchestrator: z.boolean().optional().describe("Mark as orchestrator workspace"),
+      active: z.boolean().optional().describe("Active in registry (default true)"),
+      environment: z.string().optional().describe("Registry environment label, e.g. local")
+    }),
+    (payload) => client.post("/api/agents/register", payload, { agentScope: false }),
+    { agentScope: false }
+  );
+
+  reg(
+    "discover_workspaces",
+    "Scan disk for workspace folders that already have manifest.md (awn.page.ws): project workspaces/, home, Desktop, optional roots. Use register_workspace with path to add one to the registry.",
+    z.object({
+      roots: z.array(z.string()).optional().describe("Extra absolute or project-relative roots to scan"),
+      maxDepth: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .optional()
+        .describe("Directory depth (default 6)")
+    }),
+    (payload) =>
+      client.post(
+        "/api/agents/discover",
+        {
+          ...(payload?.roots ? { roots: payload.roots } : {}),
+          ...(payload?.maxDepth != null ? { maxDepth: payload.maxDepth } : {})
+        },
+        { agentScope: false }
+      ),
+    { agentScope: false }
+  );
+
+  reg(
     "update_workspace",
     "Update workspace metadata and registry flags. Does not move/delete the workspace folder.",
     z.object({

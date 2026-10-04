@@ -44,6 +44,16 @@ module.exports = {
         },
         {
           method: "POST",
+          path: "/api/agents/register",
+          agentScope: false,
+          description:
+            "Подхватить существующую папку workspace (manifest.md, awn.page.ws) в реестр платформы. MCP: register_workspace.",
+          query: [],
+          body: "{ path, environment?, active?, default?, orchestrator?, groupId?, description? }",
+          response: "{ agent, defaultAgentId, alreadyRegistered, adopted, manifestFound }"
+        },
+        {
+          method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
           description: "Найти workspace с _registration.md (awn.workspace) (Desktop, HOME, проект).",

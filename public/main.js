@@ -13143,24 +13143,73 @@ function setLandingAgentsView(view) {
 }
 
 const ORBIT_LINK_CENTER = { x: 50, y: 50 };
+const ORBIT_LAYOUT_BOUNDS = { xMin: 13, xMax: 87, yMin: 17, yMax: 74 };
+
+function clampOrbitLayoutPoint(layout) {
+  layout.x = Math.min(ORBIT_LAYOUT_BOUNDS.xMax, Math.max(ORBIT_LAYOUT_BOUNDS.xMin, layout.x));
+  layout.y = Math.min(ORBIT_LAYOUT_BOUNDS.yMax, Math.max(ORBIT_LAYOUT_BOUNDS.yMin, layout.y));
+  return layout;
+}
 
 function getOrbitBubbleLayout(index, total, agentId) {
   const hash = hashAgentIdForOrbit(String(agentId || index));
   const golden = 2.399963229728653;
   const t = index + 1;
-  const radius = 24 + (t / Math.max(total, 1)) * 24 + (hash % 12);
+  const count = Math.max(1, total);
+  const spread = 1 + Math.max(0, count - 2) * 0.14;
+  const minRadius = 30 + Math.max(0, count - 3) * 3;
+  const radius = (minRadius + (t / count) * 22 + (hash % 9)) * spread;
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
-  const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
-  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.72;
-  return {
-    x: Math.min(90, Math.max(8, x)),
-    y: Math.min(88, Math.max(10, y)),
-    size: 58 + (hash % 28),
+  const x = 50 + Math.cos(angle) * radius * (0.94 + (hash % 7) * 0.012);
+  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.8;
+  const layout = {
+    x,
+    y,
+    size: 54 + (hash % 18),
     duration: 7 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
-    floatX: 10 + (hash % 18),
-    floatY: 12 + (hash % 16)
+    floatX: 6 + (hash % 10),
+    floatY: 8 + (hash % 10)
   };
+  return clampOrbitLayoutPoint(layout);
+}
+
+function relaxOrbitBubbleLayouts(layouts, total = layouts.length) {
+  if (!Array.isArray(layouts) || layouts.length < 2) return layouts;
+  const minSep = 15.5 + Math.min(10, Math.max(0, total - 2) * 1.8);
+  for (let pass = 0; pass < 20; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < layouts.length; i += 1) {
+      for (let j = i + 1; j < layouts.length; j += 1) {
+        const a = layouts[i];
+        const b = layouts[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist >= minSep) continue;
+        const push = (minSep - dist) / 2;
+        const ux = dist > 0.05 ? dx / dist : Math.cos((i - j) * 0.85);
+        const uy = dist > 0.05 ? dy / dist : Math.sin((i - j) * 0.85);
+        a.x -= ux * push;
+        a.y -= uy * push;
+        b.x += ux * push;
+        b.y += uy * push;
+        moved = true;
+      }
+    }
+    for (const layout of layouts) clampOrbitLayoutPoint(layout);
+    if (!moved) break;
+  }
+  return layouts;
+}
+
+function buildOrbitBubbleLayouts(agents) {
+  const list = Array.isArray(agents) ? agents : [];
+  const layouts = list.map((agent, index) => ({
+    agentId: agent.id,
+    ...getOrbitBubbleLayout(index, list.length, agent.id)
+  }));
+  return relaxOrbitBubbleLayouts(layouts, list.length);
 }
 
 function syncLandingAgentsViewUi() {
@@ -13875,7 +13924,7 @@ function createAppLandingOrbitBubbleMeta(agent) {
   slugRow.className = "app-landing-orbit-bubble-meta-row is-slug";
   const slugLabel = document.createElement("span");
   slugLabel.className = "app-landing-orbit-bubble-meta-label";
-  slugLabel.textContent = "slug";
+  slugLabel.textContent = "slug (key)";
   const slugText = document.createElement("span");
   slugText.className = "app-landing-orbit-bubble-meta-value is-mono";
   slugText.textContent = agent.id || "—";
@@ -13896,15 +13945,16 @@ function createAppLandingOrbitBubbleMeta(agent) {
   return meta;
 }
 
-function appendAppLandingOrbitBubbleAwnIdBadge(avatar, agent) {
+function appendAppLandingOrbitBubbleAwnIdBadge(bubbleBtn, agent) {
   const awnId = getRegistryAgentAwnId(agent);
-  if (!awnId) return;
+  if (!awnId || !bubbleBtn) return;
+  bubbleBtn.classList.add("has-awn-id");
   const badge = document.createElement("span");
   badge.className = "app-landing-orbit-bubble-awn-id-badge";
   badge.textContent = awnId;
   badge.title = `awn-id: ${awnId}`;
   badge.setAttribute("aria-hidden", "true");
-  avatar.appendChild(badge);
+  bubbleBtn.appendChild(badge);
 }
 
 function applyLandingOrbitGitSummaries(summaries = {}) {
@@ -13940,11 +13990,11 @@ async function refreshLandingOrbitGitSummaries() {
   }
 }
 
-function createAppLandingOrbitBubble(agent, index, total, share) {
+function createAppLandingOrbitBubble(agent, index, total, share, layoutOverride = null) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
   const label = agent.name || agent.id;
-  const layout = getOrbitBubbleLayout(index, total, agent.id);
+  const layout = layoutOverride || getOrbitBubbleLayout(index, total, agent.id);
 
   const item = document.createElement("div");
   item.className = "app-landing-orbit-item";
@@ -13989,9 +14039,8 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
     emojiClass: "app-landing-orbit-bubble-emoji",
     initialsClass: "app-landing-orbit-bubble-initials"
   });
-  appendAppLandingOrbitBubbleAwnIdBadge(avatar, agent);
-
   btn.append(avatar);
+  appendAppLandingOrbitBubbleAwnIdBadge(btn, agent);
 
   if (isOrchestrator) {
     const badge = document.createElement("span");
@@ -14052,7 +14101,7 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
   return item;
 }
 
-function renderAppLandingOrbitLinks(agents) {
+function renderAppLandingOrbitLinks(agents, layoutByAgentId = null) {
   if (!appLandingOrbitLinksNode) return;
   appLandingOrbitLinksNode.replaceChildren();
 
@@ -14061,7 +14110,8 @@ function renderAppLandingOrbitLinks(agents) {
   const svgNs = "http://www.w3.org/2000/svg";
   for (let index = 0; index < agents.length; index += 1) {
     const agent = agents[index];
-    const layout = getOrbitBubbleLayout(index, agents.length, agent.id);
+    const layout =
+      layoutByAgentId?.get(agent.id) || getOrbitBubbleLayout(index, agents.length, agent.id);
     const registryActive = isAgentRegistryActive(agent);
 
     const line = document.createElementNS(svgNs, "line");
@@ -14098,14 +14148,22 @@ function renderAppLandingOrbit() {
 
   const shares = buildMockAgentAttentionShares(agents);
   const shareByAgentId = new Map(shares.map((share) => [share.agent.id, share]));
+  const orbitLayouts = buildOrbitBubbleLayouts(agents);
+  const layoutByAgentId = new Map(orbitLayouts.map((entry) => [entry.agentId, entry]));
 
   agents.forEach((agent, index) => {
     orbitAgentsNode.appendChild(
-      createAppLandingOrbitBubble(agent, index, agents.length, shareByAgentId.get(agent.id))
+      createAppLandingOrbitBubble(
+        agent,
+        index,
+        agents.length,
+        shareByAgentId.get(agent.id),
+        layoutByAgentId.get(agent.id)
+      )
     );
   });
 
-  renderAppLandingOrbitLinks(agents);
+  renderAppLandingOrbitLinks(agents, layoutByAgentId);
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
   setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
   syncOrbitDiveSelection();
@@ -126074,7 +126132,7 @@ agentsRegistryModalNode?.addEventListener("click", (event) => {
   }
   if (event.target === agentsRegistryModalNode) closeAgentsRegistryModal();
 });
-agentsRegistryAddBtn?.addEventListener("click", addAgentsRegistryDraftRow);
+agentsRegistryAddBtn?.addEventListener("click", openAgentDiscoverModal);
 agentsRegistryDiscoverHelpBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleAgentsRegistryDiscoverHelp();
