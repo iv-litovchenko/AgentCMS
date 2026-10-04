@@ -5,6 +5,16 @@ const workspaceRelPath = z
   .min(1)
   .describe("Workspace-relative file or folder path, e.g. awn-container/tema/awn-storage/main/readme.md");
 
+const searchExtensions = z
+  .union([z.array(z.string()), z.string()])
+  .optional()
+  .describe("Limit to file extensions: .php, json, sidecar.md (comma-separated or array)");
+
+function formatSearchExtensionsParam(extensions) {
+  if (extensions == null || extensions === "") return undefined;
+  return Array.isArray(extensions) ? extensions.join(",") : extensions;
+}
+
 const searchWorkspaceSchema = z.object({
   query: z.string().min(1),
   scope: z.enum(["all", "content", "filename", "description", "tags"]).optional(),
@@ -28,17 +38,19 @@ const searchWorkspaceSchema = z.object({
   pathPrefix: workspaceRelPath
     .optional()
     .describe("Limit search to workspace subtree, e.g. awn-container/tema-x. Empty = entire workspace."),
+  extensions: searchExtensions,
   limit: z.number().int().min(1).max(100).optional()
 });
 
 function registerSearchWorkspaceTools(reg, client) {
-  const runSearch = ({ query, scope, fileType, match, pathPrefix, limit }) =>
+  const runSearch = ({ query, scope, fileType, match, pathPrefix, extensions, limit }) =>
     client.get("/api/search", {
       q: query,
       scope: scope || "all",
       fileType: fileType || "all",
       match: match || "relaxed",
       pathPrefix: pathPrefix || undefined,
+      extensions: formatSearchExtensionsParam(extensions),
       limit: limit || 30
     });
 
@@ -57,12 +69,14 @@ function registerSearchWorkspaceTools(reg, client) {
       pathPrefix: workspaceRelPath
         .optional()
         .describe("Limit search to workspace subtree, e.g. awn-container/tema-x"),
+      extensions: searchExtensions,
       limit: z.number().int().min(1).max(50).optional()
     }),
-    ({ query, pathPrefix, limit }) =>
+    ({ query, pathPrefix, extensions, limit }) =>
       client.get("/api/search/semantic", {
         q: query,
         pathPrefix: pathPrefix || undefined,
+        extensions: formatSearchExtensionsParam(extensions),
         limit: limit || 20
       })
   );
@@ -75,6 +89,7 @@ function registerSearchWorkspaceTools(reg, client) {
       pathPrefix: workspaceRelPath
         .optional()
         .describe("Limit to workspace subtree, e.g. awn-container/tema-archiv"),
+      extensions: searchExtensions,
       where: z
         .array(
           z.object({
@@ -111,6 +126,7 @@ function registerSearchWorkspaceTools(reg, client) {
       pathPrefix: workspaceRelPath
         .optional()
         .describe("Limit all queries to workspace subtree"),
+      extensions: searchExtensions,
       where: z
         .array(
           z.object({
