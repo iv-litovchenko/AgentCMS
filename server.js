@@ -460,6 +460,15 @@ const {
   resetAgentSettingsScope,
   hydrateWorkspaceSettingsFromShell
 } = require("./lib/config/settings-store");
+const {
+  listPlatformDocs,
+  readPlatformDoc,
+  writePlatformDoc,
+  buildPlatformInfo,
+  buildPlatformConfigList,
+  buildPlatformHealthFromMonitor,
+  readRepoRootDiskSummary
+} = require("./lib/platform/platform-mcp-service");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(
   __dirname,
   "public",
@@ -21261,6 +21270,100 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build MCP ping",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/info") {
+    try {
+      const projectRoot = getProjectRoot();
+      const agentRoot = getAgentRoot();
+      const payload = await buildPlatformInfo({
+        projectRoot,
+        agentId: getActiveAgentId(),
+        agentRootRel: path.relative(projectRoot, agentRoot).replace(/\\/g, "/") || "."
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build platform info",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/health") {
+    try {
+      const [monitor, disk] = await Promise.all([
+        getWorkspaceIndexMonitorPayload(),
+        readRepoRootDiskSummary(getProjectRoot())
+      ]);
+      return sendJson(res, 200, buildPlatformHealthFromMonitor(monitor, disk));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build platform health",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/docs") {
+    try {
+      const payload = await listPlatformDocs(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list platform docs",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/docs/read") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const maxBytes = url.searchParams.get("maxBytes");
+      const payload = await readPlatformDoc(getProjectRoot(), relPath, {
+        maxBytes: maxBytes != null ? Number(maxBytes) : undefined
+      });
+      if (!payload.ok) return sendJson(res, payload.error === "File not found" ? 404 : 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform doc",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/docs/write") {
+    try {
+      const body = await readJsonBody(req, 600_000);
+      const relPath = String(body.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const payload = await writePlatformDoc(getProjectRoot(), relPath, body.content);
+      if (!payload.ok) return sendJson(res, 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write platform doc",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/config") {
+    try {
+      const payload = await buildPlatformConfigList(getProjectRoot(), {
+        agentsPublicList: agentRegistry.getAgentsPublicList()
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list platform config",
         details: String(error.message || error)
       });
     }

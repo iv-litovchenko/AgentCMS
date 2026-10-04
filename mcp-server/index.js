@@ -32,6 +32,7 @@ import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
+import { registerPlatformTools } from "./lib/platform-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
@@ -158,6 +159,7 @@ function createServer() {
   );
 
   registerSettingsTools(reg, client);
+  registerPlatformTools(reg, client);
   registerDependenciesTools(reg, client);
   registerGitModuleTools(reg, client);
 
