@@ -450,10 +450,12 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   return `${text} МБ`;
 }
 
-function ensureAgentGitExtensionsLegend() {
+function ensureAgentGitExtensionsLegend(statusData = null) {
   if (agentGitExtensionsLegendNode?.isConnected) {
     return agentGitExtensionsLegendNode;
   }
+
+  const changes = Array.isArray(statusData?.changes) ? statusData.changes : [];
 
   const wrap = document.createElement("div");
   wrap.className = "agent-git-extensions-legend";
@@ -475,11 +477,16 @@ function ensureAgentGitExtensionsLegend() {
   const thExt = document.createElement("th");
   thExt.scope = "col";
   thExt.textContent = "Расширения";
+  const thCount = document.createElement("th");
+  thCount.scope = "col";
+  thCount.className = "agent-git-extensions-count-col";
+  thCount.textContent = "Изменения";
+  thCount.title = "Незакоммиченные файлы в этой партии";
   const thLimit = document.createElement("th");
   thLimit.scope = "col";
   thLimit.className = "agent-git-extensions-limit-col";
   thLimit.textContent = "Лимит на 1 файл";
-  headRow.append(thType, thExt, thLimit);
+  headRow.append(thType, thExt, thCount, thLimit);
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -499,10 +506,17 @@ function ensureAgentGitExtensionsLegend() {
       extList.className = "agent-git-extensions-list";
       appendAgentGitExtensionTags(extList, batch.extensions);
       extCell.appendChild(extList);
+      const countCell = document.createElement("td");
+      countCell.className = "agent-git-extensions-count";
+      const batchChangeCount = countAgentGitChangesInBatch(batch, changes);
+      countCell.textContent = String(batchChangeCount);
+      if (batchChangeCount === 0) {
+        countCell.classList.add("is-zero");
+      }
       const limitCell = document.createElement("td");
       limitCell.className = "agent-git-extensions-limit";
       limitCell.textContent = formatAgentGitBatchMaxFileSizeLabel(batch.maxFileSizeMb);
-      row.append(typeCell, extCell, limitCell);
+      row.append(typeCell, extCell, countCell, limitCell);
       tbody.appendChild(row);
     }
   } else {
@@ -518,10 +532,17 @@ function ensureAgentGitExtensionsLegend() {
     extList.className = "agent-git-extensions-list";
     appendAgentGitExtensionTags(extList, AGENT_GIT_FILE_EXTENSIONS);
     extCell.appendChild(extList);
+    const countCell = document.createElement("td");
+    countCell.className = "agent-git-extensions-count";
+    const fallbackCount = changes.length;
+    countCell.textContent = String(fallbackCount);
+    if (fallbackCount === 0) {
+      countCell.classList.add("is-zero");
+    }
     const limitCell = document.createElement("td");
     limitCell.className = "agent-git-extensions-limit";
     limitCell.textContent = "—";
-    row.append(typeCell, extCell, limitCell);
+    row.append(typeCell, extCell, countCell, limitCell);
     tbody.appendChild(row);
   }
 
@@ -553,7 +574,7 @@ function syncAgentGitExtensionsLegend(data) {
   }
   mount.classList.remove("hidden");
   mount.removeAttribute("aria-hidden");
-  mount.appendChild(ensureAgentGitExtensionsLegend());
+  mount.appendChild(ensureAgentGitExtensionsLegend(data));
 }
 
 function renderAgentGitMetaPrimary(data) {
@@ -104983,6 +105004,14 @@ function countAgentGitChangesForCommitBatch(batch, changes = []) {
   }).length;
 }
 
+function countAgentGitChangesInBatch(batch, changes = []) {
+  const batchId = String(batch?.id || "");
+  return (Array.isArray(changes) ? changes : []).filter((change) => {
+    if (change?.commitBatchId) return change.commitBatchId === batchId;
+    return agentGitChangeMatchesCommitBatch(change, batch);
+  }).length;
+}
+
 function buildAgentGitBatchCommitMessagePrefix(batch, now = new Date()) {
   const pad = (value) => String(value).padStart(2, "0");
   const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -105054,7 +105083,7 @@ function openAgentGitCommitModal() {
       input.type = "checkbox";
       input.name = "agent-git-commit-batch";
       input.value = String(batch.id || "");
-      input.checked = count > 0;
+      input.checked = false;
       input.disabled = count === 0;
       input.addEventListener("change", () => {
         syncAgentGitCommitMessagePreview();

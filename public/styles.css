@@ -18636,6 +18636,27 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   white-space: nowrap;
 }
 
+.agent-git-extensions-table .agent-git-extensions-count-col {
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.agent-git-extensions-count {
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.agent-git-extensions-count.is-zero {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
 .agent-git-extensions-limit {
   width: 1%;
   white-space: nowrap;
