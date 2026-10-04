@@ -862,11 +862,58 @@ body.is-booting {
   border-color: var(--panel-border);
 }
 
+.hero-clock-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 140, 180, 0.14);
+  background: rgba(4, 8, 18, 0.45);
+}
+
+.hero-clock-divider {
+  width: 1px;
+  height: 1.35rem;
+  background: rgba(120, 140, 180, 0.22);
+  flex-shrink: 0;
+}
+
 .flip-clock {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 0 2px;
+}
+
+.flip-clock--runtime .flip-digit-inner {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+  color: #422006;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 -1px 0 rgba(146, 64, 14, 0.2) inset,
+    0 2px 5px rgba(0, 0, 0, 0.28);
+}
+
+.flip-clock--runtime .flip-digit.is-flipping .flip-digit-inner {
+  animation-name: flip-digit-swap-runtime;
+}
+
+@keyframes flip-digit-swap-runtime {
+  0% {
+    transform: rotateX(0deg);
+  }
+  48% {
+    transform: rotateX(-90deg);
+    background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  }
+  52% {
+    transform: rotateX(-90deg);
+    background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
 }
 
 .flip-group {

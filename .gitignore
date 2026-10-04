@@ -43,6 +43,7 @@ Desktop.ini
 **/.agent-cms/state/
 .agent-cms-global/app-lock-passkey.json
 .agent-cms-global/fingerprint-scanner.sqlite*
+.agent-cms-global/server-runtime.json
 .run/
 tmp/
 temp/

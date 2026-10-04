@@ -46,6 +46,9 @@ const ENV_TECH_VISIBLE_IDS = new Set(["node", "python", "mkcert", "npm", "git", 
 const ENV_TECH_EXTRA_ORDER = ["openssl", "whisper", "claude", "codex", "electron"];
 const flipClockState = { h0: "", h1: "", m0: "", m1: "", s0: "", s1: "" };
 const FLIP_CLOCK_KEYS = ["h0", "h1", "m0", "m1", "s0", "s1"];
+const flipRuntimeState = {};
+let flipRuntimeSlotCount = 0;
+let lastRuntimeTodayMinutes = null;
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -170,6 +173,94 @@ function startFlipClock() {
   clockTimer = window.setInterval(() => updateFlipClock(true), 1000);
 }
 
+function getRuntimeDigitChars(minutes) {
+  const value = Math.max(0, Math.min(9999, Math.floor(Number(minutes) || 0)));
+  return String(value).split("");
+}
+
+function flipRuntimeMarkup(chars) {
+  return chars
+    .map(
+      (_, index) =>
+        `<span class="flip-digit" data-flip="r${index}"><span class="flip-digit-inner"><span class="flip-digit-val"></span></span></span>`
+    )
+    .join("");
+}
+
+function bindFlipRuntimeAnimation(root) {
+  if (!root || root.dataset.animBound) return;
+  root.dataset.animBound = "1";
+  root.addEventListener(
+    "animationend",
+    (event) => {
+      if (event.target.classList.contains("flip-digit-inner")) {
+        event.target.closest(".flip-digit")?.classList.remove("is-flipping");
+      }
+    },
+    true
+  );
+}
+
+function setFlipRuntimeDigit(key, next, animate) {
+  const slot = document.querySelector(`#flip-runtime [data-flip="${key}"]`);
+  if (!slot) return;
+
+  const val = slot.querySelector(".flip-digit-val");
+  if (!val) return;
+
+  const prev = flipRuntimeState[key];
+  if (prev === next) return;
+
+  flipRuntimeState[key] = next;
+
+  if (!animate || !prev) {
+    val.textContent = next;
+    return;
+  }
+
+  slot.classList.remove("is-flipping");
+  void slot.offsetWidth;
+  val.textContent = next;
+  slot.classList.add("is-flipping");
+}
+
+function updateFlipRuntime(minutes, animate = true) {
+  const root = document.getElementById("flip-runtime");
+  if (!root) return;
+
+  const chars = getRuntimeDigitChars(minutes);
+  bindFlipRuntimeAnimation(root);
+
+  if (chars.length !== flipRuntimeSlotCount) {
+    root.innerHTML = flipRuntimeMarkup(chars);
+    flipRuntimeSlotCount = chars.length;
+    for (const key of Object.keys(flipRuntimeState)) delete flipRuntimeState[key];
+    chars.forEach((ch, index) => {
+      const key = `r${index}`;
+      flipRuntimeState[key] = ch;
+      const val = root.querySelector(`[data-flip="${key}"] .flip-digit-val`);
+      if (val) val.textContent = ch;
+    });
+  } else {
+    chars.forEach((ch, index) => setFlipRuntimeDigit(`r${index}`, ch, animate));
+  }
+
+  lastRuntimeTodayMinutes = Math.floor(Number(minutes) || 0);
+
+  const total = lastRuntimeTodayMinutes;
+  root.setAttribute(
+    "aria-label",
+    `Сервер сегодня работал ${total} ${total === 1 ? "минуту" : total < 5 ? "минуты" : "минут"}`
+  );
+}
+
+function applyServerRuntimeFromStatus(server) {
+  if (server?.runtimeTodayMinutes == null) return;
+  const next = server.runtimeTodayMinutes;
+  const animate = lastRuntimeTodayMinutes != null && next !== lastRuntimeTodayMinutes;
+  updateFlipRuntime(next, animate);
+}
+
 function getServerStatusDisplay(server) {
   if (!server) {
     return { state: "unknown", label: "Нет данных" };
@@ -207,6 +298,7 @@ function renderServerStatusChip(server, extraClass = "") {
 function renderServerStatus(server) {
   lastServer = server;
   applyServerStatusChip(serverStatus, server);
+  applyServerRuntimeFromStatus(server);
 }
 
 function renderAppFooter() {
@@ -1546,6 +1638,7 @@ async function init() {
   await renderLayout();
   renderAppFooter();
   startFlipClock();
+  updateFlipRuntime(bootstrap?.server?.runtimeTodayMinutes ?? 0, false);
   startServerPoll();
   bindEnvExpandToggle();
   bindSetupChecklistActions();

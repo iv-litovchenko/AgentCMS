@@ -120,6 +120,7 @@ function loadQrCode() {
 const { buildSystemEnvironment } = requireRepo("lib/runtime/system-environment");
 const { getPlatformSettings, patchPlatformSettings } = requireRepo("lib/config/settings-store");
 const { isPlatformMaintenanceMode } = requireRepo("lib/workspace/workspace-agent-settings");
+const { tickServerRuntime } = requireRepo("lib/runtime/server-runtime-tracker");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;
@@ -304,6 +305,12 @@ async function probeServerStatus() {
 
   const probedAt = Date.now();
   const startedAt = uptimeSec != null ? probedAt - uptimeSec * 1000 : null;
+  let runtimeTodayMinutes = 0;
+  try {
+    runtimeTodayMinutes = tickServerRuntime(root, running, probedAt);
+  } catch {
+    runtimeTodayMinutes = 0;
+  }
 
   return {
     running,
@@ -315,6 +322,7 @@ async function probeServerStatus() {
     uptimeSec,
     startedAt,
     probedAt,
+    runtimeTodayMinutes,
     modeLabel:
       mode === "attached"
         ? "пока Control открыт"
