@@ -64349,6 +64349,8 @@ function syncCreateSectionAfterFieldsetVisibility() {
     renameSectionState || renameMenuNodeState || renameExternalFileState || renameAwnDataRecordState
   );
   createSectionAfterFieldsetNode?.classList.toggle("hidden", isRenameMode);
+  document.getElementById("create-section-indexing-option")?.classList.toggle("hidden", isRenameMode);
+  document.getElementById("create-section-git-rename-option")?.classList.toggle("hidden", !isRenameMode);
 }
 
 function syncCreateMemoryAfterRadiosFromStorage() {

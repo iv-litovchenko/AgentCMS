@@ -6973,9 +6973,21 @@
             <span>Перейти к редактированию</span>
           </label>
         </fieldset>
-        <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
+        <label
+          id="create-section-indexing-option"
+          class="create-node-vault-option create-form-indexing-option is-disabled"
+          title="Заготовка — настройка при создании пока недоступна"
+        >
           <input type="checkbox" disabled aria-disabled="true" />
           <span>Запретить индексирование <span class="stub-static-mark">(static)</span></span>
+        </label>
+        <label
+          id="create-section-git-rename-option"
+          class="create-node-vault-option create-form-git-rename-option is-disabled hidden"
+          title="Заготовка — git mv и коммит при переименовании пока не выполняются"
+        >
+          <input type="checkbox" checked disabled aria-disabled="true" />
+          <span>Переименовать в Git <span class="stub-todo-mark">TODO</span></span>
         </label>
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>

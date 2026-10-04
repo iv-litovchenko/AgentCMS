@@ -65539,8 +65539,18 @@ button.node-navigation-memory-title:focus-visible {
   cursor: not-allowed;
 }
 
-.create-form-indexing-option {
+.create-form-indexing-option,
+.create-form-git-rename-option {
   margin-top: 10px;
+}
+
+.create-form-git-rename-option.is-disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.create-form-git-rename-option.is-disabled input {
+  cursor: not-allowed;
 }
 
 .create-form-indexing-option.is-disabled,
@@ -65798,6 +65808,21 @@ button.node-navigation-memory-title:focus-visible {
   font-weight: 700;
   font-size: 0.92em;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.stub-todo-mark {
+  display: inline-block;
+  margin-left: 0.15em;
+  padding: 0 0.35em;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.08em;
   white-space: nowrap;
 }
 
