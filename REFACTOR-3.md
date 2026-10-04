@@ -39,3 +39,10 @@
 ## Чат (Cursor)
 
 `c2a29c0b-9f8c-49e2-a31d-0bdc4802b609`
+
+
+a-cms-database
+a-cms-name
+a-cms-temp
+a-topic
+a-area
