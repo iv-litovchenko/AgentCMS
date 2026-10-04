@@ -10,7 +10,7 @@ const gitExtensions = z
 export function registerGitModuleTools(reg, client) {
   reg(
     "module_git_status",
-    "module-git: branch, porcelain changes, recent commits. Default extensions filter includes md/yaml/json, web (html,css,js,ts), configs (toml,ini), sql, jsonl, mdx, etc.",
+    "module-git: branch, changes (commitBatchId, commitAllowed, sizeBytes), recent commits, moduleConfig.commitBatches. Use before module_git_commit to pick batchIds (records, images, images#1, …).",
     z.object({
       extensions: gitExtensions,
       includeCommits: z
@@ -49,16 +49,52 @@ export function registerGitModuleTools(reg, client) {
 
   reg(
     "module_git_commit",
-    "module-git: stage filtered paths (default text/code extensions) and commit. Blocked in mcp-mode=readonly.",
+    `module-git: commit like Git UI «Сохранить» — parties from integrations.yml (module-git-commit-batches), same limits and chunk ids.
+Say «закоммить записи» → batchIds: ["records"]. «изображения» → ["images"]; if over max batch MB use ["images#1"], then ["images#2"], …
+Omit batchIds to run all parties in config order (one commit per party, skip empty).
+Optional messageSuffix = note under template. Legacy single commit: pass message (and optional extensions) with batched=false.
+Party ids: records, records-history, images, sources, documents, media, design-2d, design-3d, design-bim, archives, other, configs.
+Blocked in mcp-mode=readonly.`,
     z.object({
-      message: z.string().min(1).describe("Commit message"),
+      batched: z
+        .boolean()
+        .optional()
+        .describe("Default true — UI-style batched commit. Set false with message for legacy extension filter commit."),
+      batchIds: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "One or more party ids in commit order, e.g. [records] or [images#1]. Empty/omit = all configured parties."
+        ),
+      messageSuffix: z
+        .string()
+        .optional()
+        .describe("Extra text appended to the generated commit message (UI «заметка»)."),
+      message: z
+        .string()
+        .optional()
+        .describe("Legacy only (batched=false): full commit message for a single extensions-filtered commit."),
       extensions: gitExtensions
     }),
-    ({ message, extensions }) =>
-      client.post("/api/git/commit", {
-        message,
-        ...(extensions != null ? { extensions } : {})
-      })
+    ({ batched, batchIds, messageSuffix, message, extensions }) => {
+      const msg = String(message || "").trim();
+      const hasBatchIds = Array.isArray(batchIds) && batchIds.length > 0;
+      const useBatched =
+        batched === true || (batched !== false && (hasBatchIds || !msg));
+
+      if (!useBatched) {
+        return client.post("/api/git/commit", {
+          message: msg || "workspace save",
+          ...(extensions != null ? { extensions: Array.isArray(extensions) ? extensions.join(",") : extensions } : {})
+        });
+      }
+
+      return client.post("/api/git/commit", {
+        batched: true,
+        ...(hasBatchIds ? { batchIds } : {}),
+        ...(String(messageSuffix || "").trim() ? { messageSuffix: String(messageSuffix).trim() } : {})
+      });
+    }
   );
 
   reg(
