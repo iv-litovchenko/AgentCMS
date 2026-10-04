@@ -46979,9 +46979,18 @@ function collectProjectSettingsManifestScopes() {
         pushScope(item.path, item.title || item.label || item.name, level);
       }
     }
+    for (const item of getMenuRepoServiceItems(node)) {
+      if (item?.path) {
+        let level = "topic";
+        if (isAreaNodePath(item.path)) level = "area";
+        pushScope(item.path, item.title || item.label || item.name, level);
+      }
+    }
     for (const section of node.sections || []) walk(section);
     if (node.containerTree) walk(node.containerTree);
+    if (node.serviceTree) walk(node.serviceTree);
     if (node.sharedTree) walk(node.sharedTree);
+    if (node.systemTree) walk(node.systemTree);
   };
 
   if (currentMenuData) {
@@ -47038,9 +47047,56 @@ function createProjectSettingsScopeBadge(kind, valueCount) {
   return badge;
 }
 
+function projectSettingsScopeSearchTokens(queryLower) {
+  return String(queryLower || "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function projectSettingsSearchHaystackMatchesQuery(haystack, queryLower) {
+  const tokens = projectSettingsScopeSearchTokens(queryLower);
+  if (!tokens.length) return true;
+  const normalizedHaystack = String(haystack || "").toLowerCase();
+  if (!normalizedHaystack) return false;
+  return tokens.every((token) => normalizedHaystack.includes(token));
+}
+
+function projectSettingsAgentSettingsGroupTabLabels(scopePath) {
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(scopePath);
+  const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
+  return getProjectSettingsAgentGroupOrder(scopeKey).map((groupId) =>
+    resolveNodeSettingsGroupLabel(groupId, fieldGroups)
+  );
+}
+
+function projectSettingsAgentSettingsGroupMatchesSearch(groupSpec, queryLower) {
+  if (!queryLower) return true;
+  const scopePath =
+    groupSpec.level === "global"
+      ? PROJECT_SETTINGS_GLOBAL_SCOPE
+      : groupSpec.level === "settings-user"
+        ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
+        : groupSpec.level === "settings-integrations"
+          ? PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE
+          : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+  const tabLabels = projectSettingsAgentSettingsGroupTabLabels(scopePath);
+  if (projectSettingsSearchHaystackMatchesQuery([groupSpec.label, ...tabLabels].join(" "), queryLower)) {
+    return true;
+  }
+  return tabLabels.some((tabLabel) =>
+    projectSettingsSearchHaystackMatchesQuery([groupSpec.label, tabLabel].join(" "), queryLower)
+  );
+}
+
 function projectSettingsScopeSearchHaystack(scope) {
   const path = String(scope?.path || "").replace(/\\/g, "/");
   const pathTail = path.replace(/\/manifest\.md$/i, "").split("/").pop() || path;
+  const storeRel = String(scope?.storeRel || "").replace(/\\/g, "/");
+  const agentTabLabels = isProjectSettingsAgentSettingsScope(scope?.path)
+    ? projectSettingsAgentSettingsGroupTabLabels(scope.path)
+    : [];
   const levelLabel =
     scope?.level === "global"
       ? "платформа глобальные agent-cms-core"
@@ -47063,7 +47119,7 @@ function projectSettingsScopeSearchHaystack(scope) {
                   : scope?.level === "iblock-single"
                     ? "инфоблок одиночка awn-databases"
                     : "";
-  return [scope?.label, path, pathTail, levelLabel]
+  return [scope?.label, path, pathTail, storeRel, levelLabel, ...agentTabLabels]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" ")
@@ -47072,9 +47128,7 @@ function projectSettingsScopeSearchHaystack(scope) {
 
 function projectSettingsScopeMatchesSearchQuery(scope, queryLower) {
   if (!queryLower) return true;
-  const haystack = projectSettingsScopeSearchHaystack(scope);
-  if (!haystack) return false;
-  return haystack.includes(queryLower);
+  return projectSettingsSearchHaystackMatchesQuery(projectSettingsScopeSearchHaystack(scope), queryLower);
 }
 
 function filterProjectSettingsManifestScopes(scopes, query = projectSettingsScopeSearchQuery) {
@@ -47332,7 +47386,7 @@ function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabe
   return btn;
 }
 
-function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScopePath) {
+function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScopePath, queryLower = "") {
   const scopePath =
     groupSpec.level === "global"
       ? PROJECT_SETTINGS_GLOBAL_SCOPE
@@ -47351,6 +47405,7 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
           : "local";
   const groupOrder = getProjectSettingsAgentGroupOrder(scopeKey);
   const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
+  const normalizedQuery = String(queryLower || "").trim().toLowerCase();
   if (!groupOrder.length) {
     const empty = document.createElement("p");
     empty.className = "project-settings-scope-search-empty";
@@ -47358,15 +47413,25 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
     groupNode.appendChild(empty);
     return;
   }
+  let renderedTabs = 0;
   for (const groupId of groupOrder) {
+    const groupLabel = resolveNodeSettingsGroupLabel(groupId, fieldGroups);
+    if (
+      normalizedQuery &&
+      !projectSettingsSearchHaystackMatchesQuery([groupSpec.label, groupLabel].join(" "), normalizedQuery)
+    ) {
+      continue;
+    }
     groupNode.appendChild(
-      renderProjectSettingsAgentSettingsTabItem(
-        scopePath,
-        groupId,
-        resolveNodeSettingsGroupLabel(groupId, fieldGroups),
-        activeScopePath
-      )
+      renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabel, activeScopePath)
     );
+    renderedTabs += 1;
+  }
+  if (!renderedTabs && normalizedQuery) {
+    const empty = document.createElement("p");
+    empty.className = "project-settings-scope-search-empty";
+    empty.textContent = "Ничего не найдено";
+    groupNode.appendChild(empty);
   }
 }
 
@@ -47509,30 +47574,10 @@ function renderProjectSettingsScopeList() {
     groupNode.appendChild(createProjectSettingsScopeGroupTitle(group, scopePathForGroup));
 
     if (group.agentTabs) {
-      const scopePath =
-        group.level === "global"
-          ? PROJECT_SETTINGS_GLOBAL_SCOPE
-          : group.level === "settings-user"
-            ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
-            : group.level === "settings-integrations"
-              ? PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE
-              : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
-      const scopeKey =
-        group.level === "global"
-          ? "global"
-          : group.level === "settings-user"
-            ? "user"
-            : group.level === "settings-integrations"
-              ? "integrations"
-              : "local";
-      const tabLabels = getProjectSettingsAgentGroupOrder(scopeKey).map((groupId) =>
-        resolveNodeSettingsGroupLabel(groupId, getProjectSettingsAgentFieldGroups(scopeKey))
-      );
-      const groupHaystack = [group.label, ...tabLabels].join(" ").toLowerCase();
       const queryLower = String(projectSettingsScopeSearchQuery || "").trim().toLowerCase();
-      const matchesSearch = !queryLower || groupHaystack.includes(queryLower);
+      const matchesSearch = projectSettingsAgentSettingsGroupMatchesSearch(group, queryLower);
       if (matchesSearch) {
-        renderProjectSettingsAgentSettingsTabs(groupNode, group, activeScopePath);
+        renderProjectSettingsAgentSettingsTabs(groupNode, group, activeScopePath, queryLower);
         projectSettingsScopeListNode.appendChild(groupNode);
       }
       continue;
