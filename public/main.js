@@ -16868,6 +16868,7 @@ const OVERVIEW_ACCORDION_GROUP_IDS = new Set([
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
 const OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID = "awn-props";
 const OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID = "custom-props";
+const OVERVIEW_PROPS_HUB_ACCORDION_GROUP_ID = "props-hub";
 const OVERVIEW_SETTINGS_PROPS_ACCORDION_GROUP_ID = "settings-props";
 const OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID = "agent-instruction";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
@@ -66475,23 +66476,155 @@ function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   return text || "—";
 }
 
-function appendNodeOverviewMetaKeyCell(container, key, entry = null, nodePath = getResolvedNodePath(activePath)) {
-  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key, entry, nodePath);
+function resolveOverviewFieldGroupLabel(groupId, fieldGroups = []) {
+  const hit = (fieldGroups || []).find((group) => group && group.id === groupId);
+  return hit?.name || hit?.title || groupId || "Поля";
+}
+
+function normalizeOverviewPropsFieldGroups(fieldGroups = []) {
+  return (Array.isArray(fieldGroups) ? fieldGroups : [])
+    .filter((group) => group && group.id)
+    .map((group) => ({
+      id: String(group.id),
+      name: group.name || group.title || group.id,
+      collapsed: Boolean(group.collapsed)
+    }));
+}
+
+function resolveOverviewPropsFieldGroups(nodePath, layer = "awn") {
+  if (layer === "custom") {
+    const cache = resolveActiveOverviewSchemaCache();
+    const overviewContext =
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+    for (const target of getOverviewSchemaLookupTargets(nodePath, overviewContext)) {
+      const groups = cache?.awnSchema?.[target]?.fieldGroups;
+      if (Array.isArray(groups) && groups.length) {
+        return normalizeOverviewPropsFieldGroups(groups);
+      }
+    }
+    return [{ id: "custom", name: "Пользовательские поля", collapsed: false }];
+  }
+  if (layer === "settings") {
+    const cache = resolveActiveOverviewSchemaCache();
+    const fromCache = normalizeOverviewPropsFieldGroups(cache?.awnSchema?.settings?.fieldGroups);
+    if (fromCache.length) return fromCache;
+    const typeDef = getActiveSettingsTypeDef();
+    const fromType = normalizeOverviewPropsFieldGroups(typeDef?.fieldGroups);
+    if (fromType.length) return fromType;
+    return [{ id: "settings", name: "Настройки", collapsed: false }];
+  }
+  return getActivePropsFieldGroups();
+}
+
+function groupNodeOverviewMetaItems(items, fieldGroups, nodePath) {
+  const groups = fieldGroups.length ? fieldGroups : [{ id: "content", name: "Поля", collapsed: false }];
+  const buckets = new Map(groups.map((group) => [group.id, []]));
+  const overflow = [];
+  for (const item of items) {
+    const fieldDef =
+      item.fieldDef ||
+      getOverviewSchemaFieldDef(item.key, nodePath) ||
+      getPropsFieldDef(item.key);
+    const groupId = resolvePropsFieldGroupId(item.key, fieldDef);
+    if (buckets.has(groupId)) buckets.get(groupId).push(item);
+    else overflow.push(item);
+  }
+  if (overflow.length) {
+    const targetId = buckets.has("content") ? "content" : groups[0]?.id;
+    if (targetId && buckets.has(targetId)) buckets.get(targetId).push(...overflow);
+    else buckets.set("_other", overflow);
+  }
+  return { buckets, fieldGroups: groups };
+}
+
+function resolveNodeOverviewMetaFieldMeta(key, item, nodePath) {
+  const normalizedKey = normalizePropsKey(key);
+  const fieldDef =
+    item?.fieldDef ||
+    resolvePropsFieldDefForOverview(normalizedKey, item, nodePath) ||
+    getPropsFieldDef(normalizedKey);
+  const fromSchema = getPropsFieldMetaFromSchema(normalizedKey);
+  if (fromSchema) return fromSchema;
+  return {
+    label: getFieldDefDisplayName(fieldDef, normalizedKey),
+    hint: fieldDef?.hint || fieldDef?.description || "",
+    typeId: resolveFieldTypeId(fieldDef?.type || "awn.field.string"),
+    fieldDef
+  };
+}
+
+function appendNodeOverviewMetaKeyCell(
+  container,
+  key,
+  entry = null,
+  nodePath = getResolvedNodePath(activePath),
+  { gutter = null } = {}
+) {
+  const { key: normalizedKey, label: rawLabel } = getPropsFieldOverviewLabel(key, entry, nodePath);
+  const fieldDef = entry?.fieldDef || resolvePropsFieldDefForOverview(normalizedKey, entry, nodePath);
+  const typeId = fieldDef?.type || "";
+  const displayLabel = rawLabel
+    ? formatSchemaDisplayTitle(rawLabel, { typeId, key: normalizedKey, replaceMarker: true })
+    : "";
+
+  container.replaceChildren();
+  if (gutter) container.appendChild(gutter);
+
+  const inner = document.createElement("div");
+  inner.className = "node-overview-meta-key-inner";
 
   const keyNode = document.createElement("span");
   keyNode.className = "node-overview-meta-key-id";
   keyNode.textContent = normalizedKey || key;
-  container.appendChild(keyNode);
+  inner.appendChild(keyNode);
 
-  if (label) {
+  if (displayLabel) {
     const labelNode = document.createElement("span");
     labelNode.className = "node-overview-meta-key-label";
-    labelNode.textContent = ` (${label})`;
-    container.appendChild(labelNode);
-    container.title = `${normalizedKey} — ${label}`;
-  } else {
-    container.title = normalizedKey || key;
+    labelNode.textContent = ` (${displayLabel})`;
+    inner.appendChild(labelNode);
   }
+
+  container.appendChild(inner);
+  bindPropsFormFieldLabelInteractions(container, normalizedKey || key, resolveNodeOverviewMetaFieldMeta(key, entry, nodePath));
+}
+
+function createNodeOverviewMetaTreeGutter({ kind = "leaf", isLast = false } = {}) {
+  const gutter = document.createElement("span");
+  gutter.className = "node-overview-meta-tree-gutter";
+  gutter.setAttribute("aria-hidden", "true");
+  if (kind === "group") {
+    gutter.classList.add("node-overview-meta-tree-gutter--group");
+  } else {
+    gutter.classList.add("node-overview-meta-tree-gutter--leaf");
+    if (isLast) gutter.classList.add("is-last");
+  }
+  return gutter;
+}
+
+function createNodeOverviewMetaRow(item, nodePath, { tree = false, depth = 0, isLast = false } = {}) {
+  const row = document.createElement("div");
+  row.className = "node-overview-meta-row";
+  if (tree && depth > 0) row.classList.add("node-overview-meta-row--tree-leaf");
+
+  const keyCell = document.createElement("div");
+  keyCell.className = "node-overview-meta-key";
+  const gutter = tree && depth > 0 ? createNodeOverviewMetaTreeGutter({ kind: "leaf", isLast }) : null;
+  appendNodeOverviewMetaKeyCell(keyCell, item.key, item, nodePath, { gutter });
+
+  const valCell = document.createElement("div");
+  appendNodeOverviewMetaValueCell(valCell, item);
+
+  const schemaDefined = isNodeOverviewMetaItemInSchema(item, nodePath);
+  if (!schemaDefined) {
+    row.classList.add("is-schema-undefined");
+    const schemaHint = "Свойство не определено в схеме";
+    keyCell.dataset.schemaHint = schemaHint;
+    valCell.title = schemaHint;
+  }
+
+  row.append(keyCell, valCell);
+  return row;
 }
 
 function appendNodeOverviewMetaValueCell(container, item) {
@@ -66519,30 +66652,216 @@ function renderNodeOverviewMetaTable(metaItems, nodePath = getResolvedNodePath(a
   const list = document.createElement("div");
   list.className = "node-overview-meta-rows";
   for (const item of metaItems) {
-    const row = document.createElement("div");
-    row.className = "node-overview-meta-row";
-
-    const keyCell = document.createElement("div");
-    keyCell.className = "node-overview-meta-key";
-    appendNodeOverviewMetaKeyCell(keyCell, item.key, item, nodePath);
-
-    const valCell = document.createElement("div");
-    appendNodeOverviewMetaValueCell(valCell, item);
-
-    const schemaDefined = isNodeOverviewMetaItemInSchema(item, nodePath);
-    if (!schemaDefined) {
-      row.classList.add("is-schema-undefined");
-      const schemaHint = "Свойство не определено в схеме";
-      if (!keyCell.title.includes(schemaHint)) {
-        keyCell.title = keyCell.title ? `${keyCell.title} · ${schemaHint}` : schemaHint;
-      }
-      valCell.title = schemaHint;
-    }
-
-    row.append(keyCell, valCell);
-    list.appendChild(row);
+    list.appendChild(createNodeOverviewMetaRow(item, nodePath));
   }
   return list;
+}
+
+function renderNodeOverviewMetaTree(metaItems, nodePath = getResolvedNodePath(activePath), { layer = "awn" } = {}) {
+  if (!metaItems.length) return null;
+
+  const fieldGroups = resolveOverviewPropsFieldGroups(nodePath, layer);
+  const { buckets, fieldGroups: groups } = groupNodeOverviewMetaItems(metaItems, fieldGroups, nodePath);
+
+  const tree = document.createElement("div");
+  tree.className = "node-overview-meta-tree";
+
+  for (const group of groups) {
+    const groupItems = buckets.get(group.id) || [];
+    if (!groupItems.length) continue;
+
+    const groupBlock = document.createElement("div");
+    groupBlock.className = "node-overview-meta-tree-group";
+
+    const groupHead = document.createElement("div");
+    groupHead.className = "node-overview-meta-tree-group-head";
+    const groupBranch = createNodeOverviewMetaTreeGutter({ kind: "group" });
+    const groupTitle = document.createElement("span");
+    groupTitle.className = "node-overview-meta-tree-group-title";
+    groupTitle.textContent = resolveOverviewFieldGroupLabel(group.id, groups);
+    const groupCount = document.createElement("span");
+    groupCount.className = "node-overview-meta-tree-group-count";
+    groupCount.textContent = String(groupItems.length);
+    groupHead.append(groupBranch, groupTitle, groupCount);
+    groupBlock.appendChild(groupHead);
+
+    const list = document.createElement("div");
+    list.className = "node-overview-meta-rows node-overview-meta-rows--tree";
+    groupItems.forEach((item, index) => {
+      list.appendChild(
+        createNodeOverviewMetaRow(item, nodePath, {
+          tree: true,
+          depth: 1,
+          isLast: index === groupItems.length - 1
+        })
+      );
+    });
+    groupBlock.appendChild(list);
+    tree.appendChild(groupBlock);
+  }
+
+  const otherItems = buckets.get("_other") || [];
+  if (otherItems.length) {
+    const list = document.createElement("div");
+    list.className = "node-overview-meta-rows node-overview-meta-rows--tree";
+    otherItems.forEach((item, index) => {
+      list.appendChild(
+        createNodeOverviewMetaRow(item, nodePath, {
+          tree: true,
+          depth: 1,
+          isLast: index === otherItems.length - 1
+        })
+      );
+    });
+    tree.appendChild(list);
+  }
+
+  return tree.childElementCount ? tree : null;
+}
+
+function activateNodeOverviewPropsHubTab(hub, tabId) {
+  if (!hub || !tabId) return;
+  hub.querySelectorAll("[data-hub-tab]").forEach((btn) => {
+    const active = btn.dataset.hubTab === tabId;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", String(active));
+    btn.tabIndex = active ? 0 : -1;
+  });
+  hub.querySelectorAll("[data-hub-panel]").forEach((panel) => {
+    const show = panel.dataset.hubPanel === tabId;
+    panel.classList.toggle("hidden", !show);
+    panel.hidden = !show;
+  });
+  hub.dataset.activeTab = tabId;
+}
+
+function createNodeOverviewPropsHubFoldBadges({ awnCount = 0, customCount = 0 } = {}) {
+  const layers = [
+    { id: "awn", count: awnCount, label: "Основные" },
+    { id: "custom", count: customCount, label: "Пользовательские" }
+  ].filter((layer) => layer.count > 0);
+  if (!layers.length) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-overview-props-hub-fold-badges";
+  wrap.setAttribute("aria-label", "Счётчики по слоям свойств");
+
+  for (const layer of layers) {
+    const item = document.createElement("span");
+    item.className = `node-overview-props-hub-fold-badge node-overview-props-hub-fold-badge--${layer.id}`;
+    item.title = `${layer.label} · ${layer.count}`;
+
+    const name = document.createElement("span");
+    name.className = "node-overview-props-hub-fold-badge-name";
+    name.textContent = layer.label;
+
+    const num = document.createElement("span");
+    num.className = "node-overview-props-hub-fold-badge-num";
+    num.textContent = String(layer.count);
+    num.setAttribute("aria-label", `${layer.label}: ${layer.count}`);
+
+    item.append(name, num);
+    wrap.appendChild(item);
+  }
+
+  return wrap;
+}
+
+function prepareNodeOverviewSettingsDisplayItems(settingsItems, nodePath = getResolvedNodePath(activePath)) {
+  const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
+  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  let items = orderOverviewMetaItemsBySchema(settingsItems, schemaKeys);
+  if (!items.length && schemaKeys.length) {
+    items = schemaKeys.map((key) => ({
+      key,
+      value: "—",
+      rawValue: "",
+      fieldDef: schemaFields[key] || null,
+      inSchema: true
+    }));
+  }
+  return items;
+}
+
+function renderNodeOverviewPropsHubFold(
+  { awnItems = [], customItems = [] },
+  nodePath = getResolvedNodePath(activePath)
+) {
+  const awnCount = awnItems.length;
+  const customCount = customItems.length;
+  const totalCount = awnCount + customCount;
+  if (!totalCount) return null;
+
+  const hubSection = document.createElement("section");
+  hubSection.className = "node-overview-props-hub";
+
+  const tabs = [];
+  if (awnCount) tabs.push({ id: "awn", label: `Основные · ${awnCount}` });
+  if (customCount) tabs.push({ id: "custom", label: `Пользовательские · ${customCount}` });
+
+  if (tabs.length > 1) {
+    const tablist = document.createElement("div");
+    tablist.className = "node-overview-props-hub-tabs";
+    tablist.setAttribute("role", "tablist");
+    tablist.setAttribute("aria-label", "Слой свойств");
+    for (const tab of tabs) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "node-overview-props-hub-tab";
+      btn.dataset.hubTab = tab.id;
+      btn.setAttribute("role", "tab");
+      btn.textContent = tab.label;
+      btn.addEventListener("click", () => activateNodeOverviewPropsHubTab(hubSection, tab.id));
+      tablist.appendChild(btn);
+    }
+    hubSection.appendChild(tablist);
+  }
+
+  const panels = document.createElement("div");
+  panels.className = "node-overview-props-hub-panels";
+
+  if (awnCount) {
+    const panel = document.createElement("div");
+    panel.className = "node-overview-props node-overview-props-awn";
+    panel.dataset.hubPanel = "awn";
+    panel.setAttribute("role", "tabpanel");
+    const tree = renderNodeOverviewMetaTree(awnItems, nodePath, { layer: "awn" });
+    if (tree) panel.appendChild(tree);
+    panels.appendChild(panel);
+  }
+
+  if (customCount) {
+    const panel = document.createElement("div");
+    panel.className = "node-overview-props node-overview-props-custom";
+    panel.dataset.hubPanel = "custom";
+    panel.setAttribute("role", "tabpanel");
+    const tree = renderNodeOverviewMetaTree(customItems, nodePath, { layer: "custom" });
+    if (tree) panel.appendChild(tree);
+    panels.appendChild(panel);
+  }
+
+  hubSection.appendChild(panels);
+  activateNodeOverviewPropsHubTab(hubSection, tabs[0]?.id || "awn");
+
+  const accordion = createOverviewAccordionSection(
+    OVERVIEW_PROPS_HUB_ACCORDION_GROUP_ID,
+    `Свойства · ${totalCount}`,
+    hubSection,
+    {
+      defaultOpen: false,
+      summaryAside: createNodeOverviewPropsHubFoldBadges({
+        awnCount,
+        customCount
+      })
+    }
+  );
+  accordion.classList.add(
+    "node-overview-props-fold",
+    "node-overview-props-hub-fold",
+    "node-overview-awn-props-fold",
+    "node-overview-custom-props-fold"
+  );
+  return accordion;
 }
 
 function collectNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(activePath)) {
@@ -66791,7 +67110,8 @@ function renderNodeOverviewCustomPropsFold(customItems, nodePath = getResolvedNo
 
   const metaSection = document.createElement("section");
   metaSection.className = "node-overview-props node-overview-props-custom";
-  metaSection.appendChild(renderNodeOverviewMetaTable(items, nodePath));
+  const tree = renderNodeOverviewMetaTree(items, nodePath, { layer: "custom" });
+  if (tree) metaSection.appendChild(tree);
 
   const accordion = createOverviewAccordionSection(
     OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID,
@@ -66808,7 +67128,8 @@ function renderNodeOverviewAwnPropsFold(awnItems, nodePath = getResolvedNodePath
 
   const metaSection = document.createElement("section");
   metaSection.className = "node-overview-props node-overview-props-awn";
-  metaSection.appendChild(renderNodeOverviewMetaTable(awnItems, nodePath));
+  const tree = renderNodeOverviewMetaTree(awnItems, nodePath, { layer: "awn" });
+  if (tree) metaSection.appendChild(tree);
 
   const accordion = createOverviewAccordionSection(
     OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID,
@@ -66887,23 +67208,13 @@ function createEntryOverviewCopyActionsBar(rawContent = "") {
 }
 
 function renderNodeOverviewSettingsPropsFold(settingsItems, nodePath = getResolvedNodePath(activePath)) {
-  const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
-  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
-  let items = orderOverviewMetaItemsBySchema(settingsItems, schemaKeys);
-  if (!items.length && schemaKeys.length) {
-    items = schemaKeys.map((key) => ({
-      key,
-      value: "—",
-      rawValue: "",
-      fieldDef: schemaFields[key] || null,
-      inSchema: true
-    }));
-  }
+  const items = prepareNodeOverviewSettingsDisplayItems(settingsItems, nodePath);
   if (!items.length) return null;
 
   const metaSection = document.createElement("section");
   metaSection.className = "node-overview-props node-overview-props-settings";
-  metaSection.appendChild(renderNodeOverviewMetaTable(items, nodePath));
+  const tree = renderNodeOverviewMetaTree(items, nodePath, { layer: "settings" });
+  if (tree) metaSection.appendChild(tree);
 
   const accordion = createOverviewAccordionSection(
     OVERVIEW_SETTINGS_PROPS_ACCORDION_GROUP_ID,
@@ -66930,31 +67241,37 @@ function appendNavigationHeroProps(hero, propEntries = [], options = {}) {
   );
   let lastNode = null;
 
-  const awnFold =
-    options.showAwnProps !== false ? renderNodeOverviewAwnPropsFold(awnItems, nodePath) : null;
-  if (awnFold) {
-    awnFold.classList.add("node-navigation-props");
-    hero.appendChild(awnFold);
-    lastNode = awnFold;
-  }
-
-  const customFold = renderNodeOverviewCustomPropsFold(customItems, nodePath);
-  if (customFold) {
-    customFold.classList.add("node-navigation-props");
-    hero.appendChild(customFold);
-    lastNode = customFold;
-  }
-
+  const showAwn = options.showAwnProps !== false;
+  let settingsDisplayItems = [];
   if (shouldShowOverviewSettingsProps(options)) {
-    const settingsItems = orderOverviewMetaItemsBySchema(
-      mergeNodeOverviewSettingsItems(
-        manifestSettingsItems,
-        resolveNodeOverviewSettingsItems(options.configSettingsEntries || [], nodePath),
-        nodePath
+    settingsDisplayItems = prepareNodeOverviewSettingsDisplayItems(
+      orderOverviewMetaItemsBySchema(
+        mergeNodeOverviewSettingsItems(
+          manifestSettingsItems,
+          resolveNodeOverviewSettingsItems(options.configSettingsEntries || [], nodePath),
+          nodePath
+        ),
+        getOverviewSettingsSchemaFieldKeys(undefined, nodePath)
       ),
-      getOverviewSettingsSchemaFieldKeys(undefined, nodePath)
+      nodePath
     );
-    const settingsFold = renderNodeOverviewSettingsPropsFold(settingsItems, nodePath);
+  }
+
+  const propsHub = renderNodeOverviewPropsHubFold(
+    {
+      awnItems: showAwn ? awnItems : [],
+      customItems
+    },
+    nodePath
+  );
+  if (propsHub) {
+    propsHub.classList.add("node-navigation-props");
+    hero.appendChild(propsHub);
+    lastNode = propsHub;
+  }
+
+  if (settingsDisplayItems.length) {
+    const settingsFold = renderNodeOverviewSettingsPropsFold(settingsDisplayItems, nodePath);
     if (settingsFold) {
       settingsFold.classList.add("node-navigation-props");
       hero.appendChild(settingsFold);
@@ -67301,7 +67618,7 @@ function createOverviewAccordionSection(
   groupId,
   title,
   contentNode,
-  { defaultOpen = true, disabled = false, lockOpen = false } = {}
+  { defaultOpen = true, disabled = false, lockOpen = false, summaryAside = null } = {}
 ) {
   const details = document.createElement("details");
   details.className = "node-overview-fold";
@@ -67335,7 +67652,9 @@ function createOverviewAccordionSection(
   chevron.className = "node-overview-fold-chevron";
   chevron.setAttribute("aria-hidden", "true");
 
-  summary.append(titleSpan, chevron);
+  summary.append(titleSpan);
+  if (summaryAside) summary.appendChild(summaryAside);
+  summary.append(chevron);
 
   const body = document.createElement("div");
   body.className = "node-overview-fold-body";

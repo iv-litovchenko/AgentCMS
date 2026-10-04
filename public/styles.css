@@ -41968,15 +41968,16 @@ img.is-svg-media,
   order: 3;
 }
 
+.node-navigation-hero > .node-overview-props-hub-fold,
 .node-navigation-hero > .node-overview-awn-props-fold {
   order: 10;
 }
 
-.node-navigation-hero > .node-overview-custom-props-fold {
+.node-navigation-hero > .node-overview-custom-props-fold:not(.node-overview-props-hub-fold) {
   order: 11;
 }
 
-.node-navigation-hero > .node-overview-settings-props-fold {
+.node-navigation-hero > .node-overview-settings-props-fold:not(.node-overview-props-hub-fold) {
   order: 12;
 }
 
@@ -55429,6 +55430,266 @@ button.node-navigation-memory-title:focus-visible {
   background: #f8fafc;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.node-overview-meta-key.props-form-field-label--interactive {
+  cursor: pointer;
+}
+
+.node-overview-meta-key-inner {
+  min-width: 0;
+  flex: 1;
+}
+
+.node-overview-meta-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-overview-meta-tree-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.node-overview-meta-tree-group-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-overview-meta-tree-group-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.node-overview-meta-tree-gutter {
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.node-overview-meta-tree-gutter--group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28);
+}
+
+.node-overview-meta-tree-gutter--group::before {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-top: 2px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #64748b;
+}
+
+.node-overview-meta-tree-gutter--leaf {
+  position: relative;
+  width: 18px;
+  min-height: 18px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.node-overview-meta-tree-gutter--leaf::before,
+.node-overview-meta-tree-gutter--leaf::after {
+  content: "";
+  position: absolute;
+  background: #cbd5e1;
+}
+
+.node-overview-meta-tree-gutter--leaf::before {
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.node-overview-meta-tree-gutter--leaf::after {
+  left: 8px;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.node-overview-meta-tree-gutter--leaf.is-last::before {
+  bottom: 50%;
+}
+
+.node-overview-meta-rows--tree {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.node-overview-meta-rows--tree .node-overview-meta-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 42%) minmax(0, 1fr);
+  width: 100%;
+}
+
+.node-overview-meta-rows--tree .node-overview-meta-row:last-child .node-overview-meta-key,
+.node-overview-meta-rows--tree .node-overview-meta-row:last-child .node-overview-meta-value {
+  border-bottom: 0;
+}
+
+.node-overview-meta-row--tree-leaf .node-overview-meta-key {
+  padding-left: 6px;
+  align-items: center;
+}
+
+.node-overview-props-hub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: #fff;
+}
+
+.node-overview-props-hub-tab {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 0;
+  margin-bottom: -1px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.node-overview-props-hub-tab.is-active {
+  color: #1e40af;
+  background: #fff;
+  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow: inset 0 2px 0 #3b82f6;
+}
+
+.node-overview-props-hub-tab--settings.is-active {
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow: inset 0 2px 0 #64748b;
+}
+
+.node-overview-props-hub-panels {
+  background: #fff;
+}
+
+.node-overview-props-hub-panels [data-hub-panel].hidden {
+  display: none;
+}
+
+.node-overview-props-hub-fold > .node-overview-fold-body {
+  padding: 0;
+}
+
+.node-overview-props-hub-fold > .node-overview-fold-head .node-overview-fold-title {
+  flex-shrink: 0;
+}
+
+.node-overview-props-hub-fold-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  margin-right: 2px;
+}
+
+.node-overview-props-hub-fold-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+}
+
+.node-overview-props-hub-fold-badge-name {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.node-overview-props-hub-fold-badge-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.node-overview-props-hub-fold-badge--awn .node-overview-props-hub-fold-badge-num {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.node-overview-props-hub-fold-badge--custom .node-overview-props-hub-fold-badge-num {
+  color: #6d28d9;
+  background: #ede9fe;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.node-overview-props-hub-fold-badge--settings .node-overview-props-hub-fold-badge-num {
+  color: #475569;
+  background: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.node-overview-props-hub-fold-badge--awn .node-overview-props-hub-fold-badge-name {
+  color: #1e40af;
+}
+
+.node-overview-props-hub-fold-badge--custom .node-overview-props-hub-fold-badge-name {
+  color: #5b21b6;
+}
+
+.node-overview-props-hub-fold-badge--settings .node-overview-props-hub-fold-badge-name {
+  color: #64748b;
 }
 
 .node-overview-meta-value {
