@@ -749,6 +749,7 @@ function getAgentGitFilterLabel() {
 }
 let agentGitSettingsOpen = false;
 let agentGitLastStatus = null;
+let agentGitLastStatusAgentId = null;
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
 const agentJournalContentNode = document.getElementById("agent-journal-content");
 const agentJournalMetaNode = document.getElementById("agent-journal-meta");
@@ -15281,6 +15282,8 @@ async function switchActiveAgent(nextAgentId) {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
     activeAgentId = nextAgentId;
+    agentGitLastStatus = null;
+    agentGitLastStatusAgentId = null;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
     workspaceNotificationsEvents = [];
     workspaceNotificationsLatestId = 0;
@@ -15313,6 +15316,10 @@ async function switchActiveAgent(nextAgentId) {
     const hasCachedView = Boolean(cachedMenu && cachedPane && cachedPane.childElementCount > 0);
     if (hasCachedView) {
       currentMenuData = cachedMenu;
+      syncAgentGitToolbarUi();
+      void prefetchAgentGitToolbarRepoState();
+    } else {
+      syncAgentGitToolbarUi();
     }
 
     showHomeView();
@@ -99848,6 +99855,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     syncMenuPinBranchUi(agentId);
     ensureSidebarWorkspacePageIndexRow();
     syncAgentGitToolbarUi();
+    void prefetchAgentGitToolbarRepoState();
   }
 
   enableMenuLinkDragSources(target);
@@ -104574,12 +104582,32 @@ function initAgentGitToolbar() {
 }
 
 function resolveActiveAgentWorkspaceGitRepo() {
-  if (agentGitLastStatus && agentGitLastStatus.moduleId === "module-git") {
-    return Boolean(agentGitLastStatus.isRepo);
-  }
   const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
-  if (menu && menu.hasGitSelf != null) return Boolean(menu.hasGitSelf);
-  return Boolean(getFolderWorkspaceMarkersForNode(".", activeAgentId).hasGit);
+  if (Boolean(menu?.hasGitSelf)) return true;
+  if (Boolean(getFolderWorkspaceMarkersForNode(".", activeAgentId)?.hasGit)) return true;
+  if (
+    agentGitLastStatusAgentId === activeAgentId &&
+    agentGitLastStatus?.moduleId === "module-git" &&
+    agentGitLastStatus.isRepo
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function prefetchAgentGitToolbarRepoState() {
+  if (!activeAgentId || resolveActiveAgentWorkspaceGitRepo()) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/git/status", { includeCommits: "false" }));
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data?.moduleId !== "module-git") return;
+    agentGitLastStatus = data;
+    agentGitLastStatusAgentId = activeAgentId;
+    syncAgentGitToolbarUi();
+  } catch {
+    // ignore — menu markers remain primary
+  }
 }
 
 function syncAgentGitToolbarUi() {
@@ -105431,10 +105459,8 @@ function agentGitChangeMatchesCommitBatch(change, batch) {
 }
 
 function countAgentGitChangesForCommitBatch(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    if (change?.commitBatchId) return change.commitBatchId === batchId;
     return agentGitChangeMatchesCommitBatch(change, batch);
   }).length;
 }
@@ -105467,14 +105493,9 @@ function agentGitExtensionLabelForBatchChange(change, batch) {
 }
 
 function countAgentGitBatchChangesByExtension(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   const counts = new Map();
   for (const change of Array.isArray(changes) ? changes : []) {
-    if (change?.commitBatchId) {
-      if (change.commitBatchId !== batchId) continue;
-    } else if (!agentGitChangeMatchesCommitBatch(change, batch)) {
-      continue;
-    }
+    if (!agentGitChangeMatchesCommitBatch(change, batch)) continue;
     const ext = agentGitExtensionLabelForBatchChange(change, batch);
     if (!ext) continue;
     counts.set(ext, (counts.get(ext) || 0) + 1);
@@ -105521,15 +105542,10 @@ function formatAgentGitByteSizeLabel(bytes) {
 }
 
 function sumAgentGitCommitBatchByteTotal(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   let total = 0;
   for (const change of Array.isArray(changes) ? changes : []) {
     if (change?.commitAllowed === false) continue;
-    if (change?.commitBatchId) {
-      if (change.commitBatchId !== batchId) continue;
-    } else if (!agentGitChangeMatchesCommitBatch(change, batch)) {
-      continue;
-    }
+    if (!agentGitChangeMatchesCommitBatch(change, batch)) continue;
     if (change?.kind === "deleted") continue;
     const size = Number(change?.sizeBytes);
     if (Number.isFinite(size) && size > 0) total += size;
@@ -105600,16 +105616,19 @@ function getAgentGitCommitModalSelectedBatch() {
 
 function syncAgentGitCommitModalSubmitState() {
   if (!agentGitCommitModalSubmitBtn) return;
+  ensureAgentGitCommitBatchRadioSelection();
   const changes = agentGitLastStatus?.changes || [];
   const selectedIds = getAgentGitSelectedCommitBatchIds();
-  const overLimit = selectedIds.some((batchId) => {
-    const batch = getAgentGitCommitBatchById(batchId);
-    return batch && agentGitCommitBatchExceedsMaxSize(batch, changes);
-  });
-  agentGitCommitModalSubmitBtn.disabled = selectedIds.length === 0 || overLimit;
+  const batchId = selectedIds[0] || "";
+  const batch = getAgentGitCommitBatchById(batchId);
+  const committableCount = batch ? countAgentGitChangesForCommitBatch(batch, changes) : 0;
+  const overLimit = Boolean(batch && agentGitCommitBatchExceedsMaxSize(batch, changes));
+  agentGitCommitModalSubmitBtn.disabled = !batchId || committableCount <= 0 || overLimit;
   const maxMb = Number(agentGitModuleConfig?.commitMaxBatchMb);
   if (overLimit && Number.isFinite(maxMb) && maxMb > 0) {
     agentGitCommitModalSubmitBtn.title = `Превышен лимит ${maxMb} МБ на один коммит (партия)`;
+  } else if (!batchId || committableCount <= 0) {
+    agentGitCommitModalSubmitBtn.title = "Нет файлов для коммита в выбранной партии";
   } else {
     agentGitCommitModalSubmitBtn.removeAttribute("title");
   }
@@ -105639,11 +105658,39 @@ function syncAgentGitCommitModalLimitNote() {
   const maxMb = Number(agentGitModuleConfig?.commitMaxBatchMb);
   if (!Number.isFinite(maxMb) || maxMb <= 0) {
     agentGitCommitBatchLimitNoteNode.classList.add("hidden");
-    agentGitCommitBatchLimitNoteNode.textContent = "";
+    agentGitCommitBatchLimitNoteNode.replaceChildren();
     return;
   }
   agentGitCommitBatchLimitNoteNode.classList.remove("hidden");
-  agentGitCommitBatchLimitNoteNode.textContent = `Макс. размер одного коммита: ${maxMb} МБ (сумма файлов выбранной партии).`;
+  agentGitCommitBatchLimitNoteNode.replaceChildren();
+  const line = document.createElement("div");
+  line.className = "agent-git-commit-limit-line";
+  const text = document.createElement("span");
+  text.className = "agent-git-commit-limit-text";
+  text.textContent = "Лимит одного коммита (сумма файлов партии):";
+  const badge = document.createElement("span");
+  badge.className = "agent-git-commit-limit-badge";
+  badge.textContent = `${maxMb} МБ`;
+  line.append(text, badge);
+  const hint = document.createElement("p");
+  hint.className = "agent-git-commit-limit-hint";
+  hint.textContent =
+    "На remote (GitHub, GitLab и др.) надёжно уходит push до ~1 ГБ за раз — больше лучше разбить на несколько коммитов или использовать Git LFS.";
+  agentGitCommitBatchLimitNoteNode.append(line, hint);
+}
+
+function ensureAgentGitCommitBatchRadioSelection() {
+  if (!agentGitCommitBatchListNode) return null;
+  let checked = agentGitCommitBatchListNode.querySelector(
+    'input[type="radio"]:checked:not(:disabled)'
+  );
+  if (checked) return checked;
+  checked = agentGitCommitBatchListNode.querySelector('input[type="radio"]:not(:disabled)');
+  if (checked) {
+    checked.checked = true;
+    return checked;
+  }
+  return null;
 }
 
 function pickDefaultAgentGitCommitBatchId(batches, changes = []) {
@@ -105722,6 +105769,7 @@ function openAgentGitCommitModal() {
       option.append(input, body);
       agentGitCommitBatchListNode.appendChild(option);
     }
+    ensureAgentGitCommitBatchRadioSelection();
   }
 
   if (agentGitCommitMessageNoteNode) {
@@ -105869,8 +105917,22 @@ async function openAgentGitDiffModal(changeItem) {
 function reportAgentGitCommitResult(result) {
   if (result?.batched && Array.isArray(result.batches)) {
     const committed = result.batches.filter((item) => item.committed);
+    const skipped = result.batches.filter((item) => !item.committed);
     if (!committed.length) {
-      window.alert("Нет изменений для коммита в выбранных партиях");
+      const detail = skipped
+        .map((item) => {
+          const label = item.label || item.batchId || "партия";
+          const reason = item.reason === "nothing_to_commit"
+            ? "нет подходящих файлов (лимит размера или пустая партия)"
+            : String(item.reason || "не создан");
+          return `${label}: ${reason}`;
+        })
+        .join("\n");
+      window.alert(
+        detail
+          ? `Коммит не создан.\n${detail}`
+          : "Нет изменений для коммита в выбранной партии"
+      );
       return;
     }
     const lines = committed.map((item) => {
@@ -105915,6 +105977,7 @@ function agentGitHasConfiguredRemote(data) {
 
 function syncAgentGitSettingsUi(data) {
   agentGitLastStatus = data || null;
+  agentGitLastStatusAgentId = activeAgentId;
   const isRepo = Boolean(data?.isRepo);
   const hasRemote = agentGitHasConfiguredRemote(data);
   if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
@@ -126881,6 +126944,7 @@ agentGitDiffModal?.addEventListener("click", (event) => {
 });
 
 agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
+  ensureAgentGitCommitBatchRadioSelection();
   const batchIds = getAgentGitSelectedCommitBatchIds();
   if (!batchIds.length) {
     window.alert("Выберите партию для коммита");

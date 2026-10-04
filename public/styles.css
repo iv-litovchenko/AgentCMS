@@ -13717,13 +13717,49 @@ body.workspace-idle-screensaver-active {
   font-size: 12px;
   line-height: 1.4;
   color: var(--text);
-  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, var(--panel, #fff));
-  border: 1px solid color-mix(in srgb, var(--accent, #3b82f6) 22%, var(--border));
+  background: color-mix(in srgb, var(--accent, #3b82f6) 6%, var(--panel, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent, #3b82f6) 18%, var(--border));
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .agent-git-commit-batch-limit-note.hidden {
   display: none;
+}
+
+.agent-git-commit-limit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-git-commit-limit-text {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-git-commit-limit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  background: rgba(254, 226, 226, 0.95);
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.agent-git-commit-limit-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .agent-git-commit-batch-list {
@@ -23952,7 +23988,13 @@ a.header-tool-btn {
   overflow: hidden;
 }
 
-.sidebar-git-btn.has-git-repo {
+.sidebar-git-btn.has-git-repo,
+.sidebar-git-btn.has-git-repo .agents-picker-tool-icon {
+  color: #de4c36;
+}
+
+.sidebar-slab-agent .sidebar-git-btn.has-git-repo,
+.sidebar-slab-agent .sidebar-git-btn.has-git-repo .agents-picker-tool-icon {
   color: #de4c36;
 }
 
