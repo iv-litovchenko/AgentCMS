@@ -52997,13 +52997,21 @@ button.node-navigation-memory-title:focus-visible {
   overflow: visible;
 }
 
+.doc-slab-content.is-doc-editor-scroll-host
+  .editor-wysiwyg-wrap:not(.hidden)
+  .toastui-editor-defaultUI {
+  flex-direction: column-reverse;
+}
+
 /* WYSIWYG: toolbar внизу doc-slab-content (над status-bar), title-bar уезжает при скролле */
 .doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked {
   padding-bottom: var(--editor-wysiwyg-toolbar-dock-height, 46px);
   box-sizing: border-box;
 }
 
-.doc-slab-content.is-doc-editor-scroll-host .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-toolbar.is-editor-toolbar-bottom-docked {
+.doc-slab-content.is-doc-editor-scroll-host
+  .editor-wysiwyg-wrap:not(.hidden)
+  .toastui-editor-toolbar.is-editor-toolbar-bottom-docked {
   position: fixed;
   z-index: 100;
   margin: 0;
@@ -53030,15 +53038,27 @@ button.node-navigation-memory-title:focus-visible {
   z-index: 1;
 }
 
-.editor-wysiwyg-wrap .toastui-editor-tooltip {
-  z-index: 200;
-  pointer-events: none;
+/* Toast UI: подсказки скрыты у нижней dock-панели */
+.editor-wysiwyg-wrap.is-editor-toolbar-bottom-docked .toastui-editor-tooltip {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-dropdown-toolbar,
 .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-popup,
 .editor-wysiwyg-wrap:not(.hidden) .toastui-editor-context-menu {
-  z-index: 115;
+  z-index: 210;
+}
+
+.editor-wysiwyg-wrap
+  .toastui-editor-toolbar.is-editor-toolbar-bottom-docked
+  .toastui-editor-popup,
+.editor-wysiwyg-wrap
+  .toastui-editor-toolbar.is-editor-toolbar-bottom-docked
+  .toastui-editor-dropdown-toolbar {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-toolbar {

@@ -93173,7 +93173,10 @@ function syncEditorWysiwygToolbarBottomDock() {
 
   const contentRect = content.getBoundingClientRect();
   const toolbarHeight = toolbar.offsetHeight || 46;
-  const bottomOffset = Math.max(0, Math.round(window.innerHeight - contentRect.bottom));
+  const bottomOffset = Math.max(
+    0,
+    Math.round(window.innerHeight - contentRect.bottom) - EDITOR_WYSIWYG_TOOLBAR_BOTTOM_DOCK_SHIFT_PX
+  );
 
   content.style.setProperty("--editor-wysiwyg-toolbar-dock-height", `${toolbarHeight}px`);
   editorWysiwygWrapNode.classList.add("is-editor-toolbar-bottom-docked");
@@ -93188,11 +93191,113 @@ function syncEditorWysiwygToolbarBottomDock() {
 
 let editorToolbarBottomDockResizeObserver = null;
 
+/** На сколько px опустить dock-панель ниже (ближе к status-bar). */
+const EDITOR_WYSIWYG_TOOLBAR_BOTTOM_DOCK_SHIFT_PX = 2;
+
+const EDITOR_WYSIWYG_TOOLBAR_OVERLAY_GAP_PX = 8;
+
+function clampEditorToolbarOverlayCoord(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function isToastUiToolbarOverlayVisible(node) {
+  if (!node) return false;
+  if (node.style.display === "none") return false;
+  return node.offsetWidth > 0 && node.offsetHeight > 0;
+}
+
+function getEditorWysiwygToolbarActiveControl(toolbar) {
+  if (!toolbar) return null;
+  return (
+    toolbar.querySelector(".toastui-editor-toolbar-icons.active") ||
+    toolbar.querySelector("button.active:not(:disabled)") ||
+    toolbar.querySelector(".toastui-editor-toolbar-group button.active")
+  );
+}
+
+function syncEditorWysiwygToolbarOverlayNode(node, toolbar) {
+  if (!node || !toolbar || !isToastUiToolbarOverlayVisible(node)) return;
+
+  const toolbarWidth = toolbar.offsetWidth || 0;
+  const nodeWidth = node.offsetWidth || 0;
+  const nodeHeight = node.offsetHeight || 0;
+  if (!nodeHeight) return;
+
+  node.style.transform = "";
+  node.style.bottom = "auto";
+  node.style.right = "auto";
+
+  const control = getEditorWysiwygToolbarActiveControl(toolbar);
+  const toolbarRect = toolbar.getBoundingClientRect();
+  let left = Number.parseFloat(node.style.left);
+  if (!Number.isFinite(left)) left = 0;
+
+  if (control) {
+    const controlRect = control.getBoundingClientRect();
+    left = controlRect.left - toolbarRect.left;
+  }
+
+  const maxLeft = Math.max(4, toolbarWidth - nodeWidth - 4);
+  left = clampEditorToolbarOverlayCoord(left, 4, maxLeft);
+
+  node.style.left = `${Math.round(left)}px`;
+  node.style.top = `${Math.round(-nodeHeight - EDITOR_WYSIWYG_TOOLBAR_OVERLAY_GAP_PX)}px`;
+}
+
+function syncEditorWysiwygToolbarOverlays() {
+  const toolbar = getEditorWysiwygToolbarNode();
+  if (!toolbar?.classList.contains("is-editor-toolbar-bottom-docked")) return;
+
+  toolbar.querySelectorAll(".toastui-editor-popup").forEach((popup) => {
+    syncEditorWysiwygToolbarOverlayNode(popup, toolbar);
+  });
+
+  const dropdown = toolbar.querySelector(".toastui-editor-dropdown-toolbar");
+  syncEditorWysiwygToolbarOverlayNode(dropdown, toolbar);
+}
+
+let editorToolbarOverlayObserver = null;
+let editorToolbarOverlaySyncScheduled = false;
+
+function scheduleEditorWysiwygToolbarOverlaySync() {
+  if (editorToolbarOverlaySyncScheduled) return;
+  editorToolbarOverlaySyncScheduled = true;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      editorToolbarOverlaySyncScheduled = false;
+      syncEditorWysiwygToolbarOverlays();
+    });
+  });
+}
+
+function ensureEditorToolbarOverlayObserver() {
+  const toolbar = getEditorWysiwygToolbarNode();
+  if (!toolbar || !toolbar.classList.contains("is-editor-toolbar-bottom-docked")) {
+    editorToolbarOverlayObserver?.disconnect();
+    return;
+  }
+  if (typeof MutationObserver === "undefined") return;
+  if (!editorToolbarOverlayObserver) {
+    editorToolbarOverlayObserver = new MutationObserver(() => {
+      scheduleEditorWysiwygToolbarOverlaySync();
+    });
+  }
+  editorToolbarOverlayObserver.disconnect();
+  editorToolbarOverlayObserver.observe(toolbar, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["style", "class"]
+  });
+  scheduleEditorWysiwygToolbarOverlaySync();
+}
+
 function ensureEditorToolbarBottomDockObserver() {
   if (typeof ResizeObserver === "undefined") return;
   if (!editorToolbarBottomDockResizeObserver) {
     editorToolbarBottomDockResizeObserver = new ResizeObserver(() => {
       syncEditorWysiwygToolbarBottomDock();
+      scheduleEditorWysiwygToolbarOverlaySync();
     });
   }
   editorToolbarBottomDockResizeObserver.disconnect();
@@ -93209,6 +93314,7 @@ function syncEditorStickyChromeUi() {
   syncDocEditorScrollHostClass();
   syncEditorWysiwygToolbarBottomDock();
   ensureEditorToolbarBottomDockObserver();
+  ensureEditorToolbarOverlayObserver();
 }
 
 function applyEditorAutoHeightUi() {
@@ -93386,6 +93492,7 @@ function enhanceToastUiLinkPopup(popup) {
         empty.className = "awn-wysiwyg-link-picker-empty";
         empty.textContent = query.trim() ? "Ничего не найдено" : "Нет markdown-файлов для ссылки";
         picker.appendChild(empty);
+        scheduleEditorWysiwygToolbarOverlaySync();
         return;
       }
       for (const item of items) {
@@ -93403,6 +93510,7 @@ function enhanceToastUiLinkPopup(popup) {
         });
         picker.appendChild(btn);
       }
+      scheduleEditorWysiwygToolbarOverlaySync();
     }, 0);
   };
 
@@ -93425,6 +93533,7 @@ function enhanceToastUiLinkPopup(popup) {
     renderPicker(searchInput.value);
   });
   updatePreview();
+  scheduleEditorWysiwygToolbarOverlaySync();
 }
 
 function teardownWysiwygLinkPopupEnhancement(popup = null) {
@@ -93455,6 +93564,7 @@ function syncWysiwygLinkPopupEnhancement() {
 
   if (popup.dataset.awnEnhanced === "1") {
     wysiwygLinkPopupWasVisible = true;
+    scheduleEditorWysiwygToolbarOverlaySync();
     return;
   }
 
