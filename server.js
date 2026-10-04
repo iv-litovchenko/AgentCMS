@@ -20625,6 +20625,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agents/git-summaries") {
+    try {
+      refreshAgentsFromDisk();
+      const projectRoot = getProjectRoot();
+      const summaries = {};
+      await Promise.all(
+        getAgentsPublicList()
+          .filter((entry) => entry.folderExists !== false && entry.virtual !== true)
+          .map(async (entry) => {
+            const resolved = resolveAgent(entry.id);
+            if (!resolved?.rootAbsolute) return;
+            summaries[entry.id] = await buildGitLocationSummary(resolved.rootAbsolute, projectRoot);
+          })
+      );
+      return sendJson(res, 200, { summaries });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read agent git summaries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agents/menus") {
     const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
     const maxDepth = Number.isFinite(maxDepthRaw)

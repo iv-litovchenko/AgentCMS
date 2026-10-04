@@ -13828,6 +13828,118 @@ function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
 /** Orbit: клик по пузырю сразу открывает workspace; twigs на hover и dive-дерево — отложены */
 const ORBIT_BUBBLE_OPENS_WORKSPACE = true;
 
+let landingOrbitGitLoadSeq = 0;
+
+function getRegistryAgentAwnStatus(agent) {
+  return String(agent?.awnProps?.["awn-status"] ?? agent?.status ?? "").trim();
+}
+
+function getRegistryAgentAwnId(agent) {
+  return String(agent?.awnProps?.["awn-id"] ?? "").trim();
+}
+
+function formatLandingOrbitGitSummary(git) {
+  if (!git || typeof git !== "object") return "git …";
+  if (git.error) return "git: ошибка";
+  if (!git.hasDotGit) return "нет git";
+  const upstream = String(git.upstream || "").trim();
+  const branch = String(git.branch || "").trim() || "main";
+  const remoteLine = upstream || `origin/${branch}`;
+  const parts = [remoteLine];
+  if (git.clean === true) parts.push("чисто");
+  else if (Number(git.changeCount) > 0) parts.push(`${git.changeCount} изм.`);
+  if (Number(git.ahead) > 0 || Number(git.behind) > 0) {
+    parts.push(`↑${git.ahead || 0} ↓${git.behind || 0}`);
+  }
+  return parts.join(" · ");
+}
+
+function createAppLandingOrbitBubbleMeta(agent) {
+  const meta = document.createElement("div");
+  meta.className = "app-landing-orbit-bubble-meta";
+  meta.setAttribute("aria-hidden", "true");
+
+  const statusValue = getRegistryAgentAwnStatus(agent) || "—";
+  const statusRow = document.createElement("div");
+  statusRow.className = "app-landing-orbit-bubble-meta-row is-status";
+  const statusLabel = document.createElement("span");
+  statusLabel.className = "app-landing-orbit-bubble-meta-label";
+  statusLabel.textContent = "status";
+  const statusText = document.createElement("span");
+  statusText.className = "app-landing-orbit-bubble-meta-value";
+  statusText.textContent = statusValue;
+  statusText.title = statusValue;
+  statusRow.append(statusLabel, statusText);
+
+  const slugRow = document.createElement("div");
+  slugRow.className = "app-landing-orbit-bubble-meta-row is-slug";
+  const slugLabel = document.createElement("span");
+  slugLabel.className = "app-landing-orbit-bubble-meta-label";
+  slugLabel.textContent = "slug";
+  const slugText = document.createElement("span");
+  slugText.className = "app-landing-orbit-bubble-meta-value is-mono";
+  slugText.textContent = agent.id || "—";
+  slugText.title = agent.id || "";
+  slugRow.append(slugLabel, slugText);
+
+  const gitRow = document.createElement("div");
+  gitRow.className = "app-landing-orbit-bubble-meta-row is-git is-loading";
+  const gitLabel = document.createElement("span");
+  gitLabel.className = "app-landing-orbit-bubble-meta-label";
+  gitLabel.textContent = "git";
+  const gitText = document.createElement("span");
+  gitText.className = "app-landing-orbit-bubble-meta-value is-mono";
+  gitText.textContent = "…";
+  gitRow.append(gitLabel, gitText);
+
+  meta.append(statusRow, slugRow, gitRow);
+  return meta;
+}
+
+function appendAppLandingOrbitBubbleAwnIdBadge(avatar, agent) {
+  const awnId = getRegistryAgentAwnId(agent);
+  if (!awnId) return;
+  const badge = document.createElement("span");
+  badge.className = "app-landing-orbit-bubble-awn-id-badge";
+  badge.textContent = awnId;
+  badge.title = `awn-id: ${awnId}`;
+  badge.setAttribute("aria-hidden", "true");
+  avatar.appendChild(badge);
+}
+
+function applyLandingOrbitGitSummaries(summaries = {}) {
+  const orbitAgentsNode = getOrbitAgentBubblesNode();
+  if (!orbitAgentsNode) return;
+  for (const item of orbitAgentsNode.querySelectorAll(".app-landing-orbit-item")) {
+    const agentId = String(item.dataset.agentId || "").trim();
+    const gitRow = item.querySelector(".app-landing-orbit-bubble-meta-row.is-git");
+    const gitText = gitRow?.querySelector(".app-landing-orbit-bubble-meta-value");
+    if (!gitRow || !gitText) continue;
+    gitRow.classList.remove("is-loading");
+    const summary = summaries[agentId];
+    const line = formatLandingOrbitGitSummary(summary);
+    gitText.textContent = line;
+    gitText.title = line;
+    gitRow.classList.toggle("is-clean", summary?.hasDotGit === true && summary?.clean === true);
+    gitRow.classList.toggle("is-dirty", summary?.hasDotGit === true && summary?.clean === false);
+    gitRow.classList.toggle("is-missing", summary?.hasDotGit === false);
+  }
+}
+
+async function refreshLandingOrbitGitSummaries() {
+  const seq = ++landingOrbitGitLoadSeq;
+  try {
+    const response = await fetch("/api/agents/git-summaries");
+    if (!response.ok) return;
+    const data = await response.json().catch(() => ({}));
+    if (seq !== landingOrbitGitLoadSeq) return;
+    applyLandingOrbitGitSummaries(data?.summaries || {});
+  } catch {
+    if (seq !== landingOrbitGitLoadSeq) return;
+    applyLandingOrbitGitSummaries({});
+  }
+}
+
 function createAppLandingOrbitBubble(agent, index, total, share) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
@@ -13877,6 +13989,7 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
     emojiClass: "app-landing-orbit-bubble-emoji",
     initialsClass: "app-landing-orbit-bubble-initials"
   });
+  appendAppLandingOrbitBubbleAwnIdBadge(avatar, agent);
 
   btn.append(avatar);
 
@@ -13892,6 +14005,8 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
   nameNode.className = "app-landing-orbit-bubble-label";
   if (isOrchestrator) nameNode.classList.add("is-orchestrator");
   nameNode.textContent = label;
+
+  const metaNode = createAppLandingOrbitBubbleMeta(agent);
 
   btn.addEventListener("click", () => {
     if (!registryActive) {
@@ -13909,7 +14024,7 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
     openOrbitAgentDive(agent.id);
   });
 
-  const children = [btn, nameNode];
+  const children = [btn, nameNode, metaNode];
 
   if (share) {
     const attentionWrap = document.createElement("div");
@@ -13995,6 +14110,7 @@ function renderAppLandingOrbit() {
   setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
   syncOrbitDiveSelection();
   appLandingInnerNode?.classList.toggle("is-orbit-direct-open", ORBIT_BUBBLE_OPENS_WORKSPACE);
+  void refreshLandingOrbitGitSummaries();
 }
 
 const ORBIT_FOCUS_TWIG_LIMIT = 8;

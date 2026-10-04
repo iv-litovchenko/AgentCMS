@@ -8124,9 +8124,9 @@ body.workspace-idle-screensaver-active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: max-content;
-  max-width: calc(var(--orbit-size, 72px) + 56px);
+  max-width: min(220px, calc(var(--orbit-size, 72px) + 120px));
   transform: translate(-50%, -50%);
   animation: app-landing-orbit-drift var(--orbit-duration, 8s) ease-in-out infinite;
   animation-delay: var(--orbit-delay, 0s);
@@ -8211,6 +8211,29 @@ body.workspace-idle-screensaver-active {
   transition: opacity 0.22s ease;
 }
 
+.app-landing-orbit-bubble-awn-id-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+  max-width: calc(100% - 8px);
+  padding: 1px 5px;
+  border: 1px solid rgba(250, 204, 21, 0.65);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fef9c3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(2, 6, 23, 0.45);
+}
+
 .app-landing-orbit-bubble-avatar.is-preview-loading {
   background: #f1f5f9;
 }
@@ -8287,10 +8310,84 @@ body.workspace-idle-screensaver-active {
   letter-spacing: 0.04em;
 }
 
+.app-landing-orbit-bubble-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-width: min(220px, calc(var(--orbit-size, 72px) + 120px));
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.app-landing-orbit-bubble-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.app-landing-orbit-bubble-meta-row.hidden {
+  display: none;
+}
+
+.app-landing-orbit-bubble-meta-label {
+  flex: 0 0 auto;
+  color: rgba(148, 163, 184, 0.92);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-landing-orbit-bubble-meta-value {
+  min-width: 0;
+  color: #e2e8f0;
+  font-weight: 600;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-landing-orbit-bubble-meta-value.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.app-landing-orbit-bubble-meta-row.is-status .app-landing-orbit-bubble-meta-value {
+  font-size: 10px;
+}
+
+.app-landing-orbit-bubble-meta-row.is-git.is-clean .app-landing-orbit-bubble-meta-value {
+  color: #86efac;
+}
+
+.app-landing-orbit-bubble-meta-row.is-git.is-dirty .app-landing-orbit-bubble-meta-value {
+  color: #fde68a;
+}
+
+.app-landing-orbit-bubble-meta-row.is-git.is-missing .app-landing-orbit-bubble-meta-value {
+  color: #94a3b8;
+}
+
+.app-landing-orbit-bubble-meta-row.is-git.is-loading .app-landing-orbit-bubble-meta-value {
+  opacity: 0.55;
+}
+
 .app-landing-orbit-bubble-label {
   display: inline-block;
   width: auto;
-  max-width: calc(var(--orbit-size, 72px) + 56px);
+  max-width: min(220px, calc(var(--orbit-size, 72px) + 120px));
   padding: 4px 10px;
   border: 1px solid rgba(255, 255, 255, 0.92);
   border-radius: 999px;
@@ -10011,6 +10108,13 @@ body.workspace-idle-screensaver-active {
   color: #1e3a8a;
 }
 
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-awn-id-badge {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(255, 255, 255, 0.94);
+  color: #4338ca;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
 .app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-label {
   border-color: #e2e8f0;
   background: #fff;
@@ -10018,6 +10122,28 @@ body.workspace-idle-screensaver-active {
   box-shadow:
     0 4px 12px rgba(15, 23, 42, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-meta {
+  border-color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-meta-label {
+  color: #64748b;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-meta-value {
+  color: #334155;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-meta-row.is-git.is-clean .app-landing-orbit-bubble-meta-value {
+  color: #15803d;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble-meta-row.is-git.is-dirty .app-landing-orbit-bubble-meta-value {
+  color: #b45309;
 }
 
 .app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-bubble.is-inactive + .app-landing-orbit-bubble-label {
