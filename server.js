@@ -17058,7 +17058,9 @@ function enrichModuleGitConfigWithCommitBatches(moduleConfig, commitBatchSetting
   return {
     ...moduleConfig,
     commitBatchOrder: commitBatchSettings?.batchOrder || "records-first",
-    commitBatches: Array.isArray(commitBatchSettings?.batches) ? commitBatchSettings.batches : []
+    commitBatches: Array.isArray(commitBatchSettings?.batches) ? commitBatchSettings.batches : [],
+    commitMaxBatchMb: Number(commitBatchSettings?.maxCommitBatchMb) || 0,
+    commitMaxBatchBytes: Number(commitBatchSettings?.maxCommitBatchBytes) || 0
   };
 }
 
@@ -20944,10 +20946,17 @@ async function handleApiForAgent(req, res, url) {
         branch: parsed.branch || "main",
         date: datePart,
         time: timePart,
-        messageSuffix
+        messageSuffix,
+        maxCommitBatchBytes: commitBatchSettings.maxCommitBatchBytes || 0
       });
       return sendJson(res, 200, { moduleId: "module-git", batched: true, ...result });
     } catch (error) {
+      if (error?.code === "COMMIT_BATCH_TOTAL_SIZE_EXCEEDED") {
+        return sendJson(res, 400, {
+          error: String(error.message || "Commit batch size limit exceeded"),
+          code: error.code
+        });
+      }
       return sendJson(res, 500, {
         error: "Failed to commit git changes",
         details: String(error.message || error)

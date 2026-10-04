@@ -223,6 +223,18 @@ fields:
           Файлы больше лимита не попадают в коммит этой партии. Записи и конфиги — 1 МБ,
           изображения и прочие файлы — 5 МБ по умолчанию.
 
+  module-git-commit-max-batch-mb:
+    type: awn.field.number
+    title: Макс. размер одного коммита (МБ)
+    description: >
+      Сумма размеров файлов в одной партии при batched commit (UI и module_git_commit).
+      Превышение блокирует коммит этой партии. 0 — отключить проверку.
+    default: 250
+    group: module-git
+    locked: true
+    readonly: true
+    sort: 5
+
   module-git-user-name:
     type: awn.field.string
     title: Имя автора коммита
@@ -230,7 +242,7 @@ fields:
       Git user.name для коммитов из UI и module_git_commit (локально для команды, без проверки личности).
     default: ""
     group: module-git
-    sort: 5
+    sort: 6
 
   module-git-user-email:
     type: awn.field.string
@@ -238,7 +250,7 @@ fields:
     description: Git user.email для коммитов из workspace.
     default: ""
     group: module-git
-    sort: 6
+    sort: 7
 
   module-git-sign-commits:
     type: awn.field.boolean
@@ -248,7 +260,7 @@ fields:
     group: module-git
     locked: true
     readonly: true
-    sort: 7
+    sort: 8
 
   module-git-pull-strategy:
     type: awn.field.choice.one
@@ -259,7 +271,7 @@ fields:
     group: module-git
     locked: true
     readonly: true
-    sort: 8
+    sort: 9
 
   container-cursor-skill-enabled:
     type: awn.field.boolean

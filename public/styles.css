@@ -13773,6 +13773,16 @@ body.workspace-idle-screensaver-active {
   font-weight: 500;
 }
 
+.agent-git-commit-batch-option.is-over-limit {
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 55%, var(--border));
+  background: color-mix(in srgb, var(--danger, #dc2626) 6%, transparent);
+}
+
+.agent-git-commit-batch-option.is-over-limit .agent-git-commit-batch-option-meta {
+  color: var(--danger, #dc2626);
+  font-weight: 600;
+}
+
 .agent-git-commit-modal-field {
   display: flex;
   flex-direction: column;
