@@ -20086,7 +20086,7 @@ ol .live-diff-preview-removed {
 
 .agent-git-commit-row {
   display: grid;
-  grid-template-columns: auto 72px minmax(0, 1fr) auto;
+  grid-template-columns: auto 72px minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -20127,6 +20127,16 @@ ol .live-diff-preview-removed {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-git-commit-files {
+  color: #64748b;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-git-commit-files.is-empty {
+  color: #cbd5e1;
 }
 
 .agent-git-commit-meta {
@@ -20176,6 +20186,10 @@ ol .live-diff-preview-removed {
   }
 
   .agent-git-commit-subject {
+    grid-column: 1 / -1;
+  }
+
+  .agent-git-commit-files {
     grid-column: 1 / -1;
   }
 

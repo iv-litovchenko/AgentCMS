@@ -106503,10 +106503,27 @@ function applyAgentGitChangeListSearch(changesMount, query = "") {
 }
 
 function buildAgentGitCommitSearchHaystack(commit) {
-  return [commit?.hash, commit?.shortHash, commit?.subject, commit?.when, commit?.author]
+  const fileCountLabel =
+    Number.isFinite(commit?.fileCount) && commit.fileCount >= 0
+      ? formatAgentGitCommitBatchFileCountLabel(commit.fileCount)
+      : "";
+  return [
+    commit?.hash,
+    commit?.shortHash,
+    commit?.subject,
+    fileCountLabel,
+    commit?.when,
+    commit?.author
+  ]
     .map((part) => String(part || "").trim().toLowerCase())
     .filter(Boolean)
     .join(" ");
+}
+
+function formatAgentGitCommitHistoryFileCountLabel(commit) {
+  const n = Number(commit?.fileCount);
+  if (!Number.isFinite(n) || n < 0) return "";
+  return formatAgentGitCommitBatchFileCountLabel(n);
 }
 
 function appendAgentGitCommitSearchToolbar(commitsMount) {
@@ -106844,6 +106861,8 @@ async function renderAgentGitView() {
         item.className = "agent-git-commit-row";
         const commitHash = String(commit.hash || commit.shortHash || "").trim();
         const commitShort = String(commit.shortHash || commitHash || "").trim();
+        const fileCountLabel = formatAgentGitCommitHistoryFileCountLabel(commit);
+        const metaParts = [commit.when, commit.author].filter(Boolean);
         item.innerHTML = `
           <span class="agent-git-commit-picker">
             <input
@@ -106857,7 +106876,8 @@ async function renderAgentGitView() {
           </span>
           <span class="agent-git-commit-hash">${escapeHtml(commitShort)}</span>
           <span class="agent-git-commit-subject">${escapeHtml(commit.subject || "")}</span>
-          <span class="agent-git-commit-meta">${escapeHtml([commit.when, commit.author].filter(Boolean).join(" · "))}</span>
+          <span class="agent-git-commit-files${fileCountLabel ? "" : " is-empty"}">${escapeHtml(fileCountLabel || "—")}</span>
+          <span class="agent-git-commit-meta">${escapeHtml(metaParts.join(" · "))}</span>
         `;
         item.dataset.searchHaystack = buildAgentGitCommitSearchHaystack(commit);
         commitsList.appendChild(item);

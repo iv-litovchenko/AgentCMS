@@ -17137,7 +17137,12 @@ async function buildAgentGitStatus(options = {}) {
       "--untracked-files=all"
     ]);
     const logRaw = includeCommits
-      ? await runGitInRepo(repoAbsolute, ["log", "-8", "--format=%H|%h|%s|%cr|%an"]).catch(() => "")
+      ? await runGitInRepo(repoAbsolute, [
+          "log",
+          "-8",
+          "--format=%H|%h|%s|%cr|%an",
+          "--shortstat"
+        ]).catch(() => "")
       : "";
 
     const parsed = parseGitStatusPorcelain(statusRaw);
