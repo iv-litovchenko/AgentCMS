@@ -17136,14 +17136,15 @@ async function buildAgentGitStatus(options = {}) {
       "-b",
       "--untracked-files=all"
     ]);
-    const logRaw = includeCommits
-      ? await runGitInRepo(repoAbsolute, [
+    const logResult = includeCommits
+      ? await runGitInRepoResult(repoAbsolute, [
           "log",
           "-8",
           "--format=%H|%h|%s|%cr|%an",
-          "--shortstat"
-        ]).catch(() => "")
-      : "";
+          "--numstat"
+        ]).catch(() => ({ code: 1, stdout: "" }))
+      : null;
+    const logRaw = logResult && logResult.code === 0 ? logResult.stdout : "";
 
     const parsed = parseGitStatusPorcelain(statusRaw);
     const allChanges = parsed.changes;
@@ -21100,13 +21101,25 @@ async function handleApiForAgent(req, res, url) {
       const pad = (value) => String(value).padStart(2, "0");
       const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       const timePart = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const { parseCommitBatchChunkId } = require("./lib/git/module-git-commit-limits");
       const requestedBatchIds = Array.isArray(payload?.batchIds)
         ? payload.batchIds.map((id) => String(id || "").trim()).filter(Boolean)
         : [];
       let batches = commitBatchSettings.batches;
       if (requestedBatchIds.length) {
-        const allowed = new Set(requestedBatchIds);
-        batches = batches.filter((batch) => allowed.has(String(batch.id || "")));
+        const allowedBatchIds = new Set(
+          requestedBatchIds.map((rawId) => parseCommitBatchChunkId(rawId).batchId).filter(Boolean)
+        );
+        batches = batches
+          .filter((batch) => allowedBatchIds.has(String(batch.id || "")))
+          .map((batch) => {
+            const rawId =
+              requestedBatchIds.find(
+                (entry) => parseCommitBatchChunkId(entry).batchId === String(batch.id || "")
+              ) || String(batch.id || "");
+            const { chunkIndex } = parseCommitBatchChunkId(rawId);
+            return chunkIndex != null ? { ...batch, chunkIndex } : batch;
+          });
       }
       if (!batches.length) {
         return sendJson(res, 400, {
