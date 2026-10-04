@@ -4479,17 +4479,27 @@
             <header class="agent-git-commit-modal-head">
               <h3 id="agent-git-commit-modal-title" class="agent-git-commit-modal-title">Сохранить в git</h3>
               <p class="agent-git-commit-modal-lead">
-                Отметьте партии — каждая создаёт отдельный коммит. Сообщение = шаблон из настроек и необязательный текст ниже.
+                Выберите одну партию — будет один коммит. Сообщение = шаблон из настроек и необязательный текст ниже.
               </p>
             </header>
-            <div id="agent-git-commit-batch-list" class="agent-git-commit-batch-list" role="group" aria-label="Партии коммита"></div>
+            <p
+              id="agent-git-commit-batch-limit-note"
+              class="agent-git-commit-batch-limit-note hidden"
+              aria-live="polite"
+            ></p>
+            <div
+              id="agent-git-commit-batch-list"
+              class="agent-git-commit-batch-list"
+              role="radiogroup"
+              aria-label="Партия коммита"
+            ></div>
             <label class="agent-git-commit-modal-field" for="agent-git-commit-message-note">
               <span class="agent-git-commit-modal-field-label">Дополнение к сообщению (необязательно)</span>
               <textarea
                 id="agent-git-commit-message-note"
                 class="agent-git-commit-message-note"
                 rows="3"
-                placeholder="Будет добавлено с новой строки после шаблона каждого выбранного коммита"
+                placeholder="Будет добавлено с новой строки после шаблона коммита"
                 spellcheck="true"
               ></textarea>
             </label>
