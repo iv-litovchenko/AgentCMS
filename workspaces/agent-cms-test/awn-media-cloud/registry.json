@@ -2,17 +2,6 @@
   "version": 2,
   "entries": [
     {
-      "blob": "mc-9134f763-Снимок экрана 2026-08-02 в 02.44.09.png",
-      "mediaRel": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/assets/materials/45/Снимок экрана 2026-08-02 в 02.44.09.png",
-      "providers": [
-        {
-          "id": "google-drive",
-          "status": "local",
-          "remoteUrl": ""
-        }
-      ]
-    },
-    {
       "blob": "gd_61baf013.docx",
       "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/ВОРД-ТЕСТ.docx",
       "providers": [
