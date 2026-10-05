@@ -33352,14 +33352,17 @@ function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
 }
 
 const WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL = "Разрешенные типы";
+const WORKSPACE_COUNTER_ALLOWED_TYPES_ICON_SVG =
+  '<svg class="node-navigation-workspace-counter-types-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2.5h5.5L13 6v7.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M9.5 2.5V6H13" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M5.5 9h5M5.5 11.5h3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>';
 
 function createWorkspaceCounterAllowedTypesTrigger(spec) {
   const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
   if (!fileTypesHint) return null;
 
   const trigger = document.createElement("span");
-  trigger.className = "node-navigation-workspace-counter-types-trigger";
-  trigger.textContent = WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL;
+  trigger.className =
+    "node-navigation-workspace-counter-types-trigger node-navigation-workspace-counter-types-trigger--icon";
+  trigger.innerHTML = WORKSPACE_COUNTER_ALLOWED_TYPES_ICON_SVG;
   trigger.setAttribute("role", "note");
   trigger.setAttribute("tabindex", "0");
   trigger.setAttribute("aria-label", `${WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL}: ${fileTypesHint}`);
@@ -77369,20 +77372,13 @@ function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
       labelNode.classList.add("node-navigation-workspace-counter-label--stacked");
       const main = document.createElement("span");
       main.className = "node-navigation-workspace-counter-label-main";
-      const isFullWidthCounter = Boolean(
-        slot?.counterFullWidth || slot?.spec?.counterFullWidth
-      );
-      if (isFullWidthCounter) {
-        main.textContent = title;
-      } else {
-        setWorkspaceCounterLabelText(main, title);
-      }
+      main.textContent = title;
       labelNode.append(main, typesTrigger);
       return;
     }
 
     labelNode.classList.remove("node-navigation-workspace-counter-label--stacked");
-    setWorkspaceCounterLabelText(labelNode, title);
+    labelNode.textContent = title;
     return;
   }
 
@@ -77425,10 +77421,17 @@ function isWorkspaceCounterSlotFilled(slot) {
   return Boolean(slot.filled) || Number(slot.count) > 0;
 }
 
-function createWorkspaceCounterIndicator(slot) {
+function createWorkspaceCounterStatusPoint(slot) {
   const wrap = document.createElement("span");
-  wrap.className = "node-navigation-workspace-counter-indicator";
+  wrap.className = "node-navigation-workspace-counter-status";
+  wrap.setAttribute("aria-hidden", "true");
   wrap.appendChild(createNodeSlotStatusLamp(isWorkspaceCounterSlotFilled(slot)));
+  return wrap;
+}
+
+function createWorkspaceCounterMetric(slot) {
+  const wrap = document.createElement("span");
+  wrap.className = "node-navigation-workspace-counter-metric";
 
   if (isDeprecatedRepositoryCounterSlot(slot)) {
     wrap.appendChild(createDeprecatedRepositoryCounterIndicator());
@@ -77450,6 +77453,26 @@ function createWorkspaceCounterIndicator(slot) {
   count.textContent = String(slot.count ?? 0);
   wrap.appendChild(count);
   return wrap;
+}
+
+function clearWorkspaceCounterButtonMetrics(btn) {
+  if (!btn) return;
+  btn.querySelector(".node-navigation-workspace-counter-status")?.remove();
+  btn.querySelector(".node-navigation-workspace-counter-metric")?.remove();
+  btn.querySelector(".node-navigation-workspace-counter-indicator")?.remove();
+  btn.querySelector(".node-navigation-workspace-counter-value")?.remove();
+  btn.querySelector(".node-navigation-workspace-counter-flag")?.remove();
+}
+
+function appendWorkspaceCounterButtonContent(btn, slot, labelNode) {
+  clearWorkspaceCounterButtonMetrics(btn);
+  btn.querySelector(".node-navigation-workspace-counter-icon")?.remove();
+  btn.prepend(
+    createWorkspaceCounterStatusPoint(slot),
+    createWorkspaceCounterSlotIcon(slot),
+    labelNode,
+    createWorkspaceCounterMetric(slot)
+  );
 }
 
 function getEntryOverviewDataSlotBarManifestPath(topicPath) {
@@ -77481,11 +77504,15 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
       : card.querySelector(".node-navigation-workspace-counter");
     if (!btn) continue;
 
-    btn.querySelector(".node-navigation-workspace-counter-indicator")?.remove();
-    btn.querySelector(".node-navigation-workspace-counter-value")?.remove();
-    btn.querySelector(".node-navigation-workspace-counter-flag")?.remove();
     const labelNode = btn.querySelector(".node-navigation-workspace-counter-label");
-    btn.insertBefore(createWorkspaceCounterIndicator(slot), labelNode);
+    clearWorkspaceCounterButtonMetrics(btn);
+    const icon = btn.querySelector(".node-navigation-workspace-counter-icon");
+    if (icon) {
+      btn.insertBefore(createWorkspaceCounterStatusPoint(slot), icon);
+    } else {
+      btn.prepend(createWorkspaceCounterStatusPoint(slot));
+    }
+    btn.appendChild(createWorkspaceCounterMetric(slot));
 
     btn.title = isDeprecatedRepositoryCounterSlot(slot)
       ? "Репозитории — откажемся от этого слота"
@@ -78381,7 +78408,7 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   label.className = "node-navigation-workspace-counter-label";
   applyWorkspaceCounterLabelForSlot(label, slot);
 
-  btn.append(createWorkspaceCounterSlotIcon(slot), createWorkspaceCounterIndicator(slot), label);
+  appendWorkspaceCounterButtonContent(btn, slot, label);
   if (!isDeprecatedRepositoryCounterSlot(slot)) {
     btn.addEventListener("click", onClick);
   }
