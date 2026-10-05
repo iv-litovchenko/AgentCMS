@@ -78740,12 +78740,31 @@ function finalizeEntryOverviewBrowsePanelChromeOrder(panel) {
   finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
 }
 
+function dedupeEntryOverviewSlotCounterStrips(hubMain) {
+  if (!hubMain) return null;
+
+  const strips = Array.from(
+    hubMain.querySelectorAll(
+      ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters"
+    )
+  );
+  if (!strips.length) return null;
+  if (strips.length === 1) return strips[0];
+
+  let keeper =
+    strips.find((strip) => strip.parentElement === hubMain) ||
+    strips.find((strip) => strip.classList.contains("node-entry-overview-hub-top-slot-counters")) ||
+    strips[0];
+  strips.forEach((strip) => {
+    if (strip !== keeper) strip.remove();
+  });
+  return keeper;
+}
+
 function relocateEntryOverviewSlotCountersChrome(hubMain) {
   if (!hubMain) return;
 
-  const strip = hubMain.querySelector(
-    ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters"
-  );
+  const strip = dedupeEntryOverviewSlotCounterStrips(hubMain);
   if (!strip) return;
 
   const hero = hubMain.querySelector(
@@ -78864,7 +78883,9 @@ async function mountEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, contex
 
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   const mountSeq = (hubMain._hubMainSlotStripSeq = (hubMain._hubMainSlotStripSeq || 0) + 1);
-  const existing = hubMain.querySelector(":scope > .node-entry-overview-hub-main-slot-counters");
+  const existing =
+    dedupeEntryOverviewSlotCounterStrips(hubMain) ||
+    hubMain.querySelector(":scope > .node-entry-overview-hub-main-slot-counters");
 
   if (
     existing?.dataset.topicNodePath === resolvedTopicPath &&
@@ -78916,8 +78937,26 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   if (!resolvedTopicPath) return null;
 
+  const hubMain = panel.closest(".node-navigation-hub-main");
   const mountSeq = (panel._browseSlotStripSeq = (panel._browseSlotStripSeq || 0) + 1);
-  const existing = panel.querySelector(".node-entry-overview-browse-slot-counters");
+  const existingInPanel = panel.querySelector(".node-entry-overview-browse-slot-counters");
+  const existingGlobal = hubMain
+    ? dedupeEntryOverviewSlotCounterStrips(hubMain)
+    : existingInPanel;
+
+  if (
+    existingGlobal &&
+    !panel.contains(existingGlobal) &&
+    existingGlobal.dataset.topicNodePath === resolvedTopicPath &&
+    existingGlobal.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    refreshEntryOverviewSlotCounterStripCounts(existingGlobal, context, resolvedTopicPath);
+    finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+    relocateEntryOverviewSlotCountersChrome(hubMain);
+    return existingGlobal;
+  }
+
+  const existing = existingInPanel;
 
   if (
     existing?.dataset.topicNodePath === resolvedTopicPath &&
@@ -78925,7 +78964,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
   ) {
     refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(hubMain);
     return existing;
   }
 
@@ -78943,7 +78982,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
     else panel.prepend(strip);
     syncAllWorkspaceCounterStripActiveStates(context);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(hubMain);
   } else if (existing && existing.dataset.topicNodePath !== resolvedTopicPath) {
     existing.remove();
   }
@@ -78953,8 +78992,16 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   if (!loadedStrip) {
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(hubMain);
     return strip;
+  }
+
+  const globalAfterLoad = hubMain ? dedupeEntryOverviewSlotCounterStrips(hubMain) : null;
+  if (globalAfterLoad && !panel.contains(globalAfterLoad)) {
+    refreshEntryOverviewSlotCounterStripCounts(globalAfterLoad, context, resolvedTopicPath);
+    finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+    relocateEntryOverviewSlotCountersChrome(hubMain);
+    return globalAfterLoad;
   }
 
   loadedStrip.classList.add("node-entry-overview-browse-slot-counters");
@@ -78966,7 +79013,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   syncAllWorkspaceCounterStripActiveStates(context);
   finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-  relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
+  relocateEntryOverviewSlotCountersChrome(hubMain);
   return loadedStrip;
 }
 
