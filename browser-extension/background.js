@@ -1049,6 +1049,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "COMPANION_LIST_AGENTS") {
+    getSettings()
+      .then(async ({ cmsBaseUrl }) => {
+        const base = String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
+        try {
+          const agentsRes = await fetch(`${base}/api/agents`);
+          if (!agentsRes.ok) {
+            return { ok: false, error: `HTTP ${agentsRes.status}`, cmsBaseUrl: base, agents: [] };
+          }
+          const agentsData = await agentsRes.json();
+          let groups = [];
+          try {
+            const groupsRes = await fetch(`${base}/api/agents/groups`);
+            if (groupsRes.ok) {
+              const groupsData = await groupsRes.json();
+              groups = Array.isArray(groupsData?.groups)
+                ? groupsData.groups
+                : Array.isArray(groupsData)
+                  ? groupsData
+                  : [];
+            }
+          } catch {
+            // ignore groups
+          }
+          return {
+            ok: true,
+            cmsBaseUrl: base,
+            agents: Array.isArray(agentsData.agents) ? agentsData.agents : [],
+            groups,
+            defaultAgentId: agentsData.defaultAgentId || ""
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error?.message || String(error),
+            cmsBaseUrl: base,
+            agents: []
+          };
+        }
+      })
+      .then(sendResponse);
+    return true;
+  }
+
   if (message?.type === "COMPANION_DOWNLOAD_URL") {
     const url = String(message.url || "").trim();
     const filename = String(message.filename || "").trim();

@@ -819,6 +819,13 @@
   brandDockDivider.className = "asc-brand-dock-divider";
   brandDockDivider.setAttribute("aria-hidden", "true");
 
+  const expandToolbarBtn = createBtn(
+    "expand",
+    "Инструменты",
+    "Развернуть панель инструментов"
+  );
+  expandToolbarBtn.classList.add("asc-btn--expand-toolbar", "asc-btn--icon-only");
+
   const viewportShotBtn = createBtn(
     "screenshot",
     "Скрин",
@@ -1277,6 +1284,7 @@
   brandDock.className = "asc-brand-dock";
   brandDock.append(
     brandCluster,
+    expandToolbarBtn,
     ...(companionPomodoroDock ? [companionPomodoroDock.wrap] : []),
     brandDockDivider,
     viewportShotBtn,
@@ -1291,9 +1299,19 @@
   toolbarPanel.className = "asc-toolbar-panel";
   toolbarPanel.append(actions);
 
+  const companionVaultDock =
+    typeof globalThis.createCompanionVaultDock === "function"
+      ? globalThis.createCompanionVaultDock()
+      : null;
+
+  const toolbarStack = document.createElement("div");
+  toolbarStack.className = "asc-toolbar-stack";
+  toolbarStack.append(toolbarPanel);
+  if (companionVaultDock) toolbarStack.append(companionVaultDock.wrap);
+
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brandDock, toolbarPanel, status);
+  shell.append(brandDock, toolbarStack, status);
 
   panelIdeasTodo = createPanelIdeasTodoModal(shell);
   right.append(panelIdeasTodo.wrap);
@@ -1343,9 +1361,14 @@
 
   function setExpanded(expanded) {
     const next = Boolean(expanded);
-    if (next) updateToolbarExpandDirection();
+    if (next) {
+      updateToolbarExpandDirection();
+      companionVaultDock?.close?.();
+    }
     root.classList.toggle("is-expanded", next);
     brandCluster.setAttribute("aria-expanded", next ? "true" : "false");
+    expandToolbarBtn.toggleAttribute("hidden", next);
+    expandToolbarBtn.tabIndex = next ? -1 : 0;
     window.requestAnimationFrame(() => {
       updateToolbarExpandDirection();
       applyOffset({ x: offsetX, y: offsetY }, false);
@@ -3033,6 +3056,11 @@
   collapseBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     setExpanded(false);
+  });
+
+  expandToolbarBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setExpanded(true);
   });
 
   viewportShotBtn.addEventListener("click", (event) => {
