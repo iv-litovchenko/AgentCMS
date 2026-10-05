@@ -24,6 +24,12 @@
     }
   }
 
+  const BOOKMARKS_TABS = [
+    { id: "bookmarks", label: "Закладки" },
+    { id: "history", label: "История" },
+    { id: "downloads", label: "Загрузки" }
+  ];
+
   const PREVIEW_EXAMPLE = {
     url: "https://www.youtube.com/watch?v=IPEGHLql7D0&list=RDIPEGHLql7D0&start_radio=1",
     videoId: "IPEGHLql7D0",
@@ -217,6 +223,7 @@
     let overlayRoot = null;
     let items = [];
     let filterQuery = "";
+    let activeTab = "bookmarks";
     let ui = null;
     let unbindPageContext = null;
 
@@ -373,7 +380,7 @@
       const title = document.createElement("h2");
       title.className = "asc-bookmarks-draft-title";
       title.id = "asc-bookmarks-draft-title";
-      title.textContent = "Закладки";
+      title.textContent = "Сохранённое";
 
       const closeHeadBtn = document.createElement("button");
       closeHeadBtn.type = "button";
@@ -383,6 +390,26 @@
       closeHeadBtn.innerHTML = SVG_CLOSE;
 
       head.append(title, closeHeadBtn);
+
+      const tabsBar = document.createElement("div");
+      tabsBar.className = "asc-bookmarks-draft-tabs";
+      tabsBar.setAttribute("role", "tablist");
+      tabsBar.setAttribute("aria-label", "Разделы");
+
+      const tabButtons = new Map();
+      for (const tab of BOOKMARKS_TABS) {
+        const tabBtn = document.createElement("button");
+        tabBtn.type = "button";
+        tabBtn.className = "asc-bookmarks-draft-tab";
+        tabBtn.dataset.tab = tab.id;
+        tabBtn.setAttribute("role", "tab");
+        tabBtn.setAttribute("aria-selected", tab.id === activeTab ? "true" : "false");
+        tabBtn.id = `asc-bookmarks-draft-tab-${tab.id}`;
+        tabBtn.textContent = tab.label;
+        if (tab.id === activeTab) tabBtn.classList.add("is-active");
+        tabsBar.append(tabBtn);
+        tabButtons.set(tab.id, tabBtn);
+      }
 
       const tools = document.createElement("div");
       tools.className = "asc-bookmarks-draft-tools";
@@ -445,6 +472,57 @@
       aside.append(intro, roadmap);
       bodyWrap.append(mainCol, aside);
 
+      const panelBookmarks = document.createElement("div");
+      panelBookmarks.className = "asc-bookmarks-draft-tab-panel";
+      panelBookmarks.dataset.tab = "bookmarks";
+      panelBookmarks.setAttribute("role", "tabpanel");
+      panelBookmarks.setAttribute("aria-labelledby", "asc-bookmarks-draft-tab-bookmarks");
+      panelBookmarks.append(bodyWrap);
+
+      const panelHistory = document.createElement("div");
+      panelHistory.className = "asc-bookmarks-draft-tab-panel";
+      panelHistory.dataset.tab = "history";
+      panelHistory.setAttribute("role", "tabpanel");
+      panelHistory.setAttribute("aria-labelledby", "asc-bookmarks-draft-tab-history");
+      panelHistory.hidden = activeTab !== "history";
+      panelHistory.innerHTML =
+        "<div class=\"asc-bookmarks-draft-tab-placeholder\">" +
+        "<p class=\"asc-bookmarks-draft-empty\">История посещений — заготовка.</p>" +
+        "<p class=\"asc-bookmarks-draft-tab-placeholder-note\">" +
+        "Позже: недавние сайты, поиск по дате и синхронизация с историей браузера." +
+        "</p></div>";
+
+      const panelDownloads = document.createElement("div");
+      panelDownloads.className = "asc-bookmarks-draft-tab-panel";
+      panelDownloads.dataset.tab = "downloads";
+      panelDownloads.setAttribute("role", "tabpanel");
+      panelDownloads.setAttribute("aria-labelledby", "asc-bookmarks-draft-tab-downloads");
+      panelDownloads.hidden = activeTab !== "downloads";
+      panelDownloads.innerHTML =
+        "<div class=\"asc-bookmarks-draft-tab-placeholder\">" +
+        "<p class=\"asc-bookmarks-draft-empty\">Загрузки — заготовка.</p>" +
+        "<p class=\"asc-bookmarks-draft-tab-placeholder-note\">" +
+        "Позже: список файлов из chrome.downloads, фильтры и быстрый переход к файлу." +
+        "</p></div>";
+
+      const tabPanels = document.createElement("div");
+      tabPanels.className = "asc-bookmarks-draft-tab-panels";
+      tabPanels.append(panelBookmarks, panelHistory, panelDownloads);
+
+      function applyActiveTab() {
+        for (const [id, tabBtn] of tabButtons) {
+          const on = id === activeTab;
+          tabBtn.classList.toggle("is-active", on);
+          tabBtn.setAttribute("aria-selected", on ? "true" : "false");
+        }
+        for (const panel of tabPanels.children) {
+          const on = panel.dataset.tab === activeTab;
+          panel.hidden = !on;
+          panel.classList.toggle("is-active", on);
+        }
+        tools.classList.toggle("asc-bookmarks-draft-tools--hidden", activeTab !== "bookmarks");
+      }
+
       const pagePanel =
         typeof globalThis.createCompanionBookmarksPagePanel === "function"
           ? globalThis.createCompanionBookmarksPagePanel()
@@ -467,26 +545,47 @@
 
       foot.append(cancelBtn, storageBtn);
 
-      dialog.append(head, tools, bodyWrap, ...(pagePanel ? [pagePanel.el] : []), foot);
+      dialog.append(head, tabsBar, tools, tabPanels, ...(pagePanel ? [pagePanel.el] : []), foot);
       root.append(backdrop, dialog);
       bookmarksOverlayMount().appendChild(root);
       document.documentElement.classList.add(HTML_CLASS);
       globalThis.syncCompanionCrosshair?.();
 
       overlayRoot = root;
-      ui = { list, statusEl, searchInput };
+      ui = { list, statusEl, searchInput, applyActiveTab };
       setTriggerOpen(true);
+
+      applyActiveTab();
+
+      for (const [id, tabBtn] of tabButtons) {
+        tabBtn.addEventListener("click", () => {
+          if (activeTab === id) return;
+          activeTab = id;
+          applyActiveTab();
+          if (activeTab === "bookmarks") {
+            window.requestAnimationFrame(() => {
+              try {
+                searchInput.focus({ preventScroll: true });
+              } catch {
+                searchInput.focus();
+              }
+            });
+          }
+        });
+      }
 
       void load();
       setStatus("");
 
-      window.requestAnimationFrame(() => {
-        try {
-          searchInput.focus({ preventScroll: true });
-        } catch {
-          searchInput.focus();
-        }
-      });
+      if (activeTab === "bookmarks") {
+        window.requestAnimationFrame(() => {
+          try {
+            searchInput.focus({ preventScroll: true });
+          } catch {
+            searchInput.focus();
+          }
+        });
+      }
 
       const close = () => {
         closeWindow();
