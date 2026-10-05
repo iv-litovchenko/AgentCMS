@@ -36,25 +36,49 @@
   function youtubeThumbUrls(videoId) {
     const id = String(videoId || "").trim();
     return [
+      `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
       `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
       `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
-      `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
       `https://img.youtube.com/vi/${id}/hqdefault.jpg`
     ];
+  }
+
+  function applyPreviewImage(img, dataUrl) {
+    return new Promise((resolve) => {
+      const probe = new Image();
+      probe.onload = () => {
+        if (probe.naturalWidth < 160 || probe.naturalHeight < 90) {
+          resolve(false);
+          return;
+        }
+        img.src = dataUrl;
+        img.classList.remove("is-loading", "is-broken");
+        img.classList.add("is-loaded");
+        const thumb = img.closest(".asc-bookmarks-draft-preview-card-thumb");
+        thumb?.classList.remove("is-loading");
+        thumb?.classList.add("is-loaded");
+        resolve(true);
+      };
+      probe.onerror = () => resolve(false);
+      probe.src = dataUrl;
+    });
   }
 
   async function loadPreviewImage(img, urls) {
     for (const url of urls) {
       const res = await sendRuntime({ type: "COMPANION_FETCH_IMAGE_DATA_URL", url });
       if (res?.ok && res.dataUrl) {
-        img.src = res.dataUrl;
-        img.classList.remove("is-loading");
-        return true;
+        const ok = await applyPreviewImage(img, res.dataUrl);
+        if (ok) return true;
       }
     }
     img.classList.add("is-broken");
-    img.classList.remove("is-loading");
+    img.classList.remove("is-loading", "is-loaded");
     img.removeAttribute("src");
+    const thumb = img.closest(".asc-bookmarks-draft-preview-card-thumb");
+    thumb?.classList.remove("is-loaded");
+    thumb?.classList.remove("is-loading");
     return false;
   }
 
@@ -101,7 +125,7 @@
     body.append(site, title, note, urlLine);
 
     const thumb = document.createElement("span");
-    thumb.className = "asc-bookmarks-draft-preview-card-thumb";
+    thumb.className = "asc-bookmarks-draft-preview-card-thumb is-loading";
     thumb.append(img);
 
     card.append(thumb, body);
