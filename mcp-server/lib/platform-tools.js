@@ -8,7 +8,7 @@ const repoRootFileName = z
 export function registerPlatformTools(reg, client) {
   reg(
     "get_platform_info",
-    "Platform snapshot: cmsVersion, mcpVersion, repo root, active workspace, key platform settings (mcp-mode, maintenance, locale, default workspace).",
+    "Platform snapshot: versions, repo root, active workspace, network (ports, localhost/LAN URLs, TLS, MCP base URL hint), key platform settings.",
     z.object({}),
     () => client.get("/api/platform/info", {}, { agentScope: false }),
     { agentScope: false }
@@ -23,7 +23,7 @@ export function registerPlatformTools(reg, client) {
 
   reg(
     "list_platform_docs",
-    "List all files in the repository root (not subfolders). Use read_platform_doc for content.",
+    "List .md files in the repository root (not subfolders). Use read_platform_doc for content.",
     z.object({}),
     () => client.get("/api/platform/docs", {}, { agentScope: false }),
     { agentScope: false }
@@ -31,7 +31,7 @@ export function registerPlatformTools(reg, client) {
 
   reg(
     "read_platform_doc",
-    "Read a text file from the repository root by file name.",
+    "Read a .md file from the repository root by file name.",
     z.object({
       path: repoRootFileName,
       maxBytes: z
@@ -53,7 +53,7 @@ export function registerPlatformTools(reg, client) {
 
   reg(
     "write_platform_doc",
-    "Replace entire file in the repository root (simple write). Blocked in mcp-mode=readonly. .env is not writable.",
+    "Replace entire .md file in the repository root (simple write). Blocked in mcp-mode=readonly.",
     z.object({
       path: repoRootFileName,
       content: z.string().describe("Full new file content (UTF-8)")
