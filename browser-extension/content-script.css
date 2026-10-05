@@ -429,45 +429,75 @@ html.asc-screenshot-annotate-active #agent-companion-crosshair {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 12px 16px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.asc-shot-annotate-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.asc-shot-annotate-tool-group:not(:first-child) {
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.asc-shot-annotate-tool-group--draw {
+  gap: 8px;
+}
+
+.asc-shot-annotate-tool-group--history {
+  gap: 5px;
 }
 
 .asc-shot-annotate-tool {
   appearance: none;
   margin: 0;
-  min-width: 32px;
-  height: 30px;
+  min-width: 34px;
+  height: 34px;
   padding: 0 8px;
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  border-radius: 8px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.06);
   color: #ede9fe;
   font: inherit;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .asc-shot-annotate-tool--icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-width: 32px;
+  width: 34px;
+  min-width: 34px;
   padding: 0;
 }
 
 .asc-shot-annotate-tool svg {
   display: block;
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.85;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.asc-shot-annotate-ico-marker .asc-shot-annotate-ico-marker-body {
+  fill: currentColor;
+  fill-opacity: 0.28;
+  stroke: currentColor;
 }
 
 .asc-shot-annotate-tool:disabled {
@@ -481,56 +511,59 @@ html.asc-screenshot-annotate-active #agent-companion-crosshair {
   color: #fff;
 }
 
-.asc-shot-annotate-history {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-right: 6px;
-  margin-right: 2px;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-}
-
 .asc-shot-annotate-sizes {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 4px;
-  margin-left: 4px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 8px;
 }
 
-.asc-shot-annotate-size {
-  appearance: none;
-  margin: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgba(167, 139, 250, 0.28);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
+.asc-shot-annotate-size-label {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(237, 233, 254, 0.72);
+  white-space: nowrap;
+  cursor: default;
 }
 
-.asc-shot-annotate-size.is-active {
+.asc-shot-annotate-size-select {
+  margin: 0;
+  min-width: 72px;
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1px solid rgba(167, 139, 250, 0.38);
+  border-radius: 9px;
+  background: rgba(15, 10, 30, 0.65)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ede9fe' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  color: #f5f3ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.asc-shot-annotate-size-select:hover {
+  border-color: rgba(196, 181, 253, 0.55);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.asc-shot-annotate-size-select:focus {
+  outline: none;
   border-color: rgba(196, 181, 253, 0.85);
-  background: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35);
 }
 
-.asc-shot-annotate-size-dot {
-  display: block;
-  border-radius: 999px;
-  background: #ede9fe;
-  max-width: 18px;
-  max-height: 18px;
+.asc-shot-annotate-size-select option {
+  color: #1e1b2e;
+  background: #fff;
 }
 
 .asc-shot-annotate-colors {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-left: auto;
 }
 

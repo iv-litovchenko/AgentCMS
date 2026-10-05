@@ -15,19 +15,19 @@
 
   const SVG = {
     arrow:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6"/><path d="M11 6h7v7"/></svg>',
     rect:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="10" rx="1"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2"/></svg>',
     ellipse:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="6"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>',
     pen:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
     marker:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1 11-11-2-2L4 18l-1 3z"/><path d="m14 4 2 2"/><path d="M5 18l2 2" opacity="0.5"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true" class="asc-shot-annotate-ico-marker"><path class="asc-shot-annotate-ico-marker-body" d="M4 20h3.5L18 9.5 14.5 6 3.5 17v3Z"/><path d="m15 5 4 4"/><path d="M3 21h4"/></svg>',
     undo:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M20 20v-2a6 6 0 0 0-6-6H4"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/></svg>',
     redo:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M4 20v-2a6 6 0 0 1 6-6h10"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a4 4 0 0 0-4 4v1"/></svg>',
     close:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
   };
@@ -194,7 +194,7 @@
       tools.className = "asc-shot-annotate-tools";
 
       const historyWrap = document.createElement("div");
-      historyWrap.className = "asc-shot-annotate-history";
+      historyWrap.className = "asc-shot-annotate-tool-group asc-shot-annotate-tool-group--history";
 
       const undoBtn = document.createElement("button");
       undoBtn.type = "button";
@@ -212,8 +212,28 @@
 
       historyWrap.append(undoBtn, redoBtn);
 
+      const drawWrap = document.createElement("div");
+      drawWrap.className = "asc-shot-annotate-tool-group asc-shot-annotate-tool-group--draw";
+
       const sizeWrap = document.createElement("div");
-      sizeWrap.className = "asc-shot-annotate-sizes";
+      sizeWrap.className = "asc-shot-annotate-tool-group asc-shot-annotate-sizes";
+
+      const sizeLabel = document.createElement("label");
+      sizeLabel.className = "asc-shot-annotate-size-label";
+      sizeLabel.textContent = "Толщина";
+
+      const sizeSelect = document.createElement("select");
+      sizeSelect.className = "asc-shot-annotate-size-select";
+      sizeSelect.setAttribute("aria-label", "Толщина линии");
+      for (const w of LINE_WIDTHS) {
+        const opt = document.createElement("option");
+        opt.value = String(w);
+        opt.textContent = `${w} px`;
+        sizeSelect.append(opt);
+      }
+      sizeSelect.addEventListener("change", () => setLineWidth(Number(sizeSelect.value)));
+      sizeLabel.append(sizeSelect);
+      sizeWrap.append(sizeLabel);
       sizeWrap.setAttribute("role", "group");
       sizeWrap.setAttribute("aria-label", "Толщина линии");
 
@@ -284,10 +304,10 @@
       }
 
       function setLineWidth(next) {
-        lineWidth = next;
-        for (const btn of sizeWrap.querySelectorAll("[data-width]")) {
-          btn.classList.toggle("is-active", Number(btn.getAttribute("data-width")) === lineWidth);
-        }
+        const w = Number(next);
+        if (!LINE_WIDTHS.includes(w)) return;
+        lineWidth = w;
+        if (sizeSelect) sizeSelect.value = String(w);
       }
 
       function updateHistoryButtons() {
@@ -425,8 +445,6 @@
         }
       }
 
-      tools.append(historyWrap);
-
       for (const def of TOOL_DEFS) {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -436,28 +454,13 @@
         btn.setAttribute("aria-label", def.title);
         btn.innerHTML = SVG[def.icon];
         btn.addEventListener("click", () => setTool(def.id));
-        tools.append(btn);
+        drawWrap.append(btn);
       }
 
-      for (const w of LINE_WIDTHS) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "asc-shot-annotate-size";
-        btn.setAttribute("data-width", String(w));
-        btn.title = `Толщина ${w}px`;
-        btn.setAttribute("aria-label", `Толщина ${w}px`);
-        const dot = document.createElement("span");
-        dot.className = "asc-shot-annotate-size-dot";
-        dot.style.width = `${6 + w}px`;
-        dot.style.height = `${6 + w}px`;
-        btn.append(dot);
-        btn.addEventListener("click", () => setLineWidth(w));
-        sizeWrap.append(btn);
-      }
-      tools.append(sizeWrap);
+      tools.append(historyWrap, drawWrap, sizeWrap);
 
       const colorWrap = document.createElement("div");
-      colorWrap.className = "asc-shot-annotate-colors";
+      colorWrap.className = "asc-shot-annotate-tool-group asc-shot-annotate-colors";
       for (const c of COLORS) {
         const sw = document.createElement("button");
         sw.type = "button";
