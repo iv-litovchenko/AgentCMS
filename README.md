@@ -66,7 +66,7 @@
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
-## Установка — первый запуск (только macOS)
+## Установка — первый старт и запуск (только macOS)
 
 ![Agent CMS Control — сервер и desktop-приложения](docs/images/4.png)
 
