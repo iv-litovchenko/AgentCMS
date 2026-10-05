@@ -2,8 +2,8 @@
 
 ```mermaid
 flowchart TD
-    CMS["🌐 Agent CMS"]
-    WS["🏠 Workspace<br/>workspaceID<br/>WorkspaceSlug (key)"]
+    CMS["🌐 Agent CMS<br/>Платформа"]
+    WS["🏠 Workspace<br/>Хранилище<br/>workspaceID<br/>WorkspaceSlug (key)"]
 
     CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)<br/>1+1"]
     ACTORS --> CMS_ENDPOINT["🌐 localhost:<port> · 🔌 MCP-server"]
@@ -50,6 +50,7 @@ flowchart TD
     IDEA7 --> IDEA8["8. 🔒 Пароли и защита приватных данных<br/>названия фирм, имена и другие чувствительные строки"]
     IDEA8 --> IDEA9["9. ⏱️ Тракер времени"]
     IDEA9 --> IDEA10["10. 🖥️ Запуск проекта на сервер<br/>чтобы всё было под рукой 24/7<br/>открывать через интернет с любого устройства<br/>(даже с телефона любимой 😄)"]
+    IDEA10 --> IDEA11["11. 📄 Работа с файлами read/write<br/>Расширенный набор функций и методов<br/>Запись в конец · в начало<br/>Чтение середины и т.д."]
 
     TREE --> SHARED_AREA["🤝 Область общие<br/>awn-shared"]
     TREE --> CONTENT_AREA["📂 Область контента<br/>awn-container"]
