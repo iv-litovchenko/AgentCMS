@@ -125,27 +125,35 @@ fields:
 
   always-context-global-mcp-doc:
     type: awn.field.boolean
-    title: GLOBAL_MCP_DOC.md
-    description: Глобальная карта MCP (agent-cms-core) — полный текст в always-context всех агентов
+    title: GLOBAL-DOC-MCP.md
+    description: Глобальная карта MCP (корень репозитория) — полный текст в always-context всех агентов
     default: true
     group: auto-context
     sort: 2
 
   always-context-global-response-style:
     type: awn.field.boolean
-    title: GLOBAL_RESPONSE_STYLE.md
+    title: GLOBAL-RESPONSE-STYLE.md
     description: Глобальный стиль ответов (префиксы 🗄️ / 🌐 / 💭) — always-context
     default: true
     group: auto-context
     sort: 3
 
+  always-context-global-rules:
+    type: awn.field.boolean
+    title: GLOBAL-RULES.md
+    description: Пользовательские правила для всех хранилищ (короткий GLOBAL-RULES.md в корне репо) — always-context
+    default: true
+    group: auto-context
+    sort: 4
+
   always-context-global-markdown-showcase:
     type: awn.field.boolean
-    title: GLOBAL_MARKDOWN_SHOWCASE.md
+    title: GLOBAL-DOC-MARKDOWN.md
     description: Справочник поддерживаемой markdown-разметки в preview — always-context (opt-in)
     default: false
     group: auto-context
-    sort: 4
+    sort: 5
 
   always-context-md-files:
     type: awn.field.choice.many
@@ -170,7 +178,7 @@ fields:
       - key: TODO.md
         name: TODO.md
     group: auto-context
-    sort: 5
+    sort: 6
 
   always-context-ws-folder:
     type: awn.field.string

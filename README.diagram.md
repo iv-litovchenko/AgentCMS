@@ -11,6 +11,10 @@ flowchart TD
     WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
+    REPOS --> MEDIATHEQUE["🎞️ Медиатека<br/>фото · видео · аудио · файлы · sidecar"]
+    MEDIATHEQUE --> SCRIPTS["📜 Скрипты<br/>run_script · утилиты workspace"]
+    WS --> CHANNELS["📡 Каналы и источники<br/>темы · инфоблоки · дискуссии · журнал"]
+    CHANNELS --> CHANNEL_VIEWS["📺 Мультиканальная подача<br/>блог · форум · дайджест · лента<br/>дашборд · каталог · библиотека"]
     WS --> EXTRA_DATA["📎 Дополнительные данные"]
     WS --> ANNOT_BRANCH["✍️ Аннотации<br/>(зависимые записи · satellites)"]
     WS --> CONSTRUCTOR["🏗️ Конструктор"]
@@ -88,11 +92,27 @@ flowchart TD
     SETTINGS --> AUX_INDEXES["🗂️ Индексы<br/>страницы · контент · инфоблоки · репозитории"]
     AUX_INDEXES --> CLOUD_DISKS["☁️ Облачные диски<br/>Google · Яндекс"]
 
+    classDef accentTree fill:#22c55e,stroke:#166534,stroke-width:2px,color:#f0fdf4
+    classDef accentData fill:#7c3aed,stroke:#5b21b6,stroke-width:2px,color:#f5f3ff
+    classDef accentRepos fill:#2563eb,stroke:#1e3a8a,stroke-width:2px,color:#eff6ff
+    classDef accentChannels fill:#dc2626,stroke:#7f1d1d,stroke-width:2px,color:#fef2f2
+    classDef accentChannelViews fill:#fca5a5,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef accentMedia fill:#06b6d4,stroke:#0e7490,stroke-width:2px,color:#ecfeff
+    classDef accentScripts fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fffbeb
+    class TREE accentTree
+    class DATA accentData
+    class REPOS accentRepos
+    class CHANNELS accentChannels
+    class CHANNEL_VIEWS accentChannelViews
+    class MEDIATHEQUE accentMedia
+    class SCRIPTS accentScripts
+
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
     click WS_NOTIFY href "zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
     click WS_CONTEXT_REG href "zadachi-plany-i-idei/awn-storage/main/reestr-tem-i-avtozagruzka.md" "Реестр контекста"
     click SEARCH href "zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
     click MODULES href "zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
+    click CHANNELS href "obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы и источники"
     click IDEA1 href "zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"
     click IDEA2 href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/voxels-vertecx-elixirr-rasshi-mstpostroi-mstcms.md" "UI на базе движка · VOXELS"
     click IDEA6 href "zadachi-plany-i-idei/awn-storage/ideas.md" "Пайплайн"

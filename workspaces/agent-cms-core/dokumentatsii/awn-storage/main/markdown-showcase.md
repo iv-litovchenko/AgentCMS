@@ -2,7 +2,7 @@
 awn-name: Markdown Showcase
 awn-emoji: ""
 awn-status: open
-awn-description: "Справочник элементов markdown-it preview (канон в GLOBAL_MARKDOWN_SHOWCASE.md)"
+awn-description: "Справочник элементов markdown-it preview (канон в GLOBAL-DOC-MARKDOWN.md)"
 awn-tags:
   - docs
   - markdown
@@ -17,6 +17,6 @@ awn-attachments: []
 
 # Markdown Showcase
 
-> **Канон:** полный справочник перенесён в [`GLOBAL_MARKDOWN_SHOWCASE.md`](../../../GLOBAL_MARKDOWN_SHOWCASE.md) (корень `agent-cms-core`).
+> **Канон:** полный справочник — [`GLOBAL-DOC-MARKDOWN.md`](../../../../../GLOBAL-DOC-MARKDOWN.md) (корень репозитория).
 
 Откройте канонический файл или кнопку **MD** в шапке редактора.

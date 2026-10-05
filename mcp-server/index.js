@@ -139,7 +139,7 @@ function createServer() {
 
   reg(
     "list_workspace_always_context",
-    "Always-in-context: full file content for awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md.",
+    "Always-in-context: full file content for awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL-DOC-MCP.md.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );

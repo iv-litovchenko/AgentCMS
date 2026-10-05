@@ -1,6 +1,8 @@
 {
   "paths": [
     "artefacts/api-postman-collection.json",
+    "artefacts/exported-cheatsheet.html",
+    "assets/preview",
     "assets/preview/20260611075941.png",
     "assets/preview/20260624202540.png",
     "inbox/вопрос-match-vs-switch.md",
@@ -16,6 +18,7 @@
     "main/Веб/Роутинг.md",
     "main/Веб/Сессии и cookies.md",
     "main/Веб/HTTP и формы.md",
+    "main/Веб/manifest.md",
     "main/Объекты.md",
     "main/Синтаксис/Массивы.md",
     "main/Синтаксис/Управление потоком.md",
@@ -39,8 +42,10 @@
     "main/oop/Классы.md",
     "main/oop/Enums.md",
     "main/oop/manifest.md",
+    "main/oop/Traits.md",
     "main/primery-koda/Пример-1.md",
     "main/primery-koda/Пример-3-REST.md",
+    "main/primery-koda/manifest.md",
     "main/README.md",
     "main/standartnaya-biblioteka/manifest.md",
     "media/gd_61baf013.docx",
@@ -48,11 +53,13 @@
     "references/php-net-manual.md",
     "references/psr-4-autoloading.md",
     "roadmap/roadmap.md",
+    "scripts/lint-examples.md",
+    "scripts/lint-examples.sh",
     "slot-index-generated/index.md",
     "tabular/main.csv",
     "todo/todo.md",
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-10-04T20:02:59.967Z"
+  "updatedAt": "2026-10-05T17:00:35.762Z"
 }

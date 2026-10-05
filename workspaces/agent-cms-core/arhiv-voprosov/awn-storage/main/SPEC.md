@@ -2,7 +2,7 @@
 
 > Собрано из `Формируем вопросы.md` и `REZ_COPY.md`.  
 > Канон реализации platform: `awn-databases/cms-base/`.  
-> **Архив.** Канон для агента: [GLOBAL_MCP_DOC.md](../../../GLOBAL_MCP_DOC.md).  
+> **Архив.** Канон для агента: [GLOBAL-DOC-MCP.md](../../../../../GLOBAL-DOC-MCP.md).  
 > Детали runtime: [IBLOCK-MODEL.md](./IBLOCK-MODEL.md), [TYPES-GUIDE.md](./TYPES-GUIDE.md). Живая шпаргалка YAML-типов: [awn-system/TYPES-GUIDE.md](../../../awn-system/TYPES-GUIDE.md).
 
 ---
@@ -454,7 +454,7 @@ awn-schema-fields:
 | [IBLOCK-MODEL.md](./IBLOCK-MODEL.md) | краткая карта инфobлок+элемент (архив) |
 | [TYPES-GUIDE.md](./TYPES-GUIDE.md) | шпаргалка по entities и extends (архив) |
 | [awn-system/TYPES-GUIDE.md](../../../awn-system/TYPES-GUIDE.md) | YAML-типы pages/slots/fields |
-| [GLOBAL_MCP_DOC.md](../../../GLOBAL_MCP_DOC.md) | карта MCP (канон для агента) |
+| [GLOBAL-DOC-MCP.md](../../../../../GLOBAL-DOC-MCP.md) | карта MCP (канон для агента) |
 | [MAP_2.md](./MAP_2.md) | архивная карта workspace (устарела) |
 | [SPEC_2026_itogovaya.md](./SPEC_2026_itogovaya.md) | черновик спецификации 2026 |
 

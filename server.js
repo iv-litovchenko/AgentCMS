@@ -653,9 +653,10 @@ const {
   DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
-const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
-const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL_RESPONSE_STYLE.md";
-const GLOBAL_MARKDOWN_SHOWCASE_FILE = "GLOBAL_MARKDOWN_SHOWCASE.md";
+const GLOBAL_DOC_MCP_FILE = "GLOBAL-DOC-MCP.md";
+const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-RESPONSE-STYLE.md";
+const GLOBAL_RULES_FILE = "GLOBAL-RULES.md";
+const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
 
@@ -667,19 +668,28 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
     root: "project"
   },
   {
-    file: GLOBAL_MCP_DOC_FILE,
+    file: GLOBAL_DOC_MCP_FILE,
     settingKey: "always-context-global-mcp-doc",
-    description: "Глобальная карта MCP (agent-cms-core, все агенты)"
+    description: "Глобальная карта MCP (корень репозитория, все агенты)",
+    root: "project"
   },
   {
     file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
-    description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)"
+    description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
+    root: "project"
   },
   {
-    file: GLOBAL_MARKDOWN_SHOWCASE_FILE,
+    file: GLOBAL_RULES_FILE,
+    settingKey: "always-context-global-rules",
+    description: "Глобальные правила для всех хранилищ (корень репозитория)",
+    root: "project"
+  },
+  {
+    file: GLOBAL_DOC_MARKDOWN_FILE,
     settingKey: "always-context-global-markdown-showcase",
-    description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)"
+    description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
+    root: "project"
   }
 ];
 
@@ -10694,23 +10704,25 @@ async function revealWorkspaceRelativePath(relPath, options = {}) {
   }
 
   let absolute = null;
+  const agentRoot = getAgentRoot();
   if (options.repoFile) {
     const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
-    if (!repoAbsolute) {
-      const error = new Error("Git repository not found");
+    const baseAbsolute = repoAbsolute || agentRoot;
+    absolute = path.resolve(baseAbsolute, normalized);
+    const basePrefix = `${path.resolve(baseAbsolute)}${path.sep}`;
+    if (!absolute.startsWith(basePrefix) && absolute !== path.resolve(baseAbsolute)) {
+      const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
     }
-    absolute = path.resolve(repoAbsolute, normalized);
-    const repoPrefix = `${path.resolve(repoAbsolute)}${path.sep}`;
-    if (!absolute.startsWith(repoPrefix) && absolute !== path.resolve(repoAbsolute)) {
+    if (!absolute.startsWith(agentRoot)) {
       const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
     }
   } else {
     absolute = normalizeWorkspacePath(normalized);
-    if (!absolute || !absolute.startsWith(getAgentRoot())) {
+    if (!absolute || !absolute.startsWith(agentRoot)) {
       const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
@@ -14386,7 +14398,7 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: "CMS-модель: GLOBAL_MCP_DOC.md + awn-system/types/slots/_base.yml (slot-categories)"
+    hint: "CMS-модель: GLOBAL-DOC-MCP.md + awn-system/types/slots/_base.yml (slot-categories)"
   };
 }
 
@@ -29325,9 +29337,10 @@ async function handleApiForAgent(req, res, url) {
 }
 
 const PLATFORM_GLOBAL_DOC_FILES = new Set([
-  GLOBAL_MCP_DOC_FILE,
+  GLOBAL_DOC_MCP_FILE,
   GLOBAL_RESPONSE_STYLE_FILE,
-  GLOBAL_MARKDOWN_SHOWCASE_FILE
+  GLOBAL_RULES_FILE,
+  GLOBAL_DOC_MARKDOWN_FILE
 ]);
 
 async function readPlatformReadmePayload() {
@@ -29361,11 +29374,11 @@ async function readPlatformGlobalDocPayload(fileName = "") {
   if (!PLATFORM_GLOBAL_DOC_FILES.has(normalized)) {
     return { error: "Unsupported platform global document", file: normalized };
   }
-  const docAbsolute = path.join(getPlatformAgentRootAbsolute(getAppRoot()), normalized);
+  const docAbsolute = path.join(getAppRoot(), normalized);
   try {
     const content = await fs.readFile(docAbsolute, "utf-8");
     return {
-      path: `workspaces/agent-cms-core/${normalized}`,
+      path: normalized,
       file: normalized,
       content,
       exists: true
@@ -29373,7 +29386,7 @@ async function readPlatformGlobalDocPayload(fileName = "") {
   } catch (error) {
     if (error && error.code === "ENOENT") {
       return {
-        path: `workspaces/agent-cms-core/${normalized}`,
+        path: normalized,
         file: normalized,
         content: "",
         exists: false
