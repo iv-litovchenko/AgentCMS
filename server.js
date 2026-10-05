@@ -10694,23 +10694,25 @@ async function revealWorkspaceRelativePath(relPath, options = {}) {
   }
 
   let absolute = null;
+  const agentRoot = getAgentRoot();
   if (options.repoFile) {
     const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
-    if (!repoAbsolute) {
-      const error = new Error("Git repository not found");
+    const baseAbsolute = repoAbsolute || agentRoot;
+    absolute = path.resolve(baseAbsolute, normalized);
+    const basePrefix = `${path.resolve(baseAbsolute)}${path.sep}`;
+    if (!absolute.startsWith(basePrefix) && absolute !== path.resolve(baseAbsolute)) {
+      const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
     }
-    absolute = path.resolve(repoAbsolute, normalized);
-    const repoPrefix = `${path.resolve(repoAbsolute)}${path.sep}`;
-    if (!absolute.startsWith(repoPrefix) && absolute !== path.resolve(repoAbsolute)) {
+    if (!absolute.startsWith(agentRoot)) {
       const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
     }
   } else {
     absolute = normalizeWorkspacePath(normalized);
-    if (!absolute || !absolute.startsWith(getAgentRoot())) {
+    if (!absolute || !absolute.startsWith(agentRoot)) {
       const error = new Error("Invalid file path");
       error.code = "INVALID_PATH";
       throw error;
