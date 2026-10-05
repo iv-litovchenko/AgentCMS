@@ -142,7 +142,7 @@ fields:
   always-context-global-rules:
     type: awn.field.boolean
     title: GLOBAL-RULES.md
-    description: Глобальные правила для всех хранилищ (безопасность, agentId, приоритет AGENTS.md) — always-context
+    description: Пользовательские правила для всех хранилищ (короткий GLOBAL-RULES.md в корне репо) — always-context
     default: true
     group: auto-context
     sort: 4
