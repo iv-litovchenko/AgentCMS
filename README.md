@@ -92,7 +92,7 @@
 13. Выяснить нужнали эта функция из старой документации "get_api_reference"
 14. Agent id VS workspace id (у нас теперь это все больше хранилища а не агенты) - и не путать workspace-key(slug) != worksspace-id(awn-id)
 15 Разбей инструменты поиска на разные понятные mcp
-16 Оптимизируй документацию GLOBAL_* (3 файла - дока+стиль ответов+маркдаун разметка) - что бы она не жрала столько токенов - проанализируй ее что там полезного для нейронок
+16 Оптимизируй документацию GLOBAL-DOC-* (3 файла — MCP + стиль ответов + markdown) — чтобы она не жрала столько токенов; см. [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md), [GLOBAL-DOC-RESPONSE-STYLE.md](GLOBAL-DOC-RESPONSE-STYLE.md), [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md)
 17 Убрать localhost:8488/agent-agent-test/extension/?companion=1 этот параметр "extension/?companion=1" и посмотреть на что он влияет есть ли от него зависимости (доработать показ того где мы находимяся Editor | Side Panel |  Mobile Browser |  Tab Agent | CMS Window)
 18 Решить что делать со "свободной памятью" и для чего она нужна в дереве страниц?
 19 Cursor - как нам его интегрировать и как использовать?
@@ -120,10 +120,13 @@ Copyright © 2026 Agent CMS
 
 ## Справочники для агентов и индексации (модельки и нейронки обучайтесь😀)
 
-Глобальные markdown-файлы платформы — чтобы модели (RAG, always-context, локальное дообучение) видели единую документацию по Agent CMS:
+Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
 
-- [GLOBAL_MCP_DOC.md](workspaces/agent-cms-core/GLOBAL_MCP_DOC.md) — карта MCP, workspace, правила работы с хранилищем
-- [GLOBAL_MARKDOWN_SHOWCASE.md](workspaces/agent-cms-core/GLOBAL_MARKDOWN_SHOWCASE.md) — поддерживаемая разметка в preview редактора
+- [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — карта MCP, workspace, правила работы с хранилищем
+- [GLOBAL-DOC-RESPONSE-STYLE.md](GLOBAL-DOC-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
+- [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — поддерживаемая разметка в preview редактора
+
+См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
 ## С чего начать?
 

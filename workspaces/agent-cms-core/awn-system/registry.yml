@@ -50,9 +50,9 @@ settings:
     user: .agent-cms/settings/user.yml
 
 docs:
-  map: GLOBAL_MCP_DOC.md
-  response-style: GLOBAL_RESPONSE_STYLE.md
-  markdown-showcase: GLOBAL_MARKDOWN_SHOWCASE.md
+  map: GLOBAL-DOC-MCP.md
+  response-style: GLOBAL-DOC-RESPONSE-STYLE.md
+  markdown-showcase: GLOBAL-DOC-MARKDOWN.md
   agents: AGENTS.md
 
 canonical-types: migrated

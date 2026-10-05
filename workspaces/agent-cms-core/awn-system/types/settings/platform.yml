@@ -125,15 +125,15 @@ fields:
 
   always-context-global-mcp-doc:
     type: awn.field.boolean
-    title: GLOBAL_MCP_DOC.md
-    description: Глобальная карта MCP (agent-cms-core) — полный текст в always-context всех агентов
+    title: GLOBAL-DOC-MCP.md
+    description: Глобальная карта MCP (корень репозитория) — полный текст в always-context всех агентов
     default: true
     group: auto-context
     sort: 2
 
   always-context-global-response-style:
     type: awn.field.boolean
-    title: GLOBAL_RESPONSE_STYLE.md
+    title: GLOBAL-DOC-RESPONSE-STYLE.md
     description: Глобальный стиль ответов (префиксы 🗄️ / 🌐 / 💭) — always-context
     default: true
     group: auto-context
@@ -141,7 +141,7 @@ fields:
 
   always-context-global-markdown-showcase:
     type: awn.field.boolean
-    title: GLOBAL_MARKDOWN_SHOWCASE.md
+    title: GLOBAL-DOC-MARKDOWN.md
     description: Справочник поддерживаемой markdown-разметки в preview — always-context (opt-in)
     default: false
     group: auto-context

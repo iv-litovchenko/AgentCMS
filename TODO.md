@@ -1,3 +1,10 @@
+## Глобальные документы платформы (always-context)
+
+- [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md)
+- [GLOBAL-DOC-RESPONSE-STYLE.md](GLOBAL-DOC-RESPONSE-STYLE.md)
+- [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md)
+- [README.md](README.md)
+
 ## 001
 
 - [] 1 Реестт приоритетов реестр фокусов реестр реестры??? Сердцебиения можно их можно создавать?

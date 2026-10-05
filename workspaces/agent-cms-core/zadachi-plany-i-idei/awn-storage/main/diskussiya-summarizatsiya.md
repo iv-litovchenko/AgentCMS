@@ -111,7 +111,7 @@ meta.json      — машинные метаданные (builtAt, counts)
 
 ### 2. Как агент это «видит»
 
-Digest **подключается в always-context** — как `GLOBAL_MCP_DOC.md` или файлы с `awn-runtime-load-always: true`:
+Digest **подключается в always-context** — как `GLOBAL-DOC-MCP.md` или файлы с `awn-runtime-load-always: true`:
 
 * попадает в `get_session_context` / `list_workspace_always_context`
 * агент получает сжатую карту **без** явного «найди финансы»

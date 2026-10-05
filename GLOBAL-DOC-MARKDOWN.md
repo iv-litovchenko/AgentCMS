@@ -1,6 +1,6 @@
-# GLOBAL_MARKDOWN_SHOWCASE — поддерживаемая markdown-разметка
+# GLOBAL-DOC-MARKDOWN — поддерживаемая markdown-разметка
 
-Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MARKDOWN_SHOWCASE.md`): опционально попадает в always-context агентов (настройка `always-context-global-markdown-showcase`, по умолчанию выкл).
+Глобальный документ платформы (`GLOBAL-DOC-MARKDOWN.md`): опционально попадает в always-context агентов (настройка `always-context-global-markdown-showcase`, по умолчанию выкл).
 
 Справочник элементов для preview (markdown-it). Кнопка **MD** в шапке редактора открывает этот же файл.
 
@@ -476,5 +476,5 @@ md.renderer.rules.my_rule = (tokens, idx) => {
 
 ---
 
-*Конец showcase. Канон: `workspaces/agent-cms-core/GLOBAL_MARKDOWN_SHOWCASE.md`.*
+*Конец showcase. Канон: `GLOBAL-DOC-MARKDOWN.md`.*
 

@@ -1,8 +1,8 @@
-# GLOBAL_RESPONSE_STYLE — как отвечать человеку
+# GLOBAL-DOC-RESPONSE-STYLE — как отвечать человеку
 
-Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_RESPONSE_STYLE.md`): попадает в always-context **всех** агентов.
+Глобальный документ платформы (`GLOBAL-DOC-RESPONSE-STYLE.md`): попадает в always-context **всех** агентов.
 
-Карта MCP и инструменты — в `GLOBAL_MCP_DOC.md`. Этот файл — только **оформление ответов**.
+Карта MCP и инструменты — в `GLOBAL-DOC-MCP.md`. Этот файл — только **оформление ответов**.
 
 ## Правило префикса
 

@@ -1,8 +1,8 @@
-# GLOBAL_MCP_DOC — краткая карта Agent CMS
+# GLOBAL-DOC-MCP — краткая карта Agent CMS
 
-Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.
+Глобальный документ платформы (`GLOBAL-DOC-MCP.md`): попадает в always-context **всех** агентов.
 
-Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`GLOBAL_RESPONSE_STYLE.md`** (тоже always-context). Справочник markdown preview — **`GLOBAL_MARKDOWN_SHOWCASE.md`** (opt-in).
+Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`GLOBAL-DOC-RESPONSE-STYLE.md`** (тоже always-context). Справочник markdown preview — **`GLOBAL-DOC-MARKDOWN.md`** (opt-in).
 
 ## Зачем это
 
@@ -171,7 +171,7 @@ search_workspace_content({
 
 ```json
 search_workspace_links({
-  "path": "GLOBAL_MCP_DOC.md",
+  "path": "GLOBAL-DOC-MCP.md",
   "mode": "backlinks",
   "limit": 20
 })
@@ -236,7 +236,7 @@ generate_workspace_slug({ "text": "Моя тема", "preset": "page" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `.agent-cms/settings/workspace.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + GLOBAL_RESPONSE_STYLE + (opt-in) GLOBAL_MARKDOWN_SHOWCASE | **да** |
+| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL-DOC-MCP + GLOBAL-DOC-RESPONSE-STYLE + (opt-in) GLOBAL-DOC-MARKDOWN | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 
@@ -381,7 +381,7 @@ write_setting({ "agentId": "…", "scope": "workspace", "key": "voice-proactive-
 
 ### Что где (кратко)
 
-**Platform** — `maintenance-mode`, `default-locale`, `default-workspace-id`, `mcp-mode`, `batch-*`, `confirm-*`, `index-*-enabled`, `always-context-*` (README, GLOBAL_MCP_DOC, AGENTS.md, папка ws).
+**Platform** — `maintenance-mode`, `default-locale`, `default-workspace-id`, `mcp-mode`, `batch-*`, `confirm-*`, `index-*-enabled`, `always-context-*` (README, GLOBAL-DOC-MCP, AGENTS.md, папка ws).
 
 **Workspace** — `awn-id-*`, группа **«Голосовой клиент»** (`voice-*`: маршрут, TTS/STT, окно, проактивность).
 
@@ -922,7 +922,7 @@ awn-description: Черновики и ресурсы для разбора
 `NOTE.md` / `TODO.md` — предпочтительно **`read_workspace_*` / `write_workspace_*`** (см. выше).
 
 В always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  
-Плюс всегда глобально: `GLOBAL_MCP_DOC.md` из корня `agent-cms-core` (для всех агентов).
+Плюс всегда глобально: `GLOBAL-DOC-MCP.md` из корня репозитория (для всех агентов).
 
 `read_system_file` / `write_system_file` — **удалены из MCP**; UI по-прежнему использует HTTP `/api/system-file`.
 

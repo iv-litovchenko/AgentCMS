@@ -18,7 +18,7 @@ module.exports = {
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
-    "awn-facts: retain_workspace_fact (запись), recall_workspace_facts (поиск), list_workspace_facts (список). Выжимки из чатов — не полный диалог. См. GLOBAL_MCP_DOC.md § Банк фактов."
+    "awn-facts: retain_workspace_fact (запись), recall_workspace_facts (поиск), list_workspace_facts (список). Выжимки из чатов — не полный диалог. См. GLOBAL-DOC-MCP.md § Банк фактов."
   ],
   cursorConfig: {
     command: "node",
@@ -71,7 +71,7 @@ module.exports = {
         },
         {
           name: "list_workspace_always_context",
-          description: "Always-context: awn-runtime-load-always + AGENTS/SKILL/README + GLOBAL_MCP_DOC.",
+          description: "Always-context: awn-runtime-load-always + AGENTS/SKILL/README + GLOBAL-DOC-MCP.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
