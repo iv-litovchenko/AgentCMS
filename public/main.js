@@ -76684,6 +76684,181 @@ function createEntryOverviewSearchBar(context) {
   return wrap;
 }
 
+let entryOverviewCrossSlotSearchQuery = "";
+let entryOverviewCrossSlotSearchSlotScope = "all";
+
+function shouldShowEntryOverviewCrossSlotSearch(context, isMemoryTocRoot = false) {
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
+  if (isMemoryTocRoot || isEntryOverviewMemoryTocRoot(context)) return true;
+  if (!context || !isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
+  if (shouldShowEntryOverviewSlotCountersOnHubMain(context)) return true;
+  return shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot);
+}
+
+function getEntryOverviewCrossSlotSearchPlaceholder(scopeValue = "all") {
+  if (scopeValue === "all") return "Поиск по всем слотам...";
+  return "Поиск в выбранном слоте...";
+}
+
+function createEntryOverviewCrossSlotSearchBar(context, topicPath) {
+  if (!context || !shouldShowEntryOverviewCrossSlotSearch(context)) return null;
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-cross-slot-search";
+  wrap.dataset.topicNodePath = resolvedTopicPath || "";
+
+  const bar = document.createElement("div");
+  bar.className =
+    "node-entry-overview-cross-slot-search-bar content-search-bar node-entry-overview-cross-slot-search-bar--stub";
+
+  const select = document.createElement("select");
+  select.className = "content-search-scope node-entry-overview-cross-slot-search-scope";
+  select.setAttribute("aria-label", "Слоты для поиска");
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "Все слоты";
+  select.appendChild(allOption);
+  select.value = entryOverviewCrossSlotSearchSlotScope;
+
+  const inputZone = document.createElement("div");
+  inputZone.className =
+    "content-search-input-zone node-entry-overview-cross-slot-search-input-zone";
+
+  const searchIcon = document.createElement("span");
+  searchIcon.className = "content-search-input-icon";
+  searchIcon.setAttribute("aria-hidden", "true");
+  searchIcon.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"></circle><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>';
+
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "content-search-input node-entry-overview-cross-slot-search-input";
+  input.placeholder = getEntryOverviewCrossSlotSearchPlaceholder(select.value);
+  input.value = entryOverviewCrossSlotSearchQuery;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", getEntryOverviewCrossSlotSearchPlaceholder("all"));
+
+  const stubMark = document.createElement("span");
+  stubMark.className = "stub-static-mark node-entry-overview-cross-slot-search-stub";
+  stubMark.textContent = "TODO";
+
+  const syncInputAria = () => {
+    input.setAttribute("aria-label", getEntryOverviewCrossSlotSearchPlaceholder(select.value));
+    input.placeholder = getEntryOverviewCrossSlotSearchPlaceholder(select.value);
+  };
+
+  select.addEventListener("change", () => {
+    entryOverviewCrossSlotSearchSlotScope = select.value || "all";
+    syncInputAria();
+  });
+  input.addEventListener("input", (event) => {
+    entryOverviewCrossSlotSearchQuery = event.target.value || "";
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    showToast("Поиск по слотам темы — скоро", "info");
+  });
+
+  inputZone.append(searchIcon, input);
+  syncInputAria();
+  bar.append(select, inputZone, stubMark);
+  wrap.appendChild(bar);
+  return wrap;
+}
+
+function refreshEntryOverviewCrossSlotSearchScopes(searchWrap, topicPath) {
+  if (!searchWrap) return;
+  const select = searchWrap.querySelector(".node-entry-overview-cross-slot-search-scope");
+  if (!select) return;
+
+  const resolvedTopicPath = topicPath || searchWrap.dataset.topicNodePath || getResolvedNodePath(activePath);
+  void loadEntryOverviewSlotCounters(resolvedTopicPath).then((slots) => {
+    if (!searchWrap.isConnected) return;
+
+    const previousScope = entryOverviewCrossSlotSearchSlotScope;
+    const seenKeys = new Set(["all"]);
+
+    select.replaceChildren();
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "Все слоты";
+    select.appendChild(allOption);
+
+    for (const slot of slots) {
+      if (isStorageSlotCounterFullWidth(slot)) continue;
+      const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+      const slotKey = String(slot.id || spec?.key || "").trim();
+      if (!slotKey || seenKeys.has(slotKey)) continue;
+      seenKeys.add(slotKey);
+      const icon = spec?.icon ? `${spec.icon} ` : "";
+      const label = slot.label || spec?.label || slotKey;
+      const option = document.createElement("option");
+      option.value = slotKey;
+      option.textContent = `${icon}${label}`.trim();
+      select.appendChild(option);
+    }
+
+    if (seenKeys.has(previousScope)) {
+      select.value = previousScope;
+    } else {
+      select.value = "all";
+      entryOverviewCrossSlotSearchSlotScope = "all";
+    }
+
+    const input = searchWrap.querySelector(".node-entry-overview-cross-slot-search-input");
+    if (input) {
+      input.placeholder = getEntryOverviewCrossSlotSearchPlaceholder(select.value);
+      input.setAttribute("aria-label", input.placeholder);
+    }
+  });
+}
+
+function syncEntryOverviewCrossSlotSearchChrome(hubMain, context, topicPath) {
+  if (!hubMain) return null;
+
+  const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
+  if (!shouldShowEntryOverviewCrossSlotSearch(context, isMemoryTocRoot)) {
+    hubMain.querySelectorAll(".node-entry-overview-cross-slot-search").forEach((node) => node.remove());
+    return null;
+  }
+
+  const strip = hubMain.querySelector(
+    ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters"
+  );
+  if (!strip) {
+    hubMain.querySelectorAll(".node-entry-overview-cross-slot-search").forEach((node) => node.remove());
+    return null;
+  }
+
+  const resolvedTopicPath = topicPath || strip.dataset.topicNodePath || getResolvedNodePath(activePath);
+  const searches = Array.from(hubMain.querySelectorAll(".node-entry-overview-cross-slot-search"));
+  let search = searches[0] || null;
+  searches.slice(1).forEach((node) => node.remove());
+
+  if (!search) {
+    search = createEntryOverviewCrossSlotSearchBar(context, resolvedTopicPath);
+    if (!search) return null;
+  } else if (resolvedTopicPath) {
+    search.dataset.topicNodePath = resolvedTopicPath;
+  }
+
+  const parent = strip.parentElement;
+  if (!parent) return search;
+
+  if (search.parentElement !== parent) {
+    search.remove();
+    parent.insertBefore(search, strip);
+  } else if (search.nextElementSibling !== strip) {
+    parent.insertBefore(search, strip);
+  }
+
+  refreshEntryOverviewCrossSlotSearchScopes(search, resolvedTopicPath);
+  return search;
+}
+
 function shouldShowEntryOverviewBrowseActions(context) {
   if (!context?.memoryKind || !activePath) return false;
   if (isEntryOverviewMemoryTocRoot(context)) return true;
@@ -78718,10 +78893,12 @@ function finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel) {
 
   const strip = panel.querySelector(":scope > .node-entry-overview-browse-slot-counters");
   const hero = panel.querySelector(":scope > .node-entry-overview-browse-hero-nav");
+  const search = panel.querySelector(":scope > .node-entry-overview-cross-slot-search");
 
   panel.insertBefore(notice, toolbar);
   if (hero) panel.insertBefore(hero, notice);
   if (strip) panel.insertBefore(strip, hero || notice);
+  if (search && strip) panel.insertBefore(search, strip);
 }
 
 function finalizeEntryOverviewBrowsePanelChromeOrder(panel) {
@@ -78729,15 +78906,29 @@ function finalizeEntryOverviewBrowsePanelChromeOrder(panel) {
 
   const strip = panel.querySelector(":scope > .node-entry-overview-browse-slot-counters");
   const hero = panel.querySelector(":scope > .node-entry-overview-browse-hero-nav");
+  const search = panel.querySelector(":scope > .node-entry-overview-cross-slot-search");
 
   if (strip) {
     panel.prepend(strip);
+    if (search) panel.insertBefore(search, strip);
     if (hero) strip.insertAdjacentElement("afterend", hero);
   } else if (hero) {
     panel.prepend(hero);
+    if (search) panel.insertBefore(search, hero);
+  } else if (search) {
+    panel.prepend(search);
   }
 
   finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
+
+  const hubMain = panel.closest(".node-navigation-hub-main");
+  if (hubMain) {
+    syncEntryOverviewCrossSlotSearchChrome(
+      hubMain,
+      activeEntryOverviewContext,
+      getResolvedNodePath(activePath)
+    );
+  }
 }
 
 function dedupeEntryOverviewSlotCounterStrips(hubMain) {
@@ -78765,7 +78956,10 @@ function relocateEntryOverviewSlotCountersChrome(hubMain) {
   if (!hubMain) return;
 
   const strip = dedupeEntryOverviewSlotCounterStrips(hubMain);
-  if (!strip) return;
+  if (!strip) {
+    hubMain.querySelectorAll(".node-entry-overview-cross-slot-search").forEach((node) => node.remove());
+    return;
+  }
 
   const hero = hubMain.querySelector(
     ":scope > .node-navigation-hero, :scope > .node-entry-overview-media-asset"
@@ -78776,16 +78970,33 @@ function relocateEntryOverviewSlotCountersChrome(hubMain) {
     }
     strip.classList.add("node-entry-overview-hub-top-slot-counters");
     strip.classList.remove("node-entry-overview-manifest-top-slot-counters");
+    syncEntryOverviewCrossSlotSearchChrome(
+      hubMain,
+      activeEntryOverviewContext,
+      strip.dataset.topicNodePath || getResolvedNodePath(activePath)
+    );
     return;
   }
 
   const manifest = hubMain.querySelector(":scope > .node-entry-overview-manifest");
-  if (!manifest || !manifest.contains(strip)) return;
-  if (strip.parentElement === manifest && strip === manifest.firstElementChild) return;
-
-  manifest.insertBefore(strip, manifest.firstChild);
+  if (!manifest || !manifest.contains(strip)) {
+    syncEntryOverviewCrossSlotSearchChrome(
+      hubMain,
+      activeEntryOverviewContext,
+      strip.dataset.topicNodePath || getResolvedNodePath(activePath)
+    );
+    return;
+  }
+  if (strip.parentElement !== manifest || strip !== manifest.firstElementChild) {
+    manifest.insertBefore(strip, manifest.firstChild);
+  }
   strip.classList.add("node-entry-overview-manifest-top-slot-counters");
   strip.classList.remove("node-entry-overview-hub-top-slot-counters");
+  syncEntryOverviewCrossSlotSearchChrome(
+    hubMain,
+    activeEntryOverviewContext,
+    strip.dataset.topicNodePath || getResolvedNodePath(activePath)
+  );
 }
 
 function shouldShowEntryOverviewSlotCountersOnHubMain(context) {

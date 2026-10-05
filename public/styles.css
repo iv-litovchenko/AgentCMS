@@ -42352,6 +42352,67 @@ img.is-svg-media,
   background: transparent;
 }
 
+.node-entry-overview-cross-slot-search {
+  margin: 0 0 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.node-entry-overview-cross-slot-search-bar {
+  align-items: center;
+  min-height: 36px;
+}
+
+.node-entry-overview-cross-slot-search-bar .content-search-scope {
+  flex: 0 0 auto;
+  max-width: 196px;
+  align-self: center;
+  margin: 4px 0 4px 4px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 999px 0 0 999px;
+}
+
+.node-entry-overview-cross-slot-search-input-zone {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 2px;
+}
+
+.node-entry-overview-cross-slot-search-bar .content-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 8px 8px 0;
+}
+
+.node-entry-overview-cross-slot-search-stub {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0 12px 0 4px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.node-navigation-hub-main > .node-entry-overview-cross-slot-search {
+  margin-bottom: 0;
+}
+
+.node-navigation-hub-main > .node-entry-overview-cross-slot-search + .node-entry-overview-hub-top-slot-counters,
+.node-navigation-hub-main > .node-entry-overview-cross-slot-search + .node-entry-overview-hub-main-slot-counters {
+  margin-top: -10px;
+}
+
+.node-entry-overview-browse-panel > .node-entry-overview-cross-slot-search {
+  margin-bottom: 6px;
+}
+
+.node-entry-overview-manifest > .node-entry-overview-cross-slot-search {
+  margin-bottom: 8px;
+}
+
 .node-navigation-hub-main > .node-entry-overview-hub-top-slot-counters,
 .node-entry-overview-manifest > .node-entry-overview-manifest-top-slot-counters,
 .node-entry-overview-manifest > .node-entry-overview-browse-slot-counters {
