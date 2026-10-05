@@ -78728,7 +78728,10 @@ function finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel) {
 function shouldShowEntryOverviewSlotCountersOnHubMain(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
-  return isDataEntryOverviewMemoryKind(context.memoryKind);
+  if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
+  // Оглавление слота / раздел: полоса в browse-панели, hero на hub-main нет.
+  if (shouldShowEntryOverviewBrowseActions(context)) return false;
+  return true;
 }
 
 function shouldShowEntryOverviewSlotCountersInHero() {
@@ -78736,8 +78739,10 @@ function shouldShowEntryOverviewSlotCountersInHero() {
 }
 
 function shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot = false) {
-  if (isMemoryTocRoot) return true;
-  return !shouldShowEntryOverviewSlotCountersOnHubMain(context);
+  if (isMemoryTocRoot || isEntryOverviewMemoryTocRoot(context)) return true;
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
+  if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
+  return shouldShowEntryOverviewBrowseActions(context);
 }
 
 function renderEntryOverviewSlotCounterStripFromSlots(context, topicPath, slots = []) {
@@ -80398,6 +80403,12 @@ async function renderEntryOverview() {
     scheduleWorkspaceScrollChromeSync();
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
     syncAllWorkspaceCounterStripActiveStates(context);
+    const tocBrowsePanel = hubMain.querySelector(".node-entry-overview-browse-panel");
+    if (tocBrowsePanel && shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) {
+      void mountEntryOverviewBrowseSlotCounterStrip(tocBrowsePanel, context, topicPath, {
+        isMemoryTocRoot: true
+      }).then(() => finalizeEntryOverviewBrowseSlotFolderMissingLayout(tocBrowsePanel));
+    }
     return;
   }
 
@@ -80595,8 +80606,14 @@ async function renderEntryOverview() {
   const hubMainHero = hubMain.querySelector(
     ":scope > .node-navigation-hero, :scope > .node-entry-overview-media-asset"
   );
-  if (hubMainHero) {
+  if (hubMainHero && shouldShowEntryOverviewSlotCountersOnHubMain(context)) {
     void mountEntryOverviewHubMainSlotCounterStrip(hubMain, hubMainHero, context, topicPath);
+  }
+  const browsePanel = hubMain.querySelector(".node-entry-overview-browse-panel");
+  if (browsePanel && shouldShowEntryOverviewSlotCountersInBrowsePanel(context, false)) {
+    void mountEntryOverviewBrowseSlotCounterStrip(browsePanel, context, topicPath, {
+      isMemoryTocRoot: false
+    }).then(() => finalizeEntryOverviewBrowseSlotFolderMissingLayout(browsePanel));
   }
 }
 
