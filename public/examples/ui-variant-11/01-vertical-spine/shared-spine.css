@@ -1,0 +1,92 @@
+/* Shared vertical spine layout for 01-* variants */
+.stage {
+  position: relative;
+  width: min(var(--spine-width, 460px), 100%);
+  min-height: calc(100vh - 56px);
+  margin: 0 auto;
+  padding: 24px 0 80px;
+}
+.spine {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  bottom: 8%;
+  width: var(--spine-thickness, 2px);
+  transform: translateX(-50%);
+  background: var(--spine-gradient, linear-gradient(180deg, #fde047, #60a5fa 40%, #818cf8));
+  opacity: var(--spine-opacity, 0.45);
+  filter: blur(var(--spine-blur, 0.3px));
+  box-shadow: var(--spine-shadow, none);
+}
+.spine-ghost {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  bottom: 8%;
+  width: var(--spine-ghost-width, 0);
+  transform: translateX(-50%);
+  background: var(--spine-ghost-gradient, transparent);
+  opacity: var(--spine-ghost-opacity, 0);
+  filter: blur(8px);
+}
+.links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.links .trunk {
+  fill: none;
+  stroke: var(--link-trunk, rgba(250, 204, 21, 0.45));
+  stroke-width: var(--link-trunk-width, 2.5);
+}
+.links .leaf {
+  fill: none;
+  stroke: var(--link-leaf, rgba(96, 165, 250, 0.28));
+  stroke-width: var(--link-leaf-width, 1.5);
+  stroke-dasharray: var(--link-leaf-dash, 4 6);
+}
+.node {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.orb {
+  width: var(--s, 58px);
+  height: var(--s, 58px);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--s, 58px) * 0.38);
+  border: var(--orb-border, 2px solid rgba(147, 197, 253, 0.55));
+  background: var(--orb-bg, radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), transparent 42%), #0f172a);
+  box-shadow: var(--orb-shadow, 0 0 24px rgba(59, 130, 246, 0.32));
+  overflow: hidden;
+}
+.root .orb { --s: 92px; }
+.section .orb { --s: 64px; }
+.cap {
+  font-size: var(--cap-size, 11px);
+  font-weight: 600;
+  color: var(--cap-color, #cbd5e1);
+  text-align: center;
+  max-width: var(--cap-width, 96px);
+  line-height: 1.25;
+}
+.preview-mini {
+  width: 72%;
+  height: 72%;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.35), rgba(15, 23, 42, 0.9));
+  font-size: 9px;
+  color: #bae6fd;
+  padding: 4px;
+  line-height: 1.3;
+  text-align: left;
+}

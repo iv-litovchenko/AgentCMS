@@ -1,0 +1,12 @@
+id: awn.database.element.record-csv
+name: Запись CSV накопителя
+kind: element
+domain: database
+status: active
+extends: awn.content.record-csv
+description: Строка csv / csv-files коллекции или main.csv — минимальные системные колонки
+record-role: record
+
+kind-ui:
+  label: Запись CSV
+  badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0369a1" }

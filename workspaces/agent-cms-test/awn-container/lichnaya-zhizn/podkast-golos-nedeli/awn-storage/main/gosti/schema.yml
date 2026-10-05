@@ -1,0 +1,38 @@
+version: 1
+layer: section
+
+awn_schema:
+  slot_memory_category:
+    fields:
+      guest_name:
+        type: awn.field.string
+        name: Имя гостя
+        required: true
+      contact_phone:
+        type: awn.field.string.phone
+        name: Телефон
+      contact_email:
+        type: awn.field.string.email
+        name: Почта
+      episode_topic:
+        type: awn.field.text
+        name: Тема разговора
+      recording_status:
+        type: awn.field.choice.one
+        name: Статус
+        enum:
+          - key: idea
+            name: "Идея"
+          - key: agreed
+            name: "Договорились"
+          - key: recorded
+            name: "Записано"
+          - key: edited
+            name: "Смонтировано"
+          - key: published
+            name: "Опубликовано"
+        default: idea
+      social_links:
+        type: awn.field.array
+        name: Соцсети
+        items: awn.field.string.url

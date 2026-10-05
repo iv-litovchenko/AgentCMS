@@ -1,0 +1,41 @@
+---
+awn-name: tree-sitter — библиотека разбирает исходный код
+awn-description: ""
+awn-preview: ""
+awn-web-url: ""
+awn-status: open
+awn-quality: 4
+awn-importance: 0
+awn-note-todo-sticker: ""
+awn-emoji: ""
+awn-runtime-load-always: false
+awn-runtime-heartbeat: ""
+awn-runtime-cron: ""
+awn-runtime-cron-schedule: ""
+awn-runtime-commands: false
+awn-tags: []
+awn-taxonomy: ""
+awn-type: awn.content.record
+awn-create: 2026-09-27T07:50:44.048Z
+awn-owner: ""
+awn-main: false
+awn-focus: false
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-index-exclude-record: false
+awn-attachments: []
+awn-materials: ""
+awn-id: 12
+awn-update: 2026-09-27T07:50:44.962Z
+awn-version: 2
+---
+
+# tree-sitter — библиотека разбирает исходный код

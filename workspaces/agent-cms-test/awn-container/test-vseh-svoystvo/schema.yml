@@ -1,0 +1,418 @@
+version: 1
+layer: area
+
+awn_schema:
+  topic:
+    fields:
+      # --- Текст (однострочный) ---
+      demo_string:
+        type: awn.field.string
+        name: Строка
+        hint: awn.field.string
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 10
+      demo_email:
+        type: awn.field.string.email
+        name: Email
+        hint: awn.field.string.email
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 11
+      demo_phone:
+        type: awn.field.string.phone
+        name: Телефон
+        hint: "+7 900 000-00-00"
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 115
+      demo_password:
+        type: awn.field.string.password
+        name: Пароль
+        hint: awn.field.string.password
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 12
+      demo_slug:
+        type: awn.field.string.slug
+        name: Слаг
+        hint: awn.field.string.slug
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 13
+      demo_url:
+        type: awn.field.string.url
+        name: URL
+        hint: awn.field.string.url
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 14
+
+      # --- Текст (многострочные) ---
+      demo_text:
+        type: awn.field.text
+        name: Текст
+        hint: awn.field.text
+        placement: editor-body
+        group: Текст (многострочный)
+        sort: 20
+      demo_markdown:
+        type: awn.field.text.markdown
+        name: Markdown
+        hint: awn.field.text.markdown
+        placement: editor-body
+        group: Текст (многострочный)
+        sort: 21
+
+      # --- Числа ---
+      demo_integer:
+        type: awn.field.number.integer
+        name: Целое
+        hint: awn.field.number.integer
+        placement: editor-body
+        group: Числа
+        sort: 30
+      demo_number:
+        type: awn.field.number
+        name: Число
+        hint: awn.field.number
+        placement: editor-body
+        group: Числа
+        sort: 31
+
+      # --- Выбор и флаги ---
+      demo_boolean:
+        type: awn.field.boolean
+        name: Да / нет
+        hint: awn.field.boolean
+        placement: editor-body
+        group: Выбор
+        sort: 40
+      demo_choice_one:
+        type: awn.field.choice.one
+        name: Один из списка (select)
+        hint: awn.field.choice.one
+        placement: editor-body
+        group: Выбор
+        sort: 41
+        enum:
+          - key: open
+            name: "Открыта"
+          - key: in_progress
+            name: "В работе"
+          - key: done
+            name: "Готово"
+      demo_choice_many:
+        type: awn.field.choice.many
+        name: Несколько из списка (checkbox)
+        hint: awn.field.choice.many
+        placement: editor-body
+        group: Выбор
+        sort: 42
+        enum:
+          - key: alpha
+            name: Alpha
+          - key: beta
+            name: Beta
+          - key: gamma
+            name: Gamma
+      demo_array:
+        type: awn.field.array
+        name: Произвольные значения
+        hint: awn.field.array
+        placement: editor-body
+        group: Выбор
+        sort: 43
+
+      # --- Дата и время ---
+      demo_date:
+        type: awn.field.date
+        name: Дата
+        hint: awn.field.date
+        placement: editor-body
+        group: "Дата и время"
+        sort: 50
+      demo_datetime:
+        type: awn.field.date.datetime
+        name: Дата и время
+        hint: awn.field.date.datetime
+        placement: editor-body
+        group: "Дата и время"
+        sort: 51
+      demo_cron:
+        type: awn.field.string.cron-schedule
+        name: Cron-расписание
+        hint: awn.field.string.cron-schedule
+        placement: editor-body
+        group: "Дата и время"
+        sort: 52
+
+      # --- Медиа и файлы ---
+      demo_color:
+        type: awn.field.string.color
+        name: Цвет (hex)
+        hint: awn.field.string.color
+        placement: editor-body
+        group: Медиа
+        sort: 60
+      demo_file_one:
+        type: awn.field.file.one
+        name: Файл (один)
+        hint: awn.field.file.one
+        placement: editor-body
+        group: Медиа
+        sort: 61
+        scope: area
+      demo_file_many:
+        type: awn.field.file.many
+        name: Файлы (несколько)
+        hint: awn.field.file.many
+        placement: editor-body
+        group: Медиа
+        sort: 62
+        scope: area
+      demo_image_one:
+        type: awn.field.file.image.one
+        name: Изображение (одно)
+        hint: awn.field.file.image.one
+        placement: editor-body
+        group: Медиа
+        sort: 63
+        scope: area
+      demo_image_many:
+        type: awn.field.file.image.many
+        name: Изображения (несколько)
+        hint: awn.field.file.image.many
+        placement: editor-body
+        group: Медиа
+        sort: 64
+        scope: area
+      demo_entity_preview:
+        type: awn.field.file.image.for-preview
+        name: Превью сущности
+        hint: awn.field.file.image.for-preview
+        placement: editor-body
+        group: Медиа
+        sort: 65
+
+      # --- Структура ---
+      demo_path:
+        type: awn.field.string.link
+        name: Путь в workspace
+        hint: awn.field.string.link
+        placement: editor-body
+        group: Структура
+        sort: 68
+      demo_coordinates:
+        type: awn.field.coordinates
+        name: Координаты
+        hint: "55.7558, 37.6173"
+        placement: editor-body
+        group: Структура
+        sort: 69
+
+      # --- Связи ---
+      demo_relation_one:
+        type: awn.field.relation.one
+        name: Связь (одна)
+        hint: awn.field.relation.one
+        placement: editor-body
+        group: Связи
+        sort: 70
+        scope: topic
+      demo_relation_many:
+        type: awn.field.relation.many
+        name: Связи (несколько)
+        hint: awn.field.relation.many
+        placement: editor-body
+        group: Связи
+        sort: 71
+        scope: topic
+
+      # --- Справочники (lookup) ---
+      demo_lookup_status:
+        type: awn.field.lookup.one
+        name: Lookup · статус
+        hint: awn.field.lookup.one
+        placement: editor-body
+        group: Справочники
+        sort: 80
+      demo_lookup_category:
+        type: awn.field.lookup.one
+        name: Lookup · категория
+        hint: awn.field.lookup.one + source categories
+        placement: editor-body
+        group: Справочники
+        sort: 81
+      demo_lookup_owner:
+        type: awn.field.lookup.one
+        name: Lookup · владелец
+        hint: awn.field.lookup.one + source users
+        placement: editor-body
+        group: Справочники
+        sort: 82
+      demo_lookup_priority:
+        type: awn.field.lookup.one
+        name: Lookup · приоритет
+        hint: awn.field.lookup.one + source priorities
+        placement: editor-body
+        group: Справочники
+        sort: 83
+      demo_lookup_color:
+        type: awn.field.lookup.one
+        name: Lookup · цвет
+        hint: awn.field.lookup.one + source colors
+        placement: editor-body
+        group: Справочники
+        sort: 84
+      demo_lookup_tags:
+        type: awn.field.lookup.many
+        name: Lookup · теги
+        hint: awn.field.lookup.many + source tags
+        placement: editor-body
+        group: Справочники
+        sort: 85
+
+      # --- Прочее ---
+      demo_json:
+        type: awn.field.json
+        name: JSON
+        hint: awn.field.json
+        placement: editor-body
+        group: Прочее
+        sort: 90
+
+      # --- Новые (new!) ---
+      demo_time:
+        type: awn.field.date.time
+        name: Время (new!)
+        hint: "14:30"
+        placement: editor-body
+        group: Новые (new!)
+        sort: 100
+      demo_duration:
+        type: awn.field.duration
+        name: Длительность (new!)
+        hint: 2h 30m
+        placement: editor-body
+        group: Новые (new!)
+        sort: 101
+      demo_code:
+        type: awn.field.text.code
+        name: Код / YAML (new!)
+        hint: awn.field.text.code
+        placement: editor-body
+        group: Новые (new!)
+        sort: 102
+      demo_secret:
+        type: awn.field.string.secret
+        name: Секрет / токен (new!)
+        hint: API key / token
+        placement: editor-body
+        group: Новые (new!)
+        sort: 103
+      demo_object:
+        type: awn.field.object
+        name: Объект (new!)
+        hint: JSON object
+        placement: editor-body
+        group: Новые (new!)
+        sort: 104
+      demo_repeater:
+        type: awn.field.repeater
+        name: Repeater (new!)
+        hint: JSON array of objects
+        placement: editor-body
+        group: Новые (new!)
+        sort: 105
+
+      field-1:
+        type: awn.field.string
+        name: ауцау
+        placement: editor-body
+        group: Прочее
+        sort: 91
+
+  slot_memory:
+    fields:
+      rec_string:
+        type: awn.field.string
+        name: Строка
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 10
+      rec_choice_one:
+        type: awn.field.choice.one
+        name: Choice one (radio)
+        placement: editor-body
+        group: Выбор
+        sort: 20
+        widget: radio
+        enum:
+          - key: draft
+            name: "Черновик"
+          - key: review
+            name: "Проверка"
+          - key: published
+            name: "Опубликовано"
+      rec_choice_many:
+        type: awn.field.choice.many
+        name: Choice many (select-multiple)
+        placement: editor-body
+        group: Выбор
+        sort: 21
+        widget: select-multiple
+        enum:
+          - key: one
+            name: One
+          - key: two
+            name: Two
+          - key: three
+            name: Three
+      rec_file:
+        type: awn.field.file.one
+        name: Файл
+        placement: editor-body
+        group: Медиа
+        sort: 30
+        scope: all
+      rec_image:
+        type: awn.field.file.image.one
+        name: Изображение
+        placement: editor-body
+        group: Медиа
+        sort: 31
+        scope: all
+      rec_relation:
+        type: awn.field.relation.one
+        name: Связь
+        placement: editor-body
+        group: Связи
+        sort: 40
+      rec_lookup:
+        type: awn.field.lookup.one
+        name: Lookup приоритет
+        placement: editor-body
+        group: Справочники
+        sort: 50
+
+  slot_memory_sidecar:
+    fields:
+      sidecar_string:
+        type: awn.field.string
+        name: Sidecar строка
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 10
+      sidecar_boolean:
+        type: awn.field.boolean
+        name: Sidecar да/нет
+        placement: editor-body
+        group: Выбор
+        sort: 20
+      sidecar_lookup:
+        type: awn.field.lookup.one
+        name: Sidecar lookup тег
+        placement: editor-body
+        group: Справочники
+        sort: 30

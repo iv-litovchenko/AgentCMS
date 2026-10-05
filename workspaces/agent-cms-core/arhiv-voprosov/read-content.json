@@ -1,0 +1,16 @@
+{
+  "paths": [
+    "internal/main.md",
+    "main/Формируем вопросы.md",
+    "main/IBLOCK-MODEL.md",
+    "main/MAP_2.md",
+    "main/REZ_COPY.md",
+    "main/SPEC_2026_itogovaya.md",
+    "main/SPEC.md",
+    "main/TYPES-GUIDE-2.md",
+    "main/TYPES-GUIDE.md",
+    "tabular/main.csv",
+    "todo/todo.md"
+  ],
+  "updatedAt": "2026-10-04T09:29:01.655Z"
+}

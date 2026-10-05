@@ -1,0 +1,12 @@
+---
+awn-type: awn.repository
+awn-name: "мупукпук"
+awn-description: "пкупку"
+awn-repo-origin: ""
+awn-repo-status: study
+awn-repo-tech: []
+awn-repository-group: study
+awn-runtime-index: manifest-only
+---
+
+Описание для агента и человека: entry point, ветка, связь с темами CMS.

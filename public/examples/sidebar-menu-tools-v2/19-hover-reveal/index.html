@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>19 · Hover reveal</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>19 · Hover reveal</h1><p>По умолчанию только поиск; tools по hover/focus</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="ctx-agent-fade" aria-hidden="true"></div>
+        <div class="panel-zone" data-panel-zone>
+
+<div class="v19-zone">
+  <div class="v19-search-only">
+    <label class="search-bar">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input class="search-input" type="search" placeholder="Поиск тем…" />
+    </label>
+  </div>
+  <div class="v19-reveal">
+    <div class="v19-reveal-inner">
+      <div class="v19-tools">
+        <div class="view-cluster" role="tablist">
+          <button type="button" class="view-btn is-active">🌳</button>
+          <button type="button" class="view-btn">☰</button>
+          <button type="button" class="view-btn">⭐</button>
+        </div>
+        <button type="button" class="tool-btn" title="Обновить">🔄</button>
+        <button type="button" class="tool-btn is-active" title="Закрепить">📍</button>
+        <button type="button" class="tool-btn" title="Индекс">⟲</button>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="panel-hint">~34px → ~68px · наведите на зону</p>
+        </div>
+        <nav class="panel-tree" aria-label="Дерево тем">
+  <ul>
+    <li class="panel-tree-branch">
+      <div class="panel-tree-node is-active">
+        <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+        <span>🟢 [Agent CMS] Песочница и тесты</span>
+        <span class="panel-tree-badge">📍</span>
+      </div>
+      <ul>
+        <li class="panel-tree-branch">
+          <div class="panel-tree-node">
+            <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+            <span>🟢 Агентские темы</span>
+          </div>
+          <ul>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 PHP</span></div></li>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 Личная жизнь</span></div></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+      </aside>
+      <p class="size-badge" data-size-badge>Высота панели: —</p>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

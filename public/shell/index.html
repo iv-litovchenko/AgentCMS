@@ -1,0 +1,3590 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
+    <meta name="theme-color" content="#070812" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agent Shell" />
+    <title>Agent CMS Voice</title>
+    <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
+    <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
+    <link rel="manifest" href="/shell/manifest.webmanifest" />
+    <link rel="stylesheet" href="/shell/shell.css?v=646" />
+    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
+    <script src="/js/core/project-version.js?v=1"></script>
+    <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/shell/vendor/three.module.js",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=323",
+          "@shell/reply": "/shell/shell-reply.js?v=422",
+          "@shell/markdown": "/shell/shell-markdown.js?v=434",
+          "@shell/character": "/shell/shell-character.js?v=214",
+          "@shell/character-models": "/shell/shell-character-models.js?v=208",
+          "@shell/camera": "/shell/shell-camera.js?v=207",
+          "@shell/screen": "/shell/shell-screen.js?v=207",
+          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=217",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=208",
+          "@shell/audio-unlock-banner": "/shell/shell-audio-unlock-banner.js?v=7",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=216",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=419",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=416",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
+          "@shell/session": "/shell/shell-session.js?v=209",
+          "@shell/client-id": "/shell/shell-client-id.js?v=404",
+          "@shell/surface": "/shell/shell-surface.js?v=232",
+          "@shell/presence": "/shell/shell-presence.js?v=405",
+          "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
+          "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
+          "@shell/pwa": "/shell/shell-pwa.js?v=207",
+          "@shell/permissions": "/shell/shell-permissions.js?v=216",
+          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
+          "@shell/dialog": "/shell/shell-dialog.js?v=318",
+          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=10",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=210",
+          "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=7",
+          "@shell/compose-page": "/shell/shell-compose-page.js?v=3",
+          "@shell/compose-templates": "/shell/shell-compose-templates.js?v=5",
+          "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
+          "@shell/help": "/shell/shell-help.js?v=207",
+          "@shell/outbox-queue-spec": "/shell/shell-outbox-queue-spec.js?v=1",
+          "@shell/hints": "/shell/shell-hints.js?v=316",
+          "@shell/image-lightbox": "/shell/shell-image-lightbox.js?v=2",
+          "@shell/proactive": "/shell/shell-proactive.js?v=331",
+          "@shell/proactive-format": "/shell/proactive-format.js?v=2",
+          "@shell/prompt-placeholders": "/shell/shell-prompt-placeholders.js?v=1",
+          "@shell/debug": "/shell/shell-debug.js?v=417",
+          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
+          "@shell/voice": "/shell/shell-voice.js?v=213",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=423",
+          "@shell/live-dialog": "/shell/shell-live-dialog.js?v=25",
+          "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=209",
+          "@shell/stt-format": "/shell/shell-stt-format.js?v=3",
+          "@shell/contract": "/shell/shell-contract.js?v=209",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
+          "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
+          "@shell/user-question": "/shell/shell-user-question.js?v=5",
+          "@shell/file-hub": "/shell/shell-file-hub.js?v=44",
+          "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=4",
+          "@shell/pomodoro": "/shell/shell-pomodoro.js?v=8",
+          "@shell/build": "/shell/shell-build.js?v=425"
+        }
+      }
+    </script>
+  </head>
+  <body class="shell-bg-wallpaper">
+    <script src="/shell/shell-surface-boot.js?v=1"></script>
+    <script>
+      (function () {
+        try {
+          var parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+          var embedHosts = ["browser-embed", "desktop-cms", "extension"];
+          if (parts.length >= 2 && embedHosts.indexOf(decodeURIComponent(parts[1])) >= 0) {
+            document.body.classList.add("shell-embed");
+          } else if (new URLSearchParams(location.search).get("embed") === "1") {
+            document.body.classList.add("shell-embed");
+          }
+          if (window.shellApp && window.shellApp.isShellDesktop) {
+            document.documentElement.classList.add("shell-desktop");
+            document.body.classList.add("shell-desktop");
+            document.body.classList.add("shell-desktop-" + String(window.shellApp.platform || "unknown"));
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
+      <div class="app-lock-bg" aria-hidden="true"></div>
+      <div class="app-lock-panel">
+        <div class="app-lock-inner">
+          <div class="app-lock-brand">
+            <img class="app-lock-logo" src="/shell/favicon.svg" width="48" height="48" alt="" aria-hidden="true" />
+            <h2 id="app-lock-title" class="app-lock-title">Agent CMS Voice</h2>
+          </div>
+          <p id="app-lock-lead" class="app-lock-lead">Введите логин и пароль</p>
+          <form id="app-lock-form" class="app-lock-form">
+            <label class="app-lock-field">
+              <span class="app-lock-label">Логин</span>
+              <input id="app-lock-login" class="app-lock-input" type="text" name="login" placeholder="Логин" autocomplete="username" required />
+            </label>
+            <label class="app-lock-field">
+              <span class="app-lock-label">Пароль</span>
+              <input id="app-lock-password" class="app-lock-input" type="password" name="password" placeholder="Пароль" autocomplete="current-password" required />
+            </label>
+            <label id="app-lock-confirm-field" class="app-lock-field hidden">
+              <span class="app-lock-label">Повтор пароля</span>
+              <input id="app-lock-confirm" class="app-lock-input" type="password" name="confirm" placeholder="Повторите пароль" autocomplete="new-password" />
+            </label>
+            <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
+            <label id="app-lock-remember-field" class="app-lock-remember">
+              <input id="app-lock-remember" class="app-lock-remember-input" type="checkbox" name="remember" checked />
+              <span class="app-lock-remember-check" aria-hidden="true"></span>
+              <span class="app-lock-remember-text">Запомнить вход на этом устройстве</span>
+            </label>
+            <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
+          </form>
+          <button id="app-lock-biometric-btn" class="app-lock-biometric-btn hidden" type="button" disabled title="Скоро">
+            <span id="app-lock-biometric-label">Face ID / Touch ID</span>
+          </button>
+          <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
+        </div>
+        <div class="app-lock-version-wrap">
+          <span class="app-project-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="shell-agent-gate" class="shell-agent-gate hidden" role="dialog" aria-modal="true" aria-labelledby="shell-agent-gate-title">
+      <div class="shell-agent-gate-panel">
+        <h2 id="shell-agent-gate-title" class="shell-agent-gate-title">Agent CMS Voice</h2>
+        <p class="shell-agent-gate-lead">Выберите workspace CMS — память и настройки Shell привязаны к агенту.</p>
+        <label class="shell-field">
+          <span class="shell-label">Workspace агента</span>
+          <select id="shell-agent-gate-select" class="shell-select" aria-label="Workspace агента"></select>
+        </label>
+        <button type="button" class="shell-btn shell-agent-gate-open" id="shell-agent-gate-open">Открыть Shell</button>
+      </div>
+    </div>
+
+    <div class="shell-app" id="shell-app" data-view="main">
+      <div class="shell-install-banner hidden" id="shell-install-banner">
+        <span>Добавьте на экран Домой — Safari → Поделиться → «На экран Домой»</span>
+        <button type="button" class="shell-install-dismiss" id="shell-install-dismiss" aria-label="Скрыть">×</button>
+      </div>
+      <div class="shell-permission-banner hidden" id="shell-permission-banner" role="alert"></div>
+      <div class="shell-audio-unlock-banner hidden" id="shell-audio-unlock-banner" role="dialog" aria-labelledby="shell-audio-unlock-title">
+        <div class="shell-audio-unlock-banner__main">
+          <p id="shell-audio-unlock-title"><strong>Озвучка на iPhone</strong></p>
+          <p class="shell-audio-unlock-banner__hint">Коснитесь экрана в любом месте один раз — дальше ответы озвучиваются сами.</p>
+        </div>
+        <button type="button" class="shell-audio-unlock-banner__btn" id="shell-audio-unlock-btn" aria-label="Включить звук">OK</button>
+      </div>
+      <header class="shell-path-header" id="shell-path-header" aria-label="Agent CMS Voice">
+        <div class="shell-path-block shell-path-block--title">
+          <div class="shell-path-row">
+            <button
+              type="button"
+              class="shell-path-title-btn"
+              id="shell-home-brand"
+              title="Главная"
+              aria-label="Главная"
+              aria-pressed="true"
+            >
+              <img class="shell-path-logo" src="/shell/favicon.svg" width="24" height="24" alt="" aria-hidden="true" />
+              <span class="shell-path-title-stack">
+                <span class="shell-path-title-line">
+                  <span class="shell-path-title">Agent CMS Voice (Flow window)</span>
+                  <span class="app-project-version-badge shell-header-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+                </span>
+                <span class="shell-path-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</span>
+              </span>
+            </button>
+            <div class="shell-path-actions">
+              <a
+                class="shell-path-action-btn shell-path-action-btn--link"
+                id="shell-open-site"
+                href="https://agent-cms.ru/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Сайт agent-cms.ru"
+                aria-label="Сайт agent-cms.ru"
+              >
+                <svg class="shell-path-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75" />
+                  <path
+                    d="M3 12h18M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9M12 3c-2.5 2.5-4 5.5-4 9s1.5 6.5 4 9"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </a>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-action-btn--cms"
+                id="shell-open-cms"
+                title="Agent CMS Editor — workspace в браузере"
+                aria-label="Открыть Agent CMS Editor"
+              >
+                <img class="shell-path-action-icon" src="/favicon.svg" width="16" height="16" alt="" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-voice-primary-star hidden"
+                id="shell-voice-primary-star"
+                title="Это окно активно для голоса"
+                aria-label="Это окно активно для голоса"
+                aria-pressed="false"
+                aria-hidden="true"
+              >
+                ★
+              </button>
+
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-debug-btn"
+                title="Журнал отладки"
+                aria-label="Журнал отладки"
+                aria-pressed="false"
+              >
+                ⎈
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-help-btn"
+                title="Справка"
+                aria-label="Справка"
+              >
+                ?
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-action-btn--exit hidden"
+                id="app-lock-logout-btn"
+                data-app-lock-logout
+                title="Выйти из Agent CMS Voice"
+                aria-label="Выйти из Agent CMS Voice"
+              >
+                <svg class="shell-path-logout-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="shell-path-block shell-path-block--context">
+          <div class="shell-path-context-row">
+            <label class="shell-path-field shell-path-field--agent">
+              <select id="shell-header-agent" class="shell-path-select agent-select" aria-label="Хранилище (агент)"></select>
+            </label>
+            <span
+              id="shell-header-host"
+              class="shell-path-host-chip shell-path-field--host"
+              role="status"
+              aria-label="Где открыт Agent CMS Voice"
+              title="Где сейчас открыт Agent CMS Voice"
+            ></span>
+            <div class="shell-path-field shell-path-field--runtime-wrap">
+              <label class="shell-path-field shell-path-field--runtime">
+                <select id="shell-message-target" class="shell-path-select" aria-label="Runtime"></select>
+              </label>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-settings-btn"
+                id="shell-settings-btn"
+                title="Настройки"
+                aria-label="Настройки"
+                aria-pressed="false"
+              >
+                ⚙️
+              </button>
+            </div>
+          </div>
+          <div class="shell-path-context-row shell-path-context-row--device" aria-label="Устройство">
+            <span class="shell-meta-chip shell-battery" id="shell-battery" title="Батарея" data-available="0">
+              <span class="shell-meta-icon" aria-hidden="true">🔋</span>
+              <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
+                <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
+                <rect class="shell-battery-cap" x="22" y="3.5" width="3" height="5" rx="1" />
+                <rect class="shell-battery-fill" id="shell-battery-fill" x="2" y="2" height="8" rx="1" width="0" />
+              </svg>
+              <span class="shell-battery-level" id="shell-battery-level">—</span>
+            </span>
+            <span class="shell-meta-chip shell-clock-chip">
+              <span class="shell-meta-icon" aria-hidden="true">🕐</span>
+              <time class="shell-clock" id="shell-clock" datetime="">—</time>
+            </span>
+            <button
+              type="button"
+              class="shell-meta-chip shell-orient-chip"
+              id="shell-orient-chip"
+              aria-label="Ориентация в пространстве"
+              data-active="0"
+            >
+              <span class="shell-meta-icon" aria-hidden="true">🧭</span>
+              <span class="shell-orient-value" id="shell-orient-value">—</span>
+            </button>
+            <button
+              type="button"
+              class="shell-meta-chip shell-location-chip"
+              id="shell-location-chip"
+              aria-label="GPS координаты"
+              data-active="0"
+            >
+              <span class="shell-meta-icon" aria-hidden="true">📍</span>
+              <span class="shell-location-value" id="shell-location-value">—</span>
+            </button>
+            <button
+              type="button"
+              class="shell-meta-chip shell-location-share hidden"
+              id="shell-location-share"
+              aria-label="Поделиться местоположением с агентом"
+              aria-pressed="false"
+              data-active="0"
+            >
+              ↗ агенту
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="shell-settings-view" id="shell-settings-view" data-settings-tab="route">
+        <div class="shell-settings-shell">
+          <div class="shell-settings-tabs" role="tablist" aria-label="Разделы настроек">
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-route"
+              role="tab"
+              data-settings-tab="route"
+              aria-selected="true"
+              aria-controls="shell-route-panel"
+            >
+              Маршрут
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-stt"
+              role="tab"
+              data-settings-tab="stt"
+              aria-selected="false"
+              aria-controls="shell-stt-panel"
+            >
+              STT
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-tts"
+              role="tab"
+              data-settings-tab="tts"
+              aria-selected="false"
+              aria-controls="shell-tts-panel"
+            >
+              TTS
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-proactive"
+              role="tab"
+              data-settings-tab="proactive"
+              aria-selected="false"
+              aria-controls="shell-proactive-panel"
+            >
+              Проактив
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-templates"
+              role="tab"
+              data-settings-tab="templates"
+              aria-selected="false"
+              aria-controls="shell-templates-panel"
+            >
+              Шаблоны
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-window"
+              role="tab"
+              data-settings-tab="window"
+              aria-selected="false"
+              aria-controls="shell-window-panel"
+            >
+              Окно
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-todo"
+              role="tab"
+              data-settings-tab="todo"
+              aria-selected="false"
+              aria-controls="shell-todo-panel"
+            >
+              TODO
+            </button>
+          </div>
+
+          <div class="shell-settings-panels">
+        <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
+        <label class="shell-field">
+          <span class="shell-label">Runtime</span>
+          <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
+        </label>
+        <div
+          class="shell-runtime-route-note shell-runtime-route-note--cli"
+          id="shell-route-runtime-hint"
+          aria-live="polite"
+          role="status"
+          data-active="0"
+          hidden
+        >
+          <p class="shell-runtime-route-note-intro" id="shell-route-runtime-hint-intro"></p>
+          <p class="shell-runtime-route-note-body" id="shell-route-runtime-hint-body"></p>
+        </div>
+
+        <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
+          <div class="shell-qwenpaw-fields">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">URL</span>
+              <div class="shell-input-row">
+                <input
+                  id="shell-qwenpaw-url"
+                  class="shell-input"
+                  type="url"
+                  spellcheck="false"
+                  placeholder="http://127.0.0.1:8088"
+                />
+                <button
+                  type="button"
+                  class="shell-icon-btn shell-input-action"
+                  id="shell-qwenpaw-open-url"
+                  title="Открыть QwenPaw в новом окне"
+                  aria-label="Открыть QwenPaw в новом окне"
+                >
+                  ↗
+                </button>
+              </div>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">User ID</span>
+              <input
+                id="shell-qwenpaw-user-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="default"
+                aria-label="User ID QwenPaw"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Агент (профиль)</span>
+              <select
+                id="shell-qwenpaw-agent-id"
+                class="shell-select shell-select--full"
+                aria-label="Агент (профиль) QwenPaw"
+              ></select>
+            </label>
+            <div
+              class="shell-field shell-field--compact shell-qwenpaw-permission-field"
+              id="shell-qwenpaw-permission-field"
+            >
+              <span class="shell-tts-panel-playback" role="presentation">
+                <label
+                  class="shell-qwenpaw-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                  id="shell-qwenpaw-permission-label"
+                  title="QwenPaw — инструменты без подтверждения (approval_level OFF)"
+                >
+                  <input
+                    id="shell-qwenpaw-permission-mode"
+                    type="checkbox"
+                    aria-label="Разрешить QwenPaw выполнять инструменты без подтверждения"
+                  />
+                  <span class="shell-tts-playback-emoji" id="shell-qwenpaw-permission-emoji" aria-hidden="true">🔓</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title" id="shell-qwenpaw-permission-title">
+                      Разрешить инструменты без подтверждения
+                    </span>
+                    <span class="shell-tts-playback-option-desc" id="shell-qwenpaw-permission-desc">
+                      (bash, файлы, MCP и другие — без окна «Разрешить?»)
+                    </span>
+                  </span>
+                </label>
+              </span>
+              <p class="shell-qwenpaw-note shell-qwenpaw-note--warn" id="shell-qwenpaw-permission-offline-note">
+                Сохраняется в CMS сразу. Чтобы QwenPaw применил режим, сервер должен быть online в момент
+                переключения — иначе переключите галочку ещё раз, когда QwenPaw запущен.
+              </p>
+            </div>
+            <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Текущий чат</span>
+                <input
+                  id="shell-qwenpaw-chat-name"
+                  class="shell-input shell-qwenpaw-chat-name"
+                  type="text"
+                  spellcheck="false"
+                  maxlength="120"
+                  placeholder="Название чата"
+                  aria-label="Название чата QwenPaw"
+                />
+              </label>
+              <div class="shell-qwenpaw-chat-actions">
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
+                  + Новый
+                </button>
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
+                  История
+                </button>
+              </div>
+              <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
+              <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="shell-runtime-bridge-panel" id="shell-runtime-bridge-panel" data-visible="0">
+          <div class="shell-runtime-bridge-fields">
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-url-field">
+              <span class="shell-label" id="shell-runtime-bridge-url-label">Base URL</span>
+              <input
+                id="shell-runtime-bridge-url"
+                class="shell-input"
+                type="url"
+                spellcheck="false"
+                placeholder="http://127.0.0.1:8642"
+              />
+            </label>
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-api-key-field">
+              <span class="shell-label">API key</span>
+              <input
+                id="shell-runtime-bridge-api-key"
+                class="shell-input"
+                type="password"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="Bearer token"
+              />
+            </label>
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-model-field">
+              <span class="shell-label">Model</span>
+              <input
+                id="shell-runtime-bridge-model"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="По умолчанию из CLI"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-agent-field" hidden>
+              <span class="shell-label" id="shell-runtime-bridge-agent-label">Профиль / агент</span>
+              <input
+                id="shell-runtime-bridge-agent-meta"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="default"
+              />
+            </label>
+            <div class="shell-field shell-field--compact">
+              <div class="shell-label shell-label-row shell-label-row--spread">
+                <span>Session ID</span>
+                <button
+                  type="button"
+                  class="shell-label-action"
+                  id="shell-runtime-bridge-session-generate"
+                  title="Сгенерировать UUID диалога"
+                >
+                  Новый UUID
+                </button>
+              </div>
+              <input
+                id="shell-runtime-bridge-session-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="UUID или название сессии, пусто = новая"
+              />
+            </div>
+            <div
+              class="shell-field shell-field--compact shell-runtime-bridge-permission-field hidden"
+              id="shell-runtime-bridge-permission-field"
+              hidden
+              data-runtime=""
+              data-permissive="0"
+            >
+              <span class="shell-tts-panel-playback" role="presentation">
+                <div
+                  class="shell-runtime-bridge-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel shell-runtime-bridge-permission-panel"
+                  id="shell-runtime-bridge-permission-panel"
+                >
+                  <span class="shell-tts-playback-emoji" id="shell-runtime-bridge-permission-emoji" aria-hidden="true">🔒</span>
+                  <span class="shell-tts-playback-option-copy shell-runtime-bridge-permission-copy">
+                    <span class="shell-tts-playback-option-title" id="shell-runtime-bridge-permission-title">
+                      Подтверждение инструментов
+                    </span>
+                    <span class="shell-tts-playback-option-desc" id="shell-runtime-bridge-permission-desc">
+                      Спрашивать перед Bash, правками файлов и MCP.
+                    </span>
+                    <select
+                      id="shell-runtime-bridge-permission-mode"
+                      class="shell-select shell-select--full shell-runtime-bridge-permission-select"
+                      aria-label="Режим подтверждения инструментов CLI"
+                    ></select>
+                  </span>
+                </div>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <label class="shell-field shell-field--compact shell-route-system-prompt-field">
+          <span class="shell-label shell-label-row shell-label-row--spread">
+            Системный промпт (основной)
+            <button type="button" class="shell-label-action" id="shell-system-prompt-insert">
+              Вставить заготовку
+            </button>
+          </span>
+          <textarea
+            id="shell-system-prompt"
+            class="shell-textarea shell-textarea--compact"
+            rows="6"
+            spellcheck="false"
+            placeholder="Роль и правила для обычных сообщений (system → runtime). Не про проактивность.&#10;&#10;Если поле пустое — агент работает без дополнительных инструкций."
+          ></textarea>
+        </label>
+
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-route-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
+        </div>
+        </section>
+
+        <section class="shell-proactive-panel" id="shell-proactive-panel" role="tabpanel" aria-labelledby="shell-settings-tab-proactive" hidden>
+        <div class="shell-proactive-options">
+          <div class="shell-field shell-field--compact shell-proactive-mode-field">
+            <span class="shell-label">Режим проактивности</span>
+            <span class="shell-tts-panel-playback" role="presentation">
+              <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Режим проактивности">
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="off">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-off" value="off" checked />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">⏸</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">Выключить проактивность</span>
+                    <span class="shell-tts-playback-option-desc">(без фоновых пингов и вызовов агента)</span>
+                  </span>
+                </label>
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="natural">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-natural" value="natural" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">🌿</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">
+                      Естественная проактивность
+                      <span class="shell-proactive-future-badge">скоро</span>
+                    </span>
+                    <span class="shell-tts-playback-option-desc">(по звукам, действиям и контексту — без таймера)</span>
+                  </span>
+                </label>
+                <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-proactive-mode="ping">
+                  <input type="radio" name="shell-proactive-mode" id="shell-proactive-mode-ping" value="ping" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">✨</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title">Проактивность по пингу</span>
+                    <span class="shell-tts-playback-option-desc">(таймер бездействия и промпт ниже)</span>
+                  </span>
+                </label>
+              </span>
+            </span>
+          </div>
+          <div class="shell-proactive-grid">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Бездействие, от (сек)</span>
+              <input
+                id="shell-proactive-idle-min"
+                class="shell-input"
+                type="number"
+                min="30"
+                max="3600"
+                step="30"
+                value="120"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">до (сек)</span>
+              <input
+                id="shell-proactive-idle-max"
+                class="shell-input"
+                type="number"
+                min="30"
+                max="3600"
+                step="30"
+                value="240"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Пауза между пингами, сек</span>
+              <input
+                id="shell-proactive-cooldown-seconds"
+                class="shell-input"
+                type="number"
+                min="60"
+                max="86400"
+                step="60"
+                value="900"
+              />
+            </label>
+          </div>
+          <div class="shell-proactive-quiet">
+            <label class="shell-check shell-proactive-check shell-proactive-quiet-toggle">
+              <input id="shell-proactive-quiet-enabled" type="checkbox" />
+              <span>Не беспокоить по расписанию</span>
+            </label>
+            <p class="shell-proactive-quiet-note">
+              В это время проактивные пинги не отправляются — удобно для ночи.
+              Если «до» раньше «с» (например 23:00 → 07:00), окно идёт через полночь.
+            </p>
+            <div class="shell-proactive-grid shell-proactive-quiet-grid">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">С</span>
+                <input
+                  id="shell-proactive-quiet-start"
+                  class="shell-input shell-input--time"
+                  type="time"
+                  value="23:00"
+                />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">До</span>
+                <input
+                  id="shell-proactive-quiet-end"
+                  class="shell-input shell-input--time"
+                  type="time"
+                  value="07:00"
+                />
+              </label>
+            </div>
+          </div>
+          <label class="shell-field shell-field--compact shell-proactive-prompt-field">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт проактивности
+              <button type="button" class="shell-label-action" id="shell-proactive-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-proactive-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="5"
+              spellcheck="false"
+              placeholder="Текст фонового пинга. Пустое поле — на рантайме подставится заготовка из shell-proactive-prompt.yml"
+            ></textarea>
+            <span class="shell-proactive-prompt-hint" id="shell-proactive-prompt-hint" hidden>
+              Сейчас в <code>workspace.yml</code> промпт не задан — при пинге возьмётся заготовка из <code>shell-proactive-prompt.yml</code>.
+              То же поле, что <code>voice-proactive-prompt</code> в настройках проекта.
+            </span>
+          </label>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-proactive-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
+        </div>
+        </section>
+
+        <section class="shell-templates-panel" id="shell-templates-panel" role="tabpanel" aria-labelledby="shell-settings-tab-templates" hidden>
+        <div class="shell-compose-templates-settings">
+          <p class="shell-proactive-note shell-compose-templates-note">
+            Быстрые команды для поля сообщения в чате. Вставляются как <code>{{tpl:brief}}</code> — при отправке
+            раскрываются в текст команды. Ключ стабилен, название можно менять. Хранится в
+            <code>.agent-cms/settings/workspace.yml</code> (<code>voice-compose-templates</code>).
+          </p>
+          <div class="shell-compose-templates-editor" id="shell-compose-templates-editor-root"></div>
+          <div class="shell-compose-templates-editor-toolbar">
+            <button type="button" class="shell-label-action" id="shell-compose-templates-add-group">
+              + Группа
+            </button>
+            <button type="button" class="shell-label-action shell-compose-templates-add" id="shell-compose-templates-add">
+              + Шаблон
+            </button>
+          </div>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-templates-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
+        </div>
+        </section>
+
+        <section class="shell-window-panel" id="shell-window-panel" role="tabpanel" aria-labelledby="shell-settings-tab-window" hidden>
+        <p class="shell-window-hint shell-window-hint--lead">3D-персонаж — превью ниже. На главном экране пока только облачко; отдельное окно — галочка «Персонаж поверх окон» (Voice.app).</p>
+        <div class="shell-character-stage" id="shell-character-stage" data-phase="waiting">
+          <div class="shell-character-viewport"></div>
+          <div class="shell-character-picker" id="shell-character-picker"></div>
+        </div>
+        <div class="shell-window-options">
+          <label class="shell-check">
+            <input id="shell-topmost" type="checkbox" checked />
+            <span>Поверх окон</span>
+          </label>
+          <label class="shell-check">
+            <input id="shell-window-transparent" type="checkbox" />
+            <span>Прозрачный фон</span>
+          </label>
+          <label class="shell-check" title="Отдельная моделька поверх всех окон, как pet у Codex. Не сворачивается вместе с Voice.">
+            <input id="shell-window-pet" type="checkbox" />
+            <span>Персонаж поверх окон</span>
+          </label>
+          <label class="shell-check" title="В компактном режиме — один последний вопрос и ответ агента">
+            <input id="shell-compact-dialog-qa" type="checkbox" checked />
+            <span>Последний вопрос и ответ</span>
+          </label>
+          <label class="shell-check" title="Wake Lock API — экран не гаснет, пока Shell открыт">
+            <input id="shell-keep-awake" type="checkbox" checked />
+            <span>Не гасить экран</span>
+          </label>
+          <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка «Персонаж поверх окон» выносит его на рабочий стол отдельным окном (Voice.app). Двойной клик — открыть Voice. Перетаскивание — за персонажа.</p>
+          <p class="shell-window-note">Компактный режим — нажмите на облачко. Над микрофоном — последний вопрос и ответ. Свернуть — кнопка рядом со статусом.</p>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label">Фон</span>
+            <select id="shell-window-background" class="shell-select">
+              <option value="wallpaper" selected>По умолчанию</option>
+              <option value="dark">Тёмный</option>
+              <option value="custom">Своя картинка (URL)</option>
+            </select>
+          </label>
+          <label class="shell-field shell-field--compact shell-window-bg-custom" id="shell-window-bg-custom-wrap" hidden>
+            <span class="shell-label">URL картинки</span>
+            <input
+              id="shell-window-background-image"
+              class="shell-input shell-input--full"
+              type="text"
+              inputmode="url"
+              placeholder="путь от корня workspace или https://…"
+              autocomplete="off"
+            />
+          </label>
+          <div class="shell-thinking-sounds">
+            <span class="shell-label">Звук «думаю»</span>
+            <div class="shell-thinking-sound-grid" id="shell-thinking-sound-grid"></div>
+            <p class="shell-window-note">Играет, пока агент обрабатывает запрос. Нажмите, чтобы послушать.</p>
+          </div>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="window"><code>.agent-shell/settings.json</code> · window</span>
+        </div>
+        </section>
+
+        <section class="shell-tts-panel" id="shell-tts-panel" role="tabpanel" aria-labelledby="shell-settings-tab-tts" hidden>
+        <div class="shell-voice-panel-head shell-voice-panel-head--tts">
+          <span class="shell-label">Голосовой ответ (TTS)</span>
+        </div>
+
+        <div class="shell-tts-common-settings" id="shell-tts-common-settings">
+        <div class="shell-field shell-field--compact shell-tts-panel-enable-field">
+          <span class="shell-tts-panel-playback" role="presentation">
+            <label
+              class="shell-tts-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+              title="Текст ответа агента → голос"
+            >
+              <input id="shell-tts-panel-enabled" type="checkbox" checked aria-label="Включить озвучку ответа" />
+              <span class="shell-tts-playback-emoji" aria-hidden="true">🔊</span>
+              <span class="shell-tts-playback-option-copy">
+                <span class="shell-tts-playback-option-title">Включить озвучку ответа</span>
+                <span class="shell-tts-playback-option-desc">(текст ответа агента → голос)</span>
+              </span>
+            </label>
+          </span>
+        </div>
+
+        <div class="shell-field shell-field--compact shell-tts-panel-playback-field">
+          <span class="shell-label">Способ озвучки</span>
+          <span class="shell-tts-panel-playback" role="presentation">
+            <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Способ озвучки">
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="dialog">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="dialog" checked aria-label="Диалог" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Диалог</span>
+                  <span class="shell-tts-playback-option-desc">(озвучка по мере печати ответа)</span>
+                </span>
+              </label>
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="reading">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="reading" aria-label="Чтение" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Чтение</span>
+                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера [tts-break])</span>
+                </span>
+              </label>
+            </span>
+          </span>
+        </div>
+
+        <label class="shell-field shell-field--compact">
+          <span class="shell-label">Имя для пробуждения</span>
+          <input
+            id="shell-voice-wake-name"
+            class="shell-input shell-input--compact"
+            type="text"
+            spellcheck="false"
+            placeholder="Только voice sidecar — в браузере пока не используется"
+            autocomplete="off"
+            readonly
+            aria-readonly="true"
+            aria-label="Имя для пробуждения (wake word)"
+          />
+        </label>
+
+        <label class="shell-field shell-field--compact">
+          <span class="shell-label shell-label-row shell-label-row--spread">
+            Промпт на ответ с озвучкой
+            <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
+              Вставить заготовку
+            </button>
+          </span>
+          <textarea
+            id="shell-tts-prompt"
+            class="shell-textarea shell-textarea--compact"
+            rows="3"
+            spellcheck="false"
+            placeholder="Голос → [tts-break] → подробный текст на экран («смотри ниже»). «Вставить заготовку» — шаблон."
+          ></textarea>
+        </label>
+
+        </div>
+
+        <div class="shell-tts-engines" id="shell-tts-engines">
+          <div class="shell-field shell-tts-engine-field">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Провайдер (движок)
+              <span class="shell-tts-engine-actions">
+                <button type="button" class="shell-label-action" id="shell-tts-test">
+                  Пробный текст
+                </button>
+              </span>
+            </span>
+            <select id="shell-tts-engine" class="shell-select shell-select--full" aria-label="Провайдер (движок) TTS"></select>
+            <aside class="shell-tts-test-status-box" id="shell-tts-test-status-box" hidden>
+              <span class="shell-tts-test-status-kicker">Пробная озвучка</span>
+              <p id="shell-tts-test-status" class="shell-tts-test-status" aria-live="polite"></p>
+            </aside>
+          </div>
+
+          <div class="shell-tts-browser-panel" id="shell-tts-browser-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Язык</span>
+                <select id="shell-tts-lang" class="shell-select shell-select--full">
+                  <option value="ru-RU">Русский</option>
+                  <option value="en-US">English</option>
+                </select>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label shell-label-row shell-label-row--spread">
+                  Голос
+                  <button type="button" class="shell-label-action" id="shell-tts-voice-refresh" title="Перезагрузить список голосов браузера">
+                    Обновить
+                  </button>
+                </span>
+                <select id="shell-tts-voice" class="shell-select shell-select--full">
+                  <option value="">Системный по умолчанию</option>
+                </select>
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint" id="shell-tts-rate-hint">Web Speech</span>
+                <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
+                <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint" id="shell-tts-pitch-hint">Web Speech</span>
+                <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-edge-panel" id="shell-tts-edge-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Голос Edge</span>
+                <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-edge-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-edge-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint">Edge TTS</span>
+                <input id="shell-tts-edge-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-piper-panel" id="shell-tts-piper-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Модель Piper (.onnx)</span>
+                <input
+                  id="shell-tts-piper-model"
+                  class="shell-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="/path/to/ru_RU-irina-medium.onnx"
+                />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Бинарник Piper</span>
+                <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-elevenlabs-panel" id="shell-tts-elevenlabs-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">ElevenLabs API key · обязательно</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-key"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="sk_…"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать API key"
+                    title="Показать"
+                  >
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">ElevenLabs Voice ID · по умолчанию EXAVITQu4vr4xnSDxMaL</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-voice-id"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    spellcheck="false"
+                    placeholder="EXAVITQu4vr4xnSDxMaL"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать Voice ID"
+                    title="Показать"
+                  >
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Модель ElevenLabs · по умолчанию eleven_multilingual_v2</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-model"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    spellcheck="false"
+                    placeholder="eleven_multilingual_v2"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать модель"
+                    title="Показать"
+                  >
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+              <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-elevenlabs-rate-field">
+                <span class="shell-label">Скорость · <span id="shell-tts-elevenlabs-rate-value">1.0</span>×</span>
+                <span class="shell-tts-prosody-hint">ElevenLabs · speed (voice_settings)</span>
+                <input id="shell-tts-elevenlabs-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" id="shell-tts-save-hint"><code>.agent-shell/settings.json</code></span>
+        </div>
+        </section>
+
+        <section class="shell-stt-panel" id="shell-stt-panel" role="tabpanel" aria-labelledby="shell-settings-tab-stt" hidden>
+        <div class="shell-voice-panel-head shell-voice-panel-head--stt">
+          <span class="shell-label">Голосовой ввод (STT)</span>
+        </div>
+        <div class="shell-mic-chrome-hint" id="shell-mic-chrome-hint" role="note" hidden>
+          <p>
+            Side Panel: ПКМ по иконке расширения Agent Shell (справа сверху) → «Просмотреть разрешения для сайта» →
+            Микрофон → Разрешить. Сайт Voice:
+            <code id="shell-mic-chrome-hint-origin">https://localhost</code>
+            (<code>127.0.0.1</code> и <code>localhost</code> — разные записи).
+          </p>
+        </div>
+        <div class="shell-stt-settings" id="shell-stt-settings">
+          <div class="shell-stt-common-settings" id="shell-stt-common-settings">
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-panel-enable-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Голосовой ввод — микрофон и режим 🎤"
+              >
+                <input id="shell-stt-panel-enabled" type="checkbox" checked aria-label="Включить голосовой ввод" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">🎤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Включить голосовой ввод</span>
+                  <span class="shell-tts-playback-option-desc">(микрофон и режим 🎤 у поля ввода)</span>
+                </span>
+              </label>
+            </span>
+          </div>
+
+          <label class="shell-field shell-field--compact shell-stt-voice-mode-field">
+            <span class="shell-label">Режим 🎤</span>
+            <select
+              id="shell-stt-voice-mode"
+              class="shell-select shell-select--full"
+              aria-label="Как вводить голос"
+              title="Как вводить голос"
+            ></select>
+          </label>
+
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-voice-response-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-voice-response shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Если выключено — перед отправкой показывается диалог «Распознано»"
+              >
+                <input id="shell-voice-response-enabled" type="checkbox" checked aria-label="Автоотправка распознанного текста" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">➤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Автоотправка</span>
+                  <span class="shell-tts-playback-option-desc">(сразу после 🎤 — агенту; выключите, чтобы править текст в диалоге)</span>
+                </span>
+              </label>
+            </span>
+          </div>
+
+            <fieldset class="shell-field shell-field--compact shell-stt-capture-field">
+              <legend class="shell-label">Что слушать</legend>
+              <div
+                class="shell-stt-capture-radio"
+                id="shell-stt-capture-group"
+                role="radiogroup"
+                aria-label="Что слушать"
+              >
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="microphone">
+                  <input type="radio" name="shell-stt-capture" value="microphone" checked />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🎤 Микрофон</span>
+                    <span class="shell-stt-capture-option-desc">Обычный физический микрофон</span>
+                  </span>
+                </label>
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="system">
+                  <input type="radio" name="shell-stt-capture" value="system" />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🖥 Системный звук</span>
+                    <span class="shell-stt-capture-option-desc">То, что происходит на компьютере</span>
+                  </span>
+                </label>
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="mix">
+                  <input type="radio" name="shell-stt-capture" value="mix" />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🔀 Смешать потоки</span>
+                    <span class="shell-stt-capture-option-desc">Микрофон + система программно</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт для обработки речи
+              <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-stt-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="4"
+              spellcheck="false"
+              placeholder="Как агент читает блоки ```awn-stt``` в сообщении (голос + текст). «Вставить заготовку» — шаблон."
+            ></textarea>
+          </label>
+          </div>
+
+          <div class="shell-stt-engines" id="shell-stt-engines">
+            <label class="shell-field">
+              <span class="shell-label shell-label-row shell-label-row--spread">Движок STT</span>
+              <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Движок STT">
+                <option value="browser">Web Speech — в браузере (устройство)</option>
+                <option value="google" disabled title="Скоро">Google STT — облако (Google)</option>
+                <option value="whisper" disabled title="Скоро">Whisper — локально (сервер)</option>
+                <option value="elevenlabs" disabled title="Скоро">ElevenLabs Scribe — облако (ElevenLabs)</option>
+              </select>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Микрофон → Web Speech — в браузере (устройство). Нужен HTTPS.</p>
+            </label>
+
+            <div class="shell-stt-engine-panels">
+              <div class="shell-stt-browser-panel" id="shell-stt-browser-panel" data-visible="0">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Язык STT</span>
+                    <select id="shell-stt-lang" class="shell-select shell-select--full">
+                      <option value="auto">Авто — мультиязыч (Whisper / Scribe)</option>
+                      <option value="ru-RU">Русский</option>
+                      <option value="en-US">English</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="shell-stt-whisper-panel" id="shell-stt-whisper-panel" data-visible="0">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Модель Whisper</span>
+                    <select id="shell-stt-whisper-model" class="shell-select shell-select--full">
+                      <option value="tiny">tiny — быстро, хуже качество</option>
+                      <option value="base" selected>base — баланс</option>
+                      <option value="small">small</option>
+                      <option value="medium">medium — медленнее, лучше</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="shell-stt-elevenlabs-panel" id="shell-stt-elevenlabs-panel" data-visible="0">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">API key · Scribe (если пусто — из TTS ElevenLabs)</span>
+                    <input
+                      id="shell-stt-elevenlabs-key"
+                      class="shell-input"
+                      type="password"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="sk_…"
+                    />
+                  </label>
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Модель Scribe</span>
+                    <select id="shell-stt-elevenlabs-model" class="shell-select shell-select--full">
+                      <option value="scribe_v2" selected>scribe_v2</option>
+                      <option value="scribe_v1">scribe_v1</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="shell-stt-settings-note shell-stt-settings-note--foot">
+            Микрофон в браузере → выбранный движок STT. Режим 🎤 (Shift / удержание) — у поля ввода.
+            Whisper: <code>Agent CMS Control → Установить зависимости</code>.
+            <a href="#" id="shell-mic-help-link">Микрофон Safari</a>
+          </p>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"><code>.agent-shell/settings.json</code> · режим 🎤</span>
+        </div>
+        </section>
+
+        <section class="shell-todo-panel" id="shell-todo-panel" role="tabpanel" aria-labelledby="shell-settings-tab-todo" hidden>
+        <div class="shell-todo-head">
+          <span class="shell-label">TODO · roadmap</span>
+          <span class="shell-todo-hint">dev notes</span>
+        </div>
+              <div class="shell-footer">
+        <div class="shell-label">TODO · команды</div>
+        <ul class="shell-todo-list">
+          <li>Доработать agent.voice.tts / agent.voice.stt — смотреть agent-cms-test (awn-agent-kit)</li>
+          <li>Команды</li>
+          <li>Сделать скриншот</li>
+          <li>Изменить размер окна</li>
+          <li>Показаться / спрятаться</li>
+        </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · контент и голос</div>
+        <ul class="shell-todo-list">
+          <li>Показ: картинки из CMS (<code>/api/media/file?...</code>), не только <code>/shell/wallpaper.png</code></li>
+          <li>Показ: превью темы по запросу агента</li>
+          <li>Показ: картинки и embed через markdown в тексте ответа</li>
+          <li><code>voiceResponseEnabled</code> в settings — подключить</li>
+          <li>QwenPaw <code>AGENTS.md</code> vs голос — проверить на практике (voice-manifest'ы)</li>
+        </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · архитектура (из начала чата)</div>
+        <ul class="shell-todo-list">
+          <li>Shell = device runtime: слышит, показывает, говорит — не думает (думает MCP-агент)</li>
+          <li><code>agent-shell/manifest.yaml</code> + <code>GET /api/shell/capabilities</code></li>
+          <li>Регистрация Shell в CMS при старте (online + capabilities на этом устройстве)</li>
+          <li>MCP proxy-команды: <code>shell_screenshot</code>, <code>shell_clipboard_read/write</code>, <code>shell_record_screen</code>, <code>shell_window_*</code></li>
+          <li>CMS проксирует команду → Shell выполняет → результат в thread</li>
+          <li>Spoken vs full reply: TTS без emoji/markdown, в <code>shell-reply</code> — полный текст</li>
+        </ul>
+        <div class="shell-label">TODO · фаза 2 · голос (Aya)</div>
+        <ul class="shell-todo-list">
+          <li>PTT по fn-кнопке (<code>fn_button</code>)</li>
+          <li>Wake word / meeting mode</li>
+          <li>Anti-echo и cooldown после TTS</li>
+          <li>Computer control — вставка в активное поле (Cmd+V)</li>
+          <li>Настройки Shell через MCP configuration (не только <code>.agent-shell/settings.json</code>)</li>
+        </ul>
+        <div class="shell-label">TODO · фаза 3 · multi-agent</div>
+        <ul class="shell-todo-list">
+          <li>Runtime registry — «кто отвечает»</li>
+          <li>Routing: голос → inbox/thread → агент по группе/теме</li>
+          <li>OpenClaw / другие runtime — launch profiles + heartbeat</li>
+        </ul>
+        <div class="shell-label">TODO · UI и платформы</div>
+        <ul class="shell-todo-list">
+          <li>Кнопка Shell в шапке Agent CMS (рядом с MCP)</li>
+          <li>Agent Shell.app: screenshot / clipboard через <code>ipcMain</code></li>
+          <li>Мобильный Shell — только голос, capabilities динамические (iOS ≠ macOS)</li>
+        </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">Roadmap · дословно</div>
+        <div class="shell-footer-prose">
+          <p><strong>Исходная идея (замена Aya)</strong></p>
+          <p>
+            <strong>Agent Shell</strong> — тонкая оболочка: <strong>слышит, показывает, говорит</strong>.
+            <strong>Не думает</strong> — думает агент (QwenPaw, OpenClaw, Cursor…) через
+            <strong>MCP → Agent CMS</strong>.
+          </p>
+          <pre class="shell-footer-diagram">Пользователь → Shell → CMS (thread/inbox или QwenPaw API)
+                         ↑
+                    MCP-агент</pre>
+
+          <p><strong>Трёхфазный план из первого обсуждения</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Фаза 1. Shell v0</strong> — компактное окно, SSE, статус, отправка в thread — ✅ сделано</li>
+            <li><strong>Фаза 2. Голос</strong> — sidecar STT/TTS, режимы как в Aya (PTT, always, disabled) — ⚠️ частично</li>
+            <li><strong>Фаза 3. Multi-agent</strong> — runtime registry, «кто отвечает», routing по теме/группе — ❌ не делали</li>
+          </ul>
+
+          <p><strong>Что обсуждали, но ещё не в footer</strong></p>
+          <p><em>Архитектура Shell как «device runtime»</em></p>
+          <p>
+            Shell должен <strong>знать, кто он и что умеет</strong>, а агент видит команды через
+            <strong>один MCP (CMS)</strong>:
+          </p>
+          <ul class="shell-todo-list">
+            <li><code>agent-shell/manifest.yaml</code> + <code>GET /api/shell/capabilities</code></li>
+            <li>Shell <strong>регистрируется в CMS</strong> при старте (online + capabilities)</li>
+            <li>MCP tools: <code>shell_screenshot</code>, <code>shell_clipboard_read/write</code>, <code>shell_record_screen</code>, <code>shell_window_minimize</code>…</li>
+            <li>CMS <strong>проксирует</strong> команду → Shell выполняет → результат в thread</li>
+          </ul>
+          <p>Сейчас только 3 shell-tools в MCP: <code>shell_get_status</code>, <code>shell_post_message</code>, <code>shell_stop_tts</code>.</p>
+
+          <p><em>Отдельное приложение</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Agent Shell.app</strong> со своей иконкой, независимо от CMS — ✅ (<code>agent-shell-desktop</code>, <code>npm run shell:dist</code>)</li>
+            <li>Запуск CMS <strong>или</strong> Shell <strong>или</strong> оба — ✅</li>
+            <li>Shell-app потом: screenshot/clipboard через <code>ipcMain</code> — ❌</li>
+          </ul>
+
+          <p><em>Голос из Aya (что переносить)</em></p>
+          <ul class="shell-todo-list">
+            <li>PTT (<code>fn_button</code>) — ✅</li>
+            <li>Always listen — ⚠️ есть режим</li>
+            <li>Meeting / wake_name — ❌</li>
+            <li>Anti-echo / cooldown после TTS — ❌</li>
+            <li>Computer control (Cmd+V в поле) — ❌</li>
+            <li>Архив записей голоса — ❌</li>
+            <li>Настройки в CMS configuration — ❌ (только <code>.agent-shell/settings.json</code>)</li>
+          </ul>
+
+          <p><em>QwenPaw / OpenClaw</em></p>
+          <ul class="shell-todo-list">
+            <li>Shell → <strong>QwenPaw API напрямую</strong>, не thread polling — ✅</li>
+            <li>CMS MCP = память/tools, не основной чат — ✅ решили</li>
+            <li>OpenClaw сам thread не читает — нужен явный запрос или QwenPaw-маршрут — ⚠️ архитектурно поняли, routing не делали</li>
+          </ul>
+
+          <p><em>UI / UX (обсуждали по ходу)</em></p>
+          <ul class="shell-todo-list">
+            <li>Кнопка <strong>Shell</strong> в шапке CMS (рядом с MCP) — ❌</li>
+            <li><code>?agent=</code> убрать — auto-resolve workspace — ✅</li>
+            <li>Topic picker деревом — ✅</li>
+            <li>Spoken vs full reply для TTS — ❌ (в README есть, в коде частично)</li>
+            <li>Session autoload voice manifest'ов — ✅</li>
+          </ul>
+
+          <p><em>Мобила (отдельная ветка)</em></p>
+          <ul class="shell-todo-list">
+            <li>На телефоне <strong>только говорить</strong> — лёгкий Shell-app</li>
+            <li>Capabilities <strong>динамические</strong> (на iOS нет minimize window и т.д.)</li>
+            <li>Общий MCP CMS, другой manifest Shell — ❌ только обсудили</li>
+          </ul>
+
+          <p><strong>Чего нет в footer, но было в «начале»</strong></p>
+          <ol class="shell-todo-list shell-todo-list--ordered">
+            <li><strong>Shell capabilities manifest</strong> + регистрация в CMS</li>
+            <li><strong>MCP proxy-команды</strong> (screenshot, clipboard, запись экрана)</li>
+            <li><strong>Фаза 3:</strong> runtime registry / multi-agent routing</li>
+            <li><strong>Режимы Aya:</strong> PTT fn, wake word, anti-echo</li>
+            <li><strong>Computer control</strong> (вставка в активное поле)</li>
+            <li><strong>Кнопка Shell в шапке CMS</strong></li>
+            <li><strong>Мобильный Shell</strong> (голос only)</li>
+            <li><strong>Настройки Shell через MCP configuration</strong> (не только json в workspace)</li>
+          </ol>
+
+          <p>
+            <strong>Суть начала чата:</strong> не клон Aya, а
+            <strong>Shell = device runtime + голос</strong>, <strong>CMS = память + единый MCP</strong>, агенты снаружи.
+            MVP голоса и QwenPaw есть; <strong>слой capabilities и multi-agent</strong> — главное, что из начала ещё впереди.
+          </p>
+        </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">Aya.AI · не забрали · дословно</div>
+        <div class="shell-footer-prose">
+          <p>Сравнил <code>workspaces/00 🍀 Aya.AI/core/</code> с тем, что уже есть в <strong>Agent Shell</strong>.</p>
+          <p><strong>Кратко:</strong> голосовой каркас частично перенесли, а «ум Aya» и половину UX Aya Bar — сознательно не брали (это теперь QwenPaw + CMS).</p>
+
+          <p><strong>Что уже забрали (или заменили эквивалентом)</strong></p>
+          <ul class="shell-todo-list">
+            <li>Плавающий бар + статус (ожидаю / слушаю / думаю / говорю) — ✅ pulse + phases</li>
+            <li>Стоп озвучки 🔇 — ✅ <code>/api/shell/stop-tts</code></li>
+            <li>Поверх окон — ✅ <code>windowTopmost</code></li>
+            <li>STT + отправка текста — ✅ browser + sidecar (Google Speech)</li>
+            <li>TTS ответа — ✅ Web Speech + sidecar <code>say</code></li>
+            <li>«Последнее сообщение» — ✅ <code>shell-reply</code></li>
+            <li>Настройки — ✅ <code>.agent-shell/settings.json</code></li>
+            <li>Два процесса bar+voice — ✅ Shell UI + <code>voice-sidecar</code></li>
+            <li>Файловый мост <code>integration/*.txt</code> — ✅ заменён на HTTP/SSE</li>
+            <li><strong>LLM внутри голоса</strong> (Ollama/OpenAI) — ✅ <strong>не переносили</strong> — ответ даёт QwenPaw/CMS-агент</li>
+            <li>Отдельное <code>.app</code> — ✅ <code>Agent Shell.app</code></li>
+          </ul>
+
+          <p><strong>Что из Aya ещё не забрали</strong></p>
+
+          <p><em>1. Голосовой пайплайн (<code>aya_voice_v2</code>) — самое ценное</em></p>
+          <p>Режимы ввода (<code>assistant_settings.json</code>):</p>
+          <ul class="shell-todo-list">
+            <li><code>fn_button</code> — PTT по Fn/F18 (<code>pynput</code>) — ✅</li>
+            <li><code>always</code> — в Aya ✅, в Shell ⚠️ есть в sidecar</li>
+            <li><code>meeting</code> — длинные записи — в Aya ✅, в Shell ❌</li>
+            <li><code>wake_name</code> — фильтр по имени — в Aya ✅, в Shell ❌</li>
+            <li><code>voice_profile</code> — «только мой голос» (beta) — в Aya заготовка, в Shell ❌</li>
+            <li><code>disabled</code> — в Aya ✅, в Shell ✅</li>
+          </ul>
+          <p><strong>VAD и качество STT:</strong></p>
+          <ul class="shell-todo-list">
+            <li><code>webrtcvad</code> + RMS-порог + live-метрики <code>vol/thr/vad</code> в статусе — ❌</li>
+            <li><code>VOICE_FORCE_THRESHOLD</code>, pre/post roll, cooldown после записи — ❌</li>
+            <li>Выбор устройства микрофона <code>VOICE_INPUT_DEVICE_INDEX</code> — ❌</li>
+          </ul>
+          <p><strong>Anti-echo (очень полезно для голоса):</strong></p>
+          <ul class="shell-todo-list">
+            <li>пока идёт TTS — <strong>не слушать</strong> (только drain буфера) — ❌</li>
+            <li><code>VOICE_POST_TTS_COOLDOWN_SEC</code> после озвучки — ❌</li>
+            <li>отдельный поток опроса stop (~40 ms) во время блокирующего read — ⚠️ частично</li>
+          </ul>
+          <p><strong>TTS-бэкенды:</strong></p>
+          <ul class="shell-todo-list">
+            <li>ElevenLabs, gTTS → MP3 → <code>afplay</code> — ❌ (только <code>say</code> / browser)</li>
+            <li>выбор движка <code>VOICE_TTS_BACKEND=auto|gtts|elevenlabs</code> — ❌</li>
+          </ul>
+          <p><strong>Computer control</strong> (<code>focused_input.py</code>):</p>
+          <ul class="shell-todo-list">
+            <li>вставка распознанного текста в активное поле через clipboard + Cmd+V — ❌</li>
+            <li>в settings Aya: <code>computer_control_enabled: true</code></li>
+          </ul>
+          <p><strong>Архив голоса</strong> (<code>08 ❄️ Archive/04 Voice/</code>):</p>
+          <ul class="shell-todo-list">
+            <li>WAV + TXT входа, MP3 + метаданные ответа — ❌</li>
+            <li>логичнее перенести в CMS media/thread, но пока нет</li>
+          </ul>
+
+          <p><em>2. Aya Bar UI (<code>aya_bar_v2</code>) — визуал и UX</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Pulse</strong> — 15 анимаций (heart/jarvis) — ❌ (у Shell простой круг)</li>
+            <li><strong>Nebula</strong> фон (<code>nebula_bg.py</code>, <code>AYA_BAR_NEBULA</code>) — ❌ (у Shell свои обои + glass)</li>
+            <li><strong>История фраз</strong> (<code>phrase_history.json</code>, до 10) — ❌</li>
+            <li><strong>Quick settings</strong> — все тумблеры в одной панели — ⚠️ размазано по Shell</li>
+            <li><code>voice_response_model</code> (aya-voice / openai / local) — ❌ не нужно как LLM; <code>voiceResponseEnabled</code> в Shell не подключено</li>
+            <li><code>safe_guard_stub_enabled</code> — ❌ (заготовка «страховки» в Aya)</li>
+            <li>About dialog, кастомная иконка бара — ❌</li>
+            <li><code>dashboard_nebula.html</code> + <code>serve_dashboard.sh</code> (порт 8844) — ❌</li>
+          </ul>
+
+          <p><em>3. Интеграция / инфраструктура Aya</em></p>
+          <ul class="shell-todo-list">
+            <li><code>.env</code> в корне workspace (<code>python-dotenv</code>) — ❌ в sidecar нет</li>
+            <li><code>voice_status.txt</code> с emoji + метриками — ❌ → SSE/state (проще, но без vol/thr/vad)</li>
+            <li><code>phrase_history.json</code> — ❌</li>
+            <li><code>run_macos_terminal.sh</code> (обход краша Tk) — не актуально — Shell на web/Electron</li>
+          </ul>
+
+          <p><em>4. Архитектурно не переносим (и правильно)</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>LLM внутри <code>aya_voice_v2</code></strong> (<code>llm_reply.py</code>, Ollama/OpenAI) — заменено на <strong>QwenPaw + MCP</strong></li>
+            <li><strong>Два Python-процесса + JSON/txt файлы</strong> — заменено на CMS API</li>
+            <li><strong>Tkinter bar</strong> — заменено на web Shell + Electron</li>
+          </ul>
+
+          <p><strong>Приоритет «что имеет смысл забрать дальше»</strong></p>
+          <ol class="shell-todo-list shell-todo-list--ordered">
+            <li><strong>Anti-echo + cooldown после TTS</strong> — сразу улучшит голос</li>
+            <li><strong>PTT <code>fn_button</code></strong> (из <code>ptt.py</code> + <code>pynput</code>) — как в Aya</li>
+            <li><strong>VAD + RMS</strong> — меньше ложных срабатываний</li>
+            <li><strong>Computer control</strong> — если нужна «диктовка в поле»</li>
+            <li><strong>ElevenLabs/gTTS</strong> — если <code>say</code> / browser TTS не устраивает</li>
+            <li><strong>Meeting / wake_name</strong> — по необходимости</li>
+            <li><strong>Архив записей</strong> → в CMS (media или thread), не в <code>08 Archive</code></li>
+            <li><strong>Pulse-анимации / phrase history</strong> — чистый UX, не блокер</li>
+          </ol>
+
+          <p>
+            <strong>Итог:</strong> из <code>00 🍀 Aya.AI</code> главное <strong>не забранное</strong> — это
+            <strong>зрелый voice-sidecar</strong> (VAD, PTT, anti-echo, TTS-бэкенды, computer control, архив) и
+            <strong>богатый bar UX</strong> (pulse, nebula, history, dashboard). «Мозг» Aya (LLM в голосе) мы
+            <strong>не забираем</strong> — вместо него QwenPaw и manifest'ы в CMS.
+          </p>
+          <p>Файлы для переноса: <code>ptt.py</code>, <code>vad.py</code>, <code>focused_input.py</code>, …</p>
+        </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">dashboard_nebula.html · дословно</div>
+        <div class="shell-footer-prose">
+          <p><strong>Идея в двух словах</strong></p>
+          <p>
+            Это <strong>не</strong> главный интерфейс Aya (им остаётся <strong>Aya Bar</strong> — Tkinter).
+            <strong>Nebula Dashboard</strong> — отдельная <strong>«консоль наблюдения»</strong>: красивая web-страница,
+            которая <strong>смотрит на голосовой процесс издалека</strong> и показывает, что происходит
+            <strong>прямо сейчас</strong>.
+          </p>
+          <p>Запуск:</p>
+          <pre class="shell-footer-diagram">cd core/integration
+./serve_dashboard.sh   # → http://localhost:8844/dashboard_nebula.html</pre>
+          <p>Страница <strong>опрашивает каждые 500 ms</strong> два файла из <code>integration/</code>:</p>
+          <ul class="shell-todo-list">
+            <li><code>voice_status.txt</code> — строка 1: emoji-состояние (🔴 слушаю, 🔊 говорю…), строка 2: фраза + <code>vol=</code> / <code>thr=</code>, строка 3: время</li>
+            <li><code>phrase_history.json</code> — последние распознанные фразы</li>
+          </ul>
+          <pre class="shell-footer-diagram">aya_voice_v2 → voice_status.txt + phrase_history.json
+                        ↓ fetch 500ms
+              dashboard_nebula.html
+aya_bar_v2 тоже читает те же файлы</pre>
+          <p>
+            <strong>Bar</strong> — управление и компактный UI.
+            <strong>Dashboard</strong> — большой экран «как в космическом корабле»: gauge, история, сырой дамп.
+          </p>
+
+          <p><strong>Что на странице (по смыслу)</strong></p>
+          <p><em>1. Preview — визуальный монитор</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Input level</strong> — круговой gauge по <code>vol/thr</code> (уровень микрофона vs порог)</li>
+            <li><strong>Scene</strong> — декоративные полоски «активности»</li>
+            <li><strong>Pulse</strong> — сердечко (как у бара, но в web)</li>
+          </ul>
+          <p><em>2. Code — отладка</em> — сырой текст <code>voice_status.txt</code></p>
+          <p><em>3. History</em> — список из <code>phrase_history.json</code> (до 12 строк)</p>
+          <p><em>4. Правая колонка Status</em> — состояние, фраза, время обновления</p>
+          <p><em>5. Низ</em> — pill Live / Listening / Speaking / Idle; кольцо «батареи» (<code>navigator.getBattery</code>)</p>
+          <p><em>6. Что только «нарисовано» (не работает)</em></p>
+          <ul class="shell-todo-list">
+            <li>Поле «Describe what you want to build…» — <strong>ни куда не подключено</strong>, заготовка</li>
+            <li>Левое меню (File, Assets, Voice Console…) — <strong>декоративная навигация</strong></li>
+          </ul>
+          <p>Dashboard — <strong>50% живой мониторинг + 50% UI-макет</strong> под расширение.</p>
+
+          <p><strong>Зачем это было в Aya</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Видеть, жив ли голос</strong> — Bar маленький; dashboard — на втором мониторе</li>
+            <li><strong>Настраивать порог микрофона</strong> — Gauge vol/thr — сразу видно, слышит ли VAD</li>
+            <li><strong>История фраз</strong> — «Что он только что распознал?»</li>
+            <li><strong>Debug</strong> — вкладка Code — без Finder/terminal</li>
+            <li><strong>Эстетика Nebula</strong> — PhpStorm-splash, mesh, glass — «второй мозг / sci-fi»</li>
+          </ul>
+          <p>Это <strong>не замена</strong> чату с LLM. Dashboard <strong>не отправляет</strong> сообщения агенту.</p>
+
+          <p><strong>Что мы не забрали в Agent Shell / CMS</strong></p>
+          <ul class="shell-todo-list">
+            <li>Отдельная <strong>monitor-страница</strong> — только <code>/shell/index.html</code> — ❌</li>
+            <li><strong>Gauge vol/thr</strong> — нет метрик микрофона в API — ❌</li>
+            <li><strong>phrase_history</strong> — ❌</li>
+            <li>Вкладка <strong>Code</strong> (raw status) — ❌</li>
+            <li><strong>Nebula</strong> фон (mesh, hex, neon) — горы + glass — ❌</li>
+            <li>Опрос 500 ms — SSE <code>/api/shell/stream</code> — ⚠️ частично</li>
+            <li><strong>Battery ring</strong> — ❌</li>
+            <li>Mock prompt + nav — в Shell prompt реальный (QwenPaw) — ✅ лучше</li>
+            <li><code>serve_dashboard.sh</code> :8844 — всё через CMS :3000 — ⚠️ страница <code>/shell/monitor.html</code> могла бы быть позже</li>
+          </ul>
+          <p>
+            <strong>Главное не забранное по смыслу:</strong> не картинка Nebula, а
+            <strong>роль «Voice Console / Monitor»</strong> — второй экран для отладки и наблюдения за голосом.
+          </p>
+
+          <p><strong>Как это ложится на Agent Shell</strong></p>
+          <pre class="shell-footer-diagram">dashboard → GET /api/shell/status + SSE
+          → (позже) GET /api/shell/metrics  // vol, thr
+          → thread для history фраз</pre>
+          <ul class="shell-todo-list">
+            <li><code>voice_status.txt</code> → <code>state.phase</code>, <code>state.phrase</code>, <code>qwenpaw.ok</code></li>
+            <li><code>phrase_history.json</code> → последние N STT-фраз или thread</li>
+            <li>vol/thr gauge → новое поле в sidecar → API</li>
+          </ul>
+          <p>
+            <strong>Agent Shell</strong> = <strong>действие</strong> (говорить, отправить, ответ).
+            <strong>Nebula Dashboard</strong> = <strong>наблюдение</strong> (слушает ли, что распознал, сырой статус).
+            CMS — большой UI редактора; Nebula был <strong>третьим экраном</strong> только для голоса.
+          </p>
+
+          <p><strong>Нужен ли сейчас?</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Да</strong> — если отлаживаете sidecar / «не распознано», второй монитор, vol/thr</li>
+            <li><strong>Нет срочно</strong> — если хватает pulse + фразы в Shell</li>
+          </ul>
+
+          <p>
+            <strong>Итог:</strong> <code>dashboard_nebula.html</code> — <strong>живая панель мониторинга голосового пайплайна Aya</strong>
+            (статус, gauge, история, debug), в стиле Nebula; <strong>не чат и не управление</strong>.
+            В Agent Shell забрали компактный бар, но <strong>не забрали идею отдельной Voice Console</strong> —
+            логично как <code>/shell/monitor.html</code> поверх <code>/api/shell/*</code>, когда появятся метрики sidecar.
+          </p>
+        </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · датчики · что имеет смысл для Agent Shell</div>
+        <div class="shell-footer-prose">
+          <p>
+            <strong>Mac ≠ iPhone.</strong> На MacBook есть аксelerometр (внутренний), датчик света, lid, Touch ID, камера/микрофон.
+            На iMac / mini / Studio — почти нет motion-датчиков. Гироскопа, компаса, GPS, TrueDepth на Mac нет.
+            В браузере / Electron <code>DeviceOrientation</code> на macOS по сути не работает.
+          </p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Идея</th>
+                  <th scope="col">Mac</th>
+                  <th scope="col">iPhone</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>«Наклони устройство — UI реагирует»</td>
+                  <td>❌ почти бесполезно</td>
+                  <td>✅ да</td>
+                </tr>
+                <tr>
+                  <td>«Уронили / резко двигают ноутбук»</td>
+                  <td>⚠️ только нативно (не web)</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Камера, микрофон, экран</td>
+                  <td>✅ уже есть в Shell</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Геолокация</td>
+                  <td>⚠️ грубо по Wi‑Fi</td>
+                  <td>✅ точнее</td>
+                </tr>
+                <tr>
+                  <td>Расстояние до лица (TrueDepth)</td>
+                  <td>❌</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Ориентация в пространстве (<code>devicemotion</code>)</td>
+                  <td>❌ web API недоступен</td>
+                  <td>✅ с permission</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>Вывод для Shell на Mac:</strong> камера, микрофон, экран, clipboard, окно Electron — основные «входы».
+            Ориентация / tilt — сценарий <strong>iPhone как второй клиент</strong>, не desktop Shell.</p>
+          <ul class="shell-todo-list">
+            <li>Mac Shell: не планировать UI на <code>deviceorientation</code></li>
+            <li>iPhone PWA / app: <code>DeviceMotion</code> + permission → события в CMS/QwenPaw</li>
+            <li>Capabilities manifest: разные наборы для macOS vs iOS</li>
+          </ul>
+        </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · маркеры vs метки (дословно из чата)</div>
+        <div class="shell-footer-prose">
+          <p>Понял разницу:</p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Тип</th>
+                  <th scope="col">Пример</th>
+                  <th scope="col">Смысл</th>
+                  <th scope="col">Что с ним делать</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Маркер замены</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>«подставь инструкцию»</td>
+                  <td>Развернуть для агента, в чате показать <strong>исходник</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Метка структуры</strong></td>
+                  <td><code>[tts-break]</code>, <code>```awn-stt```</code></td>
+                  <td>«здесь граница блоков»</td>
+                  <td>Не трогать, всегда видна в чате</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Ниже — варианты, как это можно было бы оформить <strong>по-другому</strong>, чтобы путаницы не было.</p>
+
+          <p><strong>1. Разные синтаксисы (самое наглядное)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Вариант</th>
+                  <th scope="col">Замена (compose)</th>
+                  <th scope="col">Метка (структура)</th>
+                  <th scope="col">Плюсы</th>
+                  <th scope="col">Минусы</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>A. Сейчас</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td><code>[tts-break]</code>, <code>```awn-stt```</code></td>
+                  <td>BBCode для голоса, <code>{{…}}</code> — параметры и шаблоны</td>
+                  <td>Два семейства синтаксиса</td>
+                </tr>
+                <tr>
+                  <td><strong>B. Разные скобки</strong></td>
+                  <td><code>[[tpl:brief]]</code> или <code>@brief</code></td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>Сразу видно: «это другое»</td>
+                  <td>Два формата в голове</td>
+                </tr>
+                <tr>
+                  <td><strong>C. Префикс-команда</strong></td>
+                  <td><code>/brief</code> в начале строки</td>
+                  <td><code>--- voice-end ---</code></td>
+                  <td>Как slash-команды в чатах</td>
+                  <td>Сложнее парсить в markdown</td>
+                </tr>
+                <tr>
+                  <td><strong>D. HTML-like</strong></td>
+                  <td><code>&lt;cmd tpl="brief"/&gt;</code></td>
+                  <td><code>&lt;voice-end/&gt;</code></td>
+                  <td>Явно «тег vs команда»</td>
+                  <td>Некрасиво в plain text</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>2. Разное поведение при отправке (один синтаксис, разные правила)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Правило</th>
+                  <th scope="col"><code>tpl:*</code></th>
+                  <th scope="col"><code>shell:*</code></th>
+                  <th scope="col">В чате</th>
+                  <th scope="col">Агенту</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Expand-on-send</strong></td>
+                  <td>✅ заменить на текст</td>
+                  <td>❌ не трогать</td>
+                  <td>Оба как в compose</td>
+                  <td><code>tpl</code> → текст, <code>shell</code> → как есть</td>
+                </tr>
+                <tr>
+                  <td><strong>Expand + chip</strong></td>
+                  <td>✅ + chip «было: brief»</td>
+                  <td>❌</td>
+                  <td>Chip под сообщением</td>
+                  <td>Как выше</td>
+                </tr>
+                <tr>
+                  <td><strong>Dual storage</strong></td>
+                  <td>хранить <code>raw</code> + <code>expanded</code></td>
+                  <td>только <code>raw</code></td>
+                  <td>Всегда <code>raw</code></td>
+                  <td><code>expanded</code> для API · Лучше для «восстановить потом»</td>
+                </tr>
+                <tr>
+                  <td><strong>Toggle в UI</strong></td>
+                  <td>«Показать развёрнутое»</td>
+                  <td>всегда метка</td>
+                  <td>Переключатель</td>
+                  <td>Без изменений</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>3. Разные namespace / префиксы (логика в имени)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Namespace</th>
+                  <th scope="col">Семантика</th>
+                  <th scope="col">Пример</th>
+                  <th scope="col">Поведение</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>tpl:</code></td>
+                  <td>шаблон → замена</td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>expand</td>
+                </tr>
+                <tr>
+                  <td><code>shell:</code></td>
+                  <td>системная метка</td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>passthrough</td>
+                </tr>
+                <tr>
+                  <td><code>page:</code></td>
+                  <td>контекст страницы</td>
+                  <td><code>{{page:current}}</code></td>
+                  <td>expand (скрытый блок)</td>
+                </tr>
+                <tr>
+                  <td><code>var:</code></td>
+                  <td>переменная сессии</td>
+                  <td><code>{{var:last_topic}}</code></td>
+                  <td>expand</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Идея: <strong>по префиксу</strong> код знает: «заменять или оставить».</p>
+
+          <p><strong>4. Как показывать в чате (чтобы не потерять смысл)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Подход</th>
+                  <th scope="col">Замена <code>{{tpl:brief}}</code></th>
+                  <th scope="col">Метка <code>{{shell:voice-end}}</code></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Только raw</strong></td>
+                  <td><code>{{tpl:brief}}</code> chip</td>
+                  <td>разделитель с меткой</td>
+                </tr>
+                <tr>
+                  <td><strong>Raw + tooltip</strong></td>
+                  <td>chip, hover → «Ответ кратко»</td>
+                  <td>tooltip «голос / экран»</td>
+                </tr>
+                <tr>
+                  <td><strong>Raw + footnote</strong></td>
+                  <td>«Отправлено как: …» мелким текстом</td>
+                  <td>не нужно</td>
+                </tr>
+                <tr>
+                  <td><strong>Свернуть expanded</strong></td>
+                  <td>кнопка «показать, что ушло агенту»</td>
+                  <td>метка всегда на месте</td>
+                </tr>
+                <tr>
+                  <td><strong>Два слоя истории</strong></td>
+                  <td><code>displayBody</code> / <code>apiBody</code></td>
+                  <td>один слой, метка в <code>displayBody</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>5. Что я бы рекомендовал (если переделывать «чисто»)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Роль</th>
+                  <th scope="col">Синтаксис</th>
+                  <th scope="col">Отправка</th>
+                  <th scope="col">В чате</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Шаблон (замена)</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>→ текст из settings</td>
+                  <td><strong>всегда маркер</strong>, expanded — по клику</td>
+                </tr>
+                <tr>
+                  <td><strong>Метка (структура)</strong></td>
+                  <td><code>[tts-break]</code></td>
+                  <td>как есть</td>
+                  <td><strong>разделитель</strong>, не удалять</td>
+                </tr>
+                <tr>
+                  <td><strong>Правило в коде</strong></td>
+                  <td><code>tpl:*</code> = expand</td>
+                  <td colspan="2"><code>shell:*</code> = passthrough</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>То есть не один «маркер на всё», а <strong>два класса</strong>:</p>
+          <pre class="shell-footer-diagram">{{tpl:*}}     → macro (макрос, подставляется)
+{{shell:*}}   → marker (метка, остаётся)</pre>
+
+          <p><strong>6. Альтернатива: вообще убрать замену из текста</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Вариант</th>
+                  <th scope="col">Как работает</th>
+                  <th scope="col">Плюс</th>
+                  <th scope="col">Минус</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Chips над полем</strong></td>
+                  <td>шаблоны не в тексте, а badges над compose</td>
+                  <td>В тексте нет «исчезающих» маркеров</td>
+                  <td>Не видно в копируемом тексте</td>
+                </tr>
+                <tr>
+                  <td><strong>Отдельное поле API</strong></td>
+                  <td><code>message</code> + <code>instructions[]</code></td>
+                  <td>Чистое разделение</td>
+                  <td>Сложнее UI и протокол</td>
+                </tr>
+                <tr>
+                  <td><strong>Системный prompt</strong></td>
+                  <td>шаблоны → в system, не в user message</td>
+                  <td>История чата чистая</td>
+                  <td>Меньше контроля «на это сообщение»</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            <strong>Кратко:</strong> проблема не в <code>{{…}}</code> как таковых, а в том, что
+            <strong>один формат смешивает два разных смысла</strong>. Либо развести синтаксис
+            (<code>tpl</code> vs <code>shell</code>), либо развести поведение (expand vs passthrough)
+            и <strong>всегда хранить raw в чате</strong>, а expanded — отдельно или по клику.
+          </p>
+          <p>
+            Если скажешь, какой столбец из таблицы ближе (B — разные скобки, dual storage, chips без текста и т.д.),
+            можно спроектировать это точечно под Shell.
+          </p>
+        </div>
+        <p class="shell-footer-note">
+          Mac-приложение: <code>npm run shell:dist</code>, затем
+          <code>npm run shell:open</code>
+        </p>
+        </div>
+        </section>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
+      <section class="shell-compact-stage" id="shell-compact-stage" aria-label="Компактный режим">
+        <div class="shell-compact-cosmos" aria-hidden="true">
+          <span class="shell-compact-cosmos-veil"></span>
+          <span class="shell-compact-cosmos-aurora shell-compact-cosmos-aurora--a"></span>
+          <span class="shell-compact-cosmos-aurora shell-compact-cosmos-aurora--b"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--a"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--b"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--c"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--d"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--1"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--2"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--3"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--4"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--5"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--6"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--7"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--8"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--1"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--2"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--3"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--4"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--5"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--6"></span>
+        </div>
+        <div class="shell-compact-topbar">
+          <div
+            class="shell-compact-topbar-avatar"
+            id="shell-compact-topbar-avatar"
+            hidden
+            aria-label="Аватар агента — удерживайте для голоса"
+          ></div>
+          <div class="shell-compact-topbar-main">
+            <div class="shell-compact-topbar-meta">
+              <div class="shell-compact-topbar-ident">
+                <span class="shell-compact-topbar-agent" id="shell-compact-topbar-agent">Агент</span>
+                <span
+                  class="shell-compact-topbar-todo"
+                  title="Компактный режим ещё в разработке"
+                >TODO</span>
+                <span class="shell-compact-topbar-runtime" id="shell-compact-topbar-runtime" hidden></span>
+              </div>
+              <p
+                class="shell-compact-topbar-status is-idle"
+                id="shell-compact-topbar-status"
+                aria-live="polite"
+              >
+                Ожидаю
+              </p>
+            </div>
+            <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос">
+              <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
+                <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+              </div>
+            </div>
+          </div>
+          <div class="shell-compact-topbar-actions" aria-label="Выход из компакта">
+            <button
+              type="button"
+              class="shell-compact-exit"
+              id="shell-compact-exit"
+              title="Свернуть компакт"
+              aria-label="Свернуть компакт"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="shell-compact-brand shell-compact-brand--hidden"
+          id="shell-compact-brand"
+          title="На главную"
+          aria-label="Agent CMS Voice — на главную"
+          tabindex="-1"
+          hidden
+          aria-hidden="true"
+        >
+          <img class="shell-path-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
+          <span class="shell-compact-brand-title">Agent CMS Voice</span>
+        </button>
+      </section>
+      <section class="shell-hero" id="shell-hero" data-hero-state="idle">
+        <div class="shell-hero-bg" aria-hidden="true">
+          <span class="shell-hero-aurora shell-hero-aurora--a"></span>
+          <span class="shell-hero-aurora shell-hero-aurora--b"></span>
+          <span class="shell-hero-aurora shell-hero-aurora--c"></span>
+          <span class="shell-hero-orb shell-hero-orb--1"></span>
+          <span class="shell-hero-orb shell-hero-orb--2"></span>
+          <span class="shell-hero-orb shell-hero-orb--3"></span>
+          <span class="shell-hero-orb shell-hero-orb--4"></span>
+        </div>
+        <div class="shell-hero-stt-controls" aria-label="Голосовой ввод">
+          <div class="shell-hero-voice-row shell-hero-voice-row--stt">
+            <label
+              class="shell-check shell-voice-settings-summary-option shell-reply-stt shell-hero-stt-toggle"
+              title="Голосовой ввод — микрофон и режим 🎤"
+            >
+              <input id="shell-stt-enabled" type="checkbox" checked aria-label="Включить STT" />
+              <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
+            </label>
+            <span
+              class="shell-hint shell-voice-settings-summary-control shell-hero-stt-summary"
+              id="shell-stt-hero-summary"
+              title="Что слушать · движок STT"
+            >
+              <span class="shell-stt-summary-value" id="shell-stt-hero-summary-text">🎤 · Web</span>
+            </span>
+          </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--autosend" id="shell-voice-response-enabled-row">
+            <button
+              type="button"
+              class="shell-hint shell-hero-autosend-toggle"
+              id="shell-voice-response-enabled-toggle"
+              data-hint="voiceResponseEnabled — отправлять агенту сразу после распознавания"
+              title="Автоотправка — без диалога подтверждения"
+              aria-label="Автоотправка"
+              aria-pressed="false"
+            >
+              <svg class="shell-hero-autosend-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--autosend">Автоотправка</span>
+          </div>
+        </div>
+        <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
+          <div class="shell-hero-voice-row shell-hero-voice-row--tts">
+            <label
+              class="shell-check shell-voice-settings-summary-option shell-reply-tts shell-hero-tts-toggle"
+              title="Текст ответа агента → голос"
+            >
+              <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
+              <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
+            </label>
+            <span
+              class="shell-hint shell-voice-settings-summary-control shell-hero-tts-playback"
+              id="shell-tts-playback-hint"
+            >
+              <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
+                <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="dialog">
+                  <input type="radio" name="shell-tts-playback-mode" value="dialog" checked aria-label="Диалог" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+                </label>
+                <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="reading">
+                  <input type="radio" name="shell-tts-playback-mode" value="reading" aria-label="Чтение" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+                </label>
+              </span>
+            </span>
+          </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--proactive" id="shell-proactive-row">
+            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--proactive">Проактив</span>
+            <button
+              type="button"
+              class="shell-hint shell-hero-proactive-toggle"
+              id="shell-proactive-toggle"
+              data-hint="Проактивность — агент сам начнёт диалог при бездействии"
+              title="Проактивность — агент сам начнёт диалог при бездействии"
+              aria-label="Проактивность"
+              aria-pressed="false"
+            >
+              <svg class="shell-hero-proactive-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--mobile">
+            <button
+              type="button"
+              class="shell-hero-mobile-btn"
+              id="shell-mobile-link-btn"
+              title="Ссылка для открытия на iPhone"
+              aria-label="Мобила — ссылка для iPhone"
+            >
+              <span class="shell-hero-mobile-btn-icon" aria-hidden="true">📱</span>
+            </button>
+          </div>
+        </div>
+        <div class="shell-hero-layout">
+          <div class="shell-hero-center">
+            <div class="shell-hero-sensor-wrap">
+            <div class="shell-hero-think-orbs" aria-hidden="true">
+              <span class="shell-hero-think-orb shell-hero-think-orb--a"></span>
+              <span class="shell-hero-think-orb shell-hero-think-orb--b"></span>
+              <span class="shell-hero-think-orb shell-hero-think-orb--c"></span>
+            </div>
+            <div class="shell-hero-avatar-stage">
+            <button
+              type="button"
+              class="shell-compact-sensor shell-hero-sensor shell-agent-avatar"
+              id="shell-agent-avatar"
+              data-phase="waiting"
+              data-hero-state="idle"
+              data-activity="idle"
+              aria-label="Ожидаю"
+            >
+              <img
+                id="shell-hero-agent-preview"
+                class="shell-hero-agent-preview"
+                alt=""
+                draggable="false"
+                hidden
+              />
+              <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
+              <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
+              <span class="shell-compact-sensor-ring" aria-hidden="true"></span>
+              <span class="shell-voice-wave shell-compact-sensor-waves hidden" id="shell-voice-wave" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <span class="shell-compact-sensor-typing" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <svg class="shell-compact-sensor-cloud" viewBox="0 0 64 64" role="presentation">
+                <circle class="shell-compact-cloud-ring" cx="32" cy="32" r="29" />
+                <circle class="shell-compact-cloud-face" cx="32" cy="30" r="17" />
+                <circle class="shell-compact-cloud-eye" cx="26" cy="28" r="2.5" />
+                <circle class="shell-compact-cloud-eye" cx="38" cy="28" r="2.5" />
+                <path class="shell-compact-cloud-mouth" d="M24 38 Q32 44 40 38" />
+                <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
+              </svg>
+            </button>
+            <p class="shell-hero-status-badge is-idle" id="shell-phase-label" aria-live="polite">Ожидаю</p>
+            <p class="shell-tts-progress-clock hidden" id="shell-tts-progress-clock" aria-live="polite"></p>
+            </div>
+            <div class="shell-hero-toolbar-row">
+            <div class="shell-hero-toolbar" id="shell-tts-controls">
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--toggle"
+                id="shell-tts-toggle"
+                title="Пауза (Space)"
+                aria-label="Пауза озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">⏸</span>
+                <span class="shell-tts-btn-label">Пауза</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--stop"
+                id="shell-tts-stop"
+                title="Стоп озвучки"
+                aria-label="Стоп озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">⏹</span>
+                <span class="shell-tts-btn-label">Стоп</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--download"
+                id="shell-tts-download"
+                title="Скачать последнюю озвучку"
+                aria-label="Скачать аудио озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">💾</span>
+                <span class="shell-tts-btn-label">Сохранить</span>
+              </button>
+            </div>
+            <div class="shell-hero-toolbar shell-hero-toolbar--cancel hidden" role="group" aria-label="Отмена отправки">
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--cancel"
+                id="shell-hero-cancel-send"
+                title="Отменить отправку"
+                aria-label="Отменить отправку"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">✕</span>
+                <span class="shell-tts-btn-label">Отмена</span>
+              </button>
+            </div>
+            <div class="shell-hero-toolbar shell-hero-toolbar--dialog" role="group" aria-label="Диалог">
+              <span class="shell-hero-toolbar-dot-wrap" title="Связь с сервером">
+                <span class="shell-status-dot" id="shell-status-dot" data-state="offline" aria-label="Связь с сервером"></span>
+              </span>
+              <button
+                type="button"
+                class="shell-tts-btn shell-dialog-tool shell-dialog-autoscroll-toggle"
+                id="shell-dialog-autoscroll-toggle"
+                title="К новым сообщениям — включено"
+                aria-label="Автопрокрутка к новым сообщениям, включена"
+                aria-pressed="true"
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">↓</span>
+                <span class="shell-tts-btn-label">К новым</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-dialog-tool"
+                id="shell-dialog-refresh"
+                title="Обновить диалог"
+                aria-label="Обновить диалог"
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">↻</span>
+                <span class="shell-tts-btn-label">Обновить</span>
+              </button>
+            </div>
+            </div>
+            <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell-chat-section shell-chat-section--reply" aria-label="Диалог">
+      <section class="shell-reply-panel" id="shell-reply-panel">
+        <div class="shell-dialog-scroll-progress" id="shell-dialog-scroll-progress" aria-hidden="true">
+          <span class="shell-dialog-scroll-progress-fill" id="shell-dialog-scroll-progress-fill"></span>
+        </div>
+        <div class="shell-pull-hint hidden" id="shell-pull-hint">Отпустите для обновления</div>
+        <div class="shell-dialog-scroll" id="shell-dialog-scroll">
+          <div class="shell-dialog-empty hidden" id="shell-dialog-empty" aria-hidden="true">
+            <button
+              type="button"
+              class="shell-dialog-empty-icon-wrap"
+              id="shell-dialog-empty-starter"
+              aria-label="Отправить «Привет»"
+              title="Отправить «Привет»"
+            >
+              <svg class="shell-dialog-empty-icon" viewBox="0 0 48 48" role="presentation" aria-hidden="true" fill="none">
+                <path
+                  d="M10 12.5A4.5 4.5 0 0 1 14.5 8h19A4.5 4.5 0 0 1 38 12.5v13A4.5 4.5 0 0 1 33.5 30H22.2L14 36.5V30h-3.5A4.5 4.5 0 0 1 10 25.5v-13Z"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                />
+                <circle cx="19" cy="20.5" r="1.4" fill="currentColor" />
+                <circle cx="24" cy="20.5" r="1.4" fill="currentColor" />
+                <circle cx="29" cy="20.5" r="1.4" fill="currentColor" />
+              </svg>
+            </button>
+            <p class="shell-dialog-empty-title">Нет сообщений</p>
+            <p class="shell-dialog-empty-hint">Нажмите на иконку — отправится «Привет»</p>
+          </div>
+          <div class="shell-dialog-thread" id="shell-dialog-thread" aria-live="polite"></div>
+          <div class="shell-last-ask hidden" id="shell-last-ask-wrap" hidden>
+            <div class="shell-last-ask-label">Ваш вопрос</div>
+            <div class="shell-last-ask-text" id="shell-last-ask"></div>
+          </div>
+          <div class="shell-reply-body shell-dialog-live-reply" id="shell-last-reply">
+            <div class="shell-live-tools hidden" id="shell-live-tools" aria-live="polite" aria-label="Вызовы инструментов"></div>
+            <div class="shell-live-reply-stream">
+              <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+              <span class="shell-live-reply-wait hidden" id="shell-last-reply-wait" aria-live="polite"></span>
+            </div>
+            <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="shell-dialog-scroll-bottom hidden"
+          id="shell-dialog-scroll-bottom"
+          aria-label="Вниз чата"
+          title="Вниз чата"
+        >
+          <svg
+            class="shell-dialog-scroll-bottom-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      </section>
+      </section>
+
+      <section class="shell-chat-section shell-chat-section--compose" aria-label="Ваше сообщение и голосовой ввод">
+      <section class="shell-compose-panel" id="shell-compose-panel">
+        <div class="shell-compose-error hidden" id="shell-compose-error" role="alert">
+          <span class="shell-compose-error-text" id="shell-compose-error-text"></span>
+          <button
+            type="button"
+            class="shell-compose-error-dismiss"
+            id="shell-compose-error-dismiss"
+            aria-label="Закрыть сообщение об ошибке"
+            title="Закрыть"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="shell-message-queue hidden is-collapsed" id="shell-message-queue" aria-live="polite">
+          <div class="shell-message-queue-bar">
+            <button
+              type="button"
+              class="shell-message-queue-accordion-btn"
+              id="shell-message-queue-toggle"
+              aria-expanded="false"
+              aria-controls="shell-message-queue-list"
+              title="Развернуть очередь"
+            >
+              <span class="shell-message-queue-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="shell-message-queue-active hidden" id="shell-message-queue-active">
+              <span class="shell-message-queue-badge" aria-hidden="true">●</span>
+              <span class="shell-message-queue-active-label">Сейчас</span>
+              <p class="shell-message-queue-text" id="shell-message-queue-active-text"></p>
+            </div>
+            <span class="shell-message-queue-count" id="shell-message-queue-count"></span>
+          </div>
+          <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
+        </div>
+        <div class="shell-compose-dock" id="shell-compose-dock">
+          <div class="shell-compose-dock-inner">
+        <div class="shell-compose-file-hub-row">
+          <div class="shell-compose-file-hub-row-tools">
+            <button
+              type="button"
+              class="shell-file-hub-launch"
+              id="shell-file-hub-open"
+              aria-expanded="false"
+              aria-controls="shell-file-hub"
+              title="Файлообменник — файлы туда сюда"
+            >
+              <span class="shell-file-hub-launch-ico" aria-hidden="true">📁</span>
+              <span class="shell-file-hub-launch-label">Файлообменник</span>
+              <span class="shell-file-hub-launch-tag">Файлы туда сюда</span>
+            </button>
+            <div class="shell-pomodoro-wrap">
+              <button
+                type="button"
+                id="shell-pomodoro-btn"
+                class="shell-pomodoro-launch shell-pomodoro-launch--icon hidden"
+                title="Помидор — фокус"
+                aria-label="Помидор"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="shell-pomodoro-popover"
+                hidden
+              >
+                <span class="shell-pomodoro-launch-ico" aria-hidden="true">🍅</span>
+                <span id="shell-pomodoro-btn-label" class="shell-pomodoro-launch-label" aria-hidden="true"></span>
+              </button>
+              <div
+                id="shell-pomodoro-popover"
+                class="shell-pomodoro-popover hidden"
+                role="dialog"
+                aria-labelledby="shell-pomodoro-popover-title"
+                aria-hidden="true"
+              >
+                <div class="shell-pomodoro-popover-head">
+                  <span id="shell-pomodoro-popover-title" class="shell-pomodoro-popover-title">🍅 Помидор</span>
+                  <button
+                    id="shell-pomodoro-popover-close"
+                    class="shell-pomodoro-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div class="shell-pomodoro-popover-body">
+                  <p id="shell-pomodoro-popover-lead" class="shell-pomodoro-popover-lead">
+                    Метод помидора в Agent CMS Voice: фокус, звук и короткий отдых.
+                  </p>
+                  <p id="shell-pomodoro-status" class="shell-pomodoro-status" aria-live="polite"></p>
+                  <div class="shell-pomodoro-popover-actions">
+                    <button id="shell-pomodoro-start" type="button" class="shell-pomodoro-start">Начать фокус</button>
+                    <button id="shell-pomodoro-stop" type="button" class="shell-pomodoro-stop hidden">Остановить</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
+          <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
+            <div class="shell-compose-options">
+            <button
+              type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="page-preview"
+              data-compose-option="page"
+              aria-pressed="false"
+              aria-haspopup="dialog"
+              aria-label="Страница"
+              data-hint="Контекст текущей страницы: заголовок, URL, meta, favicon"
+              title="Страница — контекст открытой вкладки"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">📄</span>
+              <span class="shell-compose-option-label">Страница</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="reasoning"
+              aria-pressed="false"
+              aria-label="Рассуждения"
+              data-hint="Разрешить модели думать либо дать быстрый ответ"
+              title="Разрешить модели думать либо дать быстрый ответ"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
+              <span class="shell-compose-option-label">Рассуждения</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="memory"
+              aria-pressed="false"
+              aria-label="Воспоминания"
+              data-hint="Использовать память"
+              title="Использовать память"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
+              <span class="shell-compose-option-label">Воспоминания</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="tools"
+              aria-pressed="false"
+              aria-label="Инструменты"
+              data-hint="Подключение скиллов и MCP tools"
+              title="Подключение скиллов и MCP tools"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
+              <span class="shell-compose-option-label">Инструменты</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="execute"
+              aria-pressed="false"
+              aria-label="Исполнение"
+              data-hint="Выполнение команд"
+              title="Выполнение команд"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">⚡</span>
+              <span class="shell-compose-option-label">Исполнение</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="params-preview"
+              aria-haspopup="dialog"
+              aria-label="Параметры запроса"
+              data-hint="Плейсхолдеры, которые Shell добавляет к сообщению"
+              title="Параметры запроса (предпросмотр)"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">📋</span>
+              <span class="shell-compose-option-label">Параметры</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="templates-preview"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-controls="shell-compose-templates-dialog"
+              aria-label="Шаблоны промптов"
+              data-hint="Быстрые команды — {{tpl:ключ}}, при отправке раскрываются"
+              title="Шаблоны промптов"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
+              <span class="shell-compose-option-label">Шаблоны</span>
+            </button>
+            </div>
+          </div>
+          <div class="shell-compose-field-meta" id="shell-compose-field-meta" aria-live="polite">
+            <div
+              id="shell-compose-context-meter"
+              class="shell-compose-context-meter shell-compose-context-meter--comfort"
+              aria-label="Контекст сообщения"
+            ></div>
+            <span
+              class="shell-compose-draft-status hidden"
+              id="shell-compose-draft-status"
+              aria-live="polite"
+              title=".agent-shell/compose-draft.md"
+            ></span>
+          </div>
+          <div class="shell-compose-input-wrap">
+            <textarea
+              id="shell-message"
+              class="shell-textarea shell-textarea--compose"
+              rows="2"
+              enterkeyhint="send"
+              placeholder="Спросите агента…"
+              aria-label="Ваше сообщение"
+            ></textarea>
+            <button
+              type="button"
+              class="shell-icon-btn shell-compose-expand-toggle"
+              id="shell-compose-expand-toggle"
+              title="Развернуть на весь экран"
+              aria-label="Развернуть на весь экран"
+              aria-pressed="false"
+            >
+              <svg
+                class="shell-compose-expand-icon"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+              <svg
+                class="shell-compose-collapse-icon"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            </button>
+          </div>
+          <div class="shell-compose-toolbar" aria-label="Панель ввода">
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--attach" aria-label="Вложения">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-page-picker"
+                id="shell-page-picker-btn"
+                hidden
+                title="Выбрать элемент на странице CMS"
+                aria-label="Выбрать элемент на странице CMS"
+                aria-pressed="false"
+              >
+                <svg
+                  class="shell-compose-tool-icon shell-compose-page-picker-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 3v3"></path>
+                  <path d="M12 18v3"></path>
+                  <path d="M3 12h3"></path>
+                  <path d="M18 12h3"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-attach"
+                id="shell-attach-btn"
+                disabled
+                title="Прикрепить файл — скоро"
+                aria-label="Прикрепить файл (скоро)"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📎</span>
+              </button>
+            </div>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
+              <div
+                class="shell-hint shell-compose-voice shell-compose-voice--compact"
+                id="shell-voice-control"
+                data-stt-source="browser"
+              >
+                <button
+                  type="button"
+                  class="shell-icon-btn shell-compose-tool shell-compose-mic"
+                  id="shell-mic-btn"
+                  title="Говорить"
+                  aria-label="Говорить"
+                  aria-pressed="false"
+                >
+                  <span class="shell-compose-tool-icon shell-compose-mic-icon" aria-hidden="true">🎤</span>
+                  <span
+                    class="shell-compose-mic-spinner shell-compose-voice-loader-spinner"
+                    hidden
+                    aria-hidden="true"
+                  ></span>
+                </button>
+                <span
+                  id="shell-voice-record-timer"
+                  class="shell-compose-voice-timer"
+                  hidden
+                  aria-hidden="true"
+                ></span>
+                <select
+                  id="shell-voice-mode"
+                  class="shell-select shell-compose-voice-select"
+                  aria-label="Как вводить голос"
+                  title="Как вводить голос"
+                >
+                  <option value="live" disabled>Живой диалог (скоро)</option>
+                  <option value="meeting">Встреча (запись)</option>
+                  <option value="hold" selected>Голосовое</option>
+                  <option value="fn_button">По кнопке Shift</option>
+                  <option value="lego_button" disabled>По кнопке Lego (todo)</option>
+                </select>
+              </div>
+            </div>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--media" aria-label="Камера и экран">
+              <input
+                type="file"
+                id="shell-compose-camera-file"
+                class="shell-compose-camera-file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                tabindex="-1"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-camera-stub"
+                id="shell-compose-camera-stub"
+                aria-label="Снимок с камеры — отправить агенту"
+                title="Фото камерой → агенту"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
+                id="shell-screenshot-action"
+                aria-label="Сделать скриншот"
+                title="Снимок экрана или камеры для агента"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📸</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
+                id="shell-watch-camera"
+                aria-label="Живая камера — вкл/выкл"
+                title="Живая камера — вкл/выкл"
+                aria-pressed="false"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
+                id="shell-watch-screen"
+                title="Демонстрация экрана — вкл/выкл"
+                aria-label="Демонстрация экрана — вкл/выкл"
+                aria-pressed="false"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
+              </button>
+            </div>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--send" aria-label="Отправка и остановка">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-send"
+                id="shell-send-btn"
+                title="Отправить (↵)"
+                aria-label="Отправить"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 19V5" />
+                  <path d="m5 12 7-7 7 7" />
+                </svg>
+                <kbd class="shell-compose-send-kbd" aria-hidden="true">↵</kbd>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-stop shell-compose-tool--sm"
+                id="shell-send-stop"
+                disabled
+                aria-label="Остановить ответ"
+                title="Остановить"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">⏹</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-outbox-spec shell-compose-tool--sm"
+                id="shell-outbox-queue-spec-btn"
+                aria-label="Очередь сохранения сообщений и голосовых"
+                title="Очередь сохранения — задача на будущее"
+              >
+                <svg
+                  class="shell-compose-outbox-spec-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M8 6h13" />
+                  <path d="M8 12h13" />
+                  <path d="M8 18h13" />
+                  <path d="M3 6h.01" />
+                  <path d="M3 12h.01" />
+                  <path d="M3 18h.01" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          </div>
+        </div>
+        </div>
+        <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
+      </section>
+      </section>
+
+      <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
+        <div class="shell-media-head">
+          <span class="shell-label">Медиа</span>
+        </div>
+
+        <div class="shell-media-block shell-media-block--camera" id="shell-camera-section">
+          <div class="shell-camera-head">
+            <span class="shell-media-block-title">Камера</span>
+            <div class="shell-camera-actions">
+              <label class="shell-check shell-camera-toggle">
+                <input id="shell-camera-enabled" type="checkbox" />
+                <span>Включить</span>
+              </label>
+              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-camera-snapshot">
+                📷 Кадр
+              </button>
+            </div>
+          </div>
+          <div class="shell-camera-options">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Источник</span>
+              <select id="shell-camera-facing" class="shell-select">
+                <option value="user">Фронт</option>
+                <option value="environment">Задняя</option>
+                <option value="device">Список камер</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-camera-device-field">
+              <span class="shell-label">Устройство</span>
+              <select id="shell-camera-device" class="shell-select"></select>
+            </label>
+            <label class="shell-check shell-camera-speech">
+              <input id="shell-camera-on-speech" type="checkbox" checked />
+              <span title="Когда вы закончили говорить и Shell переходит в «Обрабатываю», сохраняется кадр с камеры для агента">
+                Снимать при речи
+              </span>
+            </label>
+          </div>
+          <div class="shell-camera-stage hidden" id="shell-camera-stage">
+            <video
+              id="shell-camera-video"
+              class="shell-camera-video"
+              autoplay
+              muted
+              playsinline
+            ></video>
+            <div class="shell-camera-status" id="shell-camera-status"></div>
+          </div>
+        </div>
+
+        <div class="shell-media-block shell-media-block--screen" id="shell-screen-section">
+          <div class="shell-screen-head">
+            <span class="shell-media-block-title">Экран</span>
+            <div class="shell-screen-actions">
+              <label class="shell-check shell-screen-toggle">
+                <input id="shell-screen-enabled" type="checkbox" />
+                <span>Демонстрация</span>
+              </label>
+              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-screen-snapshot">
+                🖥 Снимок
+              </button>
+            </div>
+          </div>
+          <div class="shell-screen-options">
+            <label class="shell-check shell-screen-speech">
+              <input id="shell-screen-on-speech" type="checkbox" checked />
+              <span title="Когда вы закончили говорить и Shell переходит в «Обрабатываю», сохраняется снимок экрана для агента">
+                Снимать при речи
+              </span>
+            </label>
+          </div>
+          <div class="shell-screen-stage hidden" id="shell-screen-stage">
+            <video
+              id="shell-screen-video"
+              class="shell-screen-video"
+              autoplay
+              muted
+              playsinline
+            ></video>
+            <div class="shell-screen-status" id="shell-screen-status"></div>
+          </div>
+        </div>
+      </section>
+
+
+      <section
+        class="shell-file-hub"
+        id="shell-file-hub"
+        hidden
+        aria-label="Файлообменник"
+        aria-modal="true"
+        role="dialog"
+      >
+        <div class="shell-file-hub-backdrop" data-file-hub-close tabindex="-1" aria-hidden="true"></div>
+        <div class="shell-file-hub-panel">
+          <header class="shell-file-hub-header">
+            <div class="shell-file-hub-title-block">
+              <div class="shell-file-hub-title-row">
+                <h2 class="shell-file-hub-title">Файлообменник</h2>
+                <span class="shell-file-hub-todo">BETA</span>
+              </div>
+              <p class="shell-file-hub-tagline">Файлы туда сюда</p>
+            </div>
+            <button type="button" class="shell-file-hub-close" data-file-hub-close aria-label="Закрыть файлообменник">
+              ✕
+            </button>
+          </header>
+          <div class="shell-file-hub-split">
+            <section class="shell-file-hub-pane shell-file-hub-pane--upload" aria-label="Загрузить файлы в хранилище">
+              <header class="shell-file-hub-pane-header">
+                <h3 class="shell-file-hub-pane-title">
+                  <span class="shell-file-hub-pane-title-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3v10"></path>
+                      <path d="M8 9l4 4 4-4"></path>
+                      <path d="M5 21h14"></path>
+                      <path d="M9 17h6"></path>
+                    </svg>
+                  </span>
+                  <span class="shell-file-hub-pane-title-text">Загрузить файлы в хранилище</span>
+                </h3>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-help"
+                  data-hint="Скачали в браузере — перетащите сюда. Укажите, в какую тему положить файл."
+                  aria-label="Подсказка: скачали в браузере — перетащите сюда; укажите тему для файла"
+                >
+                  <span aria-hidden="true">?</span>
+                </button>
+              </header>
+              <label class="shell-file-hub-topic-field">
+                <div class="shell-file-hub-search-box shell-file-hub-search-box--labeled">
+                  <span class="shell-file-hub-search-prefix" aria-hidden="true">
+                    <svg
+                      class="shell-file-hub-search-prefix-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3-3"></path>
+                    </svg>
+                    <span class="shell-file-hub-search-prefix-text">Поиск</span>
+                  </span>
+                  <input
+                    type="search"
+                    class="shell-file-hub-search shell-file-hub-topic-search"
+                    id="shell-file-hub-topic-search"
+                    data-file-hub-topic-search
+                    placeholder="Тема или папка…"
+                    autocomplete="off"
+                    aria-label="Поиск темы"
+                    aria-controls="shell-file-hub-topic-suggest"
+                    aria-expanded="false"
+                    aria-autocomplete="list"
+                    role="combobox"
+                  />
+                  <input type="hidden" id="shell-file-hub-topic" data-file-hub-topic value="inbox" />
+                  <ul
+                    class="shell-file-hub-suggest"
+                    id="shell-file-hub-topic-suggest"
+                    data-file-hub-topic-suggest
+                    role="listbox"
+                    hidden
+                  ></ul>
+                </div>
+              </label>
+              <div class="shell-file-hub-drop" data-file-hub-drop>
+                <div class="shell-file-hub-drop-inner" data-file-hub-drop-inner>
+                  <span class="shell-file-hub-drop-ico" aria-hidden="true">📥</span>
+                  <p class="shell-file-hub-drop-title">Бросьте файлы</p>
+                  <p class="shell-file-hub-drop-hint">Inbox обменника · mock</p>
+                </div>
+              </div>
+            </section>
+            <section class="shell-file-hub-pane shell-file-hub-pane--export" aria-label="Выдать файлы из хранилища">
+              <header class="shell-file-hub-pane-header">
+                <h3 class="shell-file-hub-pane-title">
+                  <span class="shell-file-hub-pane-title-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 21V11"></path>
+                      <path d="M8 15l4-4 4 4"></path>
+                      <path d="M5 3h14"></path>
+                      <path d="M9 7h6"></path>
+                    </svg>
+                  </span>
+                  <span class="shell-file-hub-pane-title-text">Выдать файлы из хранилища</span>
+                </h3>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-clear"
+                  data-file-hub-export-clear
+                  title="Очистить список"
+                  aria-label="Очистить список"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M8 6V4h8v2"></path>
+                    <path d="M19 6l-1 14H6L5 6"></path>
+                    <path d="M10 11v6"></path>
+                    <path d="M14 11v6"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-refresh"
+                  data-file-hub-export-refresh
+                  title="Обновить список из workspace"
+                  aria-label="Обновить список файлов"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <path d="M21 3v6h-6"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="shell-file-hub-pane-help"
+                  data-hint="⠿ grip — перетаскивание из очереди. С диска — перетащите grip в drop-зону сайта, если страница читает dataTransfer.files (как в обычном HTML)."
+                  aria-label="Справка: перетаскивание из очереди"
+                >
+                  <span aria-hidden="true">?</span>
+                </button>
+              </header>
+              <div class="shell-file-hub-search-wrap">
+                <div class="shell-file-hub-search-box shell-file-hub-search-box--labeled">
+                  <span class="shell-file-hub-search-prefix" aria-hidden="true">
+                    <svg
+                      class="shell-file-hub-search-prefix-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3-3"></path>
+                    </svg>
+                    <span class="shell-file-hub-search-prefix-text">Поиск</span>
+                  </span>
+                  <input
+                    type="search"
+                    class="shell-file-hub-search"
+                    id="shell-file-hub-search"
+                    data-file-hub-search
+                    placeholder="Имя, тема, папка…"
+                    autocomplete="off"
+                    aria-label="Поиск"
+                    aria-controls="shell-file-hub-search-suggest"
+                    aria-expanded="false"
+                    aria-autocomplete="list"
+                    role="combobox"
+                  />
+                  <ul
+                    class="shell-file-hub-suggest"
+                    id="shell-file-hub-search-suggest"
+                    data-file-hub-search-suggest
+                    role="listbox"
+                    hidden
+                  ></ul>
+                </div>
+              </div>
+              <p class="shell-file-hub-empty" data-file-hub-empty hidden>По запросу ничего не нашлось</p>
+              <ul class="shell-file-hub-list" data-file-hub-list aria-label="Файлы для выгрузки"></ul>
+            </section>
+          </div>
+          <div
+            class="shell-file-hub-confirm"
+            data-file-hub-confirm
+            hidden
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="shell-file-hub-confirm-title"
+            aria-describedby="shell-file-hub-confirm-message"
+          >
+            <div class="shell-file-hub-confirm-panel">
+              <h4 class="shell-file-hub-confirm-title" id="shell-file-hub-confirm-title" data-file-hub-confirm-title></h4>
+              <p class="shell-file-hub-confirm-message" id="shell-file-hub-confirm-message" data-file-hub-confirm-message></p>
+              <div class="shell-file-hub-confirm-actions">
+                <button type="button" class="shell-file-hub-confirm-cancel" data-file-hub-confirm-cancel>Отмена</button>
+                <button type="button" class="shell-file-hub-confirm-ok" data-file-hub-confirm-ok>Убрать</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      </div>
+
+    </div>
+
+    <aside class="shell-hero-demo-panel shell-hero-demo-panel--hidden" id="shell-hero-demo-bar" aria-label="Примеры статусов" hidden>
+      <span class="shell-hero-demo-label">Пример</span>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Обрабатываю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
+      <span class="shell-hero-demo-label">Звук думаю</span>
+      <div class="shell-hero-demo-sounds" id="shell-thinking-sound-demo"></div>
+    </aside>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-page-dialog">
+      <div class="shell-dialog-form">
+        <h2>Страница</h2>
+        <p class="shell-dialog-note shell-compose-page-note">
+          Карточка основной страницы — Agent CMS или вкладка браузера (не Voice Shell). Если включено,
+          Shell добавит блок <code>[Контекст страницы]</code> к сообщению агенту.
+        </p>
+        <div id="shell-compose-page-card" class="shell-compose-page-card-wrap" aria-live="polite"></div>
+        <label class="shell-check shell-compose-page-toggle">
+          <input id="shell-compose-page-enabled" type="checkbox" />
+          <span>Добавлять страницу в контекст сообщения</span>
+        </label>
+        <p class="shell-dialog-note shell-compose-page-status" id="shell-compose-page-status"></p>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-compose-page-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-params-dialog">
+      <div class="shell-dialog-form">
+        <h2>Параметры запроса</h2>
+        <p class="shell-dialog-note shell-compose-params-note">
+          Предпросмотр плейсхолдеров, которые Shell <em>может</em> автоматически подставлять в сообщение агенту.
+          Сейчас только для просмотра — на отправку не влияет.
+        </p>
+        <div class="shell-compose-params-table-wrap">
+          <table class="shell-compose-params-table" id="shell-compose-params-table">
+            <thead>
+              <tr>
+                <th scope="col">Плейсхолдер</th>
+                <th scope="col">Сейчас</th>
+                <th scope="col">Куда</th>
+              </tr>
+            </thead>
+            <tbody id="shell-compose-params-body"></tbody>
+          </table>
+        </div>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-compose-params-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-templates-dialog">
+      <div class="shell-dialog-form">
+        <h2>Шаблоны</h2>
+        <p class="shell-dialog-note shell-compose-templates-note">
+          В сообщение вставляются метки <code>{{tpl:ключ}}</code> — их видно и можно убрать.
+          При отправке Shell подставит текст команды. Старый формат <code>[[…]]</code> тоже поддерживается.
+        </p>
+        <div class="shell-compose-templates-dialog-section">
+          <span class="shell-label">В сообщении</span>
+          <ul class="shell-compose-templates-active-list" id="shell-compose-templates-active-list"></ul>
+        </div>
+        <div class="shell-compose-templates-dialog-section">
+          <span class="shell-label">Добавить</span>
+          <ul class="shell-compose-templates-picker-list" id="shell-compose-templates-picker-list"></ul>
+        </div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-compose-templates-insert">
+            Вставить выбранные
+          </button>
+          <button type="button" class="shell-btn" id="shell-compose-templates-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--voice-confirm" id="shell-voice-confirm-dialog">
+      <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
+        <h2>Распознано</h2>
+        <textarea
+          id="shell-voice-confirm-text"
+          class="shell-textarea shell-voice-confirm-text"
+          rows="3"
+          aria-label="Распознанный текст"
+        ></textarea>
+        <div class="shell-voice-confirm-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-cancel" title="Отмена">✕</button>
+          <span class="shell-voice-confirm-spacer"></span>
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-insert">В поле</button>
+          <button type="button" class="shell-btn shell-btn--compact" id="shell-voice-send">Отправить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-outbox-queue-spec-dialog">
+      <div class="shell-dialog-form shell-outbox-queue-spec-form">
+        <p class="shell-outbox-queue-spec-badge">Важная задача на будущее</p>
+        <h2 id="shell-outbox-queue-spec-title">Очередь сохранения сообщений и голосовых</h2>
+        <p class="shell-dialog-note shell-outbox-queue-spec-lead">
+          Сейчас очередь в Voice работает только при связи с сервером (Mac / Agent CMS). Задача —
+          <strong>не терять</strong> набранный текст и голосовые при обрыве сети и
+          <strong>догонять отправку</strong>, когда связь вернётся (как исходящие в Telegram, но на нашей базе).
+        </p>
+
+        <h3 class="shell-outbox-queue-spec-h3">Что уже есть</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Очередь на сервере</strong> — <code>enqueueShellMessage</code>, файлы
+            <code>awn-dialogs/…/queue/*.json</code>.
+          </li>
+          <li>
+            <strong>UI очереди</strong> — блок «сейчас» + ожидающие, редактирование и удаление pending через
+            <code>/api/shell/queue</code>.
+          </li>
+          <li>
+            <strong>Несколько сообщений подряд</strong> — пока агент занят, кнопка «В очередь · N»; каждая отправка —
+            <code>POST /api/shell/message</code> (ответ <code>202 accepted</code>).
+          </li>
+          <li>
+            <strong>Голос после STT</strong> — тот же путь, что и текст (<code>voice: true</code>).
+          </li>
+        </ul>
+
+        <h3 class="shell-outbox-queue-spec-h3">Чего не хватает (суть задачи)</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Клиентский outbox</strong> — сначала сохранить локально, потом отправить при
+            <code>online</code> / успешном <code>apiFetch</code>; серверную очередь не дублировать логикой, а
+            подключать после доставки на CMS.
+          </li>
+          <li>
+            <strong>Текст</strong> — <code>localStorage</code> или IndexedDB: pending → тот же POST → удалить при
+            успехе.
+          </li>
+          <li>
+            <strong>Голос</strong> — сложнее: blob + метаданные локально, при сети STT как сейчас → POST; либо
+            отложенная загрузка аудио, если появится endpoint.
+          </li>
+        </ul>
+
+        <h3 class="shell-outbox-queue-spec-h3">Если «нет интернета»</h3>
+        <ul class="shell-help-list">
+          <li>
+            <strong>Нет связи с сервером Voice</strong> (<code>Failed to fetch</code>) — в дисковую очередь ничего не
+            попадает; текст может мелькнуть только в памяти вкладки. Черновик compose тоже на сервере.
+          </li>
+          <li>
+            <strong>Сервер есть, модель недоступна</strong> — сообщения уже в очереди на диске; при ошибке модели
+            элемент снимается с ошибкой (<code>message_error</code>), это не «ждёт сеть», а сбой хода.
+          </li>
+        </ul>
+
+        <p class="shell-dialog-note">
+          Ограничение: без доступа к Mac/CMS агент всё равно не ответит — outbox спасает
+          <em>ваши</em> сообщения, а не работу без сервера. Реализация в основном на клиенте; сервер уже умеет
+          принимать очередь.
+        </p>
+
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-outbox-queue-spec-close">Понятно</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-help-dialog">
+      <div class="shell-dialog-form">
+        <h2>Как это связано</h2>
+        <pre class="shell-help-diagram">/shell/agent-cms-core/
+    ↓ workspace + .agent-shell/settings.json
+Runtime (QwenPaw / …) → LLM
+    ↓ MCP (в QwenPaw)
+CMS workspace</pre>
+        <ul class="shell-help-list">
+          <li><strong>URL</strong> — <code>/shell/&lt;agent-id&gt;/</code> выбирает workspace CMS.</li>
+          <li><strong>Runtime</strong> — кому Shell шлёт речь (сейчас QwenPaw).</li>
+          <li><strong>QwenPaw профиль</strong> — агент внутри QwenPaw, не workspace CMS.</li>
+        </ul>
+        <p class="shell-dialog-note">
+          Маршрут — в ⚙️ «Runtime» или <code>.agent-shell/settings.json</code> · <code>messageTarget</code>.
+          <a href="#" id="shell-help-mic-link">Микрофон Safari</a>
+        </p>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-help-close">Понятно</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog" id="shell-mobile-dialog">
+      <div class="shell-dialog-form">
+        <h2>Открыть на iPhone</h2>
+        <p class="shell-dialog-note" id="shell-mobile-dialog-note">
+          Mac и iPhone — одна Wi‑Fi. Скопируйте ссылку и откройте в Safari.
+        </p>
+        <label class="shell-mobile-url-field">
+          <span class="shell-mobile-url-label">Agent CMS Voice (HTTPS :3488)</span>
+          <div class="shell-mobile-url-row">
+            <input
+              id="shell-mobile-url"
+              class="shell-mobile-url-input"
+              type="text"
+              readonly
+              spellcheck="false"
+              aria-label="Ссылка для iPhone"
+            />
+            <button type="button" class="shell-btn shell-btn--ghost shell-mobile-url-copy" id="shell-mobile-copy">
+              Копировать
+            </button>
+          </div>
+        </label>
+        <div class="shell-mobile-qr-wrap" id="shell-mobile-qr-wrap" hidden>
+          <img
+            id="shell-mobile-qr"
+            class="shell-mobile-qr-image"
+            width="220"
+            height="220"
+            alt="QR-код для iPhone"
+          />
+          <p class="shell-mobile-qr-hint" id="shell-mobile-qr-hint">Наведите камеру iPhone → откроется в Safari</p>
+        </div>
+        <div class="shell-mobile-cert-block" id="shell-mobile-cert-block" hidden>
+          <p class="shell-mobile-cert-title">🔒 Доверенный HTTPS на iPhone (один раз)</p>
+          <ol class="shell-help-list shell-help-list--ol shell-mobile-cert-steps">
+            <li>Откройте ссылку по <strong>HTTP</strong> (без «s») и установите профиль.</li>
+            <li><strong>Настройки → Основные → Об этом устройстве → Доверие сертификатам</strong> → включите «mkcert …».</li>
+            <li>Затем откройте Voice по HTTPS — без предупреждений.</li>
+          </ol>
+          <label class="shell-mobile-url-field">
+            <span class="shell-mobile-url-label">mkcert CA для iPhone (HTTP :3088)</span>
+            <div class="shell-mobile-url-row">
+              <input
+                id="shell-mobile-cert-url"
+                class="shell-mobile-url-input"
+                type="text"
+                readonly
+                spellcheck="false"
+                aria-label="Ссылка для установки CA на iPhone"
+              />
+              <button type="button" class="shell-btn shell-btn--ghost shell-mobile-url-copy" id="shell-mobile-cert-copy">
+                Копировать
+              </button>
+            </div>
+          </label>
+        </div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread">
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-share">Поделиться</button>
+          <button type="button" class="shell-btn" id="shell-mobile-dialog-close">OK</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-user-question-dialog">
+      <form class="shell-dialog-form shell-user-question-form" id="shell-user-question-form">
+        <h2 id="shell-user-question-title">Агент задаёт вопрос</h2>
+        <p class="shell-dialog-note shell-user-question-note">
+          Выберите вариант или укажите свой в поле Other — это ответ на уточняющий вопрос агента, не разрешение инструмента.
+        </p>
+        <div id="shell-user-question-list" class="shell-user-question-list"></div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread shell-user-question-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--danger" id="shell-user-question-cancel">
+            Отмена
+          </button>
+          <button type="submit" class="shell-btn shell-btn--primary" id="shell-user-question-submit">
+            Ответить
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-tool-permission-dialog">
+      <div class="shell-dialog-form shell-tool-permission-form">
+        <h2 id="shell-tool-permission-title">Разрешить инструмент?</h2>
+        <p class="shell-dialog-note shell-tool-permission-note">
+          CLI запрашивает разрешение. Текст «да» в чате не срабатывает — нужна кнопка здесь.
+        </p>
+        <div class="shell-tool-permission-tool-wrap">
+          <span class="shell-label">Инструмент</span>
+          <code class="shell-tool-permission-tool" id="shell-tool-permission-tool">—</code>
+        </div>
+        <label class="shell-field hidden" id="shell-tool-permission-input-field">
+          <span class="shell-label">Параметры</span>
+          <textarea
+            id="shell-tool-permission-input"
+            class="shell-textarea shell-tool-permission-input"
+            rows="6"
+            readonly
+          ></textarea>
+        </label>
+        <div class="shell-dialog-actions shell-dialog-actions--spread shell-tool-permission-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--danger" id="shell-tool-permission-deny">
+            Отклонить
+          </button>
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-tool-permission-allow-session">
+            На сессию
+          </button>
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-tool-permission-allow">
+            Разрешить
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="shell-dialog" id="shell-mic-dialog">
+      <div class="shell-dialog-form">
+        <h2 id="shell-mic-dialog-title">Микрофон</h2>
+        <ol class="shell-help-list shell-help-list--ol" id="shell-mic-dialog-steps"></ol>
+        <p class="shell-dialog-note">
+          HTTPS Voice:
+          <a id="shell-mic-dialog-url" href="#" target="_blank" rel="noopener">https://127.0.0.1:3488/</a>
+        </p>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mic-dialog-check">Проверить доступ</button>
+          <button type="button" class="shell-btn" id="shell-mic-dialog-close">OK</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div id="shell-maintenance-pane" class="shell-maintenance-pane hidden" aria-labelledby="shell-maintenance-pane-title" role="alertdialog" aria-modal="true">
+      <div class="shell-maintenance-bg" aria-hidden="true"></div>
+      <div class="shell-maintenance-inner">
+        <div class="shell-maintenance-visual" aria-hidden="true">
+          <div class="shell-maintenance-code">503</div>
+          <img class="shell-maintenance-logo" src="/shell/favicon.svg" width="56" height="56" alt="" />
+        </div>
+        <p class="shell-maintenance-eyebrow">Режим обслуживания</p>
+        <h2 id="shell-maintenance-pane-title" class="shell-maintenance-title">Agent CMS Voice недоступен</h2>
+        <p class="shell-maintenance-lead">
+          Платформа Agent CMS на обслуживании. Голосовой клиент, диалоги и shell API временно отключены.
+        </p>
+        <div class="shell-maintenance-actions">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-maintenance-retry-btn">Проверить снова</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="shell-pomodoro-break"
+      class="shell-pomodoro-break hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shell-pomodoro-break-title"
+      aria-hidden="true"
+    >
+      <div class="shell-pomodoro-break-bg" aria-hidden="true"></div>
+      <div class="shell-pomodoro-break-panel">
+        <p class="shell-pomodoro-break-eyebrow" aria-hidden="true">🍅 Помидор</p>
+        <p id="shell-pomodoro-break-clock" class="shell-pomodoro-break-clock" aria-live="polite">5:00</p>
+        <h2 id="shell-pomodoro-break-title" class="shell-pomodoro-break-title">Время отдохнуть</h2>
+        <p class="shell-pomodoro-break-lead">
+          Короткая пауза после фокуса. Когда будете готовы — нажмите «Отдохнули».
+        </p>
+        <div class="shell-pomodoro-break-checkpoint">
+          <textarea
+            id="shell-pomodoro-break-checkpoint-input"
+            class="shell-pomodoro-break-checkpoint-input"
+            rows="3"
+            autocomplete="off"
+            maxlength="500"
+            placeholder="На чём остановились? · Ctrl/Cmd+Enter — в журнал"
+            aria-label="На чём остановились"
+          ></textarea>
+        </div>
+        <div class="shell-pomodoro-break-emoji" aria-hidden="true">
+          <span id="shell-pomodoro-break-emoji" class="shell-pomodoro-break-emoji-icon">🚴</span>
+        </div>
+        <button id="shell-pomodoro-break-done" type="button" class="shell-pomodoro-break-done">Отдохнули</button>
+        <p id="shell-pomodoro-break-breaks" class="shell-pomodoro-break-breaks" aria-live="polite">
+          <span class="shell-pomodoro-break-breaks-label">Перерывы сегодня</span>
+          <span id="shell-pomodoro-break-breaks-count" class="shell-pomodoro-break-breaks-badge" aria-hidden="true">0</span>
+        </p>
+      </div>
+    </div>
+
+    <div id="shell-debug-panel" class="shell-debug-panel hidden" aria-hidden="true">
+      <header class="shell-debug-panel-head">
+        <span class="shell-debug-panel-title">Журнал Shell</span>
+        <div class="shell-debug-panel-actions">
+          <button type="button" class="shell-debug-panel-btn" id="shell-debug-clear">Очистить</button>
+          <button type="button" class="shell-debug-panel-btn shell-debug-panel-btn--close" id="shell-debug-close" aria-label="Закрыть">×</button>
+        </div>
+      </header>
+      <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+    </div>
+
+    <script src="/vendor/material-file-icons/map.js?v=1"></script>
+    <script src="/js/editor/material-file-icons.js?v=1"></script>
+    <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
+    <script src="/js/app/app-lock.js?v=15"></script>
+    <script src="/js/core/platform-status.js"></script>
+    <script src="/shell/shell.js?v=690" type="module"></script>
+  </body>
+</html>

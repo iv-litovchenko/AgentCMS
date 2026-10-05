@@ -1,0 +1,15 @@
+awn_schema:
+  topic:
+    fields:
+      client_name:
+        type: awn.field.string
+        title: Имя клиента
+      client_phone:
+        type: awn.field.phone
+        title: Телефон
+      client_email:
+        type: awn.field.email
+        title: Email
+      client_notes:
+        type: awn.field.text
+        title: Примечания

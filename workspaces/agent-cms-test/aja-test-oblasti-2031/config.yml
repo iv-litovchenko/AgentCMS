@@ -1,0 +1,6 @@
+# Agent CMS — конфигурация
+
+awn_settings:
+  awn-mask-file: ""
+  area-setting-1: 111
+  area-setting-2: 222

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Режим 3 — личные пометки в конспектах</title>
+  <link rel="stylesheet" href="markers.css">
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge mode-3">Режим 3</span>
+        <h1>Личные пометки → сводный список</h1>
+        <p id="summary-line">sample-notes/ — 3 файла</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Все примеры</a>
+        <span id="filter-buttons"></span>
+      </div>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Синтаксис маркеров</h2>
+        <pre><span class="syntax-comment">[запись]</span>
+<span class="syntax-meta">создано: 2026-01-05</span>
+<span class="syntax-meta">обновлено: 2026-09-20</span>
+<span class="syntax-meta">тема: Java / синтаксис</span>
+<span class="syntax-comment">[/запись]</span>
+
+<span class="syntax-comment"># Заголовок раздела</span>
+
+Текст конспекта…
+
+<span class="syntax-line">[мое повторить]: что нужно повторить</span>
+
+<span class="syntax-comment">[мое мета]</span>
+<span class="syntax-meta">awn-create: 2026-03-10</span>
+<span class="syntax-meta">awn-update: 2026-09-18</span>
+<span class="syntax-meta">awn-status: открыто</span>
+<span class="syntax-meta">повторить: 2026-09-25</span>
+<span class="syntax-comment">[/мое мета]</span>
+
+<span class="syntax-line">[мое вопрос]: что осталось непонятным</span>
+<span class="syntax-line">[мое заметка]: личная заметка</span>
+<span class="syntax-line">[мое термин]: определение термина</span>
+<span class="syntax-line">[мое важно]: ключевой момент</span>
+<span class="syntax-line">[мое ошибка]: где ошибался</span>
+<span class="syntax-line">[мое идея]: идея для доработки</span>
+<span class="syntax-line">[мое todo]: что сделать по теме</span>
+
+<span class="syntax-comment">[marker:question]</span>
+<span class="syntax-meta">awn-status: открыто</span>
+<span class="syntax-meta">awn-create: 2026-09-20</span>
+<span class="syntax-meta">повторить: 2026-10-01</span>
+<span class="syntax-comment">---</span>
+Текст (несколько абзацев).
+<span class="syntax-comment">[/marker]</span></pre>
+
+        <h2>Блоки marker</h2>
+        <p style="font-size:0.8rem;color:var(--muted);margin:0 0 0.5rem;">См. <code>MARKER-BLOCKS.md</code></p>
+
+        <h2>Статистика</h2>
+        <div class="stats" id="stats-grid"></div>
+
+        <h2>CLI</h2>
+        <pre>node collect-markers.js -i sample-notes/
+node collect-markers.js -i sample-notes/ -t "мое вопрос"
+node collect-markers.js -i sample-notes/ -o report.html
+node collect-markers.js -i sample-notes/ -e 03-study-markers-data.js</pre>
+      </aside>
+
+      <div class="content" id="dashboard"></div>
+    </main>
+  </div>
+
+  <script src="marker-types.js"></script>
+  <script src="markers-renderer.js"></script>
+  <script src="03-study-markers-data.js"></script>
+  <script src="03-study-markers.js"></script>
+</body>
+</html>

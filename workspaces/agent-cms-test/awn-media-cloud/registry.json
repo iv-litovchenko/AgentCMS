@@ -1,0 +1,97 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "blob": "gd_f61d49de.png",
+      "mediaRel": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-1/awn-materials-igra-dalnoboyschik-2/Снимок экрана 2026-08-02 в 02.44.09.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_61baf013.docx",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/ВОРД-ТЕСТ.docx",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_751548e6.png",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/Снимок экрана 2026-07-31 в 00.39.40 — копия.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_912ff68d.png",
+      "mediaRel": "awn-container/media-test-gugl-disk/awn-storage/media/Снимок экрана 2026-07-31 в 00.48.32.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_4201f749.png",
+      "mediaRel": "awn-container/test-1000-soobscheniy/awn-storage/media/Снимок экрана 2026-09-12 в 22.57.18.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_b321c719.png",
+      "mediaRel": "awn-container/test-vseh-svoystvo/awn-storage/assets/preview/20260623203519.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    },
+    {
+      "blob": "gd_15bf6007.png",
+      "mediaRel": "awn-container/test-vseh-svoystvo/awn-storage/assets/preview/20260623203544.png",
+      "providers": [
+        {
+          "id": "google-drive",
+          "status": "local",
+          "remoteUrl": ""
+        },
+        {
+          "id": "yandex-disk",
+          "status": "local",
+          "remoteUrl": ""
+        }
+      ]
+    }
+  ]
+}

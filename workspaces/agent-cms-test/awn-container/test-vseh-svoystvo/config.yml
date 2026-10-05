@@ -1,0 +1,10 @@
+awn_ui:
+  navigation_media_images_layout_media: 3
+  navigation_media_images_layout_assets: 3
+
+awn_settings:
+  links.markdown_compatible: []
+  param_1: false
+  param_2: null
+  navigation_media_images_layout_media: 3
+  navigation_media_images_layout_assets: 3

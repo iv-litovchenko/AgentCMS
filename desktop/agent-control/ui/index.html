@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS Control</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="is-booting">
+    <div id="splash" class="splash splash--active" aria-hidden="true">
+      <div class="splash-bg" aria-hidden="true">
+        <div class="splash-bg-grid"></div>
+        <div class="splash-bg-glow splash-bg-glow--cms"></div>
+        <div class="splash-bg-glow splash-bg-glow--voice"></div>
+        <div class="splash-bg-glow splash-bg-glow--control"></div>
+        <div class="splash-bg-stars"></div>
+        <div class="splash-bg-ring"></div>
+      </div>
+      <div class="splash-center">
+        <div class="splash-scene">
+          <div class="splash-nebula"></div>
+          <div class="splash-stars splash-stars--far"></div>
+          <div class="splash-stars"></div>
+          <div class="splash-halo"></div>
+          <div class="splash-planet-wrap">
+            <div class="splash-planet">
+              <div class="splash-planet-surface"></div>
+              <div class="splash-planet-atmo"></div>
+            </div>
+            <div class="splash-orbit splash-orbit--cms"><span></span></div>
+            <div class="splash-orbit splash-orbit--voice"><span></span></div>
+            <div class="splash-orbit splash-orbit--control"><span></span></div>
+            <div class="splash-ring"></div>
+          </div>
+        </div>
+        <div class="splash-copy">
+          <h1 class="splash-brand">
+            <span class="splash-brand-agent">Agent</span>
+            <span class="splash-brand-cms">CMS</span>
+          </h1>
+          <p class="splash-tagline">
+            <span class="splash-tagline-text">Собираем технологии</span>
+            <span class="splash-dots" aria-hidden="true">…</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-backdrop" aria-hidden="true">
+      <div class="backdrop-stars"></div>
+      <div class="backdrop-grid"></div>
+      <div class="backdrop-glow backdrop-glow--cms"></div>
+      <div class="backdrop-glow backdrop-glow--voice"></div>
+      <div class="backdrop-glow backdrop-glow--control"></div>
+      <div class="backdrop-ring backdrop-ring--outer"></div>
+      <div class="backdrop-ring"></div>
+      <div class="backdrop-vignette"></div>
+    </div>
+
+    <div class="app app--hidden">
+      <header class="hero panel">
+        <div class="hero-brand">
+          <img class="hero-icon" src="../assets/favicon.svg" alt="" width="44" height="44" />
+          <div>
+            <h1>Agent CMS Control (Launcher)</h1>
+            <p class="hero-sub">Пульт управления — сервер, приложения и окружение</p>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <div class="hero-clock-row">
+            <div
+              class="flip-clock flip-clock--runtime"
+              id="flip-runtime"
+              role="status"
+              aria-live="polite"
+              aria-label="Сервер сегодня, минуты"
+              title="Минут работы сервера сегодня · .agent-cms-global/server-runtime.json"
+            ></div>
+            <div class="flip-clock" id="flip-clock" role="timer" aria-live="off" aria-label="Текущее время"></div>
+          </div>
+          <div class="status-chip hero-status" id="server-status" data-state="unknown">
+            <span class="status-led" aria-hidden="true"></span>
+            <span class="status-value">Проверка…</span>
+          </div>
+          <button type="button" class="ghost-btn" disabled title="Скоро">Документация</button>
+          <button type="button" class="ghost-btn ghost-btn--icon" id="reload-ui" title="Перезагрузить интерфейс (HTML, CSS)" aria-label="Обновить UI">↻</button>
+        </div>
+      </header>
+
+      <section class="panel section-block" data-section="system">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Система</h2>
+            <p>Окружение хоста и зависимости проекта</p>
+          </div>
+          <div class="section-cap-actions">
+            <label class="env-expand-all">
+              <input type="checkbox" id="env-expand-all" />
+              <span>Показать полный список технологий</span>
+            </label>
+            <button type="button" class="ghost-btn" id="refresh-status">Обновить</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="setup-checklist" id="setup-checklist" aria-label="Первый запуск"></div>
+          <div class="env-rows-wrap" aria-label="Окружение">
+            <div class="env-rows" id="env-rows"></div>
+          </div>
+        </div>
+      </section>
+
+      <main class="actions-layout" id="actions-root"></main>
+
+      <section class="panel section-block" data-section="log">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Журнал</h2>
+            <p>Вывод команд и ошибок</p>
+          </div>
+          <div class="section-cap-actions">
+            <button type="button" class="ghost-btn" id="clear-log">Очистить</button>
+          </div>
+        </div>
+        <div class="section-body section-body--flush">
+          <pre class="log-output" id="log-output"></pre>
+        </div>
+      </section>
+
+      <footer class="app-footer" id="app-footer" aria-label="Версия"></footer>
+    </div>
+    <div id="copy-toast" class="copy-toast" role="status" aria-live="polite" hidden></div>
+    <script src="app.js"></script>
+  </body>
+</html>

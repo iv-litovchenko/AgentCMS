@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS Commander radar arcs">
+  <defs>
+    <linearGradient id="cmd-bg-05b" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9f1239" />
+      <stop offset="100%" stop-color="#f43f5e" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-bg-05b)" />
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#ffffff" stroke-width="1.25" opacity="0.2" />
+  <path d="M 32 12 A 20 20 0 0 1 49.3 39" fill="none" stroke="#ffffff" stroke-width="2.75" stroke-linecap="round" opacity="0.9" />
+  <path d="M 49.3 39 A 20 20 0 0 1 14.7 39" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.45" />
+  <path d="M 14.7 39 A 20 20 0 0 1 32 12" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.45" />
+  <ellipse cx="32" cy="32" rx="9" ry="11" fill="#ffffff" />
+  <circle cx="32" cy="24" r="2.2" fill="#be123c" opacity="0.5" />
+  <line x1="32" y1="21" x2="32" y2="27" stroke="#be123c" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
+</svg>

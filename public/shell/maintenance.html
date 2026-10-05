@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070812" />
+    <title>503 — Agent CMS Voice</title>
+    <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
+    <link rel="stylesheet" href="/shell/shell.css?v=588" />
+  </head>
+  <body class="shell-maintenance-standalone">
+    <main class="shell-maintenance-page" aria-labelledby="shell-maintenance-title">
+      <div class="shell-maintenance-bg" aria-hidden="true"></div>
+      <div class="shell-maintenance-inner">
+        <div class="shell-maintenance-visual" aria-hidden="true">
+          <div class="shell-maintenance-code">503</div>
+          <img class="shell-maintenance-logo" src="/shell/favicon.svg" width="56" height="56" alt="" />
+        </div>
+        <p class="shell-maintenance-eyebrow">Режим обслуживания</p>
+        <h1 id="shell-maintenance-title" class="shell-maintenance-title">Agent CMS Voice недоступен</h1>
+        <p class="shell-maintenance-lead">
+          Платформа Agent CMS на обслуживании. Голосовой клиент, диалоги и shell API временно отключены.
+        </p>
+        <div class="shell-maintenance-actions">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-maintenance-retry-btn">Проверить снова</button>
+        </div>
+      </div>
+    </main>
+    <script src="/js/core/platform-status.js"></script>
+    <script>
+      window.PlatformStatus?.bindMaintenancePage?.({
+        retryButtonId: "shell-maintenance-retry-btn"
+      });
+    </script>
+  </body>
+</html>

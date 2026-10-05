@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Меню «Системные секции» — 30 вариантов</title>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --panel: #fff;
+        --border: #dbe3ef;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #4f46e5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 28px 20px 48px;
+      }
+      h1 { margin: 0 0 6px; font-size: 24px; }
+      h2 { margin: 28px 0 12px; font-size: 16px; color: #334155; }
+      .lead {
+        margin: 0 0 22px;
+        max-width: 720px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card h3 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; flex: 1; }
+      .card a {
+        display: inline-flex;
+        width: fit-content;
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card a:hover { background: #4338ca; }
+      .card.is-new { border-color: #c4b5fd; background: linear-gradient(180deg, #fff 0%, #faf5ff 100%); }
+      code { font-size: 11px; background: #eef2ff; padding: 1px 5px; border-radius: 4px; }
+      .notice {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        max-width: 720px;
+      }
+      .notice a { color: #4338ca; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Системные и дополнительные секции</h1>
+    <p class="lead">
+      30 вариантов оформления нижнего блока сайдбара <code>#menu-static-footer</code> и соседних полос (среда, статистика).
+      Каждый файл — отдельный HTML с моком меню. Кликайте переключатель, чтобы свернуть/развернуть.
+    </p>
+    <p class="lead notice">
+      <strong>Как открыть:</strong>
+      <a href="http://127.0.0.1:3000/examples/menu-static-footer/index.html">http://127.0.0.1:3000/examples/menu-static-footer/</a>
+      (запустите CMS-сервер, например <code>npm start</code>).
+      Прямой <code>file://</code> может не работать.
+    </p>
+
+    <h2>Первая серия (01–10)</h2>
+    <div class="grid">
+      <article class="card"><h3>01 · Как сейчас</h3><p>Текущий production: chevron, длинный заголовок.</p><a href="01-current/index.html">Открыть</a></article>
+      <article class="card"><h3>02 · Короткая pill</h3><p>Компактная капсула с иконкой.</p><a href="02-pill/index.html">Открыть</a></article>
+      <article class="card"><h3>03 · Сегменты</h3><p>«Система» и «Дополнительно» в одной полоске.</p><a href="03-segmented/index.html">Открыть</a></article>
+      <article class="card"><h3>04 · Handle-bar</h3><p>Нижняя «ручка» drawer.</p><a href="04-handle-bar/index.html">Открыть</a></article>
+      <article class="card"><h3>05 · Иконки секций</h3><p>Эмодзи-превью секций в заголовке.</p><a href="05-icon-row/index.html">Открыть</a></article>
+      <article class="card"><h3>06 · Ghost-link</h3><p>Только текст-ссылка без рамки.</p><a href="06-ghost-link/index.html">Открыть</a></article>
+      <article class="card"><h3>07 · Чипы-превью</h3><p>Свёрнуто видны мини-чипы секций.</p><a href="07-chip-preview/index.html">Открыть</a></article>
+      <article class="card"><h3>08 · Accent band</h3><p>Фиолетовая полоса — как в production.</p><a href="08-accent-band/index.html">Открыть</a></article>
+      <article class="card"><h3>09 · Статус-точки</h3><p>Цветные точки статуса по секциям.</p><a href="09-status-dots/index.html">Открыть</a></article>
+      <article class="card"><h3>10 · Компакт + счётчик</h3><p>Короткое название и badge «3».</p><a href="10-compact-badge/index.html">Открыть</a></article>
+    </div>
+
+    <h2>Новая серия (11–20)</h2>
+    <div class="grid">
+      <article class="card is-new"><h3>11 · Rail list</h3><p>Цветная полоса слева, плоский список без рамок.</p><a href="11-rail-list/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>12 · Soft cards</h3><p>Карточки с тенью на лавандовом фоне.</p><a href="12-soft-cards/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>13 · Compact rows</h3><p>Одна строка на секцию, chevron справа (iOS-style).</p><a href="13-compact-rows/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>14 · Grouped</h3><p>Группы «Инфраструктура» и «Интеграции».</p><a href="14-grouped/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>15 · Icon grid</h3><p>Сетка 2×N с крупными иконками.</p><a href="15-icon-grid/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>16 · Dark console</h3><p>Тёмная зона в стиле IDE / терминала.</p><a href="16-dark-console/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>17 · Floating sheet</h3><p>«Лист» с закруглением и тенью снизу.</p><a href="17-floating-sheet/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>18 · Numbered</h3><p>Нумерация 01–05 для порядка секций.</p><a href="18-numbered/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>19 · Inline chips</h3><p>Все секции — чипы в одном потоке.</p><a href="19-inline-chips/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>20 · Unified stack</h3><p>Единый стек: секции + среда + статистика.</p><a href="20-unified-stack/index.html">Открыть</a></article>
+    </div>
+
+    <h2>Дерево (21–30)</h2>
+    <div class="grid">
+      <article class="card is-new"><h3>21 · Tree classic</h3><p>Windows-дерево с треугольниками ▶ ▾.</p><a href="21-tree-classic/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>22 · Tree guides</h3><p>Вертикальные линии-направляющие (Obsidian / VS Code).</p><a href="22-tree-guides/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>23 · Tree Finder</h3><p>macOS Finder: disclosure + иконки папок.</p><a href="23-tree-finder/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>24 · Tree dotted</h3><p>ASCII-ветки ├─ └─ в моноширинном стиле.</p><a href="24-tree-dotted/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>25 · Tree compact</h3><p>Плотное дерево — минимум высоты.</p><a href="25-tree-compact/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>26 · Tree levels</h3><p>Цвет фона и полоса по уровню вложенности.</p><a href="26-tree-levels/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>27 · Tree status</h3><p>Дерево со статус-точками у секций.</p><a href="27-tree-status/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>28 · Tree outline</h3><p>Нумерованное оглавление с пунктиром.</p><a href="28-tree-outline/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>29 · Tree dark</h3><p>Тёмное дерево в стиле IDE.</p><a href="29-tree-dark/index.html">Открыть</a></article>
+      <article class="card is-new"><h3>30 · Tree animated</h3><p>Плавное раскрытие веток + активный узел.</p><a href="30-tree-animated/index.html">Открыть</a></article>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+id: awn.page.base
+name: База страницы
+kind: base
+domain: pages
+status: active
+extends: awn.base
+description: Узел дерева (ws / section / area / topic) — навигация и runtime
+mixins:
+  - awn.mixin.indexing-container
+
+form:
+  panel-title: "{A2!} Свойства страницы"
+
+fields:
+  awn-main:
+    type: awn.field.boolean
+    title: "{A2!} На главной"
+    description: Показывать в карусели на главной странице
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 1
+
+  awn-focus:
+    type: awn.field.boolean
+    title: "{A2!} В фокусе"
+    description: Показывать в быстром навигаторе workspace
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 2
+
+  awn-slots-flexible:
+    type: awn.field.boolean
+    title: "{A2!} Гибкий слот (Flexible)"
+    description: >
+      Общий гибкий слот: многофайловая память — произвольная структура
+      в awn-storage/ (без main, inbox, media…)
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 3

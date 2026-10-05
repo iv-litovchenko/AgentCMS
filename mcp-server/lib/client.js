@@ -1,4 +1,38 @@
+import { getActiveAgentIdFromContext } from "./agent-scope.js";
+import { compactMcpResponse } from "./compact-mcp-response.js";
+
 const DEFAULT_BASE_URL = "http://localhost:3000";
+
+function isLocalCmsHost(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  return host === "127.0.0.1" || host === "localhost" || host === "::1" || host.endsWith(".local");
+}
+
+function shouldUseInsecureTls(urlString) {
+  const flag = String(process.env.AGENT_CMS_TLS_INSECURE || "").trim();
+  if (flag === "1" || flag.toLowerCase() === "true") return true;
+  if (flag === "0" || flag.toLowerCase() === "false") return false;
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "https:" && isLocalCmsHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function cmsFetch(url, init = {}) {
+  if (!shouldUseInsecureTls(String(url))) {
+    return fetch(url, init);
+  }
+  const previous = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  try {
+    return await fetch(url, init);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = previous;
+  }
+}
 
 export function getConfig() {
   const baseUrl = (
@@ -17,24 +51,33 @@ export class AgentCmsClient {
     this.defaultAgent = options.agent ?? cfg.defaultAgent;
   }
 
-  buildUrl(path, query = {}, { agentScope = true } = {}) {
+  buildUrl(path, query = {}, { agentScope = true, agentId } = {}) {
     const url = new URL(path, this.baseUrl);
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== null && value !== "") {
         url.searchParams.set(key, String(value));
       }
     }
-    if (agentScope && this.defaultAgent) {
-      url.searchParams.set("agent", this.defaultAgent);
+    if (agentScope) {
+      const scopedAgent =
+        String(agentId || "").trim() ||
+        getActiveAgentIdFromContext() ||
+        String(this.defaultAgent || "").trim();
+      if (scopedAgent) {
+        url.searchParams.set("agent", scopedAgent);
+      }
     }
     return url;
   }
 
-  async request(method, path, { query, body, agentScope = true } = {}) {
-    const url = this.buildUrl(path, query, { agentScope });
+  async request(method, path, { query, body, agentScope = true, agentId } = {}) {
+    const url = this.buildUrl(path, query, { agentScope, agentId });
     const init = {
       method,
-      headers: { Accept: "application/json" }
+      headers: {
+        Accept: "application/json",
+        "X-Activity-Source": "mcp"
+      }
     };
     if (body !== undefined) {
       init.headers["Content-Type"] = "application/json";
@@ -43,10 +86,10 @@ export class AgentCmsClient {
 
     let response;
     try {
-      response = await fetch(url, init);
+      response = await cmsFetch(url, init);
     } catch (error) {
       throw new Error(
-        `Cannot reach Agent CMS at ${this.baseUrl}. Run "npm start" in the project root. (${error.message})`
+        `Cannot reach Agent CMS at ${this.baseUrl}. Run "npm run start:https" or "npm start" in the project root. (${error.message})`
       );
     }
 
@@ -73,6 +116,14 @@ export class AgentCmsClient {
     return this.request("POST", path, { body, ...opts });
   }
 
+  put(path, body, opts) {
+    return this.request("PUT", path, { body, ...opts });
+  }
+
+  patch(path, body, opts) {
+    return this.request("PATCH", path, { body, ...opts });
+  }
+
   delete(path, query, opts) {
     return this.request("DELETE", path, { query, ...opts });
   }
@@ -82,5 +133,5 @@ export class AgentCmsClient {
 export const YamlCmsClient = AgentCmsClient;
 
 export function jsonText(data) {
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(compactMcpResponse(data), null, 2);
 }

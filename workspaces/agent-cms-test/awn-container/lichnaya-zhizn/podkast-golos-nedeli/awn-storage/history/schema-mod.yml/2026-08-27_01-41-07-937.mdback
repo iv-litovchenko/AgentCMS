@@ -1,0 +1,14 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      podcast_platforms:
+        type: awn.field.choice.many
+      release_day:
+        type: awn.field.choice.one
+      target_episode_length:
+        type: awn.field.duration
+      contact_email:
+        type: awn.field.string.email

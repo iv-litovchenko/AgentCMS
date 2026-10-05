@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02 · Полоса над Voice iframe</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <header class="demo-top">
+    <div>
+      <h1>02 · Верх панели Agent CMS Voice</h1>
+      <p>
+        Класс <code>.discuss-agent-preview-wrap</code> над <code>#discuss-shell-iframe</code>:
+        cover 120px, <code>object-position: center 28%</code>.
+      </p>
+    </div>
+    <nav><a href="../index.html">← Все варианты</a></nav>
+  </header>
+  <div class="demo-stage">
+    <div class="app-mock" style="width: min(720px, 100%); height: 400px;">
+      <div class="main-mock" style="flex:1">Контент Editor</div>
+      <aside class="discuss-mock" id="discuss-aside">
+        <div class="agent-preview-wrap agent-preview-wrap--discuss is-target discuss-agent-preview-wrap">
+          <div class="agent-preview-frame">
+            <img class="agent-preview-thumb" src="../_agent-thumb.svg" alt="" />
+            <span class="agent-preview-label">discuss strip</span>
+          </div>
+        </div>
+        <div class="discuss-shell">
+          <div class="voice-chrome"><strong>Agent CMS Voice</strong> iframe</div>
+          <div class="voice-hero" style="opacity:0.85">
+            <div class="voice-cloud"></div>
+            <span class="voice-status">Ожидаю</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

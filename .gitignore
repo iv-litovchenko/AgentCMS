@@ -12,15 +12,15 @@ out/
 *.snap
 
 # Environment & secrets
-.env
 .env.local
 .env.*.local
+.dev-certs/
 
 # macOS
+/Agent CMS Control.app
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon?
 ._*
 
 # Windows
@@ -32,8 +32,19 @@ Desktop.ini
 .idea/
 .vscode/
 
+# Workspace media cloud blobs (symlinks + registry stay in git)
+**/awn-media-cloud/_blobs/**
+**/awn-google-drive/gd_*
+
 # Cache & temp
 .cache/
+# Workspace runtime
+**/.agent-cms/cache/
+**/.agent-cms/state/
+.agent-cms-global/app-lock-passkey.json
+.agent-cms-global/fingerprint-scanner.sqlite*
+.agent-cms-global/server-runtime.json
+.run/
 tmp/
 temp/
 *.tmp

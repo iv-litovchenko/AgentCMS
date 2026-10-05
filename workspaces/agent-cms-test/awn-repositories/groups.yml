@@ -1,0 +1,21 @@
+# Группы sidebar для awn-repositories (без физических подпапок)
+groups:
+  - id: new
+    title: "Новый"
+  - id: active
+    title: "Активный"
+  - id: study
+    title: "Изучение"
+  - id: vendored
+    title: "Вендор"
+  - id: archived
+    title: "Архив"
+  - id: cms
+    title: "CMS и платформа"
+  - id: clients
+    title: "Клиентские сайты"
+assignments:
+  4444: new
+  9999: study
+  g8787777: study
+  schema-test-1790343174710: study

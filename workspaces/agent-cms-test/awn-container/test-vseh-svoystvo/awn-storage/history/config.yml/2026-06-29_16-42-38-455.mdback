@@ -1,0 +1,115 @@
+links.markdown_compatible: true
+
+awn_schema:
+  topic:
+    fields:
+      demo_string:
+        type: awn.string
+        name: Строка
+        hint: Короткая однострочная строка
+      demo_text:
+        type: awn.text
+        name: Текст
+        description: Многострочное описание
+      demo_integer:
+        type: awn.integer
+        name: Целое
+      demo_number:
+        type: awn.number
+        name: Дробное
+      demo_boolean:
+        type: awn.boolean
+        name: Логическое
+      demo_null:
+        type: awn.null
+        name: Пустое (null)
+      demo_array:
+        type: awn.array-checkbox
+        name: Массив (checkbox)
+        items: awn.string
+        enum:
+          - key: alpha
+            name: Alpha
+          - key: beta
+            name: Beta
+      demo_enum:
+        type: awn.enum-select
+        name: Перечисление (select)
+        enum:
+          - key: open
+            name: Открыта
+          - key: in_progress
+            name: В работе
+          - key: done
+            name: Готово
+      demo_link:
+        type: awn.link
+        name: Связь
+        hint: Wikilink на другую запись
+      demo_date:
+        type: awn.date
+        name: Дата
+      demo_datetime:
+        type: awn.datetime
+        name: Дата и время
+      demo_url:
+        type: awn.url
+        name: URL
+      demo_color:
+        type: awn.color
+        name: Цвет
+  record:
+    fields:
+      rec_string:
+        type: awn.string
+        name: Строка
+      rec_text:
+        type: awn.text
+        name: Текст
+      rec_integer:
+        type: awn.integer
+        name: Целое
+      rec_number:
+        type: awn.number
+        name: Дробное
+      rec_boolean:
+        type: awn.boolean
+        name: Логическое
+      rec_null:
+        type: awn.null
+        name: Пустое (null)
+      rec_array:
+        type: awn.array-select-multiple
+        name: Массив (select multiple)
+        items: awn.string
+        enum:
+          - key: draft
+            name: Черновик
+          - key: review
+            name: Проверка
+          - key: published
+            name: Опубликовано
+      rec_enum:
+        type: awn.enum-radio
+        name: Перечисление (radio)
+        enum:
+          - key: draft
+            name: Черновик
+          - key: review
+            name: Проверка
+          - key: published
+            name: Опубликовано
+      rec_link:
+        type: awn.link
+        name: Связь
+      rec_file:
+        type: awn.file
+        name: Файл
+        hint: Content/… или Assets/…
+        scope: all
+      rec_date:
+        type: awn.date
+        name: Дата
+      rec_datetime:
+        type: awn.datetime
+        name: Дата и время

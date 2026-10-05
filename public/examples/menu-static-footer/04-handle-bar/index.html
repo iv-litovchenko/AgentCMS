@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>04 — Handle bar</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v04-panel {
+        border-top: 1px solid #cbd5e1;
+        background: linear-gradient(180deg, #f8fafc, #fff);
+      }
+      .v04-toggle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        padding: 8px 12px 6px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+      .v04-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 999px;
+        background: #94a3b8;
+      }
+      .v04-label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #475569; }
+      .footer-panel.is-collapsed .v04-body-hint { display: none; }
+      .v04-body-hint { font-size: 9px; color: #94a3b8; text-align: center; padding-bottom: 4px; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>04 · Handle-bar</h1><p>Drawer-ручка снизу</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel v04-panel">
+            <button type="button" class="v04-toggle" data-footer-toggle aria-expanded="true">
+              <span class="v04-handle" aria-hidden="true"></span>
+              <span class="v04-label" data-footer-action>Свернуть доп. секции</span>
+            </button>
+            <p class="v04-body-hint">Накопители · Диалоги · Среда</p>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">Runtime</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Зависимости</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+    <script>
+      document.querySelector("[data-footer-toggle]")?.addEventListener("click", function () {
+        const open = this.getAttribute("aria-expanded") === "true";
+        this.querySelector("[data-footer-action]").textContent = open ? "Свернуть доп. секции" : "Потяните — показать секции";
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>16 — Dark console</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .sidebar-mock-bottom { background:#0f172a; border-top-color:#1e293b; }
+      .v16-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:#1e293b;color:#e2e8f0;cursor:pointer;font:inherit;font-size:10px;font-weight:700;font-family:ui-monospace,monospace; }
+      .v16-body { padding:8px 10px 10px;background:#0f172a;gap:4px; }
+      .v16-line { padding:6px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:10px;color:#94a3b8;border-left:2px solid #334155; }
+      .v16-line b { color:#a5b4fc;font-weight:600; }
+      .v16-line:hover { background:#1e293b;border-left-color:#818cf8; }
+      .mock-env-band { background:linear-gradient(135deg,#312e81,#4338ca); }
+      .mock-stats-band { background:#334155; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>16 · Dark console</h1><p>Тёмная нижняя зона в стиле IDE / терминала</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v16-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#94a3b8"></span> # system-sections</button>
+            <div class="footer-body v16-body">
+              <div class="v16-line"><b>storage</b> · накопители / domains</div>
+              <div class="v16-line"><b>repos</b> · awn-repositories</div>
+              <div class="v16-line"><b>settings</b> · static params</div>
+              <div class="v16-line"><b>sync</b> · server sync</div>
+              <div class="v16-line"><b>gdrive</b> · export files</div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

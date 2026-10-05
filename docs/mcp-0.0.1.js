@@ -1,15 +1,15 @@
 module.exports = {
   version: "0.0.1",
-  versionLabel: "Актуальная",
+  versionLabel: "Предыдущая",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/",
   packagePath: "mcp-server/",
   generatedAt: "2026-06-04",
   notes: [
-    "Актуальная справка по mcp-server/index.js. В UI: select «0.0.1 — актуальная».",
+    "Актуальная справка по mcp-server/index.js (снимок 0.0.1). В UI: select «0.0.1 — предыдущая».",
     "Обёртка над HTTP API. Перед запуском MCP: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.1 (по умолчанию). 0.0.0 — предыдущий снимок.",
-    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _.x.md; file → _Content/ / _Assets/.",
+    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _registration.md; file → content/ / media/.",
     "25 tools — полный список ниже."
   ],
   cursorConfig: {
@@ -39,7 +39,7 @@ module.exports = {
       tools: [
         {
           name: "list_agents",
-          description: "Список агентов из acms.agents.json.",
+          description: "Список агентов из awn-agents.json.",
           parameters: "—",
           http: "GET /api/agents"
         }
@@ -51,7 +51,7 @@ module.exports = {
       tools: [
         {
           name: "get_menu",
-          description: "Дерево нод workspace (_.x.md).",
+          description: "Дерево нод workspace (_registration.md).",
           parameters: "—",
           http: "GET /api/menu"
         },
@@ -69,19 +69,19 @@ module.exports = {
       tools: [
         {
           name: "read_node_description",
-          description: "Прочитать _.x.md.",
+          description: "Прочитать _registration.md.",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
           name: "write_node_description",
-          description: "Сохранить _.x.md.",
+          description: "Сохранить _registration.md.",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
         {
           name: "read_node_properties",
-          description: "Frontmatter из _.x.md.",
+          description: "Frontmatter из _registration.md.",
           parameters: "path",
           http: "GET /api/file/properties"
         },
@@ -111,7 +111,7 @@ module.exports = {
       tools: [
         {
           name: "read_internal_memory",
-          description: "Однофайловая память (_.x.content.md).",
+          description: "Однофайловая память (_.x.main.md).",
           parameters: "path",
           http: "GET /api/memory/internal"
         },
@@ -149,7 +149,7 @@ module.exports = {
     },
     {
       id: "storage",
-      title: "Настройки _Storage",
+      title: "Настройки awn-storage",
       tools: [
         {
           name: "read_todo",
@@ -165,13 +165,13 @@ module.exports = {
         },
         {
           name: "read_configuration",
-          description: "Configuration.md.",
+          description: "configuration.yml.",
           parameters: "path",
           http: "GET /api/configuration"
         },
         {
           name: "write_configuration",
-          description: "Сохранить Configuration.md.",
+          description: "Сохранить configuration.yml.",
           parameters: "path, content",
           http: "POST /api/configuration"
         },
@@ -201,7 +201,7 @@ module.exports = {
       tools: [
         {
           name: "list_media",
-          description: "Файлы _Assets.",
+          description: "Файлы media/.",
           parameters: "path",
           http: "GET /api/media"
         },

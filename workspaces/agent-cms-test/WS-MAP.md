@@ -1,0 +1,856 @@
+# Карта workspace (WS-MAP)
+
+Собрано: 2026-10-03T19:54:06.937Z
+Файлов index: 11
+
+Автогенерация из всех `index.md` / `INDEX.md` в workspace. Пересборка: ⟲ в sidebar, «Карта» в индексировании или шаг pipeline.
+
+## Оглавление
+
+- [`aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/index.md`](#aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/index.md)
+- [`awn-container/finansy/index.md`](#awn-container/finansy/index.md)
+- [`awn-container/html-i-css-2/index.md`](#awn-container/html-i-css-2/index.md)
+- [`awn-container/lichnaya-zhizn/podkast-golos-nedeli/index.md`](#awn-container/lichnaya-zhizn/podkast-golos-nedeli/index.md)
+- [`awn-container/php/awn-storage/index.md`](#awn-container/php/awn-storage/index.md)
+- [`awn-container/php/index.md`](#awn-container/php/index.md)
+- [`awn-container/tema-bez-slotov/index.md`](#awn-container/tema-bez-slotov/index.md)
+- [`awn-container/test-1000-soobscheniy/index.md`](#awn-container/test-1000-soobscheniy/index.md)
+- [`awn-container/tevt-diagramm/index.md`](#awn-container/tevt-diagramm/index.md)
+- [`awn-shared/downloads/index.md`](#awn-shared/downloads/index.md)
+- [`INDEX.md`](#index.md)
+
+---
+
+<a id="aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/index.md"></a>
+
+## `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/index.md`
+
+# Оглавление темы
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `artefacts/razdel-1` | Раздел 1 | — |
+| `artefacts/razdel-1/artefakt-1-1.html` | artefakt-1-1.html | — |
+| `artefacts/razdel-1/manifest.md` | Раздел 1 | — |
+| `assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808203048.png` | 47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808203048.png | — |
+| `assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808203048.sidecar.md` | 47ee4862-2d97-44dd-b7e4-81ad60349fd1.png | — |
+| `assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808215005.png` | 47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808215005.png | — |
+| `assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808215005.sidecar.md` | 47ee4862-2d97-44dd-b7e4-81ad60349fd1.png | — |
+| `assets/pasted/dalnobojschik-2-oblozhka.jpg` | dalnobojschik-2-oblozhka.jpg | — |
+| `assets/pasted/kamaz-54115.jpg` | kamaz-54115.jpg | — |
+| `inbox/razdel-1` | Раздел 1 | — |
+| `inbox/razdel-1/fail-1-1.md` | Файл 1.1 | — |
+| `inbox/razdel-1/manifest.md` | Раздел 1 | — |
+| `inbox/razdel-2` | Раздел 2 | — |
+| `inbox/razdel-2/fail-2-1.md` | Файл 2.1 | — |
+| `inbox/razdel-2/fail-2-2.md` | Файл 2.2 | — |
+| `inbox/razdel-2/manifest.md` | Раздел 2 | — |
+| `main/config.yml` | config.yml | — |
+| `main/razdel-1` | Раздел 1 | — |
+| `main/razdel-1/123.md` | 123 | — |
+| `main/razdel-1/awn-materials-igra-dalnoboyschik-2` | Доп. материалы — igra-dalnoboyschik-2 | Доп. материалы записи razdel-1/igra-dalnoboyschik-2.md |
+| `main/razdel-1/awn-materials-igra-dalnoboyschik-2/Снимок экрана 2026-08-02 в 02.44.09.png` | Снимок экрана 2026-08-02 в 02.44.09.png | Доп. материалы записи razdel-1/igra-dalnoboyschik-2.md |
+| `main/razdel-1/fail-1-1.md` | Файл 1.1 | — |
+| `main/razdel-1/igra-dalnoboyschik-2.md` | игра дальнобойщик 2 | Культовый российский автосимулятор дальнобойщика (SoftLab-NSK, 2001): открытый мир, экономика, милиция и мафия. Западное название — Hard Truck 2 / King of the Road. |
+| `main/razdel-1/manifest.md` | Раздел 1 | — |
+| `main/razdel-2` | Раздел 2 | — |
+| `main/razdel-2/fail-2-1.md` | Файл 2.1 | — |
+| `main/razdel-2/fail-2-2.md` | Файл 2.2 | — |
+| `main/razdel-2/manifest.md` | Раздел 2 | — |
+| `media/prostaya-kartinka.png` | prostaya-kartinka.png | — |
+| `notes/razdel-1` | Раздел 1 | — |
+| `notes/razdel-1/fail-1-1.md` | Файл 1.1 | — |
+| `notes/razdel-1/manifest.md` | Раздел 1 | — |
+| `notes/razdel-2` | Раздел 2 | — |
+| `notes/razdel-2/fail-2-1.md` | Файл 2.1 | — |
+| `notes/razdel-2/fail-2-2.md` | Файл 2.2 | — |
+| `notes/razdel-2/manifest.md` | Раздел 2 | — |
+| `references/razdel-1` | Раздел 1 | — |
+| `references/razdel-1/fail-1-1.md` | Файл 1.1 | — |
+| `references/razdel-1/manifest.md` | Раздел 1 | — |
+| `references/razdel-2` | Раздел 2 | — |
+| `references/razdel-2/fail-2-1.md` | Файл 2.1 | — |
+| `references/razdel-2/fail-2-2.md` | Файл 2.2 | — |
+| `references/razdel-2/manifest.md` | Раздел 2 | — |
+| `scripts/razdel-1` | Раздел 1 | — |
+| `scripts/razdel-1/manifest.md` | Раздел 1 | — |
+| `scripts/razdel-1/skript-1-1.py` | skript-1-1.py | — |
+
+---
+
+<a id="awn-container/finansy/index.md"></a>
+
+## `awn-container/finansy/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| — | Память (многофайловая) | awn.content.category | `main/dohody` | [Доходы](awn-container/finansy/awn-storage/main/dohody) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/dohody/frilans-proekt-verstka-sayta.md` | [Фриланс-проект — верстка сайта](awn-container/finansy/awn-storage/main/dohody/frilans-proekt-verstka-sayta.md) | — | 873 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/dohody/kvartalnaya-premiya.md` | [Квартальная премия](awn-container/finansy/awn-storage/main/dohody/kvartalnaya-premiya.md) | — | 933 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.category | `main/dohody/manifest.md` | [Доходы](awn-container/finansy/awn-storage/main/dohody/manifest.md) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/dohody/zarplata-avgust-2026.md` | [Зарплата — август 2026](awn-container/finansy/awn-storage/main/dohody/zarplata-avgust-2026.md) | — | 858 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.category | `main/rashody` | [Расходы](awn-container/finansy/awn-storage/main/rashody) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/rashody/arenda-kvartiry-avgust.md` | [Аренда квартиры — август](awn-container/finansy/awn-storage/main/rashody/arenda-kvartiry-avgust.md) | — | 848 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.category | `main/rashody/manifest.md` | [Расходы](awn-container/finansy/awn-storage/main/rashody/manifest.md) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/rashody/mobilnaya-svyaz-i-internet.md` | [Мобильная связь и интернет](awn-container/finansy/awn-storage/main/rashody/mobilnaya-svyaz-i-internet.md) | — | 859 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/rashody/produkty-supermarket.md` | [Продукты — супермаркет](awn-container/finansy/awn-storage/main/rashody/produkty-supermarket.md) | — | 850 B | 34 | 0 | 0 |
+| 10 | Память (многофайловая) | awn.content.record | `main/test.md` | [Тест](awn-container/finansy/awn-storage/main/test.md) | 1 | 881 B | 42 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.category | `main/tseli-po-nakopleniyam` | [Цели по накоплениям](awn-container/finansy/awn-storage/main/tseli-po-nakopleniyam) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.category | `main/tseli-po-nakopleniyam/manifest.md` | [Цели по накоплениям](awn-container/finansy/awn-storage/main/tseli-po-nakopleniyam/manifest.md) | — | — | — | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/tseli-po-nakopleniyam/podushka-bezopasnosti.md` | [Подушка безопасности](awn-container/finansy/awn-storage/main/tseli-po-nakopleniyam/podushka-bezopasnosti.md) | — | 905 B | 34 | 0 | 0 |
+| — | Память (многофайловая) | awn.content.record | `main/tseli-po-nakopleniyam/puteshestvie-v-yaponiyu.md` | [Путешествие в Японию](awn-container/finansy/awn-storage/main/tseli-po-nakopleniyam/puteshestvie-v-yaponiyu.md) | — | 869 B | 34 | 0 | 0 |
+| — | Медиа | файл | `media/finansovaya-illyustratsiya-kopilka-i-rost.svg` | [finansovaya-illyustratsiya-kopilka-i-rost.svg](awn-container/finansy/awn-storage/media/finansovaya-illyustratsiya-kopilka-i-rost.svg) | — | 2.1 KB | — | 0 | 0 |
+| — | Заметки | awn.content.record | `notes/byudzhet-avgust-2026.md` | [Бюджет — август 2026](awn-container/finansy/awn-storage/notes/byudzhet-avgust-2026.md) | — | 1.3 KB | 46 | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/finansy/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/finansy/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/finansy/todo.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="awn-container/html-i-css-2/index.md"></a>
+
+## `awn-container/html-i-css-2/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| — | Память (многофайловая) | папка | `main/Папка-3` | [Папка-3](awn-container/html-i-css-2/awn-storage/main/%D0%9F%D0%B0%D0%BF%D0%BA%D0%B0-3) | — | — | — | 0 | 0 |
+| 8 | Память (многофайловая) | awn.content.record | `main/osnovy-css.md` | [Основы CSS](awn-container/html-i-css-2/awn-storage/main/osnovy-css.md) | — | 1.3 KB | 61 | 0 | 0 |
+| 2 | Память (многофайловая) | awn.content.record | `main/osnovy-html.md` | [Основы HTML](awn-container/html-i-css-2/awn-storage/main/osnovy-html.md) | Тест 23 | 1.4 KB | 63 | 0 | 0 |
+| 1 | Память (многофайловая) | awn.content.category | `main/papka-12` | [Папка-12](awn-container/html-i-css-2/awn-storage/main/papka-12) | — | — | — | 0 | 0 |
+| 1 | Память (многофайловая) | awn.content.category | `main/papka-12/manifest.md` | [Папка-12](awn-container/html-i-css-2/awn-storage/main/papka-12/manifest.md) | — | — | — | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/html-i-css-2/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/html-i-css-2/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/html-i-css-2/todo.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для вас по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="awn-container/lichnaya-zhizn/podkast-golos-nedeli/index.md"></a>
+
+## `awn-container/lichnaya-zhizn/podkast-golos-nedeli/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| Тип | Путь | Название | Описание |
+| --- | --- | --- | --- |
+| awn.content.record | `artefacts/chernovik-stsenariya-epizod-3.md` | [Черновик сценария — Эпизод 3](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/artefacts/chernovik-stsenariya-epizod-3.md) | — |
+| awn.content.record | `assets/idei-buduschih-epizodov-spisok.md` | [Идеи будущих эпизодов — список](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/assets/idei-buduschih-epizodov-spisok.md) | — |
+| awn.content.record | `base/bazovaya-spravka-o-podkaste.md` | [Базовая справка о подкасте](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/base/bazovaya-spravka-o-podkaste.md) | — |
+| awn.content.record | `inbox/ideya-epizod-pro-tsifrovoy-minimalizm.md` | [Идея — эпизод про цифровой минимализм](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/inbox/ideya-epizod-pro-tsifrovoy-minimalizm.md) | — |
+| awn.content.category | `main/epizody` | [Эпизоды](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody) | — |
+| awn.content.record | `main/epizody/epizod-1-pochemu-podkast.md` | [Эпизод 1 — Почему подкаст](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody/epizod-1-pochemu-podkast.md) | — |
+| awn.content.record | `main/epizody/epizod-2-kak-ya-chitayu-knigi.md` | [Эпизод 2 — Как я читаю книги](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody/epizod-2-kak-ya-chitayu-knigi.md) | — |
+| awn.content.category | `main/epizody/manifest.md` | [Эпизоды](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody/manifest.md) | — |
+| awn.content.category | `main/gosti` | [Гости](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/gosti) | — |
+| awn.content.record | `main/gosti/gost-artyom-razrabotchik.md` | [Гость — Артём, разработчик](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/gosti/gost-artyom-razrabotchik.md) | — |
+| awn.content.category | `main/gosti/manifest.md` | [Гости](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/gosti/manifest.md) | — |
+| файл | `media/cover-podkasta.svg` | [cover-podkasta.svg](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/media/cover-podkasta.svg) | — |
+| awn.content.record | `notebooklm/konspekt-epizodov-1-2-dlya-notebooklm.md` | [Конспект эпизодов 1-2 для NotebookLM](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/notebooklm/konspekt-epizodov-1-2-dlya-notebooklm.md) | — |
+| awn.content.record | `notes/oborudovanie-dlya-zapisi.md` | [Оборудование для записи](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/notes/oborudovanie-dlya-zapisi.md) | — |
+| awn.content.record | `references/istochniki-vdohnoveniya-i-gaydy.md` | [Источники вдохновения и гайды](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/references/istochniki-vdohnoveniya-i-gaydy.md) | — |
+| файл | `repository/konfig-podkasta.json` | [konfig-podkasta.json](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/repository/konfig-podkasta.json) | — |
+| файл | `scripts/pereimenovanie-audiofaylov-epizodov.py` | [pereimenovanie-audiofaylov-epizodov.py](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/scripts/pereimenovanie-audiofaylov-epizodov.py) | — |
+| awn.content.record | `templates/shablon-struktury-epizoda.md` | [Шаблон структуры эпизода](awn-container/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/templates/shablon-struktury-epizoda.md) | — |
+
+### Однофайловая память
+
+| Слот | Файл | Статус |
+| --- | --- | --- |
+| Память (однофайловая) | [main.md](awn-container/lichnaya-zhizn/podkast-golos-nedeli/main.md) | заполнено |
+| Память (табличная) | [main.csv](awn-container/lichnaya-zhizn/podkast-golos-nedeli/main.csv) | заполнено |
+| TODO | [todo.md](awn-container/lichnaya-zhizn/podkast-golos-nedeli/todo.md) | заполнено |
+| Лог | [log.md](awn-container/lichnaya-zhizn/podkast-golos-nedeli/log.md) | заполнено |
+
+---
+
+<a id="awn-container/php/awn-storage/index.md"></a>
+
+## `awn-container/php/awn-storage/index.md`
+
+# Оглавление темы
+
+_Общий индекс темы: `awn-container/php/awn-storage/index.md`_
+
+> Сгенерировано автоматически из содержимого слотов.
+
+## memory
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 47
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `Безопасность/CSRF.md` | CSRF | — |
+| `Безопасность/SQL Injection.md` | SQL Injection | — |
+| `Безопасность/XSS.md` | XSS | — |
+| `Веб/Роутинг.md` | Роутинг | — |
+| `Веб/Сессии и cookies.md` | Сессии и cookies | — |
+| `Веб/HTTP и формы.md` | HTTP и формы | — |
+| `Объекты.md` | Объекты | — |
+| `Синтаксис` | manifest | — |
+| `Синтаксис/Массивы.md` | Массивы | — |
+| `Синтаксис/Переменные.md` | Переменные | — |
+| `Синтаксис/Строки.md` | Строки | — |
+| `Синтаксис/Управление потоком.md` | PHP | — |
+| `Синтаксис/Функции.md` | Функции | — |
+| `Синтаксис/manifest.md` | Синтаксис | — |
+| `Тестирование/PHPUnit основы.md` | PHPUnit основы | — |
+| `Типы данных.md` | Типы данных | — |
+| `Фреймворки` | Фреймворки | — |
+| `Фреймворки/laravel-obzor.md` | Laravel обзор | — |
+| `Фреймворки/manifest.md` | Фреймворки | — |
+| `Фреймворки/symfony-obzor.md` | Symfony обзор | — |
+| `baza-dannyh` | База данных | — |
+| `baza-dannyh/Транзакции.md` | Транзакции | — |
+| `baza-dannyh/manifest.md` | База данных | — |
+| `baza-dannyh/migratsii.md` | Миграции | — |
+| `baza-dannyh/PDO.md` | PDO | — |
+| `Composer/osnovy.md` | osnovy | — |
+| `oop` | ООП | — |
+| `oop/Интерфейсы.md` | Интерфейсы | — |
+| `oop/Классы.md` | Классы | — |
+| `oop/Enums.md` | Enums | — |
+| `oop/manifest.md` | ООП | — |
+| `oop/Namespaces.md` | Namespaces | — |
+| `oop/Traits.md` | Traits | — |
+| `primery-koda` | Примеры кода | — |
+| `primery-koda/Пример-1.md` | Пример-1 | — |
+| `primery-koda/Пример-2-PDO.md` | Пример-2-PDO | — |
+| `primery-koda/Пример-3-REST.md` | Пример-3-REST | — |
+| `primery-koda/hello.php` | hello.php | — |
+| `primery-koda/manifest.md` | Примеры кода | — |
+| `primery-koda/PostRepository.php` | PostRepository.php | — |
+| `README.md` | README | — |
+| `sort.json` | sort.json | — |
+| `standartnaya-biblioteka` | Стандартная библиотека | — |
+| `standartnaya-biblioteka/Дата и время.md` | Дата и время | — |
+| `standartnaya-biblioteka/Файлы.md` | Файлы | — |
+| `standartnaya-biblioteka/JSON.md` | JSON | — |
+| `standartnaya-biblioteka/manifest.md` | Стандартная библиотека | — |
+
+## main-single
+
+Индекс слота: `awn-container/php/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+## main-single-csv
+
+Индекс слота: `awn-container/php/index.md` · записей: 47
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `Безопасность/CSRF.md` | CSRF | — |
+| `Безопасность/SQL Injection.md` | SQL Injection | — |
+| `Безопасность/XSS.md` | XSS | — |
+| `Веб/Роутинг.md` | Роутинг | — |
+| `Веб/Сессии и cookies.md` | Сессии и cookies | — |
+| `Веб/HTTP и формы.md` | HTTP и формы | — |
+| `Объекты.md` | Объекты | — |
+| `Синтаксис` | manifest | — |
+| `Синтаксис/Массивы.md` | Массивы | — |
+| `Синтаксис/Переменные.md` | Переменные | — |
+| `Синтаксис/Строки.md` | Строки | — |
+| `Синтаксис/Управление потоком.md` | PHP | — |
+| `Синтаксис/Функции.md` | Функции | — |
+| `Синтаксис/manifest.md` | Синтаксис | — |
+| `Тестирование/PHPUnit основы.md` | PHPUnit основы | — |
+| `Типы данных.md` | Типы данных | — |
+| `Фреймворки` | Фреймворки | — |
+| `Фреймворки/laravel-obzor.md` | Laravel обзор | — |
+| `Фреймворки/manifest.md` | Фреймворки | — |
+| `Фреймворки/symfony-obzor.md` | Symfony обзор | — |
+| `baza-dannyh` | База данных | — |
+| `baza-dannyh/Транзакции.md` | Транзакции | — |
+| `baza-dannyh/manifest.md` | База данных | — |
+| `baza-dannyh/migratsii.md` | Миграции | — |
+| `baza-dannyh/PDO.md` | PDO | — |
+| `Composer/osnovy.md` | osnovy | — |
+| `oop` | ООП | — |
+| `oop/Интерфейсы.md` | Интерфейсы | — |
+| `oop/Классы.md` | Классы | — |
+| `oop/Enums.md` | Enums | — |
+| `oop/manifest.md` | ООП | — |
+| `oop/Namespaces.md` | Namespaces | — |
+| `oop/Traits.md` | Traits | — |
+| `primery-koda` | Примеры кода | — |
+| `primery-koda/Пример-1.md` | Пример-1 | — |
+| `primery-koda/Пример-2-PDO.md` | Пример-2-PDO | — |
+| `primery-koda/Пример-3-REST.md` | Пример-3-REST | — |
+| `primery-koda/hello.php` | hello.php | — |
+| `primery-koda/manifest.md` | Примеры кода | — |
+| `primery-koda/PostRepository.php` | PostRepository.php | — |
+| `README.md` | README | — |
+| `sort.json` | sort.json | — |
+| `standartnaya-biblioteka` | Стандартная библиотека | — |
+| `standartnaya-biblioteka/Дата и время.md` | Дата и время | — |
+| `standartnaya-biblioteka/Файлы.md` | Файлы | — |
+| `standartnaya-biblioteka/JSON.md` | JSON | — |
+| `standartnaya-biblioteka/manifest.md` | Стандартная библиотека | — |
+
+## inbox
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 6
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `вопрос-match-vs-switch.md` | вопрос-match-vs-switch | — |
+| `заметка-generators.md` | заметка-generators | — |
+| `vhodyaschee-2.md` | vhodyaschee-2 | — |
+| `vhodyaschee-3.md` | vhodyaschee-3 | — |
+| `vhodyaschee-4.md` | vhodyaschee-4 | — |
+| `vhodyaschee.md` | vhodyaschee | — |
+
+## notes
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+## references
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 3
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `laravel-docs.md` | laravel-docs | — |
+| `php-net-manual.md` | php-net-manual | — |
+| `psr-4-autoloading.md` | psr-4-autoloading | — |
+
+## artefacts
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 2
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `api-postman-collection.json` | api-postman-collection.json | — |
+| `exported-cheatsheet.html` | exported-cheatsheet.html | — |
+
+## assets
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 4
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `preview/20260611075941.png` | 20260611075941.png | — |
+| `preview/20260611075941.png.sidecar.md` | 20260611075941.png.sidecar | Скриншот редактора с примером PHP-кода для темы |
+| `preview/20260611075941.sidecar.md` | 20260611075941.sidecar | — |
+| `preview/20260624202540.png` | 20260624202540.png | — |
+
+## media
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+## repository
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+## scripts
+
+Индекс слота: `awn-container/php/awn-storage/main/index.md` · записей: 2
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `lint-examples.md` | lint-examples | — |
+| `lint-examples.sh` | lint-examples.sh | — |
+
+## todo-single
+
+Индекс слота: `awn-container/php/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+## log-single
+
+Индекс слота: `awn-container/php/index.md` · записей: 0
+
+_В слоте пока нет файлов для оглавления._
+
+---
+
+Каждый слот может иметь свой `index.md` в корне папки слота.
+
+---
+
+<a id="awn-container/php/index.md"></a>
+
+## `awn-container/php/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| — | — | Артефакты | файл | `artefacts/api-postman-collection.json` | [api-postman-collection.json](awn-container/php/awn-storage/artefacts/api-postman-collection.json) | — | 560 B | 27 | 0 | 0 |
+| — | — | Артефакты | файл | `artefacts/exported-cheatsheet.html` | [exported-cheatsheet.html](awn-container/php/awn-storage/artefacts/exported-cheatsheet.html) | — | 742 B | 23 | 0 | 0 |
+| — | — | Активы | папка | `assets/preview` | [preview](awn-container/php/awn-storage/assets/preview) | — | — | — | 0 | 0 |
+| — | — | Активы | файл | `assets/preview/20260611075941.png` | [20260611075941.png](awn-container/php/awn-storage/assets/preview/20260611075941.png) | — | 81 KB | — | 0 | 0 |
+| — | — | Активы | файл | `assets/preview/20260611075941.png.sidecar.md` | [20260611075941.png.sidecar](awn-container/php/awn-storage/assets/preview/20260611075941.png.sidecar.md) | Скриншот редактора с примером PHP-кода для темы | 472 B | 14 | 0 | 0 |
+| — | — | Активы | awn.content.sidecar | `assets/preview/20260611075941.sidecar.md` | [OCR: 20260611075941.png](awn-container/php/awn-storage/assets/preview/20260611075941.sidecar.md) | — | 314 B | 11 | 0 | 0 |
+| — | — | Активы | файл | `assets/preview/20260624202540.png` | [20260624202540.png](awn-container/php/awn-storage/assets/preview/20260624202540.png) | — | 39 KB | — | 0 | 0 |
+| — | — | Активы | awn.content.sidecar | `assets/preview/20260624202540.sidecar.md` | [OCR: 20260624202540.png](awn-container/php/awn-storage/assets/preview/20260624202540.sidecar.md) | — | 383 B | 22 | 0 | 0 |
+| — | 🟣 В работе | Входящие | файл | `inbox/вопрос-match-vs-switch.md` | [вопрос-match-vs-switch](awn-container/php/awn-storage/inbox/%D0%B2%D0%BE%D0%BF%D1%80%D0%BE%D1%81-match-vs-switch.md) | — | 449 B | 18 | 0 | 0 |
+| — | ✅ Готова | Входящие | файл | `inbox/заметка-generators.md` | [заметка-generators](awn-container/php/awn-storage/inbox/%D0%B7%D0%B0%D0%BC%D0%B5%D1%82%D0%BA%D0%B0-generators.md) | — | 658 B | 25 | 0 | 0 |
+| — | — | Входящие | папка | `inbox/Новая папка` | [Новая папка](awn-container/php/awn-storage/inbox/%D0%9D%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BF%D0%B0%D0%BF%D0%BA%D0%B0) | — | — | — | 0 | 0 |
+| — | 🔵 Новая | Входящие | файл | `inbox/vhodyaschee-2.md` | [vhodyaschee-2](awn-container/php/awn-storage/inbox/vhodyaschee-2.md) | — | 115 B | 8 | 0 | 0 |
+| — | 🔵 Новая | Входящие | файл | `inbox/vhodyaschee-3.md` | [vhodyaschee-3](awn-container/php/awn-storage/inbox/vhodyaschee-3.md) | — | 115 B | 8 | 0 | 0 |
+| — | 🔵 Новая | Входящие | файл | `inbox/vhodyaschee-4.md` | [vhodyaschee-4](awn-container/php/awn-storage/inbox/vhodyaschee-4.md) | — | 115 B | 8 | 0 | 0 |
+| — | 🔵 Новая | Входящие | файл | `inbox/vhodyaschee.md` | [vhodyaschee](awn-container/php/awn-storage/inbox/vhodyaschee.md) | — | 115 B | 8 | 0 | 0 |
+| — | — | Память (многофайловая) | папка | `main/Веб` | [Веб](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1) | — | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Веб/Роутинг.md` | [Роутинг](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/%D0%A0%D0%BE%D1%83%D1%82%D0%B8%D0%BD%D0%B3.md) | — | 758 B | 34 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Веб/Сессии и cookies.md` | [Сессии и cookies](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/%D0%A1%D0%B5%D1%81%D1%81%D0%B8%D0%B8%20%D0%B8%20cookies.md) | — | 653 B | 32 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Веб/HTTP и формы.md` | [HTTP и формы](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/HTTP%20%D0%B8%20%D1%84%D0%BE%D1%80%D0%BC%D1%8B.md) | — | 634 B | 35 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Объекты.md` | [Объекты](awn-container/php/awn-storage/main/%D0%9E%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D1%8B.md) | — | 802 B | 33 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/Синтаксис` | [Синтаксис](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81) | Базовый синтаксис PHP 8.x — переменные, функции, массивы, поток управления | — | — | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/Синтаксис/Массивы.md` | [Массивы](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%9C%D0%B0%D1%81%D1%81%D0%B8%D0%B2%D1%8B.md) | Индексированные, ассоциативные массивы и spread | 867 B | 45 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/Синтаксис/Переменные.md` | [Переменные](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%9F%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.md) | Типы, объявление и строгая типизация | 867 B | 39 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Синтаксис/Строки.md` | [Строки](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A1%D1%82%D1%80%D0%BE%D0%BA%D0%B8.md) | — | 652 B | 36 | 0 | 0 |
+| — | Открыта | Память (многофайловая) | awn.content.record | `main/Синтаксис/Управление потоком.md` | [PHP](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%BF%D0%BE%D1%82%D0%BE%D0%BA%D0%BE%D0%BC.md) | — | 890 B | 59 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/Синтаксис/Функции.md` | [Функции](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A4%D1%83%D0%BD%D0%BA%D1%86%D0%B8%D0%B8.md) | Объявление, стрелочные функции, named arguments | 818 B | 47 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/Синтаксис/manifest.md` | [Синтаксис](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/manifest.md) | Базовый синтаксис PHP 8.x — переменные, функции, массивы, поток управления | — | — | 0 | 0 |
+| 38 | 🟢 Открыта | Память (многофайловая) | awn.content.category | `main/Тестирование` | [manifest](awn-container/php/awn-storage/main/%D0%A2%D0%B5%D1%81%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5) | — | — | — | 0 | 0 |
+| 38 | 🟢 Открыта | Память (многофайловая) | awn.content.category | `main/Тестирование/manifest.md` | [Тестирование](awn-container/php/awn-storage/main/%D0%A2%D0%B5%D1%81%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5/manifest.md) | — | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Тестирование/phpunit-osnovy.md` | [phpunit-osnovy](awn-container/php/awn-storage/main/%D0%A2%D0%B5%D1%81%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5/phpunit-osnovy.md) | — | 615 B | 38 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/Типы данных.md` | [Типы данных](awn-container/php/awn-storage/main/%D0%A2%D0%B8%D0%BF%D1%8B%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85.md) | — | 924 B | 42 | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record.category | `main/Фреймворки` | [Фреймворки](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8) | Laravel, Symfony и экосистема | — | — | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record | `main/Фреймворки/laravel-obzor.md` | [Laravel обзор](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/laravel-obzor.md) | — | 851 B | 52 | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record.category | `main/Фреймворки/manifest.md` | [Фреймворки](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/manifest.md) | Laravel, Symfony и экосистема | — | — | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record | `main/Фреймворки/symfony-obzor.md` | [Symfony обзор](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/symfony-obzor.md) | — | 1009 B | 40 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/baza-dannyh` | [База данных](awn-container/php/awn-storage/main/baza-dannyh) | PDO, транзакции и миграции | — | — | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record | `main/baza-dannyh/Транзакции.md` | [Транзакции](awn-container/php/awn-storage/main/baza-dannyh/%D0%A2%D1%80%D0%B0%D0%BD%D0%B7%D0%B0%D0%BA%D1%86%D0%B8%D0%B8.md) | — | 1.1 KB | 54 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/baza-dannyh/manifest.md` | [База данных](awn-container/php/awn-storage/main/baza-dannyh/manifest.md) | PDO, транзакции и миграции | — | — | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record | `main/baza-dannyh/migratsii.md` | [Миграции](awn-container/php/awn-storage/main/baza-dannyh/migratsii.md) | — | 1.0 KB | 44 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/baza-dannyh/PDO.md` | [PDO](awn-container/php/awn-storage/main/baza-dannyh/PDO.md) | Подключение, prepared statements, fetch modes | 1.2 KB | 56 | 0 | 0 |
+| 35 | 🟢 Открыта | Память (многофайловая) | awn.content.category | `main/bezopasnost` | [manifest](awn-container/php/awn-storage/main/bezopasnost) | — | — | — | 0 | 0 |
+| 31 | — | Память (многофайловая) | файл | `main/bezopasnost/csrf.md` | [csrf](awn-container/php/awn-storage/main/bezopasnost/csrf.md) | — | 618 B | 29 | 0 | 0 |
+| 35 | 🟢 Открыта | Память (многофайловая) | awn.content.category | `main/bezopasnost/manifest.md` | [bezopasnost](awn-container/php/awn-storage/main/bezopasnost/manifest.md) | — | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/bezopasnost/SQL Injection.md` | [SQL Injection](awn-container/php/awn-storage/main/bezopasnost/SQL%20Injection.md) | — | 760 B | 19 | 0 | 0 |
+| 36 | 🟢 Открыта | Память (многофайловая) | файл | `main/bezopasnost/xss.md` | [XSS](awn-container/php/awn-storage/main/bezopasnost/xss.md) | Экранирование вывода и CSP | 897 B | 41 | 0 | 0 |
+| — | — | Память (многофайловая) | папка | `main/Composer` | [Composer](awn-container/php/awn-storage/main/Composer) | — | — | — | 0 | 0 |
+| — | 🟡 Черновик | Память (многофайловая) | awn.content.record | `main/Composer/osnovy.md` | [osnovy](awn-container/php/awn-storage/main/Composer/osnovy.md) | — | 977 B | 54 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/oop` | [ООП](awn-container/php/awn-storage/main/oop) | Классы, интерфейсы, traits, enums и namespaces | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/oop/Интерфейсы.md` | [Интерфейсы](awn-container/php/awn-storage/main/oop/%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%8B.md) | — | 764 B | 30 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/oop/Классы.md` | [Классы](awn-container/php/awn-storage/main/oop/%D0%9A%D0%BB%D0%B0%D1%81%D1%81%D1%8B.md) | Свойства, методы, конструктор, readonly | 1.1 KB | 59 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/oop/Enums.md` | [Enums](awn-container/php/awn-storage/main/oop/Enums.md) | — | 697 B | 30 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/oop/manifest.md` | [ООП](awn-container/php/awn-storage/main/oop/manifest.md) | Классы, интерфейсы, traits, enums и namespaces | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/oop/Namespaces.md` | [Namespaces](awn-container/php/awn-storage/main/oop/Namespaces.md) | — | 677 B | 38 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/oop/Traits.md` | [Traits](awn-container/php/awn-storage/main/oop/Traits.md) | — | 697 B | 38 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/primery-koda` | [Примеры кода](awn-container/php/awn-storage/main/primery-koda) | Практические мини-проекты и snippets | — | — | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | файл | `main/primery-koda/Пример-1.md` | [Hello World](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-1.md) | strict_types и минимальный bootstrap | 716 B | 44 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/primery-koda/Пример-2-PDO.md` | [Пример-2-PDO](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-2-PDO.md) | — | 709 B | 27 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/primery-koda/Пример-3-REST.md` | [Пример-3-REST](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-3-REST.md) | — | 529 B | 22 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/primery-koda/hello.php` | [hello.php](awn-container/php/awn-storage/main/primery-koda/hello.php) | — | 137 B | — | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/primery-koda/manifest.md` | [Примеры кода](awn-container/php/awn-storage/main/primery-koda/manifest.md) | Практические мини-проекты и snippets | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/primery-koda/PostRepository.php` | [PostRepository.php](awn-container/php/awn-storage/main/primery-koda/PostRepository.php) | — | 535 B | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/README.md` | [README](awn-container/php/awn-storage/main/README.md) | — | 2.3 KB | 68 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/sort.json` | [sort.json](awn-container/php/awn-storage/main/sort.json) | — | 249 B | 15 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/standartnaya-biblioteka` | [Стандартная библиотека](awn-container/php/awn-storage/main/standartnaya-biblioteka) | Файлы, JSON, дата и время | — | — | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/standartnaya-biblioteka/Дата и время.md` | [Дата и время](awn-container/php/awn-storage/main/standartnaya-biblioteka/%D0%94%D0%B0%D1%82%D0%B0%20%D0%B8%20%D0%B2%D1%80%D0%B5%D0%BC%D1%8F.md) | — | 532 B | 24 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/standartnaya-biblioteka/Файлы.md` | [Файлы](awn-container/php/awn-storage/main/standartnaya-biblioteka/%D0%A4%D0%B0%D0%B9%D0%BB%D1%8B.md) | — | 619 B | 33 | 0 | 0 |
+| — | — | Память (многофайловая) | файл | `main/standartnaya-biblioteka/JSON.md` | [JSON](awn-container/php/awn-storage/main/standartnaya-biblioteka/JSON.md) | — | 524 B | 23 | 0 | 0 |
+| — | 🟢 Открыта | Память (многофайловая) | awn.content.record.category | `main/standartnaya-biblioteka/manifest.md` | [Стандартная библиотека](awn-container/php/awn-storage/main/standartnaya-biblioteka/manifest.md) | Файлы, JSON, дата и время | — | — | 0 | 0 |
+| — | — | Медиа | файл | `media/gd_61baf013.docx` | [gd_61baf013.docx](awn-container/php/awn-storage/media/gd_61baf013.docx) | — | 763 KB | — | 0 | 0 |
+| — | — | Источники | файл | `references/laravel-docs.md` | [laravel-docs](awn-container/php/awn-storage/references/laravel-docs.md) | — | 281 B | 14 | 0 | 0 |
+| — | — | Источники | файл | `references/php-net-manual.md` | [php-net-manual](awn-container/php/awn-storage/references/php-net-manual.md) | — | 341 B | 9 | 0 | 0 |
+| — | — | Источники | файл | `references/psr-4-autoloading.md` | [psr-4-autoloading](awn-container/php/awn-storage/references/psr-4-autoloading.md) | — | 271 B | 19 | 0 | 0 |
+| — | — | Скрипты | файл | `scripts/lint-examples.md` | [lint-examples](awn-container/php/awn-storage/scripts/lint-examples.md) | — | 581 B | 23 | 0 | 0 |
+| — | — | Скрипты | файл | `scripts/lint-examples.sh` | [lint-examples.sh](awn-container/php/awn-storage/scripts/lint-examples.sh) | — | 502 B | 20 | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/php/main.md) | заполнено | 2.3 KB | 91 |
+| Память (табличная) | [main.csv](awn-container/php/main.csv) | заполнено | 1.2 KB | 19 |
+| TODO | [todo.md](awn-container/php/todo.md) | заполнено | 963 B | 18 |
+| Дорожная карта | [roadmap.md](awn-container/php/roadmap.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="awn-container/tema-bez-slotov/index.md"></a>
+
+## `awn-container/tema-bez-slotov/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| — | гибкий | папка | `main` | [main](awn-container/tema-bez-slotov/awn-storage/main) | — | — | — | 0 | 0 |
+| — | гибкий | awn.content.record | `main/009.md` | [9](awn-container/tema-bez-slotov/awn-storage/main/009.md) | — | 499 B | 27 | 0 | 0 |
+| — | гибкий | awn.content.category | `main/999` | [999](awn-container/tema-bez-slotov/awn-storage/main/999) | — | — | — | 0 | 0 |
+| — | гибкий | awn.content.category | `main/999/manifest.md` | [999](awn-container/tema-bez-slotov/awn-storage/main/999/manifest.md) | — | — | — | 0 | 0 |
+| — | гибкий | папка | `main/awn-materials-009` | [Доп. материалы — 009](awn-container/tema-bez-slotov/awn-storage/main/awn-materials-009) | Доп. материалы записи main/009.md | — | — | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/tema-bez-slotov/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/tema-bez-slotov/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/tema-bez-slotov/todo.md) | не заполнено | — | — |
+| Дорожная карта | [roadmap.md](awn-container/tema-bez-slotov/roadmap.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="awn-container/test-1000-soobscheniy/index.md"></a>
+
+## `awn-container/test-1000-soobscheniy/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| Тип | Путь | Название | Описание | Размер | Строк |
+| --- | --- | --- | --- | ---: | ---: |
+| awn.content.category | `inbox/telegramm-1000-soobscheniy` | [Телеграмм 1000 сообщений](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy) | — | — | — |
+| папка | `inbox/telegramm-1000-soobscheniy/fakty` | [fakty](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty) | — | — | — |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/adrenalin.md` | [Адреналин](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/adrenalin.md) | — | 824 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/aes.md` | [AES](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/aes.md) | — | 829 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/agile.md` | [Agile](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/agile.md) | — | 801 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/anesteziya.md` | [Анестезия](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/anesteziya.md) | — | 827 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/antibiotik.md` | [Антибиотики](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/antibiotik.md) | — | 841 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/aspirin.md` | [Аспирин](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/aspirin.md) | — | 1.1 KB | 37 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/bash.md` | [Bash](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/bash.md) | — | 749 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/bayes.md` | [Теорема Байеса](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/bayes.md) | — | 825 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/big-o.md` | [Big O notation](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/big-o.md) | — | 835 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/blockchain.md` | [Блокчейн](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/blockchain.md) | — | 827 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/cap-theorem.md` | [CAP теорема](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/cap-theorem.md) | — | 856 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/chernaya-dyra.md` | [Чёрная дыра](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/chernaya-dyra.md) | — | 853 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ci-cd.md` | [CI/CD](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ci-cd.md) | — | 774 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/crispr.md` | [CRISPR](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/crispr.md) | — | 814 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/csharp.md` | [C#](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/csharp.md) | — | 831 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/css.md` | [CSS](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/css.md) | — | 802 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/design-patterns.md` | [Паттерны GoF](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/design-patterns.md) | — | 803 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/diabet-2.md` | [Диабет 2 типа](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/diabet-2.md) | — | 852 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/dnk-spiral.md` | [ДНК](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/dnk-spiral.md) | — | 783 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/docker.md` | [Docker](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/docker.md) | — | 786 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ekg.md` | [ЭКГ](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ekg.md) | — | 839 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/elixir.md` | [Elixir](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/elixir.md) | — | 807 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/fotosintez.md` | [Фотосинтез](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/fotosintez.md) | — | 799 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/genom.md` | [Геном человека](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/genom.md) | — | 837 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/gepard.md` | [Гепард](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/gepard.md) | — | 815 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/git.md` | [Git](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/git.md) | — | 826 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/go.md` | [Go](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/go.md) | — | 911 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/godel.md` | [Теоремы Гёделя](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/godel.md) | — | 591 B | 21 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/gpu.md` | [GPU](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/gpu.md) | — | 816 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/grafana.md` | [Grafana](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/grafana.md) | — | 798 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/graphql.md` | [GraphQL](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/graphql.md) | — | 796 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/haskell.md` | [Haskell](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/haskell.md) | — | 888 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/html.md` | [HTML](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/html.md) | — | 836 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/http2.md` | [HTTP/2](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/http2.md) | — | 800 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/immunitet.md` | [Иммунитет](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/immunitet.md) | — | 844 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/insulin.md` | [Инсулин](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/insulin.md) | — | 853 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/java.md` | [Java](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/java.md) | — | 879 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/javascript.md` | [JavaScript](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/javascript.md) | — | 924 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/json.md` | [JSON](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/json.md) | — | 765 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/jwt.md` | [JWT](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/jwt.md) | — | 792 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kafka.md` | [Apache Kafka](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kafka.md) | — | 798 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kanban.md` | [Kanban](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kanban.md) | — | 804 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kortizol.md` | [Кортизол](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kortizol.md) | — | 861 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kotlin.md` | [Kotlin](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kotlin.md) | — | 844 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/krov-gruppy.md` | [Группы крови](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/krov-gruppy.md) | — | 825 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kubernetes.md` | [Kubernetes](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kubernetes.md) | — | 780 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/kvant.md` | [Квант света](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/kvant.md) | — | 823 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/lean.md` | [Lean](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/lean.md) | — | 771 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/linux.md` | [Linux](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/linux.md) | — | 793 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/lua.md` | [Lua](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/lua.md) | — | 790 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/machine-learning.md` | [Машинное обучение](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/machine-learning.md) | — | 778 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/mapreduce.md` | [MapReduce](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/mapreduce.md) | — | 740 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/matlab.md` | [MATLAB](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/matlab.md) | — | 795 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/microservices.md` | [Микросервисы](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/microservices.md) | — | 847 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/mitohondrii.md` | [Митохондрии](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/mitohondrii.md) | — | 832 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/mongodb.md` | [MongoDB](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/mongodb.md) | — | 746 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/mrt.md` | [МРТ](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/mrt.md) | — | 875 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/neural-net.md` | [Нейросеть](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/neural-net.md) | — | 802 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/neuron.md` | [Нейрон](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/neuron.md) | — | 845 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/oauth2.md` | [OAuth 2.0](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/oauth2.md) | — | 810 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/okr.md` | [OKR](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/okr.md) | — | 758 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/pareto.md` | [Правило Парето](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/pareto.md) | — | 810 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/paxos.md` | [Paxos](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/paxos.md) | — | 827 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/periodicheskaya.md` | [Таблица Менделеева](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/periodicheskaya.md) | — | 805 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/php.md` | [PHP](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/php.md) | — | 841 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/placebo.md` | [Плацебо](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/placebo.md) | — | 894 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/postgresql.md` | [PostgreSQL](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/postgresql.md) | — | 754 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/prometheus.md` | [Prometheus](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/prometheus.md) | — | 769 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/protobuf.md` | [Protocol Buffers](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/protobuf.md) | — | 795 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/python.md` | [Python](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/python.md) | — | 850 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/r-lang.md` | [R](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/r-lang.md) | — | 823 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ram.md` | [RAM](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ram.md) | — | 777 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/redis.md` | [Redis](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/redis.md) | — | 767 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/regex.md` | [Регулярные выражения](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/regex.md) | — | 840 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/relativnost.md` | [Относительность](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/relativnost.md) | — | 570 B | 21 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/rest.md` | [REST](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/rest.md) | — | 746 B | 35 |
+| папка | `inbox/telegramm-1000-soobscheniy/fakty/round-2` | [round-2](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2) | — | — | — |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/arctic-meteo-station.md` | [Арктическая метеостанция](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/arctic-meteo-station.md) | — | 662 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/bah-kantata.md` | [Бах: кантата](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/bah-kantata.md) | — | 637 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/magnetar-pole.md` | [Магнетар](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/magnetar-pole.md) | — | 653 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/med-v-grobnice.md` | [Мёд в гробнице](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/med-v-grobnice.md) | — | 733 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/merkuriy-obrashchenie.md` | [Меркурий: орбита](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/merkuriy-obrashchenie.md) | — | 692 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/mona-liza-krazha.md` | [Кража Моны Лизы](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/mona-liza-krazha.md) | — | 666 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/murmuraciya-skvorcov.md` | [Мормирование скворцов](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/murmuraciya-skvorcov.md) | — | 734 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/nobel-fiber-laser.md` | [Лазер на волокне](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/nobel-fiber-laser.md) | — | 810 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/plankton-kislorod.md` | [Планктон и кислород](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/plankton-kislorod.md) | — | 741 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/round-2/suezskiy-kanal.md` | [Суэцкий канал](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/round-2/suezskiy-kanal.md) | — | 634 B | 22 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/rsa.md` | [RSA](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/rsa.md) | — | 832 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ruby.md` | [Ruby](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ruby.md) | — | 832 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/rust.md` | [Rust](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/rust.md) | — | 877 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/scala.md` | [Scala](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/scala.md) | — | 772 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/scrum.md` | [Scrum](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/scrum.md) | — | 773 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/semver.md` | [Semantic Versioning](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/semver.md) | — | 746 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/serdce-udary.md` | [Сердце](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/serdce-udary.md) | — | 828 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/serdechnyj-rytm.md` | [Фибрилляция предсердий](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/serdechnyj-rytm.md) | — | 866 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/sha256.md` | [SHA-256](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/sha256.md) | — | 768 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/six-sigma.md` | [Six Sigma](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/six-sigma.md) | — | 797 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/solid.md` | [SOLID](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/solid.md) | — | 791 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/spark.md` | [Apache Spark](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/spark.md) | — | 778 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/sql.md` | [SQL](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/sql.md) | — | 813 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/sqlite.md` | [SQLite](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/sqlite.md) | — | 761 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ssd.md` | [SSD](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ssd.md) | — | 782 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/ssl-tls.md` | [TLS 1.3](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/ssl-tls.md) | — | 784 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/swift.md` | [Swift](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/swift.md) | — | 856 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/tcp-ip.md` | [TCP/IP](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/tcp-ip.md) | — | 820 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/tdd.md` | [TDD](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/tdd.md) | — | 767 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/transformer.md` | [Transformer](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/transformer.md) | — | 754 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/turing.md` | [Машина Тьюринга](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/turing.md) | — | 833 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/unicode.md` | [Unicode](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/unicode.md) | — | 777 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/vitamin-d.md` | [Витамин D](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/vitamin-d.md) | — | 870 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/voda-h2o.md` | [Вода](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/voda-h2o.md) | — | 824 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/windows-nt.md` | [Windows NT](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/windows-nt.md) | — | 778 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/fakty/yaml.md` | [YAML](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/fakty/yaml.md) | — | 781 B | 35 |
+| awn.content.category | `inbox/telegramm-1000-soobscheniy/manifest.md` | [Телеграмм 1000 сообщений](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/manifest.md) | — | — | — |
+| папка | `inbox/telegramm-1000-soobscheniy/raznye-temy` | [raznye-temy](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy) | — | — | — |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/akvarium-morskoj.md` | [Морской аквариум](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/akvarium-morskoj.md) | — | 904 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/antarktida-issledovaniya.md` | [Исследования Антарктиды](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/antarktida-issledovaniya.md) | — | 898 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/arhitektura-bruskatalizma.md` | [Брутализм в архитектуре](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/arhitektura-bruskatalizma.md) | — | 1.0 KB | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/astronomiya-zvezdy.md` | [Жизненный цикл звёзд](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/astronomiya-zvezdy.md) | — | 992 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/biologiya-korallovyh-rifov.md` | [Биология коралловых рифов](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/biologiya-korallovyh-rifov.md) | — | 1.1 KB | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/biomehanika-bega.md` | [Биомеханика бега](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/biomehanika-bega.md) | — | 888 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/drevnij-egipet-piramidy.md` | [Пирамиды Египта](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/drevnij-egipet-piramidy.md) | — | 937 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/ekonomika-obmena.md` | [Экономика обмена](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/ekonomika-obmena.md) | — | 1015 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/energetika-veter.md` | [Ветровая энергетика](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/energetika-veter.md) | — | 966 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/etika-iskusstvennogo-intellekta.md` | [Этика ИИ](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/etika-iskusstvennogo-intellekta.md) | — | 952 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/filosofiya-stoicizma.md` | [Стоицизм](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/filosofiya-stoicizma.md) | — | 933 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/fonetika-yazykov.md` | [Фонетика](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/fonetika-yazykov.md) | — | 905 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/fotografiya-kompoziciya.md` | [Композиция в фотографии](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/fotografiya-kompoziciya.md) | — | 962 B | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/gorody-pod-zemlej.md` | [Подземные города](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/gorody-pod-zemlej.md) | — | 950 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/istoriya-dzhaza.md` | [История джаза](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/istoriya-dzhaza.md) | — | 1.1 KB | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/istoriya-komiksov.md` | [История комиксов](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/istoriya-komiksov.md) | — | 936 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/kalligrafiya-latinskaya.md` | [Латинская каллиграфия](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/kalligrafiya-latinskaya.md) | — | 886 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/kiberpank-literatura.md` | [Киберпанк в литературе](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/kiberpank-literatura.md) | — | 950 B | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/kino-noar.md` | [Нуар в кино](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/kino-noar.md) | — | 880 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/kosmicheskie-missii.md` | [Космические миссии XXI века](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/kosmicheskie-missii.md) | — | 1.7 KB | 45 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/kriptografiya-v-povsednevnosti.md` | [Криптография в быту](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/kriptografiya-v-povsednevnosti.md) | — | 1000 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/lingvistika-etimologiya.md` | [Этимология слов](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/lingvistika-etimologiya.md) | — | 905 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/literatura-magrealizma.md` | [Магический реализм](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/literatura-magrealizma.md) | — | 994 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/logistika-poslednej-mili.md` | [Логистика последней мили](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/logistika-poslednej-mili.md) | — | 952 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/meteorologiya-oblaka.md` | [Типы облаков](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/meteorologiya-oblaka.md) | — | 906 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/mikologiya-griby.md` | [Микология](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/mikologiya-griby.md) | — | 907 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/miniaturnaya-zhivopis.md` | [Миниатюрная живопись](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/miniaturnaya-zhivopis.md) | — | 951 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/moda-ustojchivost.md` | [Устойчивая мода](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/moda-ustojchivost.md) | — | 1.2 KB | 38 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/navigaciya-zvezdy.md` | [Навигация по звёздам](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/navigaciya-zvezdy.md) | — | 912 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/numizmatika-vvedenie.md` | [Нумизматика](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/numizmatika-vvedenie.md) | — | 948 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/orhidei-uhod.md` | [Уход за орхидеями](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/orhidei-uhod.md) | — | 966 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/origami-matematika.md` | [Оригами и математика](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/origami-matematika.md) | — | 967 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/paleontologiya-dinozavry.md` | [Палеонтология динозавров](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/paleontologiya-dinozavry.md) | — | 856 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/permaculture-sad.md` | [Пермакультура](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/permaculture-sad.md) | — | 885 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/psihologiya-prokrastinacii.md` | [Психология прокрастинации](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/psihologiya-prokrastinacii.md) | — | 1.0 KB | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/radioastronomiya.md` | [Радиоастрономия](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/radioastronomiya.md) | — | 907 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/robototehnika-doma.md` | [Робототехника дома](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/robototehnika-doma.md) | — | 982 B | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/sadovodstvo-dlya-nachinayushchih.md` | [Садоводство для начинающих](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/sadovodstvo-dlya-nachinayushchih.md) | — | 1.0 KB | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/shahmatnaya-endshpil.md` | [Эндшпиль в шахматах](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/shahmatnaya-endshpil.md) | — | 956 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/sintezator-analog.md` | [Аналоговые синтезаторы](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/sintezator-analog.md) | — | 919 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/sous-vide-kuhnya.md` | [Су-вид в кухне](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/sous-vide-kuhnya.md) | — | 865 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/speleologiya-peshchery.md` | [Спелеология](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/speleologiya-peshchery.md) | — | 888 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/sredizemnomorskaya-dieta.md` | [Средиземноморская диета](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/sredizemnomorskaya-dieta.md) | — | 953 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/srednevekovye-yarmarki.md` | [Средневековые ярмарки](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/srednevekovye-yarmarki.md) | — | 981 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/teatr-absurda.md` | [Театр абсурда](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/teatr-absurda.md) | — | 958 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/tehnika-pomodoro.md` | [Техника Помодоро](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/tehnika-pomodoro.md) | — | 899 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/teoriya-igr.md` | [Теория игр](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/teoriya-igr.md) | — | 946 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/urbanistika-15-minut.md` | [Город 15 минут](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/urbanistika-15-minut.md) | — | 945 B | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/vinodelie-bazovye-ponyatiya.md` | [Виноделие: базовые понятия](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/vinodelie-bazovye-ponyatiya.md) | — | 1.0 KB | 36 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/raznye-temy/vulkanologiya-osnovy.md` | [Вулканология: основы](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/raznye-temy/vulkanologiya-osnovy.md) | — | 1.0 KB | 35 |
+| awn.content.record | `inbox/telegramm-1000-soobscheniy/zadachi-dlya-poiska.md` | [Задания для теста поиска](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/zadachi-dlya-poiska.md) | Список вопросов агенту — проверка fulltext, semantic и hybrid | 3.2 KB | 93 |
+| файл | `media/5mmvoy1sada0s1gl0pyfw91zmvbr8l4b.jpg` | [5mmvoy1sada0s1gl0pyfw91zmvbr8l4b.jpg](awn-container/test-1000-soobscheniy/awn-storage/media/5mmvoy1sada0s1gl0pyfw91zmvbr8l4b.jpg) | — | 162 KB | — |
+| файл | `media/Снимок экрана 2026-09-12 в 22.57.18.png` | [Снимок экрана 2026-09-12 в 22.57.18.png](awn-container/test-1000-soobscheniy/awn-storage/media/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202026-09-12%20%D0%B2%2022.57.18.png) | — | 2.3 MB | — |
+| awn.content.sidecar | `media/Снимок экрана 2026-09-12 в 22.57.18.sidecar.md` | [OCR: Снимок экрана 2026-09-12 в 22.57.18.png](awn-container/test-1000-soobscheniy/awn-storage/media/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202026-09-12%20%D0%B2%2022.57.18.sidecar.md) | — | 446 B | 15 |
+| файл | `media/e3acf2f860da7f67f04cada3a85b5964.png` | [e3acf2f860da7f67f04cada3a85b5964.png](awn-container/test-1000-soobscheniy/awn-storage/media/e3acf2f860da7f67f04cada3a85b5964.png) | — | 547 KB | — |
+| awn.content.sidecar | `media/e3acf2f860da7f67f04cada3a85b5964.sidecar.md` | [Тест 1000 сообщений](awn-container/test-1000-soobscheniy/awn-storage/media/e3acf2f860da7f67f04cada3a85b5964.sidecar.md) | — | 840 B | 39 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/test-1000-soobscheniy/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/test-1000-soobscheniy/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/test-1000-soobscheniy/todo.md) | не заполнено | — | — |
+| Лог | [log.md](awn-container/test-1000-soobscheniy/log.md) | не заполнено | — | — |
+
+---
+
+<a id="awn-container/tevt-diagramm/index.md"></a>
+
+## `awn-container/tevt-diagramm/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| 48 | 🟢 Открыта | гибкий | awn.content.record | `vse-diagrammy.md` | [Все диаграммы](awn-container/tevt-diagramm/awn-storage/vse-diagrammy.md) | — | 2.3 KB | 130 | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/tevt-diagramm/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/tevt-diagramm/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/tevt-diagramm/todo.md) | не заполнено | — | — |
+| Дорожная карта | [roadmap.md](awn-container/tevt-diagramm/roadmap.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="awn-shared/downloads/index.md"></a>
+
+## `awn-shared/downloads/index.md`
+
+# Оглавление темы
+
+### Многофайловая память
+
+| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
+| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| 42 | гибкий | awn.content.record | `test-perestaivaniya-vlozheniya-v-attach.md` | [Тест перестаивания вложения в аттач](awn-shared/downloads/awn-storage/test-perestaivaniya-vlozheniya-v-attach.md) | — | 918 B | 41 | 0 | 0 |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-shared/downloads/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-shared/downloads/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-shared/downloads/todo.md) | не заполнено | — | — |
+| Дорожная карта | [roadmap.md](awn-shared/downloads/roadmap.md) | не заполнено | — | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+
+---
+
+<a id="index.md"></a>
+
+## `INDEX.md`
+
+# Оглавление workspace
+
+| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |
+| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| — | 🔴 Закрыта | awn.page.topic | типовые | `aja-test-oblasti-2031/aja-test-temy-2031/manifest.md` | [Ая тест темы 2031](aja-test-oblasti-2031/aja-test-temy-2031/manifest.md) | Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном. | 2.5 KB | 58 | 0 | 0 | Схемы |
+| — | 🟡 Черновик | awn.page.area | — | `aja-test-oblasti-2031/manifest.md` | [Ая тест области 2031](aja-test-oblasti-2031/manifest.md) | Тестовая область Agent CMS для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты путают Хэллоуин и Рождество? — Потому что OCT 31 == DEC 25. | 2.2 KB | 47 | 0 | 0 | Схемы, Настройки |
+| — | 🔴 Закрыта | awn.page.topic | типовые | `aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md` | [Ая тест темы 2049-2](aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md) | Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки. | 2.9 KB | 60 | 1 | 0 | Схемы, Настройки |
+| — | 🟡 Черновик | awn.page.area | — | `aja-test-oblasti-2049/manifest.md` | [Ая тест области 2049](aja-test-oblasti-2049/manifest.md) | Тестовая область Agent CMS 2049 для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты такие аккуратные? — Потому что в их мире каждая точка с запятой может стать точкой невозврата. | 2.5 KB | 50 | 0 | 0 | Схемы, Настройки |
+| — | — | папка | — | `awn-agent-kit/444/555/666` | [666](awn-agent-kit/444/555/666) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/444/555/manifest.md` | [555](awn-agent-kit/444/555/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/444/manifest.md` | [444](awn-agent-kit/444/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
+| — | — | awn.page.topic | типовые | `awn-agent-kit/agent/manifest.md` | [Агент](awn-agent-kit/agent/manifest.md) | — | 176 B | 10 | 0 | 0 | — |
+| — | — | awn.page.topic | типовые | `awn-agent-kit/devices/manifest.md` | [Управление ПК, устройствами, различный софт](awn-agent-kit/devices/manifest.md) | — | 358 B | 10 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md` | [ierarhi-3 н](awn-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md) | — | 700 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/ierarhi-1-o/manifest.md` | [ierarhi-1-о](awn-agent-kit/ierarhi-1-o/manifest.md) | — | 699 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3` | [ierarziya-3](awn-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/ierarhi-12/ierarhi-2/manifest.md` | [ierarhi-2](awn-agent-kit/ierarhi-12/ierarhi-2/manifest.md) | — | 694 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema-1` | [tema-1](awn-agent-kit/ierarhi-12/ierarhi-2/tema-1) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema-1/tema-1` | [tema-1](awn-agent-kit/ierarhi-12/ierarhi-2/tema-1/tema-1) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema2` | [tema2](awn-agent-kit/ierarhi-12/ierarhi-2/tema2) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-2/tema2/tema2` | [tema2](awn-agent-kit/ierarhi-12/ierarhi-2/tema2/tema2) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-agent-kit/ierarhi-12/ierarhi-12` | [ierarhi-12](awn-agent-kit/ierarhi-12/ierarhi-12) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/ierarhi-12/manifest.md` | [ierarhi-12](awn-agent-kit/ierarhi-12/manifest.md) | — | 695 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-agent-kit/manifest.md` | [Служебные темы и компоненты](awn-agent-kit/manifest.md) | — | 529 B | 26 | 0 | 0 | — |
+| — | — | awn.page.topic | типовые | `awn-agent-kit/real-world-and-space/manifest.md` | [Объекты реального мира, места и пространства](awn-agent-kit/real-world-and-space/manifest.md) | — | 342 B | 10 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-agent-kit/test/manifest.md` | [Тест](awn-agent-kit/test/manifest.md) | — | 593 B | 31 | 0 | 0 | — |
+| — | — | awn.page.topic | типовые | `awn-agent-kit/user/manifest.md` | [Пользователь](awn-agent-kit/user/manifest.md) | — | 237 B | 10 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/009/manifest.md` | [9](awn-container/009/manifest.md) | шошщощш | 613 B | 30 | 0 | 0 | — |
+| — | — | папка | — | `awn-container/777` | [777](awn-container/777) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-container/777/222` | [222](awn-container/777/222) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-container/777/333` | [333](awn-container/777/333) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-container/777/777/manifest.md` | [777](awn-container/777/777/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-container/8777` | [8777](awn-container/8777) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/finansy/manifest.md` | [Финансы](awn-container/finansy/manifest.md) | ауцауцауц | 704 B | 34 | 0 | 0 | — |
+| 4 | 🟢 Открыта | awn.page.topic | типовые | `awn-container/html-i-css-2/manifest.md` | [HTML и CSS 2](awn-container/html-i-css-2/manifest.md) | — | 726 B | 38 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/dom-i-byt/manifest.md` | [Дом и быт](awn-container/lichnaya-zhizn/dom-i-byt/manifest.md) | — | 541 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/druzya-i-obshchenie/manifest.md` | [Друзья и общение](awn-container/lichnaya-zhizn/druzya-i-obshchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md` | [Хобби и увлечения](awn-container/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/knigi-i-obuchenie/manifest.md` | [Книги и обучение](awn-container/lichnaya-zhizn/knigi-i-obuchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/lichnye-tseli/manifest.md` | [Личные цели](awn-container/lichnaya-zhizn/lichnye-tseli/manifest.md) | — | 546 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-container/lichnaya-zhizn/manifest.md` | [Личная жизнь](awn-container/lichnaya-zhizn/manifest.md) | — | 547 B | 28 | 10 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/pitanie-i-retsepty/manifest.md` | [Питание и рецепты](awn-container/lichnaya-zhizn/pitanie-i-retsepty/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/podkast-golos-nedeli/manifest.md` | [Подкаст «Голос недели»](awn-container/lichnaya-zhizn/podkast-golos-nedeli/manifest.md) | Личный подкаст: короткие эпизоды раз в неделю на разные темы | 1.6 KB | 43 | 1 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md` | [Привычки и саморазвитие](awn-container/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md) | — | 569 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/puteshestviya/manifest.md` | [Путешествия](awn-container/lichnaya-zhizn/puteshestviya/manifest.md) | — | 547 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/semya-i-blizkie/manifest.md` | [Семья и близкие](awn-container/lichnaya-zhizn/semya-i-blizkie/manifest.md) | — | 553 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-container/lichnaya-zhizn/tema-bez-slotov/manifest.md) | — | 570 B | 29 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/lichnaya-zhizn/zdorove-i-sport/manifest.md` | [Здоровье и спорт](awn-container/lichnaya-zhizn/zdorove-i-sport/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-container/manifest.md` | [Контейнер](awn-container/manifest.md) | — | 496 B | 26 | 0 | 0 | — |
+| — | — | папка | — | `awn-container/media-test-gugl-disk` | [media-test-gugl-disk](awn-container/media-test-gugl-disk) | — | — | — | 0 | 0 | — |
+| 7 | 🟢 Открыта | awn.page.topic | типовые | `awn-container/moi-vklady/manifest.md` | [Мои вклады](awn-container/moi-vklady/manifest.md) | — | 571 B | 30 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/novay-tema-test-id/manifest.md` | [Новай тема тест ID](awn-container/novay-tema-test-id/manifest.md) | — | 719 B | 35 | 0 | 0 | — |
+| 34 | 🟢 Открыта | awn.page.topic | типовые | `awn-container/php/manifest.md` | [PHP](awn-container/php/manifest.md) | Описание | 2.3 KB | 66 | 0 | 0 | — |
+| 40 | 🟢 Открыта | awn.page.topic | гибкий | `awn-container/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-container/tema-bez-slotov/manifest.md) | 888 | 821 B | 42 | 0 | 0 | Схемы |
+| 9 | 🟢 Открыта | awn.page.topic | типовые | `awn-container/temma-so-slotami/manifest.md` | [Темма со слотами](awn-container/temma-so-slotami/manifest.md) | — | 582 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/test-1000-soobscheniy/manifest.md` | [Тест 1000 сообщений](awn-container/test-1000-soobscheniy/manifest.md) | — | 557 B | 28 | 4 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/test-formatov-faylov/manifest.md` | [Тест форматов файлов](awn-container/test-formatov-faylov/manifest.md) | — | 632 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/test-md-blokov/manifest.md` | [Тест md-блоков](awn-container/test-md-blokov/manifest.md) | — | 1.6 KB | 94 | 0 | 0 | — |
+| 39 | 🟢 Открыта | awn.page.topic | типовые | `awn-container/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-container/test-vseh-svoystvo/manifest.md) | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-container/test/manifest.md` | [Тест](awn-container/test/manifest.md) | — | 1015 B | 57 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | гибкий | `awn-container/tevt-diagramm/manifest.md` | [Тевт диаграмм](awn-container/tevt-diagramm/manifest.md) | — | 712 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | гибкий | `awn-shared/downloads/manifest.md` | [Загрузки из браузера](awn-shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-shared/inbox/manifest.md` | [Входящие](awn-shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
+| 6 | 🟢 Открыта | awn.page.area | — | `codex-test/manifest.md` | [codex test](codex-test/manifest.md) | — | 544 B | 29 | 0 | 0 | — |
+| 33 | 🟢 Открыта | awn.page.topic | типовые | `codex-test/test/manifest.md` | [test](codex-test/test/manifest.md) | — | 538 B | 29 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/analitika/manifest.md` | [Аналитика](crm-studio/analitika/manifest.md) | — | 543 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/grafik/manifest.md` | [График](crm-studio/grafik/manifest.md) | — | 537 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/kalendar/manifest.md` | [Календарь](crm-studio/kalendar/manifest.md) | — | 543 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/klienty/manifest.md` | [Клиенты](crm-studio/klienty/manifest.md) | — | 539 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.area | — | `crm-studio/manifest.md` | [CRM Studio 1](crm-studio/manifest.md) | — | 557 B | 37 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/mastera/manifest.md` | [Мастера](crm-studio/mastera/manifest.md) | — | 539 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/uslugi/manifest.md` | [Услуги](crm-studio/uslugi/manifest.md) | — | 537 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/zapisi/manifest.md` | [Записи](crm-studio/zapisi/manifest.md) | — | 537 B | 28 | 0 | 0 | Схемы |
+| 41 | 🟢 Открыта | awn.page.ws | — | `manifest.md` | [\[Agent CMS\] Песочница и тесты](manifest.md) | Описчание | 837 B | 44 | 0 | 0 | Схемы, Настройки |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+* **Строк** — число строк в теле документа (manifest.md). Если больше 0 — есть инструкция/промпт для агента: как работать с этой темой, что важно знать, договорённости. Пустое тело — 0.
+
+---

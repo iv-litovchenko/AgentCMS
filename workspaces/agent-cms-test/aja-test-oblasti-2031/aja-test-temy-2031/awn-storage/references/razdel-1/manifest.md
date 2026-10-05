@@ -1,0 +1,15 @@
+---
+awn-name: "Раздел 1"
+awn-emoji: ""
+awn-status: open
+awn-description: ""
+awn-tags: []
+awn-type: awn.content.category
+awn-create: 2026-08-07T18:48:20.502Z
+awn-update: 2026-08-07T18:48:20.502Z
+awn-version: 1
+awn-preview: ""
+awn-web-url: ""
+---
+
+> Описание раздела.

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS Commander recommended">
+  <defs>
+    <linearGradient id="cmd-bg-05f" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9f1239" />
+      <stop offset="45%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#fb7185" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-bg-05f)" />
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#ffffff" stroke-width="1.25" opacity="0.18" />
+  <path d="M 32 11 A 21 21 0 0 1 53 32" fill="none" stroke="#ffffff" stroke-width="3.25" stroke-linecap="round" />
+  <path d="M 53 32 A 21 21 0 0 1 32 53" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.4" />
+  <path d="M 32 53 A 21 21 0 0 1 11 32" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.25" />
+  <line x1="32" y1="7" x2="32" y2="13" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+  <line x1="32" y1="51" x2="32" y2="57" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.25" />
+  <ellipse cx="32" cy="32" rx="10" ry="11" fill="#ffffff" />
+  <rect x="30" y="21" width="4" height="7" rx="2" fill="#9f1239" opacity="0.38" />
+  <path d="M 32 21 L 32 29" stroke="#9f1239" stroke-width="1.75" stroke-linecap="round" opacity="0.45" />
+  <circle cx="53" cy="32" r="2.75" fill="#ffffff" opacity="0.85" />
+</svg>

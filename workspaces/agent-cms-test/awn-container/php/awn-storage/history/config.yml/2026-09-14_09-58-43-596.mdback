@@ -1,0 +1,4 @@
+# Agent CMS — конфигурация
+
+awn_ui:
+  default_landing_mode: navigation

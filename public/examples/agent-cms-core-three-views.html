@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agent-cms-core — roadmap · mindmap · graph</title>
+  <link rel="stylesheet" href="study-ecosystem/ecosystem.css">
+  <link rel="stylesheet" href="roadmap/roadmap.css">
+  <link rel="stylesheet" href="mindmap/mindmap.css">
+  <style>
+    /* roadmap.css / mindmap.css задают .layout { height: 100vh } — ломают эту страницу */
+    html, body.cms-three-views { height: auto; min-height: 100%; }
+    body.cms-three-views .layout {
+      display: block;
+      height: auto;
+      min-height: 0;
+    }
+    #boot-error {
+      display: none;
+      margin: 0.75rem 1.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #f59e0b;
+      background: #422006;
+      color: #fef3c7;
+      font-size: 0.85rem;
+    }
+    #boot-error.is-visible { display: block; }
+    .intro {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.65rem;
+      max-width: 1100px;
+      margin: 0.75rem auto 0;
+      padding: 0 1.25rem;
+    }
+    .compare div {
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+    .compare strong { display: block; font-size: 0.82rem; margin-bottom: 0.25rem; color: var(--text); }
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem 0;
+      max-width: 1100px;
+      margin: 0 auto;
+      flex-wrap: wrap;
+    }
+    .tab {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .tab.is-active { border-color: var(--accent); background: #1e3a5f; }
+    .tabs.is-hidden { display: none; }
+    .layout-toggle {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0 1.25rem;
+      max-width: 1100px;
+      margin: 0.5rem auto 0;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .layout-toggle span { font-size: 0.72rem; color: var(--muted); margin-right: 0.25rem; }
+    .layout-btn {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    .layout-btn.is-active { border-color: var(--accent); background: #1e3a5f; }
+    body.mode-split .panels-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.25rem 2rem;
+    }
+    @media (min-width: 960px) {
+      body.mode-split .panels-grid { grid-template-columns: 1fr 1fr; }
+      body.mode-split .panel-graph-span { grid-column: 1 / -1; }
+    }
+    body.mode-split .panel { display: block !important; padding: 0.75rem 0; }
+    body.mode-split .panel-head { font-size: 0.7rem; }
+    .view-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .view-toolbar label { font-size: 0.72rem; color: var(--muted); margin-right: 0.25rem; }
+    .view-toolbar select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.4rem;
+    }
+    .vz-btn {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .vz-btn:hover { border-color: var(--accent); }
+    .vz-btn.is-active { border-color: #eab308; color: #fef08a; }
+    .view-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
+    #detail-bar {
+      max-width: 1100px;
+      margin: 0.75rem auto 0;
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface2);
+    }
+    #detail-bar[hidden] { display: none !important; }
+    #detail-title { margin: 0; font-size: 0.9rem; }
+    #detail-text { margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .panel { display: none; max-width: 1100px; margin: 0 auto; padding: 1rem 1.25rem 2rem; }
+    .panel.is-active { display: block; }
+    .panel-head { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .panel-head code { color: #93c5fd; }
+    #panel-roadmap .canvas-wrap,
+    #panel-mindmap .canvas-wrap,
+    #panel-graph .graph-wrap {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #0d1219;
+      position: relative;
+      min-height: 420px;
+      height: 52vh;
+      max-height: 560px;
+      overflow: hidden;
+      cursor: grab;
+    }
+    .canvas-wrap.is-dragging,
+    .graph-wrap.is-dragging { cursor: grabbing; }
+    #panel-roadmap .canvas-inner { transform-origin: 0 0; padding: 0.5rem; min-width: max-content; }
+    #panel-roadmap .roadmap { min-width: max-content; }
+    .roadmap-title { margin: 0 0 0.75rem; font-size: 1rem; font-weight: 600; }
+    .stage.is-filtered-out { opacity: 0.2; pointer-events: none; }
+    .stage.is-selected { box-shadow: 0 0 0 2px var(--accent); }
+    #panel-mindmap #mm-viewport { transform-origin: 0 0; min-height: 100%; }
+    #panel-mindmap svg { width: 100%; height: 100%; min-height: 400px; display: block; }
+    #panel-graph svg { width: 100%; height: 100%; display: block; }
+    #graph .g-node.is-dimmed { opacity: 0.25; }
+    #graph .g-node.is-selected circle { stroke-width: 3; filter: drop-shadow(0 0 6px #3b82f6); }
+    #graph line.is-dimmed { opacity: 0.12; }
+    #graph line.is-highlight { opacity: 1; stroke-width: 3; }
+    .graph-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; }
+    .graph-legend span::before {
+      content: "";
+      display: inline-block;
+      width: 18px; height: 2px;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+    }
+    .graph-legend .l-tree::before { background: #64748b; }
+    .graph-legend .l-dep::before { background: #f59e0b; height: 3px; }
+    .graph-legend .l-rel::before { background: #22c55e; border-bottom: 2px dashed #22c55e; height: 0; }
+    footer.meta { text-align: center; font-size: 0.72rem; color: var(--muted); padding-bottom: 1.5rem; }
+  </style>
+</head>
+<body class="cms-three-views">
+  <div class="layout">
+    <header>
+      <div>
+        <h1 style="margin:0;font-size:1.15rem">Один workspace — три представления</h1>
+        <p style="margin:0.25rem 0 0;font-size:0.8rem;color:var(--muted)">Данные из <code>workspaces/agent-cms-core</code></p>
+      </div>
+      <a href="study-ecosystem/index.html" style="color:var(--accent);font-size:0.85rem">← экосистема примеров</a>
+    </header>
+
+    <div id="boot-error" role="alert"></div>
+
+  <p class="intro">
+    Один и тот же контент CMS можно смотреть по-разному. <strong>Roadmap</strong> отвечает на «что делать дальше и в каком порядке».
+    <strong>Mind map</strong> — «из чего состоит тема и как вложены файлы/разделы».
+    <strong>Graph</strong> — «кто с кем связан», в том числе поперёк папок (зависимости, смежные идеи).
+  </p>
+
+  <div class="compare">
+    <div><strong>Roadmap</strong>Линия времени / приоритет. Статусы этапов. Источник: план Voice (<code>voice-shell-todo.md</code>).</div>
+    <div><strong>Mind map</strong>Дерево от центра workspace: топики INDEX + модули awn-* + категории «Задачи…».</div>
+    <div><strong>Graph</strong>Узлы-идеи и модули, рёбра «часть / содержит / зависит / связано» — для обзора экосистемы.</div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab is-active" data-panel="roadmap">① Roadmap</button>
+    <button type="button" class="tab" data-panel="mindmap">② Mind map</button>
+    <button type="button" class="tab" data-panel="graph">③ Graph</button>
+  </div>
+
+  <div class="layout-toggle">
+    <span>Режим:</span>
+    <button type="button" class="layout-btn is-active" data-layout="tabs">Вкладки</button>
+    <button type="button" class="layout-btn" data-layout="split">Все три сразу</button>
+  </div>
+
+  <div id="detail-bar" hidden>
+    <h3 id="detail-title"></h3>
+    <p id="detail-text"></p>
+  </div>
+
+  <div class="panels-grid">
+  <section class="panel is-active" id="panel-roadmap" role="tabpanel">
+    <p class="panel-head">Источник: <code id="roadmap-src">…</code></p>
+    <div class="view-toolbar">
+      <label for="filter-roadmap">Статус</label>
+      <select id="filter-roadmap">
+        <option value="all">Все этапы</option>
+        <option value="done">Завершено</option>
+        <option value="progress">В процессе</option>
+        <option value="todo">Не начато</option>
+      </select>
+      <button type="button" class="vz-btn" data-target="roadmap" data-zoom="out">−</button>
+      <button type="button" class="vz-btn" data-target="roadmap" data-zoom="in">+</button>
+      <button type="button" class="vz-btn" data-target="roadmap" data-zoom="reset">Сброс</button>
+      <span class="view-hint">Клик по этапу · перетаскивание · колёсико</span>
+    </div>
+    <div class="canvas-wrap" id="rm-wrap">
+      <div class="canvas-inner" id="rm-viewport">
+        <div class="roadmap" id="roadmap"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-mindmap" role="tabpanel">
+    <p class="panel-head">Источник: <code id="mindmap-src">…</code></p>
+    <div class="view-toolbar">
+      <button type="button" class="vz-btn is-active" id="toggle-mm-xref">Перекрёстные связи</button>
+      <button type="button" class="vz-btn" data-target="mindmap" data-zoom="out">−</button>
+      <button type="button" class="vz-btn" data-target="mindmap" data-zoom="in">+</button>
+      <button type="button" class="vz-btn" data-target="mindmap" data-zoom="reset">Сброс</button>
+      <span class="view-hint">Наведение · колёсико · перетаскивание</span>
+    </div>
+    <div class="canvas-wrap" id="mm-wrap">
+      <div id="mm-viewport" style="transform-origin:0 0">
+        <svg id="mindmap" viewBox="0 0 1040 560" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel panel-graph-span" id="panel-graph" role="tabpanel">
+    <p class="panel-head">Источник: <code id="graph-src">…</code></p>
+    <div class="view-toolbar">
+      <label for="graph-filter">Рёбра</label>
+      <select id="graph-filter">
+        <option value="all">Все типы</option>
+        <option value="part-of">part-of</option>
+        <option value="contains">contains</option>
+        <option value="depends">depends</option>
+        <option value="related">related</option>
+      </select>
+      <button type="button" class="vz-btn" data-target="graph" data-zoom="out">−</button>
+      <button type="button" class="vz-btn" data-target="graph" data-zoom="in">+</button>
+      <button type="button" class="vz-btn" data-target="graph" data-zoom="reset">Сброс</button>
+      <button type="button" class="vz-btn" data-target="graph" data-zoom="fit">Обзор</button>
+      <span class="view-hint">Клик по узлу — соседи · фон — сброс</span>
+    </div>
+    <div class="graph-wrap" id="graph-wrap"><svg id="graph" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="graph-legend">
+      <span class="l-tree">part-of / contains</span>
+      <span class="l-dep">depends</span>
+      <span class="l-rel">related</span>
+    </div>
+  </section>
+  </div>
+
+  <footer class="meta">Обновить данные: <code>node examples/scripts/build-agent-cms-three-views.mjs</code> · снимок: <span id="gen-at">—</span></footer>
+  </div>
+
+  <script src="roadmap/roadmap-renderer.js"></script>
+  <script src="mindmap/mindmap.js"></script>
+  <script type="application/json" id="cms-views-data">
+<!-- __CMS_DATA__ -->
+{
+  "generatedAt": "2026-09-27T16:05:27.408Z",
+  "workspace": "workspaces/agent-cms-core",
+  "roadmap": {
+    "title": "Agent CMS Voice — план (voice-shell-todo.md)",
+    "columns": [
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-done",
+          "title": "База голоса (5 режимов, sidecar, STT)",
+          "status": "done",
+          "description": "Реализовано пунктов из таблицы «Уже сделано»: 0. Источник: agent-cms-voice/voice-shell-todo.md"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-1",
+          "title": "1. Довести runtime до «боевого» (Фаза 3 — начало)",
+          "status": "todo",
+          "description": "Per-runtime панели (не одна общая bridge) — свои поля, health, «открыть UI» · Health в chip для Hermes / OpenClaw / Agent Zero / Cursor / Codex / Claude"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-2",
+          "title": "2. Связка CMS ↔ Voice в UI",
+          "status": "todo",
+          "description": "Кнопка «Открыть Voice» в шапке CMS (рядом с MCP) · Кнопка «Открыть CMS» в Voice (`#shell-open-cms`) — проверить URL на `:3443`"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-3",
+          "title": "3. Голос — догнать Aya (Фаза 2, хвосты)",
+          "status": "progress",
+          "description": "anti-echo / cooldown после TTS · meeting / wake_name в sidecar стабильно"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-4",
+          "title": "4. Конфигурация и деплой",
+          "status": "todo",
+          "description": "`npm run start:https` — документировать 4 порта одной шпаргалкой · `.env`: `VOICE_PORT`, `CMS_API_URL`, ключи runtime"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-5",
+          "title": "5. Фаза 3 — multi-agent routing (ещё не делали)",
+          "status": "todo",
+          "description": "Routing по теме / группе / intent («спроси OpenClaw про heartbeat») · Несколько runtime одновременно (think vs log vs TTS)"
+        }
+      },
+      {
+        "type": "single",
+        "stage": {
+          "id": "voice-phase-6",
+          "title": "6. Полировка продукта",
+          "status": "todo",
+          "description": "Spoken vs full reply для TTS везде · Monitor-страница / phrase history"
+        }
+      }
+    ],
+    "source": "zadachi-plany-i-idei/awn-storage/main/agent-cms-voice/voice-shell-todo.md"
+  },
+  "mindmap": {
+    "nodes": [
+      {
+        "id": "ws",
+        "label": "agent-cms-core",
+        "level": "center"
+      },
+      {
+        "id": "t-arhiv",
+        "label": "Архив вопросов",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "t-docs",
+        "label": "Документации",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "t-obs",
+        "label": "Обсуждения",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "t-zadachi",
+        "label": "Задачи, планы и идеи",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "m-sys",
+        "label": "awn-system",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "m-db",
+        "label": "awn-databases",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "m-dash",
+        "label": "Дашборды",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "m-dlg",
+        "label": "awn-dialogs",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "m-sh",
+        "label": "Общие темы и ресурсы",
+        "level": "file",
+        "parent": "ws"
+      },
+      {
+        "id": "c-agent-cms-voice",
+        "label": "Agent CMS Voice",
+        "level": "branch",
+        "parent": "t-zadachi"
+      },
+      {
+        "id": "r-agent-cms-voice-iz-zametok-apple",
+        "label": "Из заметок Apple",
+        "level": "leaf",
+        "parent": "c-agent-cms-voice"
+      },
+      {
+        "id": "r-agent-cms-voice-shell-migration",
+        "label": "shell-migration",
+        "level": "leaf",
+        "parent": "c-agent-cms-voice"
+      },
+      {
+        "id": "r-agent-cms-voice-voice-shell-todo",
+        "label": "voice-shell-todo",
+        "level": "leaf",
+        "parent": "c-agent-cms-voice"
+      },
+      {
+        "id": "c-drugie-idei",
+        "label": "Другие идеи",
+        "level": "branch",
+        "parent": "t-zadachi"
+      },
+      {
+        "id": "r-drugie-idei-crdt-conflict-free-replicated-data",
+        "label": "CRDT (Conflict-free Replicated Dat…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-edit-vmesto-write-proverit-kak-per",
+        "label": "Edit вместо write  - проверить как…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-esche-idei",
+        "label": "Еще идеи",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-fluidvoice-ili-fluid-voice-golos-d",
+        "label": "FluidVoice (или Fluid voice) - гол…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-git-lfs-large-file-storage",
+        "label": "Git LFS (Large File Storage)",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-instrumenty-i-pakety-pamyati",
+        "label": "Инструменты и пакеты памяти",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-istoriyu-delat-na-baze-git-a-ne-hi",
+        "label": "Историю делать на базе Git а не hi…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-izobrazheniya-i-rabota-s-izobrazhe",
+        "label": "Изображения и работа с изображениями",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-mnogovaylovaya-pamyat-kak-kniga",
+        "label": "Многовайловая память как книга",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-poisk-esche-idei",
+        "label": "Поиск еще идеи",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-poisk-idei-isnturmenty",
+        "label": "Поиск идеи иснтурменты",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-tree-sitter-biblioteka-razbiraet-i",
+        "label": "tree-sitter — библиотека разбирает…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-vetvlenie-v-ramkah-1-chata",
+        "label": "Ветвление в рамках 1 чата",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-webdav-setevoy-protokol-protokol-o",
+        "label": "WebDAV (Сетевой протокол) - проток…",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "r-drugie-idei-zapret-izmenyat-yaml-svoystvo-ili-",
+        "label": "Запрет изменять yaml-свойство или …",
+        "level": "leaf",
+        "parent": "c-drugie-idei"
+      },
+      {
+        "id": "c-kopilot-v-brauzere",
+        "label": "Копилот в Браузере",
+        "level": "branch",
+        "parent": "t-zadachi"
+      },
+      {
+        "id": "r-kopilot-v-brauzere-obschie-idei-chto-esche-moz",
+        "label": "Общие идеи что еще может быть",
+        "level": "leaf",
+        "parent": "c-kopilot-v-brauzere"
+      },
+      {
+        "id": "c-problemy",
+        "label": "Проблемы",
+        "level": "branch",
+        "parent": "t-zadachi"
+      },
+      {
+        "id": "r-problemy-ogranicheniya-mcp",
+        "label": "Ограничения MCP",
+        "level": "leaf",
+        "parent": "c-problemy"
+      },
+      {
+        "id": "r-problemy-poisk-po-1000-sparsennyh-soobscheniy-",
+        "label": "Поиск по 1000 спарсенных сообщений…",
+        "level": "leaf",
+        "parent": "c-problemy"
+      }
+    ],
+    "links": [
+      {
+        "source": "ws",
+        "target": "t-arhiv",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "t-docs",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "t-obs",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "t-zadachi",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "m-sys",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "m-db",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "m-dash",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "m-dlg",
+        "type": "tree"
+      },
+      {
+        "source": "ws",
+        "target": "m-sh",
+        "type": "tree"
+      },
+      {
+        "source": "t-zadachi",
+        "target": "c-agent-cms-voice",
+        "type": "tree"
+      },
+      {
+        "source": "c-agent-cms-voice",
+        "target": "r-agent-cms-voice-iz-zametok-apple",
+        "type": "tree"
+      },
+      {
+        "source": "c-agent-cms-voice",
+        "target": "r-agent-cms-voice-shell-migration",
+        "type": "tree"
+      },
+      {
+        "source": "c-agent-cms-voice",
+        "target": "r-agent-cms-voice-voice-shell-todo",
+        "type": "tree"
+      },
+      {
+        "source": "t-zadachi",
+        "target": "c-drugie-idei",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-crdt-conflict-free-replicated-data",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-edit-vmesto-write-proverit-kak-per",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-esche-idei",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-fluidvoice-ili-fluid-voice-golos-d",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-git-lfs-large-file-storage",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-instrumenty-i-pakety-pamyati",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-istoriyu-delat-na-baze-git-a-ne-hi",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-izobrazheniya-i-rabota-s-izobrazhe",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-mnogovaylovaya-pamyat-kak-kniga",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-poisk-esche-idei",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-poisk-idei-isnturmenty",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-tree-sitter-biblioteka-razbiraet-i",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-vetvlenie-v-ramkah-1-chata",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-webdav-setevoy-protokol-protokol-o",
+        "type": "tree"
+      },
+      {
+        "source": "c-drugie-idei",
+        "target": "r-drugie-idei-zapret-izmenyat-yaml-svoystvo-ili-",
+        "type": "tree"
+      },
+      {
+        "source": "t-zadachi",
+        "target": "c-kopilot-v-brauzere",
+        "type": "tree"
+      },
+      {
+        "source": "c-kopilot-v-brauzere",
+        "target": "r-kopilot-v-brauzere-obschie-idei-chto-esche-moz",
+        "type": "tree"
+      },
+      {
+        "source": "t-zadachi",
+        "target": "c-problemy",
+        "type": "tree"
+      },
+      {
+        "source": "c-problemy",
+        "target": "r-problemy-ogranicheniya-mcp",
+        "type": "tree"
+      },
+      {
+        "source": "c-problemy",
+        "target": "r-problemy-poisk-po-1000-sparsennyh-soobscheniy-",
+        "type": "tree"
+      },
+      {
+        "source": "m-dlg",
+        "target": "r-agent-cms-voice-voice-shell-todo",
+        "label": "диалоги ↔ голос",
+        "type": "xref"
+      },
+      {
+        "source": "t-zadachi",
+        "target": "m-dash",
+        "label": "виджеты задач",
+        "type": "xref"
+      },
+      {
+        "source": "m-db",
+        "target": "m-sys",
+        "label": "типы ↔ таксономии",
+        "type": "xref"
+      }
+    ],
+    "source": "INDEX.md + awn-* + zadachi-plany-i-idei/awn-storage/main/"
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "ws",
+        "label": "agent-cms-core",
+        "group": "workspace"
+      },
+      {
+        "id": "t-zadachi",
+        "label": "Задачи и идеи",
+        "group": "topic"
+      },
+      {
+        "id": "t-docs",
+        "label": "Документации",
+        "group": "topic"
+      },
+      {
+        "id": "t-obs",
+        "label": "Обсуждения",
+        "group": "topic"
+      },
+      {
+        "id": "m-sys",
+        "label": "awn-system",
+        "group": "module"
+      },
+      {
+        "id": "m-db",
+        "label": "awn-databases",
+        "group": "module"
+      },
+      {
+        "id": "m-voice",
+        "label": "Agent CMS Voice",
+        "group": "feature"
+      },
+      {
+        "id": "m-rag",
+        "label": "RAG",
+        "group": "feature"
+      },
+      {
+        "id": "m-mcp",
+        "label": "MCP readonly",
+        "group": "feature"
+      },
+      {
+        "id": "rec-voice-todo",
+        "label": "voice-shell-todo",
+        "group": "record"
+      },
+      {
+        "id": "rec-golos",
+        "label": "Голос + Shell мобилка",
+        "group": "record"
+      },
+      {
+        "id": "rec-rag",
+        "label": "RAG",
+        "group": "record"
+      },
+      {
+        "id": "rec-rag-all",
+        "label": "RAG все типы файлов",
+        "group": "record"
+      },
+      {
+        "id": "rec-mcp-ro",
+        "label": "mode: readonly MCP",
+        "group": "record"
+      },
+      {
+        "id": "rec-viz",
+        "label": "Визуализация / диаграммы",
+        "group": "record"
+      },
+      {
+        "id": "rec-mindmap",
+        "label": "MindMap карты",
+        "group": "record"
+      },
+      {
+        "id": "rec-dialog",
+        "label": "Бесконечный диалог",
+        "group": "record"
+      },
+      {
+        "id": "rec-types",
+        "label": "Структура и типы",
+        "group": "record"
+      }
+    ],
+    "edges": [
+      {
+        "from": "ws",
+        "to": "t-zadachi",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "t-docs",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "t-obs",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "m-sys",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "m-db",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "m-voice",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "m-rag",
+        "kind": "part-of"
+      },
+      {
+        "from": "ws",
+        "to": "m-mcp",
+        "kind": "part-of"
+      },
+      {
+        "from": "m-voice",
+        "to": "rec-voice-todo",
+        "kind": "contains"
+      },
+      {
+        "from": "m-voice",
+        "to": "rec-golos",
+        "kind": "contains"
+      },
+      {
+        "from": "m-rag",
+        "to": "rec-rag",
+        "kind": "contains"
+      },
+      {
+        "from": "m-rag",
+        "to": "rec-rag-all",
+        "kind": "contains"
+      },
+      {
+        "from": "m-mcp",
+        "to": "rec-mcp-ro",
+        "kind": "contains"
+      },
+      {
+        "from": "t-zadachi",
+        "to": "rec-viz",
+        "kind": "contains"
+      },
+      {
+        "from": "t-zadachi",
+        "to": "rec-mindmap",
+        "kind": "contains"
+      },
+      {
+        "from": "t-obs",
+        "to": "rec-dialog",
+        "kind": "contains"
+      },
+      {
+        "from": "m-sys",
+        "to": "rec-types",
+        "kind": "contains"
+      },
+      {
+        "from": "rec-golos",
+        "to": "rec-voice-todo",
+        "kind": "depends"
+      },
+      {
+        "from": "rec-rag",
+        "to": "rec-rag-all",
+        "kind": "related"
+      },
+      {
+        "from": "rec-mindmap",
+        "to": "rec-viz",
+        "kind": "related"
+      },
+      {
+        "from": "rec-dialog",
+        "to": "m-voice",
+        "kind": "related"
+      },
+      {
+        "from": "rec-types",
+        "to": "m-mcp",
+        "kind": "related"
+      },
+      {
+        "from": "m-sys",
+        "to": "m-db",
+        "kind": "related"
+      }
+    ],
+    "source": "Тема «Задачи…» + связи по смыслу (не только папки)"
+  }
+}
+<!-- __CMS_DATA__ -->
+  </script>
+  <script src="agent-cms-core-three-views.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "agentId": "agent-cms-test",
+  "route": "/agent-cms-test/~module-settings",
+  "contentMode": "internal",
+  "label": null,
+  "focus": {
+    "entity": "home",
+    "editing": false
+  },
+  "mcp": {},
+  "aliases": {
+    "path": null,
+    "slot": null,
+    "ref": null,
+    "contextPath": null,
+    "awnType": null
+  },
+  "editing": false,
+  "updatedAt": "2026-09-21T11:37:08.063Z"
+}

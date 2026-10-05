@@ -1,0 +1,63 @@
+---
+- alpha
+  - beta
+  - gamma
+awn-attachments: []
+awn-emoji: 🧪
+awn-status: 🟢 Открыта
+awn-tags:
+  - demo
+  - reference
+awn-main: true
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: "#7c3aed"
+awn-sort: 0
+awn-slots-disabled: false
+awn-runtime-load-always: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-commands: false
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-08-09T19:24:00.722Z
+awn-version: 7
+awn-description: ""
+awn-description: ""
+awn-name: ""
+awn-name: ""
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-type: awn.page.topic
+awn-web-url: ""
+demo_array: "alpha, beta, gamma"
+demo_array: "alpha, beta, gamma"
+demo_array: "alpha, beta, gamma"
+demo_array: "alpha, beta, gamma"
+demo_boolean: true
+demo_color: null
+demo_date: NaN
+demo_datetime: "2026-06-21T12:00"
+demo_enum: ""
+demo_integer: 42
+demo_link: "[[PHP]]"
+demo_null: ""
+demo_number: 3.14
+demo_string: Пример однострочной строки
+demo_text: ""
+demo_url: "https://example.com/all-field-types"
+---
+
+# All Field Types — демонстрация типов полей
+
+Тема для проверки виджетов в панели **Свойства**:
+
+| Уровень | Где смотреть |
+| ------- | ------------ |
+| **topic** | frontmatter этой темы (`demo_*`) |
+| **record** | `Content/All-Field-Types.md` (`rec_*`) |
+| **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
+
+Схема полей: `config.yml` → `awn_schema`.
+
+Запись с заполненными значениями: [[All-Field-Types]].

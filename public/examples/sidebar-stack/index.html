@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Верхний стек сайдбара — 10 вариантов</title>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --panel: #fff;
+        --border: #dbe3ef;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #4f46e5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 28px 20px 48px;
+      }
+      h1 { margin: 0 0 6px; font-size: 24px; }
+      .lead {
+        margin: 0 0 22px;
+        max-width: 760px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card h3 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; flex: 1; }
+      .card a {
+        display: inline-flex;
+        width: fit-content;
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card a:hover { background: #4338ca; }
+      code { font-size: 11px; background: #eef2ff; padding: 1px 5px; border-radius: 4px; }
+      .notice {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        max-width: 760px;
+      }
+      .notice a { color: #4338ca; font-weight: 600; }
+      ul.blocks {
+        margin: 0 0 20px;
+        padding-left: 18px;
+        max-width: 760px;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Верхний стек сайдбара</h1>
+    <p class="lead">
+      10 live-примеров оформления блоков над деревом тем:
+      <code>.sidebar-agent-toolbar</code>,
+      <code>.sidebar-agent-avatar-block</code>,
+      <code>.sidebar-slab-menu-tools</code>,
+      <code>.sidebar-menu-before-tree</code> и
+      <code>#menu</code>.
+    </p>
+    <ul class="blocks">
+      <li>Выбор агента и вида workspace</li>
+      <li>NOTE.md / превью агента</li>
+      <li>Инструменты дерева (🌳 ⭐ 🔄 📍)</li>
+      <li>Поиск и дерево тем</li>
+    </ul>
+    <p class="lead notice">
+      <strong>Как открыть:</strong>
+      <a href="http://127.0.0.1:3000/examples/sidebar-stack/index.html">http://127.0.0.1:3000/examples/sidebar-stack/</a>
+      (запустите CMS-сервер). Прямой <code>file://</code> может не работать.
+    </p>
+
+    <div class="grid">
+      <article class="card"><h3>01 · Как сейчас</h3><p>Текущий production-стек: две строки toolbar, avatar, tools, поиск.</p><a href="01-current/index.html">Открыть</a></article>
+      <article class="card"><h3>02 · Компактный</h3><p>Меньше высоты: без превью, одна строка агента.</p><a href="02-compact/index.html">Открыть</a></article>
+      <article class="card"><h3>03 · Карточки</h3><p>Каждый блок — карточка с зазором на сером фоне.</p><a href="03-cards/index.html">Открыть</a></article>
+      <article class="card"><h3>04 · Единый слой</h3><p>Без лишних разделителей — одна белая панель.</p><a href="04-unified/index.html">Открыть</a></article>
+      <article class="card"><h3>05 · Agent hero</h3><p>Крупный портрет, контролы поверх изображения.</p><a href="05-hero/index.html">Открыть</a></article>
+      <article class="card"><h3>06 · Чипы вида</h3><p>Главная / Дашборд / Граф — chips вместо select.</p><a href="06-chips/index.html">Открыть</a></article>
+      <article class="card"><h3>07 · Tools в поиске</h3><p>Инструменты дерева в одной строке с поиском.</p><a href="07-merged-tools/index.html">Открыть</a></article>
+      <article class="card"><h3>08 · Узкая колонка</h3><p>Агент слева 92px, дерево справа на всю высоту.</p><a href="08-split/index.html">Открыть</a></article>
+      <article class="card"><h3>09 · Минимализм</h3><p>Без рамок, ghost-кнопки, мягкие разделители.</p><a href="09-minimal/index.html">Открыть</a></article>
+      <article class="card"><h3>10 · Accent bands</h3><p>Цветные полосы в стиле нижнего footer.</p><a href="10-accent/index.html">Открыть</a></article>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>02 · Дерево workspace</title><link rel="stylesheet" href="../shared.css"/></head>
+<body><div class="wrap"><div class="topbar"><span class="badge">02 · dynamic</span><a href="../index.html">← все варианты</a></div>
+<h1>Дерево workspace (не hardcode)</h1>
+<p class="lead">Разделы подтягиваются из реального дерева / page map. Enum в yml не нужен.</p>
+<div class="panel"><h2>Что индексировать</h2>
+<div class="tree">
+<label><input type="checkbox" checked/> <strong>весь workspace</strong></label>
+<div class="indent">
+<label><input type="checkbox" checked/> awn-container/</label>
+<div class="indent"><label><input type="checkbox" checked/> finansy/</label><label><input type="checkbox"/> arhiv-voprosov/</label></div>
+<label><input type="checkbox" checked/> awn-shared/</label>
+<label><input type="checkbox" checked/> awn-storage/</label>
+<label><input type="checkbox"/> codex-test/</label>
+<label><input type="checkbox"/> awn-repository/</label>
+</div></div>
+<p class="note">+ кнопка «Обновить из дерева меню» после новых тем.</p></div>
+<div class="preview">index-path-prefixes:
+  - awn-container/finansy
+  - awn-container/arhiv-voprosov
+  - awn-shared
+  - awn-storage</div></div></body></html>

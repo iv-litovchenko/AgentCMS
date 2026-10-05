@@ -1,0 +1,3 @@
+# STT на сервере Shell (микрофон → /api/shell/stt/transcribe). Без PyAudio/pynput (sidecar PTT не нужен).
+SpeechRecognition>=3.10.0
+faster-whisper>=1.1.0

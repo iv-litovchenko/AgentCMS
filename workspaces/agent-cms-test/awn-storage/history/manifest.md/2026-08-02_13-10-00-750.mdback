@@ -1,0 +1,26 @@
+---
+title: Test MCP notify fix
+awn-name: "[Agent CMS] Песочница и тесты"
+awn-emoji: ""
+awn-status: 🟢 Открыта
+awn-description: ""
+awn-tags: []
+awn-type: awn.page.ws
+awn-create: "2026-06-11T00:27"
+awn-update: 2026-08-01T21:46:49.428Z
+awn-version: 29
+awn-preview: awn-storage/assets/preview/20260729221421.png
+awn-web-url: ""
+awn-main: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-sort: 0
+awn-runtime-load-always: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-commands: false
+awn-attachments: []
+---

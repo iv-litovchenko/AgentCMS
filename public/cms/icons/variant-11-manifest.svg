@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS variant 11">
+  <defs>
+    <linearGradient id="bg-cms-11" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#52b4ff" />
+      <stop offset="100%" stop-color="#1a56db" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-cms-11)" />
+
+  <rect x="18" y="14" width="28" height="36" rx="4" fill="none" stroke="#eef0ff" stroke-width="2.5" opacity="0.85" />
+  <line x1="24" y1="24" x2="40" y2="24" stroke="#eef0ff" stroke-width="2" opacity="0.5" />
+  <line x1="24" y1="30" x2="36" y2="30" stroke="#eef0ff" stroke-width="2" opacity="0.4" />
+  <circle cx="32" cy="40" r="4" fill="none" stroke="#eef0ff" stroke-width="2.5" opacity="0.95" />
+</svg>

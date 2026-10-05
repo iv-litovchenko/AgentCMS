@@ -1,0 +1,24 @@
+version: 1
+layer: workspace
+
+awn_schema:
+  workspace:
+    fields:
+      ws-field-1:
+        type: awn.field.string
+        name: WS поле 1
+      ws-field-2:
+        type: awn.field.string
+        name: WS поле 2
+      field-1:
+        type: awn.field.string
+  settings:
+    fields:
+      ws-field-1:
+        type: awn.field.string
+        name: WS поле 1
+      ws-field-2:
+        type: awn.field.string
+        name: WS поле 2
+      field-1:
+        type: awn.field.string

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — Agent CMS</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.413" />
+  </head>
+  <body class="not-found-standalone">
+    <main class="not-found-page" aria-labelledby="not-found-title">
+      <div class="not-found-bg" aria-hidden="true"></div>
+      <div class="not-found-orbit not-found-orbit--one" aria-hidden="true"></div>
+      <div class="not-found-orbit not-found-orbit--two" aria-hidden="true"></div>
+
+      <div class="not-found-inner">
+        <div class="not-found-visual" aria-hidden="true">
+          <div class="not-found-code">404</div>
+          <div class="not-found-mascot not-found-mascot--lost">
+            <div class="not-found-mascot-antenna"></div>
+            <div class="not-found-mascot-face">
+              <span class="not-found-mascot-eye"></span>
+              <span class="not-found-mascot-eye"></span>
+              <span class="not-found-mascot-mouth"></span>
+            </div>
+          </div>
+        </div>
+
+        <p class="not-found-eyebrow">Страница не найдена</p>
+        <h1 id="not-found-title" class="not-found-title">Такого пути нет</h1>
+        <p class="not-found-lead">
+          Запрошенный адрес не существует в Agent CMS — возможно, тема была перемещена,
+          удалена или ссылка устарела.
+        </p>
+
+        <div class="not-found-path-card">
+          <span class="not-found-path-label">Запрошенный путь</span>
+          <code id="not-found-path" class="not-found-path"></code>
+        </div>
+
+        <div class="not-found-actions">
+          <a href="/" class="not-found-btn not-found-btn--primary">На главную</a>
+          <button type="button" class="not-found-btn" id="not-found-back-btn">Назад</button>
+        </div>
+
+        <p class="not-found-footnote">Workspaces / *.md — «Файл — это не папка, а намерение.»</p>
+      </div>
+    </main>
+    <script>
+      (function initStandaloneNotFound() {
+        var pathNode = document.getElementById("not-found-path");
+        var requested = decodeURIComponent(location.pathname + location.search + location.hash);
+        if (pathNode) pathNode.textContent = requested || "/";
+        var backBtn = document.getElementById("not-found-back-btn");
+        if (backBtn) {
+          backBtn.addEventListener("click", function () {
+            if (history.length > 1) history.back();
+            else location.href = "/";
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

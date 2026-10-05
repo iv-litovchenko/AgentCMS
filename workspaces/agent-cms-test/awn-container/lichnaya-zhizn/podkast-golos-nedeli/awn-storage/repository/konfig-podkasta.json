@@ -1,0 +1,12 @@
+{
+  "podcast": {
+    "title": "Голос недели",
+    "author": "Личный проект",
+    "language": "ru",
+    "category": "Society & Culture",
+    "explicit": false,
+    "episodes_published": 2,
+    "hosting": "anchor.fm",
+    "rss_url": "https://anchor.fm/s/example/podcast/rss"
+  }
+}

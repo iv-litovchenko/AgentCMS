@@ -1,0 +1,9 @@
+version: 1
+layer: section
+
+awn_schema:
+  slot_memory_category:
+    fields:
+      x-field-1:
+        type: awn.field.string
+        name: DOP-POLE-RAZDEl-1

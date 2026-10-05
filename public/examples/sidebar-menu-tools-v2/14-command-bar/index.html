@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>14 · Command bar</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>14 · Command bar</h1><p>Одно поле «поиск + команды» как palette</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="ctx-agent-fade" aria-hidden="true"></div>
+        <div class="panel-zone" data-panel-zone>
+
+<div class="v14-zone">
+  <label class="v14-command">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input class="search-input" type="search" placeholder="Поиск тем, режимы, индекс…" />
+    <span class="v14-kbd">⌘K</span>
+  </label>
+  <p class="v14-hint">Enter → дерево · Tab → режим · ⟲ индекс в подсказках</p>
+</div>
+<p class="panel-hint">~46px · всё в одном cognitive entry point</p>
+        </div>
+        <nav class="panel-tree" aria-label="Дерево тем">
+  <ul>
+    <li class="panel-tree-branch">
+      <div class="panel-tree-node is-active">
+        <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+        <span>🟢 [Agent CMS] Песочница и тесты</span>
+        <span class="panel-tree-badge">📍</span>
+      </div>
+      <ul>
+        <li class="panel-tree-branch">
+          <div class="panel-tree-node">
+            <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+            <span>🟢 Агентские темы</span>
+          </div>
+          <ul>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 PHP</span></div></li>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 Личная жизнь</span></div></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+      </aside>
+      <p class="size-badge" data-size-badge>Высота панели: —</p>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

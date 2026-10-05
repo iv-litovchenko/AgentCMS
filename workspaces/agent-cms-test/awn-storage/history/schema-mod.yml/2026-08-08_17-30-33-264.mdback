@@ -1,0 +1,10 @@
+version: 1
+layer: workspace
+
+awn_schema:
+  settings:
+    fields:
+      ws-setting-1:
+        type: awn.field.string
+      ws-setting-2:
+        type: awn.field.string

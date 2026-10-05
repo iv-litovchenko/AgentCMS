@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example5 — форма AGENTS.md и ноды</title>
+    <style>
+      :root { --bg: #f5f7fb; --panel: #fff; --border: #d7deeb; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 820px; line-height: 1.55; margin: 0 0 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f5f3ff; color: #5b21b6; width: fit-content; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; }
+      .focus-card { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    </style>
+  </head>
+  <body>
+    <h1>Example5 — форма редактирования</h1>
+    <p class="lead">
+      25 прототипов: где разместить <strong>Сохранить</strong>, <strong>Свойства</strong>, <strong>Удалить</strong>
+      и зону просмотра/редактирования текста для <code>AGENTS.md</code> (имя фиксировано) и <code>_.node.md</code> (имя редактируется).
+      В каждом варианте переключатель AGENTS / Нода.
+    </p>
+    <p class="lead" style="font-size:13px;margin-top:-8px;">
+      Запуск: <code>cd public/examples/ui-variant-5 && python3 -m http.server 8767</code> →
+      <a href="http://localhost:8767">http://localhost:8767</a>
+      · См. также <a href="./VISION.md">VISION.md</a>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>Sticky actions bar</h2>
+        <p>Липкая шапка: крошки слева, Свойства / Сохранить / Удалить справа. Ниже — заголовок (AGENTS 🔒 или input ноды), редактор.</p>
+        <a class="demo" href="./01-sticky-actions-bar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>Title row actions</h2>
+        <p>Одна строка: фиксированный AGENTS.md или редактируемое имя ноды + все кнопки справа.</p>
+        <a class="demo" href="./02-title-row-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>Editor | Properties split</h2>
+        <p>Содержимое слева (на всю высоту). Справа колонка свойств + Сохранить внизу колонки.</p>
+        <a class="demo" href="./03-split-editor-props/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Footer command bar</h2>
+        <p>Редактор на максимум высоты. Все действия в нижней панели: Свойства · Сохранить · Удалить.</p>
+        <a class="demo" href="./04-footer-command-bar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Path + actions row</h2>
+        <p>Компактно: одна строка «путь + кнопки», под ней заголовок и текст.</p>
+        <a class="demo" href="./05-path-row-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Two-row header</h2>
+        <p>Ряд 1: крошки. Ряд 2: заголовок + Сохранить. YAML-свойства — сворачиваемый блок.</p>
+        <a class="demo" href="./06-two-row-header/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Content | Properties tabs</h2>
+        <p>Вкладки «Содержимое / Свойства / Просмотр». Сохранить в полосе вкладок.</p>
+        <a class="demo" href="./07-content-props-tabs/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Floating save</h2>
+        <p>Сохранить — плавающая кнопка при правках. Свойства и Удалить в верхней строке.</p>
+        <a class="demo" href="./08-floating-save/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Segmented editor | preview</h2>
+        <p>Сегмент «Источник | Просмотр» над текстом. Действия справа от сегмента.</p>
+        <a class="demo" href="./09-segmented-preview/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Notion hero + menu</h2>
+        <p>Крупный заголовок (badge или input). Действия в меню ⋯: Сохранить, Свойства, Удалить.</p>
+        <a class="demo" href="./10-notion-hero-menu/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">11</span>
+        <h2>YAML above editor</h2>
+        <p>Свойства первым блоком (как frontmatter). Сохранить в правом верхнем углу.</p>
+        <a class="demo" href="./11-yaml-above-editor/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">12</span>
+        <h2>Icon actions</h2>
+        <p>Минимум текста на кнопках: 💾 ⚙ 🗑 рядом с заголовком.</p>
+        <a class="demo" href="./12-icon-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">13</span>
+        <h2>Duplicate save (anti)</h2>
+        <p>Сохранить и в шапке, и над редактором — намеренный антипаттерн для сравнения.</p>
+        <a class="demo" href="./13-duplicate-save/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">14</span>
+        <h2>Overflow menu only</h2>
+        <p>В шапке только ⋯ — все действия в выпадающем списке. Чистая зона текста.</p>
+        <a class="demo" href="./14-overflow-menu-only/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Preview first</h2>
+        <p>По умолчанию просмотр markdown. «Редактировать» открывает источник + Сохранить.</p>
+        <a class="demo" href="./15-preview-first/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">16</span>
+        <h2>AGENTS system banner</h2>
+        <p>Для AGENTS.md — жёлтый баннер «системный файл». Для ноды баннер скрыт.</p>
+        <a class="demo" href="./16-agents-system-banner/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">17</span>
+        <h2>Node hero title</h2>
+        <p>Нода: крупный input. AGENTS: компактная строка badge под крошками.</p>
+        <a class="demo" href="./17-node-hero-title/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">18</span>
+        <h2>Meta sidebar</h2>
+        <p>Узкая колонка слева: тип файла, стек кнопок. Справа — содержимое.</p>
+        <a class="demo" href="./18-meta-sidebar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">19</span>
+        <h2>Properties inspector</h2>
+        <p>Контент на всю ширину. «Свойства» открывает правую панель-drawer с YAML.</p>
+        <a class="demo" href="./19-props-inspector/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">20</span>
+        <h2>Status bar</h2>
+        <p>VS Code: путь и dirty слева внизу; Save / Props / Delete справа в status bar.</p>
+        <a class="demo" href="./20-status-bar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">21</span>
+        <h2>Actions in crumbs</h2>
+        <p>Сохранить и Удалить как «крошки» в конце пути (компактно, спорно).</p>
+        <a class="demo" href="./21-crumb-embedded-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">22</span>
+        <h2>Card document</h2>
+        <p>Весь документ в карточке: шапка карточки = заголовок + действия.</p>
+        <a class="demo" href="./22-card-document/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">23</span>
+        <h2>Mobile stacked</h2>
+        <p>Вертикальный стек: крошки → заголовок → полная ширина кнопок → редактор.</p>
+        <a class="demo" href="./23-mobile-stacked/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">24</span>
+        <h2>Production blend</h2>
+        <p>Близко к Agent CMS: плита пути, плита названия+действий, плита свойств, плита содержимого.</p>
+        <a class="demo" href="./24-production-blend/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">25</span>
+        <h2>AGENTS vs Node split</h2>
+        <p>Два столбца: слева AGENTS.md (фикс. имя), справа нода — одна раскладка, разный заголовок.</p>
+        <a class="demo" href="./25-compare-split/index.html">Открыть</a>
+      </article></div>
+  </body>
+</html>

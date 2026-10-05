@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>19 — Inline chips</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v19-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v19-body { padding:10px 12px;background:#f5f3ff; }
+      .v19-chips { display:flex;flex-wrap:wrap;gap:5px; }
+      .v19-chip { padding:5px 9px;border-radius:999px;border:1px solid #c4b5fd;background:#fff;font-size:10px;font-weight:600;color:#4338ca;cursor:pointer; }
+      .v19-chip:hover { background:#ede9fe; }
+      .v19-hint { margin:8px 0 0;font-size:9px;color:var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>19 · Inline chips</h1><p>Все секции — чипы в одном потоке, без accordion внутри</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v19-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v19-body">
+              <div class="v19-chips">
+                <span class="v19-chip">🗄 Накопители</span>
+                <span class="v19-chip">📦 Репозитории</span>
+                <span class="v19-chip">⚙️ Настройки</span>
+                <span class="v19-chip">🔄 Синхронизация</span>
+                <span class="v19-chip">☁️ Google Drive</span>
+                <span class="v19-chip">💬 Диалоги</span>
+                <span class="v19-chip">📋 Runtime</span>
+              </div>
+              <p class="v19-hint">Клик по чипу открывает секцию</p>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

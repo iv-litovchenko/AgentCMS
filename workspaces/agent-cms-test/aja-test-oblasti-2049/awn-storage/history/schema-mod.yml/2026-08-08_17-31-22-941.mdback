@@ -1,0 +1,21 @@
+version: 1
+layer: area
+
+awn_schema:
+  area:
+    fields:
+      area-field_1:
+        type: awn.field.string
+        name: рекрке
+      area-aya-custom-text:
+        type: awn.field.string
+        name: Произвольный текст
+      area-aya-custom-number:
+        type: awn.field.integer
+        name: Произвольное число
+      area-aya-custom-boolean:
+        type: awn.field.boolean
+        name: Произвольный флаг
+      area-property-oblast-tema:
+        type: awn.field.string
+        name: Свойство области (тема)

@@ -1,0 +1,9 @@
+:root { --spine-width: 220px; }
+body { background: #020617; }
+.links .leaf { display: none; }
+.links .trunk { stroke-dasharray: none; stroke: rgba(250,204,21,.35); }
+.node.topic { --x: 50% !important; }
+.node { gap: 6px; }
+.cap { --cap-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.root .orb { border-color: rgba(250,204,21,.75); box-shadow: 0 0 36px rgba(250,204,21,.25); }
+.section .orb { border-color: rgba(129,140,248,.65); }

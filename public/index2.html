@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — Элементы системы (черновик)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+
+      main {
+        max-width: 2280px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+      }
+
+      .lead {
+        margin: 0 0 16px;
+        color: #94a3b8;
+        font-size: 0.92rem;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .legend-item {
+        flex: 1 1 140px;
+        max-width: 220px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.55);
+        font-size: 10px;
+        line-height: 1.35;
+        color: #94a3b8;
+      }
+
+      .legend-item strong {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 11px;
+        color: #e2e8f0;
+      }
+
+      .legend-item.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.35);
+      }
+
+      .legend-item.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.35);
+      }
+
+      .legend-item.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.35);
+      }
+
+      .legend-item.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.35);
+      }
+
+      .legend-item.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.35);
+      }
+
+      .legend-item.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.35);
+      }
+
+      .legend-item.is-tone-rose {
+        border-color: rgba(251, 113, 133, 0.35);
+      }
+
+      .legend-item.is-tone-lime {
+        border-color: rgba(163, 230, 53, 0.35);
+      }
+
+      .legend-item.is-tone-orange {
+        border-color: rgba(251, 146, 60, 0.35);
+      }
+
+      .legend-item.is-tone-sky {
+        border-color: rgba(56, 189, 248, 0.35);
+      }
+
+      .legend-item.is-tone-yellow {
+        border-color: rgba(250, 204, 21, 0.35);
+      }
+
+      .legend-item.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.35);
+      }
+
+      .legend-item.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
+      .panel {
+        position: relative;
+        min-height: clamp(680px, 82vh, 920px);
+        border-radius: 12px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: #0b1220;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .panel-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+        background-size: 42px 42px;
+        opacity: 0.45;
+      }
+
+      .system-map {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+
+      .system-map-badge {
+        position: absolute;
+        top: 12px;
+        left: 14px;
+        z-index: 4;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(15, 23, 42, 0.82);
+        color: rgba(224, 242, 254, 0.82);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .system-map-diagram {
+        position: absolute;
+        inset: 34px 10px 12px;
+        min-height: 0;
+      }
+
+      .system-map-svg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .system-map-link {
+        fill: none;
+        stroke: rgba(125, 211, 252, 0.42);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .system-map-link.is-spoke {
+        stroke: rgba(125, 211, 252, 0.55);
+      }
+
+      .system-map-link.is-branch {
+        stroke: rgba(148, 163, 184, 0.38);
+        stroke-width: 1.25;
+      }
+
+      .system-map-radial {
+        position: absolute;
+        inset: 0;
+      }
+
+      .system-map-hub {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transform: translate(-50%, -50%);
+      }
+
+      .system-map-hub-caption {
+        max-width: 120px;
+        font-size: 9px;
+        line-height: 1.3;
+        text-align: center;
+        color: #94a3b8;
+      }
+
+      .system-map-orbit {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+
+      .system-map-spoke {
+        position: absolute;
+        z-index: 3;
+        transform: translate(-50%, -50%);
+      }
+
+      .system-map-spoke-hub {
+        cursor: pointer;
+        padding: 6px 8px;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .system-map-spoke-hub .system-map-node-label {
+        max-width: 76px;
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .system-map-spoke-hub:hover {
+        transform: scale(1.04);
+      }
+
+      .system-map-spoke.is-expanded {
+        z-index: 6;
+      }
+
+      .system-map-spoke.is-expanded .system-map-spoke-hub {
+        box-shadow:
+          0 0 0 2px rgba(250, 204, 21, 0.35),
+          0 10px 24px rgba(2, 6, 23, 0.45);
+      }
+
+      .system-map-spoke-panel {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 5;
+        display: none;
+        width: min(220px, 42vw);
+        max-height: min(320px, 46vh);
+        overflow: auto;
+        padding: 10px 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.94);
+        box-shadow: 0 16px 40px rgba(2, 6, 23, 0.55);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+      }
+
+      .system-map-spoke.is-expanded .system-map-spoke-panel {
+        display: block;
+      }
+
+      .system-map-spoke-caption {
+        margin-bottom: 8px;
+        font-size: 9px;
+        line-height: 1.35;
+        color: #94a3b8;
+        text-align: center;
+      }
+
+      .system-map-spoke-panel .system-map-section {
+        padding: 6px 4px 4px;
+        margin-bottom: 6px;
+      }
+
+      .system-map-spoke-panel .system-map-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .system-map-spoke-panel .system-map-node.is-leaf {
+        padding: 4px 7px;
+      }
+
+      .system-map-root,
+      .system-map-groups,
+      .system-map-branch,
+      .system-map-chain,
+      .system-map-section,
+      .system-map-row,
+      .system-map-fork,
+      .system-map-fork-main,
+      .system-map-fork-side,
+      .system-map-group,
+      .system-map-stack {
+        position: relative;
+        z-index: 1;
+      }
+
+      .system-map-branch {
+        min-width: 0;
+        padding: 10px 8px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .system-map-branch.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.32);
+        background: linear-gradient(180deg, rgba(30, 58, 138, 0.18), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.32);
+        background: linear-gradient(180deg, rgba(76, 29, 149, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.32);
+        background: linear-gradient(180deg, rgba(6, 78, 59, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.32);
+        background: linear-gradient(180deg, rgba(120, 53, 15, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.32);
+        background: linear-gradient(180deg, rgba(14, 116, 144, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.32);
+        background: linear-gradient(180deg, rgba(49, 46, 129, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-rose {
+        border-color: rgba(251, 113, 133, 0.32);
+        background: linear-gradient(180deg, rgba(136, 19, 55, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-lime {
+        border-color: rgba(163, 230, 53, 0.32);
+        background: linear-gradient(180deg, rgba(54, 83, 20, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-orange {
+        border-color: rgba(251, 146, 60, 0.32);
+        background: linear-gradient(180deg, rgba(124, 45, 18, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-sky {
+        border-color: rgba(56, 189, 248, 0.32);
+        background: linear-gradient(180deg, rgba(12, 74, 110, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-yellow {
+        border-color: rgba(250, 204, 21, 0.32);
+        background: linear-gradient(180deg, rgba(113, 63, 18, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.32);
+        background: linear-gradient(180deg, rgba(112, 26, 117, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.32);
+        background: linear-gradient(180deg, rgba(51, 65, 85, 0.16), rgba(15, 23, 42, 0.5));
+      }
+
+      .system-map-branch-head {
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .system-map-branch-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #f1f5f9;
+      }
+
+      .system-map-branch-caption {
+        margin-top: 3px;
+        font-size: 9px;
+        line-height: 1.3;
+        color: #94a3b8;
+      }
+
+      .system-map-chain {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .system-map-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 4px 4px;
+        border-radius: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.28);
+      }
+
+      .system-map-section-label {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.9);
+      }
+
+      .system-map-section-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .system-map-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+      }
+
+      .system-map-fork {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+      }
+
+      .system-map-fork-side {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-left: 8px;
+        border-left: 1px dashed rgba(148, 163, 184, 0.35);
+      }
+
+      .system-map-branch.is-tone-blue .system-map-fork-side {
+        border-left-color: rgba(96, 165, 250, 0.42);
+      }
+
+      .system-map-branch.is-tone-violet .system-map-fork-side {
+        border-left-color: rgba(167, 139, 250, 0.42);
+      }
+
+      .system-map-branch.is-tone-cyan .system-map-fork-side {
+        border-left-color: rgba(34, 211, 238, 0.42);
+      }
+
+      .system-map-branch.is-tone-indigo .system-map-fork-side {
+        border-left-color: rgba(129, 140, 248, 0.42);
+      }
+
+      .system-map-branch.is-tone-rose .system-map-fork-side {
+        border-left-color: rgba(251, 113, 133, 0.42);
+      }
+
+      .system-map-branch.is-tone-lime .system-map-fork-side {
+        border-left-color: rgba(163, 230, 53, 0.42);
+      }
+
+      .system-map-branch.is-tone-orange .system-map-fork-side {
+        border-left-color: rgba(251, 146, 60, 0.42);
+      }
+
+      .system-map-branch.is-tone-sky .system-map-fork-side {
+        border-left-color: rgba(56, 189, 248, 0.42);
+      }
+
+      .system-map-branch.is-tone-yellow .system-map-fork-side {
+        border-left-color: rgba(250, 204, 21, 0.42);
+      }
+
+      .system-map-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .system-map-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding-top: 4px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.25);
+      }
+
+      .system-map-node {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        max-width: 100%;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        background: rgba(15, 23, 42, 0.82);
+        box-shadow:
+          0 8px 20px rgba(2, 6, 23, 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        text-align: center;
+      }
+
+      .system-map-node.is-hub {
+        padding: 10px 14px;
+        border-radius: 14px;
+        border-color: rgba(250, 204, 21, 0.62);
+      }
+
+      .system-map-node.is-pillar {
+        border-width: 1.5px;
+        font-weight: 700;
+      }
+
+      .system-map-node.is-leaf {
+        padding: 5px 8px;
+        border-radius: 8px;
+        font-size: 10px;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .system-map-node.is-tone-blue {
+        border-color: rgba(96, 165, 250, 0.45);
+        background: linear-gradient(180deg, rgba(30, 58, 138, 0.55), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-violet {
+        border-color: rgba(167, 139, 250, 0.45);
+        background: linear-gradient(180deg, rgba(76, 29, 149, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-emerald {
+        border-color: rgba(52, 211, 153, 0.45);
+        background: linear-gradient(180deg, rgba(6, 78, 59, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-cyan {
+        border-color: rgba(34, 211, 238, 0.45);
+        background: linear-gradient(180deg, rgba(14, 116, 144, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-indigo {
+        border-color: rgba(129, 140, 248, 0.45);
+        background: linear-gradient(180deg, rgba(49, 46, 129, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-rose {
+        border-color: rgba(251, 113, 133, 0.45);
+        background: linear-gradient(180deg, rgba(136, 19, 55, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-lime {
+        border-color: rgba(163, 230, 53, 0.45);
+        background: linear-gradient(180deg, rgba(54, 83, 20, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-orange {
+        border-color: rgba(251, 146, 60, 0.45);
+        background: linear-gradient(180deg, rgba(124, 45, 18, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-sky {
+        border-color: rgba(56, 189, 248, 0.45);
+        background: linear-gradient(180deg, rgba(12, 74, 110, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-yellow {
+        border-color: rgba(250, 204, 21, 0.45);
+        background: linear-gradient(180deg, rgba(113, 63, 18, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-fuchsia {
+        border-color: rgba(232, 121, 249, 0.45);
+        background: linear-gradient(180deg, rgba(112, 26, 117, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-slate {
+        border-color: rgba(148, 163, 184, 0.45);
+        background: linear-gradient(180deg, rgba(51, 65, 85, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-amber {
+        border-color: rgba(251, 191, 36, 0.45);
+        background: linear-gradient(180deg, rgba(120, 53, 15, 0.5), rgba(15, 23, 42, 0.88));
+      }
+
+      .system-map-node.is-tone-gold {
+        border-color: rgba(250, 204, 21, 0.55);
+        background:
+          radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.12), transparent 55%),
+          linear-gradient(180deg, rgba(49, 46, 129, 0.72), rgba(15, 23, 42, 0.9));
+      }
+
+      .system-map-node-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .system-map-node.is-hub .system-map-node-icon {
+        font-size: 18px;
+      }
+
+      .system-map-node-label {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.25;
+        color: #e2e8f0;
+      }
+
+      .system-map-node.is-hub .system-map-node-label {
+        font-size: 12px;
+        color: #fef9c3;
+      }
+
+      .system-map-node.is-leaf .system-map-node-label {
+        font-size: 10px;
+        color: #cbd5e1;
+      }
+
+      .system-map-node-meta {
+        padding: 1px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(2, 6, 23, 0.45);
+        color: #94a3b8;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      @media (max-width: 980px) {
+        .panel {
+          min-height: clamp(640px, 80vw, 820px);
+        }
+
+        .system-map-spoke-panel {
+          width: min(200px, 58vw);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Элементы системы</h1>
+      <p class="lead">Черновик. Редактируйте массив <code>GROUPS</code> внизу файла.</p>
+      <div class="legend" id="legend"></div>
+      <div class="panel" id="panel">
+        <div class="panel-bg" aria-hidden="true"></div>
+        <div id="map-root"></div>
+      </div>
+    </main>
+
+    <script>
+      const GROUPS = [
+        {
+          id: "vaults",
+          icon: "🗃️",
+          title: "Хранилища",
+          caption: "Workspace · agentId · группы",
+          tone: "slate",
+          sections: [
+            {
+              label: "Реестр",
+              nodes: ["Хранилище", "agentId", "По умолчанию", "Оркестратор"]
+            },
+            {
+              label: "Группы",
+              nodes: ["Группа", "Вне группы", "Порядок", "Светлая / тёмная"]
+            },
+            {
+              label: "Корневые зоны",
+              nodes: ["awn-container", "awn-shared", "awn-agent-kit"]
+            }
+          ]
+        },
+        {
+          id: "page",
+          icon: "📁",
+          title: "Дерево",
+          caption: "Контент на диске: области → темы → файлы",
+          tone: "blue",
+          sections: [
+            {
+              label: "Навигация",
+              nodes: [
+                { label: "Область", side: ["Общие", "Агент"] },
+                "Тема"
+              ]
+            },
+            {
+              label: "Контент",
+              nodes: ["Раздел", "Запись", "Sidecar"]
+            }
+          ]
+        },
+        {
+          id: "slots",
+          icon: "📦",
+          title: "Слоты",
+          caption: "Места хранения на странице",
+          tone: "indigo",
+          sections: [
+            {
+              label: "Многофайловые",
+              nodes: ["main", "inbox", "notes", "references", "artefacts", "media", "assets", "repository", "scripts"]
+            },
+            {
+              label: "Однофайловые",
+              nodes: ["main-single", "main-single-csv", "todo-single"]
+            },
+            {
+              label: "Обсуждения",
+              nodes: ["discussion", "comments"]
+            },
+            {
+              label: "Режимы",
+              nodes: ["Гибкий слот", "history"]
+            }
+          ]
+        },
+        {
+          id: "fields",
+          icon: "🏷️",
+          title: "Поля",
+          caption: "Схема · свойства · типы",
+          tone: "fuchsia",
+          sections: [
+            {
+              label: "Три слоя",
+              nodes: ["schema.yml", "Свойства", "config.yml", "get_type"]
+            },
+            {
+              label: "Где живут",
+              nodes: ["Workspace", "Область", "Тема", "Инфоблок"]
+            },
+            {
+              label: "Каталог полей",
+              nodes: ["awn-system/fields", "Базовые", "Локальные", "Слои layers"]
+            }
+          ]
+        },
+        {
+          id: "data",
+          icon: "🗄️",
+          title: "Структурированные данные",
+          caption: "awn-database · инфоблоки и записи",
+          tone: "violet",
+          sections: [
+            {
+              label: "Накопители",
+              nodes: [
+                { label: "Инфоблок", side: ["Таксономии"] },
+                { type: "row", items: ["Группа", "Коллекция", "Одиночка"] },
+                "Раздел",
+                "Запись"
+              ]
+            }
+          ]
+        },
+        {
+          id: "context",
+          icon: "📋",
+          title: "Контекст",
+          caption: "Стартовый пакет агента",
+          tone: "rose",
+          sections: [
+            {
+              label: "Автозагрузка",
+              nodes: ["Старт чата", "Перезагрузка", "Фокус UI"]
+            },
+            {
+              label: "Что загружаем",
+              nodes: ["Карта тем", "Always-файлы", "Инфоблоки", "Service kits", "Базовая модель", "Настройки"]
+            },
+            {
+              label: "Always · источники",
+              nodes: ["Флаг always", "AGENTS.md / SKILL.md", "GLOBAL_MCP_DOC", "ws/"]
+            },
+            {
+              label: "Реестры runtime",
+              nodes: ["Always", "Cron", "Heartbeat"]
+            }
+          ]
+        },
+        {
+          id: "memory",
+          icon: "🧠",
+          title: "Память",
+          caption: "Дополнительный контекст агента",
+          tone: "emerald",
+          sections: [
+            {
+              label: "Доп контекст",
+              nodes: ["Факты", "Журнал", "NOTE.md", "TODO.md"]
+            }
+          ]
+        },
+        {
+          id: "notifications",
+          icon: "🔔",
+          title: "Уведомления",
+          caption: "Колокольчик CMS",
+          tone: "yellow",
+          sections: [
+            {
+              label: "Интерфейс",
+              nodes: ["Колокольчик", "Лента событий", "Непрочитанные"]
+            },
+            {
+              label: "Источник",
+              nodes: ["Журнал workspace", "Флаг notify", "Недельные файлы"]
+            },
+            {
+              label: "Откуда приходят",
+              nodes: ["Агент", "UI", "Система", "Жизнь / действия"]
+            }
+          ]
+        },
+        {
+          id: "communication",
+          icon: "💬",
+          title: "Коммуникация",
+          caption: "Диалоги, обсуждения, входящие",
+          tone: "cyan",
+          sections: [
+            {
+              label: "Каналы",
+              nodes: ["Dialogs", "Discussion", "Comments"]
+            }
+          ]
+        },
+        {
+          id: "search",
+          icon: "🔍",
+          title: "Поиск",
+          caption: "По workspace",
+          tone: "lime",
+          sections: [
+            {
+              label: "Виды",
+              nodes: ["Полнотекст", "Семантика", "Гибрид", "Пакет", "Ссылки", "Архив Q&A"]
+            },
+            {
+              label: "Индексы",
+              nodes: ["Пересборка", "Fulltext", "Semantic", "Links", "OCR"]
+            }
+          ]
+        },
+        {
+          id: "repositories",
+          icon: "📚",
+          title: "Репозитории",
+          caption: "Каталог кода workspace",
+          tone: "orange",
+          sections: [
+            {
+              label: "Структура",
+              nodes: ["awn-repositories/", "manifest.md", "index.md", "Клон / папка"]
+            },
+            {
+              label: "Операции",
+              nodes: ["Каталог", "Карточка", "Регистрация", "Обновление", "Индекс"]
+            }
+          ]
+        },
+        {
+          id: "google-drive",
+          icon: "☁️",
+          title: "Google Drive",
+          caption: "Выгрузка медиа в облако",
+          tone: "sky",
+          sections: [
+            {
+              label: "Хранилище",
+              nodes: ["awn-google-drive/", "registry.json", "gd_*", "Symlink"]
+            },
+            {
+              label: "Синхронизация",
+              nodes: ["Файл", "Тема", "Repair links", "Статистика"]
+            }
+          ]
+        },
+        {
+          id: "settings",
+          icon: "⚙️",
+          title: "Настройки и зависимости",
+          caption: "4 области · .agent-cms/settings/",
+          tone: "amber",
+          sections: [
+            {
+              label: "Platform · глобальные",
+              nodes: ["MCP policy", "Индексы", "Автоконтекст", "Локаль", "Maintenance"]
+            },
+            {
+              label: "Workspace · хранилище",
+              nodes: ["awn-id", "Голосовой клиент", "Колонки зависимостей", "Параметры workspace"]
+            },
+            {
+              label: "User · интерфейс",
+              nodes: ["Дерево меню", "Сайдбар", "Закреплённые ветки"]
+            },
+            {
+              label: "Integrations",
+              nodes: ["Skills", "MCP", "Плагины"]
+            },
+            {
+              label: "Зависимости",
+              nodes: ["dependencies.csv", "Хосты", "Сервисы", "Окружения"]
+            }
+          ]
+        }
+      ];
+
+      function nodeLabel(entry) {
+        if (entry && typeof entry === "object" && entry.label) return String(entry.label);
+        return String(entry);
+      }
+
+      function nodeMeta(entry) {
+        if (entry && typeof entry === "object" && entry.meta) return String(entry.meta);
+        return "";
+      }
+
+      function createNode({ id, label, icon = "", variant = "leaf", tone = "blue", meta = "" }) {
+        const node = document.createElement("div");
+        node.className = `system-map-node is-${variant} is-tone-${tone}`;
+        node.dataset.nodeId = id;
+
+        if (icon) {
+          const iconNode = document.createElement("span");
+          iconNode.className = "system-map-node-icon";
+          iconNode.setAttribute("aria-hidden", "true");
+          iconNode.textContent = icon;
+          node.appendChild(iconNode);
+        }
+
+        const labelNode = document.createElement("span");
+        labelNode.className = "system-map-node-label";
+        labelNode.textContent = label;
+        node.appendChild(labelNode);
+
+        return node;
+      }
+
+      function appendEntry(chain, group, entry) {
+        if (entry && typeof entry === "object" && entry.type === "row") {
+          const row = document.createElement("div");
+          row.className = "system-map-row";
+          row.dataset.nodeId = `${group.id}-row`;
+          for (const item of entry.items || []) {
+            const label = nodeLabel(item);
+            row.appendChild(
+              createNode({
+                id: `${group.id}-${label}`,
+                label,
+                meta: nodeMeta(item),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          chain.appendChild(row);
+          return;
+        }
+
+        if (entry && typeof entry === "object" && entry.type === "group") {
+          const wrap = document.createElement("div");
+          wrap.className = "system-map-group";
+          wrap.appendChild(
+            createNode({
+              id: `${group.id}-${entry.label}`,
+              label: String(entry.label),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+
+          const children = document.createElement("div");
+          children.className = entry.layout === "row" ? "system-map-row" : "system-map-stack";
+          if (entry.layout === "row") children.dataset.nodeId = `${group.id}-${entry.label}-row`;
+
+          for (const item of entry.items || []) {
+            const label = nodeLabel(item);
+            children.appendChild(
+              createNode({
+                id: `${group.id}-${label}`,
+                label,
+                meta: nodeMeta(item),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          wrap.appendChild(children);
+          chain.appendChild(wrap);
+          return;
+        }
+
+        if (entry && typeof entry === "object" && entry.label && Array.isArray(entry.side)) {
+          const fork = document.createElement("div");
+          fork.className = "system-map-fork";
+
+          const main = document.createElement("div");
+          main.className = "system-map-fork-main";
+          main.appendChild(
+            createNode({
+              id: `${group.id}-${entry.label}`,
+              label: String(entry.label),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+          fork.appendChild(main);
+
+          const side = document.createElement("div");
+          side.className = "system-map-fork-side";
+          for (const sideLabel of entry.side) {
+            side.appendChild(
+              createNode({
+                id: `${group.id}-${sideLabel}`,
+                label: String(sideLabel),
+                variant: "leaf",
+                tone: group.tone
+              })
+            );
+          }
+          fork.appendChild(side);
+          chain.appendChild(fork);
+          return;
+        }
+
+        if (entry && typeof entry === "object" && entry.label && !entry.side && !entry.type) {
+          const label = nodeLabel(entry);
+          chain.appendChild(
+            createNode({
+              id: `${group.id}-${label}`,
+              label,
+              meta: nodeMeta(entry),
+              variant: "leaf",
+              tone: group.tone
+            })
+          );
+          return;
+        }
+
+        chain.appendChild(
+          createNode({
+            id: `${group.id}-${entry}`,
+            label: String(entry),
+            variant: "leaf",
+            tone: group.tone
+          })
+        );
+      }
+
+      function getAnchor(nodeEl, diagramEl, side = "center") {
+        if (!nodeEl || !diagramEl) return null;
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const diagramRect = diagramEl.getBoundingClientRect();
+        let x = nodeRect.left + nodeRect.width / 2 - diagramRect.left;
+        let y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        if (side === "bottom") y = nodeRect.bottom - diagramRect.top;
+        if (side === "top") y = nodeRect.top - diagramRect.top;
+        if (side === "right") {
+          x = nodeRect.right - diagramRect.left;
+          y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        }
+        if (side === "left") {
+          x = nodeRect.left - diagramRect.left;
+          y = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+        }
+        return { x, y };
+      }
+
+      function drawEdge(svg, from, to, straight = false, className = "") {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const d = straight
+          ? `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`
+          : (() => {
+              const midY = from.y + (to.y - from.y) * 0.45;
+              return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${from.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${midY.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+            })();
+        path.setAttribute("d", d);
+        path.setAttribute("class", `system-map-link${className ? ` ${className}` : ""}`);
+        svg.appendChild(path);
+      }
+
+      function layoutRadialSpokes(diagramEl) {
+        const width = diagramEl.clientWidth;
+        const height = diagramEl.clientHeight;
+        if (!width || !height) return;
+
+        const cx = width / 2;
+        const cy = height / 2;
+        const spokes = [...diagramEl.querySelectorAll(".system-map-spoke")];
+        const n = spokes.length;
+        if (!n) return;
+
+        const orbitR = Math.min(cx, cy) * 0.56;
+        const panelOffset = Math.min(140, Math.min(cx, cy) * 0.26);
+
+        spokes.forEach((spoke, i) => {
+          const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+          const x = cx + Math.cos(angle) * orbitR;
+          const y = cy + Math.sin(angle) * orbitR;
+          spoke.style.left = `${x}px`;
+          spoke.style.top = `${y}px`;
+
+          const panel = spoke.querySelector(".system-map-spoke-panel");
+          if (!panel) return;
+          const px = Math.cos(angle) * panelOffset;
+          const py = Math.sin(angle) * panelOffset;
+          panel.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+        });
+      }
+
+      function syncLinks(diagramEl) {
+        const svg = diagramEl.querySelector(".system-map-svg");
+        if (!svg) return;
+
+        const width = diagramEl.clientWidth;
+        const height = diagramEl.clientHeight;
+        if (!width || !height) return;
+
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
+        svg.replaceChildren();
+
+        const hub = diagramEl.querySelector('[data-node-id="workspace"]');
+        if (!hub) return;
+        const hubCenter = getAnchor(hub, diagramEl, "center");
+        if (!hubCenter) return;
+
+        for (const spoke of diagramEl.querySelectorAll(".system-map-spoke")) {
+          const spokeHub = spoke.querySelector(".system-map-spoke-hub");
+          if (!spokeHub) continue;
+          const spokeCenter = getAnchor(spokeHub, diagramEl, "center");
+          if (!spokeCenter) continue;
+          drawEdge(svg, hubCenter, spokeCenter, true, "is-spoke");
+
+          if (!spoke.classList.contains("is-expanded")) continue;
+          const panel = spoke.querySelector(".system-map-spoke-panel");
+          if (!panel) continue;
+          const panelCenter = getAnchor(panel, diagramEl, "center");
+          if (!panelCenter) continue;
+          drawEdge(svg, spokeCenter, panelCenter, true, "is-branch");
+        }
+      }
+
+      function toggleSpoke(spoke, diagramEl) {
+        const willExpand = !spoke.classList.contains("is-expanded");
+        for (const other of diagramEl.querySelectorAll(".system-map-spoke.is-expanded")) {
+          other.classList.remove("is-expanded");
+          other.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "false");
+        }
+        if (willExpand) {
+          spoke.classList.add("is-expanded");
+          spoke.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "true");
+        }
+        layoutRadialSpokes(diagramEl);
+        syncLinks(diagramEl);
+      }
+
+      function bindSpokeInteractions(diagramEl) {
+        for (const spoke of diagramEl.querySelectorAll(".system-map-spoke")) {
+          const hub = spoke.querySelector(".system-map-spoke-hub");
+          if (!hub || hub.dataset.bound === "1") continue;
+          hub.dataset.bound = "1";
+          hub.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleSpoke(spoke, diagramEl);
+          });
+          hub.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleSpoke(spoke, diagramEl);
+            }
+          });
+        }
+
+        if (diagramEl.dataset.radialBound === "1") return;
+        diagramEl.dataset.radialBound = "1";
+        diagramEl.addEventListener("click", (event) => {
+          if (event.target.closest(".system-map-spoke-hub") || event.target.closest(".system-map-spoke-panel")) {
+            return;
+          }
+          for (const spoke of diagramEl.querySelectorAll(".system-map-spoke.is-expanded")) {
+            spoke.classList.remove("is-expanded");
+            spoke.querySelector(".system-map-spoke-hub")?.setAttribute("aria-expanded", "false");
+          }
+          syncLinks(diagramEl);
+        });
+      }
+
+      function createRadialSpoke(group) {
+        const spoke = document.createElement("div");
+        spoke.className = `system-map-spoke is-tone-${group.tone}`;
+        spoke.dataset.groupId = group.id;
+
+        const hub = createNode({
+          id: `${group.id}-root`,
+          label: group.title,
+          icon: group.icon,
+          variant: "pillar",
+          tone: group.tone
+        });
+        hub.classList.add("system-map-spoke-hub");
+        hub.setAttribute("role", "button");
+        hub.setAttribute("tabindex", "0");
+        hub.setAttribute("aria-expanded", "false");
+        hub.title = `${group.caption} — нажмите, чтобы раскрыть`;
+
+        const panel = document.createElement("div");
+        panel.className = "system-map-spoke-panel";
+        panel.setAttribute("role", "region");
+        panel.setAttribute("aria-label", group.title);
+
+        const caption = document.createElement("div");
+        caption.className = "system-map-spoke-caption";
+        caption.textContent = group.caption;
+        panel.appendChild(caption);
+
+        const sections = group.sections || [{ label: "", nodes: group.nodes || [] }];
+        for (const section of sections) {
+          const sectionEl = document.createElement("div");
+          sectionEl.className = "system-map-section";
+
+          if (section.label) {
+            const label = document.createElement("div");
+            label.className = "system-map-section-label";
+            label.textContent = section.label;
+            sectionEl.appendChild(label);
+          }
+
+          const body = document.createElement("div");
+          body.className = "system-map-section-body";
+          for (const entry of section.nodes || []) {
+            appendEntry(body, group, entry);
+          }
+          sectionEl.appendChild(body);
+          panel.appendChild(sectionEl);
+        }
+
+        spoke.append(hub, panel);
+        return spoke;
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById("legend");
+        legend.replaceChildren();
+        for (const group of GROUPS) {
+          const item = document.createElement("div");
+          item.className = `legend-item is-tone-${group.tone}`;
+          const sectionLabels = (group.sections || [])
+            .map((section) => section.label)
+            .filter(Boolean)
+            .join(" · ");
+          item.innerHTML = `<strong>${group.icon} ${group.title}</strong>${group.caption}${sectionLabels ? `<br>${sectionLabels}` : ""}`;
+          legend.appendChild(item);
+        }
+      }
+
+      function renderMap() {
+        renderLegend();
+
+        const mount = document.getElementById("map-root");
+        mount.replaceChildren();
+
+        const map = document.createElement("div");
+        map.className = "system-map";
+
+        const badge = document.createElement("div");
+        badge.className = "system-map-badge";
+        badge.textContent = "Граф · клик по ветке";
+
+        const diagram = document.createElement("div");
+        diagram.className = "system-map-diagram";
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("system-map-svg");
+        svg.setAttribute("aria-hidden", "true");
+
+        const radial = document.createElement("div");
+        radial.className = "system-map-radial";
+
+        const hubWrap = document.createElement("div");
+        hubWrap.className = "system-map-hub";
+        hubWrap.appendChild(
+          createNode({
+            id: "workspace",
+            label: "Workspace",
+            icon: "🏠",
+            variant: "hub",
+            tone: "gold"
+          })
+        );
+        const hubCaption = document.createElement("div");
+        hubCaption.className = "system-map-hub-caption";
+        hubCaption.textContent = "текущее хранилище · может быть в группе";
+        hubWrap.appendChild(hubCaption);
+
+        const orbit = document.createElement("div");
+        orbit.className = "system-map-orbit";
+        for (const group of GROUPS) {
+          orbit.appendChild(createRadialSpoke(group));
+        }
+
+        radial.append(svg, hubWrap, orbit);
+        diagram.appendChild(radial);
+        map.append(badge, diagram);
+        mount.appendChild(map);
+
+        bindSpokeInteractions(diagram);
+        const sync = () => {
+          layoutRadialSpokes(diagram);
+          syncLinks(diagram);
+        };
+        requestAnimationFrame(() => requestAnimationFrame(sync));
+        new ResizeObserver(sync).observe(diagram);
+      }
+
+      renderMap();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Runtime tasks demo — Agent CMS</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f8fafc;
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #020617 100%);
+    }
+    .page { max-width: 920px; margin: 0 auto; display: grid; gap: 20px; }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    .lead { margin: 0; font-size: 13px; line-height: 1.55; color: #94a3b8; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      padding: 20px; border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.92);
+    }
+    .card--recurring { border-color: rgba(125, 211, 252, 0.35); }
+    .card--scheduled { border-color: rgba(253, 224, 71, 0.35); }
+    .badge {
+      display: inline-block; margin-bottom: 10px; padding: 3px 8px;
+      border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .badge--recurring { background: rgba(14, 116, 144, 0.35); color: #7dd3fc; }
+    .badge--scheduled { background: rgba(120, 53, 15, 0.35); color: #fde68a; }
+    .card h2 { margin: 0 0 6px; font-size: 1rem; }
+    .card p.note { margin: 0 0 14px; font-size: 12px; line-height: 1.45; color: #94a3b8; }
+    label { display: block; font-size: 11px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+    .field { margin-bottom: 12px; }
+    select, input[type="time"], input[type="number"], input[type="text"], input[type="datetime-local"] {
+      width: 100%; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.35); background: #0f172a; color: #f8fafc; font-size: 14px;
+    }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+    .weekdays { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .weekdays label {
+      display: inline-flex; align-items: center; gap: 3px; padding: 4px 6px; border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(30, 41, 59, 0.6);
+      font-size: 11px; font-weight: 500; cursor: pointer;
+    }
+    .weekdays label:has(input:checked) { border-color: rgba(125, 211, 252, 0.55); background: rgba(14, 116, 144, 0.25); }
+    .preview {
+      margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+      background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.2);
+      font-size: 11px; line-height: 1.5;
+    }
+    .preview dt { color: #64748b; text-transform: uppercase; font-size: 10px; margin-bottom: 4px; }
+    .preview dd { margin: 0 0 8px; }
+    .preview dd:last-child { margin-bottom: 0; }
+    code { font-family: ui-monospace, monospace; color: #7dd3fc; font-size: 11px; white-space: pre-wrap; }
+    .agent-cmd { color: #fde68a; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Два типа runtime-задач</h1>
+      <p class="lead">В CMS сейчас есть только <strong>повторяющиеся</strong> (cron). <strong>По расписанию</strong> (разово / до даты) — отдельный тип, как в CoPaw jobs.json.</p>
+    </header>
+
+    <div class="grid">
+      <!-- ПОВТОРЯЮЩИЕСЯ — уже в CMS -->
+      <section class="card card--recurring">
+        <span class="badge badge--recurring">Есть в CMS</span>
+        <h2>Повторяющаяся задача</h2>
+        <p class="note">Флаг <code>awn-runtime-cron</code> + cron-строка. Агент: «<span class="agent-cmd">загрузи повторяющиеся задачи</span>» → <code>list_workspace_cron</code>.</p>
+
+        <div class="field">
+          <label for="rec-mode">Тип повтора</label>
+          <select id="rec-mode">
+            <option value="interval">Каждые N минут / часов</option>
+            <option value="daily">Каждый день в заданное время</option>
+            <option value="weekdays">По будням (пн–пт)</option>
+            <option value="weekly">По выбранным дням недели</option>
+            <option value="monthly">Каждый месяц, N-го числа</option>
+            <option value="custom">Своё cron-выражение</option>
+          </select>
+        </div>
+
+        <div id="rec-panel-interval" class="panel">
+          <div class="row field">
+            <div><label>Интервал</label><input id="rec-interval-n" type="number" min="1" max="59" value="30" /></div>
+            <div><label>Единица</label><select id="rec-interval-unit"><option value="minutes">минут</option><option value="hours">часов</option></select></div>
+          </div>
+        </div>
+        <div id="rec-panel-daily" class="panel"><div class="field"><label>Время</label><input id="rec-daily-time" type="time" value="09:00" /></div></div>
+        <div id="rec-panel-weekdays" class="panel"><div class="field"><label>Время (пн–пт)</label><input id="rec-weekdays-time" type="time" value="09:00" /></div></div>
+        <div id="rec-panel-weekly" class="panel">
+          <div class="field"><label>Дни</label>
+            <div class="weekdays" id="rec-weekly-days">
+              <label><input type="checkbox" value="1" checked /> Пн</label>
+              <label><input type="checkbox" value="2" /> Вт</label>
+              <label><input type="checkbox" value="3" /> Ср</label>
+              <label><input type="checkbox" value="4" /> Чт</label>
+              <label><input type="checkbox" value="5" /> Пт</label>
+            </div>
+            <input id="rec-weekly-time" type="time" value="09:00" />
+          </div>
+        </div>
+        <div id="rec-panel-monthly" class="panel">
+          <div class="row field">
+            <div><label>Число</label><input id="rec-monthly-day" type="number" min="1" max="31" value="1" /></div>
+            <div><label>Время</label><input id="rec-monthly-time" type="time" value="09:00" /></div>
+          </div>
+        </div>
+        <div id="rec-panel-custom" class="panel">
+          <div class="field"><label>Cron</label><input id="rec-custom" type="text" value="0 9 * * 1-5" spellcheck="false" /></div>
+        </div>
+
+        <dl class="preview">
+          <dt>YAML (frontmatter)</dt>
+          <dd><code id="rec-yaml">awn-runtime-cron: true
+awn-runtime-cron-schedule: "0 9 * * 1-5"</code></dd>
+        </dl>
+      </section>
+
+      <!-- ПО РАСПИСАНИЮ — mock, как CoPaw -->
+      <section class="card card--scheduled">
+        <span class="badge badge--scheduled">Mock / CoPaw</span>
+        <h2>Задача по расписанию</h2>
+        <p class="note">Разовый запуск или серия «каждый день до даты». Живёт в <code>jobs.json</code> планировщика агента, не в cron-поле CMS.</p>
+
+        <div class="field">
+          <label for="sch-type">Тип</label>
+          <select id="sch-type">
+            <option value="once">Один раз (в дату и время)</option>
+            <option value="repeat-until">Каждый N дней до даты</option>
+          </select>
+        </div>
+
+        <div id="sch-panel-once" class="panel is-active">
+          <div class="field"><label>Запуск</label><input id="sch-run-at" type="datetime-local" value="2026-08-20T20:00" /></div>
+        </div>
+
+        <div id="sch-panel-repeat" class="panel">
+          <div class="field"><label>Первый запуск</label><input id="sch-run-at-repeat" type="datetime-local" value="2026-08-20T20:00" /></div>
+          <div class="row field">
+            <div><label>Каждые N дней</label><input id="sch-every-days" type="number" min="1" value="1" /></div>
+            <div><label>До (включительно)</label><input id="sch-until" type="datetime-local" value="2026-08-30T08:00" /></div>
+          </div>
+        </div>
+
+        <div class="field"><label>Часовой пояс</label><select id="sch-tz"><option>Europe/Moscow</option><option>UTC</option></select></div>
+
+        <dl class="preview">
+          <dt>jobs.json → schedule</dt>
+          <dd><code id="sch-json">{
+  "type": "once",
+  "run_at": "2026-08-20T20:00:00",
+  "timezone": "Europe/Moscow"
+}</code></dd>
+          <dt>Команда агенту</dt>
+          <dd class="agent-cmd">«загрузи задачи по расписанию»</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function buildRecurring() {
+      const mode = $("rec-mode").value;
+      if (mode === "custom") return String($("rec-custom").value || "").trim() || "0 9 * * *";
+      if (mode === "interval") {
+        const n = Math.max(1, Number($("rec-interval-n").value) || 30);
+        return $("rec-interval-unit").value === "hours" ? `0 */${n} * * *` : `*/${n} * * * *`;
+      }
+      const time = (id) => { const [h,m] = ($(id).value || "09:00").split(":").map(Number); return { h: h||9, m: m||0 }; };
+      const t = (h,m) => `${m} ${h} * * *`.replace(/^(\d+) (\d+) \* \* \*$/, `${m} ${h} * * *`);
+      if (mode === "daily") { const {h,m} = time("rec-daily-time"); return `${m} ${h} * * *`; }
+      if (mode === "weekdays") { const {h,m} = time("rec-weekdays-time"); return `${m} ${h} * * 1-5`; }
+      if (mode === "weekly") {
+        const days = [...document.querySelectorAll("#rec-weekly-days input:checked")].map((e) => e.value).join(",") || "1";
+        const {h,m} = time("rec-weekly-time"); return `${m} ${h} * * ${days}`;
+      }
+      if (mode === "monthly") {
+        const day = Number($("rec-monthly-day").value) || 1;
+        const {h,m} = time("rec-monthly-time"); return `${m} ${h} ${day} * *`;
+      }
+      return "0 9 * * *";
+    }
+
+    function syncRecurring() {
+      const mode = $("rec-mode").value;
+      for (const id of ["interval","daily","weekdays","weekly","monthly","custom"]) {
+        $("rec-panel-" + id)?.classList.toggle("is-active", id === mode);
+      }
+      const cron = buildRecurring();
+      $("rec-yaml").textContent = `awn-runtime-cron: true\nawn-runtime-cron-schedule: "${cron}"`;
+    }
+
+    function toIsoLocal(val) {
+      if (!val) return null;
+      return val.length === 16 ? `${val}:00` : val;
+    }
+
+    function syncScheduled() {
+      const type = $("sch-type").value;
+      $("sch-panel-once").classList.toggle("is-active", type === "once");
+      $("sch-panel-repeat").classList.toggle("is-active", type === "repeat-until");
+      const tz = $("sch-tz").value;
+      let schedule;
+      if (type === "once") {
+        schedule = { type: "once", run_at: toIsoLocal($("sch-run-at").value), repeat_every_days: null, repeat_until: null, timezone: tz };
+      } else {
+        schedule = {
+          type: "once",
+          run_at: toIsoLocal($("sch-run-at-repeat").value),
+          repeat_every_days: Number($("sch-every-days").value) || 1,
+          repeat_until: toIsoLocal($("sch-until").value),
+          repeat_end_type: "until",
+          timezone: tz
+        };
+      }
+      $("sch-json").textContent = JSON.stringify(schedule, null, 2);
+    }
+
+    document.querySelectorAll("select, input").forEach((el) => {
+      el.addEventListener("input", () => { syncRecurring(); syncScheduled(); });
+      el.addEventListener("change", () => { syncRecurring(); syncScheduled(); });
+    });
+    syncRecurring();
+    syncScheduled();
+  </script>
+</body>
+</html>

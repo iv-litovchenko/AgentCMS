@@ -1,0 +1,8 @@
+:root { --spine-width: 300px; }
+body { background: #010409; }
+.stage { padding: 16px 0 60px; }
+.root .orb { --s: 76px; border-color: rgba(250,204,21,.8); box-shadow: 0 0 28px rgba(250,204,21,.22); }
+.section .orb { --s: 52px; }
+.topic .orb { --s: 44px; font-size: 18px; }
+.cap { --cap-size: 10px; --cap-width: 72px; }
+.links .leaf { stroke-width: 1.2; }

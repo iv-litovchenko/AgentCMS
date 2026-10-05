@@ -1,0 +1,260 @@
+---
+awn-name: "IDEAS · пакеты, зависимости и стеки топиков"
+awn-emoji: ""
+awn-status: open
+awn-description: ""
+awn-tags: []
+awn-type: awn.content.record
+awn-create: "2026-08-01T21:56"
+awn-update: 2026-08-01T19:19:56.638Z
+awn-version: 4
+awn-preview: ""
+awn-web-url: ""
+awn-attachments: []
+---
+
+**Топик** — «что лежит в дереве агента»
+**Пакет** — «что меняет дерево и поведение системы»
+
+> Черновик архитектуры: как сделать **области** и **топики** расширяемыми «пакетами» (PHP, Python, Node, Docker) без дублирования `manifest.md` и без отдельного `topic-manifest.json`.
+
+Контекст: гетерогенный workspace — разные топики с разным стеком (`composer.json`, `package.json`, `requirements.txt`, `.env`, Docker). Вопрос: ставить всё сразу или по требованию?
+
+**Принцип Agent CMS:** пакет топика = **manifest (кто)** + **storage/configuration/package.yml (как запускать)** + **storage/** (данные, скрипты, артефакты).
+
+***
+
+## Что уже есть в модели (не изобретать заново)
+
+| Слой | Файл | Роль |
+| ---- | ---- | ---- |
+| Кто | `{slug}/manifest.md` | `awn-type`, `awn-name`, инструкция для агента |
+| Схема полей | `storage/configuration/schema.yml` | тип, `extends`, storage-slots |
+| Значения | `storage/config.yml` | конфиг темы |
+| Память | `storage/content.md`, `content/`, `content.csv`, … | драйверы памяти |
+| Код / артефакты | `storage/scripts/`, `storage/artefacts/`, `storage/.env` | уже используется (напр. PHP) |
+| Workspace (в доках) | `acms.dependencies.json` / `acms.deps.json` | глобальные runtime — **зарезервировано, не реализовано** |
+| Компоненты | `components/frames/topic/…` | `storage-slots`, `runtime-id`, merge через `extends` |
+
+Не плодить параллельный JSON-манифест топика — расширять **`storage/configuration/`**.
+
+***
+
+## Трёхуровневая модель
+
+### 1. Workspace — «что должно быть на машине»
+
+Файл в корне агента: `acms.dependencies.json` (или `storage/configuration/workspace-deps.yml` у корня workspace).
+
+```yaml
+runtimes:
+  node: "22"
+  python: "3.12"
+  php: "8.3"
+tools:
+  docker: ">=24"
+  git: ">=2.40"
+policy:
+  install: on-first-boot   # один раз при старте Agent CMS / агента
+```
+
+**Когда:** старт приложения, не при каждом топике.
+
+### 2. Area — политика для поддерева (опционально)
+
+`{area}/storage/configuration/package.yml`:
+
+```yaml
+kind: area-policy
+children:
+  install: lazy              # зависимости детей — только при активации топика
+  inherit-runtimes: true
+aggregates:
+  compose: merge             # собрать docker-compose из дочерних топиков
+```
+
+Область **не обязана** иметь свой `composer.json` — она задаёт правила для детей.
+
+### 3. Topic — полноценный пакет
+
+`{topic}/storage/configuration/package.yml`:
+
+```yaml
+id: package/php-learning
+extends: stacks/php          # mixin из awn-types / components/stacks/
+stack: php
+runtime:
+  version: "8.3"
+dependencies:
+  manager: composer
+  file: storage/artefacts/composer.json
+  lock: storage/artefacts/composer.lock
+env:
+  file: storage/.env
+install:
+  when: on-activate          # lazy
+  command: composer install --no-dev
+  marker: storage/.package-installed
+artifacts:
+  - storage/artefacts/
+  - storage/scripts/
+docker:
+  service: php-topic
+  build: storage/configuration/Dockerfile
+```
+
+**Когда:** UI/MCP **активирует топик** (открыли, `load_topic`, «работай с PHP») — не при старте всего workspace.
+
+Маркер `storage/.package-installed` + hash lock-файла — не переустанавливать без изменений.
+
+***
+
+## Lazy vs eager — одна knob
+
+| Политика | Где | Поведение |
+| -------- | --- | --------- |
+| `on-boot` | workspace deps | Docker, git, базовые runtime |
+| `on-activate` | topic package | `composer install` / `npm ci` при первом входе в топик |
+| `on-build` | CI / кнопка «Собрать» | docker build, lint, tests |
+| `never` | area readonly | только чтение памяти |
+
+***
+
+## Связь с компонентами и awn-types
+
+Задел уже есть:
+
+* `components/frames/topic/…/schema.yml` — **storage-slots** (`scripts`, `artefacts`, …)
+* `components-loader.js` — merge `extends`, `runtime-id`; `awn-status: 🟢 Открыта` → в runtime
+
+Расширение:
+
+```
+awn-types/ (или components/stacks/)
+├── stacks/
+│   ├── php.yml      # mixin: manager=composer, slots=[scripts,artefacts]
+│   ├── node.yml
+│   └── python.yml
+```
+
+Топик в `schema.yml`:
+
+```yaml
+extends: awn.topic
+mixins:
+  - stacks/php
+package: ./package.yml
+```
+
+Агент видит: «это `awn.topic` + stack PHP» — одна онтология.
+
+***
+
+## Область vs топик как пакет
+
+|  | Area (`awn.area`) | Topic (`awn.topic`) |
+| --- | --------------- | ----------------- |
+| Память | обычно нет своих драйверов | `content.md`, `content/`, … |
+| Package | policy + агрегация | полный stack + deps |
+| В меню | папка (`menu-folder`) | пункт (`menu-item`) |
+| Docker | merge services детей | свой service |
+
+Пример: `php/` — topic-пакет; «Внутренняя область-1» — area с `children.install: lazy`, deps у `tema-1` / `zapis-0` внутри.
+
+***
+
+## Docker без зоопарка compose-файлов
+
+1. Каждый топик — опциональный блок `docker:` в `package.yml`.
+2. Workspace/area — **`acms compose generate`** → один `docker-compose.yml` из активных (`awn-status: 🟢`) топиков.
+3. Fallback — скрипт установки читает те же YAML (без Docker): `storage/scripts/install.sh` или built-in по `manager`.
+
+Структура (эталон):
+
+```
+workspace/
+├── acms.dependencies.json
+├── docker-compose.yml              # генерируется
+├── manifest.md
+├── awn-agent-kit/
+└── awn-content/                    # (было awn-container / container)
+    ├── data-processing/            # area
+    │   └── python-topic/
+    │       ├── manifest.md
+    │       └── storage/
+    │           ├── configuration/
+    │           │   ├── schema.yml
+    │           │   ├── package.yml
+    │           │   └── Dockerfile
+    │           ├── artefacts/
+    │           │   └── requirements.txt
+    │           └── content/
+    └── web-services/
+        └── php-topic/
+            └── storage/…
+```
+
+***
+
+## Альтернативы (из обсуждения) — почему не они как primary
+
+| Подход | Плюс | Минус для Agent CMS |
+| ------ | ---- | ------------------- |
+| `topic-manifest.json` в каждом топике | привычно | дублирует `manifest.md` + `schema.yml` |
+| Docker на каждый топик | изоляция | тяжело для md-first workspace |
+| Глобальный `pip install` всего | просто | конфликты версий между топиками |
+| **package.yml + lazy install** | совпадает с storage-слоями | нужен resolver в runtime |
+
+Рекомендация: **иерархические YAML в storage/configuration** + опциональный Docker + lazy по `on-activate`.
+
+***
+
+## План внедрения (фазы)
+
+### Фаза A — спека и эталоны (только доки + примеры в workspace)
+
+* [ ] Схема `package.yml` (JSON Schema или awn-types блок `awn.package`)
+* [ ] Эталон `php/storage/configuration/package.yml` в `agent-cms-test`
+* [ ] Пример `acms.dependencies.json` в доке `documentations/`
+* [ ] Mixins `stacks/php`, `stacks/node`, `stacks/python` в `components/` или `awn-types/`
+
+### Фаза B — resolver в runtime
+
+* [ ] `GET /api/topic/package?path=…` — merged: workspace + area policy + topic
+* [ ] MCP: `get_topic_package`
+* [ ] Индекс в `acms.map.json` (опционально): `path → stack, installState`
+
+### Фаза C — installer
+
+* [ ] `POST /api/topic/package/install`
+* [ ] Built-in: composer / npm / pip по полю `dependencies.manager`
+* [ ] Кастом: `storage/scripts/install.sh`
+* [ ] UI: chip «Зависимости не установлены» на overview топика
+
+### Фаза D — compose generator
+
+* [ ] Обход `awn-content/**/storage/configuration/package.yml`
+* [ ] Генерация корневого `docker-compose.yml` только для `awn-status: 🟢`
+
+***
+
+## Заметки и риски
+
+* **Коллизия имён:** `awn-content/` (дерево тем) vs `storage/content/` (многофайловая память) — в доках явно разводить уровни.
+* **Переименование папки:** `awn-container` → `awn-content` (legacy: `container`) — см. отдельное обсуждение; на package.yml не влияет.
+* **Связь с `draft-3.md`:** `awn.deps.json`, `awn.map-registry.json` — тот же слой, что `acms.dependencies.json`; унифицировать имена при реализации.
+* **Git:** lock-файлы и `storage/.env` — в `.gitignore` шаблонах топика; marker `.package-installed` — локально.
+
+***
+
+## Связанные файлы
+
+* `documentations/user-docs.md` — `acms.dependencies.json`, системные файлы корня
+* `ideasmd/manifest.md` — backlog каналов (Inbox, Thread, Comments)
+* `components/frames/topic/…/schema.yml` — storage-slots
+* `components-loader.js` — runtime merge компонентов
+* `packages/README.md` — монорепо `awn-core` (код) vs workspace (данные)
+
+***
+
+*Черновик · 2026-06 · Agent CMS platform core*

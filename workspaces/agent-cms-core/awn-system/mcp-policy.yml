@@ -1,0 +1,91 @@
+version: 1
+description: >
+  Центральная MCP policy платформы Agent CMS.
+  Значения лимитов per-workspace — в config.yml → awn_settings (batch-read-limit, batch-write-limit).
+  Этот файл — denylist, категории tools, паттерны. Меняется редко, одно на платформу.
+
+mcp:
+  # single-call write tools (blocked in mcp-mode=readonly)
+  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|database_frame_write_|database_frame_create_|database_frame_refresh_|database_frame_delete_|database_frame_rename_|database_element_write_|database_element_create_|database_element_delete_|database_element_rename_|iblock_frame_write_|iblock_frame_create_|iblock_frame_refresh_|iblock_frame_delete_|iblock_frame_rename_|iblock_write_|iblock_create_|iblock_refresh_|iblock_content_write_|iblock_content_create_|iblock_content_delete_|iblock_content_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
+  exec_tools:
+    - exec_command
+    - exec_shell
+    - run_script
+  # exec разрешён только при mcp-mode=full
+  exec_allowed_modes:
+    - full
+
+batch_invoke:
+  absolute_max_items: 50
+  default_parallel:
+    read: true
+    write: false
+
+  denied_tools:
+    - batch_invoke
+    - search_workspace_batch
+    - get_session_context
+    - get_user_active_context_now
+    - list_workspaces
+    - list_vaults
+    - ask_workspace
+    - search_and_get_context
+    - notify_user
+    - test_mcp_connection
+    - toggle_comment_reaction
+    - triage_inbox_item
+    - rebuild_workspace_indexes
+    - rebuild_workspace_semantic_index
+    - rebuild_workspace_storage_index
+    - rebuild_workspace_fulltext_index
+    - rebuild_workspace_link_index
+    - run_workspace_ocr_index
+    - sync_workspace_index_file
+
+  exec_tools:
+    - exec_command
+    - exec_shell
+    - run_script
+
+  read_name_patterns:
+    - "^read_"
+    - "^list_"
+    - "^get_"
+    - "^search_"
+    - "^recall_"
+    - "^resolve_"
+    - "^refresh_"
+
+  read_tools:
+    - page_exists
+    - content_exists
+    - list_settings
+    - read_setting
+    - database_frame_list
+    - database_frame_get
+    - database_frame_read_index
+    - database_frame_read_schema
+    - database_frame_read_properties
+    - database_frame_read_property
+    - database_element_list
+    - database_element_read_body
+    - database_element_read_properties
+    - database_element_read_property
+    - iblock_list
+    - iblock_frame_list
+    - iblock_get
+    - iblock_frame_get
+    - iblock_read_index
+    - iblock_frame_read_index
+    - iblock_read_schema
+    - iblock_frame_read_schema
+    - iblock_read_properties
+    - iblock_frame_read_properties
+    - iblock_read_property
+    - iblock_frame_read_property
+    - iblock_content_list
+    - iblock_content_read_body
+    - iblock_content_read_properties
+    - iblock_content_read_property
+    - module_git_status
+    - module_git_diff

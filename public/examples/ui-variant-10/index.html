@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example10 — навигация ноды</title>
+    <style>
+      :root { --bg: #f5f7fb; --panel: #fff; --border: #d7deeb; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 860px; line-height: 1.55; margin: 0 0 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; width: fit-content; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; }
+      .focus-card { border-color: #86efac; box-shadow: 0 0 0 3px rgba(34,197,94,0.12); }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+      .vision { max-width: 860px; margin-bottom: 28px; padding: 18px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; line-height: 1.55; font-size: 14px; }
+      .vision h2 { margin: 0 0 10px; font-size: 16px; }
+      .vision ul { margin: 8px 0 0; padding-left: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Example10 — навигация ноды</h1>
+    <p class="lead">
+      25 прототипов домена <strong>«Навигация»</strong> (режим «Все доступные элементы»):
+      сетка <strong>подразделов</strong> + единый поток документа
+      (краткая память · оглавление архива · таблица · медиа).
+    </p>
+    <div class="pill-row">
+      <span class="pill">🗂️ Подразделы</span>
+      <span class="pill">📝 Markdown</span>
+      <span class="pill">📁 External TOC</span>
+      <span class="pill">📊 Tabular</span>
+      <span class="pill">🎬 Media</span>
+    </div>
+    <section class="vision">
+      <h2>Что моделируется</h2>
+      <ul>
+        <li><strong>Шапка</strong> — select «Все доступные элементы» + префикс «Навигация ноды» + крошки.</li>
+        <li><strong>Подразделы</strong> — дочерние ноды (gallery, chips, rows, hero, bento…).</li>
+        <li><strong>Документ</strong> — непрерывный поток без кнопок редактирования и путей хранения.</li>
+      </ul>
+      <p>Рекомендация: вариант <strong>25</strong> или <strong>01</strong> — близко к production с улучшенной таблицей и медиа.</p>
+    </section>
+    <p class="lead" style="font-size:13px;">
+      Запуск: <code>cd public/examples/ui-variant-10 && python3 -m http.server 8771</code> →
+      <a href="http://localhost:8771">http://localhost:8771</a>
+      · <code>node generate.mjs</code>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>Production flow</h2>
+        <p>Как в CMS: сетка подразделов + единый документ с разделителями между памятью, TOC, таблицей и медиа.</p>
+        <a class="demo" href="./01-production-flow/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>Wide reading</h2>
+        <p>Широкая колонка документа (960px) — удобно для длинного markdown и таблиц.</p>
+        <a class="demo" href="./02-wide-reading/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>Narrow serif</h2>
+        <p>Узкая колонка (~620px) и serif-типографика — magazine-стиль чтения.</p>
+        <a class="demo" href="./03-narrow-serif/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Subsection chips</h2>
+        <p>Подразделы — горизонтальные chips вместо gallery-карточек, документ ниже без изменений.</p>
+        <a class="demo" href="./04-subsection-chips/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Subsection rows</h2>
+        <p>Подразделы списком строк с chevron — компактнее, больше места документу.</p>
+        <a class="demo" href="./05-subsection-rows/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Split panel</h2>
+        <p>Подразделы сверху, документ в отдельной «плите» с рамкой и тенью.</p>
+        <a class="demo" href="./06-split-panel/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Labeled dividers</h2>
+        <p>Между частями документа — подписи «Память · Архив · Таблица · Медиа».</p>
+        <a class="demo" href="./07-labeled-dividers/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Numbered flow</h2>
+        <p>Нумерация блоков документа — визуальный порядок «1 → 2 → 3 → 4».</p>
+        <a class="demo" href="./08-numbered-flow/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Two column doc</h2>
+        <p>Markdown слева, TOC и таблица справа — dashboard-раскладка.</p>
+        <a class="demo" href="./09-two-column-doc/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Sidebar TOC</h2>
+        <p>Фиксированная боковая колонка с оглавлением архива, основной текст справа.</p>
+        <a class="demo" href="./10-sidebar-toc/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">11</span>
+        <h2>Accordion parts</h2>
+        <p>Части документа в accordion — память открыта, остальное свёрнуто.</p>
+        <a class="demo" href="./11-accordion-parts/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">12</span>
+        <h2>External cards</h2>
+        <p>Архив — сетка карточек вместо списка ссылок; остальной поток как в production.</p>
+        <a class="demo" href="./12-external-cards/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">13</span>
+        <h2>Table in card</h2>
+        <p>Таблица в отдельной карточке с заголовком; markdown и TOC — plain flow.</p>
+        <a class="demo" href="./13-table-card/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">14</span>
+        <h2>Media thumbnails</h2>
+        <p>Медиа — сетка превью с иконками типов файлов.</p>
+        <a class="demo" href="./14-media-thumbs/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Gradient hub</h2>
+        <p>Мягкий градиент фона hub и цветные полосы у подразделов.</p>
+        <a class="demo" href="./15-gradient-hub/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">16</span>
+        <h2>Compact dense</h2>
+        <p>Плотная вёрстка: меньше gap, компактные подразделы, мелкий текст документа.</p>
+        <a class="demo" href="./16-compact-dense/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">17</span>
+        <h2>Hero subsections</h2>
+        <p>Подразделы — широкие hero-плитки в одну строку с крупным emoji.</p>
+        <a class="demo" href="./17-hero-subs/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">18</span>
+        <h2>Bento mix</h2>
+        <p>Bento-сетка: подразделы + превью памяти + мини-таблица в одной композиции.</p>
+        <a class="demo" href="./18-bento-mix/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">19</span>
+        <h2>Notion blocks</h2>
+        <p>Notion-подобные блоки: hover-фон, без жёстких разделителей между частями.</p>
+        <a class="demo" href="./19-notion-blocks/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">20</span>
+        <h2>Timeline flow</h2>
+        <p>Вертикальная линия времени слева от блоков документа.</p>
+        <a class="demo" href="./20-timeline-flow/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">21</span>
+        <h2>Minimal bare</h2>
+        <p>Ultra-minimal: без заголовка «Подразделы», тонкие разделители, без карточных теней.</p>
+        <a class="demo" href="./21-minimal-bare/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">22</span>
+        <h2>Glass document</h2>
+        <p>Стеклянные панели document-parts с blur и полупрозрачным фоном.</p>
+        <a class="demo" href="./22-glass-document/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">23</span>
+        <h2>Sticky path</h2>
+        <p>Шапка с select и крошками липкая при скролле; контент hub прокручивается под ней.</p>
+        <a class="demo" href="./23-sticky-path/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">24</span>
+        <h2>Inline TOC</h2>
+        <p>Оглавление архива — горизонтальные pill-ссылки по группам, не вертикальный список.</p>
+        <a class="demo" href="./24-inline-toc/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">25</span>
+        <h2>Recommended blend</h2>
+        <p>Рекомендуемый: gallery подразделов + panel-документ + table-card + media thumbs.</p>
+        <a class="demo" href="./25-recommended-blend/index.html">Открыть</a>
+      </article>
+    </div>
+  </body>
+</html>

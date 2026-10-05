@@ -1,0 +1,82 @@
+---
+awn-type: awn.page.topic
+awn-name: Тест всех полей
+awn-emoji: 🧪
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-status: open
+awn-tags:
+  - demo
+  - reference
+awn-main: true
+awn-category: reference
+awn-owner: me
+awn-priority: high
+awn-color: purple
+awn-sort: 0
+awn-slots-disabled: false
+awn-runtime-load-always: true
+awn-runtime-cron: true
+awn-runtime-cron-schedule: "0 9 * * 1-5"
+awn-runtime-heartbeat: true
+awn-runtime-commands: false
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-08-09T19:24:43.306Z
+awn-version: 12
+awn-description: Демо-тема — все типы полей в schema-mod.yml → awn_schema.topic
+awn-web-url: https://example.com/all-field-types
+awn-attachments: []
+demo_string: Пример однострочной строки
+demo_email: demo@example.com
+demo_slug: all-field-types
+demo_url: https://example.com/all-field-types
+demo_path: awn-container/test-vseh-poley/main.md
+demo_text: |
+  Многострочный текст
+  второй абзац
+demo_markdown: |
+  ## Заголовок
+
+  **Жирный** и *курсив*.
+demo_integer: 42
+demo_number: 3.14
+demo_boolean: true
+demo_choice_one: in_progress
+demo_choice_many:
+  - alpha
+  - beta
+demo_tags_free: demo, ui, test
+demo_date: 2026-06-21
+demo_datetime: "2026-06-21T12:00"
+demo_color: "#7c3aed"
+demo_file_one: ""
+demo_file_many: []
+demo_image_one: ""
+demo_image_many: []
+demo_json: '{"key":"value","count":1}'
+demo_relation_one: "[[All-Field-Types]]"
+demo_relation_many: "[[All-Field-Types]], [[main]]"
+demo_lookup_status: open
+demo_lookup_category: reference
+demo_lookup_owner: me
+demo_lookup_priority: high
+demo_lookup_color: purple
+demo_lookup_tags:
+  - demo
+  - reference
+demo_cron: "0 9 * * 1-5"
+demo_entity_preview: awn-storage/assets/preview/20260623203544.png
+---
+
+# All Field Types — демонстрация типов полей
+
+Тема для проверки виджетов в панели **Свойства**:
+
+| Уровень | Где смотреть |
+| ------- | ------------ |
+| **topic** | frontmatter этой темы (`demo_*`) — **все типы** |
+| **record** | `Content/All-Field-Types.md` (`rec_*`) |
+| **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
+
+Схема полей: **`schema-mod.yml`** → `awn_schema`.
+
+Запись с заполненными значениями: [[All-Field-Types]].

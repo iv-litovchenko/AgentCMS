@@ -3,9 +3,47 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
+import {
+  resolveAgentId,
+  runWithAgentId,
+  withAgentIdSchema,
+  WORKSPACE_ID_SYNONYMS
+} from "./lib/agent-scope.js";
+import { registerPageTools } from "./lib/page-tools.js";
+import { registerSlotTools } from "./lib/slot-tools.js";
+import { registerContentTools } from "./lib/content-tools.js";
+import { registerTypeListTools } from "./lib/type-list-tools.js";
+import {
+  formatReadFileToolResult,
+  registerWorkspaceFsTools
+} from "./lib/workspace-fs-tools.js";
+import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
+import { registerRepositoryTools } from "./lib/repository-tools.js";
+import { registerWorkspaceTools } from "./lib/workspace-tools.js";
+import { registerDatabaseTools } from "./lib/iblock-tools.js";
+import { registerExecTools } from "./lib/exec-tools.js";
+import { registerWebSearchTools } from "./lib/web-search-tools.js";
+import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
+import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
+import { registerBrainTools } from "./lib/brain-tools.js";
+import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
+import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
+import { registerSidecarTools } from "./lib/sidecar-tools.js";
+import { registerFactsTools } from "./lib/facts-tools.js";
+import { registerJournalTools } from "./lib/journal-tools.js";
+import { registerSettingsTools } from "./lib/settings-tools.js";
+import { registerPlatformTools } from "./lib/platform-tools.js";
+import { registerDependenciesTools } from "./lib/dependencies-tools.js";
+import { registerGitModuleTools } from "./lib/git-module-tools.js";
+import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
+import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 
-const nodePath = z.string().min(1).describe("Path to _.x.md, e.g. 05 Хобби/My.node.md");
-const extFile = z.string().min(1).describe("Relative path inside _Content or _Assets");
+const pagePath = z
+  .string()
+  .min(1)
+  .describe(
+    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
+  );
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -15,10 +53,15 @@ function toolError(message) {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-function wrap(handler) {
+function wrap(handler, { formatResult } = {}) {
   return async (args) => {
     try {
-      return textResult(await handler(args));
+      const data = await handler(args);
+      if (formatResult) {
+        const formatted = formatResult(data);
+        if (formatted) return formatted;
+      }
+      return textResult(data);
     } catch (e) {
       return toolError(e.message);
     }
@@ -28,183 +71,318 @@ function wrap(handler) {
 function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
-  const agentNote = cfg.defaultAgent
-    ? ` Agent: ${cfg.defaultAgent}.`
-    : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.1.0" });
+  const server = new McpServer({ name: "agent-cms", version: "0.4.0" });
+  const toolRegistry = createToolRegistry();
 
-  const reg = (name, description, schema, fn) => {
-    server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
+  const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
+    toolRegistry.handlers.set(name, fn);
+    toolRegistry.agentScope.set(name, agentScope);
+    if (formatResult) toolRegistry.formatters.set(name, formatResult);
+    const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
+    const scopeNote = agentScope
+      ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
+        (cfg.defaultAgent ? ` Dev-only env fallback: ${cfg.defaultAgent}.` : "")
+      : "";
+    server.registerTool(
+      name,
+      { description: description + scopeNote, inputSchema },
+      wrap(
+        async (args) => {
+          if (!agentScope) return fn(args);
+          const agentId = resolveAgentId(args, cfg.defaultAgent);
+          await assertWorkspaceMcpToolAllowed(client, agentId, name, args);
+          return runWithAgentId(agentId, () => fn(args));
+        },
+        { formatResult }
+      )
+    );
   };
 
-  reg("list_agents", "List agents from registry.", z.object({}), () =>
-    client.get("/api/agents", {}, { agentScope: false })
-  );
+  // ── Workspaces (no agentId) ─────────────────────────────────────────────────
 
-  reg("get_menu", "Node tree for workspace.", z.object({}), () => client.get("/api/menu"));
+  const listWorkspacesHandler = () => client.get("/api/agents", {}, { agentScope: false });
 
   reg(
-    "search_workspace",
-    "Search workspace.",
+    "list_workspaces",
+    "START NEW CHAT: list all workspaces (agents / vaults / хранилища / рабочие пространства). Returns id, name, path, defaultAgentId. Pick agentId before get_session_context.",
+    z.object({}),
+    listWorkspacesHandler,
+    { agentScope: false }
+  );
+
+  reg(
+    "list_vaults",
+    "Alias for list_workspaces — same registry of agents / vaults / хранилища.",
+    z.object({}),
+    listWorkspacesHandler,
+    { agentScope: false }
+  );
+
+  registerWorkspaceTools(reg, client);
+
+  // ── Старт / контекст (5) ───────────────────────────────────────────────────
+
+  reg(
+    "get_session_context",
+    "START HERE: topicRegistry, alwaysContext, service manifests. Runtime indexes: list_workspace_always_context / list_workspace_cron / list_workspace_heartbeat.",
+    z.object({}),
+    () => client.get("/api/agent/session-context")
+  );
+
+  reg(
+    "get_user_active_context_now",
+    "What the user is viewing in Agent CMS UI: focus.entity, ready MCP args (path/slot/ref). Call when the user did not specify a path.",
+    z.object({}),
+    () => client.get("/api/agent/active-context")
+  );
+
+  reg(
+    "list_workspace_always_context",
+    "Always-in-context: full file content for awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md.",
+    z.object({}),
+    () => client.get("/api/agent/always-context")
+  );
+
+  reg(
+    "list_workspace_cron",
+    "Cron index: topics and records with awn-runtime-cron (+ schedule).",
+    z.object({}),
+    () => client.get("/api/agent/cron-registry")
+  );
+
+  reg(
+    "list_workspace_heartbeat",
+    "Heartbeat index: topics and records with awn-runtime-heartbeat.",
+    z.object({}),
+    () => client.get("/api/agent/heartbeat-registry")
+  );
+
+  registerSettingsTools(reg, client);
+  registerPlatformTools(reg, client);
+  registerDependenciesTools(reg, client);
+  registerGitModuleTools(reg, client);
+
+  // ── Навигация (3) ──────────────────────────────────────────────────────────
+
+  registerMapTools(reg, client, pagePath);
+
+  registerSearchWorkspaceTools(reg, client);
+
+  registerRepositoryTools(reg, client);
+
+  registerBrainTools(reg, client);
+
+  registerFactsTools(reg, client);
+  registerJournalTools(reg, client);
+
+  // ── awn-databases: database_frame_* + database_element_* (iblock_* deprecated) ─
+
+  registerDatabaseTools(reg, client);
+
+  // ── Page / Slot / Content / Types ──────────────────────────────────────────
+
+  registerPageTools({ reg, client, pagePath });
+  registerSlotTools({ reg, client, pagePath });
+  registerContentTools({ reg, client, pagePath });
+  registerTypeListTools({ reg, client });
+
+  // ── Intake (4) ─────────────────────────────────────────────────────────────
+
+  reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: pagePath }), ({ path }) =>
+    client.get("/api/inbox", { path })
+  );
+
+  reg(
+    "triage_inbox_item",
+    "Triage inbox: to-content, mark-done, set-status.",
     z.object({
-      query: z.string().min(1),
-      scope: z.enum(["content", "filename", "description"]).optional(),
-      limit: z.number().int().min(1).max(100).optional()
+      path: pagePath,
+      file: z.string().min(1),
+      action: z.enum(["to-content", "mark-done", "set-status"]),
+      status: z.enum(["new", "in-progress", "done"]).optional()
     }),
-    ({ query, scope, limit }) =>
-      client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
-  );
-
-  reg("read_node_description", "Read _.x.md.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file", { path })
+    ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
   );
 
   reg(
-    "write_node_description",
-    "Save _.x.md.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/content", { path, content })
-  );
-
-  reg("read_node_properties", "Read frontmatter from _.x.md.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file/properties", { path })
-  );
-
-  reg(
-    "write_node_properties",
-    "Save frontmatter to _.x.md.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/properties", { path, content })
-  );
-
-  reg(
-    "create_node",
-    "Create folder node or part.",
+    "read_discussion",
+    "Read topic discussion (slot discussion / folder discussion/).",
     z.object({
-      parentPath: z.string().optional(),
-      type: z.enum(["folder", "file"]),
-      name: z.string().min(1)
+      path: pagePath,
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
     }),
-    ({ parentPath, type, name }) =>
-      client.post("/api/node/create", { parentPath: parentPath || ".", type, name })
-  );
-
-  reg("delete_node", "Delete node part or folder.", z.object({ path: nodePath }), ({ path }) =>
-    client.delete("/api/file", { path })
-  );
-
-  reg("read_internal_memory", "Read single-file memory (_.node.content.md).", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/memory/internal", { path })
+    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
   );
 
   reg(
-    "write_internal_memory",
-    "Save single-file memory.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/memory/internal", { path, content })
-  );
-
-  reg("list_external_memory", "List _Content files.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/external/files", { path })
-  );
-
-  reg(
-    "read_external_memory",
-    "Read _Content .md.",
-    z.object({ path: nodePath, file: extFile }),
-    ({ path, file }) => client.get("/api/external/file", { path, file })
-  );
-
-  reg(
-    "write_external_memory",
-    "Save _Content .md.",
-    z.object({ path: nodePath, file: extFile, content: z.string() }),
-    ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
+    "append_discussion",
+    "Append message to topic discussion.",
+    z.object({
+      path: pagePath,
+      body: z.string().min(1),
+      role: z.enum(["user", "agent"]).optional(),
+      author: z.string().optional(),
+      linkedFiles: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
+      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
   reg(
-    "create_external_memory",
-    "Create memory note in _Content.",
-    z.object({ path: nodePath, title: z.string().optional() }),
-    ({ path, title }) => client.post("/api/external/file/create", { path, title })
-  );
-
-  reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/todo", { path })
-  );
-
-  reg(
-    "write_todo",
-    "Save node todo (`*.node.todo.md`).",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/todo", { path, content })
-  );
-
-  reg("read_configuration", "Read Configuration.md.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/configuration", { path })
+    "read_dialogs",
+    "Deprecated alias for read_discussion.",
+    z.object({
+      path: pagePath,
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
   );
 
   reg(
-    "write_configuration",
-    "Save Configuration.md.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/configuration", { path, content })
-  );
-
-  reg("read_env", "Read .env.", z.object({ path: nodePath }), ({ path }) => client.get("/api/env", { path }));
-
-  reg(
-    "write_env",
-    "Save .env.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/env", { path, content })
-  );
-
-  reg(
-    "list_folder",
-    "List _Inbox, _Scripts, etc.",
-    z.object({ path: nodePath, folder: z.string().min(1) }),
-    ({ path, folder }) => client.get("/api/folder/view", { path, folder })
-  );
-
-  reg("list_media", "List _Assets.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/media", { path })
+    "append_dialog",
+    "Deprecated alias for append_discussion.",
+    z.object({
+      path: pagePath,
+      body: z.string().min(1),
+      role: z.enum(["user", "agent"]).optional(),
+      author: z.string().optional(),
+      linkedFiles: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
+      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
   reg(
-    "read_media_sidecar",
-    "Read media sidecar.",
-    z.object({ path: nodePath, file: extFile }),
-    ({ path, file }) => client.get("/api/media/sidecar", { path, file })
+    "list_comments",
+    "List discuss comments for manifest or a file in a slot (UI comments panel). Storage: awn-storage/comments/{target}/.",
+    z.object({
+      path: pagePath,
+      mode: z.string().optional().describe("description (default) | external | media | …"),
+      file: z.string().optional().describe("Record path in slot when commenting on content, e.g. memory/razdel/zapis.md"),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/file/comments", { path, mode, file, name })
   );
 
   reg(
-    "write_media_sidecar",
-    "Save media sidecar.",
-    z.object({ path: nodePath, file: extFile, content: z.string() }),
-    ({ path, file, content }) => client.post("/api/media/sidecar", { path, file, content })
+    "append_comment",
+    "Append discuss comment to manifest or file in slot. Do not use create_content or write_file in comments/.",
+    z.object({
+      path: pagePath,
+      body: z.string().min(1),
+      author: z.string().optional().describe("Display author, default guest"),
+      replyTo: z.string().optional().describe("Parent comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, author, replyTo, mode, file, name }) =>
+      client.post("/api/file/comments", { path, body, author, replyTo, mode, file, name })
   );
-
-  reg("list_system_files", "List agent system files.", z.object({}), () => client.get("/api/system-files"));
 
   reg(
-    "read_system_file",
-    "Read system file.",
-    z.object({ name: z.string().min(1) }),
-    ({ name }) => client.get("/api/system-file", { name })
+    "toggle_comment_reaction",
+    "Toggle reaction on a discuss comment (default reaction: up).",
+    z.object({
+      path: pagePath,
+      commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+      reaction: z.string().optional().describe("Default up"),
+      author: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, commentId, reaction, author, mode, file, name }) =>
+      client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
+  );
+
+  const commentTargetFields = {
+    path: pagePath,
+    commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+    mode: z.string().optional(),
+    file: z.string().optional(),
+    name: z.string().optional()
+  };
+
+  reg(
+    "read_comment",
+    "Read one discuss comment by commentId (awn-id in frontmatter when assigned).",
+    z.object(commentTargetFields),
+    ({ path, commentId, mode, file, name }) =>
+      client.get("/api/file/comment", { path, commentId, mode, file, name })
   );
 
   reg(
-    "write_system_file",
-    "Write system file.",
-    z.object({ name: z.string().min(1), content: z.string() }),
-    ({ name, content }) => client.post("/api/system-file", { name, content })
+    "update_comment",
+    "Update discuss comment body. Preserves author, replyTo, reactions; updates awn-update.",
+    z.object({
+      ...commentTargetFields,
+      body: z.string().min(1)
+    }),
+    ({ path, commentId, body, mode, file, name }) =>
+      client.patch("/api/file/comment", { path, commentId, body, mode, file, name })
   );
 
-  reg("get_api_reference", "HTTP API docs JSON.", z.object({}), () =>
-    client.get("/api/docs", {}, { agentScope: false })
+  reg(
+    "delete_comment",
+    "Delete discuss comment file. When platform confirm-delete is enabled, pass confirm=true.",
+    z.object({
+      ...commentTargetFields,
+      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
+    }),
+    ({ path, commentId, mode, file, name }) =>
+      client.delete("/api/file/comment", { path, commentId, mode, file, name })
   );
+
+  // ── Workspace pads + FS + system ───────────────────────────────────────────
+
+  registerWorkspacePadTools(reg, client);
+  registerFileHubQueueTools(reg, client);
+  registerWorkspaceFsTools(reg, client, {
+    registerReadFile: (description, schema, fn) =>
+      reg("read_file", description, schema, fn, {
+        formatResult: (data) => formatReadFileToolResult(data, jsonText)
+      })
+  });
+  registerExecTools(reg, client, pagePath);
+  registerWebSearchTools(reg, client);
+  registerAgentUtilsTools(reg, client);
+  registerMediaCloudTools(reg, client, { pagePath });
+  registerSidecarTools(reg, client);
+
+  reg(
+    "list_system_files",
+    "List agent system files (AGENTS.md, SKILL.md, …). For shared NOTE/TODO pads use read_workspace_note / read_workspace_todo.",
+    z.object({}),
+    () => client.get("/api/system-files")
+  );
+
+  // ── Уведомление (1) ────────────────────────────────────────────────────────
+
+  reg(
+    "notify_user",
+    "Push notification to CMS bell.",
+    z.object({
+      title: z.string().min(1),
+      message: z.string().optional(),
+      path: pagePath.optional()
+    }),
+    ({ title, message, path }) =>
+      client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
+  );
+
+  registerBatchInvokeTools({ reg, client, toolRegistry });
 
   return server;
 }

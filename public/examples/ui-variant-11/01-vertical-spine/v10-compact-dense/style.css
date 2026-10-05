@@ -1,0 +1,9 @@
+:root { --spine-width: 380px; }
+body { background: #020617; }
+.stage { padding: 12px 0 40px; min-height: calc(100vh - 56px); }
+.root .orb { --s: 68px; }
+.section .orb { --s: 48px; }
+.topic .orb { --s: 36px; font-size: 14px; }
+.cap { --cap-size: 9px; --cap-width: 68px; gap: 4px; }
+.node { gap: 4px; }
+/* tighter vertical positions via inline overrides in HTML */

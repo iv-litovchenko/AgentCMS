@@ -1,0 +1,40 @@
+---
+awn-materials: ""
+awn-status: open
+awn-quality: 4
+awn-emoji: ""
+awn-note-todo-sticker: ""
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-type: awn.content.record
+awn-create: "2026-09-08T21:01"
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-attachments: []
+awn-description: ""
+awn-main: false
+awn-name: FluidVoice (или Fluid voice) - голос для Mac
+awn-preview: ""
+awn-runtime-commands: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-load-always: false
+awn-sort: 
+awn-web-url: ""
+awn-update: 2026-09-08T18:01:33.170Z
+awn-version: 2
+---
+
+FluidVoice (или Fluid voice) — это бесплатное приложение с открытым исходным кодом для macOS, предназначенное для голосовой диктовки и преобразования речи в текст прямо на устройстве с использованием локального искусственного интеллекта

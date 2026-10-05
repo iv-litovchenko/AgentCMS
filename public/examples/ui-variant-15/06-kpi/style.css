@@ -1,0 +1,6 @@
+.v06-kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.v06-cell{display:flex;flex-direction:column;align-items:center;padding:12px 8px;border-radius:10px;background:transparent;border:0;position:relative}
+.v06-cell:hover{background:#f1f5f9}
+.v06-num{font-size:28px;font-weight:900;line-height:1;color:#0f172a}
+.v06-icon{font-size:14px;margin-top:4px}
+.v06-label{font-size:10px;font-weight:700;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.04em}

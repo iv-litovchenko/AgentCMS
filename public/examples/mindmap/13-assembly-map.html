@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>13. Сборка — внутреннее + внешнее</title>
+  <link rel="stylesheet" href="mindmap.css">
+  <style>
+    .layout { grid-template-rows: auto auto 1fr; }
+    .badge.assembly { background: #854d0e; color: #fef08a; }
+    .assembly-banner {
+      margin: 0; padding: 0.6rem 1.25rem; border-bottom: 1px solid #eab30844;
+      background: linear-gradient(90deg, #422006, #713f12);
+      border: 1px solid #eab308; font-size: 0.82rem; color: #fef08a;
+    }
+    .legend-line-int { width: 24px; border-top: 2px dashed var(--xref); }
+    .legend-line-ext { width: 24px; border-top: 2px dashed #eab308; }
+    .legend-line-term { width: 24px; border-top: 2px dashed #fcd34d; }
+    .toolbar button.is-active { border-color: #eab308; background: #422006; color: #fef08a; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge assembly">★ Сборка</span>
+        <h1>Внутреннее содержимое + внешние ссылки</h1>
+        <p>sample-assembly/ + study-markers/ + глоссарий + URL</p>
+      </div>
+      <div class="toolbar">
+        <a href="index.html">← Все примеры</a>
+        <button type="button" id="toggle-xref" class="is-active">Внутр. ссылки</button>
+        <button type="button" id="toggle-ext" class="is-active">Внешние</button>
+        <button type="button" id="toggle-term" class="is-active">Термины</button>
+        <button type="button" id="reset-view">Сбросить вид</button>
+      </div>
+    </header>
+
+    <div class="assembly-banner">
+      <strong>Сборка на базе текущего содержимого и внешнего:</strong>
+      сплошные линии — дерево из <code>sample-assembly/*.md</code>;
+      оранжевый пунктир — ссылки между файлами папки;
+      жёлтый пунктир — выход за папку (другие конспекты, URL);
+      светло-жёлтый — термины глоссария (слой 4).
+    </div>
+
+    <main>
+      <aside>
+        <h2>Внутреннее (текущая папка)</h2>
+        <pre>sample-assembly/
+├── syntax.md
+├── oop.md
+├── databases.md
+└── frameworks.md
+
+[ООП](oop.md#классы)  ← внутр.</pre>
+
+        <h2>Внешнее</h2>
+        <pre>../../study-markers/…  ← другая папка
+[[Generics]]             ← глоссарий
+https://docs.oracle.com  ← URL</pre>
+
+        <h2>Легенда</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#0ea5e9"></span> файл .md (внутри)</div>
+          <div class="legend-item"><span class="legend-line-int"></span> ссылка внутри папки</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#422006;border:2px solid #eab308"></span> внешний узел</div>
+          <div class="legend-item"><span class="legend-line-ext"></span> ссылка наружу</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#713f12;border:2px solid #fcd34d"></span> термин (слой 4)</div>
+          <div class="legend-item"><span class="legend-line-term"></span> [[термин]]</div>
+        </div>
+      </aside>
+
+      <div class="canvas-wrap" id="canvas-wrap">
+        <div id="viewport">
+          <svg class="mindmap" id="mindmap" viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="hint">Наведение — подсветка связей · колёсико — масштаб</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="mindmap.js"></script>
+  <script src="13-assembly-map.js"></script>
+</body>
+</html>

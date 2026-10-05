@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — каталог UI-примеров</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #fff;
+        --border: #d7deeb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 32px 24px 48px;
+        max-width: 1200px;
+        margin-inline: auto;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .lead {
+        color: var(--muted);
+        max-width: 720px;
+        line-height: 1.55;
+        margin: 0 0 20px;
+      }
+      .search-wrap {
+        margin-bottom: 24px;
+        max-width: 420px;
+      }
+      .search-wrap label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      #examples-search {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 15px;
+        background: var(--panel);
+      }
+      #examples-search:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.35);
+        border-color: var(--accent);
+      }
+      .meta {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .card.is-hidden {
+        display: none;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .example-index-badge {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #334155;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        box-sizing: border-box;
+      }
+      .card:hover .example-index-badge {
+        background: #1e293b;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 16px;
+        min-width: 0;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+        flex: 1;
+      }
+      a.demo {
+        display: inline-flex;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        width: fit-content;
+      }
+      a.demo:hover {
+        background: #1d4ed8;
+      }
+      code {
+        font-size: 12px;
+        background: #eef2ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .tag {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        font-weight: 600;
+      }
+      .featured {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #eef2ff;
+        border: 1px solid rgba(99, 102, 241, 0.35);
+      }
+      .featured h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #312e81;
+      }
+      .featured p {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.45;
+      }
+      .featured ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .featured a {
+        color: #4338ca;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .featured a:hover {
+        text-decoration: underline;
+      }
+      .featured code {
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Каталог UI-примеров</h1>
+    <p class="lead">
+      Единая папка <code>public/examples/</code> — все прототипы и сгенерированные
+      <code>ui-variant-*</code>. В работающем Agent CMS: <code>/examples/</code>
+    </p>
+    <div class="search-wrap">
+      <label for="examples-search">Поиск</label>
+      <input
+        id="examples-search"
+        type="search"
+        placeholder="shell, orbit, sidebar, mindmap…"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+    <p class="meta" id="examples-count" aria-live="polite"></p>
+    <aside class="featured" aria-labelledby="featured-title">
+      <h2 id="featured-title">Voice / Shell — вне серии ui-variant</h2>
+      <p>
+        Серые кружки на карточках — только порядок в этом каталоге (1…33), не номер ui-variant.
+        Шапка компакта — <strong>отдельная страница</strong> с макетами <strong>01–10</strong> внутри.
+      </p>
+      <ul>
+        <li>
+          <a href="./shell-compact-topbar-ideas/">shell-compact-topbar — 10 макетов (01–10)</a>
+          — поиск: <code>compact topbar</code> или <code>shell-compact</code>
+          <span id="shell-compact-catalog-hint"></span>
+        </li>
+      </ul>
+    </aside>
+    <div class="grid" id="examples-grid">
+      <article class="card" data-keywords="ui-variant-1 shell layout rail sidebar header макет">
+        <span class="tag">серия</span>
+        <h2>ui-variant-1 — макет shell</h2>
+        <p>Варианты общего макета, rail, sidebar, header.</p>
+        <a class="demo" href="./ui-variant-1/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-2 editor yaml крошки редактор">
+        <span class="tag">серия</span>
+        <h2>ui-variant-2 — редактор</h2>
+        <p>Центральная зона: крошки, YAML, сохранение.</p>
+        <a class="demo" href="./ui-variant-2/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-3 props rail свойства flyout">
+        <span class="tag">серия</span>
+        <h2>ui-variant-3 — свойства / rail</h2>
+        <p>Расположение props, flyout, вкладки режимов.</p>
+        <a class="demo" href="./ui-variant-3/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-4 domains navigation memory vision домены">
+        <span class="tag">серия</span>
+        <h2>ui-variant-4 — домены ноды</h2>
+        <p>Навигация, память, вложения, rail (VISION).</p>
+        <a class="demo" href="./ui-variant-4/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-5 workspace chrome hero mobile">
+        <span class="tag">серия</span>
+        <h2>ui-variant-5 — workspace chrome</h2>
+        <p>Шапка ноды, save, hero, mobile.</p>
+        <a class="demo" href="./ui-variant-5/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-6 fields schema string enum object поля">
+        <span class="tag">серия</span>
+        <h2>ui-variant-6 — типы полей</h2>
+        <p>Схема свойств ноды (string, enum, object…).</p>
+        <a class="demo" href="./ui-variant-6/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-7 overview memory navigation обзор">
+        <span class="tag">серия</span>
+        <h2>ui-variant-7 — обзор ноды</h2>
+        <p>Overview, память, навигация (VISION).</p>
+        <a class="demo" href="./ui-variant-7/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-8 memory drivers internal external">
+        <span class="tag">серия</span>
+        <h2>ui-variant-8 — драйверы памяти</h2>
+        <p>Карточки internal / external / tabular.</p>
+        <a class="demo" href="./ui-variant-8/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-9 path breadcrumbs service bar крошки">
+        <span class="tag">серия</span>
+        <h2>ui-variant-9 — path / service bar</h2>
+        <p>Крошки, селекты, mode rail.</p>
+        <a class="demo" href="./ui-variant-9/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-10 navigation toc document flow">
+        <span class="tag">серия</span>
+        <h2>ui-variant-10 — навигация ноды</h2>
+        <p>Подразделы, TOC, document flow.</p>
+        <a class="demo" href="./ui-variant-10/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-11 orbit dive knowledge база знаний">
+        <span class="tag">серия</span>
+        <h2>ui-variant-11 — orbit dive</h2>
+        <p>Провал в базу знаний агента: 10 HTML/CSS прототипов.</p>
+        <a class="demo" href="./ui-variant-11/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-12 companion toolbar панель">
+        <span class="tag">серия</span>
+        <h2>ui-variant-12 — companion toolbar</h2>
+        <p>Компактная панель: иконка → 10 вариантов раскрытия.</p>
+        <a class="demo" href="./ui-variant-12/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-13 hub rail slots слоты">
+        <span class="tag">серия</span>
+        <h2>ui-variant-13 — hub-rail слоты</h2>
+        <p>Куда деть слоты, когда заняты дерево · контент · диалог.</p>
+        <a class="demo" href="./ui-variant-13/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-14 dashboard todo inbox focus дашборд">
+        <span class="tag">серия</span>
+        <h2>ui-variant-14 — workspace dashboard</h2>
+        <p>Линзы на TODO, inbox, focus — дашборд без гирлянды.</p>
+        <a class="demo" href="./ui-variant-14/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="ui-variant-15 workspace counter slots слоты память входящие">
+        <span class="tag">серия</span>
+        <h2>ui-variant-15 — слоты workspace counter</h2>
+        <p>10 оформлений блока счётчиков слотов на обзоре ноды (grid, rows, bento…).</p>
+        <a class="demo" href="./ui-variant-15/">Каталог →</a>
+      </article>
+      <article class="card" data-keywords="landing orbit заставка screensaver classic new">
+        <span class="tag">архив</span>
+        <h2>landing-orbit</h2>
+        <p>Архив варианта заставки «new» и описание classic vs new.</p>
+        <a class="demo" href="./landing-orbit/variants.md">variants.md →</a>
+      </article>
+      <article class="card" data-keywords="mindmap карта мыслей">
+        <span class="tag">демо</span>
+        <h2>mindmap</h2>
+        <p>Интерактивная mindmap.</p>
+        <a class="demo" href="./mindmap/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="mindmap minimal">
+        <span class="tag">демо</span>
+        <h2>mindmap-minimal</h2>
+        <p>Минимальная mindmap.</p>
+        <a class="demo" href="./mindmap-minimal/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="roadmap дорожная карта">
+        <span class="tag">демо</span>
+        <h2>roadmap</h2>
+        <p>Roadmap-визуализация.</p>
+        <a class="demo" href="./roadmap/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="sidebar menu tools меню">
+        <span class="tag">демо</span>
+        <h2>sidebar-menu-tools</h2>
+        <p>Варианты бокового меню и tools.</p>
+        <a class="demo" href="./sidebar-menu-tools/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="sidebar menu tools v2">
+        <span class="tag">демо</span>
+        <h2>sidebar-menu-tools-v2</h2>
+        <p>Меню tools, вторая итерация.</p>
+        <a class="demo" href="./sidebar-menu-tools-v2/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="sidebar placement view">
+        <span class="tag">демо</span>
+        <h2>sidebar-menu-view-placement</h2>
+        <p>Размещение view в sidebar.</p>
+        <a class="demo" href="./sidebar-menu-view-placement/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="sidebar stack">
+        <span class="tag">демо</span>
+        <h2>sidebar-stack</h2>
+        <p>Стек панелей в sidebar.</p>
+        <a class="demo" href="./sidebar-stack/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="menu footer static">
+        <span class="tag">демо</span>
+        <h2>menu-static-footer</h2>
+        <p>Статический footer меню.</p>
+        <a class="demo" href="./menu-static-footer/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="index scope settings">
+        <span class="tag">демо</span>
+        <h2>index-scope-settings</h2>
+        <p>Настройки scope индекса.</p>
+        <a class="demo" href="./index-scope-settings/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="study ecosystem маркеры">
+        <span class="tag">демо</span>
+        <h2>study-ecosystem</h2>
+        <p>Study ecosystem прототип.</p>
+        <a class="demo" href="./study-ecosystem/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="study markers">
+        <span class="tag">демо</span>
+        <h2>study-markers</h2>
+        <p>Маркеры для study UI.</p>
+        <a class="demo" href="./study-markers/">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="voice agent image">
+        <span class="tag">демо</span>
+        <h2>agent-cms-voice-agent-image</h2>
+        <p>Voice agent image demo.</p>
+        <a class="demo" href="./agent-cms-voice-agent-image/">Открыть →</a>
+      </article>
+      <article
+        class="card"
+        id="shell-compact-topbar-card"
+        data-keywords="shell compact topbar voice embed side panel шапка compact 01 02 03 04 05 06 07 08 09 10 вариант"
+      >
+        <span class="tag">voice · shell</span>
+        <h2>shell-compact-topbar — макеты 01–10</h2>
+        <p>
+          Компактная шапка <code>#shell-compact-topbar</code>: все 10 раскладок на одной странице (якоря
+          <code>#v01</code>…<code>#v10</code>). Не путать с ui-variant-1…15.
+        </p>
+        <a class="demo" href="./shell-compact-topbar-ideas/">Варианты 01–10 →</a>
+      </article>
+      <article class="card" data-keywords="three views roadmap mindmap graph">
+        <span class="tag">демо</span>
+        <h2>agent-cms-core-three-views</h2>
+        <p>Roadmap + mindmap + graph из workspace.</p>
+        <a class="demo" href="./agent-cms-core-three-views.html">HTML →</a>
+      </article>
+      <article class="card" data-keywords="cron schedule расписание">
+        <span class="tag">демо</span>
+        <h2>cron-schedule-demo</h2>
+        <p>Демо расписания cron.</p>
+        <a class="demo" href="./cron-schedule-demo.html">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="touch id webauthn">
+        <span class="tag">демо</span>
+        <h2>touch-id-demo</h2>
+        <p>Touch ID / WebAuthn playground.</p>
+        <a class="demo" href="./touch-id-demo.html">Открыть →</a>
+      </article>
+      <article class="card" data-keywords="commander control launcher icon иконка мышь desktop">
+        <span class="tag">демо</span>
+        <h2>agent-cms-commander-icons</h2>
+        <p>Черновики иконки Agent CMS Commander (кольцо + мышь): серии 01–05, v01–v10, финалисты v01 и v07.</p>
+        <a class="demo" href="./agent-cms-commander-icons/">Открыть →</a>
+      </article>
+    </div>
+    <script>
+      (function () {
+        const input = document.getElementById("examples-search");
+        const grid = document.getElementById("examples-grid");
+        const countNode = document.getElementById("examples-count");
+        const cards = Array.from(grid.querySelectorAll(".card"));
+
+        cards.forEach((card, index) => {
+          const h2 = card.querySelector("h2");
+          if (!h2 || h2.closest(".card-head")) return;
+          const head = document.createElement("div");
+          head.className = "card-head";
+          const badge = document.createElement("span");
+          badge.className = "example-index-badge";
+          badge.textContent = String(index + 1);
+          badge.title = `Пункт каталога ${index + 1}`;
+          h2.parentNode.insertBefore(head, h2);
+          head.append(badge, h2);
+        });
+
+        const compactCard = document.getElementById("shell-compact-topbar-card");
+        const compactHint = document.getElementById("shell-compact-catalog-hint");
+        if (compactCard && compactHint) {
+          const idx = cards.indexOf(compactCard);
+          if (idx >= 0) {
+            compactHint.textContent = `(в сетке ниже — кружок №${idx + 1})`;
+          }
+        }
+
+        function normalize(value) {
+          return String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/\p{M}/gu, "");
+        }
+
+        function applyFilter() {
+          const q = normalize(input.value).trim();
+          let visible = 0;
+          for (const card of cards) {
+            const hay = normalize(
+              (card.dataset.keywords || "") +
+                " " +
+                (card.querySelector("h2")?.textContent || "") +
+                " " +
+                (card.querySelector("p")?.textContent || "")
+            );
+            const show = !q || hay.includes(q);
+            card.classList.toggle("is-hidden", !show);
+            if (show) visible += 1;
+          }
+          countNode.textContent = q
+            ? `Показано: ${visible} из ${cards.length}`
+            : `Всего: ${cards.length} пунктов`;
+        }
+
+        input.addEventListener("input", applyFilter);
+        applyFilter();
+      })();
+    </script>
+  </body>
+</html>

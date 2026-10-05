@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindmap из Markdown — примеры</title>
+  <link rel="stylesheet" href="mindmap.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .cards { display: grid; gap: 1rem; max-width: 640px; padding: 2rem; width: 100%; }
+    .card {
+      display: block;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card.card-assembly {
+      border-color: #eab308;
+      background: linear-gradient(135deg, #1a2332 0%, #422006 100%);
+      box-shadow: 0 0 0 1px #eab30844, 0 4px 20px rgba(234, 179, 8, 0.12);
+    }
+    .card.card-assembly:hover { border-color: #fcd34d; box-shadow: 0 0 0 1px #fcd34d66, 0 6px 24px rgba(234, 179, 8, 0.2); }
+    .card.card-assembly h2 { color: #fef08a; }
+    .card.card-assembly .assembly-note {
+      display: block; margin-top: 0.5rem; padding-top: 0.5rem;
+      border-top: 1px solid #eab30855; font-size: 0.8rem; color: #fcd34d; font-weight: 500;
+    }
+    .card h2 { margin: 0.5rem 0 0.35rem; font-size: 1.1rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+    .title { text-align: center; margin-bottom: 0.5rem; }
+    .title h1 { margin: 0; font-size: 1.5rem; }
+    .title p { color: var(--muted); margin: 0.35rem 0 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="cards">
+    <div class="title">
+      <h1>Mindmap из Markdown</h1>
+      <p>Интерактивные HTML-примеры для технического задания</p>
+      <p style="margin-top:0.5rem"><a href="../study-ecosystem/index.html" style="color:#7dd3fc;text-decoration:none">→ Вся экосистема (четыре слоя: карта · маршрут · пометки · термины)</a></p>
+    </div>
+
+    <a class="card" href="01-single-file.html">
+      <span class="badge mode-1">Режим 1</span>
+      <h2>Один файл → одна карта</h2>
+      <p>H1 — центр, H2 — ветки, H3 — листья. Пример: <code>sample-single/java-overview.md</code></p>
+    </a>
+
+    <a class="card" href="02-folder-with-links.html">
+      <span class="badge mode-2">Режим 2</span>
+      <h2>Папка файлов + перекрёстные ссылки</h2>
+      <p>Каждый .md — крупная ветка, внутри H2/H3. Пунктир — markdown-ссылки между узлами.</p>
+    </a>
+
+    <a class="card card-assembly" href="13-assembly-map.html">
+      <span class="badge assembly" style="background:#854d0e;color:#fef08a">★ Сборка</span>
+      <h2>Внутреннее + внешнее на одной карте</h2>
+      <p>Дерево из <code>sample-assembly/</code>, ссылки внутри папки, наружу (другие конспекты, URL) и в глоссарий.</p>
+      <span class="assembly-note">↳ сборка на базе текущего содержимого и внешнего</span>
+    </a>
+
+    <a class="card" href="../study-markers/03-study-markers.html">
+      <span class="badge mode-3" style="background:#4c1d95;color:#c4b5fd">Режим 3</span>
+      <h2>Личные пометки в конспектах</h2>
+      <p>6 типов: [мое повторить], [мое вопрос], [мое заметка], [мое важно], [мое ошибка], [мое идея].</p>
+    </a>
+
+    <a class="card" href="../roadmap/04-roadmap.html">
+      <span class="badge mode-4" style="background:#0c4a6e;color:#7dd3fc">Режим 4</span>
+      <h2>Дорожная карта обучения</h2>
+      <p>H2 — этапы слева направо, цвет по статусу. Параллельные ветки через <code>[параллельная группа]</code>.</p>
+    </a>
+  </div>
+</body>
+</html>

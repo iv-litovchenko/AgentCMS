@@ -1,0 +1,51 @@
+---
+awn-name: Тест всех полей
+awn-emoji: 🧪
+awn-status: 🟢 Открыта
+awn-description: Демо-тема для проверки всех виджетов кастомных полей (topic / record / sidecar)
+awn-tags:
+  - reference
+  - demo
+awn-type: awn.page.topic
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-07-25T00:26:22.081Z
+awn-version: 5
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-main: true
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: "#7c3aed"
+awn-sort: ""
+demo_string: Пример однострочной строки
+demo_text: ""
+demo_integer: 42
+demo_number: 3.14
+demo_boolean: true
+demo_null: null
+demo_array:
+  - alpha
+  - beta
+  - gamma
+demo_enum: В работе
+demo_link: "[[PHP]]"
+demo_date: 2026-06-21
+demo_datetime: "2026-06-21T12:00"
+demo_url: "https://example.com/all-field-types"
+demo_color: "#2563eb"
+awn-attachments: []
+---
+
+# All Field Types — демонстрация типов полей
+
+Тема для проверки виджетов в панели **Свойства**:
+
+| Уровень | Где смотреть |
+| ------- | ------------ |
+| **topic** | frontmatter этой темы (`demo_*`) |
+| **record** | `Content/All-Field-Types.md` (`rec_*`) |
+| **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
+
+Схема полей: `config.yml` → `awn_schema`.
+
+Запись с заполненными значениями: [[All-Field-Types]].

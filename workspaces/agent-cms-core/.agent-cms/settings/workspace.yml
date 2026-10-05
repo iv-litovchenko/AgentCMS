@@ -1,0 +1,109 @@
+# Agent CMS — настройки workspace (только это хранилище)
+
+awn_settings:
+  awn-id-next: 25
+  awn-id-issued: 24
+  awn-id-updated-at: "2026-10-04T08:58:31.997Z"
+  awn-id-model: workspace-id-autoincrement-v1
+  voice-cms-topic-path: awn-agent-kit/agent/manifest.md
+  voice-cms-channel: thread
+  voice-route-system-prompt: |
+    Ты — личный ассистент пользователя в Agent CMS Voice.
+    
+    Правила:
+    1. Факты о workspace и памяти — только через MCP Agent CMS (поиск, страницы, заметки, файлы). Не выдумывай.
+    2. Ответы короткие и разговорные: пользователь часто на мобильном и говорит голосом.
+    3. Язык ответа — как у пользователя (если не просит иного).
+    4. Показывай результат, не сырой JSON, не имена инструментов и не детали MCP.
+    5. Секреты, ключи API и пароли — не выводи и не озвучивай.
+    6. Перед записью в workspace: если неочевидно, куда положить — спроси. Если подходящей страницы или темы нет — предложи создать новую и обсуди с пользователем название и место, прежде чем записывать.
+  voice-route-codex-cli-path: codex2
+  voice-route-qwenpaw-url: "http://127.0.0.1:8088"
+  voice-route-qwenpaw-agent-id: Aya
+  voice-route-qwenpaw-session-id: agent-shell
+  voice-route-runtime: claude
+  voice-proactive-mode: off
+  voice-proactive-idle-seconds-min: 120
+  voice-proactive-idle-seconds-max: 240
+  voice-proactive-cooldown-seconds: 900
+  voice-proactive-quiet-hours-enabled: false
+  voice-proactive-quiet-hours-start: "23:00"
+  voice-proactive-quiet-hours-end: "07:00"
+  voice-input-mode: meeting
+  voice-input-capture: microphone
+  voice-input-global-listen: false
+  voice-input-to-compose: false
+  voice-input-response-enabled: true
+  voice-stt-engine: browser
+  voice-stt-lang: en-US
+  voice-stt-prompt: |
+    В сообщении пользователя может быть смесь обычного текста и голосовых блоков:
+    
+    ```awn-stt
+    …сырая расшифровка речи…
+    ```
+    
+    Текст вне ```awn-stt … ``` — набран вручную, трактуй буквально.
+    Внутри блока — сказано голосом: возможны «э-э», «эээ», «мм», «ну», ошибки распознавания и пунктуации.
+    
+    Понимай смысл по всему сообщению целиком; восстанавливай формулировку мысленно, не выдумывая новых фактов.
+    Если смысл голосового блока неясен — спроси уточнение.
+    Не удаляй и не переписывай разметку ```awn-stt``` в цитатах пользователя.
+  voice-stt-whisper-model: base
+  voice-stt-elevenlabs-model: scribe_v2
+  voice-tts-enabled: false
+  voice-tts-engine: edge
+  voice-tts-playback-mode: dialog
+  voice-tts-prompt: |
+    Каждый ответ пользователю используй в формате (строго, в таком порядке):
+    
+    1) Текст для озвучки — plain text, без emoji и markdown. Только то, что можно сказать вслух. Без секретов и ключей. Длина не ограничена — озвучь весь смысл ответа.
+    
+    2) Отдельной строкой маркер конца голосовой части:
+    
+    [tts-break]
+    
+    3) Подробный ответ для экрана (markdown, списки, код). Если главное уже сказано голосом — начни с короткой отсылки: «Подробнее ниже» или «Смотри детали ниже».
+    
+    Формат обязателен для любых ответов, включая уточняющие вопросы.
+    Без HTML-комментариев <!-- -->.
+  voice-tts-pitch: 1
+  voice-tts-include-captions: true
+  voice-tts-browser-lang: ru-RU
+  voice-tts-edge-voice: ru-RU-SvetlanaNeural
+  voice-tts-elevenlabs-voice-id: EXAVITQu4vr4xnSDxMaL
+  voice-tts-elevenlabs-model: eleven_multilingual_v2
+  voice-tts-rate: 1
+  voice-tts-edge-rate: 1
+  voice-tts-elevenlabs-rate: 1
+  voice-compose-templates:
+    - id: very-brief
+      key: very-brief
+      group: Стиль ответа
+      label: Ответ очень кратко
+      text: Ответь очень кратко — одним-двумя предложениями.
+    - id: brief
+      key: brief
+      group: Стиль ответа
+      label: Ответ кратко
+      text: "Ответь кратко, без лишних деталей."
+    - id: detailed
+      key: detailed
+      group: Стиль ответа
+      label: Ответ развернуто
+      text: "Ответь развёрнуто, с подробностями и примерами."
+  voice-media-camera-enabled: false
+  voice-media-camera-on-speech: true
+  voice-media-camera-facing: user
+  voice-media-screen-enabled: false
+  voice-media-screen-on-speech: true
+  voice-window-character-model: robot
+  voice-window-topmost: true
+  voice-window-pet-overlay: false
+  voice-window-transparent: false
+  voice-window-background: wallpaper
+  voice-window-compact-dialog-qa: true
+  voice-window-dialog-auto-scroll: true
+  voice-window-keep-awake: true
+  voice-window-processing-sound: off
+  voice-window-compact-mode: false

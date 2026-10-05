@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>503 — Платформа на обслуживании</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.827" />
+  </head>
+  <body class="status-standalone status-standalone--maintenance">
+    <main class="status-page status-page--maintenance" aria-labelledby="maintenance-title">
+      <div class="status-bg" aria-hidden="true"></div>
+      <div class="status-orbit status-orbit--one" aria-hidden="true"></div>
+      <div class="status-orbit status-orbit--two" aria-hidden="true"></div>
+
+      <div class="status-inner">
+        <div class="status-visual" aria-hidden="true">
+          <div class="status-code">503</div>
+          <div class="status-mascot status-mascot--service">
+            <div class="status-mascot-antenna"></div>
+            <div class="status-mascot-face">
+              <span class="status-mascot-eye"></span>
+              <span class="status-mascot-eye"></span>
+              <span class="status-mascot-mouth"></span>
+            </div>
+            <span class="status-mascot-badge" aria-hidden="true">⚙</span>
+          </div>
+        </div>
+
+        <p class="status-eyebrow">Режим обслуживания</p>
+        <h1 id="maintenance-title" class="status-title">Платформа временно недоступна</h1>
+        <p class="status-lead">
+          Agent CMS сейчас на обслуживании: агенты, меню, shell и рабочие API недоступны.
+        </p>
+
+        <div class="status-actions">
+          <button type="button" class="status-btn status-btn--primary" id="maintenance-retry-btn">
+            Проверить снова
+          </button>
+        </div>
+
+        <p class="status-footnote">Workspaces / *.md — «Пауза — это тоже намерение.»</p>
+      </div>
+    </main>
+    <script src="/js/core/platform-status.js"></script>
+    <script>
+      window.PlatformStatus?.bindMaintenancePage?.();
+    </script>
+  </body>
+</html>

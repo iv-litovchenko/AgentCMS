@@ -1,0 +1,21 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      aya-t-custom-text:
+        type: awn.field.string
+        name: Тема строка
+      aya-t-custom-number:
+        type: awn.field.integer
+        name: Тема число
+      aya-t-custom-boolean:
+        type: awn.field.boolean
+        name: Тема флаг
+      aya-t-custom-date:
+        type: awn.field.datetime
+        name: Тема дата
+      aya-t-custom-array:
+        type: awn.field.array
+        name: Тема список

@@ -1,0 +1,28 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      field-122:
+        type: awn.field.string
+  slot_memory_category:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: RAZDEL 1
+  slot_memory:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: RECORD 1
+  slot_memory_sidecar:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: SIDECAR - 1
+  settings:
+    fields:
+      field-1333:
+        type: awn.field.string
+        name: field-1333

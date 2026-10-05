@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — CMS для LLM-агентов без базы данных</title>
+    <meta
+      name="description"
+      content="Agent CMS — file-based CMS для LLM-агентов. Контент на диске: YAML, Markdown, память, медиа. MCP, браузер, desktop."
+    />
+    <meta property="og:title" content="Agent CMS" />
+    <meta property="og:description" content="File-based CMS для LLM-агентов без базы данных" />
+    <meta property="og:url" content="https://agent-cms.ru" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Onest:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <header class="header">
+      <div class="container header-inner">
+        <a class="logo" href="#top">
+          <img class="logo-mark" src="favicon.svg" width="36" height="36" alt="" />
+          Agent CMS
+        </a>
+
+        <input class="nav-toggle" type="checkbox" id="nav-toggle" aria-hidden="true" />
+        <label class="nav-burger" for="nav-toggle" aria-label="Меню">
+          <span></span>
+          <span></span>
+          <span></span>
+        </label>
+
+        <nav class="nav" aria-label="Основная навигация">
+          <a href="#ecosystem">Экосистема</a>
+          <a href="#structure">Структура</a>
+          <a href="#prompt">Промпт</a>
+          <a href="#features">Возможности</a>
+          <a href="#products">Продукты</a>
+          <a href="#how">Архитектура</a>
+          <a href="#start">Быстрый старт</a>
+          <a class="nav-cta" href="#contact">Связаться</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <div class="hero-badge">
+              <span class="hero-badge-dot" aria-hidden="true"></span>
+              agent-cms.ru · open beta
+            </div>
+
+            <h1>
+              CMS для агентов,<br />
+              <span>контент на диске</span>
+            </h1>
+
+            <p class="hero-lead">
+              File-based система управления контентом для LLM-агентов. Без базы данных —
+              только папки, YAML и Markdown. Память, медиа, инструкции и MCP в одном workspace.
+            </p>
+
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#start">Быстрый старт</a>
+              <a class="btn btn-ghost" href="#how">Как устроено</a>
+            </div>
+
+            <dl class="hero-stats">
+              <div class="hero-stat">
+                <dt>0</dt>
+                <dd>баз данных</dd>
+              </div>
+              <div class="hero-stat">
+                <dt>MCP</dt>
+                <dd>для Cursor</dd>
+              </div>
+              <div class="hero-stat">
+                <dt>YAML</dt>
+                <dd>+ Markdown</dd>
+              </div>
+              <div class="hero-stat">
+                <dt>Git</dt>
+                <dd>friendly</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="hero-visual" aria-hidden="true">
+            <div class="node-graph">
+              <svg class="node-graph-lines" viewBox="0 0 320 280" fill="none">
+                <line class="node-line node-line--a" x1="160" y1="56" x2="80" y2="168" />
+                <line class="node-line node-line--b" x1="160" y1="56" x2="240" y2="168" />
+                <line class="node-line node-line--c" x1="160" y1="56" x2="160" y2="220" />
+              </svg>
+              <div class="node node--root">
+                <span class="node-ring"></span>
+                <span class="node-core"></span>
+                <span class="node-label">Agent</span>
+              </div>
+              <div class="node node--child node--left">
+                <span class="node-ring"></span>
+                <span class="node-core"></span>
+                <span class="node-label">Topic</span>
+              </div>
+              <div class="node node--child node--right">
+                <span class="node-ring"></span>
+                <span class="node-core"></span>
+                <span class="node-label">Memory</span>
+              </div>
+              <div class="node node--child node--bottom">
+                <span class="node-ring"></span>
+                <span class="node-core"></span>
+                <span class="node-label">Media</span>
+              </div>
+            </div>
+
+            <div class="hero-terminal">
+              <div class="hero-terminal-bar">
+                <span class="hero-terminal-dot"></span>
+                <span class="hero-terminal-dot"></span>
+                <span class="hero-terminal-dot"></span>
+                <span class="hero-terminal-title">workspaces/my-agent/</span>
+              </div>
+              <pre class="hero-terminal-body"><code><span class="t-key">AGENTS.md</span>      <span class="t-comment"># инструкции</span>
+<span class="t-key">awn-system/</span>    <span class="t-comment"># типы и слоты</span>
+<span class="t-tree">├──</span> <span class="t-key">topic-1/</span>
+<span class="t-tree">│   ├──</span> <span class="t-val">main.md</span>
+<span class="t-tree">│   ├──</span> <span class="t-val">_.props.yaml</span>
+<span class="t-tree">│   └──</span> <span class="t-val">media/</span>
+<span class="t-tree">└──</span> <span class="t-key">topic-2/</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="compare">
+        <div class="container">
+          <div class="compare-grid">
+            <article class="compare-card compare-card--muted">
+              <span class="compare-tag">Не это</span>
+              <h3>WordPress / Strapi</h3>
+              <p>CMS для публикации сайтов с SQL-базой и админкой для редакторов.</p>
+            </article>
+            <article class="compare-card compare-card--muted">
+              <span class="compare-tag">Не это</span>
+              <h3>Только чат</h3>
+              <p>Контекст живёт в истории диалога и теряется между сессиями.</p>
+            </article>
+            <article class="compare-card compare-card--accent">
+              <span class="compare-tag compare-tag--accent">Agent CMS</span>
+              <h3>Workspace агента</h3>
+              <p>Файловая структура на диске: память, медиа, схема — всё у агента под рукой.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="ecosystem" class="section-light ecosystem">
+        <div class="container">
+          <span class="section-label section-label--light">Экосистема</span>
+          <h2 class="section-title section-title--light">Один агент — все ваши устройства</h2>
+          <p class="section-lead section-lead--light">
+            MacBook, телефон и умные гаджеты вокруг — Agent CMS связывает их в одну
+            файловую базу. Агент видит контекст, память и медиа, где бы вы ни работали.
+          </p>
+
+          <div class="ecosystem-stage" aria-hidden="true">
+            <svg class="ecosystem-lines" viewBox="0 0 900 520" fill="none">
+              <path class="eco-line" d="M450 200 L450 280" />
+              <path class="eco-line" d="M450 280 L320 320" />
+              <path class="eco-line" d="M450 280 L580 320" />
+              <path class="eco-line" d="M450 200 L180 140" />
+              <path class="eco-line" d="M450 200 L720 140" />
+              <path class="eco-line" d="M450 200 L120 300" />
+              <path class="eco-line" d="M450 200 L780 300" />
+              <path class="eco-line" d="M450 280 L450 420" />
+              <path class="eco-line" d="M450 280 L260 420" />
+              <path class="eco-line" d="M450 280 L640 420" />
+            </svg>
+
+            <div class="eco-agent-cloud">
+              <span class="eco-agent-icon" aria-hidden="true">☁️</span>
+              <strong>Agent</strong>
+              <span>облако контекста</span>
+            </div>
+
+            <div class="eco-device eco-device--macbook">
+              <div class="eco-macbook-lid">
+                <div class="eco-macbook-screen"></div>
+              </div>
+              <div class="eco-macbook-base"></div>
+              <span class="eco-device-label">MacBook</span>
+            </div>
+
+            <div class="eco-device eco-device--iphone">
+              <div class="eco-iphone-screen"></div>
+              <span class="eco-device-label">iPhone</span>
+            </div>
+
+            <div class="eco-gadget eco-gadget--glasses">
+              <span aria-hidden="true">👓</span>
+              <small>Очки</small>
+            </div>
+            <div class="eco-gadget eco-gadget--headphones">
+              <span aria-hidden="true">🎧</span>
+              <small>Наушники</small>
+            </div>
+            <div class="eco-gadget eco-gadget--speaker">
+              <span aria-hidden="true">🔊</span>
+              <small>Колонка</small>
+            </div>
+            <div class="eco-gadget eco-gadget--camera">
+              <span aria-hidden="true">📷</span>
+              <small>Камера</small>
+            </div>
+            <div class="eco-gadget eco-gadget--server">
+              <span aria-hidden="true">🖥️</span>
+              <small>Сервер</small>
+            </div>
+            <div class="eco-gadget eco-gadget--robot">
+              <span aria-hidden="true">🤖</span>
+              <small>Lego-робот</small>
+            </div>
+            <div class="eco-gadget eco-gadget--watch">
+              <span aria-hidden="true">⌚</span>
+              <small>Watch</small>
+            </div>
+            <div class="eco-gadget eco-gadget--home">
+              <span aria-hidden="true">🏠</span>
+              <small>Smart Home</small>
+            </div>
+          </div>
+
+          <ul class="ecosystem-tags">
+            <li>Cursor · MCP</li>
+            <li>Agent Shell · голос</li>
+            <li>Desktop · Web UI</li>
+            <li>Git-friendly workspace</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="structure" class="section-light structure">
+        <div class="container">
+          <div class="structure-head">
+            <div>
+              <span class="section-label section-label--light">Архитектура</span>
+              <h2 class="section-title section-title--light">
+                1 + 1 <span class="structure-gte">≥</span> 2
+              </h2>
+              <p class="section-lead section-lead--light section-lead--tight">
+                Синергия человека и ИИ-агента: вы задаёте смысл — агент держит структуру,
+                память и файлы на диске.
+              </p>
+            </div>
+            <div class="structure-badge">
+              <span>Human</span>
+              <span class="structure-badge-plus">+</span>
+              <span>Agent</span>
+              <span class="structure-badge-eq">→ workspace</span>
+            </div>
+          </div>
+
+          <div class="structure-columns">
+            <article class="structure-tree">
+              <h3>Дерево страниц</h3>
+              <pre class="structure-code"><code><span class="s-root">Workspace</span>
+<span class="s-tree">└──</span> <span class="s-node">section</span>
+    <span class="s-tree">└──</span> <span class="s-node">area</span>
+        <span class="s-tree">└──</span> <span class="s-node">topic</span>
+            <span class="s-tree">└──</span> <span class="s-node">slot</span>
+                <span class="s-slot">main · inbox · note · media</span>
+                <span class="s-slot">artefacts · scripts · assets</span>
+                <span class="s-tree">    └──</span> <span class="s-leaf">record | category | comment</span>
+                <span class="s-tree">    └──</span> <span class="s-leaf">sidecar | plain</span>
+                <span class="s-tree">    └──</span> <span class="s-storage">s-&lt;storage&gt;</span> <span class="s-comment"># доп. материалы для record</span></code></pre>
+            </article>
+
+            <article class="structure-tree">
+              <h3>Данные (awn-databases)</h3>
+              <pre class="structure-code"><code><span class="s-root">Workspace</span>
+<span class="s-tree">└──</span> <span class="s-node">data</span>
+    <span class="s-tree">└──</span> <span class="s-node">инфоблок</span> <span class="s-tag">новый тип</span>
+        <span class="s-tree">└──</span> <span class="s-leaf">записи</span>
+
+<span class="s-comment"># таблицы, справочники, коллекции</span>
+<span class="s-comment"># без SQL — файлы на диске</span></code></pre>
+            </article>
+          </div>
+
+          <div class="structure-flow">
+            <div class="structure-flow-item">
+              <strong>Вы</strong>
+              <span>темы, цели, решения</span>
+            </div>
+            <div class="structure-flow-arrow" aria-hidden="true">↔</div>
+            <div class="structure-flow-item structure-flow-item--agent">
+              <strong>Агент</strong>
+              <span>структура, слоты, MCP</span>
+            </div>
+            <div class="structure-flow-arrow" aria-hidden="true">→</div>
+            <div class="structure-flow-item">
+              <strong>Workspace</strong>
+              <span>файлы · YAML · MD</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="prompt" class="section-light prompt-section">
+        <div class="container prompt-grid">
+          <div class="prompt-copy">
+            <span class="section-label section-label--light">Стартовый промпт</span>
+            <h2 class="section-title section-title--light">Первый разговор с агентом</h2>
+            <p class="section-lead section-lead--light section-lead--tight">
+              Так может начаться настройка вашего workspace — агент помогает собрать
+              области, темы и подключить внешние сервисы.
+            </p>
+            <ul class="prompt-steps">
+              <li>Обсудить темы, которые вас интересуют</li>
+              <li>Создать первые области и темы</li>
+              <li>Выбрать интеграции из внешних сервисов</li>
+            </ul>
+          </div>
+
+          <div class="prompt-card">
+            <div class="prompt-card-bar">
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-title">Cursor · новый агент</span>
+              <button class="prompt-copy-btn" type="button" data-copy="Ты мой цифровой спутник — организуй мне стартовую базу для ведения моей жизни.&#10;&#10;Давай обсудим темы которые меня интересуют — и создадим первые области и темы всего что мне интересно. Также обсудим что было бы здорово подключить в нашу экосистему из внешних сервисов.">Копировать</button>
+            </div>
+            <div class="prompt-card-body">
+              <div class="prompt-message prompt-message--user">
+                <span class="prompt-role">Вы</span>
+                <p>
+                  Ты мой цифровой спутник — организуй мне стартовую базу для ведения моей жизни.
+                </p>
+                <p>
+                  Давай обсудим темы которые меня интересуют — и создадим первые области и темы
+                  всего что мне интересно. Также обсудим что было бы здорово подключить в нашу
+                  экосистему из внешних сервисов.
+                </p>
+              </div>
+              <div class="prompt-message prompt-message--agent">
+                <span class="prompt-role">Agent</span>
+                <p>
+                  Отлично. Начнём с ваших интересов: работа, здоровье, финансы, хобби?
+                  Для каждой области создам <code>area</code> и первые <code>topic</code> со слотами
+                  <code>main</code>, <code>inbox</code> и <code>media</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features">
+        <div class="container">
+          <span class="section-label">Возможности</span>
+          <h2 class="section-title">Всё, что нужно агенту</h2>
+          <p class="section-lead">
+            Не облачный конструктор и не CMS для сайтов — рабочее пространство, где агент
+            хранит контекст, память и файлы в понятной файловой структуре.
+          </p>
+
+          <div class="features-grid">
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"/></svg>
+              </div>
+              <h3>Без базы данных</h3>
+              <p>
+                Каждый агент — папка на диске. Git-friendly, прозрачно, можно открыть
+                в Obsidian или любом редакторе.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg>
+              </div>
+              <h3>Память и контекст</h3>
+              <p>
+                Описания, inbox, TODO, табличная и многофайловая память — всё внутри
+                нод workspace, а не в чате.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22v-5"/><path d="M9 17h6"/><path d="M8 9a4 4 0 1 1 8 0v3H8V9z"/></svg>
+              </div>
+              <h3>MCP для Cursor</h3>
+              <p>
+                Агент читает и пишет контент через MCP tools: страницы, слоты, свойства,
+                загрузка медиа.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h14"/></svg>
+              </div>
+              <h3>YAML-схема</h3>
+              <p>
+                Типы страниц, слоты и поля описаны в <code>awn-system/</code> — модель
+                CMS встроена в workspace.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8"/></svg>
+              </div>
+              <h3>Браузер и Desktop</h3>
+              <p>
+                Запуск через <code>npm start</code> или нативное приложение на Electron
+                для macOS.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/></svg>
+              </div>
+              <h3>Agent Shell</h3>
+              <p>
+                Голосовой клиент для работы с агентом — отдельное desktop-приложение
+                в экосистеме Agent CMS.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="products" class="products">
+        <div class="container">
+          <span class="section-label">Экосистема</span>
+          <h2 class="section-title">Два приложения — один workspace</h2>
+          <p class="section-lead">
+            Редактируйте контент в UI, общайтесь голосом через Shell — агент в Cursor
+            работает с теми же файлами через MCP.
+          </p>
+
+          <div class="products-grid">
+            <article class="product-card">
+              <div class="product-head">
+                <img src="favicon.svg" width="40" height="40" alt="" />
+                <div>
+                  <h3>Agent CMS</h3>
+                  <span class="product-tag">Редактор</span>
+                </div>
+              </div>
+              <p>Дерево нод, редактор Markdown, свойства, медиа, поиск по workspace и HTTP API.</p>
+              <ul class="product-list">
+                <li>Web UI · localhost:3000</li>
+                <li>Desktop · macOS Electron</li>
+                <li>MCP server для IDE</li>
+              </ul>
+            </article>
+
+            <article class="product-card">
+              <div class="product-head">
+                <div class="product-icon-shell" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/></svg>
+                </div>
+                <div>
+                  <h3>Agent Shell</h3>
+                  <span class="product-tag product-tag--shell">Голос</span>
+                </div>
+              </div>
+              <p>Голосовой клиент: TTS, камера, sidecar — для живого диалога с агентом без клавиатуры.</p>
+              <ul class="product-list">
+                <li>Desktop · macOS Electron</li>
+                <li>Voice sidecar</li>
+                <li>3D-аватар и UI shell</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="how">
+        <div class="container">
+          <span class="section-label">Архитектура</span>
+          <h2 class="section-title">PAGE → SLOT → CONTENT</h2>
+          <p class="section-lead">
+            Простая модель: страница (нода) содержит слоты, в слотах — контент нужного типа.
+          </p>
+
+          <div class="schema-wrap">
+            <div class="schema-visual">
+              <div class="schema-layer">
+                <span class="schema-layer-label">PAGE</span>
+                <div class="schema-box">topic-1/</div>
+              </div>
+              <div class="schema-arrow" aria-hidden="true">↓</div>
+              <div class="schema-layer">
+                <span class="schema-layer-label">SLOT</span>
+                <div class="schema-slots">
+                  <span>main</span>
+                  <span>media</span>
+                  <span>inbox</span>
+                </div>
+              </div>
+              <div class="schema-arrow" aria-hidden="true">↓</div>
+              <div class="schema-layer">
+                <span class="schema-layer-label">CONTENT</span>
+                <div class="schema-slots schema-slots--content">
+                  <span>.md</span>
+                  <span>.jpg</span>
+                  <span>.yaml</span>
+                </div>
+              </div>
+            </div>
+
+            <ol class="schema-list">
+              <li>
+                <span class="schema-list-num">1</span>
+                <div>
+                  <strong>Выберите агента</strong>
+                  <span>Workspace на диске — отдельная папка с собственной моделью и контентом.</span>
+                </div>
+              </li>
+              <li>
+                <span class="schema-list-num">2</span>
+                <div>
+                  <strong>Откройте ноду</strong>
+                  <span>Тема, область или запись — единица контента с описанием, свойствами и файлами.</span>
+                </div>
+              </li>
+              <li>
+                <span class="schema-list-num">3</span>
+                <div>
+                  <strong>Редактируйте слоты</strong>
+                  <span><code>main</code>, <code>media</code>, <code>inbox</code> — каждый слот хранит контент своего типа.</span>
+                </div>
+              </li>
+              <li>
+                <span class="schema-list-num">4</span>
+                <div>
+                  <strong>Агент работает через MCP</strong>
+                  <span>Cursor-агент читает и обновляет workspace без ручного копирования из чата.</span>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section id="start" class="start">
+        <div class="container start-grid">
+          <div>
+            <span class="section-label">Быстрый старт</span>
+            <h2 class="section-title">Запуск за минуту</h2>
+            <p class="section-lead section-lead--tight">
+              Клонируйте репозиторий, установите зависимости и откройте редактор в браузере.
+              MCP подключается отдельно — кнопка <strong>MCP</strong> в шапке UI.
+            </p>
+            <ul class="start-checklist">
+              <li>Node.js 18+</li>
+              <li>macOS для desktop-сборки</li>
+              <li>Cursor для MCP-интеграции</li>
+            </ul>
+          </div>
+
+          <div class="code-block">
+            <div class="code-block-bar">
+              <span class="code-block-label">terminal</span>
+              <button class="code-copy" type="button" data-copy="npm install&#10;npm start">Копировать</button>
+            </div>
+            <pre class="code-block-body"><code><span class="c-prompt">$</span> git clone &lt;repo&gt; agent-cms
+<span class="c-prompt">$</span> cd agent-cms
+<span class="c-prompt">$</span> npm install
+<span class="c-prompt">$</span> npm start
+
+<span class="c-comment"># → http://localhost:3000</span>
+<span class="c-comment"># Desktop: npm run cms:desktop</span>
+<span class="c-comment"># MCP:     npm start + mcp-server/</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="stack" class="stack">
+        <div class="container">
+          <div class="stack-row">
+            <div class="stack-item">
+              <strong>Web UI</strong>
+              <span>Редактор в браузере</span>
+            </div>
+            <div class="stack-item">
+              <strong>MCP Server</strong>
+              <span>Cursor и другие IDE</span>
+            </div>
+            <div class="stack-item">
+              <strong>Desktop</strong>
+              <span>CMS.app · Shell.app</span>
+            </div>
+            <div class="stack-item">
+              <strong>Форматы</strong>
+              <span>MD · YAML · JSON</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" class="cta">
+        <div class="container">
+          <div class="cta-box">
+            <h2>Скоро здесь будет больше</h2>
+            <p>
+              Проект в активной разработке. Документация, демо и публичный репозиторий — на подходе.
+              Оставьте заявку — напишем, когда будет готово к установке.
+            </p>
+            <div class="cta-actions">
+              <a class="btn btn-primary" href="mailto:hello@agent-cms.ru">hello@agent-cms.ru</a>
+              <a class="btn btn-ghost" href="#start">Как запустить</a>
+            </div>
+            <div class="domain-tag">agent-cms.ru</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <img src="favicon.svg" width="24" height="24" alt="" />
+          <span>Agent CMS</span>
+        </div>
+        <nav class="footer-nav" aria-label="Подвал">
+          <a href="#features">Возможности</a>
+          <a href="#products">Продукты</a>
+          <a href="#how">Архитектура</a>
+          <a href="#start">Старт</a>
+        </nav>
+        <span class="footer-copy">© 2026 agent-cms.ru</span>
+      </div>
+    </footer>
+
+    <script>
+      document.querySelectorAll(".prompt-copy-btn[data-copy], .code-copy[data-copy]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const text = btn.dataset.copy.replace(/&#10;/g, "\n");
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = "Скопировано";
+            setTimeout(() => {
+              btn.textContent = "Копировать";
+            }, 1800);
+          } catch {
+            btn.textContent = "Ошибка";
+          }
+        });
+      });
+
+      document.querySelectorAll(".nav a").forEach((link) => {
+        link.addEventListener("click", () => {
+          const toggle = document.getElementById("nav-toggle");
+          if (toggle) toggle.checked = false;
+        });
+      });
+    </script>
+  </body>
+</html>

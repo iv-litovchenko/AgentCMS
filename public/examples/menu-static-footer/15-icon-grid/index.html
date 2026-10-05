@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>15 — Icon grid</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v15-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v15-body { padding:10px;background:#fff; }
+      .v15-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+      .v15-tile { display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:#f8fafc;text-align:center;cursor:pointer;font-size:18px; }
+      .v15-tile span { font-size:9px;font-weight:600;color:#334155;line-height:1.2; }
+      .v15-tile:hover { border-color:#a5b4fc;background:#eef2ff; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>15 · Icon grid</h1><p>Сетка 2×N с крупными иконками — быстрый доступ</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v15-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v15-body">
+              <div class="v15-grid">
+                <div class="v15-tile">🗄️<span>Накопители</span></div>
+                <div class="v15-tile">📦<span>Репозитории</span></div>
+                <div class="v15-tile">⚙️<span>Настройки</span></div>
+                <div class="v15-tile">🔄<span>Синхронизация</span></div>
+                <div class="v15-tile">☁️<span>Google Drive</span></div>
+                <div class="v15-tile">💬<span>Диалоги</span></div>
+              </div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

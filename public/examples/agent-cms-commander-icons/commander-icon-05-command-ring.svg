@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS Commander command ring v1">
+  <defs>
+    <linearGradient id="cmd-bg-05" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9f1239" />
+      <stop offset="100%" stop-color="#f43f5e" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-bg-05)" />
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22" />
+  <circle cx="32" cy="32" r="16" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.35" />
+  <path
+    d="M 32 16 A 16 16 0 0 1 48 32 A 16 16 0 0 1 32 48"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3"
+    stroke-linecap="round"
+    opacity="0.95"
+  />
+  <ellipse cx="32" cy="32" rx="10" ry="11" fill="#ffffff" />
+  <path d="M 32 21 L 32 29" stroke="#be123c" stroke-width="2" stroke-linecap="round" opacity="0.45" />
+  <rect x="30" y="21" width="4" height="6" rx="2" fill="#be123c" opacity="0.35" />
+</svg>

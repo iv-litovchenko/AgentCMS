@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8. Сравнительные таблицы</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .cmp-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .cmp-title { margin: 0 0 0.75rem; font-size: 1.1rem; }
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .cmp-table th, .cmp-table td {
+      padding: 0.65rem 0.75rem; border: 1px solid var(--border); text-align: left;
+    }
+    .cmp-table th { background: var(--surface2); color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
+    .cmp-table tr:hover td { background: rgba(59,130,246,0.06); }
+    .cmp-key { font-weight: 600; color: var(--text); width: 28%; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-terms">Слой 4 · термины</span>
+        <h1>Сравнительные таблицы — X vs Y</h1>
+        <p>Уточнение понятий: чем отличаются близкие термины</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>В конспекте</h2>
+        <pre>## Abstract vs Interface
+
+| Критерий | Abstract | Interface |
+|----------|----------|-----------|
+| Поля     | Да       | Нет       |</pre>
+        <h2>Тег в frontmatter</h2>
+        <pre>compare: abstract-vs-interface</pre>
+      </aside>
+      <div class="content">
+        <div class="cmp-tabs">
+          <button type="button" data-cmp="abstract-vs-interface" class="is-active">Abstract vs Interface</button>
+          <button type="button" data-cmp="java-vs-kotlin">Java vs Kotlin</button>
+          <button type="button" data-cmp="jdbc-vs-jpa">JDBC vs JPA</button>
+        </div>
+        <div id="cmp-panel"></div>
+      </div>
+    </main>
+  </div>
+  <script src="08-comparison-tables.js"></script>
+</body>
+</html>

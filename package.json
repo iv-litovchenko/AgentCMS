@@ -1,47 +1,81 @@
 {
   "name": "agent-cms",
-  "version": "0.1.0",
+  "version": "0.0.1-beta",
   "private": true,
   "description": "File-based CMS prototype for agents (no database)",
   "author": "Agent CMS",
-  "main": "electron/main.js",
+  "main": "desktop/agent-cms/main.js",
   "scripts": {
     "start": "node server.js",
+    "start:https": "bash scripts/start-mobile-https.sh",
+    "setup:certs": "bash scripts/setup-dev-certs.sh",
+    "setup:desktop-shortcuts": "node scripts/create-desktop-shortcuts.js",
+    "setup:certs:iphone": "bash scripts/export-mkcert-ca-for-ios.sh",
+    "voice:start": "node voice-server.js",
+    "voice:https": "bash scripts/start-voice-https.sh",
     "mcp": "node mcp-server/index.js",
-    "postinstall": "mkdir -p public/vendor && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js",
-    "desktop": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "open:app": "open \"dist/mac/Agent CMS.app\""
+    "shell:sidecar": "bash agent-shell/voice-sidecar/run.sh",
+    "postinstall": "mkdir -p public/vendor public/vendor/fancybox public/shell/vendor/loaders public/shell/vendor/utils && node scripts/sync-material-file-icons.js && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && cp node_modules/mammoth/mammoth.browser.min.js public/vendor/mammoth.browser.min.js && cp node_modules/xlsx/dist/xlsx.full.min.js public/vendor/xlsx.full.min.js && cp node_modules/three/build/three.module.js public/shell/vendor/three.module.js && cp node_modules/three/examples/jsm/loaders/GLTFLoader.js public/shell/vendor/loaders/GLTFLoader.js && cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js public/shell/vendor/utils/BufferGeometryUtils.js && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/vendor/highlight-github.min.css && curl -fsSL https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.css -o public/vendor/fancybox/fancybox.css && curl -fsSL https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.umd.js -o public/vendor/fancybox/fancybox.umd.js",
+    "cms:desktop": "electron .",
+    "cms:pack": "electron-builder --dir && node scripts/flatten-desktop-dist.js agent-cms",
+    "cms:dist": "electron-builder && node scripts/flatten-desktop-dist.js agent-cms",
+    "cms:open": "open \"dist/agent-cms/Agent CMS.app\"",
+    "shell:desktop": "electron ./desktop/agent-shell",
+    "shell:pack": "npm run pack --prefix desktop/agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
+    "shell:dist": "node scripts/build-desktop-subapp.js agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
+    "shell:open": "open \"dist/agent-shell/Agent Shell.app\"",
+    "control:desktop": "electron ./desktop/agent-control",
+    "control:pack": "npm run pack --prefix desktop/agent-control && node scripts/flatten-desktop-dist.js agent-control",
+    "control:dist": "node scripts/build-desktop-subapp.js agent-control && node scripts/flatten-desktop-dist.js agent-control",
+    "control:open": "open \"dist/agent-control/Agent CMS Control.app\"",
+    "shell:icons": "node scripts/render-app-icons.js",
+    "dist:clean": "rm -rf dist",
+    "dist:migrate": "node scripts/migrate-dist-layout.js"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.2",
     "@toast-ui/editor": "^3.2.2",
+    "better-sqlite3": "^13.0.3",
+    "edge-tts-universal": "^1.4.0",
     "electron-updater": "^6.6.2",
+    "highlight.js": "^11.11.1",
+    "mammoth": "^1.12.0",
     "markdown-it": "^14.1.1",
-    "mermaid": "^11.15.0"
+    "mermaid": "^11.15.0",
+    "pdf-parse": "^2.4.5",
+    "sharp": "^0.35.2",
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-code": "^2.1.0",
+    "@openai/codex": "^0.149.0"
   },
   "devDependencies": {
     "electron": "^35.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "material-icon-theme": "^5.38.1",
+    "qrcode": "^1.5.4",
+    "three": "^0.170.0"
   },
   "build": {
     "appId": "com.agentcms.desktop",
     "productName": "Agent CMS",
-    "icon": "electron/assets/icon.png",
+    "icon": "desktop/agent-cms/assets/icon.png",
     "directories": {
-      "output": "dist"
+      "output": "dist/agent-cms"
     },
     "files": [
-      "electron/**/*",
+      "desktop/agent-cms/**/*",
       "public/**/*",
-      "server.js",
-      "agent-registry.js",
-      "api-docs.js",
-      "mcp-docs.js",
+      "*.js",
+      "lib/**/*",
+      "docs/**/*",
+      "agent-shell/**/*",
       "mcp-server/**/*",
-      "acms.agents.json",
-      "agents.registry.json",
-      "Workspaces/**/*",
+      ".agent-cms-global/ws-list-agents.json",
+      ".agent-cms-global/ws-list-groups.json",
+      "workspaces/**/*",
       "package.json"
     ],
     "protocols": [
@@ -54,20 +88,20 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "nsis"
       ]
     },
     "linux": {
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "AppImage"
       ]

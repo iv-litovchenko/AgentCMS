@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="5<>-?>@B@5B 035=B0">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="55%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#e0e7ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#4f46e5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <ellipse cx="200" cy="320" rx="140" ry="40" fill="#0f172a" opacity="0.35"/>
+  <circle cx="200" cy="118" r="52" fill="url(#glow)"/>
+  <ellipse cx="200" cy="200" rx="78" ry="95" fill="#c4b5fd"/>
+  <circle cx="200" cy="108" r="48" fill="#fde68a"/>
+  <circle cx="184" cy="102" r="6" fill="#1e1b4b"/>
+  <circle cx="216" cy="102" r="6" fill="#1e1b4b"/>
+  <path d="M188 124 Q200 134 212 124" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <text x="200" y="278" text-anchor="middle" fill="#e0e7ff" font-family="system-ui,sans-serif" font-size="14" opacity="0.85">workspace-preview</text>
+</svg>

@@ -1,0 +1,11 @@
+{
+  "order": [
+    "klienty",
+    "mastera",
+    "uslugi",
+    "zapisi",
+    "kalendar",
+    "analitika",
+    "grafik"
+  ]
+}

@@ -1,0 +1,248 @@
+#agent-companion-media-save {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: 2147483647 !important;
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+#agent-companion-media-save[data-visible="1"] {
+  display: block !important;
+}
+
+#agent-companion-iframe-open {
+  position: fixed !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483645 !important;
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+#agent-companion-iframe-open[data-visible="1"] {
+  display: block !important;
+}
+
+html.asc-capturing-viewport #agent-companion-iframe-open,
+html.asc-capturing-fullpage #agent-companion-iframe-open,
+html.asc-screenshot-region-active #agent-companion-iframe-open,
+html.asc-screenshot-element-active #agent-companion-iframe-open {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#agent-shell-companion-toolbar {
+  position: fixed !important;
+  left: calc(50% + var(--asc-x, 0px)) !important;
+  bottom: calc(18px + var(--asc-y, 0px)) !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483646 !important;
+  display: block !important;
+  width: max-content !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  color: #f5f3ff !important;
+  pointer-events: auto !important;
+}
+
+html.asc-capturing-viewport #agent-shell-companion-toolbar,
+html.asc-capturing-viewport #agent-companion-media-save,
+html.asc-capturing-viewport .cms-page-picker-root,
+html.asc-capturing-viewport .asc-screenshot-element-root,
+html.asc-capturing-viewport .asc-screenshot-region-root,
+html.asc-capturing-fullpage #agent-shell-companion-toolbar,
+html.asc-capturing-fullpage #agent-companion-media-save,
+html.asc-screenshot-region-active #agent-shell-companion-toolbar,
+html.asc-screenshot-region-active #agent-companion-media-save,
+html.asc-screenshot-element-active #agent-shell-companion-toolbar,
+html.asc-screenshot-element-active #agent-companion-media-save {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.asc-screenshot-region-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.asc-screenshot-region-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.asc-screenshot-region-box {
+  position: fixed;
+  display: none;
+  z-index: 2;
+  border: 2px solid #a78bfa;
+  border-radius: 4px;
+  background: rgba(167, 139, 250, 0.12);
+  box-shadow: 0 0 0 9999px rgba(15, 10, 30, 0.28);
+  pointer-events: none;
+}
+
+html.is-cms-page-picker-active,
+body.is-cms-page-picker-active {
+  cursor: crosshair;
+}
+
+body.is-cms-page-picker-active #agent-shell-companion-toolbar {
+  cursor: default;
+}
+
+.cms-page-picker-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  pointer-events: none;
+  display: none;
+}
+
+.cms-page-picker-root.is-active {
+  display: block;
+}
+
+.cms-page-picker-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.cms-page-picker-highlight {
+  position: fixed;
+  z-index: 2147483646;
+  display: none;
+  border: 2px solid #6366f1;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
+}
+
+.cms-page-picker-highlight-tag {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  max-width: calc(100% - 8px);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #c7d2fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  pointer-events: none;
+}
+
+.cms-page-picker-highlight-tag[hidden] {
+  display: none;
+}
+
+.asc-screenshot-element-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.asc-screenshot-element-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.asc-screenshot-element-highlight {
+  position: fixed;
+  z-index: 2;
+  display: none;
+  border: 2px solid #22d3ee;
+  border-radius: 6px;
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+  transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
+}
+
+html.asc-screenshot-element-active {
+  cursor: crosshair;
+}
+
+html.asc-capturing-fullpage {
+  scroll-behavior: auto !important;
+}

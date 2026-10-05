@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>13 — Compact rows</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v13-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:0;background:#fff;border-top:1px solid var(--border);cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:#334155; }
+      .v13-body { padding:0;background:#fff; }
+      .v13-row { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-top:1px solid rgba(148,163,184,.14);font-size:11px;cursor:pointer; }
+      .v13-row:hover { background:#f8fafc; }
+      .v13-row small { font-size:9px;color:var(--muted); }
+      .v13-chev { color:#94a3b8;font-size:10px; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>13 · Compact rows</h1><p>Одна строка на секцию, chevron справа — как iOS settings</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v13-toggle" data-footer-toggle aria-expanded="true"><span class="chevron"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v13-body">
+              <div class="v13-row"><span>🟢 Накопители <small>Domains</small></span><span class="v13-chev">›</span></div>
+              <div class="v13-row"><span>🟢 Репозитории <small>awn-repositories</small></span><span class="v13-chev">›</span></div>
+              <div class="v13-row"><span>🟢 Настройки <small>static</small></span><span class="v13-chev">›</span></div>
+              <div class="v13-row"><span>🟢 Синхронизация <small>static</small></span><span class="v13-chev">›</span></div>
+              <div class="v13-row"><span>🟢 Google Drive <small>выгрузка</small></span><span class="v13-chev">›</span></div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

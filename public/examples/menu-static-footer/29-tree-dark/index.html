@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>29 — Tree dark</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .sidebar-mock-bottom { background:#0f172a;border-top-color:#1e293b; }
+      .v-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:#1e293b;color:#e2e8f0;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v29-body { background:#0f172a;padding:6px 8px 8px; }
+      .v29-tree .mock-tree-node { color:#cbd5e1; }
+      .v29-tree .mock-tree-node:hover { background:#1e293b; }
+      .v29-tree .mock-tree-branch > ul { padding-left:14px;border-left:1px solid #334155; }
+      .v29-tree .mock-tree-toggle { color:#818cf8; }
+      .v29-tree .mock-tree-meta { color:#64748b; }
+      .mock-env-band { background:linear-gradient(135deg,#312e81,#4338ca); }
+      .mock-stats-band { background:#334155; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>29 · Tree dark</h1><p>Тёмное дерево в стиле IDE sidebar</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#94a3b8"></span> # system-sections</button>
+            <div class="footer-body v29-body">
+              <ul class="mock-tree v29-tree">
+                <li class="mock-tree-branch">
+                  <div class="mock-tree-node"><button type="button" class="mock-tree-toggle" data-tree-toggle data-toggle-char="▸" data-toggle-open="▾" aria-expanded="true">▾</button><span class="mock-tree-label">infrastructure</span></div>
+                  <ul>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">storage-schemes</span><span class="mock-tree-meta">domains</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">settings</span><span class="mock-tree-meta">static</span></div></li>
+                  </ul>
+                </li>
+                <li class="mock-tree-branch">
+                  <div class="mock-tree-node"><button type="button" class="mock-tree-toggle" data-tree-toggle data-toggle-char="▸" data-toggle-open="▾" aria-expanded="true">▾</button><span class="mock-tree-label">integrations</span></div>
+                  <ul>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">repositories</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">sync</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">google-drive</span></div></li>
+                  </ul>
+                </li>
+                <li><div class="mock-tree-node"><span class="mock-tree-label">dialogs</span><span class="mock-tree-meta">runtime</span></div></li>
+              </ul>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

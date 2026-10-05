@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5. Глоссарий</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .letter-nav { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem; }
+    .letter-chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.6rem; height: 1.6rem; border-radius: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); text-decoration: none; font-size: 0.75rem; font-weight: 600;
+    }
+    .letter-chip:hover { border-color: var(--accent); }
+    .glossary-letter h3 {
+      margin: 1.25rem 0 0.5rem; font-size: 1.1rem; color: var(--accent);
+      border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;
+    }
+    .glossary-term {
+      padding: 0.85rem; margin-bottom: 0.5rem; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .term-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+    .glossary-term p { margin: 0.35rem 0 0.5rem; font-size: 0.88rem; color: var(--muted); }
+    .term-link { font-size: 0.75rem; color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <span class="badge layer-terms">Слой 4 · термины</span>
+        <h1>Глоссарий — словарь понятий</h1>
+        <p>Отдельно от mindmap: не структура темы, а значения слов</p>
+      </div>
+      <div class="toolbar"><a href="index.html">← Экосистема</a></div>
+    </header>
+    <main class="split">
+      <aside>
+        <h2>Слой 4 vs слой 1</h2>
+        <pre>Mindmap: «Generics» — узел на карте
+Глоссарий: «Generics» — определение,
+  примеры, связи с Wildcard</pre>
+        <h2>Синтаксис в конспекте</h2>
+        <pre>**JVM** — Java Virtual Machine
+**Generics** — параметризация типов</pre>
+        <h2>Скрипт</h2>
+        <pre>node tools/extract-glossary.js \
+  --input ../study-markers/sample-notes/</pre>
+      </aside>
+      <div class="content">
+        <input class="search" id="glossary-search" type="search" placeholder="Поиск термина…">
+        <nav class="letter-nav" id="letter-nav"></nav>
+        <div id="glossary-list"></div>
+      </div>
+    </main>
+  </div>
+  <script src="05-glossary.js"></script>
+</body>
+</html>

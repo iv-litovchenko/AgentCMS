@@ -1,0 +1,114 @@
+---
+awn-materials: ""
+awn-status: open
+awn-emoji: ""
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-type: awn.content.record
+awn-create: "2026-08-11T23:19:38.441Z"
+awn-attachments: []
+awn-description: ""
+awn-main: false
+awn-name: Все в системе есть заметка а не разные MCP Page Content Data
+awn-preview: ""
+awn-runtime-commands: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-load-always: false
+awn-sort: 
+awn-web-url: ""
+awn-update: 2026-08-11T23:19:56.989Z
+awn-version: 2
+---
+
+Да, мысль в целом **верная** — и код это подтверждает.
+
+## Что общее
+
+Практически всё у вас — **типизированные markdown-сущности**:
+
+- frontmatter (`awn-type`, поля из схемы)
+- тело
+- файлы на диске
+- поведение задаётся **типом + контекстом**, а не «магией page/content»
+
+`awn.content.base` прямо говорит: record/category/sidecar — это варианты контента, **без nav/runtime страниц**.  
+Накопители (`awn.data.collection` + `{id}.md`) — тот же паттерн: **manifest + записи + схема**, только другой адрес и другой UI-блок.
+
+То есть вы не ошибаетесь: **page / content / data — это не три разные природы, а три роли в системе + разные MCP-обёртки.**
+
+---
+
+## Где разница не «тип ради типа», а **контекст**
+
+| | Page | Content | Накопители (data) |
+|---|---|---|---|
+| **Где в дереве** | Меню workspace | Внутри слотов темы | Sidebar «Накопители» |
+| **Якорный файл** | `manifest.md` | `.md` в `main/`, `inbox/`… | `manifest.md` store |
+| **Адрес для MCP** | `path` | `path` + `slot` + `ref` | store + record |
+| **Контейнер** | сама страница | слот (main, media…) | коллекция/группа |
+
+Page — это **узел навигации + хост слотов**.  
+Content — **запись внутри слота** этой страницы.  
+Data — **запись вне тем**, в глобальном реестре типов/данных.
+
+Разница не «заметка vs не заметка», а **где она живёт в адресном пространстве и кто её родитель**.
+
+---
+
+## Почему тогда отдельные MCP `page_*` и `content_*`
+
+Исторически и практически:
+
+1. **Разный адрес** — агенту проще `read_page_body(path)`, чем каждый раз помнить slot/ref.
+2. **Разные операции** — `create_page` поднимает папку+manifest+слоты; `create_content` — файл в `main/`; `create_data_store` — store в `awn-databases/`.
+3. **Разный UI** — редактор страницы vs слот vs store.
+4. **Escape hatch уже есть** — `read_file` / `write_file` для «просто файл».
+
+По сути это **facade по ролям**, не онтология.
+
+---
+
+## Что из этого следует
+
+Ваш вывод **здоровый**:
+
+> всё — заметки разных типов, система чуть по-разному ведёт себя в зависимости от типа и места в дереве
+
+Накопители это **не ломают** модель — они **усиливают** её: третий контейнер с тем же `{manifest + records + schema}`.
+
+Единая mental model могла бы быть такой:
+
+```
+Entity = typed file(s)
+Container = page | slot | data-store
+Address = path | path+slot+ref | store/record
+Behavior = f(awn-type, container, storage-driver)
+```
+
+`page` vs `content` — это **container level**, не «другой вид данных».
+
+---
+
+## Стоит ли сливать API
+
+**Концептуально — да, можно мыслить одной моделью.**  
+**Практически — полный merge MCP сейчас не обязателен**: разные адреса и сценарии (создать тему vs запись в inbox vs строка в CSV-store) реально удобнее через отдельные tools.
+
+Разумное направление, если захотите упростить:
+
+- один **`read_entity` / `write_entity`** с `{ address, layer: body|props|schema }`
+- `page_*` / `content_*` / `data_*` — thin aliases
+- типы и `get_type` — единый источник поведения
+
+---
+
+**Итог:** вы приходите к правильной архитектурной картине. Page/content/data — **слои навигации и API**, а не три разных сущности. Накопители — тот же класс. Различие «по-настоящему» — **где файл сидит (дерево / слот / store)** и **какой storage-driver** (external, bundle, csv, md collection), а не «page это одно, content другое».

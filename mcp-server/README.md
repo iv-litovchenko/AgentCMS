@@ -1,11 +1,13 @@
-# Agent CMS — MCP Server
+# Agent CMS — MCP Server v0.4.0 (per-chat agentId · database_frame_* / database_element_*)
 
-MCP-сервер для [Agent CMS](..): даёт агенту в Cursor / Claude Desktop доступ к workspace через HTTP API.
+MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
+
+Полная карта: [workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md](../workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md)
 
 ## Требования
 
 - Node.js 18+
-- Запущенный Agent CMS: из корня репозитория `npm start` → http://localhost:3000
+- Запущенный Agent CMS: из корня репозитория `npm run start:https` → https://localhost:3443
 
 ## Установка
 
@@ -18,55 +20,61 @@ npm install
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `AGENT_CMS_BASE_URL` | `http://localhost:3000` | Базовый URL CMS |
-| `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `acms.agents.json` |
+| `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
+| `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
+| `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 
-Устаревшие `YAMLCMS_*` по-прежнему читаются для совместимости.
+## Термины (синонимы `agentId`)
 
-## Cursor
+**workspace** · **agent** · **vault** · **хранилище** · **рабочее пространство** — одно и то же: id из `list_workspaces` (alias `list_vaults`).
 
-Settings → MCP → Add server, или `.cursor/mcp.json`:
+## Старт нового чата
 
-```json
-{
-  "mcpServers": {
-    "agent-cms": {
-      "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/agent-cms/mcp-server/index.js"],
-      "env": {
-        "AGENT_CMS_BASE_URL": "http://localhost:3000",
-        "AGENT_CMS_AGENT": "main"
-      }
-    }
-  }
-}
+```
+list_workspaces
+get_session_context({ agentId: "<выбранный-id>" })
 ```
 
-Замените `/ABSOLUTE/PATH/TO/agent-cms` на абсолютный путь к репозиторию Agent CMS.
+Дальше **каждый** workspace-scoped tool с тем же `agentId`. Пример фразы пользователя:
 
-## Документация tools
+> Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным agentId, дальше всегда передавай этот agentId во все MCP tools.
 
-- В UI: кнопка **MCP** в шапке (рядом с **API**)
-- JSON: `GET http://localhost:3000/api/mcp-docs`
-- Источник: `mcp-docs.js` в корне репозитория
+Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
 
-## Запуск вручную (отладка)
+**Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
+
+### Канон (PAGE · SLOT · CONTENT)
+
+| Группа | Tools |
+|--------|-------|
+| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `agentId`; остальное **с `agentId`** |
+| Platform | `get_platform_info`, `get_platform_health` (нужен `agentId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
+| Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `get_page_url`, `list_repositories`, `get_repository`, `refresh_repository_index`, `register_repository`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
+| Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
+| Слот | `list_page_slots` |
+| Контент | `content_exists`, `get_content_meta`, `read/write_content_*`, `read/write_content_property`, `create_content`, `import_content_from_url`, `rename/move/delete_content` |
+| Типы | `list_types`, `get_type` |
+| awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы); `iblock_*` deprecated |
+| Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
+| File hub queue | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub` |
+| Fact bank | `retain_workspace_fact`, `list_workspace_facts`, `recall_workspace_facts` → `awn-facts/` (см. `GLOBAL_MCP_DOC.md` § Банк фактов) |
+| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
+| Exec | `run_script`, `exec_command`, `exec_shell` |
+| Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |
+
+Бинарники и media — **`upload_file`** (base64) или **`upload_file_from_url`** по полному workspace path; в слот темы — **`import_content_from_url`**.  
+Локальная выгрузка в **`awn-media-cloud/_blobs/`** (симлинк на месте файла) — **`sync_media_cloud_file`**; удалённый API-провайдер — пока только заглушки `*_zzz`.
+
+## Документация
+
+- Агентская шпаргалка: `GLOBAL_MCP_DOC.md` (always-context)
+- HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
+
+## Запуск
 
 ```bash
-npm start          # из корня репозитория Agent CMS
-node index.js      # из mcp-server/ — ждёт stdio, для ручного теста неудобен
+npm start          # из корня Agent CMS
+node mcp-server/index.js   # stdio
 ```
 
 Из корня: `npm run mcp`
-
-## Соответствие доменам CMS
-
-| Домен | Tools |
-|-------|--------|
-| Навигация | `get_menu`, `search_workspace` |
-| Память | `read/write_external_memory`, `read/write_internal_memory`, `create_external_memory` |
-| Вложения | `list_media`, `read/write_media_sidecar` |
-| Настройки | `read/write_node_description`, `read/write_configuration`, `read/write_env`, `read/write_todo` |
-| Агент | `list_agents`, `list/read/write_system_file` |
-
-Параметр `path` — путь к `_.node.md` ноды, как в HTTP API.

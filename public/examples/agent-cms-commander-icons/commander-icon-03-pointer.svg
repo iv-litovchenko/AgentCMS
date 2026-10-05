@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS Commander mouse and cursor">
+  <defs>
+    <linearGradient id="cmd-bg-03" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="100%" stop-color="#14b8a6" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-bg-03)" />
+  <path
+    d="M 16 38 C 16 30 21 24 28 24 L 32 24 C 38 24 42 28 42 34 L 42 40 C 42 43 39 45 32 45 L 28 45 C 21 45 16 43 16 38 Z"
+    fill="#ffffff"
+  />
+  <path d="M 30 24 L 30 34" stroke="#047857" stroke-width="1.8" stroke-linecap="round" opacity="0.5" />
+  <path
+    d="M 40 12 L 40 32 L 46 26 L 50 34 L 54 32 L 48 20 L 54 18 L 40 12 Z"
+    fill="#ffffff"
+    stroke="#ffffff"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
+</svg>

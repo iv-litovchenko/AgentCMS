@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Пометки в конспектах — примеры</title>
+  <link rel="stylesheet" href="markers.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .cards { display: grid; gap: 1rem; max-width: 640px; padding: 2rem; width: 100%; }
+    .card {
+      display: block;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card h2 { margin: 0.5rem 0 0.35rem; font-size: 1.1rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+    .title { text-align: center; margin-bottom: 0.5rem; }
+    .title h1 { margin: 0; font-size: 1.5rem; }
+    .title p { color: var(--muted); margin: 0.35rem 0 0; font-size: 0.9rem; }
+    .back { text-align: center; margin-top: 0.5rem; }
+    .back a { color: var(--muted); font-size: 0.85rem; text-decoration: none; }
+    .back a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="cards">
+    <div class="title">
+      <h1>Личные пометки в конспектах</h1>
+      <p>8 типов маркеров — сбор и фильтрация</p>
+    </div>
+
+    <a class="card" href="03-study-markers.html">
+      <span class="badge mode-3">Пример 3</span>
+      <h2>Сводный дашборд пометок</h2>
+      <p>8 типов: идея, важно, заметка, задача, вопрос, ошибка, термин, повторить. Группировка по типу и файлу, фильтр по любому типу.</p>
+    </a>
+
+    <div class="back">
+      <a href="../mindmap/index.html">← Примеры mindmap (1–2)</a>
+    </div>
+  </div>
+</body>
+</html>

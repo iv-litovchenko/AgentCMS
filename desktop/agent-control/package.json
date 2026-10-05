@@ -1,0 +1,61 @@
+{
+  "name": "agent-control-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent CMS Control — пульт управления Agent CMS",
+  "author": "Agent CMS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentcms.control",
+    "productName": "Agent CMS Control",
+    "icon": "assets/icon.png",
+    "directories": {
+      "output": "../../dist/agent-control"
+    },
+    "files": [
+      "main.js",
+      "actions.js",
+      "icon.js",
+      "preload.js",
+      "repo-resolve.js",
+      "assets/**/*",
+      "ui/**/*",
+      "package.json",
+      {
+        "from": "../..",
+        "to": ".",
+        "filter": [
+          "docs-registry.js",
+          "docs/**",
+          "lib/http/https-redirect.js",
+          "lib/runtime/lan-ip.js",
+          "lib/runtime/system-environment.js",
+          "lib/voice/voice-sidecar-probe.js",
+          "agent-shell/runtime-cli-env.js"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "assets/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": ["nsis"]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": ["AppImage"]
+    }
+  }
+}

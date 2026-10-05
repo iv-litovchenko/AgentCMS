@@ -1,0 +1,17 @@
+id: awn.slot.assets
+name: Активы
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: files
+storage-driver: external
+description: Медиа-библиотека активов — файлы, разделы и sidecar
+path: assets/
+slot-order: 9
+allowed-content:
+  - awn.content.record
+  - awn.content.category
+  - awn.annotation.sidecar
+accept-files:
+  - "*"

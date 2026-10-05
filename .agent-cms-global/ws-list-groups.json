@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "id": "platform",
+      "title": "Работа",
+      "agentIds": [],
+      "appearance": "light"
+    },
+    {
+      "id": "образование",
+      "title": "Образование",
+      "agentIds": [],
+      "appearance": "dark"
+    },
+    {
+      "id": "текущее",
+      "title": "Основное",
+      "agentIds": [],
+      "appearance": "light"
+    },
+    {
+      "id": "тестовая-группа",
+      "title": "Тестовая группа",
+      "agentIds": [],
+      "appearance": "light"
+    },
+    {
+      "id": "хобби",
+      "title": "Хобби",
+      "agentIds": [
+        "agent-cms-core",
+        "agent-cms-test"
+      ],
+      "appearance": "light"
+    }
+  ],
+  "ungrouped": {
+    "appearance": "light"
+  }
+}

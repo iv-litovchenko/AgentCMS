@@ -1,0 +1,18 @@
+awn_schema:
+  topic:
+    fields:
+      service_name:
+        type: awn.field.string
+        title: Название услуги
+      service_category:
+        type: awn.field.string
+        title: Категория
+      service_price:
+        type: awn.field.number
+        title: Цена (руб)
+      service_duration:
+        type: awn.field.number
+        title: Длительность (мин)
+      service_master:
+        type: awn.field.string
+        title: Мастер

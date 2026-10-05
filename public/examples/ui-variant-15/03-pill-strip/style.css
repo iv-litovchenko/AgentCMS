@@ -1,0 +1,5 @@
+.v03-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.v03-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;white-space:nowrap;font-size:12px;font-weight:600}
+.v03-badge{font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;background:#eff6ff;color:#1d4ed8}
+.v03-hint{margin:10px 0 0;font-size:11px;color:#64748b}
+.v03-types{margin-left:4px}

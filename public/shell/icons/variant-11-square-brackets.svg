@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent Shell variant 11 square brackets">
+  <defs>
+    <linearGradient id="bg-v11" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f4bff" />
+      <stop offset="100%" stop-color="#9b59ff" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-v11)" />
+  <path d="M 24 16 L 18 16 L 18 48 L 24 48" fill="none" stroke="#eef0ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" />
+  <path d="M 40 16 L 46 16 L 46 48 L 40 48" fill="none" stroke="#eef0ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" />
+  <circle cx="32" cy="32" r="2.5" fill="#eef0ff" opacity="0.65" />
+</svg>

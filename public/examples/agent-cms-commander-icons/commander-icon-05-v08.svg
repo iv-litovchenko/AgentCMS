@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Commander v08 hud corners">
+  <defs>
+    <linearGradient id="cmd-v08" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7f1d1d" />
+      <stop offset="100%" stop-color="#e11d48" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-v08)" />
+  <path d="M 14 20 L 14 14 L 20 14" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+  <path d="M 50 14 L 56 14 L 56 20" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+  <path d="M 56 46 L 56 52 L 50 52" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+  <path d="M 20 52 L 14 52 L 14 46" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+  <path d="M 32 14 A 18 18 0 0 1 50 32" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <ellipse cx="32" cy="32" rx="9" ry="11" fill="#ffffff" />
+  <circle cx="50" cy="32" r="2" fill="#ffffff" opacity="0.8" />
+</svg>

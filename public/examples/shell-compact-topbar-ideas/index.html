@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Компактная шапка Shell — 10 вариантов раскладки</title>
+    <style>
+      :root {
+        --bg: #eef2ff;
+        --page: #f8fafc;
+        --panel: #ffffff;
+        --border: rgba(148, 163, 184, 0.35);
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #4338ca;
+        --cyan: #0284c7;
+        --ok: #15803d;
+        --warn: #a16207;
+        --err: #b91c1c;
+        --topbar-radius: 14px;
+        --avatar: 44px;
+        --font: Inter, system-ui, -apple-system, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        padding: 24px 16px 56px;
+        line-height: 1.45;
+      }
+      .wrap { max-width: 920px; margin: 0 auto; }
+      h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: -0.02em; }
+      .lead { margin: 0 0 20px; color: var(--muted); font-size: 14px; max-width: 72ch; }
+      .back { font-size: 13px; margin-bottom: 12px; }
+      .back a { color: var(--accent); font-weight: 600; text-decoration: none; }
+      .catalog {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 24px;
+      }
+      .catalog h2 { margin: 0 0 10px; font-size: 15px; }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .chips li {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        border: 1px solid var(--border);
+        color: #334155;
+      }
+      .chips li strong { color: var(--accent); font-weight: 700; }
+      .variant {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+      }
+      .variant-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 12px;
+        margin-bottom: 12px;
+      }
+      .variant-num {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #fff;
+        background: var(--accent);
+        padding: 3px 8px;
+        border-radius: 6px;
+      }
+      .variant h2 { margin: 0; font-size: 16px; flex: 1 1 auto; }
+      .variant-tag {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .variant p.desc {
+        margin: 0 0 12px;
+        font-size: 13px;
+        color: #475569;
+        max-width: 72ch;
+      }
+      .variant ul.items {
+        margin: 0 0 14px;
+        padding-left: 18px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .frame {
+        background: #f4f7ff;
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+      }
+      .frame-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      /* —— shared mock parts —— */
+      .tb {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        border-radius: var(--topbar-radius);
+        border: 1px solid var(--border);
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        min-height: 52px;
+      }
+      .tb-avatar {
+        flex-shrink: 0;
+        width: var(--avatar);
+        height: var(--avatar);
+        border-radius: 50%;
+        background: linear-gradient(145deg, #475569, #1e293b);
+        box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.15), 0 2px 8px rgba(15, 23, 42, 0.15);
+        position: relative;
+      }
+      .tb-avatar::after {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, #a5b4fc 0%, #6366f1 100%);
+        opacity: 0.85;
+      }
+      .tb-main { flex: 1; min-width: 0; }
+      .tb-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .tb-agent {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
+      }
+      .tb-ws {
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pill {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+      }
+      .pill-runtime { color: var(--accent); background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.22); }
+      .pill-idle { color: var(--muted); background: rgba(148, 163, 184, 0.14); border-color: rgba(148, 163, 184, 0.22); }
+      .pill-busy { color: var(--ok); background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.28); }
+      .pill-warn { color: var(--warn); background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.28); }
+      .pill-ctx { color: #0369a1; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.28); }
+      .tb-q-label {
+        margin: 4px 0 0;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #94a3b8;
+      }
+      .tb-q {
+        margin: 1px 0 0;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tb-hint { font-size: 11px; color: var(--muted); }
+      .tb-exit {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #475569;
+        font-size: 14px;
+        line-height: 26px;
+        text-align: center;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: #94a3b8;
+      }
+      .dot.busy { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); }
+      .divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+      .wave {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+      }
+      .wave span {
+        width: 3px;
+        border-radius: 2px;
+        background: var(--cyan);
+        animation: w 0.9s ease-in-out infinite;
+      }
+      .wave span:nth-child(2) { animation-delay: 0.12s; height: 10px; }
+      .wave span:nth-child(1) { height: 6px; }
+      .wave span:nth-child(3) { animation-delay: 0.24s; height: 12px; }
+      @keyframes w { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+
+      /* variant-specific */
+      .v01 .tb-meta { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+      .v01 .tb-ident { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+
+      .v02 .tb { padding: 6px 8px; }
+      .v02 .tb-agent { max-width: 120px; font-size: 12px; }
+      .v02 .tb-q { margin: 0; font-weight: 500; flex: 1; min-width: 0; }
+
+      .v03 .tb { align-items: flex-start; }
+      .v03 .pill-idle { order: -1; }
+
+      .v04 .tb { flex-direction: column; align-items: stretch; gap: 6px; }
+      .v04 .tb-top { display: flex; align-items: center; gap: 8px; }
+      .v04 .tb-q-center { text-align: center; font-size: 15px; font-weight: 700; padding: 2px 0; }
+
+      .v05 .tb-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: #f8fafc;
+      }
+      .v05 .queue-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #eff6ff, #f0f9ff);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #0369a1;
+        white-space: nowrap;
+      }
+
+      .v06 .tb { flex-direction: column; align-items: stretch; gap: 8px; }
+      .v06 .tb-line1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+      .v07 .tb { gap: 8px; }
+      .v07 .tb-main { display: flex; align-items: center; gap: 8px; }
+      .v07 .tb-q { margin: 0; flex: 1; }
+
+      .v08 .tb { flex-wrap: wrap; row-gap: 6px; }
+      .v08 .tb-main { flex: 1 1 100%; order: 2; }
+      .v08 .tb-avatar { order: 0; }
+      .v08 .tb-exit { order: 1; margin-left: auto; }
+
+      .v09 .tb { padding: 10px; }
+      .v09 .tb-avatar { width: 52px; height: 52px; }
+      .v09 .tb-voice { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+
+      .v10 .tb { align-items: flex-start; }
+      .v10 .tb-left { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+      .v10 .pill-idle { font-size: 9px; padding: 2px 6px; }
+      .v10 .tb-reply {
+        margin: 2px 0 0;
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .toc {
+        margin: 0 0 20px;
+        padding: 12px 14px;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .toc a { color: var(--accent); text-decoration: none; font-weight: 600; }
+      .toc ol { margin: 8px 0 0; padding-left: 20px; color: #475569; }
+      .toc li { margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="back"><a href="../index.html">← Каталог примеров</a></p>
+      <h1>Компактная шапка <code>#shell-compact-topbar</code> — 10 раскладок</h1>
+      <p class="lead">
+        <strong>Это не ui-variant-N.</strong> Отдельный прототип: на странице каталога
+        <a href="../index.html">/examples/</a> ищите блок «Voice / Shell» сверху или карточку
+        <code>shell-compact-topbar — макеты 01–10</code> (серый кружок — номер в каталоге, не ui-variant).
+        Здесь варианты именно <strong>01–10</strong> (<a href="#v01">#v01</a>…<a href="#v10">#v10</a>).
+        Макеты для side panel / embed (<code>data-compact="1"</code>).
+      </p>
+
+      <section class="catalog" aria-labelledby="cat-title">
+        <h2 id="cat-title">Что можно вывести на панели (каталог элементов)</h2>
+        <ul class="chips">
+          <li><strong>Аватар</strong> — постер, фазы, hold-to-talk</li>
+          <li><strong>Имя агента</strong></li>
+          <li><strong>Workspace</strong> — короткий путь</li>
+          <li><strong>Маршрут</strong> — Claude / QwenPaw / Codex</li>
+          <li><strong>Статус фазы</strong> — Ожидаю, Думает, Говорит…</li>
+          <li><strong>Последний вопрос</strong></li>
+          <li><strong>Хинт голоса</strong> — «Удерживайте»</li>
+          <li><strong>Очередь</strong> — «Сейчас …»</li>
+          <li><strong>Контекст</strong> — % / токены</li>
+          <li><strong>Превью ответа</strong> — 1 строка</li>
+          <li><strong>STT/TTS</strong> — режим, пауза</li>
+          <li><strong>Ошибка</strong> — OAuth, сеть</li>
+          <li><strong>Часы / батарея</strong> — embed</li>
+          <li><strong>Выход</strong> — свернуть компакт</li>
+        </ul>
+      </section>
+
+      <nav class="toc" aria-label="Содержание">
+        <strong>10 вариантов на этой странице</strong>
+        <ol>
+          <li><a href="#v01">Как сейчас</a> — мета + вопрос</li>
+          <li><a href="#v02">Одна строка</a> — всё в ряд</li>
+          <li><a href="#v03">Статус слева</a></li>
+          <li><a href="#v04">Вопрос по центру</a></li>
+          <li><a href="#v05">Мини-тулбар</a> — очередь + иконки</li>
+          <li><a href="#v06">Две линии</a> — агент / вопрос</li>
+          <li><a href="#v07">Минимализм</a> — точка статуса</li>
+          <li><a href="#v08">Контекст и workspace</a></li>
+          <li><a href="#v09">Голос вперёд</a> — крупный аватар</li>
+          <li><a href="#v10">Вопрос + ответ</a> — две строки текста</li>
+        </ol>
+      </nav>
+
+      <article class="variant v01" id="v01">
+        <div class="variant-head">
+          <span class="variant-num">01</span>
+          <h2>Как сейчас (база)</h2>
+          <span class="variant-tag">рекомендуется для embed</span>
+        </div>
+        <p class="desc">Аватар слева, строка «агент + маршрут» и pill статуса, подпись «Ваш вопрос» и текст, выход справа.</p>
+        <ul class="items">
+          <li>Аватар · имя агента · Claude · статус · вопрос · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="frame-label">Макет ~906×78px</div>
+          <div class="tb">
+            <div class="tb-avatar" aria-hidden="true"></div>
+            <div class="tb-main">
+              <div class="tb-meta">
+                <div class="tb-ident">
+                  <span class="tb-agent">[Agent CMS] Песочница и тесты</span>
+                  <span class="pill pill-runtime">Claude</span>
+                </div>
+                <span class="pill pill-idle">Ожидаю</span>
+              </div>
+              <p class="tb-q-label">Ваш вопрос</p>
+              <p class="tb-q">huih</p>
+            </div>
+            <span class="tb-exit" title="Свернуть">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v02" id="v02">
+        <div class="variant-head">
+          <span class="variant-num">02</span>
+          <h2>Одна строка</h2>
+          <span class="variant-tag">низкая высота ~48px</span>
+        </div>
+        <p class="desc">Вопрос важнее имени: аватар · короткое имя · «huih» · точка статуса · выход. Подписи скрыты.</p>
+        <ul class="items">
+          <li>Аватар · имя (укорочено) · вопрос · индикатор фазы · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="tb">
+            <div class="tb-avatar"></div>
+            <div class="tb-row tb-main">
+              <span class="tb-agent">Песочница…</span>
+              <span class="divider"></span>
+              <span class="tb-q">huih</span>
+            </div>
+            <span class="dot busy" title="Ожидаю"></span>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v03" id="v03">
+        <div class="variant-head">
+          <span class="variant-num">03</span>
+          <h2>Статус слева</h2>
+          <span class="variant-tag">заметная фаза</span>
+        </div>
+        <p class="desc">Сначала pill «Думает…», потом аватар и текст — удобно, когда важен процесс, а не бренд агента.</p>
+        <ul class="items">
+          <li>Статус · аватар · агент + маршрут · вопрос одной строкой · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v03">
+            <span class="pill pill-busy">Думает…</span>
+            <div class="tb-avatar"></div>
+            <div class="tb-main">
+              <div class="tb-row">
+                <span class="tb-agent">Песочница и тесты</span>
+                <span class="pill pill-runtime">Claude</span>
+              </div>
+              <p class="tb-q">huih</p>
+            </div>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v04" id="v04">
+        <div class="variant-head">
+          <span class="variant-num">04</span>
+          <h2>Вопрос по центру</h2>
+          <span class="variant-tag">чат-фокус</span>
+        </div>
+        <p class="desc">Верхняя строка — мелкая мета (аватар, агент, статус, выход). Крупно по центру — последний вопрос пользователя.</p>
+        <ul class="items">
+          <li>Мета-строка · крупный вопрос · (опционально) маршрут в meta</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v04">
+            <div class="tb-top">
+              <div class="tb-avatar" style="width:32px;height:32px"></div>
+              <span class="tb-agent" style="font-size:12px;max-width:140px">Песочница…</span>
+              <span class="pill pill-idle">Ожидаю</span>
+              <span class="tb-exit" style="margin-left:auto">⤢</span>
+            </div>
+            <div class="tb-q-center">huih</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v05" id="v05">
+        <div class="variant-head">
+          <span class="variant-num">05</span>
+          <h2>Мини-тулбар</h2>
+          <span class="variant-tag">очередь + действия</span>
+        </div>
+        <p class="desc">Аватар, имя, бейдж очереди «Сейчас …», контекст %, иконка настроек/микрофона, выход. Вопрос уходит в диалог.</p>
+        <ul class="items">
+          <li>Аватар · агент · очередь · контекст 12% · 🎤 · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v05">
+            <div class="tb-avatar"></div>
+            <span class="tb-agent">Песочница</span>
+            <span class="queue-badge">● Сейчас huih</span>
+            <span class="pill pill-ctx">12%</span>
+            <span class="tb-icon" title="Голос">🎤</span>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v06" id="v06">
+        <div class="variant-head">
+          <span class="variant-num">06</span>
+          <h2>Две линии (карточка)</h2>
+          <span class="variant-tag">чёткое разделение</span>
+        </div>
+        <p class="desc">Строка 1: только идентичность (аватар, workspace, Claude, статус, выход). Строка 2: только «Ваш вопрос: huih».</p>
+        <ul class="items">
+          <li>Workspace path · маршрут · статус · вопрос отдельной полосой</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v06">
+            <div class="tb-line1">
+              <div class="tb-row">
+                <div class="tb-avatar" style="width:36px;height:36px"></div>
+                <div>
+                  <div class="tb-ws">agent-cms-test / Песочница</div>
+                  <div class="tb-row">
+                    <span class="pill pill-runtime">Claude</span>
+                    <span class="pill pill-idle">Ожидаю</span>
+                  </div>
+                </div>
+              </div>
+              <span class="tb-exit">⤢</span>
+            </div>
+            <div class="tb-row">
+              <span class="tb-q-label" style="margin:0">Вопрос</span>
+              <span class="tb-q" style="margin:0">huih</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v07" id="v07">
+        <div class="variant-head">
+          <span class="variant-num">07</span>
+          <h2>Минимализм</h2>
+          <span class="variant-tag">~44px</span>
+        </div>
+        <p class="desc">Без pill-текста статуса: цветная точка у аватара, вопрос занимает всё место. Имя агента — в tooltip по аватару.</p>
+        <ul class="items">
+          <li>Аватар + dot · вопрос · выход · (агент в title)</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v07">
+            <div style="position:relative">
+              <div class="tb-avatar"></div>
+              <span class="dot busy" style="position:absolute;right:-1px;bottom:-1px;border:2px solid #fff"></span>
+            </div>
+            <div class="tb-main">
+              <p class="tb-q">huih</p>
+            </div>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v08" id="v08">
+        <div class="variant-head">
+          <span class="variant-num">08</span>
+          <h2>Контекст и workspace</h2>
+          <span class="variant-tag">для длинных сессий</span>
+        </div>
+        <p class="desc">Полоса контекста (1K/32K, %), workspace, агент, статус; вторая строка — вопрос. Полезно при лимитах токенов.</p>
+        <ul class="items">
+          <li>Контекст · workspace · агент · статус · вопрос</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v08">
+            <div class="tb-avatar"></div>
+            <span class="tb-exit">⤢</span>
+            <div class="tb-main">
+              <div class="tb-row">
+                <span class="pill pill-ctx">32K · 8%</span>
+                <span class="tb-ws">agent-cms-test</span>
+                <span class="tb-agent" style="max-width:120px">Песочница</span>
+                <span class="pill pill-idle">Ожидаю</span>
+              </div>
+              <p class="tb-q">huih</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v09" id="v09">
+        <div class="variant-head">
+          <span class="variant-num">09</span>
+          <h2>Голос вперёд</h2>
+          <span class="variant-tag">side panel voice</span>
+        </div>
+        <p class="desc">Крупный аватар, подпись «Удерживайте — говорите», мини-волна при listening, статус справа.</p>
+        <ul class="items">
+          <li>Крупный аватар · hint · waveform · статус · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v09">
+            <div class="tb-avatar"></div>
+            <div class="tb-voice">
+              <div>
+                <div class="tb-hint">Удерживайте — говорите</div>
+                <div class="wave" aria-hidden="true"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+            <span class="pill pill-warn">Слушаю…</span>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="variant v10" id="v10">
+        <div class="variant-head">
+          <span class="variant-num">10</span>
+          <h2>Вопрос + ответ (превью)</h2>
+          <span class="variant-tag">мини-диалог в шапке</span>
+        </div>
+        <p class="desc">Слева аватар и статус под ним; справа агент, вопрос жирно, одна строка последнего ответа агента (серым).</p>
+        <ul class="items">
+          <li>Аватар · статус · агент · вопрос · превью ответа · Claude · выход</li>
+        </ul>
+        <div class="frame">
+          <div class="tb v10">
+            <div class="tb-left">
+              <div class="tb-avatar"></div>
+              <span class="pill pill-idle">Ожидаю</span>
+            </div>
+            <div class="tb-main">
+              <div class="tb-row">
+                <span class="tb-agent">Песочница и тесты</span>
+                <span class="pill pill-runtime">Claude</span>
+              </div>
+              <p class="tb-q">huih</p>
+              <p class="tb-reply">Failed to authenticate: OAuth session expired…</p>
+            </div>
+            <span class="tb-exit">⤢</span>
+          </div>
+        </div>
+      </article>
+
+      <section class="catalog" style="margin-top: 8px">
+        <h2>Как выбрать</h2>
+        <p style="margin: 0; font-size: 13px; color: #475569">
+          <strong>Embed / extension:</strong> 01 или 07 (мало места). <strong>Голос:</strong> 09. <strong>Очередь сообщений:</strong> 05.
+          <strong>Длинные вопросы:</strong> 04 или 06. <strong>Отладка маршрута/OAuth:</strong> 10 (виден и вопрос, и сбой).
+          Текущая реализация ближе к <a href="#v01">варианту 01</a>.
+        </p>
+      </section>
+    </div>
+  </body>
+</html>

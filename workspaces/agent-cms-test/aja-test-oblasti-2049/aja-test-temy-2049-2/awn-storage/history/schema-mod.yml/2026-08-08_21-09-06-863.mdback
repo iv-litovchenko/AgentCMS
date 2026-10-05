@@ -1,0 +1,29 @@
+version: 1
+layer: topic
+
+awn_schema:
+  area:
+    fields:
+      area-field_1:
+        type: awn.field.string
+      area-field_2:
+        type: awn.field.string
+  slot_memory_category:
+    fields:
+      x-field_1-MAIN-1:
+        type: awn.field.string
+        name: x-MAIN-1
+      x-field_1:
+        type: awn.field.string
+        name: x-MAIN-2
+  settings:
+    fields:
+      area-setting-1:
+        type: awn.field.string
+        name: Настрока 1
+      area-setting-2:
+        type: awn.field.string
+        name: Настрока 2
+      area-setting-3:
+        type: awn.field.string
+        name: Настройка 3

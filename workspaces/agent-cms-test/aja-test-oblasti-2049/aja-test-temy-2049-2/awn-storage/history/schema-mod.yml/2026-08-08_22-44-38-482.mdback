@@ -1,0 +1,23 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      topic-field-1:
+        type: awn.field.string
+        name: TIPIC - 1
+      topic-field-2:
+        type: awn.field.string
+        name: TIPIC - 2
+      topic-field-3:
+        type: awn.field.string
+        name: TIPIC - 3
+  settings:
+    fields:
+      topic-setting-1:
+        type: awn.field.string
+        name: TIPIC SETTING- 1
+      topic-setting-2:
+        type: awn.field.string
+        name: TIPIC SETTING- 2

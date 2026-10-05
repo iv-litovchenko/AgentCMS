@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent Shell variant 10 listening dome">
+  <defs>
+    <linearGradient id="bg-v10" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f4bff" />
+      <stop offset="100%" stop-color="#9b59ff" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#bg-v10)" />
+  <path
+    d="M 14 36 A 18 18 0 0 1 50 36"
+    fill="none"
+    stroke="#eef0ff"
+    stroke-width="4"
+    stroke-linecap="round"
+    opacity="0.95"
+  />
+  <line x1="32" y1="36" x2="32" y2="46" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+  <line x1="24" y1="46" x2="40" y2="46" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+  <circle cx="32" cy="28" r="3" fill="#eef0ff" opacity="0.9" />
+</svg>

@@ -1,0 +1,17 @@
+# Оглавление темы
+
+### Многофайловая память
+
+| Тип | Путь | Название | Описание | Размер | Строк |
+| --- | --- | --- | --- | ---: | ---: |
+| awn.content.category | `inbox/telegramm-1000-soobscheniy` | [Телеграмм 1000 сообщений](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy) | — | — | — |
+| awn.content.category | `inbox/telegramm-1000-soobscheniy/manifest.md` | [Телеграмм 1000 сообщений](awn-container/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/manifest.md) | — | — | — |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/test-1000-soobscheniy/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/test-1000-soobscheniy/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/test-1000-soobscheniy/todo.md) | не заполнено | — | — |
+| Лог | [log.md](awn-container/test-1000-soobscheniy/log.md) | не заполнено | — | — |

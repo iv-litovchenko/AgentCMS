@@ -1,0 +1,51 @@
+---
+awn-preview: ""
+awn-emoji: ""
+awn-name: Laravel обзор
+awn-status: 🟡 Черновик
+awn-type: awn.content.record
+awn-create: "2026-06-11T11:12"
+awn-update: 2026-06-11T08:14:16.662Z
+awn-description: ""
+awn-main: false
+awn-category: ""
+awn-tags: []
+awn-color: "#000000"
+awn-version: 4
+awn-sort: 0
+---
+
+# Laravel — обзор
+
+## Структура (упрощённо)
+
+```
+app/
+  Http/Controllers/
+  Models/
+routes/web.php
+resources/views/
+database/migrations/
+```
+
+## Eloquent
+
+```php
+$post = Post::query()
+    ->where('status', 'published')
+    ->orderByDesc('created_at')
+    ->limit(10)
+    ->get();
+```
+
+## Artisan
+
+```bash
+php artisan serve
+php artisan make:model Post -m
+php artisan route:list
+```
+
+## Когда выбирать
+
+Полный stack, быстрый старт, богатая экосистема пакетов.

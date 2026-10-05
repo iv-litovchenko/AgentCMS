@@ -1,0 +1,30 @@
+version: 1
+layer: awn-databases-store
+
+awn_schema:
+  record:
+    fields:
+      slogan-kind:
+        type: awn.field.choice.one
+        title: Тип
+        enum:
+          - text
+          - arc
+        default: text
+        tab: main
+      slogan-text:
+        type: awn.string
+        title: Текст
+        tab: main
+      slogan-arc:
+        type: awn.string
+        title: Дуга (части через |)
+        description: Для типа arc — части через вертикальную черту
+        tab: main
+      hold-ms:
+        type: awn.integer
+        title: Пауза (мс)
+        default: 8000
+        tab: main
+    tabs:
+      main: Слоган

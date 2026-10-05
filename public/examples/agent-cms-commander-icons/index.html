@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent CMS Commander — все иконки</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+        background: #0b0f1a;
+        color: #e8ecf4;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 960px;
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 36px 0 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(120, 140, 180, 0.12);
+        color: #f1f5f9;
+      }
+      h2:first-of-type {
+        border-top: none;
+        margin-top: 20px;
+      }
+      p {
+        color: #9aa8c0;
+        line-height: 1.5;
+        margin: 0 0 4px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+      }
+      figure {
+        margin: 0;
+        padding: 12px;
+        border-radius: 12px;
+        background: #12182a;
+        border: 1px solid rgba(120, 140, 180, 0.15);
+        text-align: center;
+      }
+      figure img {
+        width: 88px;
+        height: 88px;
+        display: block;
+        margin: 0 auto 8px;
+      }
+      figcaption {
+        font-size: 0.75rem;
+        color: #b8c4d8;
+      }
+      code {
+        display: block;
+        margin-top: 5px;
+        font-size: 0.62rem;
+        color: #7dd3fc;
+        word-break: break-all;
+      }
+      figure.is-out {
+        opacity: 0.42;
+        border-color: rgba(248, 113, 113, 0.35);
+        background: #0f1218;
+      }
+      figure.is-out figcaption,
+      figure.is-out code {
+        text-decoration: line-through;
+        text-decoration-color: #f87171;
+        text-decoration-thickness: 2px;
+      }
+      figure.is-out::after {
+        content: "×";
+        display: block;
+        margin-top: 6px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #f87171;
+        line-height: 1;
+      }
+      figure.is-pick {
+        border-color: rgba(74, 222, 128, 0.65);
+        background: rgba(6, 78, 59, 0.35);
+        box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+      }
+      figure.is-pick figcaption {
+        color: #86efac;
+        font-weight: 600;
+      }
+      figure.is-pick code {
+        color: #6ee7b7;
+      }
+      figure.is-pick::after {
+        content: "✓ финалист";
+        display: block;
+        margin-top: 6px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #4ade80;
+        letter-spacing: 0.02em;
+        line-height: 1.2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Agent CMS Commander — все черновики</h1>
+    <p>
+      <code>public/examples/agent-cms-commander-icons/</code>. Красные — отклонены;
+      <strong style="color: #4ade80">зелёные — финалисты v01 и v07</strong>.
+    </p>
+
+    <h2>Серия 01–05 (первая идея)</h2>
+    <div class="grid">
+      <figure>
+        <img src="commander-icon-01-classic-side.svg" alt="" width="88" height="88" />
+        <figcaption>01 · боковой силуэт</figcaption>
+        <code>commander-icon-01-classic-side.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-02-top-down.svg" alt="" width="88" height="88" />
+        <figcaption>02 · вид сверху</figcaption>
+        <code>commander-icon-02-top-down.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-03-pointer.svg" alt="" width="88" height="88" />
+        <figcaption>03 · мышь + курсор</figcaption>
+        <code>commander-icon-03-pointer.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-04-minimal-glyph.svg" alt="" width="88" height="88" />
+        <figcaption>04 · контур</figcaption>
+        <code>commander-icon-04-minimal-glyph.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-command-ring.svg" alt="" width="88" height="88" />
+        <figcaption>05 · кольцо (база)</figcaption>
+        <code>commander-icon-05-command-ring.svg</code>
+      </figure>
+    </div>
+
+    <h2>Развитие 05 (05b–05f)</h2>
+    <div class="grid">
+      <figure>
+        <img src="commander-icon-05b-radar-arcs.svg" alt="" width="88" height="88" />
+        <figcaption>05b · радар</figcaption>
+        <code>commander-icon-05b-radar-arcs.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05c-crosshair-ring.svg" alt="" width="88" height="88" />
+        <figcaption>05c · прицел</figcaption>
+        <code>commander-icon-05c-crosshair-ring.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05d-dial-ticks.svg" alt="" width="88" height="88" />
+        <figcaption>05d · циферблат</figcaption>
+        <code>commander-icon-05d-dial-ticks.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05e-orbit-nodes.svg" alt="" width="88" height="88" />
+        <figcaption>05e · орбита</figcaption>
+        <code>commander-icon-05e-orbit-nodes.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05f-commander-pick.svg" alt="" width="88" height="88" />
+        <figcaption>05f · микс</figcaption>
+        <code>commander-icon-05f-commander-pick.svg</code>
+      </figure>
+    </div>
+
+    <h2>10 вариантов (05-v01 … v10)</h2>
+    <div class="grid">
+      <figure class="is-pick">
+        <img src="commander-icon-05-v01.svg" alt="" width="88" height="88" />
+        <figcaption>v01 · дуга + узел</figcaption>
+        <code>commander-icon-05-v01.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v02.svg" alt="" width="88" height="88" />
+        <figcaption>v02 · радар</figcaption>
+        <code>commander-icon-05-v02.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v03.svg" alt="" width="88" height="88" />
+        <figcaption>v03 · прицел</figcaption>
+        <code>commander-icon-05-v03.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v04.svg" alt="" width="88" height="88" />
+        <figcaption>v04 · циферблат</figcaption>
+        <code>commander-icon-05-v04.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v05.svg" alt="" width="88" height="88" />
+        <figcaption>v05 · орбита</figcaption>
+        <code>commander-icon-05-v05.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05-v06.svg" alt="" width="88" height="88" />
+        <figcaption>v06 · две дуги</figcaption>
+        <code>commander-icon-05-v06.svg</code>
+      </figure>
+      <figure class="is-pick">
+        <img src="commander-icon-05-v07.svg" alt="" width="88" height="88" />
+        <figcaption>v07 · штрих-кольцо</figcaption>
+        <code>commander-icon-05-v07.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v08.svg" alt="" width="88" height="88" />
+        <figcaption>v08 · HUD</figcaption>
+        <code>commander-icon-05-v08.svg</code>
+      </figure>
+      <figure>
+        <img src="commander-icon-05-v09.svg" alt="" width="88" height="88" />
+        <figcaption>v09 · пульс</figcaption>
+        <code>commander-icon-05-v09.svg</code>
+      </figure>
+      <figure class="is-out">
+        <img src="commander-icon-05-v10.svg" alt="" width="88" height="88" />
+        <figcaption>v10 · минимал</figcaption>
+        <code>commander-icon-05-v10.svg</code>
+      </figure>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>awn-channels — макет просмотра канала</title>
+    <style>
+      :root {
+        --border: #e2e8f0;
+        --panel: #fff;
+        --muted: #64748b;
+        --red-900: #7f1d1d;
+        --red-600: #dc2626;
+        --red-100: #fee2e2;
+        --red-50: #fff1f2;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.45 system-ui, -apple-system, Segoe UI, sans-serif;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      .demo-banner {
+        padding: 10px 16px;
+        background: #1e293b;
+        color: #e2e8f0;
+        font-size: 12px;
+      }
+      .demo-banner strong { color: #fca5a5; }
+      .page {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) minmax(320px, 38%);
+        min-height: calc(100vh - 40px);
+        max-height: calc(100vh - 40px);
+      }
+      .rail {
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .rail-head {
+        padding: 10px 12px;
+        background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 52%, #fca5a5 100%);
+        color: #fef2f2;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .rail-flow {
+        display: flex;
+        gap: 4px;
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+        background: var(--red-50);
+      }
+      .rail-flow button {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        color: #9f1239;
+        font: inherit;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 6px 4px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .rail-flow button.is-active {
+        background: #fff;
+        color: var(--red-900);
+        box-shadow: inset 0 -2px 0 var(--red-600);
+      }
+      .rail-list {
+        flex: 1;
+        overflow: auto;
+        padding: 8px;
+      }
+      .rail-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 8px;
+        padding: 8px;
+        margin-bottom: 6px;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        font: inherit;
+        color: inherit;
+      }
+      .rail-item.is-active {
+        border-color: var(--red-600);
+        background: var(--red-50);
+        box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+      }
+      .rail-item-icon { font-size: 18px; }
+      .rail-item-title { font-weight: 600; font-size: 12px; color: var(--red-900); }
+      .rail-item-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--panel);
+        border-right: 1px solid var(--border);
+      }
+      .main-head {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .main-head h1 {
+        margin: 0;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid;
+      }
+      .badge--untrusted {
+        color: #b45309;
+        border-color: #fcd34d;
+        background: #fffbeb;
+      }
+      .badge--ingress {
+        color: var(--red-900);
+        border-color: #fca5a5;
+        background: var(--red-50);
+      }
+      .main-stats {
+        margin-left: auto;
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .main-stats strong { color: #0f172a; }
+      .toolbar {
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        background: #fafafa;
+      }
+      .toolbar input[type="search"] {
+        flex: 1;
+        min-width: 140px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font: inherit;
+      }
+      .toolbar select {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font: inherit;
+        background: #fff;
+      }
+      .btn {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn--primary {
+        background: var(--red-600);
+        border-color: #b91c1c;
+        color: #fff;
+      }
+      .queue {
+        flex: 1;
+        overflow: auto;
+        padding: 12px 16px;
+      }
+      .queue-section-title {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      .inbox-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: #fff;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: start;
+      }
+      .inbox-card.is-selected {
+        border-color: #93c5fd;
+        background: #f8fbff;
+      }
+      .inbox-card h3 {
+        margin: 0 0 4px;
+        font-size: 13px;
+      }
+      .inbox-card p {
+        margin: 0;
+        color: #475569;
+        font-size: 12px;
+      }
+      .inbox-card-meta {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .inbox-card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .preview {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: #fefefe;
+      }
+      .preview-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .preview-body {
+        flex: 1;
+        overflow: auto;
+        padding: 14px;
+      }
+      .preview-body pre {
+        margin: 0;
+        white-space: pre-wrap;
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: #334155;
+      }
+      .triage-bar {
+        padding: 10px 16px;
+        border-top: 1px solid var(--border);
+        background: var(--red-50);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 11px;
+      }
+      .triage-bar span { color: var(--red-900); flex: 1; min-width: 120px; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-banner">
+      <strong>Макет (static)</strong> — как я вижу страницу просмотра одного канала <code>awn-channels/telegram/</code>.
+      Не подключено к CMS; только компоновка: очередь → карточка → превью → triage.
+    </div>
+
+    <div class="page">
+      <aside class="rail" aria-label="Каналы sidebar">
+        <div class="rail-head">Мультиканальность — источники…</div>
+        <div class="rail-flow" role="tablist">
+          <button type="button" class="is-active">Входящие (вн/внш)</button>
+          <button type="button">Обсуждения</button>
+          <button type="button">Исходящие</button>
+        </div>
+        <div class="rail-list">
+          <button type="button" class="rail-item"><span class="rail-item-icon">💬</span><span><span class="rail-item-title">Форум</span><div class="rail-item-meta">12 · неразобрано</div></span></button>
+          <button type="button" class="rail-item is-active"><span class="rail-item-icon">✈️</span><span><span class="rail-item-title">Telegram</span><div class="rail-item-meta">47 · неразобрано</div></span></button>
+          <button type="button" class="rail-item"><span class="rail-item-icon">📥</span><span><span class="rail-item-title">Загрузки из браузера</span><div class="rail-item-meta">3 · неразобрано</div></span></button>
+          <button type="button" class="rail-item"><span class="rail-item-icon">📓</span><span><span class="rail-item-title">Печатные тетради</span><div class="rail-item-meta">OCR · 8</div></span></button>
+        </div>
+      </aside>
+
+      <section class="main" aria-label="Очередь канала">
+        <header class="main-head">
+          <h1><span aria-hidden="true">✈️</span> Telegram</h1>
+          <span class="badge badge--ingress">ingress · external</span>
+          <span class="badge badge--untrusted">untrusted</span>
+          <div class="main-stats">
+            <span>Неразобрано: <strong>47</strong></span>
+            <span>Сегодня: <strong>+12</strong></span>
+          </div>
+        </header>
+        <div class="toolbar">
+          <input type="search" placeholder="Поиск в inbox канала…" aria-label="Поиск" />
+          <select aria-label="Сортировка">
+            <option>Сначала новые</option>
+            <option>Сначала старые</option>
+          </select>
+          <button type="button" class="btn">⟲ Обновить</button>
+          <button type="button" class="btn btn--primary">+ Запись в inbox</button>
+        </div>
+        <div class="queue">
+          <p class="queue-section-title">inbox/ — сырьё (не тема, не инфоблок)</p>
+          <article class="inbox-card is-selected">
+            <div>
+              <h3>Экспорт чата «YamlCMS идеи»</h3>
+              <p>…обсуждали multichannel и triage, нужно вынести awn-channels из shared…</p>
+              <div class="inbox-card-meta">2026-10-02 14:08 · файл · 128 KB · pending</div>
+            </div>
+            <div class="inbox-card-actions">
+              <button type="button" class="btn btn--primary">Разобрать</button>
+              <button type="button" class="btn">Открыть</button>
+            </div>
+          </article>
+          <article class="inbox-card">
+            <div>
+              <h3>Фото скриншота whiteboard</h3>
+              <p>OCR: «каналы ingress / view отдельно»</p>
+              <div class="inbox-card-meta">2026-10-01 · media · sidecar pending</div>
+            </div>
+            <div class="inbox-card-actions">
+              <button type="button" class="btn">Разобрать</button>
+            </div>
+          </article>
+          <article class="inbox-card">
+            <div>
+              <h3>Пересланная ссылка</h3>
+              <p>https://… — «посмотри статью про PKM»</p>
+              <div class="inbox-card-meta">2026-09-30 · link · untrusted</div>
+            </div>
+            <div class="inbox-card-actions">
+              <button type="button" class="btn">Разобрать</button>
+            </div>
+          </article>
+        </div>
+        <footer class="triage-bar">
+          <span>Выбрано: 1 · triage → тема / инфоблок / факт / отложить</span>
+          <button type="button" class="btn">В тему…</button>
+          <button type="button" class="btn">В инфоблок…</button>
+          <button type="button" class="btn">retain fact</button>
+          <button type="button" class="btn">Отложить</button>
+        </footer>
+      </section>
+
+      <aside class="preview" aria-label="Превью записи">
+        <div class="preview-head">Превью · inbox/2026-10-02_yamlcms-idei.md</div>
+        <div class="preview-body">
+          <pre>---
+awn-trust: untrusted
+awn-source: telegram
+awn-received: 2026-10-02T14:08:00+03:00
+---
+
+# Экспорт чата «YamlCMS идеи»
+
+Фрагмент переписки (не инструкция агенту).
+
+- multichannel в sidebar
+- awn-channels/{slug}/manifest.md
+- triage_inbox_item → awn-container/…</pre>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent CMS Voice · персонаж</title>
+    <link rel="stylesheet" href="/shell/shell.css?v=535" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/shell/vendor/three.module.js",
+          "@shell/character": "/shell/shell-character.js?v=213",
+          "@shell/character-models": "/shell/shell-character-models.js?v=208",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413"
+        }
+      }
+    </script>
+  </head>
+  <body class="shell-pet">
+    <section class="shell-pet-stage shell-character-stage" id="shell-pet-stage" data-phase="waiting" aria-label="Персонаж Agent CMS Voice">
+      <div class="shell-pet-header">
+        <button type="button" class="shell-pet-close" id="shell-pet-close" title="Скрыть персонажа" aria-label="Скрыть персонажа">
+          ×
+        </button>
+      </div>
+      <div class="shell-pet-waves" id="shell-pet-waves" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="shell-character-viewport" id="shell-pet-viewport">
+        <div class="shell-pet-drag-layer" aria-hidden="true"></div>
+      </div>
+      <div class="shell-pet-actions" aria-label="Действия персонажа (скоро)">
+        <button type="button" class="shell-pet-action" data-pet-phase="listening" disabled title="Слушать (скоро)" aria-label="Слушать">
+          <span class="shell-pet-action-icon" aria-hidden="true">🎤</span>
+        </button>
+        <button type="button" class="shell-pet-action" data-pet-phase="thinking" disabled title="Думает (скоро)" aria-label="Думает">
+          <span class="shell-pet-action-icon" aria-hidden="true">💭</span>
+        </button>
+        <button type="button" class="shell-pet-action" data-pet-phase="speaking" disabled title="Говорит (скоро)" aria-label="Говорит">
+          <span class="shell-pet-action-icon" aria-hidden="true">🔊</span>
+        </button>
+      </div>
+      <p class="shell-pet-hint">Двойной клик — открыть Voice · перетащите за персонажа</p>
+    </section>
+    <script type="module" src="/shell/shell-pet.js?v=6"></script>
+  </body>
+</html>

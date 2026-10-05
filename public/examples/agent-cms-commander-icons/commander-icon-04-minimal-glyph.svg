@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agent CMS Commander minimal glyph">
+  <defs>
+    <linearGradient id="cmd-bg-04" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#cmd-bg-04)" />
+  <path
+    d="M 32 15 C 22 15 15 23 15 32 C 15 41 22 49 32 49 C 42 49 49 41 49 32 C 49 23 42 15 32 15 Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3.5"
+    stroke-linecap="round"
+  />
+  <path d="M 32 15 L 32 29" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <circle cx="32" cy="21" r="3" fill="#ffffff" />
+  <path d="M 24 39 L 32 35 L 40 39" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />
+</svg>

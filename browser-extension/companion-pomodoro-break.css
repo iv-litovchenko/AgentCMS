@@ -1,0 +1,120 @@
+.asc-pomodoro-break {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.asc-pomodoro-break[hidden] {
+  display: none !important;
+}
+
+html.asc-pomodoro-break-active,
+html.asc-pomodoro-break-active body,
+body.asc-pomodoro-break-active {
+  overflow: hidden !important;
+}
+
+.asc-pomodoro-break-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 12%, rgba(251, 146, 60, 0.28), transparent 58%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(248, 113, 113, 0.32), transparent 55%),
+    radial-gradient(ellipse 90% 65% at 50% 100%, rgba(234, 88, 12, 0.15), transparent 62%),
+    linear-gradient(155deg, #1c1917 0%, #292524 40%, #451a03 100%);
+}
+
+.asc-pomodoro-break-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  width: 100%;
+  padding: 36px 32px 30px;
+  text-align: center;
+  border-radius: 22px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  background: rgba(28, 25, 23, 0.82);
+  box-shadow:
+    0 28px 80px rgba(69, 26, 3, 0.45),
+    inset 0 1px 0 rgba(254, 243, 199, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.asc-pomodoro-break-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(254, 215, 170, 0.95);
+}
+
+.asc-pomodoro-break-clock {
+  margin: 4px 0 0;
+  font-size: clamp(2.5rem, 7vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff7ed;
+  font-variant-numeric: tabular-nums;
+}
+
+.asc-pomodoro-break-title {
+  margin: 8px 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffedd5;
+}
+
+.asc-pomodoro-break-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(254, 215, 170, 0.82);
+}
+
+.asc-pomodoro-break-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.asc-pomodoro-break-done {
+  margin-top: 8px;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #431407;
+  background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(234, 88, 12, 0.35);
+}
+
+.asc-pomodoro-break-done:hover {
+  filter: brightness(1.05);
+}
+
+.asc-pomodoro-break-breaks {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgba(254, 215, 170, 0.7);
+}
+
+.asc-pomodoro-break-breaks-badge {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff7ed;
+  background: rgba(251, 146, 60, 0.35);
+}

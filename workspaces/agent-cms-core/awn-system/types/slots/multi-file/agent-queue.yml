@@ -1,0 +1,17 @@
+id: awn.slot.agent-queue
+name: Чекпоинты и очередь задач для агента
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: memory
+storage-driver: external
+description: Чекпоинты и очередь задач для агента — многофайловая папка с записями и разделами
+path: agent-queue/
+slot-order: 25
+allowed-content:
+  - awn.content.record
+  - awn.content.category
+  - awn.annotation.sidecar
+accept-files:
+  - "*"

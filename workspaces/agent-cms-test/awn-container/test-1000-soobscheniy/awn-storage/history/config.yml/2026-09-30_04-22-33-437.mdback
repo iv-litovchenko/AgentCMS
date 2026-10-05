@@ -1,0 +1,7 @@
+awn_ui:
+  navigation_list_sort_media: name
+  navigation_list_sort_folder_browse: name
+
+awn_settings:
+  navigation_list_sort_media: name
+  navigation_list_sort_folder_browse: name

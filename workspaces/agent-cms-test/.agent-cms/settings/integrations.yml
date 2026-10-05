@@ -1,0 +1,35 @@
+# Agent CMS — интеграции (module-git, skills, MCP bridge)
+
+awn_settings:
+  integrations-model-version: stub-v1
+  integrations-containers-note: static-groups-stub
+  module-git-commit-extensions: |
+    md
+    txt
+    csv
+    yml
+    yaml
+    json
+    toml
+    html
+    htm
+    css
+    scss
+    js
+    mjs
+    ts
+    sh
+    xml
+    ini
+    cfg
+    properties
+    sql
+    jsonl
+    ndjson
+    mdx
+    py
+    pyi
+    rb
+    go
+    rs
+    lock

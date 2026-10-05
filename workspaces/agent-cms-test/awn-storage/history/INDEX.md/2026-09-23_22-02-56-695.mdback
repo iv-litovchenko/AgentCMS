@@ -1,0 +1,14 @@
+# Оглавление инфоблоков
+
+| ID | Тип | Путь | Название | Описание | Размер | Строк* | Важность* | Записей | Конфигурации |
+| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| — | collection | `awn-databases/finansy/rashody-csv` | [Расходы (таблица)](awn-databases/finansy/rashody-csv/manifest.md) | Расходы (таблица) | — | — | 0 | 1 | MD · разд. |
+| — | collection | `awn-databases/kollektsiya-test` | [Коллекция-тест](awn-databases/kollektsiya-test/manifest.md) | Коллекция-тест | — | — | 0 | 1 | MD · разд. |
+| — | single | `awn-databases/odinochka` | [Одиночка](awn-databases/odinochka/manifest.md) | Одиночка | — | — | 0 | 1 | main.md |
+| — | single | `awn-databases/odinochka2` | [Одиночка2](awn-databases/odinochka2/manifest.md) | Одиночка2 | — | — | 0 | 1 | main.md |
+| — | collection | `awn-databases/taxonomies/podcast-topics` | [Темы эпизодов](awn-databases/taxonomies/podcast-topics/manifest.md) | Темы эпизодов | — | — | 0 | 2 | MD |
+| — | single | `awn-databases/test` | [Тест](awn-databases/test/manifest.md) | Тест | — | — | 0 | 1 | main.md |
+| — | group | `awn-databases/testovaya-gruppa` | [Тестовая группа](awn-databases/testovaya-gruppa/manifest.md) | Тестовая группа | — | — | 0 | 0 | — |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+* **Строк** — число строк в manifest.md инфоблока.

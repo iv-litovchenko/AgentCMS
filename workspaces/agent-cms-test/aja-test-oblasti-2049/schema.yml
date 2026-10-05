@@ -1,0 +1,13 @@
+version: 1
+layer: area
+
+awn_schema:
+  area:
+    fields:
+      field-1:
+        type: awn.field.string
+        name: field-1
+  settings:
+    fields:
+      field-1:
+        type: awn.field.string

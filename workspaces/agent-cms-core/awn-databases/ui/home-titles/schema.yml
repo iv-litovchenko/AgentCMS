@@ -1,0 +1,13 @@
+version: 1
+layer: awn-databases-store
+
+awn_schema:
+  record:
+    fields:
+      hold-ms:
+        type: awn.integer
+        title: Пауза (мс)
+        default: 6500
+        tab: main
+    tabs:
+      main: Заголовок

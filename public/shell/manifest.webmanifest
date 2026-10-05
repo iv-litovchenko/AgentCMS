@@ -1,0 +1,24 @@
+{
+  "name": "Agent Shell",
+  "short_name": "Shell",
+  "description": "Голосовой клиент Agent CMS",
+  "start_url": "/shell/",
+  "scope": "/shell/",
+  "display": "standalone",
+  "background_color": "#070812",
+  "theme_color": "#070812",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/shell/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/shell/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

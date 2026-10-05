@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>06 — Ghost link</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v06-wrap { padding: 6px 12px 0; }
+      .v06-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 0;
+        border: 0;
+        background: none;
+        font-size: 11px;
+        font-weight: 600;
+        color: #4f46e5;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+      }
+      .v06-toggle:hover { color: #312e81; }
+      .footer-panel.is-collapsed .v06-hint { display: block; }
+      .v06-hint { display: none; font-size: 10px; color: #94a3b8; margin: 2px 0 0; }
+      .footer-panel:not(.is-collapsed) .v06-hint { display: none; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>06 · Ghost-link</h1><p>Только текст-ссылка, без рамки</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel v06-wrap">
+            <button type="button" class="v06-toggle" data-footer-toggle aria-expanded="true">
+              <span data-footer-action>Свернуть системные секции</span>
+              <span aria-hidden="true">▾</span>
+            </button>
+            <p class="v06-hint">3 скрытых блока: накопители, диалоги, среда</p>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">Runtime</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Зависимости</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+    <script>
+      document.querySelector("[data-footer-toggle]")?.addEventListener("click", function () {
+        const open = this.getAttribute("aria-expanded") === "true";
+        this.querySelector("[data-footer-action]").textContent = open
+          ? "Свернуть системные секции"
+          : "Показать системные секции";
+      });
+    </script>
+  </body>
+</html>

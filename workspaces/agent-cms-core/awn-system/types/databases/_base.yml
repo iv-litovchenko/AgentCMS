@@ -1,0 +1,20 @@
+id: awn.database.base
+name: База накопителя
+kind: base
+domain: database
+status: active
+extends: awn.base
+description: >
+  Инфоблок в awn-databases/: manifest.md (бриф, контекст, инструкция) + записи.
+  Аналог страницы в pages, но без узла меню — контейнер данных.
+mixins:
+  - awn.mixin.indexing-container
+
+form:
+  panel-title: "{A2!} Свойства инфоблока"
+
+field-groups:
+  - id: infoblock
+    name: "{A2!} Накопитель"
+    description: Формат хранения и файлы записей
+    collapsed: false

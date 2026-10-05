@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>01 · Как сейчас</title><link rel="stylesheet" href="../shared.css"/></head>
+<body><div class="wrap"><div class="topbar"><span class="badge">01 · baseline</span><a href="../index.html">← все варианты</a></div>
+<h1>Как сейчас (проблема)</h1>
+<p class="lead">Enum зашит в platform.yml. Exclude — одна textarea, синтаксис <code>папка/ !file</code> неочевиден.</p>
+<div class="panel"><h2>🎛️ index-path-prefixes</h2><div class="row">
+<span class="chip is-on">awn-storage/</span><span class="chip is-on">awn-container/</span><span class="chip">awn-shared/</span><span class="chip">codex-test/</span>
+</div><p class="note">Список фиксирован в схеме — новая папка в workspace не появится сама.</p></div>
+<div class="panel"><h2>📝 index-exclude-patterns</h2>
+<textarea readonly>.git
+.agent-cms
+node_modules/
+awn-repository/ !manifest.md !README.md</textarea>
+<p class="note">Строка 4: «индексируй awn-repository/, но не manifest.md» — легко ошибиться.</p></div>
+<div class="preview">yaml:
+index-path-prefixes: [awn-storage/, awn-container/]
+index-exclude-patterns: |
+  awn-repository/ !manifest.md</div></div></body></html>

@@ -1,14 +1,14 @@
 module.exports = {
   version: "0.0.1",
-  versionLabel: "Актуальная",
+  versionLabel: "Предыдущая",
   title: "Agent CMS HTTP API",
   baseUrl: "/api",
   generatedAt: "2026-06-04",
   notes: [
-    "Актуальная справка по коду server.js (июнь 2026). В UI: select «0.0.1 — актуальная».",
+    "Актуальная справка по коду server.js (снимок 0.0.1). В UI: select «0.0.1 — предыдущая».",
     "JSON-ответы, UTF-8. ?version=0.0.1 по умолчанию; 0.0.0 — предыдущий снимок.",
     "Контекст агента ?agent=<id>: все маршруты, кроме /api/agents*, /api/docs*, /api/mcp-docs*, /api/user-docs*, /api/public/images.",
-    "path — путь к _.x.md; file — путь в _Content/ или _Assets/."
+    "path — путь к _registration.md; file — путь в content/ или media/."
   ],
   groups: [
     {
@@ -19,7 +19,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents",
           agentScope: false,
-          description: "Список агентов из acms.agents.json и превью корня.",
+          description: "Список агентов из awn-agents.json и превью корня.",
           query: [],
           body: null,
           response: "{ agents[], defaultAgentId }"
@@ -28,7 +28,7 @@ module.exports = {
           method: "PUT",
           path: "/api/agents/registry",
           agentScope: false,
-          description: "Сохранить реестр агентов и поля acms.main.json (name, comment).",
+          description: "Сохранить реестр агентов и поля _registration.md (awn-name, awn-description, awn-status).",
           query: [],
           body: "{ agents: [{ id?, path, environment?, default?, active?, name?, comment? }] }",
           response: "{ agents[], defaultAgentId }"
@@ -37,7 +37,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (acms.main.json, _.x.md, _Storage/).",
+          description: "Создать workspace: _registration.md (awn.workspace) в указанной папке.",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -46,7 +46,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
-          description: "Найти workspace с acms.main.json (Desktop, HOME, проект).",
+          description: "Найти workspace с _registration.md (awn.workspace) (Desktop, HOME, проект).",
           query: [],
           body: "{ roots?: string[], maxDepth?: number }",
           response: "{ agents: [{ path, name, comment, id, hasPreview, previewRel }] }"
@@ -55,7 +55,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из _Storage/Preview.* по пути workspace.",
+          description: "Превью агента из awn-storage/*/preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -64,7 +64,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/_Storage/Preview.*.",
+          description: "Загрузить аватар агента в workspace/awn-storage/*/preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -73,7 +73,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из workspace/_Storage/Preview.*.",
+          description: "Удалить аватар агента из workspace/awn-storage/*/preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -82,7 +82,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из _Storage/Preview.* (после регистрации).",
+          description: "Превью агента из awn-storage/*/preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"
@@ -141,7 +141,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/menu",
-          description: "Дерево нод workspace (_.x.md).",
+          description: "Дерево нод workspace (_registration.md).",
           query: [],
           body: null,
           response: "{ title, sections?, items?, indexPath?, hasGit?, hasObsidian?, hasGitSelf?, hasObsidianSelf?, ... } — hasGit/hasObsidian true только если .git / .obsidian есть в каталоге этой папки (без наследования)"
@@ -171,7 +171,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/system-files",
-          description: "Мета AGENTS.md, README.md, TODO.md, .env и др.",
+          description: "Мета AGENTS.md, README.md, todo.md, .env и др.",
           query: [],
           body: null,
           response: "{ files: [{ name, exists, empty }] }"
@@ -196,12 +196,12 @@ module.exports = {
     },
     {
       id: "node",
-      title: "Тема / область (*.x.md)",
+      title: "Тема / область (*.md)",
       endpoints: [
         {
           method: "GET",
           path: "/api/file",
-          description: "Содержимое _.x.md (описание).",
+          description: "Содержимое _registration.md (описание).",
           query: ["path"],
           body: null,
           response: "{ path, content }"
@@ -209,7 +209,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/content",
-          description: "Сохранить содержимое _.x.md.",
+          description: "Сохранить содержимое _registration.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -225,7 +225,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _.x.md (между ---).",
+          description: "YAML frontmatter из _registration.md (между ---).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -233,7 +233,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _.x.md.",
+          description: "Сохранить YAML frontmatter в _registration.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -241,7 +241,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/node-config",
-          description: "Конфигурация ноды (*.x.config.yml).",
+          description: "Конфигурация ноды (*.x.configuration.yml).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -249,7 +249,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/node-config",
-          description: "Сохранить *.x.config.yml (пустой content удаляет файл).",
+          description: "Сохранить *.x.configuration.yml (пустой content удаляет файл).",
           query: [],
           body: "{ path, content }",
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -265,7 +265,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/node/create",
-          description: "Создать _.x.md в текущей папке, подпапку-ноду или part в _Parts.",
+          description: "Создать _registration.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
           body: "{ parentPath?: \".\", type: \"folder\"|\"file\"|\"manifest\"|\"catalog\"|\"service-doc\", name }",
           response: "{ createdPath, type }"
@@ -276,12 +276,12 @@ module.exports = {
       id: "memory",
       title: "Память",
       description:
-        "Три драйвера: internal — Однофайловая (_.x.content.md), external — Многофайловая (_Content/), tabular — Табличная (_.x.content.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
+        "Три драйвера: internal — Однофайловая (_.x.main.md), external — Многофайловая (main/), tabular — Табличная (_.x.main.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
       endpoints: [
         {
           method: "GET",
           path: "/api/memory/internal",
-          description: "Однофайловая память — один файл _.x.content.md.",
+          description: "Однофайловая память — один файл _.x.main.md.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, migratedFrom? }"
@@ -305,7 +305,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/memory/tabular",
-          description: "Табличная память — _.x.content.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
+          description: "Табличная память — _.x.main.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, columns[], rows[][], rowCount }"
@@ -321,7 +321,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/memory/external",
-          description: "Многофайловая память — список файлов в _Content/ (заметки, вложенные папки).",
+          description: "Многофайловая память — список файлов в content/ (заметки, вложенные папки).",
           query: ["path"],
           body: null,
           response: "{ exists, files, content }"
@@ -383,7 +383,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/configuration",
-          description: "Configuration.md в _Storage.",
+          description: "configuration.yml в awn-storage.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -391,7 +391,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/configuration",
-          description: "Сохранить Configuration.md.",
+          description: "Сохранить configuration.yml.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -399,7 +399,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/env",
-          description: ".env в _Storage.",
+          description: ".env в awn-storage.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -445,7 +445,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media",
-          description: "Файлы _Assets, группы по типу.",
+          description: "Файлы media, группы по типу.",
           query: ["path"],
           body: null,
           response: "{ exists, files, content, groups }"
@@ -453,7 +453,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media/file",
-          description: "Скачать бинарный файл из _Assets.",
+          description: "Скачать бинарный файл из media.",
           query: ["path", "file"],
           body: null,
           response: "Binary (Content-Type по расширению)"
@@ -461,7 +461,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/media/file",
-          description: "Загрузить файл в _Assets (base64).",
+          description: "Загрузить файл в media (base64).",
           query: [],
           body: "{ path, data, fileName?, mimeType? }",
           response: "{ file, imageUrl }"
@@ -501,7 +501,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/preview",
-          description: "Мета превью темы ({папка}/_Storage/Preview.*; legacy: _Storage/{ключ}/, _Storage/_Preview, sidecar).",
+          description: "Мета превью темы ({папка}/awn-storage/*/preview.*).",
           query: ["path"],
           body: null,
           response: "{ exists, file, imageUrl }"
@@ -539,7 +539,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/agent/storage-layout",
-          description: "Схема слотов _Storage (named-slots-v2) для дашборда агента.",
+          description: "Схема слотов awn-storage (named-slots-v2) для дашборда агента.",
           query: [],
           body: null,
           response: "{ layoutVersion, slots[], areas[] }"

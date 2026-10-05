@@ -1,0 +1,27 @@
+id: awn.page.topic
+name: Тема
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Тема — manifest.md (бриф, контекст, инструкция) + слоты памяти
+manifest-pattern: "{slug}/manifest.md"
+
+storage-slots:
+  - main
+  - main-single
+  - main-single-csv
+  - inbox
+  - notes
+  - references
+  - artefacts
+  - assets
+  - media
+  - repository
+  - scripts
+  - templates
+  - base
+  - notebooklm
+  - agent-queue
+  - todo-single
+  - roadmap-single

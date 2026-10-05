@@ -1,0 +1,38 @@
+version: 1
+layer: section
+
+awn_schema:
+  slot_memory_category:
+    fields:
+      episode_number:
+        type: awn.field.number.integer
+        name: Номер эпизода
+        required: true
+      episode_type:
+        type: awn.field.choice.one
+        name: Тип эпизода
+        enum:
+          - key: solo
+            name: "Соло"
+          - key: guest
+            name: "С гостем"
+        default: solo
+      release_date:
+        type: awn.field.date
+        name: Дата выхода
+      duration:
+        type: awn.field.duration
+        name: Длительность
+      listens:
+        type: awn.field.number.integer
+        name: Прослушиваний
+        default: 0
+      rating:
+        type: awn.field.number.stars
+        name: Оценка (0-10)
+      guest:
+        type: awn.field.relation.one
+        name: Гость
+      show_notes_url:
+        type: awn.field.string.url
+        name: Ссылка на шоу-ноутс

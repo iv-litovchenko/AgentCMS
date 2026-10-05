@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Экосистема изучения — четыре слоя</title>
+  <link rel="stylesheet" href="ecosystem.css">
+  <style>
+    .hero { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 1rem; }
+    .hero h1 { margin: 0; font-size: 1.6rem; }
+    .hero p { color: var(--muted); line-height: 1.55; }
+    .layers {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .layer {
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .layer h2 { margin: 0.5rem 0 0.35rem; font-size: 0.9rem; }
+    .layer p { margin: 0; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .layer-q { margin-top: 0.35rem; font-size: 0.72rem; color: var(--accent); font-style: italic; }
+    .layer-arrow { text-align: center; color: var(--muted); font-size: 1.2rem; margin: 0.5rem 0; }
+    .section-title { margin: 2rem 0 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .tool-link {
+      display: block;
+      padding: 0.9rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .tool-link:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .tool-link.tool-assembly {
+      border-color: #eab308;
+      background: linear-gradient(135deg, #1a2332 0%, #422006 100%);
+      box-shadow: 0 0 0 1px #eab30844;
+    }
+    .tool-link.tool-assembly:hover { border-color: #fcd34d; }
+    .tool-link.tool-assembly strong { color: #fef08a; }
+    .tool-link.tool-assembly em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #fcd34d; font-style: normal; font-weight: 500; }
+    .tool-link.tool-priority {
+      border-color: #22c55e;
+      background: linear-gradient(135deg, #1a2332 0%, #14532d 100%);
+      box-shadow: 0 0 0 1px #22c55e44;
+    }
+    .tool-link.tool-priority:hover { border-color: #86efac; }
+    .tool-link.tool-priority strong { color: #bbf7d0; }
+    .tool-link.tool-priority em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #86efac; font-style: normal; font-weight: 500; }
+    .tool-link.tool-adopted {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, #1a2332 0%, #1e3a5f 100%);
+      box-shadow: 0 0 0 1px #3b82f644;
+    }
+    .tool-link.tool-adopted:hover { border-color: #93c5fd; }
+    .tool-link.tool-adopted strong { color: #bfdbfe; }
+    .tool-link.tool-adopted em { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: #93c5fd; font-style: normal; font-weight: 500; }
+    .tool-link strong { display: block; margin-bottom: 0.2rem; }
+    .tool-link span { font-size: 0.82rem; color: var(--muted); }
+    .grid-tools { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    @media (max-width: 900px) { .layers { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .layers { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Экосистема конспектов</h1>
+    <p>Четыре слоя отвечают на разные вопросы при изучении. Они не дублируют друг друга — каждый смотрит на материал со своей стороны.</p>
+
+    <div class="layers">
+      <div class="layer" style="border-color:#166534">
+        <span class="badge layer-map">Слой 1</span>
+        <h2>Mindmap</h2>
+        <p>Пространство знаний: H1→H2→H3, связи между файлами.</p>
+        <div class="layer-q">«Что вообще входит в тему?»</div>
+      </div>
+      <div class="layer" style="border-color:#0369a1">
+        <span class="badge layer-road">Слой 2</span>
+        <h2>Roadmap</h2>
+        <p>Маршрут: этапы, статусы, параллельные ветки.</p>
+        <div class="layer-q">«В каком порядке идти?»</div>
+      </div>
+      <div class="layer" style="border-color:#6d28d9">
+        <span class="badge layer-me">Слой 3</span>
+        <h2>Пометки [мое *]</h2>
+        <p>Личный след: повторить, вопрос, ошибка, идея…</p>
+        <div class="layer-q">«Что со мной лично?»</div>
+      </div>
+      <div class="layer" style="border-color:#b45309">
+        <span class="badge layer-terms">Слой 4</span>
+        <h2>Термины</h2>
+        <p>Глоссарий, определения, сравнения понятий.</p>
+        <div class="layer-q">«Что это слово значит?»</div>
+      </div>
+    </div>
+    <div class="layer-arrow">↓ примеры по слоям ↓</div>
+
+    <p class="section-title">Слой 1 · Mindmap</p>
+    <div class="grid-tools">
+      <a class="tool-link" href="../mindmap/01-single-file.html"><strong>1. Один файл → карта</strong><span>Иерархия заголовков</span></a>
+      <a class="tool-link" href="../mindmap/02-folder-with-links.html"><strong>2. Папка + ссылки</strong><span>Перекрёстные связи внутри папки</span></a>
+      <a class="tool-link tool-assembly" href="../mindmap/13-assembly-map.html"><strong>★ 13. Сборка: внутреннее + внешнее</strong><span>Текущая папка + другие конспекты, URL, глоссарий</span><em>↳ сборка на базе текущего содержимого и внешнего</em></a>
+      <a class="tool-link" href="11-mindmap-markers.html"><strong>11. Mindmap + пометки</strong><span>Слои 1+3: клик по узлу → [мое *]</span></a>
+    </div>
+
+    <p class="section-title">Слой 2 · Roadmap</p>
+    <div class="grid-tools">
+      <a class="tool-link" href="../roadmap/04-roadmap.html"><strong>4. Roadmap из markdown</strong><span>Этапы и статусы</span></a>
+      <a class="tool-link tool-adopted" href="07-timeline.html"><strong>★ 7. Таймлайн</strong><span>Релизы и личные вехи</span><em>↳ забрали идею — «Лента» в CMS</em></a>
+      <a class="tool-link" href="10-roadmap-mermaid.html"><strong>10. Roadmap v2 — Mermaid</strong><span>Граф + YAML статусы</span></a>
+    </div>
+
+    <p class="section-title">Слой 3 · Пометки [мое *]</p>
+    <div class="grid-tools">
+      <a class="tool-link tool-priority" href="../study-markers/03-study-markers.html"><strong>★ 3. Сводный список</strong><span>6 типов маркеров, фильтры</span><em>↳ интересно для нас — личные пометки в одном дашборде</em></a>
+      <a class="tool-link tool-assembly" href="12-spaced-repetition.html"><strong>★ 12. Spaced repetition</strong><span>Экспорт [мое повторить] с датами</span><em>↳ интересно для нас — повторение по датам</em></a>
+    </div>
+
+    <p class="section-title">Слой 4 · Термины</p>
+    <div class="grid-tools">
+      <a class="tool-link tool-priority" href="05-glossary.html"><strong>★ 5. Глоссарий</strong><span>Алфавитный справочник из конспектов</span><em>↳ интересно для нас — слой 4, определения из конспектов</em></a>
+      <a class="tool-link" href="08-comparison-tables.html"><strong>8. Сравнительные таблицы</strong><span>Abstract vs Interface, Java vs Kotlin…</span></a>
+    </div>
+
+    <p class="section-title">Мета-слой (вокруг всех четырёх)</p>
+    <div class="grid-tools">
+      <a class="tool-link tool-priority" href="06-version-tracker.html"><strong>★ 6. Версионный трекер</strong><span>История конспекта, устаревшие разделы</span><em>↳ интересно для нас — даты и актуальность материала</em></a>
+      <a class="tool-link" href="09-note-templates.html"><strong>9. Шаблоны конспекта</strong><span>Java / English / History</span></a>
+    </div>
+  </div>
+</body>
+</html>
