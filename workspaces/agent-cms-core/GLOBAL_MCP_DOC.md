@@ -648,7 +648,7 @@ awn-storage/
 
 ### Медиа в облако (`awn-media-cloud`)
 
-Локальная **выгрузка** тяжёлых файлов: оригинальный путь становится **симлинком**, байты лежат в `awn-media-cloud/_blobs/gd_*` (в git не коммитятся). Реестр — `awn-media-cloud/registry.json` (поле `providers[]`: google-drive, yandex-disk…). Sidecar остаётся **локально** рядом с симлинком. Справочник облаков — platform settings группа **media-cloud** (`list_settings` / `read_setting` или `list_media_cloud_providers`).
+Локальная **выгрузка** тяжёлых файлов: оригинальный путь становится **симлинком**, байты лежат в `awn-media-cloud/_blobs/mc-{id}-{originname}` (legacy `gd_*`; в git не коммитятся). Реестр — `awn-media-cloud/registry.json` (поле `providers[]`: google-drive, yandex-disk…). Sidecar остаётся **локально** рядом с симлинком. Справочник облаков — platform settings группа **media-cloud** (`list_settings` / `read_setting` или `list_media_cloud_providers`).
 
 | Tool | Зачем |
 |------|-------|
