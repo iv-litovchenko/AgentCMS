@@ -269,9 +269,15 @@
       const downloadBtn = document.createElement("button");
       downloadBtn.type = "button";
       downloadBtn.className = "asc-shot-annotate-btn";
-      downloadBtn.textContent = "Скачать PNG";
+      downloadBtn.textContent = "PNG";
 
-      foot.append(cancelBtn, downloadBtn, clipBtn, composeBtn);
+      const storageBtn = document.createElement("button");
+      storageBtn.type = "button";
+      storageBtn.className = "asc-shot-annotate-btn asc-shot-annotate-btn--todo";
+      storageBtn.textContent = "В хранилище";
+      storageBtn.title = "В хранилище Agent CMS — скоро (TODO)";
+
+      foot.append(cancelBtn, clipBtn, downloadBtn, storageBtn, composeBtn);
       dialog.append(head, tools, stageWrap, foot);
       root.append(backdrop, dialog);
       document.body.appendChild(root);
@@ -506,6 +512,13 @@
       downloadBtn.addEventListener("click", () => {
         try {
           finish({ destination: "download", dataUrl: buildExport() });
+        } catch {
+          finish(null);
+        }
+      });
+      storageBtn.addEventListener("click", () => {
+        try {
+          finish({ destination: "storage", dataUrl: buildExport() });
         } catch {
           finish(null);
         }

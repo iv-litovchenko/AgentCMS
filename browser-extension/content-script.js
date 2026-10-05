@@ -588,6 +588,8 @@
       '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>',
     annotate:
       '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    storage:
+      '<svg viewBox="0 0 24 24"><path d="M20 7H4V5a2 2 0 0 1 2-2h3.2a2 2 0 0 1 1.4.6l1.8 1.8A2 2 0 0 0 13.8 6H18a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"/><path d="M10 11h4"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
     expand: '<svg viewBox="0 0 24 24"><path d="M8 14l4-4 4 4M8 10l4-4 4 4"/></svg>',
     panel:
@@ -736,12 +738,34 @@
       headerLabel: "Разметка",
       actionLabel: "Отметить",
       hint: "Превью и пометки перед отправкой"
+    },
+    {
+      id: "storage",
+      icon: "storage",
+      headerLabel: "Хранилище",
+      actionLabel: "Сохранить",
+      hint: "В хранилище Agent CMS (скоро)"
     }
   ];
 
   function screenshotActionKey(kindId, targetId) {
     const base = kindId === "screen" ? "screenshot" : `screenshot-${kindId}`;
     return `${base}-${targetId}`;
+  }
+
+  function runScreenshotFromMenuKey(key) {
+    for (const kind of SCREENSHOT_KINDS) {
+      for (const target of SCREENSHOT_TARGETS) {
+        if (screenshotActionKey(kind.id, target.id) !== key) continue;
+        const options = { destination: target.id };
+        if (kind.id === "region") options.region = true;
+        else if (kind.id === "element") options.element = true;
+        else if (kind.id === "fullpage") options.fullPage = true;
+        void runScreenshot(options);
+        return true;
+      }
+    }
+    return false;
   }
 
   const root = document.createElement("div");
@@ -2138,70 +2162,7 @@
       void insertIntoCompose(payload);
       return;
     }
-    if (key === "screenshot-compose") {
-      void runScreenshot({ region: false, destination: "compose" });
-      return;
-    }
-    if (key === "screenshot-clipboard") {
-      void runScreenshot({ region: false, destination: "clipboard" });
-      return;
-    }
-    if (key === "screenshot-download") {
-      void runScreenshot({ region: false, destination: "download" });
-      return;
-    }
-    if (key === "screenshot-region-compose") {
-      void runScreenshot({ region: true, destination: "compose" });
-      return;
-    }
-    if (key === "screenshot-region-clipboard") {
-      void runScreenshot({ region: true, destination: "clipboard" });
-      return;
-    }
-    if (key === "screenshot-region-download") {
-      void runScreenshot({ region: true, destination: "download" });
-      return;
-    }
-    if (key === "screenshot-element-compose") {
-      void runScreenshot({ element: true, destination: "compose" });
-      return;
-    }
-    if (key === "screenshot-element-clipboard") {
-      void runScreenshot({ element: true, destination: "clipboard" });
-      return;
-    }
-    if (key === "screenshot-element-download") {
-      void runScreenshot({ element: true, destination: "download" });
-      return;
-    }
-    if (key === "screenshot-fullpage-compose") {
-      void runScreenshot({ fullPage: true, destination: "compose" });
-      return;
-    }
-    if (key === "screenshot-fullpage-clipboard") {
-      void runScreenshot({ fullPage: true, destination: "clipboard" });
-      return;
-    }
-    if (key === "screenshot-fullpage-download") {
-      void runScreenshot({ fullPage: true, destination: "download" });
-      return;
-    }
-    if (key === "screenshot-annotate") {
-      void runScreenshot({ region: false, destination: "annotate" });
-      return;
-    }
-    if (key === "screenshot-region-annotate") {
-      void runScreenshot({ region: true, destination: "annotate" });
-      return;
-    }
-    if (key === "screenshot-element-annotate") {
-      void runScreenshot({ element: true, destination: "annotate" });
-      return;
-    }
-    if (key === "screenshot-fullpage-annotate") {
-      void runScreenshot({ fullPage: true, destination: "annotate" });
-      return;
-    }
+    if (runScreenshotFromMenuKey(key)) return;
     const prompt = SELECTION_PROMPTS.find((item) => item.key === key);
     if (prompt) applySelectionPrompt(prompt);
   }
@@ -2834,6 +2795,11 @@
       } catch (error) {
         setStatus(error?.message || "Не удалось скачать", "error");
       }
+      return;
+    }
+
+    if (destination === "storage") {
+      setStatus("Хранилище — скоро (TODO)", "ok");
       return;
     }
 
