@@ -372,15 +372,57 @@ html.asc-screenshot-annotate-active #agent-companion-crosshair {
 }
 
 .asc-shot-annotate-head {
-  padding: 12px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px 8px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .asc-shot-annotate-title {
   margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.3;
+}
+
+.asc-shot-annotate-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(237, 233, 254, 0.78);
+  cursor: pointer;
+}
+
+.asc-shot-annotate-close svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.asc-shot-annotate-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.asc-shot-annotate-close:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.9);
+  outline-offset: 2px;
 }
 
 .asc-shot-annotate-tools {
@@ -408,10 +450,81 @@ html.asc-screenshot-annotate-active #agent-companion-crosshair {
   cursor: pointer;
 }
 
+.asc-shot-annotate-tool--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
+.asc-shot-annotate-tool svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.asc-shot-annotate-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .asc-shot-annotate-tool.is-active {
   border-color: rgba(196, 181, 253, 0.85);
   background: rgba(124, 58, 237, 0.42);
   color: #fff;
+}
+
+.asc-shot-annotate-history {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.asc-shot-annotate-sizes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  margin-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.asc-shot-annotate-size {
+  appearance: none;
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.asc-shot-annotate-size.is-active {
+  border-color: rgba(196, 181, 253, 0.85);
+  background: rgba(124, 58, 237, 0.35);
+}
+
+.asc-shot-annotate-size-dot {
+  display: block;
+  border-radius: 999px;
+  background: #ede9fe;
+  max-width: 18px;
+  max-height: 18px;
 }
 
 .asc-shot-annotate-colors {

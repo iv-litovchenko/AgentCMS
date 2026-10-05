@@ -4,7 +4,33 @@
   global.__companionScreenshotAnnotateInit = true;
 
   const COLORS = ["#ef4444", "#22d3ee", "#facc15", "#ffffff"];
-  const TOOLS = ["pen", "arrow", "rect"];
+  const LINE_WIDTHS = [2, 4, 7, 12];
+  const TOOL_DEFS = [
+    { id: "arrow", title: "Стрелка", icon: "arrow" },
+    { id: "rect", title: "Прямоугольник", icon: "rect" },
+    { id: "ellipse", title: "Круг / овал", icon: "ellipse" },
+    { id: "pen", title: "Карандаш", icon: "pen" },
+    { id: "marker", title: "Маркер", icon: "marker" }
+  ];
+
+  const SVG = {
+    arrow:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+    rect:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="10" rx="1"/></svg>',
+    ellipse:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="6"/></svg>',
+    pen:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    marker:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1 11-11-2-2L4 18l-1 3z"/><path d="m14 4 2 2"/><path d="M5 18l2 2" opacity="0.5"/></svg>',
+    undo:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M20 20v-2a6 6 0 0 0-6-6H4"/></svg>',
+    redo:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M4 20v-2a6 6 0 0 1 6-6h10"/></svg>',
+    close:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
+  };
 
   function loadImage(dataUrl) {
     return new Promise((resolve, reject) => {
@@ -25,43 +51,83 @@
   }
 
   function drawArrow(ctx, x1, y1, x2, y2, width) {
-    const head = Math.max(10, width * 3.2);
+    const head = Math.max(16, width * 5.5);
+    const wing = Math.PI / 5;
     const angle = Math.atan2(y2 - y1, x2 - x1);
+    const shaftEndX = x2 - head * 0.55 * Math.cos(angle);
+    const shaftEndY = y2 - head * 0.55 * Math.sin(angle);
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    ctx.lineTo(shaftEndX, shaftEndY);
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
-    ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+    ctx.lineTo(x2 - head * Math.cos(angle - wing), y2 - head * Math.sin(angle - wing));
+    ctx.lineTo(x2 - head * Math.cos(angle + wing), y2 - head * Math.sin(angle + wing));
     ctx.closePath();
     ctx.fill();
   }
 
-  function drawStroke(ctx, stroke) {
+  function withStrokeStyle(ctx, stroke, drawFn) {
+    const prevAlpha = ctx.globalAlpha;
     ctx.strokeStyle = stroke.color;
     ctx.fillStyle = stroke.color;
     ctx.lineWidth = stroke.width;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    if (stroke.type === "pen" && stroke.points?.length) {
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (let i = 1; i < stroke.points.length; i += 1) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    ctx.globalAlpha = stroke.type === "marker" ? stroke.opacity ?? 0.42 : 1;
+    drawFn();
+    ctx.globalAlpha = prevAlpha;
+  }
+
+  function drawStroke(ctx, stroke) {
+    withStrokeStyle(ctx, stroke, () => {
+      if ((stroke.type === "pen" || stroke.type === "marker") && stroke.points?.length) {
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i += 1) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
+        return;
       }
-      ctx.stroke();
-      return;
+      if (stroke.type === "rect" && stroke.rect) {
+        const { x, y, w, h } = stroke.rect;
+        ctx.strokeRect(x, y, w, h);
+        return;
+      }
+      if (stroke.type === "ellipse" && stroke.rect) {
+        const { x, y, w, h } = stroke.rect;
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h / 2, Math.abs(w) / 2, Math.abs(h) / 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        return;
+      }
+      if (stroke.type === "arrow" && stroke.from && stroke.to) {
+        drawArrow(ctx, stroke.from.x, stroke.from.y, stroke.to.x, stroke.to.y, stroke.width);
+      }
+    });
+  }
+
+  function scaleStroke(stroke, inv) {
+    const scaled = { ...stroke, width: stroke.width * inv };
+    if (stroke.opacity != null) scaled.opacity = stroke.opacity;
+    if (stroke.points) {
+      scaled.points = stroke.points.map((p) => ({ x: p.x * inv, y: p.y * inv }));
     }
-    if (stroke.type === "rect" && stroke.rect) {
-      const { x, y, w, h } = stroke.rect;
-      ctx.strokeRect(x, y, w, h);
-      return;
+    if (stroke.rect) {
+      scaled.rect = {
+        x: stroke.rect.x * inv,
+        y: stroke.rect.y * inv,
+        w: stroke.rect.w * inv,
+        h: stroke.rect.h * inv
+      };
     }
-    if (stroke.type === "arrow" && stroke.from && stroke.to) {
-      drawArrow(ctx, stroke.from.x, stroke.from.y, stroke.to.x, stroke.to.y, stroke.width);
+    if (stroke.from && stroke.to) {
+      scaled.from = { x: stroke.from.x * inv, y: stroke.from.y * inv };
+      scaled.to = { x: stroke.to.x * inv, y: stroke.to.y * inv };
     }
+    return scaled;
   }
 
   function exportAnnotatedPng(img, strokes, displayScale) {
@@ -73,23 +139,7 @@
     ctx.drawImage(img, 0, 0);
     const inv = 1 / displayScale;
     for (const stroke of strokes) {
-      const scaled = { ...stroke, width: stroke.width * inv };
-      if (stroke.type === "pen" && stroke.points) {
-        scaled.points = stroke.points.map((p) => ({ x: p.x * inv, y: p.y * inv }));
-      }
-      if (stroke.type === "rect" && stroke.rect) {
-        scaled.rect = {
-          x: stroke.rect.x * inv,
-          y: stroke.rect.y * inv,
-          w: stroke.rect.w * inv,
-          h: stroke.rect.h * inv
-        };
-      }
-      if (stroke.type === "arrow" && stroke.from && stroke.to) {
-        scaled.from = { x: stroke.from.x * inv, y: stroke.from.y * inv };
-        scaled.to = { x: stroke.to.x * inv, y: stroke.to.y * inv };
-      }
-      drawStroke(ctx, scaled);
+      drawStroke(ctx, scaleStroke(stroke, inv));
     }
     return canvas.toDataURL("image/png");
   }
@@ -124,10 +174,48 @@
 
       const head = document.createElement("div");
       head.className = "asc-shot-annotate-head";
-      head.innerHTML = "<h2 class=\"asc-shot-annotate-title\">Разметка скриншота</h2>";
+
+      const title = document.createElement("h2");
+      title.className = "asc-shot-annotate-title";
+      title.id = "asc-shot-annotate-title";
+      title.textContent = "Разметка скриншота";
+
+      const closeHeadBtn = document.createElement("button");
+      closeHeadBtn.type = "button";
+      closeHeadBtn.className = "asc-shot-annotate-close";
+      closeHeadBtn.title = "Закрыть";
+      closeHeadBtn.setAttribute("aria-label", "Закрыть");
+      closeHeadBtn.innerHTML = SVG.close;
+
+      head.append(title, closeHeadBtn);
+      dialog.setAttribute("aria-labelledby", "asc-shot-annotate-title");
 
       const tools = document.createElement("div");
       tools.className = "asc-shot-annotate-tools";
+
+      const historyWrap = document.createElement("div");
+      historyWrap.className = "asc-shot-annotate-history";
+
+      const undoBtn = document.createElement("button");
+      undoBtn.type = "button";
+      undoBtn.className = "asc-shot-annotate-tool asc-shot-annotate-tool--icon";
+      undoBtn.title = "Назад (Ctrl+Z)";
+      undoBtn.setAttribute("aria-label", "Назад");
+      undoBtn.innerHTML = SVG.undo;
+
+      const redoBtn = document.createElement("button");
+      redoBtn.type = "button";
+      redoBtn.className = "asc-shot-annotate-tool asc-shot-annotate-tool--icon";
+      redoBtn.title = "Вперёд (Ctrl+Shift+Z)";
+      redoBtn.setAttribute("aria-label", "Вперёд");
+      redoBtn.innerHTML = SVG.redo;
+
+      historyWrap.append(undoBtn, redoBtn);
+
+      const sizeWrap = document.createElement("div");
+      sizeWrap.className = "asc-shot-annotate-sizes";
+      sizeWrap.setAttribute("role", "group");
+      sizeWrap.setAttribute("aria-label", "Толщина линии");
 
       const stageWrap = document.createElement("div");
       stageWrap.className = "asc-shot-annotate-stage-wrap";
@@ -173,8 +261,9 @@
       let displayScale = 1;
       let tool = "arrow";
       let color = COLORS[0];
-      let lineWidth = 3;
+      let lineWidth = LINE_WIDTHS[1];
       const strokes = [];
+      const redoStack = [];
       let draft = null;
       let drawing = false;
 
@@ -194,11 +283,44 @@
         }
       }
 
+      function setLineWidth(next) {
+        lineWidth = next;
+        for (const btn of sizeWrap.querySelectorAll("[data-width]")) {
+          btn.classList.toggle("is-active", Number(btn.getAttribute("data-width")) === lineWidth);
+        }
+      }
+
+      function updateHistoryButtons() {
+        undoBtn.disabled = strokes.length === 0;
+        redoBtn.disabled = redoStack.length === 0;
+      }
+
       function redraw() {
         if (!drawCtx) return;
         drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
         for (const stroke of strokes) drawStroke(drawCtx, stroke);
         if (draft) drawStroke(drawCtx, draft);
+        updateHistoryButtons();
+      }
+
+      function commitStroke(stroke) {
+        strokes.push(stroke);
+        redoStack.length = 0;
+        redraw();
+      }
+
+      function undo() {
+        const last = strokes.pop();
+        if (!last) return;
+        redoStack.push(last);
+        redraw();
+      }
+
+      function redo() {
+        const next = redoStack.pop();
+        if (!next) return;
+        strokes.push(next);
+        redraw();
       }
 
       function pointerToLocal(event) {
@@ -209,16 +331,25 @@
         };
       }
 
+      function strokeWidthForTool() {
+        if (tool === "marker") return lineWidth * 3;
+        return lineWidth;
+      }
+
       function onPointerDown(event) {
         if (event.button !== 0) return;
         drawing = true;
         drawCanvas.setPointerCapture(event.pointerId);
         const p = pointerToLocal(event);
-        if (tool === "pen") {
-          draft = { type: "pen", color, width: lineWidth, points: [p] };
+        const width = strokeWidthForTool();
+        if (tool === "pen" || tool === "marker") {
+          draft = { type: tool, color, width, points: [p] };
+          if (tool === "marker") draft.opacity = 0.42;
         } else {
-          draft = { type: tool, color, width: lineWidth, from: p, to: p };
-          if (tool === "rect") draft.rect = { x: p.x, y: p.y, w: 0, h: 0 };
+          draft = { type: tool, color, width, from: p, to: p };
+          if (tool === "rect" || tool === "ellipse") {
+            draft.rect = { x: p.x, y: p.y, w: 0, h: 0 };
+          }
         }
         redraw();
         event.preventDefault();
@@ -227,11 +358,11 @@
       function onPointerMove(event) {
         if (!drawing || !draft) return;
         const p = pointerToLocal(event);
-        if (draft.type === "pen") {
+        if (draft.type === "pen" || draft.type === "marker") {
           draft.points.push(p);
         } else {
           draft.to = p;
-          if (draft.type === "rect" && draft.from) {
+          if (draft.rect && draft.from) {
             const x = Math.min(draft.from.x, p.x);
             const y = Math.min(draft.from.y, p.y);
             draft.rect = {
@@ -257,24 +388,17 @@
         if (draft) {
           const minSize = 4;
           let keep = true;
-          if (draft.type === "rect" && draft.rect) {
+          if (draft.rect) {
             keep = draft.rect.w >= minSize && draft.rect.h >= minSize;
           } else if (draft.type === "arrow" && draft.from && draft.to) {
-            const dx = draft.to.x - draft.from.x;
-            const dy = draft.to.y - draft.from.y;
-            keep = Math.hypot(dx, dy) >= minSize;
-          } else if (draft.type === "pen") {
+            keep = Math.hypot(draft.to.x - draft.from.x, draft.to.y - draft.from.y) >= minSize;
+          } else if (draft.type === "pen" || draft.type === "marker") {
             keep = (draft.points?.length || 0) > 1;
           }
-          if (keep) strokes.push(draft);
+          if (keep) commitStroke(draft);
+          else redraw();
         }
         draft = null;
-        redraw();
-      }
-
-      function undo() {
-        strokes.pop();
-        redraw();
       }
 
       function buildExport() {
@@ -287,32 +411,50 @@
           event.preventDefault();
           event.stopPropagation();
           finish(null);
+          return;
         }
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
           event.preventDefault();
-          undo();
+          if (event.shiftKey) redo();
+          else undo();
+          return;
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+          event.preventDefault();
+          redo();
         }
       }
 
-      for (const id of TOOLS) {
+      tools.append(historyWrap);
+
+      for (const def of TOOL_DEFS) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "asc-shot-annotate-tool";
-        btn.setAttribute("data-tool", id);
-        btn.title =
-          id === "pen" ? "Карандаш" : id === "arrow" ? "Стрелка" : "Прямоугольник";
-        btn.textContent = id === "pen" ? "✏️" : id === "arrow" ? "↗" : "▢";
-        btn.addEventListener("click", () => setTool(id));
+        btn.className = "asc-shot-annotate-tool asc-shot-annotate-tool--icon";
+        btn.setAttribute("data-tool", def.id);
+        btn.title = def.title;
+        btn.setAttribute("aria-label", def.title);
+        btn.innerHTML = SVG[def.icon];
+        btn.addEventListener("click", () => setTool(def.id));
         tools.append(btn);
       }
 
-      const undoBtn = document.createElement("button");
-      undoBtn.type = "button";
-      undoBtn.className = "asc-shot-annotate-tool";
-      undoBtn.title = "Отменить (Ctrl+Z)";
-      undoBtn.textContent = "↶";
-      undoBtn.addEventListener("click", () => undo());
-      tools.append(undoBtn);
+      for (const w of LINE_WIDTHS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "asc-shot-annotate-size";
+        btn.setAttribute("data-width", String(w));
+        btn.title = `Толщина ${w}px`;
+        btn.setAttribute("aria-label", `Толщина ${w}px`);
+        const dot = document.createElement("span");
+        dot.className = "asc-shot-annotate-size-dot";
+        dot.style.width = `${6 + w}px`;
+        dot.style.height = `${6 + w}px`;
+        btn.append(dot);
+        btn.addEventListener("click", () => setLineWidth(w));
+        sizeWrap.append(btn);
+      }
+      tools.append(sizeWrap);
 
       const colorWrap = document.createElement("div");
       colorWrap.className = "asc-shot-annotate-colors";
@@ -328,8 +470,13 @@
       }
       tools.append(colorWrap);
 
+      undoBtn.addEventListener("click", () => undo());
+      redoBtn.addEventListener("click", () => redo());
+
       setTool("arrow");
       setColor(COLORS[0]);
+      setLineWidth(lineWidth);
+      updateHistoryButtons();
 
       drawCanvas.addEventListener("pointerdown", onPointerDown);
       drawCanvas.addEventListener("pointermove", onPointerMove);
@@ -337,25 +484,26 @@
       drawCanvas.addEventListener("pointercancel", onPointerUp);
 
       backdrop.addEventListener("click", () => finish(null));
+      closeHeadBtn.addEventListener("click", () => finish(null));
       cancelBtn.addEventListener("click", () => finish(null));
       composeBtn.addEventListener("click", () => {
         try {
           finish({ destination: "compose", dataUrl: buildExport() });
-        } catch (error) {
+        } catch {
           finish(null);
         }
       });
       clipBtn.addEventListener("click", () => {
         try {
           finish({ destination: "clipboard", dataUrl: buildExport() });
-        } catch (error) {
+        } catch {
           finish(null);
         }
       });
       downloadBtn.addEventListener("click", () => {
         try {
           finish({ destination: "download", dataUrl: buildExport() });
-        } catch (error) {
+        } catch {
           finish(null);
         }
       });
