@@ -23,7 +23,8 @@
       html.classList.contains("asc-screenshot-element-active") ||
       html.classList.contains("asc-capturing-viewport") ||
       html.classList.contains("asc-capturing-fullpage") ||
-      html.classList.contains("asc-screenshot-annotate-active")
+      html.classList.contains("asc-screenshot-annotate-active") ||
+      html.classList.contains("asc-bookmarks-draft-active")
     );
   }
 

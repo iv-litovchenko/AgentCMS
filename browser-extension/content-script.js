@@ -1319,9 +1319,19 @@
   toolbarStack.append(toolbarPanel);
   if (companionVaultDock) toolbarStack.append(companionVaultDock.wrap);
 
+  const companionPageContextStrip =
+    typeof globalThis.createCompanionPageContextStrip === "function"
+      ? globalThis.createCompanionPageContextStrip()
+      : null;
+
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brandDock, toolbarStack, status);
+  shell.append(
+    brandDock,
+    ...(companionPageContextStrip ? [companionPageContextStrip.wrap] : []),
+    toolbarStack,
+    status
+  );
 
   panelIdeasTodo = createPanelIdeasTodoModal(shell);
   right.append(panelIdeasTodo.wrap);

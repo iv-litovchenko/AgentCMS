@@ -13,6 +13,17 @@
   const SVG_CLOSE =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
+  function bookmarksOverlayMount() {
+    return document.documentElement || document.body;
+  }
+
+  function removeStaleBookmarkOverlays(keep) {
+    for (const node of document.querySelectorAll(".asc-bookmarks-draft-root")) {
+      if (keep && node === keep) continue;
+      node.remove();
+    }
+  }
+
   const PREVIEW_EXAMPLE = {
     url: "https://www.youtube.com/watch?v=IPEGHLql7D0&list=RDIPEGHLql7D0&start_radio=1",
     videoId: "IPEGHLql7D0",
@@ -207,6 +218,7 @@
     let items = [];
     let filterQuery = "";
     let ui = null;
+    let unbindPageContext = null;
 
     function setTriggerOpen(on) {
       btn.setAttribute("aria-expanded", on ? "true" : "false");
@@ -215,6 +227,8 @@
 
     function closeWindow() {
       if (!overlayRoot) return;
+      unbindPageContext?.();
+      unbindPageContext = null;
       overlayRoot.remove();
       overlayRoot = null;
       ui = null;
@@ -336,6 +350,8 @@
     function openWindow() {
       if (overlayRoot) return;
 
+      removeStaleBookmarkOverlays(null);
+
       const root = document.createElement("div");
       root.className = "asc-bookmarks-draft-root";
       root.setAttribute("role", "presentation");
@@ -429,6 +445,12 @@
       aside.append(intro, roadmap);
       bodyWrap.append(mainCol, aside);
 
+      const pagePanel =
+        typeof globalThis.createCompanionBookmarksPagePanel === "function"
+          ? globalThis.createCompanionBookmarksPagePanel()
+          : null;
+      if (pagePanel) unbindPageContext = pagePanel.unbind;
+
       const foot = document.createElement("div");
       foot.className = "asc-bookmarks-draft-foot";
 
@@ -445,9 +467,9 @@
 
       foot.append(cancelBtn, storageBtn);
 
-      dialog.append(head, tools, bodyWrap, foot);
+      dialog.append(head, tools, bodyWrap, ...(pagePanel ? [pagePanel.el] : []), foot);
       root.append(backdrop, dialog);
-      document.body.appendChild(root);
+      bookmarksOverlayMount().appendChild(root);
       document.documentElement.classList.add(HTML_CLASS);
       globalThis.syncCompanionCrosshair?.();
 
