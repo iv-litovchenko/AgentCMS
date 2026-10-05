@@ -40575,6 +40575,19 @@ button.node-navigation-hub-rail-slot-summary {
   overflow: hidden;
 }
 
+.node-entry-overview-media-asset.node-navigation-hero > .node-entry-overview-hero-nav {
+  order: 1;
+}
+
+.node-entry-overview-media-asset.node-navigation-hero > .node-entry-overview-media-asset-showcase {
+  order: 2;
+}
+
+.node-entry-overview-media-asset.node-navigation-hero > .node-navigation-hero-main,
+.node-entry-overview-media-asset.node-navigation-hero > .node-entry-overview-media-asset-head {
+  order: 3;
+}
+
 .node-entry-overview-media-asset--image.node-navigation-hero {
   overflow: visible;
 }
@@ -42339,6 +42352,7 @@ img.is-svg-media,
   background: transparent;
 }
 
+.node-navigation-hub-main > .node-entry-overview-hub-top-slot-counters,
 .node-entry-overview-manifest > .node-entry-overview-manifest-top-slot-counters,
 .node-entry-overview-manifest > .node-entry-overview-browse-slot-counters {
   margin: 0 0 12px;

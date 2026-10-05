@@ -78740,17 +78740,33 @@ function finalizeEntryOverviewBrowsePanelChromeOrder(panel) {
   finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
 }
 
-function relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain) {
+function relocateEntryOverviewSlotCountersChrome(hubMain) {
   if (!hubMain) return;
-  const manifest = hubMain.querySelector(":scope > .node-entry-overview-manifest");
-  if (!manifest) return;
 
-  const strip = hubMain.querySelector(".node-entry-overview-browse-slot-counters");
-  if (!strip || !manifest.contains(strip)) return;
+  const strip = hubMain.querySelector(
+    ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters"
+  );
+  if (!strip) return;
+
+  const hero = hubMain.querySelector(
+    ":scope > .node-navigation-hero, :scope > .node-entry-overview-media-asset"
+  );
+  if (hero) {
+    if (strip.nextElementSibling !== hero) {
+      hubMain.insertBefore(strip, hero);
+    }
+    strip.classList.add("node-entry-overview-hub-top-slot-counters");
+    strip.classList.remove("node-entry-overview-manifest-top-slot-counters");
+    return;
+  }
+
+  const manifest = hubMain.querySelector(":scope > .node-entry-overview-manifest");
+  if (!manifest || !manifest.contains(strip)) return;
   if (strip.parentElement === manifest && strip === manifest.firstElementChild) return;
 
   manifest.insertBefore(strip, manifest.firstChild);
   strip.classList.add("node-entry-overview-manifest-top-slot-counters");
+  strip.classList.remove("node-entry-overview-hub-top-slot-counters");
 }
 
 function shouldShowEntryOverviewSlotCountersOnHubMain(context) {
@@ -78909,7 +78925,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
   ) {
     refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
     return existing;
   }
 
@@ -78927,7 +78943,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
     else panel.prepend(strip);
     syncAllWorkspaceCounterStripActiveStates(context);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
   } else if (existing && existing.dataset.topicNodePath !== resolvedTopicPath) {
     existing.remove();
   }
@@ -78937,7 +78953,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   if (!loadedStrip) {
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
+    relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
     return strip;
   }
 
@@ -78950,7 +78966,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   syncAllWorkspaceCounterStripActiveStates(context);
   finalizeEntryOverviewBrowsePanelChromeOrder(panel);
-  relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
+  relocateEntryOverviewSlotCountersChrome(panel.closest(".node-navigation-hub-main"));
   return loadedStrip;
 }
 
@@ -80647,10 +80663,10 @@ async function renderEntryOverview() {
       isMemoryTocRoot: false
     }).then(() => {
       finalizeEntryOverviewBrowsePanelChromeOrder(browsePanel);
-      relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain);
+      relocateEntryOverviewSlotCountersChrome(hubMain);
     });
   }
-  relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain);
+  relocateEntryOverviewSlotCountersChrome(hubMain);
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "", kind = "" } = {}) {
