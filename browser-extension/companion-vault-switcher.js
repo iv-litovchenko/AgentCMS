@@ -205,6 +205,32 @@
     return `${resolveAgentStatusEmoji(agent)} ${label}`;
   }
 
+  function vaultEntrySearchHaystack(agent, sectionLabel = "") {
+    const name = String(agent?.name || "").trim();
+    const id = String(agent?.id || "").trim();
+    const path = String(agent?.path || "").trim();
+    const section = String(sectionLabel || "").trim();
+    return [
+      id,
+      name,
+      path,
+      section,
+      agentDisplayName(agent, { forList: true }),
+      formatVaultListLabel(agent, "", { forList: true })
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+  }
+
+  function filterVaultListEntries(entries, query) {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((entry) =>
+      vaultEntrySearchHaystack(entry.agent, entry.sectionLabel).includes(q)
+    );
+  }
+
   function agentDisplayName(agent, { forList = false } = {}) {
     if (!agent) return "Хранилище";
     const name = String(agent.name || "").trim();
@@ -304,10 +330,18 @@
     popHead.textContent =
       "Хранилища (переключатель области: работа, личное...)";
 
+    const searchInput = document.createElement("input");
+    searchInput.type = "search";
+    searchInput.className = "asc-vault-search";
+    searchInput.placeholder = "Поиск хранилища…";
+    searchInput.setAttribute("aria-label", "Поиск по списку хранилищ");
+    searchInput.autocomplete = "off";
+    searchInput.spellcheck = false;
+
     const list = document.createElement("div");
     list.className = "asc-vault-list";
 
-    pop.append(popHead, list);
+    pop.append(popHead, searchInput, list);
     wrap.append(trigger, pop);
 
     let open = false;
@@ -321,6 +355,17 @@
       pop.hidden = !open;
       trigger.setAttribute("aria-expanded", open ? "true" : "false");
       trigger.classList.toggle("is-open", open);
+      if (open) {
+        searchInput.value = "";
+        window.requestAnimationFrame(() => {
+          try {
+            searchInput.focus({ preventScroll: true });
+          } catch {
+            searchInput.focus();
+          }
+        });
+        renderList();
+      }
     }
 
     function findAgent(id) {
@@ -377,13 +422,24 @@
 
     function renderList() {
       list.innerHTML = "";
-      const entries = buildVaultListEntries(agents, groups);
-      if (!entries.length) {
+      const allEntries = buildVaultListEntries(agents, groups);
+      const query = String(searchInput.value || "").trim();
+      const entries = filterVaultListEntries(allEntries, query);
+
+      if (!allEntries.length) {
         const empty = document.createElement("p");
         empty.className = "asc-vault-empty";
         empty.textContent = cmsBaseUrl
           ? "Нет хранилищ или CMS недоступна"
           : "Укажите URL CMS в настройках расширения";
+        list.append(empty);
+        return;
+      }
+
+      if (!entries.length) {
+        const empty = document.createElement("p");
+        empty.className = "asc-vault-empty";
+        empty.textContent = query ? `Ничего не найдено: «${query}»` : "Нет хранилищ";
         list.append(empty);
         return;
       }
@@ -469,8 +525,25 @@
 
     trigger.addEventListener("click", (event) => {
       event.stopPropagation();
-      setOpen(!open);
-      if (open) void refresh();
+      const willOpen = !open;
+      setOpen(willOpen);
+      if (willOpen) void refresh();
+    });
+
+    searchInput.addEventListener("input", () => {
+      renderList();
+    });
+
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        if (searchInput.value) {
+          searchInput.value = "";
+          renderList();
+          return;
+        }
+        setOpen(false);
+      }
     });
 
     for (const eventName of ["pointerdown", "mousedown", "dblclick"]) {
