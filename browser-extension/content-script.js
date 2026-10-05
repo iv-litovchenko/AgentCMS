@@ -733,18 +733,18 @@
       hint: "Сохранить PNG на диск"
     },
     {
-      id: "annotate",
-      icon: "annotate",
-      headerLabel: "Разметка",
-      actionLabel: "Отметить",
-      hint: "Превью и пометки перед отправкой"
-    },
-    {
       id: "storage",
       icon: "storage",
       headerLabel: "Хранилище",
       actionLabel: "Сохранить",
       hint: "В хранилище Agent CMS (скоро)"
+    },
+    {
+      id: "annotate",
+      icon: "annotate",
+      headerLabel: "Разметка",
+      actionLabel: "Отметить",
+      hint: "Превью и пометки перед отправкой"
     }
   ];
 
