@@ -265,6 +265,9 @@
         "is-inactive-vault",
         Boolean(agent && (!isAgentRegistryActive(agent) || agent.folderExists === false))
       );
+      const hasSelectedVault = Boolean(agent || selectedId);
+      wrap.classList.toggle("asc-vault-dock--fit", hasSelectedVault);
+      trigger.classList.toggle("asc-vault-trigger--fit", hasSelectedVault);
       trigger.title = agent ? `Хранилище: ${label}` : "Выбрать хранилище";
     }
 
