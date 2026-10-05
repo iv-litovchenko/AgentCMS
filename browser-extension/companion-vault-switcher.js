@@ -175,7 +175,9 @@
     trigger.title = "Выбрать хранилище";
 
     const avatar = document.createElement("span");
-    avatar.className = "asc-vault-avatar";
+    avatar.className = "asc-vault-avatar asc-vault-avatar--fallback";
+    const avatarFrame = document.createElement("span");
+    avatarFrame.className = "asc-vault-avatar-frame";
     const avatarImg = document.createElement("img");
     avatarImg.className = "asc-vault-avatar-img";
     avatarImg.alt = "";
@@ -183,7 +185,15 @@
     const avatarFallback = document.createElement("span");
     avatarFallback.className = "asc-vault-avatar-fallback";
     avatarFallback.setAttribute("aria-hidden", "true");
-    avatar.append(avatarImg, avatarFallback);
+    const avatarShine = document.createElement("span");
+    avatarShine.className = "asc-vault-avatar-shine";
+    avatarShine.setAttribute("aria-hidden", "true");
+    const avatarStatus = document.createElement("span");
+    avatarStatus.className = "asc-vault-avatar-status";
+    avatarStatus.setAttribute("aria-hidden", "true");
+    avatarStatus.hidden = true;
+    avatarFrame.append(avatarImg, avatarFallback, avatarShine);
+    avatar.append(avatarFrame, avatarStatus);
 
     const meta = document.createElement("span");
     meta.className = "asc-vault-meta";
@@ -256,15 +266,29 @@
         avatarImg.src = thumb;
         avatarImg.hidden = false;
         avatarFallback.hidden = true;
+        avatar.classList.add("asc-vault-avatar--has-preview");
+        avatar.classList.remove("asc-vault-avatar--fallback");
       } else {
         avatarImg.removeAttribute("src");
         avatarImg.hidden = true;
         avatarFallback.hidden = false;
+        avatar.classList.remove("asc-vault-avatar--has-preview");
+        avatar.classList.add("asc-vault-avatar--fallback");
       }
-      trigger.classList.toggle(
-        "is-inactive-vault",
-        Boolean(agent && (!isAgentRegistryActive(agent) || agent.folderExists === false))
+      const inactiveVault = Boolean(
+        agent && (!isAgentRegistryActive(agent) || agent.folderExists === false)
       );
+      trigger.classList.toggle("is-inactive-vault", inactiveVault);
+      if (agent) {
+        avatarStatus.hidden = false;
+        avatarStatus.classList.toggle("is-warn", inactiveVault);
+        avatarStatus.classList.toggle("is-ok", !inactiveVault);
+        avatarStatus.title = inactiveVault ? "Хранилище выключено или недоступно" : "Хранилище активно";
+      } else {
+        avatarStatus.hidden = true;
+        avatarStatus.classList.remove("is-warn", "is-ok");
+        avatarStatus.removeAttribute("title");
+      }
       const hasSelectedVault = Boolean(agent || selectedId);
       wrap.classList.toggle("asc-vault-dock--fit", hasSelectedVault);
       trigger.classList.toggle("asc-vault-trigger--fit", hasSelectedVault);
