@@ -4,6 +4,7 @@
   "private": true,
   "description": "File-based CMS prototype for agents (no database)",
   "author": "Agent CMS",
+  "license": "AGPL-3.0-or-later",
   "main": "desktop/agent-cms/main.js",
   "scripts": {
     "start": "node server.js",

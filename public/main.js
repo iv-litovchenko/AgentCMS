@@ -19680,6 +19680,34 @@ const STORAGE_ROOT_SCAN_TIMEOUT_MS = 20000;
 const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
 const DATA_HUB_SHARED_RETURN_STORAGE_KEY = "agentcms.dataHub.sharedReturn.v1";
 const entryOverviewSlotCountersCache = new Map();
+const entryOverviewSlotCountersInflight = new Map();
+
+function loadEntryOverviewSlotCounters(topicPath) {
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  if (!resolvedTopicPath) return Promise.resolve([]);
+
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
+  const cached = entryOverviewSlotCountersCache.get(manifestPath);
+  if (cached?.length) return Promise.resolve(cached);
+
+  if (entryOverviewSlotCountersInflight.has(manifestPath)) {
+    return entryOverviewSlotCountersInflight.get(manifestPath);
+  }
+
+  const promise = buildEntryOverviewDataSlotCounters(resolvedTopicPath)
+    .then((slots) => {
+      entryOverviewSlotCountersCache.set(manifestPath, slots);
+      entryOverviewSlotCountersInflight.delete(manifestPath);
+      return slots;
+    })
+    .catch(() => {
+      entryOverviewSlotCountersInflight.delete(manifestPath);
+      return [];
+    });
+
+  entryOverviewSlotCountersInflight.set(manifestPath, promise);
+  return promise;
+}
 
 function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
   if (!shouldUseDataHubListShell(mode)) return false;
@@ -75451,11 +75479,18 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
 
   appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath);
 
-  const listHost = panel.querySelector(
+  panel.querySelector(
     ".node-entry-overview-memory-toc, .node-entry-overview-section-list"
-  );
-  listHost?.remove();
-  panel.appendChild(createEntryOverviewSlotFolderMissingNotice(context));
+  )?.remove();
+
+  if (!panel.querySelector(":scope > .node-entry-overview-slot-folder-missing")) {
+    const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
+    const notice = createEntryOverviewSlotFolderMissingNotice(context);
+    if (toolbar) panel.insertBefore(notice, toolbar);
+    else panel.appendChild(notice);
+  }
+
+  finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
 }
 
 function buildRecordPartsTreeFromScanItems(items, rootFolderPath) {
@@ -76982,11 +77017,17 @@ function appendEntryOverviewBrowsePanel(
     if (browseNavOptions) {
       prependEntryOverviewBrowseHeroNav(mounted, browseNavOptions);
     }
-    void mountEntryOverviewBrowseSlotCounterStrip(
-      mounted,
-      context,
-      getResolvedNodePath(activePath)
-    );
+    if (mounted.classList.contains("is-slot-folder-missing")) {
+      finalizeEntryOverviewBrowseSlotFolderMissingLayout(mounted);
+    }
+    if (shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot)) {
+      void mountEntryOverviewBrowseSlotCounterStrip(
+        mounted,
+        context,
+        getResolvedNodePath(activePath),
+        { isMemoryTocRoot }
+      ).then(() => finalizeEntryOverviewBrowseSlotFolderMissingLayout(mounted));
+    }
   }
   if (mounted && slotFolderMissing == null) {
     void syncEntryOverviewBrowseSlotFolderAction(
@@ -77560,11 +77601,13 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
       slot
     );
   }
-  appendWorkspaceCounterTopicIndexFooter(
-    wrap,
-    wrap.dataset.topicNodePath || getResolvedNodePath(activePath),
-    slots
-  );
+  if (wrap.dataset.topicIndexFooter !== "0") {
+    appendWorkspaceCounterTopicIndexFooter(
+      wrap,
+      wrap.dataset.topicNodePath || getResolvedNodePath(activePath),
+      slots
+    );
+  }
 }
 
 function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicPath = null) {
@@ -78307,6 +78350,14 @@ function mountPageOutsideSlotsWarningBlock(container, nodePath, prefetchedReport
 
 function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   if (!wrap || !topicPath) return;
+  if (wrap.dataset.topicIndexFooter === "0") return;
+  if (
+    wrap.classList.contains("node-entry-overview-browse-slot-counters") ||
+    wrap.classList.contains("node-entry-overview-hero-slot-counters") ||
+    wrap.classList.contains("node-entry-overview-hub-main-slot-counters")
+  ) {
+    return;
+  }
   if (isAreaNodePath(topicPath) || isWorkspaceRootNodePath(topicPath)) return;
 
   let row = wrap.querySelector(".node-navigation-workspace-counter-topic-index-row");
@@ -78659,25 +78710,41 @@ function getEntryOverviewBrowsePanelChromeInsertBefore(panel) {
   );
 }
 
-async function mountEntryOverviewBrowseSlotCounterStrip(panel, context, topicPath) {
-  if (!panel || !context) return null;
-  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
-  if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
-    return null;
-  }
+function finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel) {
+  if (!panel?.classList.contains("is-slot-folder-missing")) return;
+
+  const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
+  const notice = panel.querySelector(":scope > .node-entry-overview-slot-folder-missing");
+  if (!toolbar || !notice) return;
+
+  const strip = panel.querySelector(":scope > .node-entry-overview-browse-slot-counters");
+  const hero = panel.querySelector(":scope > .node-entry-overview-browse-hero-nav");
+
+  panel.insertBefore(notice, toolbar);
+  if (hero) panel.insertBefore(hero, notice);
+  if (strip) panel.insertBefore(strip, hero || notice);
+}
+
+function shouldShowEntryOverviewSlotCountersOnHubMain(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
+  return isDataEntryOverviewMemoryKind(context.memoryKind);
+}
+
+function shouldShowEntryOverviewSlotCountersInHero() {
+  return false;
+}
+
+function shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot = false) {
+  if (isMemoryTocRoot) return true;
+  return !shouldShowEntryOverviewSlotCountersOnHubMain(context);
+}
+
+function renderEntryOverviewSlotCounterStripFromSlots(context, topicPath, slots = []) {
+  if (!context || !slots.length) return null;
 
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   if (!resolvedTopicPath) return null;
-
-  panel.querySelector(".node-entry-overview-browse-slot-counters")?.remove();
-
-  let slots = [];
-  try {
-    slots = await buildEntryOverviewDataSlotCounters(resolvedTopicPath);
-  } catch {
-    return null;
-  }
-  if (!panel.isConnected || !slots.length) return null;
 
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     slots.map((slot) => ({
@@ -78693,18 +78760,161 @@ async function mountEntryOverviewBrowseSlotCounterStrip(panel, context, topicPat
   );
   if (!strip) return null;
 
-  strip.classList.add(
-    "node-entry-overview-slot-counters",
-    "node-entry-overview-browse-slot-counters"
-  );
+  strip.classList.add("node-entry-overview-slot-counters");
+  strip.dataset.topicIndexFooter = "0";
+  strip.dataset.topicNodePath = resolvedTopicPath;
   strip.setAttribute("aria-label", "Слоты данных");
+  return strip;
+}
 
-  const insertBefore = getEntryOverviewBrowsePanelChromeInsertBefore(panel);
-  if (insertBefore) panel.insertBefore(strip, insertBefore);
-  else panel.prepend(strip);
+async function createEntryOverviewSlotCounterStripElement(context, topicPath) {
+  if (!context) return null;
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+  if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
+    return null;
+  }
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  if (!resolvedTopicPath) return null;
+
+  const slots = await loadEntryOverviewSlotCounters(resolvedTopicPath);
+  if (!slots.length) return null;
+
+  return renderEntryOverviewSlotCounterStripFromSlots(context, resolvedTopicPath, slots);
+}
+
+function refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath) {
+  if (!wrap || !context) return;
+  wrap.querySelector(".node-navigation-workspace-counter-topic-index-row")?.remove();
+  const resolvedTopicPath = topicPath || wrap.dataset.topicNodePath || getResolvedNodePath(activePath);
+  void loadEntryOverviewSlotCounters(resolvedTopicPath).then((slots) => {
+    if (!wrap.isConnected || !slots.length) return;
+    if (wrap.querySelector(".node-navigation-workspace-counter-list")) {
+      updateEntryOverviewDataSlotBarCounts(wrap, slots);
+    } else {
+      renderEntryOverviewDataSlotBarContent(wrap, context, slots, resolvedTopicPath);
+    }
+    syncAllWorkspaceCounterStripActiveStates(context);
+    delete wrap.dataset.loading;
+  });
+}
+
+function placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, strip) {
+  if (!hubMain || !anchor || !strip) return;
+  const live = hubMain.querySelector(":scope > .node-entry-overview-hub-main-slot-counters");
+  if (live && live !== strip) live.remove();
+  if (strip.parentElement === hubMain && strip.previousElementSibling === anchor) return;
+  if (strip.parentElement) strip.remove();
+  anchor.insertAdjacentElement("afterend", strip);
+}
+
+async function mountEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, context, topicPath) {
+  if (!hubMain || !anchor || !shouldShowEntryOverviewSlotCountersOnHubMain(context)) return null;
+
+  anchor.querySelector(".node-entry-overview-hero-slot-counters")?.remove();
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  const mountSeq = (hubMain._hubMainSlotStripSeq = (hubMain._hubMainSlotStripSeq || 0) + 1);
+  const existing = hubMain.querySelector(":scope > .node-entry-overview-hub-main-slot-counters");
+
+  if (
+    existing?.dataset.topicNodePath === resolvedTopicPath &&
+    existing.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, existing);
+    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
+    return existing;
+  }
+
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
+  const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath);
+  let strip = cachedSlots?.length
+    ? renderEntryOverviewSlotCounterStripFromSlots(context, resolvedTopicPath, cachedSlots)
+    : null;
+
+  if (strip && hubMain.isConnected) {
+    strip.classList.add("node-entry-overview-hub-main-slot-counters");
+    if (existing) existing.replaceWith(strip);
+    else placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, strip);
+    syncAllWorkspaceCounterStripActiveStates(context);
+  } else if (existing && existing.dataset.topicNodePath !== resolvedTopicPath) {
+    existing.remove();
+  }
+
+  const loadedStrip = await createEntryOverviewSlotCounterStripElement(context, resolvedTopicPath);
+  if (mountSeq !== hubMain._hubMainSlotStripSeq || !hubMain.isConnected) return loadedStrip;
+
+  if (!loadedStrip) return strip;
+
+  loadedStrip.classList.add("node-entry-overview-hub-main-slot-counters");
+  const live = hubMain.querySelector(":scope > .node-entry-overview-hub-main-slot-counters");
+  if (live && live !== loadedStrip) live.replaceWith(loadedStrip);
+  else placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, loadedStrip);
 
   syncAllWorkspaceCounterStripActiveStates(context);
-  return strip;
+  return loadedStrip;
+}
+
+async function mountEntryOverviewBrowseSlotCounterStrip(
+  panel,
+  context,
+  topicPath,
+  { isMemoryTocRoot = false } = {}
+) {
+  if (!panel || !context) return null;
+  if (!shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot)) return null;
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  if (!resolvedTopicPath) return null;
+
+  const mountSeq = (panel._browseSlotStripSeq = (panel._browseSlotStripSeq || 0) + 1);
+  const existing = panel.querySelector(".node-entry-overview-browse-slot-counters");
+
+  if (
+    existing?.dataset.topicNodePath === resolvedTopicPath &&
+    existing.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
+    finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
+    return existing;
+  }
+
+  const insertBefore = getEntryOverviewBrowsePanelChromeInsertBefore(panel);
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
+  const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath);
+  let strip = cachedSlots?.length
+    ? renderEntryOverviewSlotCounterStripFromSlots(context, resolvedTopicPath, cachedSlots)
+    : null;
+
+  if (strip && panel.isConnected) {
+    strip.classList.add("node-entry-overview-browse-slot-counters");
+    if (existing) existing.replaceWith(strip);
+    else if (insertBefore) panel.insertBefore(strip, insertBefore);
+    else panel.prepend(strip);
+    syncAllWorkspaceCounterStripActiveStates(context);
+    finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
+  } else if (existing && existing.dataset.topicNodePath !== resolvedTopicPath) {
+    existing.remove();
+  }
+
+  const loadedStrip = await createEntryOverviewSlotCounterStripElement(context, resolvedTopicPath);
+  if (mountSeq !== panel._browseSlotStripSeq || !panel.isConnected) return loadedStrip;
+
+  if (!loadedStrip) {
+    finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
+    return strip;
+  }
+
+  loadedStrip.classList.add("node-entry-overview-browse-slot-counters");
+  const live = panel.querySelector(".node-entry-overview-browse-slot-counters");
+  if (live) {
+    if (live !== loadedStrip) live.replaceWith(loadedStrip);
+  } else if (insertBefore) panel.insertBefore(loadedStrip, insertBefore);
+  else panel.prepend(loadedStrip);
+
+  syncAllWorkspaceCounterStripActiveStates(context);
+  finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
+  return loadedStrip;
 }
 
 function prependEntryOverviewBrowseHeroNav(panel, navOptions) {
@@ -78719,6 +78929,7 @@ function prependEntryOverviewBrowseHeroNav(panel, navOptions) {
   const insertBefore = getEntryOverviewBrowsePanelChromeInsertBefore(panel);
   if (insertBefore) panel.insertBefore(nav, insertBefore);
   else panel.prepend(nav);
+  finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
   return nav;
 }
 
@@ -80272,6 +80483,7 @@ async function renderEntryOverview() {
           entryOverviewNav,
         });
   hubMain.appendChild(hero);
+  void mountEntryOverviewHubMainSlotCounterStrip(hubMain, hero, context, topicPath);
   if (context.entryKind !== "awn.media.asset" && !isBundleEntryOverview) {
     appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex);
   }
@@ -80380,6 +80592,12 @@ async function renderEntryOverview() {
   scheduleWorkspaceScrollChromeSync();
   syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
   syncAllWorkspaceCounterStripActiveStates(context);
+  const hubMainHero = hubMain.querySelector(
+    ":scope > .node-navigation-hero, :scope > .node-entry-overview-media-asset"
+  );
+  if (hubMainHero) {
+    void mountEntryOverviewHubMainSlotCounterStrip(hubMain, hubMainHero, context, topicPath);
+  }
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "", kind = "" } = {}) {
