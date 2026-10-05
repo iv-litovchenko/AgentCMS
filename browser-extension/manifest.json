@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.95",
+  "version": "0.1.96",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": [
     "storage",
@@ -58,6 +58,7 @@
         "companion-pomodoro-overlay.js",
         "companion-pomodoro-toolbar.js",
         "companion-crosshair.js",
+        "companion-screenshot-annotate.js",
         "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",

@@ -586,6 +586,8 @@
       '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
     download:
       '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>',
+    annotate:
+      '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
     expand: '<svg viewBox="0 0 24 24"><path d="M8 14l4-4 4 4M8 10l4-4 4 4"/></svg>',
     panel:
@@ -727,6 +729,13 @@
       headerLabel: "PNG",
       actionLabel: "Скачать",
       hint: "Сохранить PNG на диск"
+    },
+    {
+      id: "annotate",
+      icon: "annotate",
+      headerLabel: "Разметка",
+      actionLabel: "Отметить",
+      hint: "Превью и пометки перед отправкой"
     }
   ];
 
@@ -2177,6 +2186,22 @@
       void runScreenshot({ fullPage: true, destination: "download" });
       return;
     }
+    if (key === "screenshot-annotate") {
+      void runScreenshot({ region: false, destination: "annotate" });
+      return;
+    }
+    if (key === "screenshot-region-annotate") {
+      void runScreenshot({ region: true, destination: "annotate" });
+      return;
+    }
+    if (key === "screenshot-element-annotate") {
+      void runScreenshot({ element: true, destination: "annotate" });
+      return;
+    }
+    if (key === "screenshot-fullpage-annotate") {
+      void runScreenshot({ fullPage: true, destination: "annotate" });
+      return;
+    }
     const prompt = SELECTION_PROMPTS.find((item) => item.key === key);
     if (prompt) applySelectionPrompt(prompt);
   }
@@ -2790,6 +2815,44 @@
     }
   }
 
+  async function deliverScreenshotData(dataUrl, destination, shotKind, capture) {
+    if (destination === "clipboard") {
+      try {
+        await copyScreenshotToClipboard(dataUrl);
+        void recordScreenshotInClipboardHistory(dataUrl);
+        setStatus("Скопировано", "ok");
+      } catch (error) {
+        setStatus(error?.message || "Не удалось скопировать", "error");
+      }
+      return;
+    }
+
+    if (destination === "download") {
+      try {
+        await downloadScreenshot(dataUrl, { kind: shotKind });
+        setStatus("Скачано", "ok");
+      } catch (error) {
+        setStatus(error?.message || "Не удалось скачать", "error");
+      }
+      return;
+    }
+
+    const upload = await sendRuntimeMessage({
+      type: "COMPANION_UPLOAD_TAB_SCREENSHOT",
+      dataUrl,
+      tabUrl: formatCompanionUrl(capture.tabUrl || location.href)
+    });
+    if (!upload?.ok) {
+      setStatus(upload?.error || "Не удалось сохранить скрин", "error");
+      return;
+    }
+    if (upload.text) {
+      void insertIntoCompose(upload.text);
+      return;
+    }
+    setStatus("Скриншот готов", "ok");
+  }
+
   async function runScreenshot({
     region = false,
     element = false,
@@ -2821,9 +2884,10 @@
     }
 
     setStatus("Скриншот…", "busy");
+    let capture;
+    let dataUrl;
     document.documentElement.classList.add("asc-capturing-viewport");
     try {
-      let capture;
       if (fullPage) {
         shotKind = "fullpage";
         try {
@@ -2841,7 +2905,7 @@
         }
       }
 
-      let dataUrl = capture.dataUrl;
+      dataUrl = capture.dataUrl;
       if (cropRect) {
         try {
           dataUrl = await cropScreenshotDataUrl(dataUrl, cropRect);
@@ -2850,46 +2914,29 @@
           return;
         }
       }
-
-      if (destination === "clipboard") {
-        try {
-          await copyScreenshotToClipboard(dataUrl);
-          void recordScreenshotInClipboardHistory(dataUrl);
-          setStatus("Скопировано", "ok");
-        } catch (error) {
-          setStatus(error?.message || "Не удалось скопировать", "error");
-        }
-        return;
-      }
-
-      if (destination === "download") {
-        try {
-          await downloadScreenshot(dataUrl, { kind: shotKind });
-          setStatus("Скачано", "ok");
-        } catch (error) {
-          setStatus(error?.message || "Не удалось скачать", "error");
-        }
-        return;
-      }
-
-      const upload = await sendRuntimeMessage({
-        type: "COMPANION_UPLOAD_TAB_SCREENSHOT",
-        dataUrl,
-        tabUrl: formatCompanionUrl(capture.tabUrl || location.href)
-      });
-      if (!upload?.ok) {
-        setStatus(upload?.error || "Не удалось сохранить скрин", "error");
-        return;
-      }
-      if (upload.text) {
-        void insertIntoCompose(upload.text);
-        return;
-      }
-      setStatus("Скриншот готов", "ok");
     } finally {
       document.documentElement.classList.remove("asc-capturing-viewport");
       globalThis.syncCompanionCrosshair?.();
     }
+
+    let finalDestination = destination;
+    if (destination === "annotate") {
+      setStatus("Разметка…", "busy");
+      const editor = globalThis.openScreenshotAnnotateEditor;
+      if (typeof editor !== "function") {
+        setStatus("Редактор разметки недоступен", "error");
+        return;
+      }
+      const edited = await editor(dataUrl);
+      if (!edited?.dataUrl || !edited.destination) {
+        setStatus("Отменено", "ok");
+        return;
+      }
+      dataUrl = edited.dataUrl;
+      finalDestination = edited.destination;
+    }
+
+    await deliverScreenshotData(dataUrl, finalDestination, shotKind, capture);
   }
 
   function readStoredOffset() {

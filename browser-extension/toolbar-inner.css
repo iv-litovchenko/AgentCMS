@@ -1149,7 +1149,7 @@
 
 .asc-shot-compact-head {
   display: grid;
-  grid-template-columns: minmax(72px, 1.1fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(72px, 1.1fr) repeat(4, minmax(0, 1fr));
   gap: 6px;
   align-items: end;
   padding-bottom: 6px;
@@ -1194,7 +1194,7 @@
 
 .asc-shot-compact-row {
   display: grid;
-  grid-template-columns: minmax(72px, 1.1fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(72px, 1.1fr) repeat(4, minmax(0, 1fr));
   gap: 6px;
   align-items: center;
 }
