@@ -552,7 +552,7 @@
   const DRAG_THRESHOLD = 5;
   const SNAP_DISTANCE = 10;
   const TOOLBAR_EXPAND_GAP = 8;
-  const TOOLBAR_EXPAND_ESTIMATE = 196;
+  const TOOLBAR_EXPAND_ESTIMATE = 228;
 
   const BRAND_ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">' +
@@ -777,6 +777,7 @@
   actions.className = "asc-actions";
   const menus = [];
   let panelIdeasTodo = null;
+  let panelBookmarksDraft = null;
   let companionPomodoroDock = null;
   let pickerActive = false;
   let offsetX = 0;
@@ -1005,6 +1006,7 @@
       menu.btn.setAttribute("aria-expanded", "false");
     }
     panelIdeasTodo?.setOpen(false);
+    panelBookmarksDraft?.close?.();
     companionPomodoroDock?.closePop?.();
   }
 
@@ -1274,7 +1276,14 @@
   const collapseBtn = createBtn("collapse", "Свернуть", "Свернуть панель");
   collapseBtn.classList.add("asc-btn--collapse", "asc-btn--icon-only");
 
-  actions.append(left, divider, right, collapseBtn);
+  const panelFoot = document.createElement("div");
+  panelFoot.className = "asc-toolbar-panel-foot";
+  panelFoot.append(collapseBtn);
+
+  actions.append(left, divider, right);
+
+  const bookmarksDraftPlaceholder = document.createElement("div");
+  bookmarksDraftPlaceholder.className = "asc-bookmarks-draft-trigger-slot";
 
   const status = document.createElement("span");
   status.className = "asc-status";
@@ -1292,12 +1301,13 @@
     mediaHoverDockToggle,
     cmsDockDivider,
     openCmsBtn,
-    webSearchForm
+    webSearchForm,
+    bookmarksDraftPlaceholder
   );
 
   const toolbarPanel = document.createElement("div");
   toolbarPanel.className = "asc-toolbar-panel";
-  toolbarPanel.append(actions);
+  toolbarPanel.append(actions, panelFoot);
 
   const companionVaultDock =
     typeof globalThis.createCompanionVaultDock === "function"
@@ -1309,12 +1319,29 @@
   toolbarStack.append(toolbarPanel);
   if (companionVaultDock) toolbarStack.append(companionVaultDock.wrap);
 
+  const companionPageContextStrip =
+    typeof globalThis.createCompanionPageContextStrip === "function"
+      ? globalThis.createCompanionPageContextStrip()
+      : null;
+
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brandDock, toolbarStack, status);
+  shell.append(
+    brandDock,
+    ...(companionPageContextStrip ? [companionPageContextStrip.wrap] : []),
+    toolbarStack,
+    status
+  );
 
   panelIdeasTodo = createPanelIdeasTodoModal(shell);
   right.append(panelIdeasTodo.wrap);
+
+  if (typeof globalThis.createCompanionBookmarksDraft === "function") {
+    panelBookmarksDraft = globalThis.createCompanionBookmarksDraft();
+    bookmarksDraftPlaceholder.replaceWith(panelBookmarksDraft.wrap);
+  } else {
+    bookmarksDraftPlaceholder.remove();
+  }
 
   const shadow = root.attachShadow({ mode: "open" });
   const style = document.createElement("style");
