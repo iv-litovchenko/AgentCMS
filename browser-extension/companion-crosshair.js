@@ -174,8 +174,9 @@
 
     const thumb = document.createElement("span");
     thumb.className = "asc-media-dock-toggle-thumb";
+    thumb.append(icon);
 
-    track.append(icon, thumb);
+    track.append(thumb);
     btn.append(track);
     wrap.append(btn);
 
