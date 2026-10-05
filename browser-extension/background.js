@@ -1044,6 +1044,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "COMPANION_FETCH_IMAGE_DATA_URL") {
+    const url = String(message.url || "").trim();
+    const allowed =
+      /^https:\/\/(i\.ytimg\.com|img\.youtube\.com)\//i.test(url) ||
+      /^https:\/\/.*\.(ytimg|youtube)\.com\//i.test(url);
+    if (!allowed) {
+      sendResponse({ ok: false, error: "URL not allowed" });
+      return false;
+    }
+    fetch(url, { credentials: "omit", redirect: "follow" })
+      .then(async (res) => {
+        if (!res.ok) {
+          return { ok: false, error: `HTTP ${res.status}` };
+        }
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength > 2_500_000) {
+          return { ok: false, error: "Image too large" };
+        }
+        const mime = String(res.headers.get("content-type") || "image/jpeg").split(";")[0];
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+        return { ok: true, dataUrl };
+      })
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      });
+    return true;
+  }
+
   if (message?.type === "COMPANION_GET_SETTINGS") {
     getSettings().then(sendResponse);
     return true;

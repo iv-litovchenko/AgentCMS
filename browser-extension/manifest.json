@@ -60,6 +60,7 @@
         "companion-crosshair.js",
         "companion-screenshot-annotate.js",
         "companion-vault-switcher.js",
+        "companion-bookmarks-draft.js",
         "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",
