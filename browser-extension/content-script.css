@@ -246,3 +246,70 @@ html.asc-screenshot-element-active {
 html.asc-capturing-fullpage {
   scroll-behavior: auto !important;
 }
+
+#agent-companion-crosshair {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483644;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#agent-companion-crosshair[hidden] {
+  display: none !important;
+}
+
+html.asc-crosshair-active {
+  cursor: crosshair;
+}
+
+html.asc-crosshair-active #agent-companion-crosshair {
+  display: block;
+}
+
+.asc-crosshair-line {
+  position: fixed;
+  background: rgba(34, 211, 238, 0.72);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+  pointer-events: none;
+}
+
+.asc-crosshair-line--v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+}
+
+.asc-crosshair-line--h {
+  left: 0;
+  right: 0;
+  height: 1px;
+  margin-top: -0.5px;
+}
+
+.asc-crosshair-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(34, 211, 238, 0.55);
+  background: rgba(15, 23, 42, 0.88);
+  color: #e0f2fe;
+  font: 11px/1.25 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+html.asc-capturing-viewport #agent-companion-crosshair,
+html.asc-capturing-fullpage #agent-companion-crosshair,
+html.asc-screenshot-region-active #agent-companion-crosshair,
+html.asc-screenshot-element-active #agent-companion-crosshair {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}

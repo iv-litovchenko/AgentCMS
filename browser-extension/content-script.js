@@ -883,6 +883,11 @@
 
   const mediaHoverDockToggle = createMediaHoverDockToggle();
 
+  const companionCrosshairDock =
+    typeof globalThis.createCompanionCrosshairDock === "function"
+      ? globalThis.createCompanionCrosshairDock()
+      : null;
+
   const openCmsBtn = createBtn(
     "openCms",
     "CMS",
@@ -1242,6 +1247,7 @@
     brandDockDivider,
     viewportShotBtn,
     mediaHoverDockToggle,
+    ...(companionCrosshairDock ? [companionCrosshairDock.wrap] : []),
     cmsDockDivider,
     openCmsBtn,
     webSearchForm
