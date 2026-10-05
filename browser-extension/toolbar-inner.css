@@ -2154,6 +2154,21 @@
   text-overflow: ellipsis;
 }
 
+.asc-page-context-chip--cursor {
+  border-color: rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.asc-page-context-chip--cursor .asc-page-context-chip-label {
+  color: rgba(103, 232, 249, 0.88);
+}
+
+.asc-page-context-chip--cursor .asc-page-context-chip-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
 .asc-page-context-strip-title {
   margin: 4px 2px 0;
   font-size: 10px;

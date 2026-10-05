@@ -372,24 +372,7 @@
       dialog.className = "asc-bookmarks-draft-dialog";
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
-      dialog.setAttribute("aria-labelledby", "asc-bookmarks-draft-title");
-
-      const head = document.createElement("div");
-      head.className = "asc-bookmarks-draft-head";
-
-      const title = document.createElement("h2");
-      title.className = "asc-bookmarks-draft-title";
-      title.id = "asc-bookmarks-draft-title";
-      title.textContent = "Сохранённое";
-
-      const closeHeadBtn = document.createElement("button");
-      closeHeadBtn.type = "button";
-      closeHeadBtn.className = "asc-bookmarks-draft-close";
-      closeHeadBtn.title = "Закрыть";
-      closeHeadBtn.setAttribute("aria-label", "Закрыть");
-      closeHeadBtn.innerHTML = SVG_CLOSE;
-
-      head.append(title, closeHeadBtn);
+      dialog.setAttribute("aria-labelledby", `asc-bookmarks-draft-tab-${activeTab}`);
 
       const tabsBar = document.createElement("div");
       tabsBar.className = "asc-bookmarks-draft-tabs";
@@ -410,6 +393,18 @@
         tabsBar.append(tabBtn);
         tabButtons.set(tab.id, tabBtn);
       }
+
+      const head = document.createElement("div");
+      head.className = "asc-bookmarks-draft-head";
+
+      const closeHeadBtn = document.createElement("button");
+      closeHeadBtn.type = "button";
+      closeHeadBtn.className = "asc-bookmarks-draft-close";
+      closeHeadBtn.title = "Закрыть";
+      closeHeadBtn.setAttribute("aria-label", "Закрыть");
+      closeHeadBtn.innerHTML = SVG_CLOSE;
+
+      head.append(tabsBar, closeHeadBtn);
 
       const tools = document.createElement("div");
       tools.className = "asc-bookmarks-draft-tools";
@@ -521,6 +516,7 @@
           panel.classList.toggle("is-active", on);
         }
         tools.classList.toggle("asc-bookmarks-draft-tools--hidden", activeTab !== "bookmarks");
+        dialog.setAttribute("aria-labelledby", `asc-bookmarks-draft-tab-${activeTab}`);
       }
 
       const pagePanel =
@@ -545,7 +541,7 @@
 
       foot.append(cancelBtn, storageBtn);
 
-      dialog.append(head, tabsBar, tools, tabPanels, ...(pagePanel ? [pagePanel.el] : []), foot);
+      dialog.append(head, tools, tabPanels, ...(pagePanel ? [pagePanel.el] : []), foot);
       root.append(backdrop, dialog);
       bookmarksOverlayMount().appendChild(root);
       document.documentElement.classList.add(HTML_CLASS);

@@ -3,6 +3,62 @@
   if (window !== window.top) return;
   global.__companionPageContextStripInit = true;
 
+  let pointerClientX = 0;
+  let pointerClientY = 0;
+  let hasPointer = false;
+  let liveRaf = 0;
+  const liveRefreshers = new Set();
+
+  function samplePointer(clientX, clientY) {
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+    pointerClientX = Math.round(clientX);
+    pointerClientY = Math.round(clientY);
+    hasPointer = true;
+  }
+
+  function cursorFields() {
+    if (!hasPointer) {
+      return { client: "—", page: "—" };
+    }
+    const sx = window.scrollX || document.documentElement?.scrollLeft || 0;
+    const sy = window.scrollY || document.documentElement?.scrollTop || 0;
+    return {
+      client: `${pointerClientX}, ${pointerClientY}`,
+      page: `${Math.round(pointerClientX + sx)}, ${Math.round(pointerClientY + sy)}`
+    };
+  }
+
+  function scheduleLiveRefresh() {
+    if (liveRaf) return;
+    liveRaf = requestAnimationFrame(() => {
+      liveRaf = 0;
+      for (const fn of liveRefreshers) fn();
+    });
+  }
+
+  function trackLiveRefresh(fn) {
+    liveRefreshers.add(fn);
+    return () => liveRefreshers.delete(fn);
+  }
+
+  document.addEventListener(
+    "pointermove",
+    (event) => {
+      samplePointer(event.clientX, event.clientY);
+      scheduleLiveRefresh();
+    },
+    { passive: true, capture: true }
+  );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!hasPointer) return;
+      scheduleLiveRefresh();
+    },
+    { passive: true }
+  );
+
   function snapshot() {
     const docEl = document.documentElement;
     const body = document.body;
@@ -45,6 +101,7 @@
       images = 0;
     }
     const dark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+    const cursor = cursorFields();
 
     return {
       host,
@@ -62,7 +119,9 @@
       theme: dark ? "тёмная" : "светлая",
       links,
       images,
-      secure: location.protocol === "https:"
+      secure: location.protocol === "https:",
+      cursorClient: cursor.client,
+      cursorPage: cursor.page
     };
   }
 
@@ -70,6 +129,8 @@
     return [
       { label: "Заголовок", value: s.titleShort, wide: true },
       { label: "Адрес", value: `${s.host}${s.pathShort}`, wide: true },
+      { label: "Курсор (окно)", value: s.cursorClient },
+      { label: "Курсор (стр.)", value: s.cursorPage },
       { label: "Окно", value: `${s.vpW} × ${s.vpH} px` },
       { label: "Документ", value: `${s.pageW} × ${s.pageH} px` },
       { label: "DPR", value: String(s.dpr) },
@@ -125,6 +186,7 @@
     const refresh = () => renderBookmarksPagePanel(panel);
     const onResize = () => refresh();
     const onScroll = () => refresh();
+    const untrackLive = trackLiveRefresh(refresh);
     window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -132,6 +194,7 @@
       el: panel,
       refresh,
       unbind() {
+        untrackLive();
         window.removeEventListener("resize", onResize);
         window.removeEventListener("scroll", onScroll);
       }
@@ -156,6 +219,8 @@
       chips.replaceChildren();
 
       const items = [
+        { label: "Курсор", value: s.cursorClient, accent: true },
+        { label: "На стр.", value: s.cursorPage, accent: true },
         { label: "Окно", value: `${s.vpW}×${s.vpH}` },
         { label: "Страница", value: `${s.pageW}×${s.pageH}` },
         { label: "Прокрутка", value: `${s.scrollY}px · ${s.scrollPct}%` },
@@ -168,6 +233,7 @@
       for (const item of items) {
         const chip = document.createElement("span");
         chip.className = "asc-page-context-chip";
+        if (item.accent) chip.classList.add("asc-page-context-chip--cursor");
         chip.title = `${item.label}: ${item.value}`;
 
         const label = document.createElement("span");
@@ -188,6 +254,7 @@
 
     const onResize = () => render();
     const onScroll = () => render();
+    const untrackLive = trackLiveRefresh(render);
     window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -197,6 +264,7 @@
       wrap,
       refresh: render,
       destroy() {
+        untrackLive();
         window.removeEventListener("resize", onResize);
         window.removeEventListener("scroll", onScroll);
         wrap.remove();
