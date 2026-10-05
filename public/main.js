@@ -70139,16 +70139,20 @@ function openNodeNavigationCounterSlot(slot) {
 
 function renderNodeNavigationWorkspaceCounterStrip(
   slots = [],
-  { layout = "grid", entryOverview = false, activeSlotKey = null, topicPath = null } = {}
+  {
+    layout = "grid",
+    entryOverview = false,
+    activeSlotKey = null,
+    topicPath = null,
+    includeTopicIndexFooter = true
+  } = {}
 ) {
   if (!slots.length) return null;
 
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
 
   const wrap = document.createElement("div");
-  wrap.className = entryOverview
-    ? "node-navigation-workspace-counters node-entry-overview-slot-counters"
-    : "node-navigation-workspace-counters";
+  wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
   if (layout === "area-single") {
     wrap.classList.add("node-navigation-workspace-counters--area-single");
   }
@@ -70158,7 +70162,9 @@ function renderNodeNavigationWorkspaceCounterStrip(
     wrap.dataset.topicNodePath = resolvedTopicPath;
   }
 
-  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
+  if (includeTopicIndexFooter) {
+    appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
+  }
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
@@ -70169,24 +70175,28 @@ function renderNodeNavigationWorkspaceCounterStrip(
   const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
   const fullWidthSlots = slots.filter((slot) => isStorageSlotCounterFullWidth(slot));
 
+  const resolvedActiveSlotKey =
+    activeSlotKey === null ? getDataStorageSlotKeyForEntryView() : activeSlotKey;
+
   for (const slot of gridSlots) {
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
-    item.appendChild(
-      createWorkspaceCounterCard(slot, {
-        isActive: entryOverview && activeSlotKey === slot.id,
-        topicPath: resolvedTopicPath,
-        onClick: () => openNodeNavigationCounterSlot(slot)
-      })
-    );
+    const card = createWorkspaceCounterCard(slot, {
+      isActive: Boolean(resolvedActiveSlotKey && resolvedActiveSlotKey === slot.id),
+      topicPath: resolvedTopicPath,
+      onClick: () => openNodeNavigationCounterSlot(slot)
+    });
+    card.dataset.entryOverviewSlotKey = slot.id;
+    item.appendChild(card);
     list.appendChild(item);
   }
 
   wrap.appendChild(list);
   for (const slot of fullWidthSlots) {
     appendWorkspaceFullWidthCounterRow(wrap, slot, {
-      isActive: entryOverview && activeSlotKey === slot.id,
+      isActive: Boolean(resolvedActiveSlotKey && resolvedActiveSlotKey === slot.id),
       topicPath: resolvedTopicPath,
+      entryOverviewSlotKey: slot.id,
       onClick: () => openNodeNavigationCounterSlot(slot)
     });
   }
@@ -70209,13 +70219,14 @@ async function appendTopicSlotCounterStrip(
     })),
     {
       entryOverview,
-      activeSlotKey: entryOverview ? getDataStorageSlotKeyForEntryView() : null,
+      activeSlotKey: getDataStorageSlotKeyForEntryView(),
       topicPath
     }
   );
   if (strip) {
     if (prepend) container.prepend(strip);
     else container.appendChild(strip);
+    syncAllWorkspaceCounterStripActiveStates();
   }
   return strip;
 }
@@ -76896,9 +76907,13 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
   panel.className = "node-entry-overview-browse-panel";
   if (slotFolderMissing) panel.classList.add("is-slot-folder-missing");
 
+  let deferredToolbar = null;
   if (showSearch || showActions) {
     const toolbar = createEntryOverviewBrowseToolbar(context, { slotFolderMissing });
-    if (toolbar) panel.appendChild(toolbar);
+    if (toolbar) {
+      if (slotFolderMissing) deferredToolbar = toolbar;
+      else panel.appendChild(toolbar);
+    }
   }
 
   if (showActions && !slotFolderMissing && supportsEntryOverviewBrowseUpload(context)) {
@@ -76910,6 +76925,10 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
     panel.appendChild(listBlock);
     panel.dataset.railMemoryKind = context?.memoryKind || "";
     mountNavigationHubRailSlotTreeDragDrop(panel);
+  }
+
+  if (deferredToolbar) {
+    panel.appendChild(deferredToolbar);
   }
 
   return panel.childElementCount ? panel : null;
@@ -76959,8 +76978,15 @@ function appendEntryOverviewBrowsePanel(
   });
   if (!panel) return null;
   const mounted = mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot });
-  if (mounted && browseNavOptions) {
-    prependEntryOverviewBrowseHeroNav(mounted, browseNavOptions);
+  if (mounted) {
+    if (browseNavOptions) {
+      prependEntryOverviewBrowseHeroNav(mounted, browseNavOptions);
+    }
+    void mountEntryOverviewBrowseSlotCounterStrip(
+      mounted,
+      context,
+      getResolvedNodePath(activePath)
+    );
   }
   if (mounted && slotFolderMissing == null) {
     void syncEntryOverviewBrowseSlotFolderAction(
@@ -77479,6 +77505,12 @@ function getEntryOverviewDataSlotBarManifestPath(topicPath) {
   return resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
 }
 
+function syncAllWorkspaceCounterStripActiveStates(context = activeEntryOverviewContext) {
+  nodeOverviewContentNode
+    ?.querySelectorAll(".node-navigation-workspace-counters")
+    .forEach((wrap) => syncEntryOverviewDataSlotBarActiveState(wrap, context));
+}
+
 function syncEntryOverviewDataSlotBarActiveState(wrap, context) {
   if (!wrap) return;
   wrap.querySelector(".node-entry-overview-memory-mode-counters")?.remove();
@@ -77631,11 +77663,12 @@ async function populateEntryOverviewDataSlotBar(wrap, context, topicPath, manife
   entryOverviewSlotCountersCache.set(manifestPath, slots);
   if (wrap.querySelector(".node-navigation-workspace-counter-list")) {
     updateEntryOverviewDataSlotBarCounts(wrap, slots);
-    syncEntryOverviewDataSlotBarActiveState(wrap, context);
+    syncAllWorkspaceCounterStripActiveStates(context);
     delete wrap.dataset.loading;
     return;
   }
   renderEntryOverviewDataSlotBarContent(wrap, context, slots, topicPath);
+  syncAllWorkspaceCounterStripActiveStates(context);
 }
 
 async function refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath) {
@@ -78616,6 +78649,64 @@ function buildEntryOverviewSlotTocNavOptions(context, topicPath = activePath) {
   };
 }
 
+function getEntryOverviewBrowsePanelChromeInsertBefore(panel) {
+  if (!panel) return null;
+  return (
+    panel.querySelector(":scope > .node-entry-overview-browse-toolbar") ||
+    panel.querySelector(
+      ":scope > .node-entry-overview-memory-toc, :scope > .node-entry-overview-section-list"
+    )
+  );
+}
+
+async function mountEntryOverviewBrowseSlotCounterStrip(panel, context, topicPath) {
+  if (!panel || !context) return null;
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+  if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
+    return null;
+  }
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  if (!resolvedTopicPath) return null;
+
+  panel.querySelector(".node-entry-overview-browse-slot-counters")?.remove();
+
+  let slots = [];
+  try {
+    slots = await buildEntryOverviewDataSlotCounters(resolvedTopicPath);
+  } catch {
+    return null;
+  }
+  if (!panel.isConnected || !slots.length) return null;
+
+  const strip = renderNodeNavigationWorkspaceCounterStrip(
+    slots.map((slot) => ({
+      ...slot,
+      modeId: slot.spec?.defaultMode || slot.id
+    })),
+    {
+      entryOverview: true,
+      activeSlotKey: getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE),
+      topicPath: resolvedTopicPath,
+      includeTopicIndexFooter: false
+    }
+  );
+  if (!strip) return null;
+
+  strip.classList.add(
+    "node-entry-overview-slot-counters",
+    "node-entry-overview-browse-slot-counters"
+  );
+  strip.setAttribute("aria-label", "Слоты данных");
+
+  const insertBefore = getEntryOverviewBrowsePanelChromeInsertBefore(panel);
+  if (insertBefore) panel.insertBefore(strip, insertBefore);
+  else panel.prepend(strip);
+
+  syncAllWorkspaceCounterStripActiveStates(context);
+  return strip;
+}
+
 function prependEntryOverviewBrowseHeroNav(panel, navOptions) {
   if (!panel || !navOptions) return null;
   const nav = createEntryOverviewSiblingNav({
@@ -78625,8 +78716,8 @@ function prependEntryOverviewBrowseHeroNav(panel, navOptions) {
   });
   if (!nav) return null;
   nav.classList.add("node-entry-overview-browse-hero-nav");
-  const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
-  if (toolbar) panel.insertBefore(nav, toolbar);
+  const insertBefore = getEntryOverviewBrowsePanelChromeInsertBefore(panel);
+  if (insertBefore) panel.insertBefore(nav, insertBefore);
   else panel.prepend(nav);
   return nav;
 }
@@ -80095,6 +80186,7 @@ async function renderEntryOverview() {
     updateBreadcrumbsForActiveMode();
     scheduleWorkspaceScrollChromeSync();
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
+    syncAllWorkspaceCounterStripActiveStates(context);
     return;
   }
 
@@ -80287,6 +80379,7 @@ async function renderEntryOverview() {
 
   scheduleWorkspaceScrollChromeSync();
   syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
+  syncAllWorkspaceCounterStripActiveStates(context);
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "", kind = "" } = {}) {
