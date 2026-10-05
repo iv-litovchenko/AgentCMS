@@ -56,11 +56,15 @@
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
-## Установка — первый запуск
-
-*Только macOS.*
+## Установка — первый запуск (только macOS)
 
 ![Agent CMS Control — сервер и desktop-приложения](docs/images/4.png)
+
+
+```bash
+git clone https://github.com/iv-litovchenko/AgentCMS.git
+cd AgentCMS
+```
 
 1. Склонируйте репозиторий на Рабочий стол или в любую папку: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
 2. Откройте скопированную папку в Finder.
