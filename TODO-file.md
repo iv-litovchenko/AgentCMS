@@ -1,6 +1,6 @@
 # Функция работы с файлами
 
-**Глобальные документы:** [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) · [GLOBAL-DOC-RESPONSE-STYLE.md](GLOBAL-DOC-RESPONSE-STYLE.md) · [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
+**Глобальные документы:** [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) · [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) · [GLOBAL-RULES.md](GLOBAL-RULES.md) · [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
 
 
 1.1 Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 

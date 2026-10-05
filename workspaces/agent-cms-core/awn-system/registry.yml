@@ -51,7 +51,8 @@ settings:
 
 docs:
   map: GLOBAL-DOC-MCP.md
-  response-style: GLOBAL-DOC-RESPONSE-STYLE.md
+  response-style: GLOBAL-RESPONSE-STYLE.md
+  rules: GLOBAL-RULES.md
   markdown-showcase: GLOBAL-DOC-MARKDOWN.md
   agents: AGENTS.md
 

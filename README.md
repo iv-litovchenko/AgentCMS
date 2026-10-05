@@ -104,7 +104,8 @@ Copyright © 2026 Agent CMS
 Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
 
 - [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — карта MCP, workspace, правила работы с хранилищем
-- [GLOBAL-DOC-RESPONSE-STYLE.md](GLOBAL-DOC-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
+- [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
+- [GLOBAL-RULES.md](GLOBAL-RULES.md) — глобальные правила для всех хранилищ
 - [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — поддерживаемая разметка в preview редактора
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)

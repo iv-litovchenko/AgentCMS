@@ -654,7 +654,8 @@ const {
 } = agentRegistry;
 
 const GLOBAL_DOC_MCP_FILE = "GLOBAL-DOC-MCP.md";
-const GLOBAL_DOC_RESPONSE_STYLE_FILE = "GLOBAL-DOC-RESPONSE-STYLE.md";
+const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-RESPONSE-STYLE.md";
+const GLOBAL_RULES_FILE = "GLOBAL-RULES.md";
 const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
@@ -673,9 +674,15 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
     root: "project"
   },
   {
-    file: GLOBAL_DOC_RESPONSE_STYLE_FILE,
+    file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
     description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
+    root: "project"
+  },
+  {
+    file: GLOBAL_RULES_FILE,
+    settingKey: "always-context-global-rules",
+    description: "Глобальные правила для всех хранилищ (корень репозитория)",
     root: "project"
   },
   {
@@ -29331,7 +29338,8 @@ async function handleApiForAgent(req, res, url) {
 
 const PLATFORM_GLOBAL_DOC_FILES = new Set([
   GLOBAL_DOC_MCP_FILE,
-  GLOBAL_DOC_RESPONSE_STYLE_FILE,
+  GLOBAL_RESPONSE_STYLE_FILE,
+  GLOBAL_RULES_FILE,
   GLOBAL_DOC_MARKDOWN_FILE
 ]);
 
