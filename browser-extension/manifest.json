@@ -59,6 +59,7 @@
         "companion-pomodoro-toolbar.js",
         "companion-crosshair.js",
         "companion-screenshot-annotate.js",
+        "companion-vault-switcher.js",
         "web-search-catalog-global.js",
         "toolbar-css.js",
         "content-script.js",

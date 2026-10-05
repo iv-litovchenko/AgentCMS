@@ -1291,9 +1291,19 @@
   toolbarPanel.className = "asc-toolbar-panel";
   toolbarPanel.append(actions);
 
+  const companionVaultDock =
+    typeof globalThis.createCompanionVaultDock === "function"
+      ? globalThis.createCompanionVaultDock()
+      : null;
+
+  const toolbarStack = document.createElement("div");
+  toolbarStack.className = "asc-toolbar-stack";
+  toolbarStack.append(toolbarPanel);
+  if (companionVaultDock) toolbarStack.append(companionVaultDock.wrap);
+
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brandDock, toolbarPanel, status);
+  shell.append(brandDock, toolbarStack, status);
 
   panelIdeasTodo = createPanelIdeasTodoModal(shell);
   right.append(panelIdeasTodo.wrap);
