@@ -56,15 +56,73 @@
     return "🟢";
   }
 
-  function sortAgentsForList(agents) {
-    return [...agents].sort((a, b) => {
-      const aOff = !isAgentRegistryActive(a) || a?.folderExists === false;
-      const bOff = !isAgentRegistryActive(b) || b?.folderExists === false;
-      if (aOff !== bOff) return aOff ? 1 : -1;
-      const an = String(a.name || a.id || "").toLowerCase();
-      const bn = String(b.name || b.id || "").toLowerCase();
-      return an.localeCompare(bn, "ru");
-    });
+  function splitLandingOrchestratorAgent(agents) {
+    const list = Array.isArray(agents) ? agents : [];
+    const orchestrator = list.find(isOrchestratorAgent) || null;
+    const rest = orchestrator ? list.filter((agent) => !isOrchestratorAgent(agent)) : list;
+    return { orchestrator, rest };
+  }
+
+  function getAssignedLandingAgentGroupMap(groups) {
+    const assigned = new Map();
+    for (const group of Array.isArray(groups) ? groups : []) {
+      for (const agentId of group.agentIds || []) {
+        assigned.set(agentId, group.id);
+      }
+    }
+    return assigned;
+  }
+
+  function buildLandingGroupsLayout(agents, groups) {
+    const layoutAgents = (Array.isArray(agents) ? agents : []).filter(
+      (agent) => !isOrchestratorAgent(agent)
+    );
+    const agentById = new Map(layoutAgents.map((agent) => [agent.id, agent]));
+    const assigned = getAssignedLandingAgentGroupMap(groups);
+    const grouped = (Array.isArray(groups) ? groups : []).map((group) => ({
+      ...group,
+      agents: (group.agentIds || [])
+        .map((agentId) => agentById.get(agentId))
+        .filter((agent) => agent && !isOrchestratorAgent(agent))
+    }));
+    const ungrouped = layoutAgents.filter((agent) => !assigned.has(agent.id));
+    return { grouped, ungrouped };
+  }
+
+  /** Тот же порядок, что в populateAgentSelect (Voice / CMS). */
+  function buildVaultListEntries(agents, groups) {
+    const registry = getRegistryAgentsForUi(agents);
+    const entries = [];
+    if (!Array.isArray(groups) || groups.length === 0) {
+      for (const agent of registry) entries.push({ agent, groupTitle: "" });
+      return entries;
+    }
+
+    const workspaceAgents = registry.filter((agent) => !isPlatformAgent(agent));
+    const { orchestrator } = splitLandingOrchestratorAgent(workspaceAgents);
+    const { grouped, ungrouped } = buildLandingGroupsLayout(workspaceAgents, groups);
+
+    if (orchestrator) entries.push({ agent: orchestrator, groupTitle: "" });
+
+    for (const group of grouped) {
+      const groupTitle = String(group.title || group.id || "").trim();
+      for (const agent of group.agents || []) {
+        entries.push({ agent, groupTitle });
+      }
+    }
+
+    for (const agent of ungrouped) {
+      entries.push({ agent, groupTitle: "" });
+    }
+
+    return entries;
+  }
+
+  function formatVaultListLabel(agent, groupTitle, { forList = false } = {}) {
+    const prefix = String(groupTitle || "").trim();
+    let label = agentDisplayName(agent, { forList });
+    if (prefix) label = `${prefix} · ${label}`;
+    return `${resolveAgentStatusEmoji(agent)} ${label}`;
   }
 
   function agentDisplayName(agent, { forList = false } = {}) {
@@ -153,7 +211,8 @@
 
     const popHead = document.createElement("p");
     popHead.className = "asc-vault-pop-head";
-    popHead.textContent = "Хранилища";
+    popHead.textContent =
+      "Хранилища (переключатель области: работа, личное...)";
 
     const list = document.createElement("div");
     list.className = "asc-vault-list";
@@ -163,6 +222,7 @@
 
     let open = false;
     let agents = [];
+    let groups = [];
     let cmsBaseUrl = "";
     let selectedId = "";
 
@@ -210,8 +270,8 @@
 
     function renderList() {
       list.innerHTML = "";
-      const registry = sortAgentsForList(getRegistryAgentsForUi(agents));
-      if (!registry.length) {
+      const entries = buildVaultListEntries(agents, groups);
+      if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "asc-vault-empty";
         empty.textContent = cmsBaseUrl
@@ -220,7 +280,17 @@
         list.append(empty);
         return;
       }
-      for (const agent of registry) {
+      let prevGroupKey = null;
+      for (const { agent, groupTitle } of entries) {
+        const groupKey = String(groupTitle || "").trim();
+        if (groupKey && groupKey !== prevGroupKey) {
+          const groupHead = document.createElement("div");
+          groupHead.className = "asc-vault-group-head";
+          groupHead.textContent = groupKey;
+          list.append(groupHead);
+        }
+        prevGroupKey = groupKey;
+
         const inactive = !isAgentRegistryActive(agent) || agent.folderExists === false;
         const btn = document.createElement("button");
         btn.type = "button";
@@ -247,7 +317,7 @@
         optMeta.className = "asc-vault-option-meta";
         const optName = document.createElement("span");
         optName.className = "asc-vault-option-name";
-        optName.textContent = `${resolveAgentStatusEmoji(agent)} ${agentDisplayName(agent, { forList: true })}`;
+        optName.textContent = formatVaultListLabel(agent, groupTitle, { forList: true });
         const optId = document.createElement("span");
         optId.className = "asc-vault-option-id";
         optId.textContent = inactive
@@ -281,6 +351,7 @@
 
       const data = await sendRuntime({ type: "COMPANION_LIST_AGENTS" });
       agents = data?.ok && Array.isArray(data.agents) ? data.agents : [];
+      groups = data?.ok && Array.isArray(data.groups) ? data.groups : [];
 
       renderSelected();
       renderList();
@@ -320,7 +391,11 @@
 
     void refresh();
 
-    return { wrap, refresh };
+    return {
+      wrap,
+      refresh,
+      close: () => setOpen(false)
+    };
   }
 
   global.createCompanionVaultDock = createCompanionVaultDock;
