@@ -1064,7 +1064,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const groupsRes = await fetch(`${base}/api/agents/groups`);
             if (groupsRes.ok) {
               const groupsData = await groupsRes.json();
-              groups = Array.isArray(groupsData.groups) ? groupsData.groups : [];
+              groups = Array.isArray(groupsData?.groups)
+                ? groupsData.groups
+                : Array.isArray(groupsData)
+                  ? groupsData
+                  : [];
             }
           } catch {
             // ignore groups

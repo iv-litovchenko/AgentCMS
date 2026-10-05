@@ -63,11 +63,54 @@
     return { orchestrator, rest };
   }
 
-  function getAssignedLandingAgentGroupMap(groups) {
+  const VAULT_SECTION_ORCHESTRATOR = "orchestrator";
+  const VAULT_SECTION_UNGROUPED = "ungrouped";
+  const VAULT_SECTION_FLAT = "flat";
+
+  function buildAgentByIdMap(agents) {
+    const agentById = new Map();
+    for (const agent of Array.isArray(agents) ? agents : []) {
+      const id = String(agent?.id || "").trim();
+      if (id) agentById.set(id, agent);
+    }
+    return agentById;
+  }
+
+  function resolveAgentInMap(agentById, agentId) {
+    const key = String(agentId || "").trim();
+    if (!key) return null;
+    if (agentById.has(key)) return agentById.get(key);
+    const lower = key.toLowerCase();
+    for (const [id, agent] of agentById) {
+      if (String(id).trim().toLowerCase() === lower) return agent;
+    }
+    return null;
+  }
+
+  function normalizeGroupAgentIds(group) {
+    const raw = group?.agentIds ?? group?.agents ?? [];
+    if (!Array.isArray(raw)) return [];
+    const ids = [];
+    for (const item of raw) {
+      if (typeof item === "string" || typeof item === "number") {
+        const id = String(item).trim();
+        if (id) ids.push(id);
+        continue;
+      }
+      const id = String(item?.id || item?.agentId || "").trim();
+      if (id) ids.push(id);
+    }
+    return [...new Set(ids)];
+  }
+
+  function getAssignedLandingAgentGroupMap(groups, agentById) {
     const assigned = new Map();
     for (const group of Array.isArray(groups) ? groups : []) {
-      for (const agentId of group.agentIds || []) {
-        assigned.set(agentId, group.id);
+      const groupId = String(group?.id || "").trim();
+      if (!groupId) continue;
+      for (const agentId of normalizeGroupAgentIds(group)) {
+        const agent = resolveAgentInMap(agentById, agentId);
+        if (agent) assigned.set(agent.id, groupId);
       }
     }
     return assigned;
@@ -77,42 +120,79 @@
     const layoutAgents = (Array.isArray(agents) ? agents : []).filter(
       (agent) => !isOrchestratorAgent(agent)
     );
-    const agentById = new Map(layoutAgents.map((agent) => [agent.id, agent]));
-    const assigned = getAssignedLandingAgentGroupMap(groups);
+    const agentById = buildAgentByIdMap(layoutAgents);
+    const assigned = getAssignedLandingAgentGroupMap(groups, agentById);
     const grouped = (Array.isArray(groups) ? groups : []).map((group) => ({
       ...group,
-      agents: (group.agentIds || [])
-        .map((agentId) => agentById.get(agentId))
+      agents: normalizeGroupAgentIds(group)
+        .map((agentId) => resolveAgentInMap(agentById, agentId))
         .filter((agent) => agent && !isOrchestratorAgent(agent))
     }));
     const ungrouped = layoutAgents.filter((agent) => !assigned.has(agent.id));
     return { grouped, ungrouped };
   }
 
+  function vaultSectionHeader(sectionKey, sectionLabel) {
+    if (!sectionKey || sectionKey === VAULT_SECTION_ORCHESTRATOR || sectionKey === VAULT_SECTION_FLAT) {
+      return "";
+    }
+    if (sectionKey === VAULT_SECTION_UNGROUPED) return "Без группы";
+    if (String(sectionKey).startsWith("group:")) {
+      return String(sectionLabel || "").trim();
+    }
+    return "";
+  }
+
   /** Тот же порядок, что в populateAgentSelect (Voice / CMS). */
   function buildVaultListEntries(agents, groups) {
     const registry = getRegistryAgentsForUi(agents);
     const entries = [];
-    if (!Array.isArray(groups) || groups.length === 0) {
-      for (const agent of registry) entries.push({ agent, groupTitle: "" });
+    const workspaceAgents = registry.filter((agent) => !isPlatformAgent(agent));
+    const { orchestrator } = splitLandingOrchestratorAgent(workspaceAgents);
+    const hasGroups = Array.isArray(groups) && groups.length > 0;
+
+    if (!hasGroups) {
+      const rest = orchestrator
+        ? workspaceAgents.filter((agent) => !isOrchestratorAgent(agent))
+        : workspaceAgents;
+      if (orchestrator) {
+        entries.push({
+          agent: orchestrator,
+          sectionKey: VAULT_SECTION_ORCHESTRATOR,
+          sectionLabel: ""
+        });
+      }
+      for (const agent of rest) {
+        entries.push({ agent, sectionKey: VAULT_SECTION_FLAT, sectionLabel: "" });
+      }
       return entries;
     }
 
-    const workspaceAgents = registry.filter((agent) => !isPlatformAgent(agent));
-    const { orchestrator } = splitLandingOrchestratorAgent(workspaceAgents);
     const { grouped, ungrouped } = buildLandingGroupsLayout(workspaceAgents, groups);
 
-    if (orchestrator) entries.push({ agent: orchestrator, groupTitle: "" });
+    if (orchestrator) {
+      entries.push({
+        agent: orchestrator,
+        sectionKey: VAULT_SECTION_ORCHESTRATOR,
+        sectionLabel: ""
+      });
+    }
 
     for (const group of grouped) {
-      const groupTitle = String(group.title || group.id || "").trim();
+      const groupId = String(group.id || "").trim();
+      const sectionLabel = String(group.title || group.id || "").trim();
+      const sectionKey = groupId ? `group:${groupId}` : "";
       for (const agent of group.agents || []) {
-        entries.push({ agent, groupTitle });
+        entries.push({ agent, sectionKey, sectionLabel });
       }
     }
 
     for (const agent of ungrouped) {
-      entries.push({ agent, groupTitle: "" });
+      entries.push({
+        agent,
+        sectionKey: VAULT_SECTION_UNGROUPED,
+        sectionLabel: "Без группы"
+      });
     }
 
     return entries;
@@ -307,16 +387,19 @@
         list.append(empty);
         return;
       }
-      let prevGroupKey = null;
-      for (const { agent, groupTitle } of entries) {
-        const groupKey = String(groupTitle || "").trim();
-        if (groupKey && groupKey !== prevGroupKey) {
-          const groupHead = document.createElement("div");
-          groupHead.className = "asc-vault-group-head";
-          groupHead.textContent = groupKey;
-          list.append(groupHead);
+      let prevSectionKey = null;
+      for (const entry of entries) {
+        const { agent, sectionKey, sectionLabel } = entry;
+        if (sectionKey && sectionKey !== prevSectionKey) {
+          const headerText = vaultSectionHeader(sectionKey, sectionLabel);
+          if (headerText) {
+            const groupHead = document.createElement("div");
+            groupHead.className = "asc-vault-group-head";
+            groupHead.textContent = headerText;
+            list.append(groupHead);
+          }
         }
-        prevGroupKey = groupKey;
+        prevSectionKey = sectionKey;
 
         const inactive = !isAgentRegistryActive(agent) || agent.folderExists === false;
         const btn = document.createElement("button");
@@ -344,7 +427,7 @@
         optMeta.className = "asc-vault-option-meta";
         const optName = document.createElement("span");
         optName.className = "asc-vault-option-name";
-        optName.textContent = formatVaultListLabel(agent, groupTitle, { forList: true });
+        optName.textContent = formatVaultListLabel(agent, "", { forList: true });
         const optId = document.createElement("span");
         optId.className = "asc-vault-option-id";
         optId.textContent = inactive
