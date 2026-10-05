@@ -2339,6 +2339,7 @@
         document.removeEventListener("click", onClick, true);
         rootNode.remove();
         document.documentElement.classList.remove("asc-screenshot-element-active");
+        globalThis.syncCompanionCrosshair?.();
         resolve(result);
       }
 
@@ -2387,7 +2388,11 @@
       const box = document.createElement("div");
       box.className = "asc-screenshot-region-box";
 
-      rootNode.append(hint, box);
+      const sizeLabel = document.createElement("div");
+      sizeLabel.className = "asc-screenshot-region-size";
+      sizeLabel.hidden = true;
+
+      rootNode.append(hint, box, sizeLabel);
       document.documentElement.classList.add("asc-screenshot-region-active");
       document.body.appendChild(rootNode);
 
@@ -2402,15 +2407,43 @@
         rootNode.removeEventListener("pointerup", onPointerUp, true);
         rootNode.remove();
         document.documentElement.classList.remove("asc-screenshot-region-active");
+        globalThis.syncCompanionCrosshair?.();
         resolve(result);
       }
 
       function setBox(left, top, width, height) {
-        box.style.display = width > 0 && height > 0 ? "block" : "none";
+        const visible = width > 0 && height > 0;
+        box.style.display = visible ? "block" : "none";
         box.style.left = `${left}px`;
         box.style.top = `${top}px`;
         box.style.width = `${width}px`;
         box.style.height = `${height}px`;
+        if (!visible) {
+          sizeLabel.hidden = true;
+          return;
+        }
+        const w = Math.round(width);
+        const h = Math.round(height);
+        sizeLabel.textContent = `${w} × ${h}`;
+        sizeLabel.hidden = false;
+        const gap = 6;
+        const margin = 8;
+        const labelW = sizeLabel.offsetWidth || 72;
+        const labelH = sizeLabel.offsetHeight || 22;
+        let lx = left + width - labelW;
+        let ly = top + height + gap;
+        if (ly + labelH > window.innerHeight - margin) {
+          ly = top - labelH - gap;
+        }
+        if (ly < margin) {
+          ly = top + Math.max(gap, height - labelH - gap);
+        }
+        if (lx + labelW > window.innerWidth - margin) {
+          lx = window.innerWidth - labelW - margin;
+        }
+        if (lx < margin) lx = margin;
+        sizeLabel.style.left = `${lx}px`;
+        sizeLabel.style.top = `${ly}px`;
       }
 
       function onKeyDown(event) {
@@ -2855,6 +2888,7 @@
       setStatus("Скриншот готов", "ok");
     } finally {
       document.documentElement.classList.remove("asc-capturing-viewport");
+      globalThis.syncCompanionCrosshair?.();
     }
   }
 

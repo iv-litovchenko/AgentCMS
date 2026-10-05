@@ -1,4 +1,8 @@
 (function initCompanionCrosshair(global) {
+  if (global.__companionCrosshairInit) return;
+  if (window !== window.top) return;
+  global.__companionCrosshairInit = true;
+
   const STORAGE_KEY = "crosshairRulerEnabled";
   const ROOT_ID = "agent-companion-crosshair";
 
@@ -10,6 +14,7 @@
   let rafId = 0;
   let pendingX = 0;
   let pendingY = 0;
+  let hasPointerSample = false;
 
   function isBlocked() {
     const html = document.documentElement;
@@ -41,8 +46,37 @@
     }
   }
 
+  function mountHost() {
+    return document.body || document.documentElement;
+  }
+
+  function removeExtraCrosshairRoots(keep) {
+    for (const node of document.querySelectorAll(`#${ROOT_ID}`)) {
+      if (keep && node === keep) continue;
+      node.remove();
+    }
+  }
+
+  function dropRoot() {
+    if (root?.isConnected) root.remove();
+    else removeExtraCrosshairRoots(null);
+    root = null;
+    lineV = null;
+    lineH = null;
+    label = null;
+  }
+
   function ensureRoot() {
-    if (root) return root;
+    if (root && !root.isConnected) {
+      dropRoot();
+    }
+    if (root) {
+      removeExtraCrosshairRoots(root);
+      return root;
+    }
+
+    removeExtraCrosshairRoots(null);
+
     root = document.createElement("div");
     root.id = ROOT_ID;
     root.hidden = true;
@@ -58,8 +92,15 @@
     label.className = "asc-crosshair-label";
 
     root.append(lineV, lineH, label);
-    document.documentElement.appendChild(root);
+    mountHost().appendChild(root);
     return root;
+  }
+
+  function samplePointer(clientX, clientY) {
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+    pendingX = clientX;
+    pendingY = clientY;
+    hasPointerSample = true;
   }
 
   function placeLabel(clientX, clientY, pageX, pageY) {
@@ -91,26 +132,30 @@
     rafId = 0;
     if (!enabled || isBlocked()) return;
     ensureRoot();
+    if (!hasPointerSample) {
+      samplePointer(window.innerWidth / 2, window.innerHeight / 2);
+    }
     root.hidden = false;
     applyPointer(pendingX, pendingY);
   }
 
   function onPointerMove(event) {
+    samplePointer(event.clientX, event.clientY);
     if (!enabled) return;
-    pendingX = event.clientX;
-    pendingY = event.clientY;
     if (!rafId) rafId = requestAnimationFrame(flushPointer);
   }
 
   function syncDom() {
     const on = enabled && !isBlocked();
-    document.documentElement.classList.toggle("asc-crosshair-active", on);
     if (!on) {
-      if (root) root.hidden = true;
+      if (root?.isConnected) root.hidden = true;
       return;
     }
     ensureRoot();
     root.hidden = false;
+    if (!hasPointerSample) {
+      samplePointer(window.innerWidth / 2, window.innerHeight / 2);
+    }
     applyPointer(pendingX, pendingY);
   }
 
@@ -118,38 +163,68 @@
     enabled = Boolean(next);
     writeEnabledSetting(enabled);
     syncDom();
+    if (enabled) flushPointer();
   }
 
-  document.addEventListener("pointermove", onPointerMove, { passive: true });
-  window.addEventListener("scroll", () => {
-    if (!enabled || isBlocked()) return;
-    if (!rafId) rafId = requestAnimationFrame(flushPointer);
-  }, { passive: true });
-  window.addEventListener("resize", () => {
-    if (!enabled || isBlocked()) return;
+  document.addEventListener("pointermove", onPointerMove, { passive: true, capture: true });
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!enabled || isBlocked()) return;
+      if (!rafId) rafId = requestAnimationFrame(flushPointer);
+    },
+    { passive: true }
+  );
+  window.addEventListener(
+    "resize",
+    () => {
+      if (!enabled || isBlocked()) return;
+      flushPointer();
+    },
+    { passive: true }
+  );
+  window.addEventListener("pageshow", () => {
+    if (!enabled) return;
+    dropRoot();
+    syncDom();
     flushPointer();
-  }, { passive: true });
+  });
 
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !changes[STORAGE_KEY]) return;
       enabled = changes[STORAGE_KEY].newValue === true;
       syncDom();
+      if (enabled) flushPointer();
     });
   } catch {
     // ignore
   }
 
-  const blockObserver = new MutationObserver(() => syncDom());
+  const blockObserver = new MutationObserver(() => {
+    if (!enabled) return;
+    syncDom();
+  });
   blockObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["class"]
   });
 
+  const bodyObserver = new MutationObserver(() => {
+    if (!enabled || !root || root.isConnected) return;
+    syncDom();
+    flushPointer();
+  });
+  if (document.documentElement) {
+    bodyObserver.observe(document.documentElement, { childList: true, subtree: false });
+  }
+
   void readEnabledSetting().then((on) => {
     enabled = on;
     syncDom();
   });
+
+  global.syncCompanionCrosshair = syncDom;
 
   function createCompanionCrosshairDock() {
     const wrap = document.createElement("div");

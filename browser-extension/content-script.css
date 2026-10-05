@@ -123,6 +123,29 @@ html.asc-screenshot-element-active #agent-companion-media-save {
   pointer-events: none;
 }
 
+.asc-screenshot-region-size {
+  position: fixed;
+  z-index: 3;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(167, 139, 250, 0.55);
+  background: rgba(15, 23, 42, 0.92);
+  color: #ede9fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.asc-screenshot-region-size[hidden] {
+  display: none !important;
+}
+
 html.is-cms-page-picker-active,
 body.is-cms-page-picker-active {
   cursor: crosshair;
@@ -259,11 +282,7 @@ html.asc-capturing-fullpage {
   display: none !important;
 }
 
-html.asc-crosshair-active {
-  cursor: crosshair;
-}
-
-html.asc-crosshair-active #agent-companion-crosshair {
+#agent-companion-crosshair:not([hidden]) {
   display: block;
 }
 
