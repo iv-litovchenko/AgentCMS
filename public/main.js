@@ -78740,6 +78740,19 @@ function finalizeEntryOverviewBrowsePanelChromeOrder(panel) {
   finalizeEntryOverviewBrowseSlotFolderMissingLayout(panel);
 }
 
+function relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain) {
+  if (!hubMain) return;
+  const manifest = hubMain.querySelector(":scope > .node-entry-overview-manifest");
+  if (!manifest) return;
+
+  const strip = hubMain.querySelector(".node-entry-overview-browse-slot-counters");
+  if (!strip || !manifest.contains(strip)) return;
+  if (strip.parentElement === manifest && strip === manifest.firstElementChild) return;
+
+  manifest.insertBefore(strip, manifest.firstChild);
+  strip.classList.add("node-entry-overview-manifest-top-slot-counters");
+}
+
 function shouldShowEntryOverviewSlotCountersOnHubMain(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
@@ -78896,6 +78909,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
   ) {
     refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
     return existing;
   }
 
@@ -78913,6 +78927,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
     else panel.prepend(strip);
     syncAllWorkspaceCounterStripActiveStates(context);
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
   } else if (existing && existing.dataset.topicNodePath !== resolvedTopicPath) {
     existing.remove();
   }
@@ -78922,6 +78937,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   if (!loadedStrip) {
     finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+    relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
     return strip;
   }
 
@@ -78934,6 +78950,7 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
 
   syncAllWorkspaceCounterStripActiveStates(context);
   finalizeEntryOverviewBrowsePanelChromeOrder(panel);
+  relocateEntryOverviewBrowseSlotCountersToManifestTop(panel.closest(".node-navigation-hub-main"));
   return loadedStrip;
 }
 
@@ -80628,8 +80645,12 @@ async function renderEntryOverview() {
   if (browsePanel && shouldShowEntryOverviewSlotCountersInBrowsePanel(context, false)) {
     void mountEntryOverviewBrowseSlotCounterStrip(browsePanel, context, topicPath, {
       isMemoryTocRoot: false
-    }).then(() => finalizeEntryOverviewBrowsePanelChromeOrder(browsePanel));
+    }).then(() => {
+      finalizeEntryOverviewBrowsePanelChromeOrder(browsePanel);
+      relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain);
+    });
   }
+  relocateEntryOverviewBrowseSlotCountersToManifestTop(hubMain);
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "", kind = "" } = {}) {

@@ -42339,6 +42339,13 @@ img.is-svg-media,
   background: transparent;
 }
 
+.node-entry-overview-manifest > .node-entry-overview-manifest-top-slot-counters,
+.node-entry-overview-manifest > .node-entry-overview-browse-slot-counters {
+  margin: 0 0 12px;
+  width: 100%;
+  min-width: 0;
+}
+
 .node-entry-overview-manifest .node-entry-overview-browse-panel,
 .node-entry-overview-manifest + .node-entry-overview-browse-panel,
 .node-entry-overview-tabular-preview + .node-entry-overview-browse-panel,
@@ -45475,9 +45482,12 @@ img.is-svg-media,
   text-align: left;
 }
 
-.node-navigation-workspace-counter-card .node-navigation-workspace-counter:hover {
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter:hover,
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter:focus-visible {
   transform: none;
   box-shadow: none;
+  background: transparent;
+  border-color: transparent;
 }
 
 .node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-pending) {
@@ -45495,7 +45505,9 @@ img.is-svg-media,
   background: linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%);
 }
 
-.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter:hover) {
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter:hover):not(
+    :has(.node-navigation-workspace-counter.is-active)
+  ) {
   border-color: #cbd5e1;
   background: #f1f5f9;
 }
@@ -45517,9 +45529,25 @@ img.is-svg-media,
 
 .node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-pending,
 .node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-unread,
-.node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-available {
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-available,
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-active {
   background: transparent;
   border-color: transparent;
+}
+
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-active) {
+  border-color: #fcd34d;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-active:hover),
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-active:focus-visible) {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, #fffbeb 0%, #fde68a 100%);
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-active {
+  color: #92400e;
 }
 
 .node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-pending {
@@ -60141,20 +60169,6 @@ button.node-navigation-memory-title:focus-visible {
 .node-entry-overview-slot-counters[data-loading="true"] {
   visibility: hidden;
   min-height: 72px;
-}
-
-.node-entry-overview-slot-counters .node-navigation-workspace-counter-card:has(
-    .node-navigation-workspace-counter.is-active
-  ) {
-  border-color: #fcd34d;
-  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
-}
-
-.node-entry-overview-slot-counters .node-navigation-workspace-counter-card:has(
-    .node-navigation-workspace-counter.is-active:hover
-  ) {
-  border-color: #fcd34d;
-  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
 }
 
 .node-entry-overview-slot-counters .node-navigation-workspace-counter.is-active {
