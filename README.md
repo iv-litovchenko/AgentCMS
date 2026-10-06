@@ -20,17 +20,17 @@
 
 ---
 
-🇬🇧 **[en]**
-
-**Agent CMS** is a shell for storing notes, documents, media, thoughts, secrets, and other data together with an AI agent — under clear rules (channels, pages, themes, areas, infoblocks, repositories).
-
-A normal folder on your desktop becomes an “upgraded folder” — a **workspace** where AI agents and you can navigate freely (you mostly remember what’s inside; when you don’t, you ask the agent).
-
-Everything lives in ordinary files on disk (text, YAML settings tables), with no separate database. You work through **Claude Desktop**, **Codex Desktop**, and a browser window (Agent CMS editor); the agent connects via **MCP**. You and the agent see the same content — a **shared box**.
-
-**CMS** — Content Management System · **Context** Management System.
-
-A map of ideas and system pieces (workspace), Mermaid — in the repo root: [README.diagram.md](README.diagram.md). The CMS home page shows this diagram.
+> 🇬🇧 **[en]**
+>
+> **Agent CMS** is a shell for storing notes, documents, media, thoughts, secrets, and other data together with an AI agent — under clear rules (channels, pages, themes, areas, infoblocks, repositories).
+>
+> A normal folder on your desktop becomes an “upgraded folder” — a **workspace** where AI agents and you can navigate freely (you mostly remember what’s inside; when you don’t, you ask the agent).
+>
+> Everything lives in ordinary files on disk (text, YAML settings tables), with no separate database. You work through **Claude Desktop**, **Codex Desktop**, and a browser window (Agent CMS editor); the agent connects via **MCP**. You and the agent see the same content — a **shared box**.
+>
+> **CMS** — Content Management System · **Context** Management System.
+>
+> A map of ideas and system pieces (workspace), Mermaid — in the repo root: [README.diagram.md](README.diagram.md). The CMS home page shows this diagram.
 
 ## 🇬🇧 Apps and clients (🇷🇺 Приложения и клиенты)
 
@@ -45,14 +45,23 @@ A map of ideas and system pieces (workspace), Mermaid — in the repo root: [REA
 
 ## 🇬🇧 One workspace — three entry points. UI, MCP, and voice are different interfaces, one store. (🇷🇺 Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.)
 
+![Agent CMS — editor and theme tree / редактор и дерево тем](docs/images/2.png)
 
-![Agent CMS — редактор и дерево тем](docs/images/2.png)
-
-![Захват из браузера и Agent Shell](docs/images/3.png)
+![Capture from the browser and Agent Shell / Захват из браузера и Agent Shell](docs/images/3.png)
 
 <p align="center">
-  <img src="docs/images/5.jpeg" alt="Agent CMS Voice — голосовой клиент" />
+  <img src="docs/images/5.jpeg" alt="Agent CMS Voice — voice client / голосовой клиент" />
 </p>
+
+🇷🇺 **[ru]**
+
+На скриншотах: **редактор** с деревом тем и областей, **браузер** (захват вкладки и Agent Shell), **голос** (Voice) — разные интерфейсы, одно и то же хранилище на диске.
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Above: the **editor** with the theme tree, the **browser** (tab capture and Agent Shell), and **voice** (Voice) — different interfaces, the same workspace on disk.
 
 ## 🇬🇧 Why (🇷🇺 Зачем)
 
@@ -81,10 +90,10 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 
 ---
 
-🇬🇧 **[en]**
-
-- **Personal** — notes, tasks, learning, health, media in one tree; speak a thought — the agent files it in the right place.
-- **Teams** — shared knowledge base: areas per project, one rule set for people and AI, MCP for corporate agents (roles, journal, vault slots — as you roll them out).
+> 🇬🇧 **[en]**
+>
+> - **Personal** — notes, tasks, learning, health, media in one tree; speak a thought — the agent files it in the right place.
+> - **Teams** — shared knowledge base: areas per project, one rule set for people and AI, MCP for corporate agents (roles, journal, vault slots — as you roll them out).
 
 ## 🇬🇧 How it works — key terms (🇷🇺 Как устроено — основные термины)
 
@@ -118,33 +127,33 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 
 ---
 
-🇬🇧 **[en]**
-
-**Platform** — shared program layer: record types, catalogs, and settings for all workspaces.
-
-**Workspace** — your project folder: menu sections, themes, text files and attachments. Each agent can have its own workspace.
-
-**Tree** — section → theme → shelf (slot) → file record. Example: “Work” → “Renovation” → “Documents” → `estimate.md`. You shape the structure; there’s no fixed template.
-
-**Infoblocks** — for tables and lists with the same fields (expenses, contacts, directories). For free-form notes, the tree is usually easier.
-
-**Repositories** — a separate zone in the workspace for code projects (git clone, short `manifest.md` for the agent); source code stays out of the notes tree.
-
-**Sidecar** — next to a photo or PDF, a `.sidecar.md` holds description, tags, and links when you can’t put text in the file itself.
-
-**Internals** — passwords in `.env`; temporary indexes and search cache in `.agent-cms/`.
-
-**Workspace search** — indexes rebuild from your files; UI and agent (MCP) support several modes:
-
-- **by words** — full-text search in bodies and properties;
-- **by meaning** — “similar idea” chunks (semantic index, RAG);
-- **hybrid** — words + meaning + frontmatter filters in one query (handy for agents);
-- **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
-- **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
-
-You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md).
-
-All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
+> 🇬🇧 **[en]**
+>
+> **Platform** — shared program layer: record types, catalogs, and settings for all workspaces.
+>
+> **Workspace** — your project folder: menu sections, themes, text files and attachments. Each agent can have its own workspace.
+>
+> **Tree** — section → theme → shelf (slot) → file record. Example: “Work” → “Renovation” → “Documents” → `estimate.md`. You shape the structure; there’s no fixed template.
+>
+> **Infoblocks** — for tables and lists with the same fields (expenses, contacts, directories). For free-form notes, the tree is usually easier.
+>
+> **Repositories** — a separate zone in the workspace for code projects (git clone, short `manifest.md` for the agent); source code stays out of the notes tree.
+>
+> **Sidecar** — next to a photo or PDF, a `.sidecar.md` holds description, tags, and links when you can’t put text in the file itself.
+>
+> **Internals** — passwords in `.env`; temporary indexes and search cache in `.agent-cms/`.
+>
+> **Workspace search** — indexes rebuild from your files; UI and agent (MCP) support several modes:
+>
+> - **by words** — full-text search in bodies and properties;
+> - **by meaning** — “similar idea” chunks (semantic index, RAG);
+> - **hybrid** — words + meaning + frontmatter filters in one query (handy for agents);
+> - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
+> - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
+>
+> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md).
+>
+> All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
 ## 🇬🇧 Principles (🇷🇺 Принципы)
 
@@ -156,11 +165,11 @@ All terms above are **expanded on the interactive map** (Mermaid, clickable node
 
 ---
 
-🇬🇧 **[en]**
-
-1. **Shared language** — one rule set for human and agent.
-2. **Files over DB** — content on disk; indexes (meaning, words, links) rebuild from files.
-3. **1+1 synergy** — you keep order; the agent remembers context and acts in the workspace.
+> 🇬🇧 **[en]**
+>
+> 1. **Shared language** — one rule set for human and agent.
+> 2. **Files over DB** — content on disk; indexes (meaning, words, links) rebuild from files.
+> 3. **1+1 synergy** — you keep order; the agent remembers context and acts in the workspace.
 
 ## 🇬🇧 Stack (🇷🇺 Стек)
 
@@ -199,25 +208,25 @@ cd AgentCMS
 
 ---
 
-🇬🇧 **[en]**
-
-```bash
-git clone https://github.com/iv-litovchenko/AgentCMS.git
-cd AgentCMS
-```
-
-1. Clone the repo to Desktop or any folder: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
-2. Open the folder in Finder.
-3. In `.env` (any text editor), set login and password (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); change Agent CMS and Voice ports if needed.
-4. Run `welcome.command` in the project root (double-click) — **Agent CMS Control** opens.
-5. Click in order: **Install dependencies** → **Certificates** → **Shortcuts**.
-6. Start the server — **Start**.
-7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
-8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP).
-9. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
-10. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
-
-The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
+> 🇬🇧 **[en]**
+>
+> ```bash
+> git clone https://github.com/iv-litovchenko/AgentCMS.git
+> cd AgentCMS
+> ```
+>
+> 1. Clone the repo to Desktop or any folder: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
+> 2. Open the folder in Finder.
+> 3. In `.env` (any text editor), set login and password (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); change Agent CMS and Voice ports if needed.
+> 4. Run `welcome.command` in the project root (double-click) — **Agent CMS Control** opens.
+> 5. Click in order: **Install dependencies** → **Certificates** → **Shortcuts**.
+> 6. Start the server — **Start**.
+> 7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
+> 8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP).
+> 9. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
+> 10. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
+>
+> The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
 
 ## 🇬🇧 License (🇷🇺 Лицензия)
 
@@ -247,16 +256,16 @@ Copyright © 2026 Agent CMS
 
 ---
 
-🇬🇧 **[en]**
-
-Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
-
-- [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — MCP map, workspace, storage rules
-- [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
-- [GLOBAL-RULES.md](GLOBAL-RULES.md) — global rules for all workspaces
-- [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — markup supported in the editor preview
-
-See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
+> 🇬🇧 **[en]**
+>
+> Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
+>
+> - [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — MCP map, workspace, storage rules
+> - [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
+> - [GLOBAL-RULES.md](GLOBAL-RULES.md) — global rules for all workspaces
+> - [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — markup supported in the editor preview
+>
+> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
 ## 🇬🇧 Vision (🇷🇺 Мечта)
 
