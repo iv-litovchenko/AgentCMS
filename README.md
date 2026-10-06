@@ -1,6 +1,6 @@
 # AGENT CMS (0.0.1-beta)
 
-## 🇬🇧 Cross-platform digital memory for you and your AI agents (🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов)
+## 🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов (🇬🇧 Cross-platform digital memory for you and your AI agents)
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
 
@@ -32,7 +32,7 @@
 >
 > A map of ideas and system pieces (workspace), Mermaid — in the repo root: [README.diagram.md](README.diagram.md). The CMS home page shows this diagram.
 
-## 🇬🇧 Apps and clients (🇷🇺 Приложения и клиенты)
+## 🇷🇺 Приложения и клиенты (🇬🇧 Apps and clients)
 
 | App | 🇷🇺 | 🇬🇧 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@
 | **Google Chrome extension** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) | Side panel on a tab with shell and voice; install from [`browser-extension/`](browser-extension/) ([guide](browser-extension/README.md)) |
 | **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) | Voice-only link to your Agent CMS: talk to the agent from your phone — mic, reply, and TTS; project in [`mobile/iphone-shell/`](mobile/iphone-shell/) |
 
-## 🇬🇧 One workspace — three entry points. UI, MCP, and voice are different interfaces, one store. (🇷🇺 Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.)
+## 🇷🇺 Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище. (🇬🇧 One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.)
 
 ![Agent CMS — editor and theme tree / редактор и дерево тем](docs/images/2.png)
 
@@ -63,7 +63,7 @@
 >
 > Above: the **editor** with the theme tree, the **browser** (tab capture and Agent Shell), and **voice** (Voice) — different interfaces, the same workspace on disk.
 
-## 🇬🇧 Why (🇷🇺 Зачем)
+## 🇷🇺 Зачем (🇬🇧 Why)
 
 ![Agent via MCP: feed, indexes, and workspace diagnostics / Агент через MCP: лента, индексы и диагностика хранилища](docs/images/7.png)
 
@@ -73,11 +73,11 @@
 
 ---
 
-🇬🇧 **[en]**
+> 🇬🇧 **[en]**
+>
+> Notes, files, and links often sit in different apps. In a normal AI chat, context doesn’t survive between sessions. Here everything lives in one **workspace** — **three entry points** (editor, MCP, voice) and a tree **area → theme → slot → record**: you and the agent know **where to look** and **where to put** new material. Format is **Markdown and YAML** on disk, no separate DB; when files pile up, **indexes** help (words, meaning, links). Over time you build memory and ties across areas. Source of truth is **disk**, not the chat. Data stays with you: copy, back up, and version like any files.
 
-Notes, files, and links often sit in different apps. In a normal AI chat, context doesn’t survive between sessions. Here everything lives in one **workspace** — **three entry points** (editor, MCP, voice) and a tree **area → theme → slot → record**: you and the agent know **where to look** and **where to put** new material. Format is **Markdown and YAML** on disk, no separate DB; when files pile up, **indexes** help (words, meaning, links). Over time you build memory and ties across areas. Source of truth is **disk**, not the chat. Data stays with you: copy, back up, and version like any files.
-
-## 🇬🇧 Who it’s for (🇷🇺 Для кого)
+## 🇷🇺 Для кого (🇬🇧 Who it’s for)
 
 <p align="center">
   <img src="docs/images/8.jpg" alt="One system for all incoming chaos / Единая система для всего входящего хаоса" />
@@ -95,7 +95,7 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 > - **Personal** — notes, tasks, learning, health, media in one tree; speak a thought — the agent files it in the right place.
 > - **Teams** — shared knowledge base: areas per project, one rule set for people and AI, MCP for corporate agents (roles, journal, vault slots — as you roll them out).
 
-## 🇬🇧 How it works — key terms (🇷🇺 Как устроено — основные термины)
+## 🇷🇺 Как устроено — основные термины (🇬🇧 How it works — key terms)
 
 🇷🇺 **[ru]**
 
@@ -155,7 +155,7 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 >
 > All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
-## 🇬🇧 Principles (🇷🇺 Принципы)
+## 🇷🇺 Принципы (🇬🇧 Principles)
 
 🇷🇺 **[ru]**
 
@@ -171,7 +171,7 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 > 2. **Files over DB** — content on disk; indexes (meaning, words, links) rebuild from files.
 > 3. **1+1 synergy** — you keep order; the agent remembers context and acts in the workspace.
 
-## 🇬🇧 Stack (🇷🇺 Стек)
+## 🇷🇺 Стек (🇬🇧 Stack)
 
 - **Node.js** — сервер, MCP, индексация, API
 - **Файловое хранилище** — Markdown, YAML, JSON
@@ -182,7 +182,7 @@ Notes, files, and links often sit in different apps. In a normal AI chat, contex
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
-## 🇬🇧 Install — first run and launch (macOS only) (🇷🇺 Установка — первый старт и запуск, только macOS)
+## 🇷🇺 Установка — первый старт и запуск, только macOS (🇬🇧 Install — first run and launch, macOS only)
 
 ![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
 
@@ -228,20 +228,20 @@ cd AgentCMS
 >
 > The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
 
-## 🇬🇧 License (🇷🇺 Лицензия)
+## 🇷🇺 Лицензия (🇬🇧 License)
 
 Copyright © 2026 Agent CMS
 
 Исходный код распространяется под [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).
 
-## 🇬🇧 Links (🇷🇺 Ссылки)
+## 🇷🇺 Ссылки (🇬🇧 Links)
 
 - Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
 - GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
 - Telegram: [https://t.me/AGI_2043](https://t.me/AGI_2043) (@AGI_2043 — про жизнь с ИИ и технологиями)
 - Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
-## 🇬🇧 References for agents and indexing (models — go learn 😀) (🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀)
+## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
 🇷🇺 **[ru]**
 
@@ -267,7 +267,7 @@ Copyright © 2026 Agent CMS
 >
 > See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
-## 🇬🇧 Vision (🇷🇺 Мечта)
+## 🇷🇺 Мечта (🇬🇧 Vision)
 
 🇷🇺 **[ru]**
 
@@ -291,7 +291,7 @@ Copyright © 2026 Agent CMS
 >
 > **The vision in one task.** Build an **ideal digital memory** — not a chaos folder, but something you can reopen a month later and continue right away. A live example: you open a **channel or archive with 1000 messages** (Telegram, mail, feed) and tell the agent: *“Collect what matters for analysis — facts, decisions, agreements, links.”* The agent doesn’t “summarize the chat in the reply”; it **puts the result in the workspace**: inbox, themes and slots, fields and links. Then **indexes** kick in (words, meaning, fields, link graph) — search, compare, refine extracts, ask new questions **from disk**, not from a raw export. File it once — memory stays yours, on your machine, and grows with new channels and projects.
 
-## 🇬🇧 Where to start? (🇷🇺 С чего начать?)
+## 🇷🇺 С чего начать? (🇬🇧 Where to start?)
 
 🇷🇺 **[ru]**
 
