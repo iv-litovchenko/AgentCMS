@@ -772,7 +772,7 @@ module.exports = {
           description: "Стартовый пакет для агента: serviceDocs, session-start темы, runtimeSyncTopics (cron/heartbeat), AGENTS.md, карта API.",
           query: [],
           body: null,
-          response: "{ version, agentId, pathHints, apiMap, serviceDocs[], sessionStartTopics[], runtimeSyncTopics[], systemFiles[] }"
+          response: "{ version, agentId, pathHints, serviceDocs[], topicRegistry, alwaysContext, … } — без apiMap (REST только для MCP-сервера; агент — tools)"
         },
         {
           method: "GET",

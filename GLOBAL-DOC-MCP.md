@@ -726,7 +726,7 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 | `confirm-exec: true` | `exec_command`, `exec_shell`, `run_script` требуют `confirm: true` в args |
 | `confirm-delete: true` | `delete_page`, `delete_content`, … требуют `confirm: true` в args |
 
-Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. API: `GET /api/agent/mcp-policy`.
+Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. Политика: **`list_settings` / workspace MCP policy** (не прямой HTTP).
 
 **Примеры:**
 
@@ -880,7 +880,7 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 | `hasManifest: true` + `slotsFlexible: true` | Гибкий слот: manifest есть, типовых слотов нет — path-based FS в `awn-storage/` |
 | `adoptable: true` | Можно превратить в тему через `create_page` |
 
-Отдельный HTTP `GET /api/workspace/folder/adopt` — legacy (те же узлы, что `kind:folder` в page-map).
+Legacy adopt folder: **`resolve_workspace_path`** / page-map `kind:folder` (HTTP adopt — deprecated).
 
 **Описание adopt-папки** — необязательный `sidecar.md` в корне:
 
@@ -1006,8 +1006,7 @@ UI: дерево **awn-databases** → `contents/facts`. Папка индекс
 
 Хранение: один файл на ISO-неделю (`2026-W38.md`). Индексируется (fulltext + semantic).  
 `notify: true` → запись попадает в 🔔 (колокольчик и `list_workspace_notifications` читают тот же журнал).  
-UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.  
-HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
+UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.
 
 ### Временные файлы (`awn-temp/`) и корзина (`awn-recycle/`)
 
@@ -1123,10 +1122,10 @@ recall_workspace_facts({
 
 **Канон — два метода:**
 
-| | MCP | HTTP |
-|--|-----|------|
-| Список | **`list_types`** | `GET /api/agent-system/types` |
-| Детали | **`get_type(id)`** | `GET /api/agent-system/type?id=` |
+| | MCP |
+|--|-----|
+| Список | **`list_types`** |
+| Детали | **`get_type(id)`** |
 
 Параметры `list_types`:
 - `domain` — `pages` \| `content` \| `data` \| `fields` \| `md-blocks` \| …
