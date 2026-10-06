@@ -914,8 +914,10 @@ const headerCommunityBtn = document.getElementById("header-community-btn");
 const headerCommunityPopoverNode = document.getElementById("header-community-popover");
 const headerCommunityCloseBtn = document.getElementById("header-community-close-btn");
 const headerAuthorBtn = document.getElementById("header-author-btn");
+const headerAuthorWorkspaceBtn = document.getElementById("header-author-workspace-btn");
 const headerAuthorModalNode = document.getElementById("header-author-modal");
 const headerAuthorModalCloseBtn = document.getElementById("header-author-modal-close-btn");
+const headerAuthorEmailCopyBtn = document.getElementById("header-author-email-copy-btn");
 const headerGlobalSettingsBtn = document.getElementById("header-global-settings-btn");
 const headerGlobalSettingsModalNode = document.getElementById("header-global-settings-modal");
 const headerGlobalSettingsModalCloseBtn = document.getElementById("header-global-settings-modal-close-btn");
@@ -10372,6 +10374,21 @@ function openHeaderAuthorModal() {
 
 function closeHeaderAuthorModal() {
   headerAuthorModalNode?.classList.add("hidden");
+}
+
+async function copyHeaderAuthorEmail() {
+  const value = String(headerAuthorEmailCopyBtn?.dataset.copy || "").trim();
+  if (!value) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      showToast("Почта скопирована", "success");
+      return;
+    }
+  } catch {
+    // fall through
+  }
+  showToast("Не удалось скопировать", "error");
 }
 
 let headerGlobalSettingsOpen = false;
@@ -126676,13 +126693,19 @@ headerCommunityBtn?.addEventListener("click", (event) => {
   openHeaderCommunityPopover();
 });
 headerCommunityCloseBtn?.addEventListener("click", closeHeaderCommunityPopover);
-headerAuthorBtn?.addEventListener("click", (event) => {
+function onHeaderAuthorBtnClick(event) {
   event.stopPropagation();
   openHeaderAuthorModal();
-});
+}
+headerAuthorBtn?.addEventListener("click", onHeaderAuthorBtnClick);
+headerAuthorWorkspaceBtn?.addEventListener("click", onHeaderAuthorBtnClick);
 headerAuthorModalCloseBtn?.addEventListener("click", closeHeaderAuthorModal);
 headerAuthorModalNode?.addEventListener("click", (event) => {
   if (event.target === headerAuthorModalNode) closeHeaderAuthorModal();
+});
+headerAuthorEmailCopyBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  void copyHeaderAuthorEmail();
 });
 headerGlobalSettingsBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -126773,6 +126796,7 @@ document.addEventListener("click", (event) => {
       !headerCommunityPopoverNode.contains(target) &&
       !target.closest("#header-community-btn") &&
       !target.closest("#header-author-btn") &&
+      !target.closest("#header-author-workspace-btn") &&
       !target.closest("#header-global-settings-btn")
     ) {
       closeHeaderCommunityPopover();
