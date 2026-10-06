@@ -292,8 +292,8 @@ Books and films already showed it: Dumbledore’s Pensieve, Tony Stark’s JARVI
 
 ---
 
-🇬🇧 **[en]**
-
-Say hi — get to know the project! 👋
-
-Glad to hear from anyone into digital memory and agents on their own files — write on [Telegram](https://t.me/AGI_2043) or [email](mailto:iv-litovchenko@mail.ru).
+> 🇬🇧 **[en]**
+>
+> Say hi — get to know the project! 👋
+>
+> Glad to hear from anyone into digital memory and agents on their own files — write on [Telegram](https://t.me/AGI_2043) or [email](mailto:iv-litovchenko@mail.ru).
