@@ -121803,7 +121803,7 @@ function getRepositoryCreateFormConfig(detail) {
       String(create["adopt-title"] || "Подхватить репозиторий").trim() || "Подхватить репозиторий",
     hint:
       String(create.hint || "").trim() ||
-      "Папка в awn-repositories/{slug}/ с manifest.md. Код клонируйте отдельно — в поиск CMS не попадёт.",
+      "Создать awn-repositories/{slug}/ с manifest.md. Код клонируйте отдельно — в поиск CMS не попадёт.",
     slugBootstrap,
     fieldKeys
   };
@@ -122091,6 +122091,10 @@ function syncRepositoryModalUi(detail = repositoryCreateTypeDetailCache) {
   if (repositoryCreateSubmitBtn) {
     repositoryCreateSubmitBtn.textContent =
       mode === "edit" ? "Сохранить" : mode === "adopt" ? "Подхватить" : "Создать";
+    repositoryCreateSubmitBtn.title =
+      mode === "create" || mode === "adopt"
+        ? "Создать awn-repositories/{slug}/ с manifest.md"
+        : "";
   }
   repositoryCreateOpenManifestBtn?.classList.toggle("hidden", mode !== "edit" || !repositoryModalState.manifestPath);
 }
@@ -123406,6 +123410,11 @@ function formatMenuRepositoryFileCount(entryCount) {
   return `${entryCount} файлов`;
 }
 
+function resolveMenuRepositoryAwnId(entry) {
+  const raw = entry?.awnId || entry?.["awn-id"] || "";
+  return normalizeAwnIdDisplayValue(raw);
+}
+
 function createMenuRepositoryRowBody(entry) {
   const name = String(entry.name || entry.slug || "Репозиторий").trim();
   const slug = String(entry.slug || "").trim();
@@ -123419,6 +123428,11 @@ function createMenuRepositoryRowBody(entry) {
   nameNode.className = "menu-repository-name";
   nameNode.textContent = name;
   nameRow.appendChild(nameNode);
+  const idBadge = createNavBookTocIdBadge(resolveMenuRepositoryAwnId(entry));
+  if (idBadge) {
+    idBadge.classList.add("menu-repository-id-badge");
+    nameRow.appendChild(idBadge);
+  }
 
   const metaRow = document.createElement("span");
   metaRow.className = "menu-repository-meta-row";
@@ -123449,6 +123463,8 @@ function attachRepositoryRowDragMetadata(row, entry, { registered = true } = {})
   row.dataset.repositoryManifestPath = registered ? manifestPath : folderPath;
   row.dataset.repositorySlug = slug;
   row.dataset.repositoryLabel = String(entry.name || entry.slug || slug).trim();
+  const repoAwnId = resolveMenuRepositoryAwnId(entry);
+  if (repoAwnId) row.dataset.repositoryAwnId = repoAwnId;
   if (entry.group) row.dataset.repositoryGroupId = String(entry.group).trim();
   row.draggable = true;
 }

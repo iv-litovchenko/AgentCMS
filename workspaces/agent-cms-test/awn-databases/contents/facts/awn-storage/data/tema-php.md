@@ -9,11 +9,11 @@ awn-version: 1
 awn-viewed: ""
 awn-deadline: ""
 awn-store: contents/facts
-awn-name: Тема PHP
-awn-fact-kind: entity
-awn-source: manual
-awn-tags: [php, темы]
 awn-id: 66
+awn-name: MCP API фактов обновлён
+awn-fact-kind: decision
+awn-source: manual
+awn-tags: [mcp, api, факты]
 ---
 
 

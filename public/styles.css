@@ -73540,6 +73540,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   text-align: center;
 }
 
+.menu-repository-id-badge {
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .menu-repository-name {
   font-weight: 600;
   color: #1f2937;

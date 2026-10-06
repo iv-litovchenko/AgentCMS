@@ -1,5 +1,4 @@
 ---
-awn-name: Term id test
 awn-description: ""
 awn-preview: ""
 awn-index-exclude-record: false
@@ -11,6 +10,10 @@ awn-viewed: ""
 awn-deadline: ""
 awn-store: contents/glossary
 awn-id: 70
+awn-name: Manifest
+awn-glossary-term: Manifest
+awn-glossary-aliases: [manifest.md, файл темы]
+awn-tags: [agent-cms, структура]
 ---
 
 Definition
