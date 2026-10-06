@@ -18,7 +18,8 @@ module.exports = {
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
-    "awn-facts: retain_workspace_fact (запись), recall_workspace_facts (поиск), list_workspace_facts (список). Выжимки из чатов — не полный диалог. См. GLOBAL-DOC-MCP.md § Банк фактов."
+    "contents/facts: create_workspace_fact, update_workspace_fact, list_workspace_facts, search_workspace_facts (retain/recall — deprecated aliases).",
+    "contents/glossary: create_glossary_term, update_glossary_term, list_glossary_terms, search_glossary_terms."
   ],
   cursorConfig: {
     command: "node",
@@ -416,13 +417,19 @@ module.exports = {
     },
     {
       id: "facts",
-      title: "Банк фактов (awn-facts)",
+      title: "Банк фактов (contents/facts)",
       tools: [
         {
-          name: "retain_workspace_fact",
-          description: "Записать факт в awn-facts/ (решение, предпочтение, сущность).",
+          name: "create_workspace_fact",
+          description: "Создать факт в awn-databases/contents/facts/.",
           parameters: "body, kind?, source?, tags?, name?, sourceRef?, supersedes?",
-          http: "POST /api/agent/workspace-facts/retain"
+          http: "POST /api/agent/workspace-facts/create"
+        },
+        {
+          name: "update_workspace_fact",
+          description: "Обновить факт по record id/path.",
+          parameters: "record, body?, kind?, source?, tags?, name?, sourceRef?, supersedes?",
+          http: "POST /api/agent/workspace-facts/update"
         },
         {
           name: "list_workspace_facts",
@@ -431,10 +438,52 @@ module.exports = {
           http: "GET /api/agent/workspace-facts/list"
         },
         {
+          name: "search_workspace_facts",
+          description: "Поиск по contents/facts (semantic + fulltext).",
+          parameters: "query, kind?, tags?, limit?",
+          http: "GET /api/agent/workspace-facts/search"
+        },
+        {
+          name: "retain_workspace_fact",
+          description: "Deprecated alias create_workspace_fact.",
+          parameters: "body, kind?, source?, tags?, name?, sourceRef?, supersedes?",
+          http: "POST /api/agent/workspace-facts/retain"
+        },
+        {
           name: "recall_workspace_facts",
-          description: "Поиск по awn-facts/ (semantic + fulltext).",
+          description: "Deprecated alias search_workspace_facts.",
           parameters: "query, kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/recall"
+        }
+      ]
+    },
+    {
+      id: "glossary",
+      title: "Глоссарий (contents/glossary)",
+      tools: [
+        {
+          name: "create_glossary_term",
+          description: "Создать термин в awn-databases/contents/glossary/.",
+          parameters: "term, definition, aliases?, tags?, marker?, sourceRef?",
+          http: "POST /api/agent/workspace-glossary/create"
+        },
+        {
+          name: "update_glossary_term",
+          description: "Обновить термин по record id/path.",
+          parameters: "record, term?, definition?, aliases?, tags?, marker?, sourceRef?",
+          http: "POST /api/agent/workspace-glossary/update"
+        },
+        {
+          name: "list_glossary_terms",
+          description: "Список терминов.",
+          parameters: "prefix?, tags?, limit?",
+          http: "GET /api/agent/workspace-glossary/list"
+        },
+        {
+          name: "search_glossary_terms",
+          description: "Поиск по contents/glossary (semantic + fulltext).",
+          parameters: "query, limit?",
+          http: "GET /api/agent/workspace-glossary/search"
         }
       ]
     },

@@ -30,6 +30,7 @@ import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
+import { registerGlossaryTools } from "./lib/glossary-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
@@ -174,6 +175,7 @@ function createServer() {
   registerBrainTools(reg, client);
 
   registerFactsTools(reg, client);
+  registerGlossaryTools(reg, client);
   registerJournalTools(reg, client);
 
   // ── awn-databases: database_frame_* + database_element_* (iblock_* deprecated) ─

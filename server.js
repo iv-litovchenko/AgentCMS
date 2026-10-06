@@ -115,7 +115,12 @@ const {
   parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
 } = require("./lib/workspace/workspace-index-exclude");
-const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./lib/services/workspace-facts-service");
+const {
+  createWorkspaceFactsService,
+  FACTS_DIR: WORKSPACE_FACTS_DIR,
+  LEGACY_FACTS_DIR
+} = require("./lib/services/workspace-facts-service");
+const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
@@ -372,7 +377,11 @@ const {
   buildIblockOutsideStructureReport,
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
-  TAXONOMIES_GROUP_REL
+  ensureContentsGroupScaffold,
+  TAXONOMIES_GROUP_REL,
+  CONTENTS_GROUP_REL,
+  FACTS_STORE_REL,
+  GLOSSARY_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -2211,16 +2220,30 @@ function getSidecarService() {
 
 let workspaceBrainService = null;
 let workspaceFactsService = null;
+let workspaceGlossaryService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
     workspaceFactsService = createWorkspaceFactsService({
       getAgentRoot,
+      getProjectRoot,
       searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
       onFactWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
     });
   }
   return workspaceFactsService;
+}
+
+function getWorkspaceGlossaryService() {
+  if (!workspaceGlossaryService) {
+    workspaceGlossaryService = createWorkspaceGlossaryService({
+      getAgentRoot,
+      getProjectRoot,
+      searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
+      onTermWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceGlossaryService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -10575,7 +10598,7 @@ function shouldSkipMenuDirectory(name) {
   if (isPlatformDataRootFolderName(name)) return true;
   const lower = String(name || "").toLowerCase();
   if (lower === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) return true;
-  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
+  if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_SCRIPTS_FOLDER || "awn-scripts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
@@ -14273,10 +14296,17 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — retain_workspace_fact MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — create_workspace_fact MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — update_workspace_fact MCP",
   workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — list_workspace_facts MCP",
-  workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q=&kind=&tags=&limit= — recall_workspace_facts MCP",
-  workspaceFactsStats: "GET /api/agent/workspace-facts/stats — sidebar stats for awn-facts",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — search_workspace_facts MCP",
+  workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
+  workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
+  workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",
+  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — create_glossary_term MCP",
+  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
+  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
+  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -18209,7 +18239,7 @@ function isTextSearchableFileName(name) {
 
 function shouldSkipSearchDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
-  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return false;
+  if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return false;
   if (lower === ".agent-cms") return false;
   if (lower === "journal") return false;
   const normalized = normalizeStorageSubfolderName(name);
@@ -22805,10 +22835,40 @@ async function handleApiForAgent(req, res, url) {
     return handleWorkspaceContextSearchGet(req, res, "searchAndGetContext");
   }
 
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceFactsService().createWorkspaceFact(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create workspace fact",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceFactsService().updateWorkspaceFact(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update workspace fact",
+        details: message
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/retain") {
     try {
       const body = await readJsonBody(req);
-      const payload = await getWorkspaceFactsService().retainWorkspaceFact(body || {});
+      const payload = await getWorkspaceFactsService().createWorkspaceFact(body || {});
       return sendJson(res, 200, payload);
     } catch (error) {
       const message = String(error.message || error);
@@ -22837,6 +22897,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceFactsService().searchWorkspaceFacts({
+        query,
+        kind: url.searchParams.get("kind") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search workspace facts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/recall") {
     const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
     if (query.length < 2) {
@@ -22844,7 +22927,7 @@ async function handleApiForAgent(req, res, url) {
     }
     try {
       const limitRaw = Number(url.searchParams.get("limit"));
-      const payload = await getWorkspaceFactsService().recallWorkspaceFacts({
+      const payload = await getWorkspaceFactsService().searchWorkspaceFacts({
         query,
         kind: url.searchParams.get("kind") || "",
         tags: url.searchParams.get("tags") || "",
@@ -22867,6 +22950,74 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace facts stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-glossary/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceGlossaryService().createGlossaryTerm(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create glossary term",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-glossary/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceGlossaryService().updateGlossaryTerm(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update glossary term",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-glossary/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceGlossaryService().listGlossaryTerms({
+        prefix: url.searchParams.get("prefix") || url.searchParams.get("letter") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list glossary terms",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-glossary/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceGlossaryService().searchGlossaryTerms({
+        query,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search glossary terms",
         details: String(error.message || error)
       });
     }
@@ -24530,6 +24681,28 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold taxonomies group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-contents") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const preset = String(payload?.preset || "both").trim().toLowerCase();
+      const result = ensureContentsGroupScaffold(agentRoot, getProjectRoot(), { preset });
+      return sendJson(res, 201, {
+        ok: true,
+        groupRel: CONTENTS_GROUP_REL,
+        factsStoreRel: FACTS_STORE_REL,
+        glossaryStoreRel: GLOSSARY_STORE_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold contents group",
         details: String(error.message || error)
       });
     }

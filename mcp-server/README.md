@@ -57,7 +57,8 @@ get_session_context({ agentId: "<выбранный-id>" })
 | awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы); `iblock_*` deprecated |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
 | File hub queue | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub` |
-| Fact bank | `retain_workspace_fact`, `list_workspace_facts`, `recall_workspace_facts` → `awn-facts/` (см. `GLOBAL-DOC-MCP.md` § Банк фактов) |
+| Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` (`retain_*` / `recall_*` deprecated) |
+| Glossary | `create_glossary_term`, `update_glossary_term`, `list_glossary_terms`, `search_glossary_terms` → `awn-databases/contents/glossary` |
 | FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
 | Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |

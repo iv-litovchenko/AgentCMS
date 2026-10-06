@@ -133,7 +133,7 @@
       items: [
         { phrases: ["прочитай страницу …"], tools: ["read_page_body"], status: "mcp" },
         { phrases: ["свойства страницы"], tools: ["read_page_properties"], status: "mcp" },
-        { phrases: ["напомни факты про …"], tools: ["recall_workspace_facts", "list_workspace_facts"], status: "mcp" }
+        { phrases: ["напомни факты про …"], tools: ["search_workspace_facts", "list_workspace_facts"], status: "mcp" }
       ]
     },
     {
