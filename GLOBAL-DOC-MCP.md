@@ -1,6 +1,6 @@
 # GLOBAL-DOC-MCP — краткая карта Agent CMS
 
-Глобальный документ платформы (`GLOBAL-DOC-MCP.md`): попадает в always-context **всех** агентов.
+Глобальный документ платформы (`GLOBAL-DOC-MCP.md`): **`get_session_documentation`** (не в `get_session_context` по умолчанию).
 
 Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — **`GLOBAL-RESPONSE-STYLE.md`**. Общие правила — **`GLOBAL-RULES.md`**. Справочник markdown preview — **`GLOBAL-DOC-MARKDOWN.md`** (opt-in).
 
@@ -37,13 +37,13 @@ MCP подключается **без** фиксированного храни�
 
 Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
 
-Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
+Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → при необходимости `get_session_documentation({ agentId })` → `get_user_active_context_now({ agentId })`.  
 Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Навигация по связям** (wikilinks, markdown, relation): **`search_workspace_links`** — backlinks / outbound / neighbors; не входит в hybrid. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля → связи; всё разом: `rebuild_workspace_indexes` (= pipeline). Пересборка графа отдельно: `rebuild_workspace_link_index`. UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `create_workspace_fact` / `search_workspace_facts` → `awn-databases/contents/facts` (`retain_*` / `recall_*` — deprecated). **Глоссарий:** `create_glossary_term` / `search_glossary_terms` → `awn-databases/contents/glossary`.  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
-**«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
+**«Перезагрузи контекст»** → снова `get_session_context`; доки платформы → `get_session_documentation`.  
 Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; оглавление страниц workspace → `get_workspace_page_index` / `refresh_workspace_page_index`; контент страницы → `get_content_map(path)` или быстрое оглавление → `get_content_index(path)` / обновить → `refresh_content_index(path)`; фокус UI → `get_user_active_context_now`.
 
 ## Модель (3 сущности)
@@ -236,7 +236,8 @@ generate_workspace_slug({ "text": "Моя тема", "preset": "page" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `.agent-cms/settings/workspace.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL-DOC-MCP + GLOBAL-RESPONSE-STYLE + GLOBAL-RULES + (opt-in) GLOBAL-DOC-MARKDOWN | **да** |
+| `list_workspace_always_context` | workspace always + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/ | **да** (в session) |
+| `get_session_documentation` | GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN (настройки platform) | **по вызову** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 

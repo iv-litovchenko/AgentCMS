@@ -11,7 +11,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
-    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId.",
+    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
     "path → manifest.md; slot → main|inbox|media|…; ref → путь внутри слота.",
     "Карта tools: workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md",
@@ -71,8 +71,14 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
+          name: "get_session_documentation",
+          description: "GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
+          parameters: "docs? (filter file names)",
+          http: "GET /api/agent/session-documentation?docs="
+        },
+        {
           name: "list_workspace_always_context",
-          description: "Always-context: awn-runtime-load-always + AGENTS/SKILL/README + GLOBAL-DOC-MCP.",
+          description: "Workspace always-context (same block as session): runtime-load-always, RULES, RESPONSE-STYLE, ws/.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },

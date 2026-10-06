@@ -118,7 +118,7 @@ fields:
   always-context-platform-readme:
     type: awn.field.boolean
     title: README.md
-    description: Описание Agent CMS — краткий обзор платформы (корень репозитория) в always-context всех агентов
+    description: Включить README.md в get_session_documentation (не в get_session_context)
     default: true
     group: auto-context
     sort: 1
@@ -126,7 +126,7 @@ fields:
   always-context-global-mcp-doc:
     type: awn.field.boolean
     title: GLOBAL-DOC-MCP.md
-    description: Глобальная карта MCP (корень репозитория) — полный текст в always-context всех агентов
+    description: Включить в get_session_documentation (не в get_session_context)
     default: true
     group: auto-context
     sort: 2

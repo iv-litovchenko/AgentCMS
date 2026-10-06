@@ -68,7 +68,7 @@ get_session_context({ agentId: "<выбранный-id>" })
 
 ## Документация
 
-- Агентская шпаргалка: `GLOBAL-DOC-MCP.md` (always-context)
+- Агентская шпаргалка: `GLOBAL-DOC-MCP.md` → **`get_session_documentation`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск

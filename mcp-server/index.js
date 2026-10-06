@@ -126,9 +126,28 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: topicRegistry, alwaysContext, service manifests. Runtime indexes: list_workspace_always_context / list_workspace_cron / list_workspace_heartbeat.",
+    "START HERE: topicRegistry, alwaysContext (workspace + RULES + RESPONSE-STYLE), service manifests. Docs: get_session_documentation. Runtime: list_workspace_cron / list_workspace_heartbeat.",
     z.object({}),
     () => client.get("/api/agent/session-context")
+  );
+
+  reg(
+    "get_session_documentation",
+    "Platform docs on demand: GLOBAL-DOC-MCP.md, README.md, GLOBAL-DOC-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
+    z.object({
+      docs: z
+        .union([z.array(z.string()), z.string()])
+        .optional()
+        .describe(
+          "Optional filter: file names or comma-separated, e.g. GLOBAL-DOC-MCP.md. Omit for all enabled docs."
+        )
+    }),
+    ({ docs }) =>
+      client.get("/api/agent/session-documentation", {
+        ...(docs != null
+          ? { docs: Array.isArray(docs) ? docs.join(",") : String(docs) }
+          : {})
+      })
   );
 
   reg(
@@ -140,7 +159,7 @@ function createServer() {
 
   reg(
     "list_workspace_always_context",
-    "Always-in-context: full file content for awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL-DOC-MCP.md.",
+    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-DOC-MCP/README.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );
