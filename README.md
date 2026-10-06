@@ -2,6 +2,12 @@
 
 ## 🇬🇧 Cross-platform digital memory for you and your AI agents (🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов)
 
+![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
+
+![Chat with an agent: test workspace and context overview / Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
+
+🇷🇺 **[ru]**
+
 **Agent CMS** — оболочка для хранения заметок, документов, медиа, мыслей, секретов и других данных вместе с ИИ-агентом — по определённым правилам (каналы, страницы, темы, области, инфоблоки, репозитории).
 
 Обычная папка на рабочем столе становится «продвинутой версией папки» — **хранилищем (workspace)**, в котором свободно ориентируются ИИ-агенты и человек (который плюс-минус всегда помнит структуру её содержимого, а если не помнит, то спрашивает агента).
@@ -10,22 +16,32 @@
 
 **CMS** — Content Management System (система управления контентом) · **Context** Management System (система управления контекстом).
 
-![Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
-
-![Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
-
 Карта идей и элементов системы (workspace), Mermaid — в корне: [README.diagram.md](README.diagram.md). На главной CMS показывается эта диаграмма.
+
+---
+
+🇬🇧 **[en]**
+
+**Agent CMS** is a shell for storing notes, documents, media, thoughts, secrets, and other data together with an AI agent — under clear rules (channels, pages, themes, areas, infoblocks, repositories).
+
+A normal folder on your desktop becomes an “upgraded folder” — a **workspace** where AI agents and you can navigate freely (you mostly remember what’s inside; when you don’t, you ask the agent).
+
+Everything lives in ordinary files on disk (text, YAML settings tables), with no separate database. You work through **Claude Desktop**, **Codex Desktop**, and a browser window (Agent CMS editor); the agent connects via **MCP**. You and the agent see the same content — a **shared box**.
+
+**CMS** — Content Management System · **Context** Management System.
+
+A map of ideas and system pieces (workspace), Mermaid — in the repo root: [README.diagram.md](README.diagram.md). The CMS home page shows this diagram.
 
 ## 🇬🇧 Apps and clients (🇷🇺 Приложения и клиенты)
 
-| Название | Назначение |
-| -------- | ---------- |
-| **Agent CMS Editor** | Основной редактор: дерево папок, темы и области, настройки, поиск по материалам, память и MCP |
-| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере |
-| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки |
-| **Agent CMS Toolbar** | Панель на любой странице в браузере: что открыто на вкладке, ссылки и медиа, вставка в поля ввода — не уходя с сайта |
-| **Расширение Google Chrome** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) |
-| **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) |
+| App | 🇷🇺 | 🇬🇧 |
+| --- | --- | --- |
+| **Agent CMS Editor** | Основной редактор: дерево папок, темы и области, настройки, поиск по материалам, память и MCP | Main editor: folder tree, themes and areas, settings, search, memory, and MCP |
+| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере | Voice dialog with the agent — same data from desktop, phone, or browser |
+| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки | Start the server, build desktop apps, dependencies, and shortcuts |
+| **Agent CMS Toolbar** | Панель на любой странице в браузере: что открыто на вкладке, ссылки и медиа, вставка в поля ввода — не уходя с сайта | Panel on any browser tab: what’s open, links and media, paste into inputs — without leaving the site |
+| **Google Chrome extension** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) | Side panel on a tab with shell and voice; install from [`browser-extension/`](browser-extension/) ([guide](browser-extension/README.md)) |
+| **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) | Voice-only link to your Agent CMS: talk to the agent from your phone — mic, reply, and TTS; project in [`mobile/iphone-shell/`](mobile/iphone-shell/) |
 
 ## 🇬🇧 One workspace — three entry points. UI, MCP, and voice are different interfaces, one store. (🇷🇺 Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.)
 
@@ -40,20 +56,39 @@
 
 ## 🇬🇧 Why (🇷🇺 Зачем)
 
+![Agent via MCP: feed, indexes, and workspace diagnostics / Агент через MCP: лента, индексы и диагностика хранилища](docs/images/7.png)
+
+🇷🇺 **[ru]**
+
 Заметки, файлы и ссылки часто разбросаны по разным программам. В обычном чате с ИИ контекст между сессиями не сохраняется. Здесь всё в одном **хранилище (workspace)** — **три входа** (редактор, MCP, голос) и дерево **область → тема → слот → запись**: и вы, и агент знаете, **где искать** и **куда класть** новое. Формат — **Markdown и YAML** на диске, без отдельной БД; когда файлов становится много, помогают **индексы** (слова, смысл, связи). Со временем накапливается память и связи между областями. Источник правды — **диск**, не переписка. Данные остаются у вас: копировать, бэкапить и версионировать как обычные файлы.
 
-![Агент через MCP: лента, индексы и диагностика хранилища](docs/images/7.png)
+---
+
+🇬🇧 **[en]**
+
+Notes, files, and links often sit in different apps. In a normal AI chat, context doesn’t survive between sessions. Here everything lives in one **workspace** — **three entry points** (editor, MCP, voice) and a tree **area → theme → slot → record**: you and the agent know **where to look** and **where to put** new material. Format is **Markdown and YAML** on disk, no separate DB; when files pile up, **indexes** help (words, meaning, links). Over time you build memory and ties across areas. Source of truth is **disk**, not the chat. Data stays with you: copy, back up, and version like any files.
 
 ## 🇬🇧 Who it’s for (🇷🇺 Для кого)
+
+<p align="center">
+  <img src="docs/images/8.jpg" alt="One system for all incoming chaos / Единая система для всего входящего хаоса" />
+</p>
+
+🇷🇺 **[ru]**
 
 - **Лично** — заметки, дела, обучение, здоровье, медиа в одном дереве; голосом записал — агент разложил по местам.
 - **Команда** — общая база знаний: области по проектам, единые правила для людей и ИИ, MCP для корпоративных агентов (роли, журнал, vault-слоты — по мере внедрения).
 
-<p align="center">
-  <img src="docs/images/8.jpg" alt="Единая система для всего входящего хаоса" />
-</p>
+---
+
+🇬🇧 **[en]**
+
+- **Personal** — notes, tasks, learning, health, media in one tree; speak a thought — the agent files it in the right place.
+- **Teams** — shared knowledge base: areas per project, one rule set for people and AI, MCP for corporate agents (roles, journal, vault slots — as you roll them out).
 
 ## 🇬🇧 How it works — key terms (🇷🇺 Как устроено — основные термины)
+
+🇷🇺 **[ru]**
 
 **Платформа** — общая часть программы: типы записей, справочники и настройки, которые действуют для всех хранилищ.
 
@@ -81,11 +116,51 @@
 
 Все перечисленные термины **подробнее на интерактивной карте** (Mermaid, кликабельные узлы): [README.diagram.md](README.diagram.md) — на главной CMS открывается та же диаграмма.
 
+---
+
+🇬🇧 **[en]**
+
+**Platform** — shared program layer: record types, catalogs, and settings for all workspaces.
+
+**Workspace** — your project folder: menu sections, themes, text files and attachments. Each agent can have its own workspace.
+
+**Tree** — section → theme → shelf (slot) → file record. Example: “Work” → “Renovation” → “Documents” → `estimate.md`. You shape the structure; there’s no fixed template.
+
+**Infoblocks** — for tables and lists with the same fields (expenses, contacts, directories). For free-form notes, the tree is usually easier.
+
+**Repositories** — a separate zone in the workspace for code projects (git clone, short `manifest.md` for the agent); source code stays out of the notes tree.
+
+**Sidecar** — next to a photo or PDF, a `.sidecar.md` holds description, tags, and links when you can’t put text in the file itself.
+
+**Internals** — passwords in `.env`; temporary indexes and search cache in `.agent-cms/`.
+
+**Workspace search** — indexes rebuild from your files; UI and agent (MCP) support several modes:
+
+- **by words** — full-text search in bodies and properties;
+- **by meaning** — “similar idea” chunks (semantic index, RAG);
+- **hybrid** — words + meaning + frontmatter filters in one query (handy for agents);
+- **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
+- **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
+
+You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md).
+
+All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
+
 ## 🇬🇧 Principles (🇷🇺 Принципы)
+
+🇷🇺 **[ru]**
 
 1. **Общий язык** — одни правила для человека и агента.
 2. **Файлы вместо БД** — контент на диске; индексы (смысл, слова, связи) пересобираются из файлов.
 3. **Синергия 1+1** — вы ведёте порядок, агент помнит контекст и действует в хранилище.
+
+---
+
+🇬🇧 **[en]**
+
+1. **Shared language** — one rule set for human and agent.
+2. **Files over DB** — content on disk; indexes (meaning, words, links) rebuild from files.
+3. **1+1 synergy** — you keep order; the agent remembers context and acts in the workspace.
 
 ## 🇬🇧 Stack (🇷🇺 Стек)
 
@@ -100,7 +175,9 @@
 
 ## 🇬🇧 Install — first run and launch (macOS only) (🇷🇺 Установка — первый старт и запуск, только macOS)
 
-![Agent CMS Control — сервер и desktop-приложения](docs/images/4.png)
+![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
+
+🇷🇺 **[ru]**
 
 ```bash
 git clone https://github.com/iv-litovchenko/AgentCMS.git
@@ -120,6 +197,28 @@ cd AgentCMS
 
 На главной CMS показывается [README.diagram.md](README.diagram.md), полный README — в репозитории.
 
+---
+
+🇬🇧 **[en]**
+
+```bash
+git clone https://github.com/iv-litovchenko/AgentCMS.git
+cd AgentCMS
+```
+
+1. Clone the repo to Desktop or any folder: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
+2. Open the folder in Finder.
+3. In `.env` (any text editor), set login and password (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); change Agent CMS and Voice ports if needed.
+4. Run `welcome.command` in the project root (double-click) — **Agent CMS Control** opens.
+5. Click in order: **Install dependencies** → **Certificates** → **Shortcuts**.
+6. Start the server — **Start**.
+7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
+8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP).
+9. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
+10. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
+
+The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
+
 ## 🇬🇧 License (🇷🇺 Лицензия)
 
 Copyright © 2026 Agent CMS
@@ -135,6 +234,8 @@ Copyright © 2026 Agent CMS
 
 ## 🇬🇧 References for agents and indexing (models — go learn 😀) (🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀)
 
+🇷🇺 **[ru]**
+
 Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
 
 - [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — карта MCP, workspace, правила работы с хранилищем
@@ -143,6 +244,19 @@ Copyright © 2026 Agent CMS
 - [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — поддерживаемая разметка в preview редактора
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
+
+---
+
+🇬🇧 **[en]**
+
+Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
+
+- [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) — MCP map, workspace, storage rules
+- [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
+- [GLOBAL-RULES.md](GLOBAL-RULES.md) — global rules for all workspaces
+- [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — markup supported in the editor preview
+
+See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
 ## 🇬🇧 Vision (🇷🇺 Мечта)
 
