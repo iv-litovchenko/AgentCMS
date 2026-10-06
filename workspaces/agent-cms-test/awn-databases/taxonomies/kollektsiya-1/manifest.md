@@ -1,5 +1,5 @@
 ---
-awn-name: Коллекция-2-many-tree
+awn-name: Коллекция-1
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
@@ -19,22 +19,22 @@ awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
 awn-type: awn.database.frame.taxonomy-collection
-awn-create: 2026-09-26T07:53:00.756Z
-awn-update: 2026-09-26T07:53:00.756Z
+awn-create: 2026-09-26T07:52:07.238Z
+awn-update: 2026-09-26T07:52:07.238Z
 awn-version: 1
 awn-record-hierarchy: false
 awn-record-file-types: ""
-awn-id: awn-taxonomies.kollektsiya-2-many-tree
+awn-id: taxonomies.kollektsiya-1
 awn-collection-type: csv
 awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
-awn-taxonomy-cardinality: many
-awn-taxonomy-hierarchy: true
+awn-taxonomy-cardinality: one
+awn-taxonomy-hierarchy: false
 ---
 
-# Коллекция-2-many-tree
+# Коллекция-1
 
-Коллекция-2-many-tree
+Коллекция-1
 
-Словарь `awn-taxonomy.kollektsiya-2-many-tree` (ключ из slug папки). Кардинальность: many. Иерархия: да.
+Словарь `awn-taxonomy.kollektsiya-1` (ключ из slug папки). Кардинальность: one. Иерархия: нет.

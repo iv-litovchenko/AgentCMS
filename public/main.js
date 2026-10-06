@@ -2315,7 +2315,8 @@ const SHARED_THEME_PRESETS = [
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
   SHARED_THEME_PRESETS.map((item) => [item.slug, item.label])
 );
-const SHARED_TAXONOMIES_SLUG = "awn-taxonomies";
+const SHARED_TAXONOMIES_SLUG = "taxonomies";
+const LEGACY_SHARED_TAXONOMIES_SLUG = "awn-taxonomies";
 const SHARED_TAXONOMIES_LABEL = "Таксономии";
 
 function isBuiltinAwnDataGroupRel(relPath) {
@@ -2331,7 +2332,7 @@ function isAwnTaxonomiesParentGroup(parentGroup = awnDataCreateParentGroup) {
     .trim()
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
-  return normalized === SHARED_TAXONOMIES_SLUG;
+  return normalized === SHARED_TAXONOMIES_SLUG || normalized === LEGACY_SHARED_TAXONOMIES_SLUG;
 }
 
 function inferAwnTaxonomyKeyFromSlug(slug) {
@@ -31127,7 +31128,8 @@ function isAwnTaxonomiesGroupPresent(agentId = activeAgentId) {
   if (cache?.groupExists) return true;
   if (
     awnDataCatalogAgentId === resolvedAgentId &&
-    findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, SHARED_TAXONOMIES_SLUG)
+    findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, SHARED_TAXONOMIES_SLUG) ||
+    findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, LEGACY_SHARED_TAXONOMIES_SLUG)
   ) {
     return true;
   }
@@ -46025,9 +46027,9 @@ function getAgentTaxonomyDefinitions(agentId = activeAgentId) {
 function getAgentTaxonomiesEmptyMessage(agentId = activeAgentId) {
   const cache = getAgentTaxonomiesCache(agentId);
   if (cache?.groupExists) {
-    return "В awn-databases/awn-taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
+    return "В awn-databases/taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
   }
-  return "Создайте группу awn-databases/awn-taxonomies/ через + Группа → Таксономии";
+  return "Создайте группу awn-databases/taxonomies/ через + Группа → Таксономии";
 }
 
 function getAgentTaxonomyDefinition(key) {
@@ -115560,8 +115562,8 @@ function syncAwnDataCreateGroupPresetsUi() {
   taxonomiesBtn.classList.toggle("is-disabled", exists);
   taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
   taxonomiesBtn.title = exists
-    ? "Группа awn-databases/awn-taxonomies/ уже создана"
-    : "Пустая группа awn-databases/awn-taxonomies/ для CSV-справочников";
+    ? "Группа awn-databases/taxonomies/ уже создана"
+    : "Пустая группа awn-databases/taxonomies/ для CSV-справочников";
 }
 
 function openAwnDataCreateModal(kind = "collection", options = {}) {
@@ -115586,7 +115588,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
         "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-databases/awn-taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
+        "Поднакопитель в <code>awn-databases/taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
@@ -121397,7 +121399,11 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
     closeAwnDataCreateModal();
     showToast(`Накопитель «${name}» создан`, "success");
-    if (String(slug || "").replace(/\\/g, "/").startsWith("awn-taxonomies/")) {
+    const taxonomySlugPrefix = String(slug || "").replace(/\\/g, "/");
+    if (
+      taxonomySlugPrefix.startsWith("taxonomies/") ||
+      taxonomySlugPrefix.startsWith("awn-taxonomies/")
+    ) {
       invalidateAgentTaxonomiesCache(agentId);
     }
     await refreshMenuAwnDataStores(agentId);

@@ -31,6 +31,6 @@ awn-description: "Встроенная группа CSV-справочников
 
 Встроенная группа CSV-справочников workspace для поля awn-taxonomy.
 
-Каждый поднакопитель — CSV-коллекция `main.csv` в `awn-databases/awn-taxonomies/`.
+Каждый поднакопитель — CSV-коллекция `main.csv` в `awn-databases/taxonomies/`.
 
 Значения подключаются к записям через единое поле `awn-taxonomy`.

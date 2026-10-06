@@ -4,7 +4,7 @@ kind: frame
 domain: database
 status: active
 extends: awn.database.frame.collection
-description: CSV-коллекция в awn-taxonomies; ключ в awn-taxonomy берётся из slug папки
+description: CSV-коллекция в taxonomies; ключ в awn-taxonomy берётся из slug папки
 manifest-pattern: manifest.md
 
 kind-ui:
