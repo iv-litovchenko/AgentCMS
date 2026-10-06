@@ -21484,6 +21484,7 @@ ol .live-diff-preview-removed {
 
 .app.app-landing-view .header-tool-buttons > .header-focus-wrap,
 .app.app-landing-view .header-tool-buttons > .header-index-wrap,
+.app.app-landing-view .header-tool-buttons > .header-author-workspace-wrap,
 .app.app-landing-view .header-tool-buttons > .header-notifications-wrap,
 .app.app-landing-view .header-tool-buttons > .header-profile-wrap,
 .app.app-landing-view .header-tool-buttons > .header-chat-wrap {
@@ -22001,6 +22002,52 @@ ol .live-diff-preview-removed {
 
 .header-author-youtube-icon {
   background: #ff0000;
+}
+
+.header-author-email-icon {
+  background: #6366f1;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.header-author-email-link {
+  color: inherit;
+}
+
+.header-author-email-anchor {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.header-author-email-anchor:hover .header-author-github-label {
+  color: #0f172a;
+}
+
+.header-author-email-copy-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.header-author-email-copy-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.header-author-email-copy-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
 }
 
 .header-author-github-link.is-stub {
@@ -22718,6 +22765,12 @@ a.header-tool-btn {
 
 .header-index-wrap {
   position: relative;
+  flex-shrink: 0;
+}
+
+.header-author-workspace-wrap {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 

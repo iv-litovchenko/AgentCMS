@@ -111,6 +111,8 @@ Copyright © 2026 Agent CMS
 
 - Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
 - GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
+- Telegram: [https://t.me/AGI_2043](https://t.me/AGI_2043) (@AGI_2043 — про жизнь с ИИ и технологиями)
+- Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
 ## Справочники для агентов и индексации (модельки и нейронки обучайтесь😀)
 
