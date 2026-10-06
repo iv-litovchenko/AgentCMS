@@ -230,7 +230,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   margin-top:28px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px
 }
 .cosmos-intro-cta,
-.cosmos-intro-github{
+.cosmos-intro-github,
+.cosmos-intro-telegram{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   height:54px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:700;
   line-height:1;white-space:nowrap;
@@ -246,19 +247,23 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   width:28px;height:28px;border-radius:50%;font-size:15px;line-height:1;
   padding:0;margin:0
 }
-.cosmos-intro-github .cosmos-intro-btn-icon{background:rgba(255,255,255,.08)}
+.cosmos-intro-github .cosmos-intro-btn-icon,
+.cosmos-intro-telegram .cosmos-intro-btn-icon{background:rgba(255,255,255,.08)}
+.cosmos-intro-telegram .cosmos-intro-btn-glyph{font-size:17px}
 .cosmos-intro-cta{
   background:linear-gradient(135deg,#3978ff,#6366f1);color:#fff;
   border:1px solid transparent;
   box-shadow:0 6px 22px rgba(57,120,255,.38)
 }
 .cosmos-intro-cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(57,120,255,.48)}
-.cosmos-intro-github{
+.cosmos-intro-github,
+.cosmos-intro-telegram{
   color:#e2e8f0;background:rgba(15,23,42,.55);
   border:1px solid rgba(148,163,184,.45);
   box-shadow:0 6px 20px rgba(2,6,23,.28)
 }
-.cosmos-intro-github:hover,.cosmos-intro-github:focus-visible{
+.cosmos-intro-github:hover,.cosmos-intro-github:focus-visible,
+.cosmos-intro-telegram:hover,.cosmos-intro-telegram:focus-visible{
   transform:translateY(-2px);border-color:rgba(147,197,253,.65);
   box-shadow:0 10px 26px rgba(2,6,23,.38);outline:none
 }
@@ -2720,6 +2725,10 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <a class="cosmos-intro-github" href="https://github.com/iv-litovchenko/AgentCMS" target="_blank" rel="noopener noreferrer">
             <span class="cosmos-intro-btn-icon" aria-hidden="true"><span class="cosmos-intro-btn-glyph">↓</span></span>
             <span class="cosmos-intro-btn-label">Скачать на GitHub</span>
+          </a>
+          <a class="cosmos-intro-telegram" href="https://t.me/AGI_2043" target="_blank" rel="noopener noreferrer">
+            <span class="cosmos-intro-btn-icon" aria-hidden="true"><span class="cosmos-intro-btn-glyph">✈</span></span>
+            <span class="cosmos-intro-btn-label">Telegram</span>
           </a>
           <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
             <span class="cosmos-intro-btn-icon cosmos-intro-down-arrow" aria-hidden="true"><span class="cosmos-intro-btn-glyph">↓</span></span>
