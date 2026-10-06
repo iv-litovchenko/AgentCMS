@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="c-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b14" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+    <linearGradient id="cube-top" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="cube-left" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="cube-right" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <filter id="cube-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect width="64" height="64" rx="16" fill="url(#c-bg)" />
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.5" />
+
+  <!-- Ambient light -->
+  <circle cx="32" cy="32" r="16" fill="#38bdf8" opacity="0.2" filter="url(#cube-glow)" />
+
+  <!-- Isometric Cube Faces -->
+  <!-- Top -->
+  <path d="M32 14 L49 23.5 L32 33 L15 23.5 Z" fill="url(#cube-top)" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  <!-- Left -->
+  <path d="M15 23.5 L32 33 L32 51 L15 41.5 Z" fill="url(#cube-left)" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+  <!-- Right -->
+  <path d="M32 33 L49 23.5 L49 41.5 L32 51 Z" fill="url(#cube-right)" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+
+  <!-- Center Core Node on top -->
+  <circle cx="32" cy="23.5" r="4" fill="#ffffff" opacity="0.95" />
+  <circle cx="32" cy="23.5" r="2" fill="#facc15" />
+</svg>
