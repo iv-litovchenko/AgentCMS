@@ -13,6 +13,8 @@ awn-name: Тема PHP
 awn-fact-kind: entity
 awn-source: manual
 awn-tags: [php, темы]
+awn-id: 66
 ---
+
 
 Тема PHP (awn-id: 34) — учебный workspace по PHP 8.x, путь: awn-container/php/manifest.md.

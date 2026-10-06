@@ -13,6 +13,8 @@ awn-name: Инфоблок
 awn-glossary-term: Инфоблок
 awn-glossary-aliases: [накопитель, data store]
 awn-tags: [agent-cms, структура]
+awn-id: 63
 ---
+
 
 Структурированный накопитель данных в Agent CMS (awn-database). Хранит однотипные записи со схемой полей — аналог таблицы в базе данных. Бывает трёх видов: collection, single, group.

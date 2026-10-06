@@ -13,6 +13,8 @@ awn-name: awn-id
 awn-glossary-term: awn-id
 awn-glossary-aliases: [глобальный id, workspace id]
 awn-tags: [agent-cms, идентификаторы]
+awn-id: 64
 ---
+
 
 Место хранения контента внутри темы в Agent CMS. Каждый слот — это папка или файл (main, inbox, media, notes и др.). MCP-ключ слота передаётся в параметре slot.

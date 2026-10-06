@@ -13,6 +13,8 @@ awn-name: Структура personal-finance
 awn-fact-kind: decision
 awn-source: manual
 awn-tags: [personal-finance, csv, инфоблоки]
+awn-id: 65
 ---
+
 
 Группа personal-finance содержит 4 CSV-коллекции (Расходы, Доходы, Инвестиции, Покупки) с русскими заголовками в main.csv.
