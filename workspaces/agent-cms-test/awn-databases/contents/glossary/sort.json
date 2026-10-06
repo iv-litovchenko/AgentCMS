@@ -3,5 +3,7 @@
   "slot",
   "awn-id",
   "term-id-test",
-  "manifest"
+  "manifest",
+  "frontmatter",
+  "body"
 ]

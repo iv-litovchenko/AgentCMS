@@ -8,6 +8,7 @@ awn-repo-tech: []
 awn-repository-group: study
 awn-runtime-index: manifest-only
 awn-index-exclude-subtree: true
+awn-id: 81
 ---
 
 Описание для агента и человека: entry point, ветка, связь с темами CMS.
