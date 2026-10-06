@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1724">
 <meta name="description" content="Agent CMS — хранилище для всего самого важного и ценного, что есть в цифровой жизни. По одним принципам вместе с ИИ.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="favicon.svg">
 <title>Agent CMS — всё важное из цифровой жизни в одном месте</title>
 <style>
 :root{
@@ -186,10 +188,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#93c5fd
 }
 .cosmos-intro-title{
-  margin:0 0 18px;font-size:clamp(44px,10vw,76px);font-weight:900;letter-spacing:-.045em;line-height:1.02;
+  margin:0 0 18px;font-size:clamp(44px,10vw,76px);font-weight:900;letter-spacing:-.045em;
+  line-height:1.12;padding:.1em .06em .12em;overflow:visible;
   font-family:ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
   background:linear-gradient(135deg,#fff 0%,#bfdbfe 38%,#c4b5fd 72%,#fde68a 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  color:transparent
 }
 .cosmos-intro-lead{
   margin:0;max-width:52ch;font-size:clamp(16px,2.6vw,21px);line-height:1.6;font-weight:500;
@@ -224,19 +228,53 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6ee7b7;margin-right:6px
 }
 .cosmos-intro-summary em{font-style:normal;color:#fde68a;font-weight:650}
+.cosmos-intro-actions{
+  margin-top:28px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px
+}
+.cosmos-intro-cta,
+.cosmos-intro-github,
+.cosmos-intro-telegram{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:54px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:700;
+  line-height:1;white-space:nowrap;
+  transition:.2s;text-decoration:none;border:0;cursor:pointer;box-sizing:border-box;
+  font-family:inherit;-webkit-tap-highlight-color:transparent;vertical-align:middle
+}
+.cosmos-intro-btn-label{
+  display:inline-block;line-height:1;padding:0;margin:0;
+  transform:translateY(.5px)
+}
+.cosmos-intro-btn-icon{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:28px;height:28px;border-radius:50%;font-size:15px;line-height:1;
+  padding:0;margin:0
+}
+.cosmos-intro-github .cosmos-intro-btn-icon,
+.cosmos-intro-telegram .cosmos-intro-btn-icon{background:rgba(255,255,255,.08)}
+.cosmos-intro-telegram .cosmos-intro-btn-glyph{font-size:17px}
 .cosmos-intro-cta{
-  margin-top:28px;display:inline-flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,#3978ff,#6366f1);color:#fff;
-  padding:13px 24px;border-radius:999px;font-size:15px;font-weight:700;
-  box-shadow:0 6px 22px rgba(57,120,255,.38);transition:.2s
+  border:1px solid transparent;
+  box-shadow:0 6px 22px rgba(57,120,255,.38)
 }
 .cosmos-intro-cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(57,120,255,.48)}
-.cosmos-intro-down-arrow{
-  display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
-  background:rgba(255,255,255,.16);font-size:16px;line-height:1;
+.cosmos-intro-github,
+.cosmos-intro-telegram{
+  color:#e2e8f0;background:rgba(15,23,42,.55);
+  border:1px solid rgba(148,163,184,.45);
+  box-shadow:0 6px 20px rgba(2,6,23,.28)
+}
+.cosmos-intro-github:hover,.cosmos-intro-github:focus-visible,
+.cosmos-intro-telegram:hover,.cosmos-intro-telegram:focus-visible{
+  transform:translateY(-2px);border-color:rgba(147,197,253,.65);
+  box-shadow:0 10px 26px rgba(2,6,23,.38);outline:none
+}
+.cosmos-intro-down-arrow{background:rgba(255,255,255,.16)}
+.cosmos-intro-down-arrow .cosmos-intro-btn-glyph{
+  display:block;line-height:1;
   animation:cosmos-hint-bob 2.4s ease-in-out infinite
 }
-@keyframes cosmos-hint-bob{0%,100%{transform:translateY(0);opacity:.85}50%{transform:translateY(4px);opacity:1}}
+@keyframes cosmos-hint-bob{0%,100%{transform:translateY(0);opacity:.85}50%{transform:translateY(3px);opacity:1}}
 .cosmos-top{
   display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:10px
 }
@@ -328,7 +366,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   .cosmos-bubble-label{font-size:9px;max-width:64px}
 }
 @media(prefers-reduced-motion:reduce){
-  .cosmos-stars--far,.cosmos-stars--mid,.cosmos-stars--near,.cosmos-meteor,.cosmos-hub-ring--outer,.cosmos-hub-ring--inner,.cosmos-hub-glow,.cosmos-orbit-item,.cosmos-intro-down-arrow{animation:none}
+  .cosmos-stars--far,.cosmos-stars--mid,.cosmos-stars--near,.cosmos-meteor,.cosmos-hub-ring--outer,.cosmos-hub-ring--inner,.cosmos-hub-glow,.cosmos-orbit-item,.cosmos-intro-btn-glyph{animation:none}
   .cosmos-splash{min-height:auto}
   .cosmos-inner{min-height:auto}
   .cosmos-intro{padding:24px 16px 12px}
@@ -2408,7 +2446,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .footer-gallery-dream{
   text-transform:none;font-style:italic;font-weight:600;color:#0284c7
 }
-.footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
+.footer-contacts{
+  margin:28px 0 0;padding:0;list-style:none;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 18px
+}
+.footer-contacts a{
+  font-size:13px;font-weight:650;color:#4338ca;text-decoration:none;
+  border-bottom:1px solid rgba(67,56,202,.25);padding-bottom:1px;
+  transition:color .2s,border-color .2s
+}
+.footer-contacts a:hover,.footer-contacts a:focus-visible{
+  color:#1d4ed8;border-bottom-color:rgba(29,78,216,.45);outline:none
+}
+.footer-copy{margin-top:16px;font-size:12px;color:#94a3b8}
 
 .toast{position:fixed;z-index:30;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -2673,10 +2723,20 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>вместе растём</li>
         </ul>
         <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> <em>совместный диалог</em>, который <em>Вы</em> и <em>ИИ</em> ведёте на протяжении долгих лет и можете вспомнить, где что лежит</p>
-        <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
-          <span class="cosmos-intro-down-arrow" aria-hidden="true">↓</span>
-          Познакомимся
-        </button>
+        <div class="cosmos-intro-actions">
+          <a class="cosmos-intro-github" href="https://github.com/iv-litovchenko/AgentCMS" target="_blank" rel="noopener noreferrer">
+            <span class="cosmos-intro-btn-icon" aria-hidden="true"><span class="cosmos-intro-btn-glyph">↓</span></span>
+            <span class="cosmos-intro-btn-label">Скачать на GitHub</span>
+          </a>
+          <a class="cosmos-intro-telegram" href="https://t.me/AGI_2043" target="_blank" rel="noopener noreferrer">
+            <span class="cosmos-intro-btn-icon" aria-hidden="true"><span class="cosmos-intro-btn-glyph">✈</span></span>
+            <span class="cosmos-intro-btn-label">Telegram</span>
+          </a>
+          <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
+            <span class="cosmos-intro-btn-icon cosmos-intro-down-arrow" aria-hidden="true"><span class="cosmos-intro-btn-glyph">↓</span></span>
+            <span class="cosmos-intro-btn-label">Познакомимся</span>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -4399,7 +4459,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           </figure>
         </div>
 
-        <p class="footer-copy">Agent CMS · 2026</p>
+        <nav class="footer-contacts" aria-label="Контакты">
+          <a href="https://github.com/iv-litovchenko/AgentCMS">GitHub</a>
+          <a href="https://t.me/AGI_2043">Telegram</a>
+          <a href="mailto:iv-litovchenko@mail.ru">Почта</a>
+        </nav>
+        <p class="footer-copy">Agent CMS · 2026 · 0.0.1-beta</p>
       </div>
     </div>
   </footer>
