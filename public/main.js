@@ -5795,6 +5795,8 @@ function createMediaLibraryWorkspaceIblockLayout(options = {}) {
     leadNode.innerHTML = `Дополнительные поля для медиатеки, разделов, записей в слотах <code>files</code>/<code>assets</code> и sidecar. <span class="topic-schema-lead-hint">Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с <code>manifest.md</code> медиатеки.</span>`;
   }
 
+  layout.querySelector(".awn-databases-view-elements-main")?.remove();
+
   return layout;
 }
 
@@ -18619,8 +18621,16 @@ function createStorageSlotSchemaButton(slotKey) {
   return btn;
 }
 
+function shouldShowEntryOverviewBrowseSchemaButton(targetMode) {
+  const topicPath = getOverviewNodeApiPath(getResolvedNodePath(activePath));
+  if (isMediaLibraryPageNodePath(topicPath)) return false;
+  if (isMediaLibraryWorkspaceRel(topicPath)) return false;
+  return true;
+}
+
 function appendEntryOverviewBrowseSchemaButton(parent, targetMode) {
   if (!parent || !targetMode) return;
+  if (!shouldShowEntryOverviewBrowseSchemaButton(targetMode)) return;
   const slotKey = getDataStorageSlotForMode(targetMode)?.key || targetMode;
   if (!slotKey || !getTopicSchemaTargetForStorageSlot(slotKey)) return;
   appendNavigationHubRailBrowseActionButton(parent, {
@@ -23860,6 +23870,11 @@ function isPageNodeManifestPath(nodePath) {
 }
 
 function canShowNodeOverviewSharedSlotToggle(nodePath) {
+  const apiPath = String(getResolvedNodePath(nodePath) || nodePath || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (isMediaLibraryManifestPath(apiPath) || isMediaLibraryFolderPath(apiPath)) return false;
+  if (isMediaLibraryWorkspaceRel(apiPath)) return false;
   return isPageNodeManifestPath(nodePath);
 }
 
@@ -92388,7 +92403,7 @@ async function renderNodeNavigation() {
     showHeroInstruction: true,
     onEditClick: openDescriptionFromOverview,
     settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
-    hideSharedSlot: isRepositoryManifestPath(nodePath),
+    hideSharedSlot: isRepositoryManifestPath(nodePath) || isMediaLibraryPageNodePath(nodePath, entries),
     showWorkspaceMarkers: !isRepositoryManifestPath(nodePath),
     slugIssue: getNodeManifestSlugIssue(nodePath),
     recordPath: getOverviewNodeApiPath(nodePath),
@@ -124945,8 +124960,21 @@ async function handleMenuRepositoriesRefreshClick() {
   }
 }
 
+function resolveMenuMediaLibraryAwnId(entry) {
+  const raw = entry?.awnId || entry?.["awn-id"] || "";
+  return normalizeAwnIdDisplayValue(raw);
+}
+
 function menuMediaLibraryEntrySearchHaystack(entry) {
-  return [entry?.name, entry?.slug, entry?.description, entry?.folderPath, entry?.manifestPath, entry?.status]
+  return [
+    entry?.name,
+    entry?.slug,
+    resolveMenuMediaLibraryAwnId(entry),
+    entry?.description,
+    entry?.folderPath,
+    entry?.manifestPath,
+    entry?.status
+  ]
     .map((value) => String(value || "").trim().toLowerCase())
     .filter(Boolean)
     .join(" ");
@@ -125033,6 +125061,8 @@ function createMenuMediaLibraryRow(library) {
   const nameNode = document.createElement("span");
   nameNode.className = "menu-awn-databases-store-name";
   nameNode.textContent = displayName;
+  const idBadge = createNavBookTocIdBadge(resolveMenuMediaLibraryAwnId(library));
+  if (idBadge) idBadge.classList.add("menu-awn-databases-store-id-badge");
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-databases-store-meta";
 
@@ -125106,7 +125136,12 @@ function createMenuMediaLibraryRow(library) {
     }
   }
 
-  row.append(createMenuMediaLibraryKindNode(), nameNode, metaNode);
+  row.append(
+    createMenuMediaLibraryKindNode(),
+    ...(idBadge ? [idBadge] : []),
+    nameNode,
+    metaNode
+  );
 
   if (!isPendingCreate) {
     const openLibrary = (event) => {

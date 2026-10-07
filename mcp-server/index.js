@@ -191,7 +191,12 @@ function createServer() {
   registerSearchWorkspaceTools(reg, client);
 
   registerRepositoryTools(reg, client);
-  registerMediaLibraryTools(reg, client);
+  registerMediaLibraryTools(reg, client, {
+    registerBinaryReadFile: (name, description, schema, fn) =>
+      reg(name, description, schema, fn, {
+        formatResult: (data) => formatReadFileToolResult(data, jsonText)
+      })
+  });
 
   registerBrainTools(reg, client);
 
