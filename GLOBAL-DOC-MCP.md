@@ -121,6 +121,10 @@
 
 `upload_file` принимает только полный путь: `{папка темы}/awn-storage/assets/pasted|preview|attachments/{файл}`. В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
 
+### Медиатеки workspace (`awn-media/{slug}/`)
+
+Не слот темы. Карточка: `list_media_libraries`, `get_media_library`, `register_media_library`, `update_media_library`, `refresh_media_library_index`. Файлы внутри: `list_media_library_items` (`path` = manifest, `folder` = `files` | `assets`), `read_media_library_file`, `upload_media_library_file`. Разделы — `…/files/{раздел}/manifest.md` (как у многофайловой памяти).
+
 ### Гибкий слот
 
 Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
