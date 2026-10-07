@@ -4597,7 +4597,7 @@ async function applyEntryOverviewRouteStateFromUrl(route) {
   const relPath = getEntryOverviewItemContextPath(relativePath, memoryKind);
   const isMarkdown = /\.md$/i.test(relativePath);
   let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind });
-  if (memoryKind === "media" && !isMarkdown) entryKind = "awn.media.asset";
+  if (isMediaLibrarySlotMemoryKind(memoryKind) && !isMarkdown) entryKind = "awn.media.asset";
 
   await openEntryOverviewFromNavigation(
     {
@@ -19784,6 +19784,11 @@ function getMediaLibraryStorageSubfolder(mode = activeContentMode, nodePath = ac
   if (browseMode === "assets") return STORAGE_SUBFOLDER_ASSETS;
   if (browseMode === "files") return STORAGE_SUBFOLDER_FILES;
   return STORAGE_SUBFOLDER_MEDIA;
+}
+
+function isMediaLibrarySlotMemoryKind(memoryKind) {
+  const kind = String(memoryKind || "").trim();
+  return kind === "media" || kind === "files" || kind === "assets";
 }
 
 function buildMediaLibraryApiParams(extra = {}, mode = activeContentMode, nodePath = activePath) {
@@ -36590,11 +36595,11 @@ function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
   const manifestBase = getResolvedNodePath(nodePath);
   const memoryKind =
     options.memoryKind ||
-    (activeEntryOverviewContext?.memoryKind === "assets"
-      ? "assets"
+    (activeEntryOverviewContext?.memoryKind
+      ? resolveMediaLibraryBrowseMode(activeEntryOverviewContext.memoryKind, nodePath)
       : activeContentMode === "assets"
         ? "assets"
-        : "media");
+        : resolveMediaLibraryBrowseMode(activeContentMode, nodePath));
   const params = {
     path: resolveManifestPathForNodeApi(manifestBase),
     contextPath: resolveMediaAssetContextPath(nodePath),
@@ -66512,8 +66517,8 @@ async function openEntryOverviewEdit(context) {
     return;
   }
 
-  if (memoryKind === "media" || memoryKind === "assets") {
-    const mode = memoryKind === "assets" ? "assets" : "media";
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
+    const mode = memoryKind === "assets" ? "assets" : memoryKind === "files" ? "files" : "media";
     if (isAreaContentModeBlocked(mode)) return;
     if (!applyContentModeState(mode)) return;
     syncAppRouteToUrl({ replace: true });
@@ -74109,11 +74114,15 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
         const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
         if (!isAssetsSlot && isMemorySectionInfrastructureFolderPath(folderKey)) continue;
         const segment = folderKey.split("/").pop() || folderKey;
-        const title = String(item.displayName || "").trim();
+        const itemProps = Array.isArray(item.props) ? item.props : [];
+        const awnName = getPropsEntryValueByKey(itemProps, "awn-name");
+        const title = normalizeYamlDisplayString(String(item.displayName || "").trim());
         const status = resolveNavigationItemStatus(item);
-        if (title || !folderLabels.has(folderKey)) {
-          folderLabels.set(folderKey, title || folderLabels.get(folderKey) || resolveNodeDisplayName("", segment));
-        }
+        folderLabels.set(
+          folderKey,
+          resolveNodeDisplayName(awnName, segment) || title || folderLabels.get(folderKey) || segment
+        );
+        sectionManifestByFolder.set(folderKey, item);
         if (status) folderStatuses.set(folderKey, status);
         if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
         continue;
@@ -74365,7 +74374,7 @@ function getFlatStorageItemContextPath(relativePath, mode, nodePath = activePath
 }
 
 function getEntryOverviewItemContextPath(relativePath, memoryKind, nodePath = activePath) {
-  if (memoryKind === "media" || memoryKind === "assets") {
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
     return getMediaLibraryItemContextPath(relativePath, memoryKind, nodePath);
   }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
@@ -74594,6 +74603,12 @@ function openFlexibleSlotItemFromNavigation(item) {
     openExternalCategoryOverviewFromNavigation(rel.replace(/\/$/, ""));
     return;
   }
+  if (isSectionReadmePath(rel)) {
+    openExternalCategoryOverviewFromNavigation(
+      rel.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "")
+    );
+    return;
+  }
   if (/\.md$/i.test(rel) && !isSectionReadmePath(rel)) {
     openExternalRecordOverviewFromNavigation(item);
     return;
@@ -74610,7 +74625,7 @@ function openFlexibleSlotItemFromNavigation(item) {
 }
 
 function getEntryOverviewNavigationHandlers(memoryKind) {
-  if (memoryKind === "media" || memoryKind === "assets") {
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
     return {
       onFolderClick: (folderPath) =>
         memoryKind === "assets"
@@ -74666,7 +74681,7 @@ function resolveNavigationHubRailResourceContextMenuScope(memoryKind) {
       fileKind: "externalFile"
     };
   }
-  if (memoryKind === "media" || memoryKind === "assets") {
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
     return {
       sectionState: { mediaMode: true },
       sectionReadmeExists: mediaSectionReadmeExists,
@@ -75373,7 +75388,7 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
         return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
       }
     }
-    if (context?.memoryKind === "media" || context?.memoryKind === "assets") {
+    if (isMediaLibrarySlotMemoryKind(context?.memoryKind)) {
       const libraryParams = buildMediaLibraryApiParams(
         { path: topicApiPath, file: context.relativePath },
         context.memoryKind
@@ -75385,10 +75400,11 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
           return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
         }
       } else {
+        const libraryFolder = getMediaLibraryStorageSubfolder(context.memoryKind);
         const response = await fetch(
           buildApiUrl("/api/media/sidecar", {
             ...buildTopicMediaSidecarApiParams(context.relativePath),
-            ...(context.memoryKind === "assets" ? { folder: STORAGE_SUBFOLDER_ASSETS } : {})
+            ...(libraryFolder !== STORAGE_SUBFOLDER_MEDIA ? { folder: libraryFolder } : {})
           })
         );
         if (response.ok) {
@@ -75437,10 +75453,17 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
     if (!getTopicSchemaCache(manifestPath, contentPath || "")) {
       await loadTopicSchemaForManifest(manifestPath, { topicOnly: true, force: false });
     }
+    const declaredType = String(getPropsEntryValueByKey(entries, "awn-type") || "").trim();
+    const inferredType =
+      !declaredType && isEntryOverviewCategoryContext(context)
+        ? inferAwnTypeFromRelPath(context.relativePath || context.relPath, {
+            contentMode: context.memoryKind
+          })
+        : "";
     const typeName = normalizeAwnTypeName(
       context.entryKind === "awn.media.asset"
         ? "awn.annotation.sidecar"
-        : context.entryKind || resolveAwnTypeForContext()
+        : declaredType || inferredType || context.entryKind || resolveAwnTypeForContext()
     );
     return applyTypeSchemaToEntries(entries, typeName);
   } catch {
@@ -75529,7 +75552,7 @@ async function fetchEntryOverviewBodyResult(context) {
       const data = await response.json();
       return { content: String(data.content || ""), ok: true };
     }
-    if (context.memoryKind === "media" || context.memoryKind === "assets") {
+    if (isMediaLibrarySlotMemoryKind(context.memoryKind)) {
       const libraryParams = buildMediaLibraryApiParams(
         { path: getActiveNodeApiPath(), file: context.relativePath },
         context.memoryKind
@@ -75540,10 +75563,11 @@ async function fetchEntryOverviewBodyResult(context) {
         const data = await response.json();
         return { content: String(data.content || ""), ok: true };
       }
+      const libraryFolder = getMediaLibraryStorageSubfolder(context.memoryKind);
       const response = await fetch(
         buildApiUrl("/api/media/sidecar", {
           ...buildTopicMediaSidecarApiParams(context.relativePath),
-          ...(context.memoryKind === "assets" ? { folder: STORAGE_SUBFOLDER_ASSETS } : {})
+          ...(libraryFolder !== STORAGE_SUBFOLDER_MEDIA ? { folder: libraryFolder } : {})
         })
       );
       if (!response.ok) return { content: "", ok: false };
@@ -77120,6 +77144,24 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
   if (anchor) anchor.insertAdjacentElement("afterend", attachmentsPanel);
   else hero.appendChild(attachmentsPanel);
   return attachmentsPanel;
+}
+
+function resolveEntryOverviewHeroTypeLabel(entries, context, navigationIndex = null) {
+  const fromProps = String(getPropsEntryValueByKey(entries, "awn-type") || "").trim();
+  if (fromProps) return fromProps;
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return "";
+  if (isEntryOverviewCategoryContext(context)) {
+    const folderKey = normalizeSectionFolderKey(getSectionFolderFromCategoryContext(context));
+    if (folderKey && navigationIndex?.sectionManifestByFolder instanceof Map) {
+      const manifest = navigationIndex.sectionManifestByFolder.get(folderKey);
+      const navProps = Array.isArray(manifest?.props) ? manifest.props : [];
+      const fromNav = String(getPropsEntryValueByKey(navProps, "awn-type") || "").trim();
+      if (fromNav) return fromNav;
+    }
+  }
+  const rel = String(context.relativePath || context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return "";
+  return String(inferAwnTypeFromRelPath(rel, { contentMode: context.memoryKind }) || "").trim();
 }
 
 function formatEntryOverviewHeroPathLabel(entries, relativePath) {
@@ -80001,12 +80043,12 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
-    linkLeadingMode: context.memoryKind === "media" || context.memoryKind === "assets" ? "media" : undefined,
+    linkLeadingMode: isMediaLibrarySlotMemoryKind(context.memoryKind) ? "media" : undefined,
     readManifestPath: getOverviewNodeApiPath(activePath),
     readMemoryKind: context.memoryKind
   });
 
-  if (context.memoryKind === "media" || context.memoryKind === "assets") {
+  if (isMediaLibrarySlotMemoryKind(context.memoryKind)) {
     appendEntryOverviewMediaBookTocList(list, tree, 0, listHandlers);
   } else {
     appendNavigationBookTocList(list, tree, 0, listHandlers);
@@ -81180,11 +81222,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPrevi
     return null;
   }
 
-  if (
-    context.memoryKind === "media" ||
-    context.memoryKind === "assets" ||
-    navigationIndex?.flexibleSlotMedia
-  ) {
+  if (isMediaLibrarySlotMemoryKind(context.memoryKind) || navigationIndex?.flexibleSlotMedia) {
     return renderEntryOverviewMediaMemoryToc(context, navigationIndex, { topicPreview });
   }
 
@@ -81282,7 +81320,7 @@ async function renderEntryOverview() {
   }
   if (isStale()) return;
 
-  if (context.memoryKind === "media" || context.memoryKind === "assets") {
+  if (isMediaLibrarySlotMemoryKind(context.memoryKind)) {
     navigationMediaImagesLayout = loadNavigationMediaImagesLayout(context.memoryKind);
   }
   if (isTopicFlexibleSlotBrowseContext(context)) {
@@ -81430,7 +81468,7 @@ async function renderEntryOverview() {
   }
 
   const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
-  const entryTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
+  const entryTypeLabel = resolveEntryOverviewHeroTypeLabel(entries, context, navigationIndex);
   const indexEntryReadOnly = isStorageIndexMdEntryContext(context);
   const showHeroUnread = isMemoryTocRoot
     ? isNodePageUnread(manifestApiPath)

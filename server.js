@@ -27696,7 +27696,22 @@ async function handleApiForAgent(req, res, url) {
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    const manifestRel = String(relPath || contextPath || "").replace(/\\/g, "/");
+    const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRel, url.searchParams.get("folder"));
+    let fileAbsolute = null;
+    const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(storageContext.absolute, libraryFolder);
+    if (libraryFolderAbsolute) {
+      const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+      if (
+        isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+        (await fileExists(directAbsolute))
+      ) {
+        fileAbsolute = directAbsolute;
+      }
+    }
+    if (!fileAbsolute) {
+      fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    }
     if (!fileAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
     try {
