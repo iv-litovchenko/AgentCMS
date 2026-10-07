@@ -1879,8 +1879,7 @@ function getStorageIndexService() {
       getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy,
-      isEntityIndexExcluded
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return storageIndexService;

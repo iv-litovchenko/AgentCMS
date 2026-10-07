@@ -10977,6 +10977,8 @@ const PLATFORM_INDEXING_SETTING_KEYS = [
   "index-ocr-enabled",
   "index-workspace-id-enabled",
   "index-storage-mode",
+  "index-storage-batch-size",
+  "index-storage-sqlite-enabled",
   "index-file-extensions",
   "index-path-prefixes",
   "index-exclude-patterns",

@@ -676,10 +676,13 @@
         .map(([step]) => step)
         .join(", ");
       const tuning = policy.searchTuning || {};
+      const storageBatch = policy.storageBatchSize != null ? policy.storageBatchSize : 30;
+      const sqliteHint = policy.storageSqliteEnabled ? ` · SQLite пачка ${storageBatch}` : "";
       indexPolicyHintNode.textContent =
         `Политика: ${ext} · разделы: ${prefixes} · исключения: ${excludes}` +
         `${enabledSteps ? ` · pipeline: ${enabledSteps}` : ""}` +
-        `${tuning.semanticChunkMaxLen ? ` · RAG: ${tuning.semanticChunkMaxLen}/${tuning.semanticChunkOverlap}` : ""}`;
+        `${tuning.semanticChunkMaxLen ? ` · RAG: ${tuning.semanticChunkMaxLen}/${tuning.semanticChunkOverlap}` : ""}` +
+        sqliteHint;
     }
     syncPipelineButtonChrome();
   }
