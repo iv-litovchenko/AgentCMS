@@ -20,8 +20,14 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 if [[ ! -d node_modules ]]; then
-  echo "Первый запуск: npm install..."
-  npm install
+  echo "Зависимости ещё не установлены."
+  echo ""
+  echo "  1. Двойной клик: install.command  (в корне проекта)"
+  echo "  2. Затем снова: welcome.command"
+  echo ""
+  echo "  Или в Terminal: bash scripts/install-deps.sh"
+  read -r -p "Нажмите Enter для выхода..."
+  exit 1
 fi
 
 npm run control:desktop
