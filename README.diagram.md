@@ -34,7 +34,8 @@ flowchart TD
     WS_SCREENSAVER --> WS_CONTEXT_REG["📋 Реестр контекста<br/>всегда в контексте · по расписанию · сердцебиение"]
 
     TOOLS --> SEARCH["🔍 Поиск"]
-    SEARCH --> MODULES["📦 Модули"]
+    SEARCH --> REGISTRY_QUERIES["📑 Реестр запросов<br/>именованные выборки · cron · heartbeat<br/>storage-index · MCP run"]
+    REGISTRY_QUERIES --> MODULES["📦 Модули"]
     MODULES --> AUX_JOURNAL["📓 Журнал"]
 
     UI --> UI_CONTROL["🚀 Agent CMS Controll (luncher)"]
@@ -111,6 +112,7 @@ flowchart TD
     click WS_NOTIFY href "zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
     click WS_CONTEXT_REG href "zadachi-plany-i-idei/awn-storage/main/reestr-tem-i-avtozagruzka.md" "Реестр контекста"
     click SEARCH href "zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
+    click REGISTRY_QUERIES href "zadachi-plany-i-idei/awn-storage/comments/main/sql-mddatabse-md-fayly-kak-bd.md" "Реестр запросов"
     click MODULES href "zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
     click CHANNELS href "obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы и источники"
     click IDEA1 href "zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"

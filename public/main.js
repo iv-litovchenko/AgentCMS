@@ -59484,7 +59484,9 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
             ? ["enabled", "order", "parallel-group", "column"]
           : settingsFieldKey === "module-git-commit-batches"
             ? ["id", "label", "extensions", "messageTemplate", "maxFileSizeMb"]
-            : ["id", "key", "label", "text", "group"];
+            : settingsFieldKey === "registry-query-presets"
+              ? ["id", "name", "comment", "query"]
+              : ["id", "key", "label", "text", "group"];
   const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
   if (inlineProperties && Object.keys(inlineProperties).length) {
     return buildRepeaterPropertyDefs(inlineProperties, preferredOrder);

@@ -102,4 +102,36 @@ queries:
         field: path
         dir: asc
       limit: 500
+  - id: recent-records
+    name: Последние записи
+    comment: Записи с awn-id, сортировка по убыванию id (недавно присвоенные). Опционально pathPrefix — только внутри темы.
+    source: storage-index
+    query:
+      where:
+        - field: awn-id
+          gte: 1
+      fields:
+        - path
+        - awn-name
+        - awn-type
+        - awn-id
+      sort:
+        field: awn-id
+        dir: desc
+      limit: 50
+  - id: updated-last-7-days
+    name: Изменены за 7 дней
+    comment: Поле awn-update (ISO) не старше 7 суток. relativeDays пересчитывается при run_workspace_registry_query.
+    source: storage-index
+    query:
+      relativeDays: 7
+      fields:
+        - path
+        - awn-name
+        - awn-update
+        - awn-create
+      sort:
+        field: awn-update
+        dir: desc
+      limit: 100
 

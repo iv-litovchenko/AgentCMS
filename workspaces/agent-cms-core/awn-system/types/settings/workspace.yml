@@ -372,6 +372,8 @@ fields:
     group: registry-queries
     sort: 8
     default: |
+      # Ограничить поддерево workspace (папка темы, контейнер, awn-databases/…)
+      pathPrefix: awn-container/moya-tema
       # Условия (все строки where — AND). Поля — как в YAML-frontmatter записей.
       where:
         - field: awn-runtime-cron
@@ -388,6 +390,10 @@ fields:
         field: path
         dir: asc
       limit: 100
+      # Фиксированная дата (без relativeDays в шаблоне):
+      # where:
+      #   - field: awn-update
+      #     gte: "2026-10-01T00:00:00.000Z"
 
   registry-query-presets:
     type: awn.field.repeater
@@ -407,7 +413,7 @@ fields:
       name:
         type: awn.field.string
         title: Название
-      description:
+      comment:
         type: awn.field.text
         title: Описание
         description: Для агента и подсказок в UI — что возвращает эта выборка
@@ -416,7 +422,7 @@ fields:
         title: Запрос (фильтр)
         description: |
           Фильтр по каталогу полей workspace (storage-index). Ключи where: field + eq | contains | gte | lte | gt | lt.
-          Опционально pathPrefix в корне запроса — ограничить папку (awn-container/…).
+          pathPrefix в корне — только файлы под этой папкой (без ведущего /).
         hint: "where: [{ field, eq|contains… }], fields: [path, …], sort, limit"
         default: |
           where:
