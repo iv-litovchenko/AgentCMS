@@ -50959,6 +50959,12 @@ button.node-navigation-memory-title:focus-visible {
   box-sizing: border-box;
 }
 
+.props-form-repeater-subfield-value textarea.props-form-value--textarea:read-only {
+  color: var(--text, #0f172a);
+  opacity: 1;
+  -webkit-text-fill-color: var(--text, #0f172a);
+}
+
 .props-form-field--object-group {
   flex-direction: column;
   align-items: stretch;

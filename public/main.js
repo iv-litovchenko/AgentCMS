@@ -49981,6 +49981,52 @@ function getNodeSettingsSavePayload() {
   };
 }
 
+const REGISTRY_QUERY_PRESETS_SETTINGS_KEY = "registry-query-presets";
+
+async function fetchRegistryQueryCommentByIdMap(agentId = activeAgentId) {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/registry-queries", {}, agentId));
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const queries = Array.isArray(payload?.catalog?.queries) ? payload.catalog.queries : [];
+    const map = new Map();
+    for (const row of queries) {
+      const id = String(row?.id || "").trim();
+      if (!id) continue;
+      map.set(id, String(row?.comment || "").trim());
+    }
+    return map.size ? map : null;
+  } catch {
+    return null;
+  }
+}
+
+function enrichRegistryQueryPresetItems(items, commentById = null) {
+  if (!Array.isArray(items)) return items;
+  return items.map((item) => {
+    if (!item || typeof item !== "object") return item;
+    const about = String(item.about || item.description || item.comment || "").trim();
+    if (about) {
+      return about === item.about ? item : { ...item, about };
+    }
+    const id = String(item.id || "").trim();
+    const fromCatalog = id && commentById ? commentById.get(id) : "";
+    if (fromCatalog) return { ...item, about: fromCatalog };
+    return item;
+  });
+}
+
+async function enrichWorkspaceSettingsRegistryQueryPresets(settings, agentId = activeAgentId) {
+  if (!settings || typeof settings !== "object") return settings;
+  const presets = settings[REGISTRY_QUERY_PRESETS_SETTINGS_KEY];
+  if (!Array.isArray(presets) || !presets.length) return settings;
+  const commentById = await fetchRegistryQueryCommentByIdMap(agentId);
+  return {
+    ...settings,
+    [REGISTRY_QUERY_PRESETS_SETTINGS_KEY]: enrichRegistryQueryPresetItems(presets, commentById)
+  };
+}
+
 async function loadNodeSettingsForManifest(nodePath, options = {}) {
   const manifestPath = getNodeSettingsManifestPath(nodePath);
   if (!manifestPath) return null;
@@ -50032,9 +50078,13 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
         isProjectSettingsIntegrationsSettingsScope(manifestPath) ||
         isProjectSettingsUserSettingsScope(manifestPath);
       if (mergeNormalizedSettings) {
+        let mergedSettings = data.settings;
+        if (isProjectSettingsLocalScope(manifestPath)) {
+          mergedSettings = await enrichWorkspaceSettingsRegistryQueryPresets(mergedSettings);
+        }
         state = {
           ...state,
-          entries: NodeConfigBundle.settingsObjectToEntries(data.settings)
+          entries: NodeConfigBundle.settingsObjectToEntries(mergedSettings)
         };
       }
     }
@@ -59597,23 +59647,44 @@ function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = fal
   label.textContent = propDef?.title || propKey;
 
   const displayValue = value !== undefined && value !== null ? value : fieldDefDefaultValue(propDef);
-  const entry = {
-    key: propKey,
-    kind: fieldDefToEntryKind(propDef),
-    value: displayValue,
-    fieldDef: propDef
-  };
-  const control = createPropsFormValueControl(entry, {
-    ...getNodeSettingsFieldMeta(propKey, propDef, { repeaterSubfield: true }),
-    fieldDef: propDef,
-    locked,
-    settingsRepeaterSubfield: true
-  });
-  control.classList.add("props-form-repeater-subfield-value");
-  const textControl = control.querySelector("textarea.props-form-value, input.props-form-value");
-  if (textControl && displayValue !== undefined && displayValue !== null) {
-    const text = String(displayValue);
-    if (textControl.value !== text) textControl.value = text;
+  const displayText = String(displayValue ?? "").trim();
+  const typeId = normalizeCanonicalFieldTypeId(propDef?.type || "awn.field.string");
+  const multilineSubfield =
+    fieldTypeIs(typeId, "text") ||
+    fieldTypeIs(typeId, "text.code") ||
+    resolvePropsFieldWidget(propKey, propDef) === "textarea";
+
+  let control;
+  if (locked && multilineSubfield && displayText) {
+    control = createPropsFormValueWrap("textarea");
+    control.classList.add("props-form-repeater-subfield-value");
+    const textarea = document.createElement("textarea");
+    textarea.className = "props-form-value props-form-value--textarea";
+    textarea.readOnly = true;
+    textarea.value = displayText;
+    textarea.placeholder = "—";
+    const lineCount = displayText.split(/\r?\n/).length;
+    textarea.rows = Math.max(3, Math.min(16, lineCount + 1));
+    bindPropsFormLockedState(textarea, true);
+    control.appendChild(textarea);
+  } else {
+    const entry = {
+      key: propKey,
+      kind: fieldDefToEntryKind(propDef),
+      value: displayValue,
+      fieldDef: propDef
+    };
+    control = createPropsFormValueControl(entry, {
+      ...getNodeSettingsFieldMeta(propKey, propDef, { repeaterSubfield: true }),
+      fieldDef: propDef,
+      locked,
+      settingsRepeaterSubfield: true
+    });
+    control.classList.add("props-form-repeater-subfield-value");
+    const textControl = control.querySelector("textarea.props-form-value, input.props-form-value");
+    if (textControl && displayText && textControl.value !== displayText) {
+      textControl.value = displayText;
+    }
   }
   subfield.append(label, control);
   return subfield;
@@ -60036,9 +60107,14 @@ function createPropsFormTextareaControl(entry, meta, { locked = false } = {}) {
   textarea.rows = Math.max(6, Math.min(24, lineCount + 2));
   textarea.value = displayValue;
   if (meta.hint && !MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)) textarea.title = meta.hint;
-  textarea.placeholder = MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)
-    ? "—"
-    : meta.hint || "—";
+  const hasDisplayText = String(displayValue ?? "").trim().length > 0;
+  if (meta.settingsRepeaterSubfield) {
+    textarea.placeholder = hasDisplayText ? "—" : meta.hint || "—";
+  } else {
+    textarea.placeholder = MODULE_GIT_COMMIT_EXTENSIONS_FIELD_KEYS.has(entry.key)
+      ? "—"
+      : meta.hint || "—";
+  }
   bindPropsFormLockedState(textarea, locked);
   wrap.appendChild(textarea);
   return wrap;
