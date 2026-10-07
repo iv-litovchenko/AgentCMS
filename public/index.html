@@ -2909,55 +2909,6 @@
                   </button>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
-                <summary class="menu-static-summary" title="Медиа в облаке — awn-media-cloud (файлы, без sidecar)">
-                  <span class="menu-static-title menu-static-title--google-drive">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">Медиа в облаке</span>
-                  </span>
-                  <span
-                    id="menu-google-drive-stats"
-                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
-                    aria-live="polite"
-                  >
-                    —
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-google-drive-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить медиа в облаке"
-                      aria-label="Обновить медиа в облаке"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <button
-                    id="menu-google-drive-repair-btn"
-                    type="button"
-                    class="menu-static-action-btn menu-static-action-btn--google-drive"
-                    title="Пересчитать относительные пути symlink в media → awn-media-cloud"
-                  >
-                    Синхронизировать ссылки
-                  </button>
-                  <ul
-                    id="menu-google-drive-files"
-                    class="menu-google-drive-files"
-                    aria-label="Файлы awn-media-cloud"
-                  ></ul>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--awn-dialogs menu-static-accordion">
                 <summary class="menu-static-summary" title="Диалоги с ИИ — архив переписки Shell / Voice (awn-dialogs)">
                   <span class="menu-static-title menu-static-title--awn-dialogs">
@@ -3829,16 +3780,24 @@
         </div>
       </main>
 
-      <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
+      <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы (медиа в облаке)">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Крупные файлы</h2>
+            <h2 class="agent-canvas-title">Крупные файлы (медиа в облаке)</h2>
             <p class="agent-canvas-lead">
-              Файлы больше 45 МБ — с путями относительно корня агента.
+              Файлы больше 45 МБ — с путями относительно корня агента. Если файл лежит в облаке, у строки показан префикс blob.
             </p>
           </div>
           <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button
+              id="menu-google-drive-repair-btn"
+              class="agent-workspace-refresh-btn agent-large-files-repair-btn"
+              type="button"
+              title="Пересчитать относительные пути symlink в media → awn-media-cloud"
+            >
+              Синхронизировать ссылки
+            </button>
             <button id="agent-large-files-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Повторить сканирование">
               Обновить
             </button>
@@ -3846,6 +3805,15 @@
         </div>
         <div id="agent-large-files-info" class="agent-tool-info agent-large-files-info">
           <div id="agent-large-files-meta" class="agent-large-files-meta">
+            <div class="agent-large-files-toolbar-row">
+              <span class="agent-large-files-meta-label">В облаке</span>
+              <div
+                id="agent-large-files-cloud-stats"
+                class="agent-large-files-cloud-stats"
+                aria-live="polite"
+                aria-label="Размер медиа в облаке по драйверам"
+              ></div>
+            </div>
             <div class="agent-large-files-toolbar-row">
               <span class="agent-large-files-meta-label">Размер от</span>
               <div class="agent-large-files-threshold-scroll">

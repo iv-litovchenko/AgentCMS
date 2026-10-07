@@ -16858,17 +16858,29 @@ async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTE
   await collectLargeFilesInDir(agentRoot, "", minBytes, results);
   results.sort((left, right) => right.size - left.size || left.path.localeCompare(right.path));
   const totalSize = results.reduce((sum, item) => sum + item.size, 0);
+  const files = [];
+  for (const item of results) {
+    let cloudBlob = "";
+    try {
+      const meta = await getGoogleDriveSymlinkMeta(path.join(agentRoot, item.path), agentRoot);
+      if (meta?.synced) cloudBlob = String(meta.blobName || "").trim();
+    } catch {
+      cloudBlob = "";
+    }
+    files.push({
+      path: item.path,
+      size: item.size,
+      sizeLabel: formatBytesLabel(item.size),
+      cloudBlob
+    });
+  }
   return {
     threshold: minBytes,
     thresholdMb: minBytes / (1024 * 1024),
     count: results.length,
     totalSize,
     totalSizeLabel: formatBytesLabel(totalSize),
-    files: results.map((item) => ({
-      path: item.path,
-      size: item.size,
-      sizeLabel: formatBytesLabel(item.size)
-    }))
+    files
   };
 }
 

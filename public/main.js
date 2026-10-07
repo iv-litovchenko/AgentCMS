@@ -118,8 +118,7 @@ const menuAwnChannelsIndexOpenBtn = document.getElementById("menu-awn-channels-i
 const menuAwnChannelsIndexRefreshBtn = document.getElementById("menu-awn-channels-index-refresh-btn");
 const menuAwnChannelsSearchInputNode = document.getElementById("menu-awn-channels-search-input");
 const menuAwnChannelsFlowStripNode = document.getElementById("menu-awn-channels-flow-strip");
-const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
-const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
+const agentLargeFilesCloudStatsNode = document.getElementById("agent-large-files-cloud-stats");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
 const menuAwnDialogsRuntimesNode = document.getElementById("menu-awn-dialogs-runtimes");
 const menuAwnDialogsOpenBtn = document.getElementById("menu-awn-dialogs-open-btn");
@@ -33898,7 +33897,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard2: "Дашборд",
   dashboard3: "Мой дашборд",
   git: "Git-репозиторий",
-  "large-files": "Крупные файлы",
+  "large-files": "Крупные файлы (медиа в облаке)",
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
   "todo-list": "Список задач",
@@ -108940,7 +108939,19 @@ function paintAgentLargeFilesReport(data) {
       pathNode.className = "agent-large-files-path";
       pathNode.textContent = item.path;
 
-      btn.append(typeNode, pathNode, sizeNode);
+      const cloudBlob = String(item.cloudBlob || "").trim();
+      const cloudPrefix = cloudBlob ? formatMediaCloudBlobPrefix(cloudBlob) : "";
+      let cloudNode = null;
+      if (cloudPrefix) {
+        cloudNode = document.createElement("span");
+        cloudNode.className = "agent-large-files-cloud-blob";
+        cloudNode.textContent = cloudPrefix;
+        cloudNode.title = `В облаке · awn-media-cloud/_blobs/${cloudBlob}`;
+        cloudNode.setAttribute("aria-label", `Файл в облаке: ${cloudBlob}`);
+        btn.title = `${item.path}\n${cloudBlob}`;
+      }
+
+      btn.append(typeNode, ...(cloudNode ? [cloudNode] : []), pathNode, sizeNode);
       btn.addEventListener("click", () => {
         void revealWorkspacePath(item.path);
       });
@@ -115634,6 +115645,26 @@ function formatRussianFileCount(count) {
   return `${n} файлов`;
 }
 
+const MEDIA_CLOUD_DRIVER_TITLES = {
+  "google-drive": "Google Диск",
+  "yandex-disk": "Яндекс Диск"
+};
+
+function formatMediaCloudBlobPrefix(blobName) {
+  const name = String(blobName || "").trim();
+  const mediaCloud = name.match(/^(mc-[0-9a-f]{8})/i);
+  if (mediaCloud) return mediaCloud[1];
+  const legacy = name.match(/^(gd_[0-9a-f]{8})/i);
+  if (legacy) return legacy[1];
+  return name;
+}
+
+function resolveAgentLargeFilesCloudDriverTitle(providerId) {
+  const key = String(providerId || "").trim();
+  const fromCache = (mediaCloudProvidersCache?.providers || []).find((item) => item.key === key);
+  return fromCache?.title || MEDIA_CLOUD_DRIVER_TITLES[key] || key || "Облако";
+}
+
 function formatGoogleDriveStorageSize(bytes) {
   const size = Number(bytes) || 0;
   if (size < 1024) return `${size} B`;
@@ -116432,73 +116463,49 @@ function createGoogleDriveSyncBar(initialConfig = {}) {
 }
 
 function renderMenuGoogleDriveStats(payload = null, { loading = false, error = false } = {}) {
-  if (menuGoogleDriveStatsNode) {
-    if (loading) {
-      menuGoogleDriveStatsNode.textContent = "…";
-      menuGoogleDriveStatsNode.classList.remove("is-empty", "is-error");
-    } else if (error || !payload) {
-      menuGoogleDriveStatsNode.textContent = "—";
-      menuGoogleDriveStatsNode.classList.add("is-error");
-      menuGoogleDriveStatsNode.classList.remove("is-empty");
-    } else {
-      menuGoogleDriveStatsNode.classList.remove("is-error");
-      const count = Number(payload.fileCount) || 0;
-      const sizeLabel = formatGoogleDriveStorageSize(payload.totalBytes);
-      if (!payload.exists) {
-        menuGoogleDriveStatsNode.textContent = "0 · —";
-        menuGoogleDriveStatsNode.classList.add("is-empty");
-      } else {
-        menuGoogleDriveStatsNode.textContent =
-          count > 0 ? `${count} · ${sizeLabel}` : "0 · —";
-        menuGoogleDriveStatsNode.classList.toggle("is-empty", count === 0);
-      }
-    }
-  }
-
-  if (!menuGoogleDriveFilesNode) return;
-
-  menuGoogleDriveFilesNode.replaceChildren();
+  const node = agentLargeFilesCloudStatsNode;
+  if (!node) return;
+  node.replaceChildren();
+  node.classList.remove("is-empty", "is-error");
 
   if (loading) {
-    const item = document.createElement("li");
-    item.className = "menu-google-drive-files-empty";
-    item.textContent = "Загрузка…";
-    menuGoogleDriveFilesNode.appendChild(item);
+    node.textContent = "…";
     return;
   }
-
   if (error || !payload) {
-    const item = document.createElement("li");
-    item.className = "menu-google-drive-files-empty is-error";
-    item.textContent = "Не удалось прочитать";
-    menuGoogleDriveFilesNode.appendChild(item);
+    node.textContent = "—";
+    node.classList.add("is-error");
     return;
   }
 
-  const files = Array.isArray(payload.files) ? payload.files : [];
-  if (!payload.exists || !files.length) {
-    const item = document.createElement("li");
-    item.className = "menu-google-drive-files-empty";
-    item.textContent = payload.exists ? "Папка пуста" : "Папка не создана";
-    menuGoogleDriveFilesNode.appendChild(item);
+  const providers = Array.isArray(payload.providers) ? payload.providers : [];
+  const count = Number(payload.fileCount) || 0;
+  if (!payload.exists || (count === 0 && !providers.length)) {
+    node.textContent = "0 · —";
+    node.classList.add("is-empty");
     return;
   }
 
-  for (const file of files) {
-    const row = document.createElement("li");
-    row.className = "menu-google-drive-file-row";
-    row.title = String(file.name || "");
-
-    const nameNode = document.createElement("span");
-    nameNode.className = "menu-google-drive-file-name";
-    nameNode.textContent = String(file.name || "—");
-
-    const sizeNode = document.createElement("span");
-    sizeNode.className = "menu-google-drive-file-size";
-    sizeNode.textContent = formatGoogleDriveStorageSize(file.size);
-
-    row.append(nameNode, sizeNode);
-    menuGoogleDriveFilesNode.appendChild(row);
+  const rows = providers.length
+    ? providers
+    : [{ id: "google-drive", fileCount: count, totalBytes: payload.totalBytes }];
+  for (const provider of rows) {
+    const providerCount = Number(provider.fileCount) || 0;
+    if (!providerCount) continue;
+    const chip = document.createElement("span");
+    chip.className = "agent-large-files-cloud-driver";
+    const name = document.createElement("span");
+    name.className = "agent-large-files-cloud-driver-name";
+    name.textContent = resolveAgentLargeFilesCloudDriverTitle(provider.id);
+    const value = document.createElement("strong");
+    value.textContent = `${providerCount} · ${formatGoogleDriveStorageSize(provider.totalBytes)}`;
+    chip.title = `${name.textContent}: ${value.textContent}`;
+    chip.append(name, value);
+    node.appendChild(chip);
+  }
+  if (!node.childElementCount) {
+    node.textContent = "0 · —";
+    node.classList.add("is-empty");
   }
 }
 
@@ -126596,9 +126603,9 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
 }
 
 async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
-  if (!menuGoogleDriveStatsNode && !menuGoogleDriveFilesNode) return;
+  if (!agentLargeFilesCloudStatsNode) return;
   if (!agentId) {
-    renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [] });
+    renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [], providers: [] });
     return;
   }
 
@@ -126606,6 +126613,7 @@ async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
   renderMenuGoogleDriveStats(null, { loading: true });
 
   try {
+    await fetchMediaCloudProviders().catch(() => null);
     const response = await fetch(buildApiUrl("/api/agent/google-drive-stats", {}, agentId));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -126649,6 +126657,10 @@ async function repairMenuGoogleDriveSymlinks(agentId = activeAgentId) {
       showToast("Ссылки уже актуальны", "success");
     }
     void refreshMenuGoogleDriveStats(agentId);
+    if (agentWorkspaceView === "large-files") {
+      agentLargeFilesCachedReport = null;
+      void renderAgentLargeFilesView();
+    }
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
       await renderEntryOverview();
     } else if (activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_OVERVIEW_MODE) {
@@ -130043,6 +130055,7 @@ agentJournalPeriodFilterNode?.addEventListener("change", () => {
 
 agentLargeFilesRefreshBtn?.addEventListener("click", () => {
   agentLargeFilesCachedReport = null;
+  void refreshMenuGoogleDriveStats();
   if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
   }
