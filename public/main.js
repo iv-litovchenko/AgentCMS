@@ -70,6 +70,15 @@ const menuMediaLibraryIndexRefreshBtn = document.getElementById("menu-media-libr
 const menuMediaLibrarySearchBtn = document.getElementById("menu-media-library-search-btn");
 const MEDIA_LIBRARY_INDEX_REL = "awn-media/index.md";
 const menuMediaLibrarySearchInputNode = document.getElementById("menu-media-library-search-input");
+const mediaLibraryCreateModalNode = document.getElementById("media-library-create-modal");
+const mediaLibraryCreateModalTitleNode = document.getElementById("media-library-create-modal-title");
+const mediaLibraryCreateModalHintNode = document.getElementById("media-library-create-modal-hint");
+const mediaLibraryCreateNameInputNode = document.getElementById("media-library-create-name-input");
+const mediaLibraryCreateSlugInputNode = document.getElementById("media-library-create-slug-input");
+const mediaLibraryCreateDescriptionInputNode = document.getElementById("media-library-create-description-input");
+const mediaLibraryCreateCancelBtn = document.getElementById("media-library-create-cancel-btn");
+const mediaLibraryCreateSubmitBtn = document.getElementById("media-library-create-submit-btn");
+let mediaLibraryCreateModalState = { mode: "custom" };
 let menuMediaLibrariesLastPayload = null;
 let menuMediaLibrariesLoadSeq = 0;
 let menuMediaLibrariesCachedAgentId = "";
@@ -2586,6 +2595,7 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   internal: "main",
   inbox: "inbox",
   media: "media",
+  files: "files",
   note: "notes",
   "quick-notes": "quick-notes",
   references: "references",
@@ -2604,6 +2614,7 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
   main: "external",
   inbox: "inbox",
   media: "media",
+  files: "files",
   notes: "note",
   "quick-notes": "note",
   references: "references",
@@ -2782,9 +2793,12 @@ function getChpuSlotFolderForContentMode(mode) {
   return getStorageSubfolderForMode(mode) || null;
 }
 
-function getChpuSlotFolderForMemoryKind(kind) {
+function getChpuSlotFolderForMemoryKind(kind, topicPath = activePath) {
   if (kind === "external") return STORAGE_SUBFOLDER_MEMORY;
   if (kind === "note" || kind === "quick-notes") return STORAGE_SUBFOLDER_NOTE;
+  if ((kind === "media" || kind === "files") && isMediaLibraryPageNodePath(topicPath)) {
+    return STORAGE_SUBFOLDER_FILES;
+  }
   return getStorageSubfolderForMode(kind) || kind;
 }
 
@@ -2792,7 +2806,7 @@ function resolveChpuAwnStorageSlotPath(topicRoute, memoryKind, topicPath = activ
   if (memoryKind === "external" && isTopicSharedSlotActive(topicPath)) {
     return `${topicRoute}/awn-storage`;
   }
-  const slotFolder = getChpuSlotFolderForMemoryKind(memoryKind || "external");
+  const slotFolder = getChpuSlotFolderForMemoryKind(memoryKind || "external", topicPath);
   return slotFolder ? `${topicRoute}/awn-storage/${slotFolder}` : `${topicRoute}/awn-storage`;
 }
 
@@ -3699,7 +3713,8 @@ function getChpuWorkspacePathFromState() {
   if (isMediaLibraryContentMode() && (activeMediaSidecarSourcePath || activeMediaMarkdownPath)) {
     const mediaFile = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath).replace(/\\/g, "/");
     const baseName = mediaFile.replace(/\.sidecar\.md$/i, "").replace(/\.md$/i, "");
-    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/media/${baseName}`, "edit", {
+    const storageFolder = getMediaLibraryStorageSubfolder(activeContentMode, activePath);
+    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/${storageFolder}/${baseName}`, "edit", {
       force: true
     });
   }
@@ -5601,6 +5616,12 @@ function isMediaLibraryWorkspaceRel(workspaceRel) {
   return /^awn-media(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
 
+function getMediaLibrarySlugFromWorkspacePath(workspaceRel) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  const match = normalized.match(/^awn-media\/([^/]+)/i);
+  return match ? match[1] : "";
+}
+
 function getActiveMediaLibraryMenuFolderPath() {
   const resolved = normalizeLinkFilePath(getResolvedNodePath(activePath));
   if (!resolved || resolved.toLowerCase() === MEDIA_LIBRARY_INDEX_REL.toLowerCase()) return "";
@@ -5759,7 +5780,9 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
 
   suspendAppRouteSync();
   try {
-    await openEntryOverviewMemoryTocFromNavigation("media");
+    await openEntryOverviewMemoryTocFromNavigation(
+      isMediaLibraryPageNodePath(manifestPath) ? "files" : "media"
+    );
     applyNodeWorkspaceViewUi();
     updateBreadcrumbsForActiveMode();
     void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
@@ -17460,6 +17483,7 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
 const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
   "media",
+  "files",
   "inbox",
   "note",
   "notes",
@@ -19514,6 +19538,17 @@ function getMediaLibraryModeLabel(mode = activeContentMode) {
   return getDataStorageSlotForMode(mode)?.label || (mode === "media" ? "Медиа" : mode);
 }
 
+function resolveEntryOverviewStorageSlotSpec(context, topicPath = getResolvedNodePath(activePath)) {
+  const memoryKind = context?.memoryKind;
+  if (!memoryKind) return null;
+  if (memoryKind === "external") return getDataStorageSlotForMode("external");
+  if (isMediaLibraryPageNodePath(topicPath)) {
+    if (memoryKind === "media" || memoryKind === "files") return getDataStorageSlotForMode("files");
+    if (memoryKind === "assets") return getDataStorageSlotForMode("assets");
+  }
+  return getDataStorageSlotForMode(memoryKind);
+}
+
 function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
   if (mode === NODE_ENTRY_OVERVIEW_MODE) {
     const memoryKind = activeEntryOverviewContext?.memoryKind;
@@ -19523,6 +19558,7 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
     if (memoryKind === "tabular") return "main-single-csv";
     if (memoryKind === "todo") return "todo-single";
     if (memoryKind === "roadmap") return "roadmap-single";
+    if (memoryKind === "files") return "files";
     if (memoryKind === "media") return isMediaLibraryPageNodePath() ? "files" : "media";
     if (memoryKind === "assets") return "assets";
     if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
@@ -20106,6 +20142,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     assets: ["assets"],
     repository: ["repository"],
     media: ["media"],
+    files: ["files"],
     scripts: ["scripts"],
     templates: ["templates"],
     base: ["base"],
@@ -74023,6 +74060,7 @@ function isDataEntryOverviewMemoryKind(kind) {
   return (
     kind === "external" ||
     kind === "media" ||
+    kind === "files" ||
     kind === "assets" ||
     isBundleEntryOverviewMemoryKind(kind) ||
     isFlatEntryOverviewMemoryKind(kind)
@@ -74030,7 +74068,7 @@ function isDataEntryOverviewMemoryKind(kind) {
 }
 
 function getEntryOverviewTocRootEntryKind(memoryKind) {
-  if (memoryKind === "media") return "awn.media.memory.toc.root";
+  if (memoryKind === "media" || memoryKind === "files") return "awn.media.memory.toc.root";
   if (memoryKind === "assets") return "awn.assets.toc.root";
   if (isFlatEntryOverviewMemoryKind(memoryKind)) return `awn.${memoryKind}.toc.root`;
   return "awn.memory.toc.root";
@@ -75635,13 +75673,17 @@ async function ensureRecordPartsWorkspaceFolder(folderPath) {
   return response.json();
 }
 
-function getEntryOverviewStorageSlotFolderApiName(context) {
+function getEntryOverviewStorageSlotFolderApiName(context, topicPath = getResolvedNodePath(activePath)) {
   const memoryKind = context?.memoryKind;
   if (!memoryKind) return null;
   if (memoryKind === "internal" || memoryKind === "tabular" || memoryKind === "todo" || memoryKind === "roadmap")
     return null;
   if (isBundleEntryOverviewMemoryKind(memoryKind)) return null;
   if (memoryKind === "external") return STORAGE_SUBFOLDER_CONTENT;
+  if (memoryKind === "media") {
+    return isMediaLibraryPageNodePath(topicPath) ? STORAGE_SUBFOLDER_FILES : STORAGE_SUBFOLDER_MEDIA;
+  }
+  if (memoryKind === "assets") return STORAGE_SUBFOLDER_ASSETS;
   return getFlatStorageSectionFolderName(memoryKind);
 }
 
@@ -75667,9 +75709,7 @@ function shouldOfferEntryOverviewStorageSlotCreate(context) {
 }
 
 async function fetchEntryOverviewStorageSlotFolderExists(context, topicPath) {
-  const spec = getDataStorageSlotForMode(
-    context?.memoryKind === "external" ? "external" : context?.memoryKind
-  );
+  const spec = resolveEntryOverviewStorageSlotSpec(context, topicPath);
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!spec || !manifestPath) return true;
   try {
@@ -75713,7 +75753,7 @@ async function handleCreateStorageSlotFolder(slotKey, topicPath) {
 }
 
 function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) {
-  const spec = getDataStorageSlotForMode(context.memoryKind === "external" ? "external" : context.memoryKind);
+  const spec = resolveEntryOverviewStorageSlotSpec(context, topicPath);
   if (!spec) return;
   appendNavigationHubRailBrowseActionButton(actions, {
     className: "entry-overview-create-slot-folder-btn",
@@ -75728,9 +75768,8 @@ function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) 
   });
 }
 
-function createEntryOverviewSlotFolderMissingNotice(context) {
-  const targetMode = context?.memoryKind === "external" ? "external" : context?.memoryKind;
-  const spec = getDataStorageSlotForMode(targetMode);
+function createEntryOverviewSlotFolderMissingNotice(context, topicPath = getResolvedNodePath(activePath)) {
+  const spec = resolveEntryOverviewStorageSlotSpec(context, topicPath);
   const slotLabel = spec?.label || getMediaLibraryModeLabel(targetMode) || "Слот";
   const pathHint = getDataStorageSlotPathHint(spec);
 
@@ -75791,7 +75830,7 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
 
   if (!panel.querySelector(":scope > .node-entry-overview-slot-folder-missing")) {
     const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
-    const notice = createEntryOverviewSlotFolderMissingNotice(context);
+    const notice = createEntryOverviewSlotFolderMissingNotice(context, topicPath);
     if (toolbar) panel.insertBefore(notice, toolbar);
     else panel.appendChild(notice);
   }
@@ -76855,7 +76894,11 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
         data.folders || []
       );
     }
-    if (context.memoryKind === "media" || context.memoryKind === "assets") {
+    if (
+      context.memoryKind === "media" ||
+      context.memoryKind === "files" ||
+      context.memoryKind === "assets"
+    ) {
       if (isTopicSharedSlotActive(topicPath)) {
         const data = await fetchExternalFilesForNavigation(topicPath);
         if (data.slotsDisabled && data.groups) {
@@ -76869,12 +76912,14 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
       const folderMode =
         context.memoryKind === "assets"
           ? "assets"
-          : isMediaLibraryPageNodePath(topicPath)
+          : isMediaLibraryPageNodePath(topicPath) || context.memoryKind === "files"
             ? "files"
             : "media";
+      const preparedMemoryKind =
+        context.memoryKind === "files" ? "media" : context.memoryKind;
       const data = await fetchMediaLibraryOverview(topicPath, folderMode);
       return prepareNavigationMediaItems(data?.groups || {}, data?.sectionManifests || [], {
-        memoryKind: context.memoryKind
+        memoryKind: preparedMemoryKind
       });
     }
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
@@ -77419,7 +77464,7 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
   const showSearch = !slotFolderMissing && (isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context));
   const showActions = shouldShowEntryOverviewBrowseActions(context);
   const listBlock = slotFolderMissing
-    ? createEntryOverviewSlotFolderMissingNotice(context)
+    ? createEntryOverviewSlotFolderMissingNotice(context, getResolvedNodePath(activePath))
     : renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot, topicPreview });
   if (!showSearch && !showActions && !listBlock) return null;
 
@@ -79350,7 +79395,9 @@ function shouldShowEntryOverviewSlotCountersInHero() {
 }
 
 function shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot = false) {
-  if (isMediaLibraryPageNodePath()) return false;
+  if (isMediaLibraryPageNodePath()) {
+    return Boolean(isMemoryTocRoot && isEntryOverviewMemoryTocRoot(context));
+  }
   if (isMemoryTocRoot || isEntryOverviewMemoryTocRoot(context)) return true;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
   if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
@@ -81010,16 +81057,31 @@ async function renderEntryOverview() {
       const manifestEntries = resolveNodeOverviewPropsEntries();
       const { body: manifestBody } = splitFrontmatter(modeContentCache.description || "");
       const mediaLibraryTitle = getEntryOverviewTopicTitle();
+      const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(topicPath);
       const hero = createNavigationHero(preview, mediaLibraryTitle, topicPath, {
         meta: nodeMeta,
         propEntries: manifestEntries,
         descriptionRaw: manifestBody,
         typeLabel: getPropsEntryValueByKey(manifestEntries, "awn-type") || "awn.media",
-        compact: true,
+        compact: false,
+        editOnly: true,
+        onEditClick: openDescriptionFromOverview,
+        pageManifestPath: topicPath,
+        recordPath: topicPath,
+        pathLabel: mediaLibrarySlug ? `slug: ${mediaLibrarySlug}` : formatNodeHeroSlugLabel(topicPath),
+        slugIssue: mediaLibrarySlug ? { current: mediaLibrarySlug } : null,
+        onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
         showHeroInstruction: false,
         showSettingsProps: false,
-        hideSharedSlot: true
+        hideSharedSlot: true,
+        thumbWrap: createOverviewThumbWrap(preview, mediaLibraryTitle, topicPath, {
+          propEntries: manifestEntries
+        })
       });
+      hero.classList.add("node-navigation-hero--media-library-store");
+      hero
+        .querySelector(".node-navigation-hero-meta-path")
+        ?.classList.add("awn-databases-view-id-path");
       hubMain.appendChild(hero);
     }
 
@@ -81072,7 +81134,10 @@ async function renderEntryOverview() {
     if (tocBrowsePanel && shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) {
       void mountEntryOverviewBrowseSlotCounterStrip(tocBrowsePanel, context, topicPath, {
         isMemoryTocRoot: true
-      }).then(() => finalizeEntryOverviewBrowsePanelChromeOrder(tocBrowsePanel));
+      }).then(() => {
+        finalizeEntryOverviewBrowsePanelChromeOrder(tocBrowsePanel);
+        relocateEntryOverviewSlotCountersChrome(hubMain);
+      });
     }
     return;
   }
@@ -124598,7 +124663,13 @@ function createMenuMediaLibraryRow(library) {
       keyBtn.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        void provisionAndOpenLibrary();
+        openMediaLibraryCreateModal({
+          slug,
+          name: displayName,
+          description: library.description && !library.stub ? library.description : "",
+          preset: isPreset,
+          lockSlug: isPreset
+        });
       });
       metaNode.appendChild(keyBtn);
     } else {
@@ -124938,23 +125009,96 @@ async function handleMenuMediaLibraryIndexRefreshClick() {
   }
 }
 
-async function promptCreateMenuMediaLibrary() {
-  const slug = String(window.prompt("Папка (slug) в awn-media/", "") || "")
+function openMediaLibraryCreateModal(options = {}) {
+  if (!mediaLibraryCreateModalNode) return;
+  const slug = String(options.slug || "").trim();
+  const name = String(options.name || "").trim();
+  const lockSlug = Boolean(options.lockSlug);
+  mediaLibraryCreateModalState = {
+    mode: options.preset ? "preset" : "custom",
+    lockSlug
+  };
+  if (mediaLibraryCreateModalTitleNode) {
+    mediaLibraryCreateModalTitleNode.textContent = options.preset
+      ? `Создать медиатеку «${name || slug}»`
+      : "Своя медиатека";
+  }
+  if (mediaLibraryCreateModalHintNode) {
+    mediaLibraryCreateModalHintNode.innerHTML = lockSlug
+      ? `Заготовка workspace: фиксированный ключ <code>${slug}</code> → <code>awn-media/${slug}/</code>.`
+      : "Папка <code>awn-media/{slug}/</code> с <code>manifest.md</code> и <code>awn-storage/files/</code>, <code>assets/</code>.";
+  }
+  if (mediaLibraryCreateNameInputNode) mediaLibraryCreateNameInputNode.value = name || slug;
+  if (mediaLibraryCreateSlugInputNode) {
+    mediaLibraryCreateSlugInputNode.value = slug;
+    mediaLibraryCreateSlugInputNode.readOnly = lockSlug;
+    mediaLibraryCreateSlugInputNode.classList.toggle("is-readonly", lockSlug);
+  }
+  if (mediaLibraryCreateDescriptionInputNode) {
+    mediaLibraryCreateDescriptionInputNode.value = String(options.description || "").trim();
+  }
+  mediaLibraryCreateModalNode.classList.remove("hidden");
+  mediaLibraryCreateNameInputNode?.focus();
+}
+
+function closeMediaLibraryCreateModal() {
+  mediaLibraryCreateModalNode?.classList.add("hidden");
+  mediaLibraryCreateModalState = { mode: "custom" };
+}
+
+async function submitMediaLibraryCreateModal() {
+  const slug = String(mediaLibraryCreateSlugInputNode?.value || "")
     .trim()
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
-  if (!slug || slug.includes("/")) return;
-  if (MEDIA_LIBRARY_BUILTIN_SLUGS.has(slug)) {
-    showToast("Этот slug зарезервирован заготовкой — откройте её в списке сверху", "info");
+  const name = String(mediaLibraryCreateNameInputNode?.value || slug).trim() || slug;
+  const description = String(mediaLibraryCreateDescriptionInputNode?.value || "").trim();
+  if (!slug || slug.includes("/")) {
+    showToast("Укажите корректный ключ (slug)", "error");
     return;
   }
-  const name = String(window.prompt("Название", slug) || slug).trim() || slug;
+  if (
+    mediaLibraryCreateModalState.mode === "custom" &&
+    MEDIA_LIBRARY_BUILTIN_SLUGS.has(slug)
+  ) {
+    showToast("Этот ключ зарезервирован заготовкой — создайте её из списка сверху", "info");
+    return;
+  }
+  if (mediaLibraryCreateSubmitBtn) mediaLibraryCreateSubmitBtn.disabled = true;
   try {
-    await registerMenuMediaLibrary({ slug, name });
+    const created = await registerMenuMediaLibrary(
+      { slug, name, ...(description ? { description } : {}) },
+      activeAgentId,
+      { skipAutoOpen: true }
+    );
+    if (!created?.path) return;
+    closeMediaLibraryCreateModal();
     showToast("Медиатека создана", "success");
+    suspendAppRouteSync();
+    try {
+      await openMediaLibraryWorkspaceEntry(
+        {
+          slug,
+          name,
+          folderPath: created.folderPath || `awn-media/${slug}`,
+          manifestPath: created.path,
+          registered: true
+        },
+        { skipRouteSync: true }
+      );
+      syncAppRouteToUrl({ push: true });
+    } finally {
+      resumeAppRouteSync();
+    }
   } catch (error) {
     showToast(String(error.message || error), "error");
+  } finally {
+    if (mediaLibraryCreateSubmitBtn) mediaLibraryCreateSubmitBtn.disabled = false;
   }
+}
+
+function promptCreateMenuMediaLibrary() {
+  openMediaLibraryCreateModal();
 }
 
 function setupMenuMediaLibrariesUi() {
@@ -124962,7 +125106,12 @@ function setupMenuMediaLibrariesUi() {
   setupMenuMediaLibrariesUi.initialized = true;
   syncMenuMediaLibraryIndexRowState(menuMediaLibrariesLastPayload);
   wireMenuStaticSummaryRefreshButton(menuMediaLibraryRefreshBtn, handleMenuMediaLibrariesRefreshClick);
-  menuMediaLibraryCreateBtn?.addEventListener("click", () => void promptCreateMenuMediaLibrary());
+  menuMediaLibraryCreateBtn?.addEventListener("click", () => promptCreateMenuMediaLibrary());
+  mediaLibraryCreateCancelBtn?.addEventListener("click", closeMediaLibraryCreateModal);
+  mediaLibraryCreateSubmitBtn?.addEventListener("click", () => void submitMediaLibraryCreateModal());
+  mediaLibraryCreateModalNode?.addEventListener("click", (event) => {
+    if (event.target === mediaLibraryCreateModalNode) closeMediaLibraryCreateModal();
+  });
   menuMediaLibraryIndexOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();

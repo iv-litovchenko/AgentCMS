@@ -2389,7 +2389,7 @@
             <section
               id="menu-media-library-band"
               class="menu-media-library-band menu-media-library-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
-              aria-label="Медиатеки workspace — awn-media"
+              aria-label="Медиатеки — awn-media"
             >
               <div class="menu-media-library-band-head">
                 <button
@@ -2418,7 +2418,7 @@
                       <circle cx="8.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
                       <path d="m21 16-5.5-5.5a2 2 0 0 0-2.8 0L3 20" />
                     </svg>
-                    <span class="menu-media-library-band-title sidebar-accent-band-title">Медиатеки workspace</span>
+                    <span class="menu-media-library-band-title sidebar-accent-band-title">Медиатеки</span>
                   </span>
                 </button>
                 <div class="menu-media-library-band-head-actions" aria-label="Действия медиатеки">
@@ -2524,9 +2524,9 @@
                   id="menu-media-library-list"
                   class="menu-awn-databases-stores menu-media-library-list"
                   role="list"
-                  aria-label="Медиатеки workspace"
+                  aria-label="Медиатеки"
                 ></ul>
-                <p class="menu-media-library-footer-caption">Медиатеки workspace (awn-media)</p>
+                <p class="menu-media-library-footer-caption">Медиатеки (awn-media)</p>
               </div>
             </section>
             <section
@@ -7348,6 +7348,53 @@ awn-type: awn.page.ws
         <div class="modal-actions repository-groups-modal-actions">
           <button id="repository-groups-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="repository-groups-save-btn" class="external-create-section-btn" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="media-library-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="media-library-create-modal-title">
+      <div class="modal-card awn-databases-modal-card">
+        <div class="modal-message" id="media-library-create-modal-title">Новая медиатека</div>
+        <p class="agents-registry-hint" id="media-library-create-modal-hint">
+          Папка <code>awn-media/{slug}/</code> с <code>manifest.md</code> и <code>awn-storage/files/</code>, <code>assets/</code>.
+        </p>
+        <label class="popover-label" for="media-library-create-name-input">Название</label>
+        <input
+          id="media-library-create-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Документы"
+          spellcheck="false"
+          autocomplete="off"
+          required
+        />
+        <div class="slug-field-row">
+          <label class="slug-field-label" for="media-library-create-slug-input">Ключ (slug)</label>
+          <div class="slug-input-row">
+            <input
+              id="media-library-create-slug-input"
+              class="popover-input slug-input"
+              type="text"
+              placeholder="documents"
+              spellcheck="false"
+              autocomplete="off"
+              required
+            />
+          </div>
+          <p class="slug-field-hint">Латиница, без пробелов: <code>awn-media/{slug}/</code></p>
+        </div>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Описание</span>
+          <textarea
+            id="media-library-create-description-input"
+            class="agents-registry-create-description-input"
+            rows="2"
+            placeholder="Кратко о назначении медиатеки"
+          ></textarea>
+        </label>
+        <div class="modal-actions">
+          <button id="media-library-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="media-library-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
         </div>
       </div>
     </div>
