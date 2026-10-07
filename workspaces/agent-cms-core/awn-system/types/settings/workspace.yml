@@ -302,6 +302,50 @@ fields:
     group: autoincrement
     sort: 23
 
+  awn-recycle-id-next:
+    type: awn.field.number.integer
+    title: Следующая метка удаления
+    description: Следующий номер для мягкого удаления (корзина awn-recycler)
+    locked: true
+    default: 1
+    group: autoincrement
+    sort: 24
+
+  awn-recycle-id-issued:
+    type: awn.field.number.integer
+    title: Выдано меток удаления
+    description: Сколько меток удаления уже выдано счётчиком
+    locked: true
+    default: 0
+    group: autoincrement
+    sort: 25
+
+  awn-recycle-id-updated-at:
+    type: awn.field.string
+    title: Метки удаления — обновлено
+    description: Время последнего изменения счётчика меток (ISO 8601)
+    locked: true
+    group: autoincrement
+    sort: 26
+
+  awn-recycle-id-model:
+    type: awn.field.string
+    title: Модель меток удаления
+    description: Версия схемы счётчика меток корзины
+    locked: true
+    default: workspace-recycle-marker-v1
+    group: autoincrement
+    sort: 27
+
+  awn-recycle-id-pad-width:
+    type: awn.field.number.integer
+    title: Ширина метки (ведущие нули)
+    description: Длина числовой метки в имени re-… и .trash.… (4–12)
+    locked: true
+    default: 8
+    group: autoincrement
+    sort: 28
+
   default-slot:
     type: awn.field.string
     title: "{NOT WORK} Слот по умолчанию"

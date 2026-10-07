@@ -15499,6 +15499,83 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   min-width: 148px;
 }
 
+.agent-recycler-pane {
+  min-height: 0;
+}
+
+.agent-recycler-pane.agent-tool-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-recycler-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 16px;
+}
+
+.agent-recycler-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-recycler-item {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.agent-recycler-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-recycler-marker {
+  font-size: 0.78rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.agent-recycler-path,
+.agent-recycler-meta-line {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted, #64748b);
+  word-break: break-all;
+}
+
+.agent-recycler-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.agent-recycler-restore-btn {
+  font-size: 0.82rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.08);
+  cursor: pointer;
+}
+
+.agent-recycler-summary {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted, #94a3b8);
+}
+
+.agent-canvas-head-aside .agent-workspace-refresh-btn.is-danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #b91c1c;
+}
+
 .workspace-tool-pane {
   display: flex;
   flex-direction: column;
@@ -30521,6 +30598,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-agent-stats-journal-btn,
 .menu-agent-stats-dependencies-btn,
+.menu-agent-stats-recycler-btn,
 .menu-agent-stats-reload-btn,
 .menu-agent-stats-env-btn,
 .menu-agent-stats-settings-btn {
@@ -30544,6 +30622,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-agent-stats-journal-btn:hover:not(:disabled),
 .menu-agent-stats-dependencies-btn:hover:not(:disabled),
+.menu-agent-stats-recycler-btn:hover:not(:disabled),
 .menu-agent-stats-reload-btn:hover:not(:disabled),
 .menu-agent-stats-env-btn:hover:not(:disabled),
 .menu-agent-stats-settings-btn:hover:not(:disabled) {
@@ -30568,6 +30647,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-agent-stats-env-btn.is-active,
 .menu-agent-stats-journal-btn.is-active,
+.menu-agent-stats-recycler-btn.is-active,
 .menu-agent-stats-dependencies-btn.is-active {
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
@@ -30589,6 +30669,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-agent-stats-journal-icon,
 .menu-agent-stats-dependencies-icon,
+.menu-agent-stats-recycler-icon,
 .menu-agent-stats-env-icon,
 .menu-agent-stats-settings-icon {
   display: block;

@@ -55,6 +55,12 @@ const { generateWorkspaceSlug } = require("./lib/workspace/slug-service");
 const recordMaterials = require("./lib/record-materials");
 const { createNavFlagsRegistryService } = require("./lib/nav-flags-registry/service");
 const { allocateNextId, readCounter } = require("./lib/workspace-id/store");
+const {
+  softDeleteWorkspacePath,
+  listRecycleItems,
+  restoreRecycleItem,
+  clearRecycleBin
+} = require("./lib/workspace-recycler/service");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
 const { getWorkspaceIndexMonitor, formatAge } = require("./lib/indexes/workspace-index/monitor");
 const {
@@ -3592,7 +3598,11 @@ async function deleteFileComment({ manifestRelPath, mode, file, systemName, comm
     commentId
   });
   const commentRelPath = `${resolved.commentsDirRel}/${resolved.relPath}`.replace(/\\/g, "/");
-  await fs.rm(resolved.fileAbsolute, { force: false });
+  const agentRoot = getAgentRoot();
+  const recycled = await softDeleteWorkspacePath(agentRoot, resolved.fileAbsolute, {
+    context: { source: "file-comment", commentId: resolved.relPath, manifestRelPath }
+  });
+  if (recycled.error) throw new Error(recycled.error);
   await recordWorkspaceActivityAsync({
     action: "delete",
     path: commentRelPath,
@@ -8600,12 +8610,19 @@ async function deleteStorageFlatFile(manifestRelPath, storageFolder, relFile) {
     return { error: resolved.error, status: resolved.status || 404 };
   }
 
-  await fs.rm(resolved.fileAbsolute, { force: false });
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), resolved.fileAbsolute, {
+    context: { source: "storage", manifestRelPath, storageFolder, relFile: resolved.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
 
   return {
     deleted: resolved.normalizedRelFile.replace(/\\/g, "/"),
     folder: resolved.folder,
-    path: manifestRelPath
+    path: manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -8731,8 +8748,18 @@ async function saveMemorySectionSortOrderRecord(
 async function deleteMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath) {
   const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
   if (ctx.error) return ctx;
-  await fs.rm(ctx.sectionAbsolute, { recursive: true, force: false });
-  return { deleted: ctx.sectionRelPath, exists: false };
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.sectionAbsolute, {
+    context: { source: "memorySection", manifestRelPath, scopeType, storageFolder, sectionRelPath: ctx.sectionRelPath }
+  });
+  if (recycled.error) return recycled;
+  return {
+    deleted: ctx.sectionRelPath,
+    exists: false,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
+  };
 }
 
 async function updateMemorySectionStatusRecord(
@@ -9927,10 +9954,17 @@ async function resolveExternalFileOpContext(manifestRelPath, relFile) {
 async function deleteExternalMemoryFile(manifestRelPath, relFile) {
   const ctx = await resolveExternalFileOpContext(manifestRelPath, relFile);
   if (ctx.error) return ctx;
-  await fs.rm(ctx.fileAbsolute, { force: false });
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.fileAbsolute, {
+    context: { source: "external", manifestRelPath, relFile: ctx.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
   return {
     deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
-    path: ctx.manifestRelPath
+    path: ctx.manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -10015,9 +10049,12 @@ async function deleteMediaStorageFile(manifestRelPath, relFile) {
   const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
   if (ctx.error) return ctx;
 
-  await fs.rm(ctx.mediaAbsolute, { force: false });
-
   const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
+
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.mediaAbsolute, {
+    context: { source: "media", manifestRelPath, relFile: ctx.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
   if (
     sidecarAbsolute &&
     (await isAllowedMediaSidecarAbsolute(ctx.nodeAbsolute, sidecarAbsolute))
@@ -10027,7 +10064,11 @@ async function deleteMediaStorageFile(manifestRelPath, relFile) {
 
   return {
     deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
-    path: ctx.manifestRelPath
+    path: ctx.manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -10643,7 +10684,8 @@ function shouldSkipMenuDirectory(name) {
   if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_SCRIPTS_FOLDER || "awn-scripts").toLowerCase()) return true;
-  if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycler").toLowerCase()) return true;
+  if (lower === "awn-recycle") return true;
   if (lower === String(AWN_WORKSPACE_BACKUP_FOLDER || "awn-backup").toLowerCase()) return true;
   if (lower === String(AWN_DASHBOARDS_FOLDER || "awn-dashboards").toLowerCase()) return true;
   return MENU_SKIP_DIRS.has(lower);
@@ -23293,6 +23335,56 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-recycler/list") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listRecycleItems(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list recycle bin",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-recycler/restore") {
+    try {
+      const payload = await readJsonBody(req);
+      const marker = payload?.markerId ?? payload?.markerLabel ?? payload?.id;
+      const result = await restoreRecycleItem(getAgentRoot(), marker);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      recordWorkspaceActivity({
+        action: "restore",
+        path: String(result.restored || "").replace(/\\/g, "/"),
+        label: path.posix.basename(String(result.restored || ""))
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to restore recycle item",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-recycler/clear") {
+    try {
+      const payload = await readJsonBody(req);
+      if (!payload?.confirm) {
+        return sendJson(res, 400, { error: "confirm=true is required to clear recycle bin" });
+      }
+      const result = await clearRecycleBin(getAgentRoot());
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear recycle bin",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-notifications") {
     try {
       const sinceRaw = Number(url.searchParams.get("since"));
@@ -25339,7 +25431,7 @@ async function handleApiForAgent(req, res, url) {
       const recordRef = String(url.searchParams.get("record") || "").trim();
       if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
       if (!recordRef) return sendJson(res, 400, { error: "Missing record query parameter" });
-      const payload = deleteAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef);
+      const payload = await deleteAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
@@ -25419,7 +25511,7 @@ async function handleApiForAgent(req, res, url) {
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const storeRel = String(url.searchParams.get("store") || "").trim();
       if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
-      const payload = deleteAwnDataStore(agentRoot, getProjectRoot(), storeRel);
+      const payload = await deleteAwnDataStore(agentRoot, getProjectRoot(), storeRel);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
@@ -29219,19 +29311,35 @@ async function handleApiForAgent(req, res, url) {
           return sendJson(res, 400, { error: "Root Workspaces folder cannot be deleted" });
         }
         const folderAbsolute = path.dirname(absolute);
-        await fs.rm(folderAbsolute, { recursive: true, force: false });
+        const recycledFolder = await softDeleteWorkspacePath(getAgentRoot(), folderAbsolute, {
+          context: { source: "manifest-folder", relPath }
+        });
+        if (recycledFolder.error) {
+          return sendJson(res, recycledFolder.status || 400, { error: recycledFolder.error });
+        }
         recordWorkspaceActivity({
           action: "delete",
           path: relPath.replace(/\\/g, "/"),
           label: path.posix.basename(path.dirname(relPath.replace(/\\/g, "/"))),
           fileKind: "manifest"
         });
-        return sendJson(res, 200, { deleted: relPath, deletedType: "folder" });
+        return sendJson(res, 200, {
+          deleted: relPath,
+          deletedType: "folder",
+          recycled: true,
+          markerId: recycledFolder.markerId,
+          markerLabel: recycledFolder.markerLabel
+        });
       }
 
       const contentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
 
-      await fs.rm(absolute, { force: false });
+      const recycledFile = await softDeleteWorkspacePath(getAgentRoot(), absolute, {
+        context: { source: "manifest-file", relPath }
+      });
+      if (recycledFile.error) {
+        return sendJson(res, recycledFile.status || 400, { error: recycledFile.error });
+      }
       if (contentAbsolute) await removeIfExists(contentAbsolute);
       const slotAbsolute = normalizeWorkspacePath(
         getNamedStorageSlotDirRel(normalized, getStoragePathOptions())

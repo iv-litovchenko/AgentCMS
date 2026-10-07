@@ -3036,31 +3036,6 @@
                   </button>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--awn-recycle menu-static-accordion">
-                <summary class="menu-static-summary" title="Корзина workspace (awn-recycle) — скоро">
-                  <span class="menu-static-title menu-static-title--awn-recycle">
-                    <span aria-hidden="true">⚪</span>
-                    <span class="menu-static-title-text">
-                      Корзина
-                      <span class="menu-static-subtitle stub-static-mark">awn-recycle · (static)</span>
-                    </span>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Удалённые файлы workspace (мягкое удаление). Пока заглушка: папка
-                    <code>awn-recycle/</code> для будущего восстановления и автоочистки.
-                  </p>
-                  <button
-                    id="menu-awn-recycle-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    title="Открыть папку awn-recycle"
-                  >
-                    Открыть корзину
-                  </button>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--awn-backup menu-static-accordion">
                 <summary class="menu-static-summary" title="Резервное копирование workspace (awn-backup) — скоро">
                   <span class="menu-static-title menu-static-title--awn-backup">
@@ -4583,6 +4558,31 @@
           </div>
         </div>
         <div id="agent-journal-content" class="agent-tool-body agent-journal-content"></div>
+      </main>
+
+      <main id="agent-recycler-pane" class="agent-canvas-pane agent-tool-pane agent-recycler-pane hidden" aria-label="Корзина workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Корзина</h2>
+            <p class="agent-canvas-lead">
+              Мягко удалённые файлы и папки. Хранятся в <code>awn-recycler/</code>; на месте удаления — маркер <code>.trash.&lt;метка&gt;</code>.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-recycler-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить список корзины">
+              Обновить
+            </button>
+            <button id="agent-recycler-clear-btn" class="agent-workspace-refresh-btn is-danger" type="button" title="Очистить корзину без восстановления">
+              Очистить корзину
+            </button>
+          </div>
+        </div>
+        <div id="agent-recycler-info" class="agent-tool-info agent-recycler-info">
+          <p id="agent-recycler-meta" class="agent-tool-info-desc">awn-recycler</p>
+          <p id="agent-recycler-summary" class="agent-recycler-summary" aria-live="polite"></p>
+        </div>
+        <div id="agent-recycler-content" class="agent-tool-body agent-recycler-content"></div>
       </main>
 
       <main id="agent-project-settings-pane" class="agent-canvas-pane agent-tool-pane agent-project-settings-pane hidden" aria-label="Настройки и параметры проекта">

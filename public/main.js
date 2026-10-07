@@ -131,7 +131,6 @@ const menuAwnTempStatsNode = document.getElementById("menu-awn-temp-stats");
 const menuAwnTempStatusDotNode = document.getElementById("menu-awn-temp-status-dot");
 const menuAwnTempOpenBtn = document.getElementById("menu-awn-temp-open-btn");
 const menuAwnTempRefreshBtn = document.getElementById("menu-awn-temp-refresh-btn");
-const menuAwnRecycleOpenBtn = document.getElementById("menu-awn-recycle-open-btn");
 const menuAwnBackupOpenBtn = document.getElementById("menu-awn-backup-open-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
@@ -851,6 +850,12 @@ const agentJournalSummaryNode = document.getElementById("agent-journal-summary")
 const agentJournalTypeFilterNode = document.getElementById("agent-journal-type-filter");
 const agentJournalPeriodFilterNode = document.getElementById("agent-journal-period-filter");
 const agentJournalRefreshBtn = document.getElementById("agent-journal-refresh-btn");
+const agentRecyclerPaneNode = document.getElementById("agent-recycler-pane");
+const agentRecyclerContentNode = document.getElementById("agent-recycler-content");
+const agentRecyclerMetaNode = document.getElementById("agent-recycler-meta");
+const agentRecyclerSummaryNode = document.getElementById("agent-recycler-summary");
+const agentRecyclerRefreshBtn = document.getElementById("agent-recycler-refresh-btn");
+const agentRecyclerClearBtn = document.getElementById("agent-recycler-clear-btn");
 const agentProjectSettingsPaneNode = document.getElementById("agent-project-settings-pane");
 const agentProjectSettingsMountNode = document.getElementById("agent-project-settings-mount");
 const agentLargeFilesPaneNode = document.getElementById("agent-large-files-pane");
@@ -2458,6 +2463,7 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-git",
   "module-settings",
   "module-journal",
+  "module-recycler",
   "module-awn-types",
   "module-registry",
   "module-large-files",
@@ -2471,6 +2477,7 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
 const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   git: "module-git",
   journal: "module-journal",
+  recycler: "module-recycler",
   "project-settings": "module-settings",
   "awn-types": "module-awn-types",
   "runtime-registry": "module-registry",
@@ -2542,6 +2549,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-git": "module-git",
   "m-settings": "module-settings",
   "m-journal": "module-journal",
+  "m-recycler": "module-recycler",
   "m-awn-types": "module-awn-types",
   "m-registry": "module-registry",
   "m-large-files": "module-large-files",
@@ -3236,6 +3244,10 @@ async function applyChpuResolvedRoute(resolved) {
       await openWorkspaceJournalModule({ skipRouteSync: true });
       return;
     }
+    if (moduleChpu === "module-recycler") {
+      await openWorkspaceRecyclerModule({ skipRouteSync: true });
+      return;
+    }
     const workspaceView = MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW[moduleChpu];
     if (workspaceView) {
       agentWorkspaceView = workspaceView;
@@ -3821,6 +3833,16 @@ function buildAppPathFromState() {
     !awnDataViewStoreRel
   ) {
     return buildAgentModuleChpuPath(agentId, WORKSPACE_JOURNAL_MODULE_CHPU);
+  }
+
+  if (
+    agentWorkspaceView === "recycler" &&
+    !activePath &&
+    !activeSystemFile &&
+    !activeFolderBrowsePath &&
+    !awnDataViewStoreRel
+  ) {
+    return buildAgentModuleChpuPath(agentId, WORKSPACE_RECYCLER_MODULE_CHPU);
   }
 
   if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) {
@@ -8139,6 +8161,20 @@ function askMoveTarget(options = {}) {
   return new Promise((resolve) => {
     pendingMoveResolve = resolve;
   });
+}
+
+async function deleteFlatStorageRecord(filePath, mode, manifestPath = getActiveNodeApiPath()) {
+  const folder = getFlatStorageSectionFolderName(mode);
+  const response = await fetch(
+    buildApiUrl("/api/storage/file", { path: manifestPath, folder, file: filePath }),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    throw new Error(reason);
+  }
+  return response.json();
 }
 
 async function deleteExternalMemoryRecord(filePath, manifestPath = getActiveNodeApiPath()) {
@@ -17664,7 +17700,7 @@ const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
 const LEGACY_AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_SCRIPTS_FOLDER = "awn-scripts";
-const AWN_RECYCLE_FOLDER = "awn-recycle";
+const AWN_RECYCLE_FOLDER = "awn-recycler";
 const AWN_BACKUP_FOLDER = "awn-backup";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
@@ -18107,6 +18143,7 @@ const NODE_WORKSPACE_DOMAIN_HOOKS = "hooks";
 const WORKSPACE_JOURNAL_FOLDER = ".agent-cms/journal";
 
 const WORKSPACE_JOURNAL_MODULE_CHPU = "module-journal";
+const WORKSPACE_RECYCLER_MODULE_CHPU = "module-recycler";
 
 const WORKSPACE_TOOL_MODULE_META = {
   [WORKSPACE_JOURNAL_MODULE_CHPU]: {
@@ -18123,7 +18160,11 @@ const WORKSPACE_TOOL_MODULE_META = {
   },
   [AWN_RECYCLE_FOLDER]: {
     title: "Корзина",
-    lead: "Удалённые файлы workspace (восстановление — позже)."
+    lead: "Мягко удалённые файлы и папки (awn-recycler, восстановление из модуля корзины)."
+  },
+  [WORKSPACE_RECYCLER_MODULE_CHPU]: {
+    title: "Корзина",
+    lead: "Удалённые записи workspace: метки .trash.* и файлы re-* в awn-recycler."
   },
   [`awn-databases/${AWN_CONTENTS_FACTS_STORE}`]: {
     title: "Банк фактов",
@@ -25898,8 +25939,30 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
+  if (actionId === "delete" && state.kind === "flatStorageFile" && state.filePath && state.mode) {
+    void deleteFlatStorageRecordFromMenu(state);
+    return;
+  }
+
   if (actionId === "delete" && state.kind === "awnDataRecord") {
     void deleteAwnDataRecordFromMenu(state);
+  }
+}
+
+async function deleteFlatStorageRecordFromMenu(state) {
+  const rel = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const mode = state.mode;
+  if (!rel || !mode) return;
+  const label = state.label || rel.split("/").pop() || rel;
+  const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
+  if (!confirmed) return;
+  try {
+    await deleteFlatStorageRecord(rel, mode);
+    await refreshMemorySectionViews(state);
+    refreshStorageSlotTree();
+    showToast("В корзину", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
   }
 }
 
@@ -26268,6 +26331,7 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
 
 const PLATFORM_DATA_ROOT_FOLDERS = new Set([
   "awn-databases",
+  "awn-media",
   "awn-media-cloud",
   "awn-google-drive",
   "awn-repositories",
@@ -33897,6 +33961,8 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard2: "Дашборд",
   dashboard3: "Мой дашборд",
   git: "Git-репозиторий",
+  journal: "Бортовой журнал",
+  recycler: "Корзина",
   "large-files": "Крупные файлы (медиа в облаке)",
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
@@ -49818,6 +49884,35 @@ async function openWorkspaceJournalModule(options = {}) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
   }
   await renderAgentJournalView();
+}
+
+async function openWorkspaceRecyclerModule(options = {}) {
+  if (!activeAgentId) {
+    showToast("Сначала выберите агента", "info");
+    return;
+  }
+  clearActiveSystemFile();
+  activePath = null;
+  activeLabel = "Корзина";
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  if (activeContentMode === PROJECT_SETTINGS_MODE || activeContentMode === NODE_JOURNAL_MODE) {
+    activeContentMode = NODE_OPEN_MEMORY_MODE;
+  }
+
+  closeMenuAgentStatsEnvPopover();
+
+  showAgentHomeView();
+  agentWorkspaceView = "recycler";
+  saveAgentWorkspaceView("recycler");
+  applyAgentWorkspaceCanvasUi();
+
+  updateActiveButton();
+  syncMenuAgentStatsModuleBtnState();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
+  }
+  await renderAgentRecyclerView();
 }
 
 function isNodeSettingsModeAvailable(nodePath = getResolvedNodePath(activePath)) {
@@ -102078,6 +102173,22 @@ function createMenuAgentStatsReloadButton() {
   return button;
 }
 
+function createMenuAgentStatsRecyclerButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-recycler-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-recycler-btn";
+  button.title = "Корзина workspace";
+  button.setAttribute("aria-label", "Корзина workspace");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-recycler-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M9 4h6l1 2h5v2H3V6h5l1-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+    '<path d="M6 8v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    "</svg>";
+  return button;
+}
+
 function createMenuAgentStatsEnvironmentButton() {
   const button = document.createElement("button");
   button.id = "menu-agent-stats-env-btn";
@@ -102155,6 +102266,7 @@ function createMenuAgentStatsActions() {
     createMenuAgentStatsJournalButton(),
     createMenuAgentStatsDependenciesButton(),
     createMenuAgentStatsEnvironmentButton(),
+    createMenuAgentStatsRecyclerButton(),
     createMenuAgentStatsSettingsButton()
   );
   return wrap;
@@ -102181,12 +102293,18 @@ function isWorkspaceJournalModuleActive() {
   return isAgentWorkspaceCanvasVisible() && agentWorkspaceView === "journal";
 }
 
+function isWorkspaceRecyclerModuleActive() {
+  return isAgentWorkspaceCanvasVisible() && agentWorkspaceView === "recycler";
+}
+
 function syncMenuAgentStatsModuleBtnState() {
   const settingsBtn = document.getElementById("menu-agent-stats-env-btn");
   const journalBtn = document.getElementById("menu-agent-stats-journal-btn");
+  const recyclerBtn = document.getElementById("menu-agent-stats-recycler-btn");
   const dependenciesBtn = document.getElementById("menu-agent-stats-dependencies-btn");
   const settingsActive = isProjectSettingsMode();
   const journalActive = isWorkspaceJournalModuleActive();
+  const recyclerActive = isWorkspaceRecyclerModuleActive();
   const dependenciesActive = isWorkspaceDependenciesCsvActive();
 
   if (settingsBtn) {
@@ -102196,6 +102314,10 @@ function syncMenuAgentStatsModuleBtnState() {
   if (journalBtn) {
     journalBtn.classList.toggle("is-active", journalActive);
     journalBtn.setAttribute("aria-pressed", journalActive ? "true" : "false");
+  }
+  if (recyclerBtn) {
+    recyclerBtn.classList.toggle("is-active", recyclerActive);
+    recyclerBtn.setAttribute("aria-pressed", recyclerActive ? "true" : "false");
   }
   if (dependenciesBtn) {
     dependenciesBtn.classList.toggle("is-active", dependenciesActive);
@@ -105234,6 +105356,7 @@ function applyAgentWorkspaceCanvasUi() {
   home3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard3");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentJournalPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "journal");
+  agentRecyclerPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "recycler");
   agentProjectSettingsPaneNode?.classList.toggle(
     "hidden",
     !showCanvas || agentWorkspaceView !== "project-settings"
@@ -105279,6 +105402,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentGitView();
   } else if (agentWorkspaceView === "journal") {
     void renderAgentJournalView();
+  } else if (agentWorkspaceView === "recycler") {
+    void renderAgentRecyclerView();
   } else if (agentWorkspaceView === "project-settings") {
     mountProjectSettingsToCanvasPane();
     projectSettingsPageNode?.classList.remove("hidden");
@@ -108585,6 +108710,156 @@ async function renderAgentJournalView() {
   }
 }
 
+let agentRecyclerRenderSeq = 0;
+
+function syncAgentRecyclerInfoBar({ total = 0, loading = false } = {}) {
+  if (agentRecyclerMetaNode) {
+    agentRecyclerMetaNode.textContent = loading ? "Загрузка…" : AWN_RECYCLE_FOLDER;
+  }
+  if (agentRecyclerSummaryNode) {
+    agentRecyclerSummaryNode.textContent = loading
+      ? ""
+      : total
+        ? `В корзине: ${total}`
+        : "Корзина пуста";
+  }
+}
+
+async function renderAgentRecyclerView() {
+  if (!agentRecyclerContentNode) return;
+
+  const renderSeq = ++agentRecyclerRenderSeq;
+  const isStale = () => renderSeq !== agentRecyclerRenderSeq;
+
+  agentRecyclerContentNode.replaceChildren();
+  syncAgentRecyclerInfoBar({ loading: true });
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeAgentId));
+    const data = response.ok ? await response.json() : null;
+    if (isStale()) return;
+    if (!response.ok) {
+      const detail = data?.details ? `: ${data.details}` : "";
+      throw new Error((data?.error || `HTTP ${response.status}`) + detail);
+    }
+
+    const items = Array.isArray(data?.items) ? data.items : [];
+    syncAgentRecyclerInfoBar({ total: items.length });
+
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "agent-tool-empty";
+      empty.textContent = "Удалённых записей нет.";
+      agentRecyclerContentNode.appendChild(empty);
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "agent-recycler-list";
+
+    for (const item of items) {
+      const row = document.createElement("article");
+      row.className = "agent-recycler-item";
+
+      const head = document.createElement("div");
+      head.className = "agent-recycler-item-head";
+
+      const marker = document.createElement("code");
+      marker.className = "agent-recycler-marker";
+      marker.textContent = item.markerLabel || String(item.markerId || "");
+
+      const title = document.createElement("strong");
+      title.className = "agent-recycler-title";
+      title.textContent = item.originalBaseName || item.recycleName || "—";
+
+      head.append(marker, title);
+
+      const pathNode = document.createElement("p");
+      pathNode.className = "agent-recycler-path";
+      pathNode.textContent = item.originalRelativePath || "—";
+
+      const meta = document.createElement("p");
+      meta.className = "agent-recycler-meta-line";
+      const parts = [];
+      if (item.kind) parts.push(item.kind === "directory" ? "папка" : "файл");
+      if (item.deletedAt) parts.push(new Date(item.deletedAt).toLocaleString("ru-RU"));
+      if (item.recycleName) parts.push(item.recycleName);
+      meta.textContent = parts.join(" · ");
+
+      const actions = document.createElement("div");
+      actions.className = "agent-recycler-actions";
+
+      const restoreBtn = document.createElement("button");
+      restoreBtn.type = "button";
+      restoreBtn.className = "agent-recycler-restore-btn";
+      restoreBtn.textContent = "Восстановить";
+      restoreBtn.addEventListener("click", () => {
+        void restoreRecyclerItemFromUi(item);
+      });
+
+      actions.appendChild(restoreBtn);
+      row.append(head, pathNode, meta, actions);
+      list.appendChild(row);
+    }
+
+    agentRecyclerContentNode.appendChild(list);
+  } catch (error) {
+    if (isStale()) return;
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-tool-empty is-alert";
+    errorNode.textContent = error?.message || "Не удалось загрузить корзину";
+    agentRecyclerContentNode.appendChild(errorNode);
+    syncAgentRecyclerInfoBar({ total: 0 });
+  }
+}
+
+async function restoreRecyclerItemFromUi(item) {
+  const marker = item?.markerLabel || item?.markerId;
+  if (!marker) return;
+  const label = item.originalBaseName || item.recycleName || String(marker);
+  const confirmed = await askConfirm(`Восстановить «${label}» на исходный путь?`, {
+    okLabel: "Восстановить",
+    variant: "warning"
+  });
+  if (!confirmed) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/restore", {}, activeAgentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markerId: item.markerId, markerLabel: item.markerLabel })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    showToast("Восстановлено", "success");
+    invalidateMenuAgentCache(activeAgentId);
+    await refreshMenu();
+    await renderAgentRecyclerView();
+  } catch (error) {
+    showToast(`Ошибка восстановления: ${error.message}`, "error");
+  }
+}
+
+async function clearWorkspaceRecyclerFromUi() {
+  const confirmed = await askConfirm(
+    "Очистить корзину без восстановления? Файлы в awn-recycler и маркеры .trash.* будут удалены.",
+    { okLabel: "Очистить", variant: "danger" }
+  );
+  if (!confirmed) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/clear", {}, activeAgentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    showToast("Корзина очищена", "success");
+    await renderAgentRecyclerView();
+  } catch (error) {
+    showToast(`Ошибка: ${error.message}`, "error");
+  }
+}
+
 async function renderAgentGitView() {
   if (!agentGitContentNode) return;
 
@@ -109134,6 +109409,13 @@ const WORKSPACE_MODULES_CATALOG = [
     label: "Журнал",
     view: "journal",
     mcp: "append_journal_entry, list_journal_entries, list_workspace_notifications",
+    status: "active"
+  },
+  {
+    id: "module-recycler",
+    label: "Корзина",
+    view: "recycler",
+    mcp: "(скоро)",
     status: "active"
   },
   { id: "module-settings", label: "Настройки проекта", view: "project-settings", mcp: "—", status: "active" },
@@ -113166,6 +113448,7 @@ function hideAllAgentCanvasPanes() {
   maintenancePaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
   agentJournalPaneNode?.classList.add("hidden");
+  agentRecyclerPaneNode?.classList.add("hidden");
   agentProjectSettingsPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
   agentBrokenLinksPaneNode?.classList.add("hidden");
@@ -115465,6 +115748,15 @@ function setupMenuStaticFooterGroup() {
       openWorkspaceDependenciesCsv();
       return;
     }
+    const recyclerBtn = event.target.closest("#menu-agent-stats-recycler-btn");
+    if (recyclerBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenuAgentStatsSummaryPopover();
+      closeMenuAgentStatsEnvPopover();
+      void openWorkspaceRecyclerModule();
+      return;
+    }
     const settingsBtn = event.target.closest("#menu-agent-stats-env-btn");
     if (settingsBtn) {
       event.preventDefault();
@@ -115495,7 +115787,6 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnDialogsUi();
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
-  setupMenuAwnRecycleUi();
   setupMenuAwnBackupUi();
   setupAwnDashboardsUi();
   setupWorkspaceIndexPanelUi();
@@ -127005,13 +127296,6 @@ function setupMenuAwnTempUi() {
   });
 }
 
-function setupMenuAwnRecycleUi() {
-  menuAwnRecycleOpenBtn?.addEventListener("click", (event) => {
-    event.preventDefault();
-    void openFolderBrowseFromMenu("Корзина", AWN_RECYCLE_FOLDER, { agentId: activeAgentId });
-  });
-}
-
 function setupMenuAwnBackupUi() {
   menuAwnBackupOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -128326,7 +128610,7 @@ async function deleteNodeByPath(targetPath, targetLabel = getLabelFromPath(targe
       ? `Удалить тему «${targetLabel}» целиком?`
       : `Удалить файл «${targetLabel}»?`;
 
-  const confirmed = await askConfirm(question);
+  const confirmed = await askConfirm(question, { okLabel: "Удалить" });
   if (!confirmed) return;
 
   try {
@@ -130042,6 +130326,18 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
 agentJournalRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "journal") {
     void renderAgentJournalView();
+  }
+});
+
+agentRecyclerRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "recycler") {
+    void renderAgentRecyclerView();
+  }
+});
+
+agentRecyclerClearBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "recycler") {
+    void clearWorkspaceRecyclerFromUi();
   }
 });
 
