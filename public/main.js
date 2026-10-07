@@ -7312,7 +7312,7 @@ function getSystemFileHintSpec(name) {
   }
   if (normalized === "dependencies.csv") {
     return {
-      title: "Зависимости workspace",
+      title: "Внешние зависимости workspace",
       text:
         "Корневой <code>dependencies.csv</code>: MCP, skills, runtime, env-ключи. " +
         "Схема колонок — в настройках проекта → «Зависимости». MCP: read_dependencies / write_dependencies.",
@@ -74879,47 +74879,53 @@ const BUNDLE_OVERVIEW_SIDECAR_KIND = {
   roadmap: "roadmap"
 };
 
-function openEntryOverviewBundleSlotFromNavigation(memoryKind) {
-  if (!activePath || !isBundleEntryOverviewMemoryKind(memoryKind)) return;
+function openEntryOverviewBundleSlotFromNavigation(memoryKind, options = {}) {
+  if (!activePath || !isBundleEntryOverviewMemoryKind(memoryKind)) return Promise.resolve();
   const sidecarKind = BUNDLE_OVERVIEW_SIDECAR_KIND[memoryKind];
-  if (!sidecarKind) return;
+  if (!sidecarKind) return Promise.resolve();
   const relPath = resolveNodeSidecarRelPath(activePath, sidecarKind);
-  if (!relPath) return;
+  if (!relPath) return Promise.resolve();
   const bundleFile = relPath.split("/").pop() || relPath;
   const spec = DATA_STORAGE_SLOT_SPECS.find((item) => getEntryOverviewMemoryKindForSlot(item) === memoryKind);
-  void openEntryOverviewFromNavigation({
-    relPath,
-    memoryKind,
-    relativePath: bundleFile,
-    title: spec?.label || bundleFile.replace(/\.(md|csv)$/i, ""),
-    entryKind: inferAwnTypeFromRelPath(relPath, {
-      contentMode:
-        memoryKind === "tabular"
-          ? "tabular"
-          : memoryKind === "todo"
-            ? "todo"
-            : memoryKind === "roadmap"
-              ? "roadmap"
-              : "internal"
-    })
-  });
+  return openEntryOverviewFromNavigation(
+    {
+      relPath,
+      memoryKind,
+      relativePath: bundleFile,
+      title: spec?.label || bundleFile.replace(/\.(md|csv)$/i, ""),
+      entryKind: inferAwnTypeFromRelPath(relPath, {
+        contentMode:
+          memoryKind === "tabular"
+            ? "tabular"
+            : memoryKind === "todo"
+              ? "todo"
+              : memoryKind === "roadmap"
+                ? "roadmap"
+                : "internal"
+      })
+    },
+    options
+  );
 }
 
-function openEntryOverviewMemoryTocFromNavigation(memoryKind = "external") {
+async function openEntryOverviewMemoryTocFromNavigation(memoryKind = "external", options = {}) {
   if (!activePath) return;
   const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
   const resolvedKind = normalizeEntryOverviewMemoryKindForTopic(memoryKind, topicPath);
   if (isBundleEntryOverviewMemoryKind(resolvedKind)) {
-    openEntryOverviewBundleSlotFromNavigation(resolvedKind);
+    await openEntryOverviewBundleSlotFromNavigation(resolvedKind, options);
     return;
   }
-  void openEntryOverviewFromNavigation({
-    relPath: topicPath,
-    memoryKind: resolvedKind,
-    relativePath: "",
-    title: "Оглавление",
-    entryKind: getEntryOverviewTocRootEntryKind(resolvedKind)
-  });
+  await openEntryOverviewFromNavigation(
+    {
+      relPath: topicPath,
+      memoryKind: resolvedKind,
+      relativePath: "",
+      title: "Оглавление",
+      entryKind: getEntryOverviewTocRootEntryKind(resolvedKind)
+    },
+    options
+  );
 }
 
 function snapshotNonTocEntryOverviewContext(context) {
@@ -125094,13 +125100,7 @@ function createMenuMediaLibraryRow(library) {
         return;
       }
     }
-    suspendAppRouteSync();
-    try {
-      await openMediaLibraryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
-      syncAppRouteToUrl({ push: true });
-    } finally {
-      resumeAppRouteSync();
-    }
+    await openMediaLibraryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
   };
 
   if (slug) {
@@ -125147,7 +125147,11 @@ function createMenuMediaLibraryRow(library) {
     const openLibrary = (event) => {
       event?.preventDefault?.();
       event?.stopPropagation();
-      void provisionAndOpenLibrary();
+      suspendAppRouteSync();
+      void provisionAndOpenLibrary().finally(() => {
+        resumeAppRouteSync();
+        syncAppRouteToUrl({ push: true });
+      });
     };
     row.addEventListener("click", openLibrary);
     row.addEventListener("keydown", (event) => {
