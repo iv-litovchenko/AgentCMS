@@ -2080,8 +2080,22 @@ async function drainWorkspaceIndexFileSyncQueue() {
   }
 }
 
+let cachedActiveIndexPolicy = null;
+let cachedActiveIndexPolicyRoot = "";
+
 async function getActiveIndexPolicy() {
-  return buildIndexPolicy(await getPlatformSettings(getProjectRoot()));
+  const root = getProjectRoot();
+  if (cachedActiveIndexPolicy && cachedActiveIndexPolicyRoot === root) {
+    return cachedActiveIndexPolicy;
+  }
+  cachedActiveIndexPolicy = buildIndexPolicy(await getPlatformSettings(root));
+  cachedActiveIndexPolicyRoot = root;
+  return cachedActiveIndexPolicy;
+}
+
+function invalidateActiveIndexPolicyCache() {
+  cachedActiveIndexPolicy = null;
+  cachedActiveIndexPolicyRoot = "";
 }
 
 let workspaceIndexExcludeResolver = null;
