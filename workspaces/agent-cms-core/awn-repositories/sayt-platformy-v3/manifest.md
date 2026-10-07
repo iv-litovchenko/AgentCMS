@@ -7,6 +7,7 @@ awn-repo-status: study
 awn-repo-tech: []
 awn-repository-group: active
 awn-runtime-index: manifest-only
+awn-id: 29
 ---
 
 Статический лендинг v3: `maket-rezultata.html` и ассеты; архивные варианты в `Архив/`.

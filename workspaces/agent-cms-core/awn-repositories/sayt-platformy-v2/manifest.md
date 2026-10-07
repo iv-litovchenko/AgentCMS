@@ -7,6 +7,7 @@ awn-repo-status: archived
 awn-repo-tech: []
 awn-repository-group: archived
 awn-runtime-index: manifest-only
+awn-id: 28
 ---
 
 Статический лендинг v2: `index.html`.
