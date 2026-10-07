@@ -139,6 +139,13 @@ const {
   createWorkspaceIndexExcludeResolver
 } = require("./lib/workspace/workspace-index-exclude");
 const {
+  loadRegistryQueriesCatalog,
+  readRegistryQueriesFile,
+  writeRegistryQueriesYaml,
+  runRegistryQueryById,
+  REGISTRY_QUERIES_MODEL
+} = require("./lib/workspace/registry-queries");
+const {
   createWorkspaceFactsService,
   FACTS_DIR: WORKSPACE_FACTS_DIR,
   LEGACY_FACTS_DIR
@@ -11998,6 +12005,28 @@ async function buildAgentCronRegistry() {
   };
 }
 
+async function buildRegistryQueryRunners() {
+  const agentId = getActiveAgentId();
+  const agent = agentId ? resolveAgent(agentId) : null;
+  const nav = getNavFlagsRegistryService();
+
+  return {
+    queryStorage: (payload) => getStorageIndexService().query(payload),
+    getCronRegistry: () => buildAgentCronRegistry(),
+    getHeartbeatRegistry: () => buildAgentHeartbeatRegistry(),
+    getAlwaysContextRegistry: () => buildAgentAlwaysContextRegistry(),
+    getTopicRegistry: () => buildAgentTopicRegistry(),
+    getNavFocusRegistry: async () => {
+      const items = agent ? await nav.getAgentEntries(agent, "focus") : null;
+      return { model: "nav-focus-registry-v1", items: items || [] };
+    },
+    getNavMainRegistry: async () => {
+      const items = agent ? await nav.getAgentEntries(agent, "main") : null;
+      return { model: "nav-main-registry-v1", items: items || [] };
+    }
+  };
+}
+
 async function buildAgentHeartbeatRegistry() {
   const entities = await collectAllRuntimeEntities();
   const items = entities
@@ -22448,6 +22477,72 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/registry-queries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const file = await readRegistryQueriesFile(agentRoot);
+      return sendJson(res, 200, {
+        model: REGISTRY_QUERIES_MODEL,
+        path: file.path,
+        exists: file.exists,
+        catalog: file.catalog
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read registry queries catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/registry-queries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const yamlText = body?.yaml ?? body?.content ?? "";
+      const saved = await writeRegistryQueriesYaml(agentRoot, yamlText);
+      return sendJson(res, 200, {
+        ok: true,
+        path: saved.path,
+        catalog: saved.catalog
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save registry queries catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/registry-queries/run") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const registryId = String(body?.id || body?.registryId || "").trim();
+      if (!registryId) return sendJson(res, 400, { error: "id is required" });
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const catalog = await loadRegistryQueriesCatalog(agentRoot);
+      const entry = catalog.queries.find((q) => q.id === registryId);
+      if (entry?.source === "storage-index") {
+        const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
+        if (disabled) return sendJson(res, disabled.status, disabled.body);
+      }
+      const runners = await buildRegistryQueryRunners();
+      const result = await runRegistryQueryById(agentRoot, registryId, runners);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /Unknown registry query/i.test(message) ? 404 : 500;
+      return sendJson(res, status, {
+        error: "Failed to run registry query",
+        details: message
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/index-exclude-registry") {
     try {
       return sendJson(res, 200, await buildAgentIndexExcludeRegistry());
@@ -22751,6 +22846,12 @@ async function handleApiForAgent(req, res, url) {
       } catch {
         // shell.json optional
       }
+      try {
+        const { hydrateWorkspaceRegistryQueryPresets } = require("./lib/workspace/workspace-registry-queries-bridge");
+        awnSettings = await hydrateWorkspaceRegistryQueryPresets(agentRoot, awnSettings);
+      } catch {
+        // registry-queries optional
+      }
       const content = composeSettingsFileContent({
         headerComment: parsed.headerComment || file.headerComment || "",
         awn_settings: awnSettings
@@ -22786,6 +22887,14 @@ async function handleApiForAgent(req, res, url) {
         existing.exists ? parseSettingsFileContent(existing.content || "").awn_settings || {} : {}
       );
       const nextFlat = flattenAwnSettingsValues(parsed.awn_settings || {});
+      if (Object.prototype.hasOwnProperty.call(nextFlat, "registry-query-presets")) {
+        try {
+          const { syncRegistryQueriesFileFromWorkspacePresets } = require("./lib/workspace/workspace-registry-queries-bridge");
+          await syncRegistryQueriesFileFromWorkspacePresets(agentRoot, nextFlat["registry-query-presets"]);
+        } catch {
+          // non-fatal
+        }
+      }
       if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
         return sendJson(res, 200, {
           path: existing.path,

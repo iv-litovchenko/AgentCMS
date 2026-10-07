@@ -25,6 +25,12 @@ fieldGroups:
     description: >
       Глобальный счётчик awn-id для записей workspace (только просмотр в UI).
       Значения в settings.yml; обновляются при присвоении id и sync-counter.
+  - id: registry-queries
+    name: Реестр запросов
+    description: >
+      Именованные выборки для агента: SQL-like по storage-index (поля frontmatter)
+      или готовые runtime-сборки (cron, heartbeat). Файл .agent-cms/settings/registry-queries.yml.
+      MCP list_workspace_registry_queries · run_workspace_registry_query.
   - id: memory
     name: Память
     description: Слоты и TTL временных данных workspace (пока не подключены в runtime).
@@ -345,6 +351,81 @@ fields:
     default: 8
     group: autoincrement
     sort: 28
+
+  registry-queries-lead:
+    type: awn.field.text
+    title: Как это работает
+    description: Концепция раздела
+    readonly: true
+    group: registry-queries
+    sort: 5
+    default: |
+      Именованные выборки по индексу полей (как «Поля SQL-like»).
+      У каждого шаблона: id, название, фильтр where/fields/limit.
+      MCP: run_workspace_registry_query({ id: "cron" }). Свои шаблоны — кнопка «+».
+
+  registry-queries-filter-example:
+    type: awn.field.text.code
+    title: Пример запроса (фильтр)
+    description: Скопируйте в свой шаблон и измените поля. Индекс — «Поля (SQL-like)».
+    readonly: true
+    group: registry-queries
+    sort: 8
+    default: |
+      # Условия (все строки where — AND). Поля — как в YAML-frontmatter записей.
+      where:
+        - field: awn-runtime-cron
+          eq: true
+        # - field: awn-tags
+        #   contains: важное
+        # - field: awn-id
+        #   gte: 100
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 100
+
+  registry-query-presets:
+    type: awn.field.repeater
+    title: Шаблоны реестров
+    description: >
+      Встроенные шаблоны (только просмотр). Изменение — в .agent-cms/settings/registry-queries.yml
+      или через MCP list_workspace_registry_queries / run_workspace_registry_query.
+    readonly: true
+    locked: true
+    group: registry-queries
+    sort: 10
+    properties:
+      id:
+        type: awn.field.string.slug
+        title: ID
+        description: cron, heartbeat, always-context, nav-focus, …
+      name:
+        type: awn.field.string
+        title: Название
+      description:
+        type: awn.field.text
+        title: Описание
+        description: Для агента и подсказок в UI — что возвращает эта выборка
+      query:
+        type: awn.field.text.code
+        title: Запрос (фильтр)
+        description: |
+          Фильтр по каталогу полей workspace (storage-index). Ключи where: field + eq | contains | gte | lte | gt | lt.
+          Опционально pathPrefix в корне запроса — ограничить папку (awn-container/…).
+        hint: "where: [{ field, eq|contains… }], fields: [path, …], sort, limit"
+        default: |
+          where:
+            - field: awn-type
+              eq: awn.page.topic
+          fields:
+            - path
+            - awn-name
+          limit: 50
 
   default-slot:
     type: awn.field.string

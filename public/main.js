@@ -59559,6 +59559,7 @@ function readPropsFormRepeaterValue(valueWrap) {
 function resolveRepeaterAddLabel(fieldKey = "") {
   const key = String(fieldKey || "").trim();
   if (key === "voice-compose-templates") return "+ Шаблон";
+  if (key === "registry-query-presets") return "+ Шаблон реестра";
   if (key === "dependencies-columns") return "+ Колонка";
   return "+ Строка";
 }

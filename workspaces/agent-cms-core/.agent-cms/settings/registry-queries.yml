@@ -1,0 +1,105 @@
+version: 1
+model: workspace-registry-queries-v1
+description: >-
+  Именованные выборки для агента: storage-index (SQL-like) или готовые runtime-сборки. MCP:
+  list_workspace_registry_queries, run_workspace_registry_query.
+queries:
+  - id: always-context
+    name: Всегда в контексте
+    comment: Записи с awn-runtime-load-always (storage-index). Системные MD — отдельно через list_workspace_always_context.
+    source: storage-index
+    query:
+      where:
+        - field: awn-runtime-load-always
+          eq: true
+      fields:
+        - path
+        - awn-name
+        - awn-description
+        - awn-type
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+  - id: cron
+    name: Cron
+    comment: Темы и записи с awn-runtime-cron (расписание в awn-runtime-cron-schedule).
+    source: storage-index
+    query:
+      where:
+        - field: awn-runtime-cron
+          eq: true
+      fields:
+        - path
+        - awn-name
+        - awn-description
+        - awn-runtime-cron-schedule
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+  - id: heartbeat
+    name: Сердцебиение
+    comment: Записи с awn-runtime-heartbeat — периодическая проверка агентом.
+    source: storage-index
+    query:
+      where:
+        - field: awn-runtime-heartbeat
+          eq: true
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+  - id: nav-main
+    name: На главной
+    comment: awn-main в frontmatter (SQL-like через storage-index).
+    source: storage-index
+    query:
+      where:
+        - field: awn-main
+          eq: true
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+  - id: nav-focus
+    name: В фокусе
+    comment: 'awn-focus в frontmatter. Альтернатива: source nav-focus (кэш .agent-cms/state/nav-registry).'
+    source: storage-index
+    query:
+      where:
+        - field: awn-focus
+          eq: true
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+  - id: topics
+    name: Темы
+    comment: Манифесты тем (awn-type awn.page.topic), storage-index.
+    source: storage-index
+    query:
+      where:
+        - field: awn-type
+          eq: awn.page.topic
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 500
+
