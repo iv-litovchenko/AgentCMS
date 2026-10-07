@@ -390,9 +390,11 @@ fields:
         field: path
         dir: asc
       limit: 100
-      # Фиксированная дата (без relativeDays в шаблоне):
+      # Окно по дате (пересчёт при run): relativeDays: 7, relativeDaysField: awn-create
+      # (по умолчанию relativeDaysField — awn-update, «изменены за N дней»)
+      # Фиксированная дата без relativeDays:
       # where:
-      #   - field: awn-update
+      #   - field: awn-create
       #     gte: "2026-10-01T00:00:00.000Z"
 
   registry-query-presets:
@@ -413,10 +415,10 @@ fields:
       name:
         type: awn.field.string
         title: Название
-      comment:
+      description:
         type: awn.field.text
         title: Описание
-        description: Для агента и подсказок в UI — что возвращает эта выборка
+        description: Для агента и подсказок в UI — что возвращает эта выборка (в registry-queries.yml — ключ comment)
       query:
         type: awn.field.text.code
         title: Запрос (фильтр)

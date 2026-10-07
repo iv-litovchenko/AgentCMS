@@ -59485,7 +59485,7 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
           : settingsFieldKey === "module-git-commit-batches"
             ? ["id", "label", "extensions", "messageTemplate", "maxFileSizeMb"]
             : settingsFieldKey === "registry-query-presets"
-              ? ["id", "name", "comment", "query"]
+              ? ["id", "name", "description", "query"]
               : ["id", "key", "label", "text", "group"];
   const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
   if (inlineProperties && Object.keys(inlineProperties).length) {
@@ -59566,7 +59566,21 @@ function resolveRepeaterAddLabel(fieldKey = "") {
   return "+ Строка";
 }
 
-function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = false } = {}) {
+function resolveRepeaterItemPropValue(item, propKey, parentFieldKey = "") {
+  if (!item || typeof item !== "object") return undefined;
+  const direct = item[propKey];
+  if (direct !== undefined && direct !== null && String(direct).trim() !== "") {
+    return direct;
+  }
+  const parent = String(parentFieldKey || "").trim();
+  if (parent === "registry-query-presets") {
+    if (propKey === "description") return item.comment ?? "";
+    if (propKey === "comment") return item.description ?? "";
+  }
+  return direct ?? "";
+}
+
+function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = false, parentFieldKey = "" } = {}) {
   const subfield = document.createElement("div");
   subfield.className = "props-form-repeater-subfield";
   subfield.dataset.repeaterField = propKey;
@@ -59591,7 +59605,7 @@ function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = fal
   return subfield;
 }
 
-function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false } = {}) {
+function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false, parentFieldKey = "" } = {}) {
   const row = document.createElement("div");
   row.className = "props-form-repeater-item";
   if (item?.id) row.dataset.repeaterItemId = String(item.id);
@@ -59613,7 +59627,10 @@ function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false } =
   const fields = document.createElement("div");
   fields.className = "props-form-repeater-item-fields";
   for (const { key, fieldDef: propDef } of propertyDefs) {
-    fields.appendChild(createPropsFormRepeaterSubfield(key, propDef, item?.[key], { locked }));
+    const propValue = resolveRepeaterItemPropValue(item, key, parentFieldKey);
+    fields.appendChild(
+      createPropsFormRepeaterSubfield(key, propDef, propValue, { locked, parentFieldKey })
+    );
   }
 
   row.append(head, fields);
@@ -59636,10 +59653,11 @@ function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
   list.className = "props-form-repeater-items";
 
   const items = Array.isArray(entry?.value) ? entry.value : [];
+  const parentFieldKey = String(entry?.key || "").trim();
   const renderItems = (nextItems) => {
     list.replaceChildren();
     for (const item of nextItems) {
-      list.appendChild(createPropsFormRepeaterItemRow(item, propertyDefs, { locked }));
+      list.appendChild(createPropsFormRepeaterItemRow(item, propertyDefs, { locked, parentFieldKey }));
     }
   };
   renderItems(items.length ? items : []);
@@ -59651,7 +59669,7 @@ function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
   addBtn.disabled = locked;
   addBtn.addEventListener("click", () => {
     const next = createRepeaterItemDefault(propertyDefs, list.children.length, readPropsFormRepeaterValue(wrap));
-    list.appendChild(createPropsFormRepeaterItemRow(next, propertyDefs, { locked }));
+    list.appendChild(createPropsFormRepeaterItemRow(next, propertyDefs, { locked, parentFieldKey }));
   });
 
   shell.append(list, addBtn);

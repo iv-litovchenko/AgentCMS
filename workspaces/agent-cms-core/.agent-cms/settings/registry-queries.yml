@@ -119,19 +119,20 @@ queries:
         field: awn-id
         dir: desc
       limit: 50
-  - id: updated-last-7-days
-    name: Изменены за 7 дней
-    comment: Поле awn-update (ISO) не старше 7 суток. relativeDays пересчитывается при run_workspace_registry_query.
+  - id: created-last-7-days
+    name: Созданы за 7 дней
+    comment: awn-create (ISO) не старше 7 суток. relativeDays + relativeDaysField пересчитываются при run_workspace_registry_query.
     source: storage-index
     query:
       relativeDays: 7
+      relativeDaysField: awn-create
       fields:
         - path
         - awn-name
-        - awn-update
         - awn-create
+        - awn-update
       sort:
-        field: awn-update
+        field: awn-create
         dir: desc
       limit: 100
 

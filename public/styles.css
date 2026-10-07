@@ -50951,6 +50951,14 @@ button.node-navigation-memory-title:focus-visible {
   width: 100%;
 }
 
+.props-form-repeater-subfield-value textarea.props-form-value--textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+  line-height: 1.45;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
 .props-form-field--object-group {
   flex-direction: column;
   align-items: stretch;
