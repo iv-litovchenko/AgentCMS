@@ -4,6 +4,14 @@
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
 
+🇷🇺 **[ru]**
+
+**Старт в MCP-чате:** «Привет — выбери `<тестовое хранилище>`, загрузи контекст хранилища (необязательно) и документацию (необязательно).»
+
+> 🇬🇧 **[en]**
+>
+> **Start an MCP chat:** “Hi — pick a `<test workspace>`, load the workspace context (optional), and the documentation (optional).”
+
 ![Chat with an agent: test workspace and context overview / Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
 
 🇷🇺 **[ru]**
@@ -196,8 +204,8 @@ cd AgentCMS
 1. Склонируйте репозиторий на Рабочий стол или в любую папку: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
 2. Откройте скопированную папку в Finder.
 3. В файле `.env` (любой текстовый редактор) укажите логин и пароль входа (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); при необходимости измените порты Agent CMS и Voice.
-4. Запустите `welcome.command` в корне проекта (двойной клик) — откроется окно **Agent CMS Control**.
-5. Нажмите по порядку: **Установить зависимости** → **Сертификаты** → **Ярлыки**.
+4. Запустите **`install.command`** в корне (двойной клик) — зависимости, HTTPS-сертификаты и прочая подготовка.
+5. Запустите **`welcome.command`** — откроется **Agent CMS Control**. При необходимости в Control: **Ярлыки** на Desktop (и повтор **Установить зависимости**, если что-то меняли вручную).
 6. Запустите сервер — кнопка **Старт**.
 7. Откройте CMS: кнопка в Control или ссылка вида `https://localhost:3443` (HTTPS-порт из `.env`).
 8. В **Agent CMS Control** прочитайте инструкцию по подключению хранилища к локальной нейросети (**Claude Desktop**, **Codex Desktop** и т.п. через MCP).
@@ -218,8 +226,8 @@ cd AgentCMS
 > 1. Clone the repo to Desktop or any folder: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
 > 2. Open the folder in Finder.
 > 3. In `.env` (any text editor), set login and password (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); change Agent CMS and Voice ports if needed.
-> 4. Run `welcome.command` in the project root (double-click) — **Agent CMS Control** opens.
-> 5. Click in order: **Install dependencies** → **Certificates** → **Shortcuts**.
+> 4. Run **`install.command`** in the project root (double-click) — dependencies, HTTPS certs, and setup.
+> 5. Run **`welcome.command`** — **Agent CMS Control** opens. In Control if needed: **Shortcuts** on Desktop (re-run **Install dependencies** only if you changed the environment manually).
 > 6. Start the server — **Start**.
 > 7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
 > 8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP).

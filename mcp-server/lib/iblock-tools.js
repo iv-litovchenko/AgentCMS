@@ -3,7 +3,7 @@ import { z } from "zod";
 const storePath = z
   .string()
   .min(1)
-  .describe("Store relPath under awn-databases/, e.g. tasks, awn-taxonomies/tags, agent-registry/agents");
+  .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
 const recordRef = z
   .string()
@@ -48,7 +48,7 @@ export function registerDatabaseTools(reg, client) {
     name: "get",
     description: "One database frame with schema, records and tree (MD or CSV).",
     schema: z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. awn-taxonomies/tags, tasks")
+      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),
     handler: ({ store }) => client.get("/api/awn-databases", { store })
   });
@@ -63,7 +63,7 @@ export function registerDatabaseTools(reg, client) {
         .enum(["group", "collection", "single", "singleton"])
         .optional()
         .transform((value) => (value === "singleton" ? "single" : value)),
-      slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. awn-taxonomies/tags"),
+      slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
       name: z.string().optional(),
       description: z.string().optional(),
       collectionType: z
@@ -119,7 +119,7 @@ export function registerDatabaseTools(reg, client) {
     description:
       "Read custom field overrides from store schema.yml (instance layer only). Base: get_type(record|record-lite|record-csv). User fields in schema.yml must NOT use awn- prefix. Check awn_schema.record.extends.",
     schema: z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. tasks, awn-taxonomies/tags")
+      store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/tags")
     }),
     handler: ({ store }) => client.get("/api/awn-databases/store-schema", { store })
   });
@@ -234,7 +234,7 @@ export function registerDatabaseTools(reg, client) {
     "create",
     "Add element to database: record (*.md; md-lite stores get minimal frontmatter), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
     z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. awn-taxonomies/tags"),
+      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
       name: z.string().optional().describe("Display name (awn-name)"),
       slug: z.string().optional().describe("File/folder slug (id-mode slug stores)"),
       id: z.string().optional().describe("Alias for slug"),

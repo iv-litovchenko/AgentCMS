@@ -48,7 +48,7 @@ field-groups:
     collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
-    description: Справочники из awn-databases/awn-taxonomies/
+    description: Справочники из awn-databases/taxonomies/
     collapsed: true
   - id: visualization
     name: "{A2!} Визуализация"
@@ -427,7 +427,7 @@ fields:
   awn-taxonomy:
     type: awn.field.taxonomy
     title: "{A2!} Таксономия"
-    description: Теги, категория, цвет и другие справочники из awn-databases/awn-taxonomies/
+    description: Теги, категория, цвет и другие справочники из awn-databases/taxonomies/
     placement: aside-body
     group: taxonomy
     sort: 1

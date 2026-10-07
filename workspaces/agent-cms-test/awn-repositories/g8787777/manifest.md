@@ -32,6 +32,7 @@ awn-repo-origin: ""
 awn-repository-group: study
 awn-repo-tech: ""
 awn-repo-related-topic: ""
+awn-id: 79
 ---
 
 Описание для агента и человека: entry point, ветка, связь с темами CMS.

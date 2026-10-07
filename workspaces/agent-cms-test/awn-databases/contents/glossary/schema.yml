@@ -1,0 +1,6 @@
+version: 1
+layer: awn-databases-store
+
+awn_schema:
+  record:
+    extends: awn.database.element.record-lite

@@ -1,6 +1,6 @@
 # GLOBAL-DOC-MCP — краткая карта Agent CMS
 
-Глобальный документ платформы (`GLOBAL-DOC-MCP.md`): попадает в always-context **всех** агентов.
+Глобальный документ платформы (`GLOBAL-DOC-MCP.md`): **`get_session_documentation`** (не в `get_session_context` по умолчанию).
 
 Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — **`GLOBAL-RESPONSE-STYLE.md`**. Общие правила — **`GLOBAL-RULES.md`**. Справочник markdown preview — **`GLOBAL-DOC-MARKDOWN.md`** (opt-in).
 
@@ -37,13 +37,13 @@ MCP подключается **без** фиксированного храни�
 
 Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
 
-Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
-Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Навигация по связям** (wikilinks, markdown, relation): **`search_workspace_links`** — backlinks / outbound / neighbors; не входит в hybrid. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля → связи; всё разом: `rebuild_workspace_indexes` (= pipeline). Пересборка графа отдельно: `rebuild_workspace_link_index`. UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `retain_workspace_fact` / `recall_workspace_facts` → `awn-facts/` (см. раздел ниже).  
+Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → при необходимости `get_session_documentation({ agentId })` → `get_user_active_context_now({ agentId })`.  
+Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Навигация по связям** (wikilinks, markdown, relation): **`search_workspace_links`** — backlinks / outbound / neighbors; не входит в hybrid. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля → связи; всё разом: `rebuild_workspace_indexes` (= pipeline). Пересборка графа отдельно: `rebuild_workspace_link_index`. UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `create_workspace_fact` / `search_workspace_facts` → `awn-databases/contents/facts` (`retain_*` / `recall_*` — deprecated). **Глоссарий:** `create_glossary_term` / `search_glossary_terms` → `awn-databases/contents/glossary`.  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
-**«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
+**«Перезагрузи контекст»** → снова `get_session_context`; доки платформы → `get_session_documentation`.  
 Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; оглавление страниц workspace → `get_workspace_page_index` / `refresh_workspace_page_index`; контент страницы → `get_content_map(path)` или быстрое оглавление → `get_content_index(path)` / обновить → `refresh_content_index(path)`; фокус UI → `get_user_active_context_now`.
 
 ## Модель (3 сущности)
@@ -236,7 +236,8 @@ generate_workspace_slug({ "text": "Моя тема", "preset": "page" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `.agent-cms/settings/workspace.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL-DOC-MCP + GLOBAL-RESPONSE-STYLE + GLOBAL-RULES + (opt-in) GLOBAL-DOC-MARKDOWN | **да** |
+| `list_workspace_always_context` | workspace always + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/ | **да** (в session) |
+| `get_session_documentation` | GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN (настройки platform) | **по вызову** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 
@@ -633,8 +634,8 @@ awn-storage/
 | Лента изменений | `list_recent_activity` |
 | Единая лента workspace | `list_workspace_feed` |
 | Аудит памяти (memory rot) | `audit_workspace_memory` |
-| Записать факт (awn-facts) | `retain_workspace_fact` — выжимка из чата, не полный диалог |
-| Найти факты | `recall_workspace_facts` / `list_workspace_facts` |
+| Записать факт | `create_workspace_fact` — выжимка в `contents/facts` |
+| Найти факты | `search_workspace_facts` / `list_workspace_facts` |
 | Q&A по workspace | `ask_workspace` |
 | Контекст из прошлых данных (архив, история, «что мы решили») | `search_and_get_context` — тот же поиск, что `ask_workspace`, но с подсказкой «сначала найди в workspace» |
 | Гибридный поиск (смысл + слова + фильтры полей) | `search_workspace_hybrid` — один вызов вместо semantic + fulltext + `query_workspace_storage` |
@@ -726,7 +727,7 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 | `confirm-exec: true` | `exec_command`, `exec_shell`, `run_script` требуют `confirm: true` в args |
 | `confirm-delete: true` | `delete_page`, `delete_content`, … требуют `confirm: true` в args |
 
-Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. API: `GET /api/agent/mcp-policy`.
+Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. Политика: **`list_settings` / workspace MCP policy** (не прямой HTTP).
 
 **Примеры:**
 
@@ -880,7 +881,7 @@ sync_media_cloud_file({ "agentId": "…", "path": "…/manifest.md", "file": "�
 | `hasManifest: true` + `slotsFlexible: true` | Гибкий слот: manifest есть, типовых слотов нет — path-based FS в `awn-storage/` |
 | `adoptable: true` | Можно превратить в тему через `create_page` |
 
-Отдельный HTTP `GET /api/workspace/folder/adopt` — legacy (те же узлы, что `kind:folder` в page-map).
+Legacy adopt folder: **`resolve_workspace_path`** / page-map `kind:folder` (HTTP adopt — deprecated).
 
 **Описание adopt-папки** — необязательный `sidecar.md` в корне:
 
@@ -974,14 +975,17 @@ delete_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-12
 
 ---
 
-## Банк фактов (`awn-facts/`)
+## Банк фактов (`awn-databases/contents/facts`)
 
 **Зачем:** короткие **выжимки** — решения, предпочтения, сущности — из любых чатов (Cursor, Claude Desktop, Voice).  
-Не полный архив переписки: для логов — `awn-dialogs/` (Shell/Voice) или `read_discussion` / `append_discussion` (дискуссия темы).
+Хранение: md-lite коллекция в группе `awn-databases/contents/`. UI: «Новая группа» → **Банк фактов** / **Глоссарий**.  
+Legacy `awn-facts/` переносится в коллекцию при первом MCP-обращении.
 
 | Слой | Где | Когда |
 |------|-----|-------|
-| `awn-facts/` | корень workspace | «что решили / что запомнить» — 1–2 фразы |
+| `awn-databases/contents/facts/` | infoblock | «что решили / что запомнить» — 1–2 фразы |
+| `awn-databases/contents/glossary/` | infoblock | термины и определения |
+| `awn-facts/` | legacy | миграция → `contents/facts` |
 | `awn-dialogs/` | корень workspace | полный Q/A Shell/Voice (не в semantic index) |
 | `awn-temp/` | корень workspace | любые **временные** файлы (staging, scratch, экспорты) — не слот темы |
 | `awn-scripts/` | корень workspace | **общие** исполняемые скрипты workspace (обслуживание, cron, миграции) — не слот `scripts/` темы |
@@ -989,7 +993,7 @@ delete_comment({ "path": "…/manifest.md", "commentId": "2026-08-08_14-00-00-12
 | `discussion/` темы | слот discussion | дискуссия **одной** темы CMS |
 | `comments/` | слот comments | комментарий к manifest/записи |
 
-UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ»). Папка индексируется (semantic + fulltext + storage-index).
+UI: дерево **awn-databases** → `contents/facts`. Папка индексируется (semantic + fulltext + storage-index).
 
 ### Журнал workspace (`.agent-cms/journal/`)
 
@@ -1003,8 +1007,7 @@ UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ�
 
 Хранение: один файл на ISO-неделю (`2026-W38.md`). Индексируется (fulltext + semantic).  
 `notify: true` → запись попадает в 🔔 (колокольчик и `list_workspace_notifications` читают тот же журнал).  
-UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.  
-HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
+UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.
 
 ### Временные файлы (`awn-temp/`) и корзина (`awn-recycle/`)
 
@@ -1019,11 +1022,23 @@ HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
 
 | Tool | Зачем |
 |------|-------|
-| `retain_workspace_fact` | **Записать** факт |
+| `create_workspace_fact` | **Создать** факт |
+| `update_workspace_fact` | **Обновить** факт по `record` |
 | `list_workspace_facts` | Список последних (без semantic) |
-| `recall_workspace_facts` | **Найти** по вопросу (semantic + fulltext только в `awn-facts/`) |
+| `search_workspace_facts` | **Найти** по вопросу (semantic + fulltext только в `contents/facts`) |
+| `retain_workspace_fact` | deprecated → `create_workspace_fact` |
+| `recall_workspace_facts` | deprecated → `search_workspace_facts` |
 
-### Когда писать (`retain_workspace_fact`)
+### Глоссарий (`contents/glossary`)
+
+| Tool | Зачем |
+|------|-------|
+| `create_glossary_term` | **Создать** термин |
+| `update_glossary_term` | **Обновить** термин |
+| `list_glossary_terms` | Список терминов |
+| `search_glossary_terms` | **Поиск** по фразе/маркеру |
+
+### Когда писать (`create_workspace_fact`)
 
 - принято **решение** (архитектура, процесс, «делаем так»)
 - выявлено **предпочтение** пользователя
@@ -1034,7 +1049,7 @@ HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
 
 **Норма:** 0 фактов за обычный чат; 1–3 за полезную сессию.
 
-### Параметры `retain_workspace_fact`
+### Параметры `create_workspace_fact`
 
 | Параметр | Обязательный | Значения |
 |----------|--------------|----------|
@@ -1108,10 +1123,10 @@ recall_workspace_facts({
 
 **Канон — два метода:**
 
-| | MCP | HTTP |
-|--|-----|------|
-| Список | **`list_types`** | `GET /api/agent-system/types` |
-| Детали | **`get_type(id)`** | `GET /api/agent-system/type?id=` |
+| | MCP |
+|--|-----|
+| Список | **`list_types`** |
+| Детали | **`get_type(id)`** |
 
 Параметры `list_types`:
 - `domain` — `pages` \| `content` \| `data` \| `fields` \| `md-blocks` \| …

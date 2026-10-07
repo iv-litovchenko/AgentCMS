@@ -2788,7 +2788,7 @@
                   <p class="menu-static-description">
                     После индексирования — проверка человеческого текста в workspace:
                     тело <code>.md</code>-страниц, OCR sidecar (<code>.sidecar.md</code>) и записи
-                    <code>awn-facts/</code>. Код, YAML-frontmatter и пути не проверяются.
+                    <code>awn-databases/contents/</code>. Код, YAML-frontmatter и пути не проверяются.
                     Выбранный инструмент: <strong>LanguageTool</strong> (локальный сервер) — орфография, грамматика, пунктуация, ru/en.
                   </p>
                   <ul class="menu-languagetool-scope">
@@ -2968,96 +2968,6 @@
                     class="menu-awn-dialogs-runtimes"
                     aria-label="Runtime-папки awn-dialogs"
                   ></ul>
-                </div>
-              </details>
-              <details class="menu-static-section menu-static-section--awn-facts menu-static-accordion">
-                <summary class="menu-static-summary" title="Банк фактов — выжимки решений и знаний агента (awn-facts)">
-                  <span class="menu-static-title menu-static-title--awn-facts">
-                    <span id="menu-awn-facts-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
-                    <span class="menu-static-title-text">
-                      Банк фактов
-                      <span class="menu-static-subtitle">awn-facts · retain / recall</span>
-                    </span>
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-awn-facts-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить банк фактов"
-                      aria-label="Обновить банк фактов"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p
-                    id="menu-awn-facts-stats"
-                    class="menu-awn-facts-stats is-empty"
-                    aria-live="polite"
-                  ></p>
-                  <p class="menu-static-description">
-                    Короткие факты и решения из любых чатов (Claude Desktop, Cursor, Voice).
-                    Пишет агент через <code>retain_workspace_fact</code>; поиск —
-                    <code>recall_workspace_facts</code>. Индексируется для semantic/fulltext.
-                  </p>
-                  <button
-                    id="menu-awn-facts-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    title="Открыть папку awn-facts"
-                  >
-                    Открыть банк
-                  </button>
-                  <button
-                    id="menu-awn-facts-build-index-btn"
-                    type="button"
-                    class="menu-static-action-btn menu-static-action-btn--secondary"
-                    disabled
-                    aria-disabled="true"
-                    title="Сформировать индекс банка фактов — скоро"
-                  >
-                    Сформировать индекс
-                  </button>
-                </div>
-              </details>
-              <details class="menu-static-section menu-static-section--glossary menu-static-accordion">
-                <summary
-                  class="menu-static-summary"
-                  title="Глоссарий — термины из конспектов и пометок [marker:term] (скоро)"
-                >
-                  <span class="menu-static-title menu-static-title--glossary">
-                    <span aria-hidden="true">§</span>
-                    <span class="menu-static-title-text">
-                      Глоссарий
-                      <span class="menu-static-subtitle stub-static-mark">(скоро) · term / marker</span>
-                    </span>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Общий словарь терминов workspace: пометки <code>[marker:term]</code>,
-                    <code>[мое термин]</code> и будущий хаб study-ecosystem. Пока только идея —
-                    без папки и без открытия.
-                  </p>
-                  <button
-                    id="menu-glossary-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    disabled
-                    title="Глоссарий — в разработке"
-                  >
-                    Скоро
-                  </button>
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--server-sync menu-static-accordion">
@@ -7418,9 +7328,25 @@ awn-type: awn.page.ws
               type="button"
               class="create-node-action-btn awn-databases-create-group-preset-btn"
               data-awn-data-group-preset="taxonomies"
-              title="Пустая группа awn-databases/awn-taxonomies/ для CSV-справочников"
+              title="Группа awn-databases/taxonomies/ для CSV-справочников"
             >
               Таксономии
+            </button>
+            <button
+              type="button"
+              class="create-node-action-btn awn-databases-create-group-preset-btn"
+              data-awn-data-group-preset="contents-facts"
+              title="Группа contents/ и коллекция contents/facts (банк фактов, md-lite)"
+            >
+              Банк фактов
+            </button>
+            <button
+              type="button"
+              class="create-node-action-btn awn-databases-create-group-preset-btn"
+              data-awn-data-group-preset="contents-glossary"
+              title="Группа contents/ и коллекция contents/glossary (глоссарий, md-lite)"
+            >
+              Глоссарий
             </button>
           </div>
         </div>

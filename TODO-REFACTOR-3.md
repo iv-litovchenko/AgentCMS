@@ -11,7 +11,7 @@
 
 | Статус | Slug (сейчас)    | Slug (план)    |
 | ------ | ---------------- | -------------- |
-| ❌      | `awn-taxonomies` | `0-taxonomies` |
+| ✅      | `awn-taxonomies` | `taxonomies`   |
 
 
 ## `awn-agent-kit`

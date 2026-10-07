@@ -6,6 +6,9 @@ cd "$ROOT"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+# shellcheck source=ensure-node-gyp-python.sh
+source "$ROOT/scripts/ensure-node-gyp-python.sh"
+
 pause_on_exit() {
   echo ""
   read -r -p "Нажмите Enter для выхода..."
@@ -39,6 +42,7 @@ require_node() {
 install_npm_root() {
   echo ""
   echo "→ npm install (корень проекта)..."
+  ensure_node_gyp_python || return 1
   npm install
 }
 
@@ -181,7 +185,8 @@ install_stt_python || echo "  Python STT не установлен — повт�
 
 echo ""
 echo "Готово. Дальше:"
-echo "  welcome.command    — первый запуск пульта управления"
-echo "  commands/              — отдельные ярлыки команд"
+echo "  welcome.command    — открыть Agent CMS Control"
+echo "  install.command    — этот же скрипт (ярлык в корне)"
+echo "  commands/          — отдельные ярлыки команд"
 
 pause_on_exit

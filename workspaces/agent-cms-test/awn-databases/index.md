@@ -8,12 +8,12 @@
 | — | 🟢 Открыта | collection | `awn-databases/aaa/aaa` | [ААА](awn-databases/aaa/aaa/manifest.md) | manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/ | 945 B | 41 | 0 | 1 | — | Markdown-файлы | — |
 | — | 🟢 Открыта | collection | `awn-databases/aaa/aaa2` | [ААА2](awn-databases/aaa/aaa2/manifest.md) | ААА2 | 824 B | 38 | 0 | 1 | — | Markdown-файлы | — |
 | — | 🟢 Открыта | collection | `awn-databases/aaa/techt-csv` | [Течт CSV](awn-databases/aaa/techt-csv/manifest.md) | Течт CSV | 876 B | 39 | 0 | 2 | — | CSV-файл | — |
-| — | 🟢 Открыта | group | `awn-databases/awn-taxonomies` | [Таксономии (справочники)](awn-databases/awn-taxonomies/manifest.md) | Таксономии (справочники) | 1.1 KB | 37 | 0 | 11 | 5 | — | — |
-| — | 🟢 Открыта | collection | `awn-databases/awn-taxonomies/777` | [777](awn-databases/awn-taxonomies/777/manifest.md) | 777 | 1.0 KB | 47 | 0 | 0 | — | CSV-файл | — |
-| — | 🟢 Открыта | collection | `awn-databases/awn-taxonomies/kollektsiya-1` | [Коллекция-1](awn-databases/awn-taxonomies/kollektsiya-1/manifest.md) | Коллекция-1 | 1006 B | 41 | 0 | 4 | — | CSV-файл | — |
-| — | 🟢 Открыта | collection | `awn-databases/awn-taxonomies/kollektsiya-1-tree` | [Коллекция-1-tree](awn-databases/awn-taxonomies/kollektsiya-1-tree/manifest.md) | Коллекция-1-tree | 1.0 KB | 41 | 0 | 1 | — | CSV-файл | — |
-| — | 🟢 Открыта | collection | `awn-databases/awn-taxonomies/kollektsiya-2-many` | [Коллекция-2-many](awn-databases/awn-taxonomies/kollektsiya-2-many/manifest.md) | Коллекция-2-many | 1.0 KB | 41 | 0 | 3 | — | CSV-файл | — |
-| — | 🟢 Открыта | collection | `awn-databases/awn-taxonomies/kollektsiya-2-many-tree` | [Коллекция-2-many-tree](awn-databases/awn-taxonomies/kollektsiya-2-many-tree/manifest.md) | Коллекция-2-many-tree | 1.0 KB | 41 | 0 | 3 | — | CSV-файл | — |
+| — | 🟢 Открыта | group | `awn-databases/taxonomies` | [Таксономии (справочники)](awn-databases/taxonomies/manifest.md) | Таксономии (справочники) | 1.1 KB | 37 | 0 | 11 | 5 | — | — |
+| — | 🟢 Открыта | collection | `awn-databases/taxonomies/777` | [777](awn-databases/taxonomies/777/manifest.md) | 777 | 1.0 KB | 47 | 0 | 0 | — | CSV-файл | — |
+| — | 🟢 Открыта | collection | `awn-databases/taxonomies/kollektsiya-1` | [Коллекция-1](awn-databases/taxonomies/kollektsiya-1/manifest.md) | Коллекция-1 | 1006 B | 41 | 0 | 4 | — | CSV-файл | — |
+| — | 🟢 Открыта | collection | `awn-databases/taxonomies/kollektsiya-1-tree` | [Коллекция-1-tree](awn-databases/taxonomies/kollektsiya-1-tree/manifest.md) | Коллекция-1-tree | 1.0 KB | 41 | 0 | 1 | — | CSV-файл | — |
+| — | 🟢 Открыта | collection | `awn-databases/taxonomies/kollektsiya-2-many` | [Коллекция-2-many](awn-databases/taxonomies/kollektsiya-2-many/manifest.md) | Коллекция-2-many | 1.0 KB | 41 | 0 | 3 | — | CSV-файл | — |
+| — | 🟢 Открыта | collection | `awn-databases/taxonomies/kollektsiya-2-many-tree` | [Коллекция-2-many-tree](awn-databases/taxonomies/kollektsiya-2-many-tree/manifest.md) | Коллекция-2-many-tree | 1.0 KB | 41 | 0 | 3 | — | CSV-файл | — |
 | 20 | — | collection | `awn-databases/finansy/rashody-csv` | [Расходы (таблица)](awn-databases/finansy/rashody-csv/manifest.md) | Расходы (таблица) | 311 B | 13 | 0 | 3 | — | Markdown-файлы | — |
 | — | 🟢 Открыта | group | `awn-databases/gruppa` | [Группа](awn-databases/gruppa/manifest.md) | Группа | 664 B | 32 | 0 | 10 | 7 | — | — |
 | 32 | 🟢 Открыта | collection | `awn-databases/gruppa/fayly` | [Файлы](awn-databases/gruppa/fayly/manifest.md) | Файлы | 825 B | 39 | 0 | 2 | — | Файлы | image/* |

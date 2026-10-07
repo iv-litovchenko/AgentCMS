@@ -115,7 +115,12 @@ const {
   parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
 } = require("./lib/workspace/workspace-index-exclude");
-const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./lib/services/workspace-facts-service");
+const {
+  createWorkspaceFactsService,
+  FACTS_DIR: WORKSPACE_FACTS_DIR,
+  LEGACY_FACTS_DIR
+} = require("./lib/services/workspace-facts-service");
+const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
@@ -372,7 +377,11 @@ const {
   buildIblockOutsideStructureReport,
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
-  TAXONOMIES_GROUP_REL
+  ensureContentsGroupScaffold,
+  TAXONOMIES_GROUP_REL,
+  CONTENTS_GROUP_REL,
+  FACTS_STORE_REL,
+  GLOSSARY_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -660,19 +669,7 @@ const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
 
-const PLATFORM_ALWAYS_CONTEXT_FILES = [
-  {
-    file: PLATFORM_README_FILE,
-    settingKey: "always-context-platform-readme",
-    description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
-    root: "project"
-  },
-  {
-    file: GLOBAL_DOC_MCP_FILE,
-    settingKey: "always-context-global-mcp-doc",
-    description: "Глобальная карта MCP (корень репозитория, все агенты)",
-    root: "project"
-  },
+const SESSION_ALWAYS_PLATFORM_FILES = [
   {
     file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
@@ -684,6 +681,22 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
     settingKey: "always-context-global-rules",
     description: "Глобальные правила для всех хранилищ (корень репозитория)",
     root: "project"
+  }
+];
+
+/** Platform docs loaded on demand via get_session_documentation (not in session-context). */
+const SESSION_DOCUMENTATION_PLATFORM_FILES = [
+  {
+    file: GLOBAL_DOC_MCP_FILE,
+    settingKey: "always-context-global-mcp-doc",
+    description: "Глобальная карта MCP (корень репозитория, все агенты)",
+    root: "project"
+  },
+  {
+    file: PLATFORM_README_FILE,
+    settingKey: "always-context-platform-readme",
+    description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
+    root: "project"
   },
   {
     file: GLOBAL_DOC_MARKDOWN_FILE,
@@ -691,6 +704,12 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
     description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
     root: "project"
   }
+];
+
+/** @deprecated use SESSION_ALWAYS_PLATFORM_FILES + SESSION_DOCUMENTATION_PLATFORM_FILES */
+const PLATFORM_ALWAYS_CONTEXT_FILES = [
+  ...SESSION_DOCUMENTATION_PLATFORM_FILES,
+  ...SESSION_ALWAYS_PLATFORM_FILES
 ];
 
 const ALWAYS_CONTEXT_WS_EXTENSIONS = new Set([".md", ".yml", ".yaml", ".txt"]);
@@ -2211,16 +2230,30 @@ function getSidecarService() {
 
 let workspaceBrainService = null;
 let workspaceFactsService = null;
+let workspaceGlossaryService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
     workspaceFactsService = createWorkspaceFactsService({
       getAgentRoot,
+      getProjectRoot,
       searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
       onFactWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
     });
   }
   return workspaceFactsService;
+}
+
+function getWorkspaceGlossaryService() {
+  if (!workspaceGlossaryService) {
+    workspaceGlossaryService = createWorkspaceGlossaryService({
+      getAgentRoot,
+      getProjectRoot,
+      searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
+      onTermWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceGlossaryService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -10575,7 +10608,7 @@ function shouldSkipMenuDirectory(name) {
   if (isPlatformDataRootFolderName(name)) return true;
   const lower = String(name || "").toLowerCase();
   if (lower === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) return true;
-  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
+  if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_SCRIPTS_FOLDER || "awn-scripts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
@@ -11696,6 +11729,39 @@ async function collectAlwaysContextWsFolderItems(agentRoot, folderRel) {
   return results;
 }
 
+async function loadSessionPlatformDocItems(platformSettings, entries, { entityKind = "platform-doc" } = {}) {
+  const items = [];
+  for (const entry of entries) {
+    if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
+      continue;
+    }
+    try {
+      const platformRoot = getAppRoot();
+      const docRoot =
+        entry.root === "project" ? platformRoot : getPlatformAgentRootAbsolute(platformRoot);
+      const docAbsolute = path.join(docRoot, entry.file);
+      if (!(await fileExists(docAbsolute))) continue;
+      const content = await fs.readFile(docAbsolute, "utf-8");
+      items.push({
+        entityKind,
+        manifestPath: null,
+        slot: null,
+        ref: entry.file,
+        label: entry.file,
+        displayPath:
+          entry.root === "project" ? entry.file : `workspaces/agent-cms-core/${entry.file}`,
+        description: entry.description,
+        runtimeLoadAlways: entityKind === "platform-always",
+        exists: true,
+        content
+      });
+    } catch {
+      // skip unreadable platform doc
+    }
+  }
+  return items;
+}
+
 async function buildAgentAlwaysContextRegistry() {
   let platformSettings = {};
   try {
@@ -11747,35 +11813,12 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
-  // Platform-global docs — repo root or agent-cms-core, injected for every agent.
-  for (const entry of PLATFORM_ALWAYS_CONTEXT_FILES) {
-    if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
-      continue;
-    }
-    try {
-      const platformRoot = getAppRoot();
-      const docRoot =
-        entry.root === "project" ? platformRoot : getPlatformAgentRootAbsolute(platformRoot);
-      const docAbsolute = path.join(docRoot, entry.file);
-      if (!(await fileExists(docAbsolute))) continue;
-      const content = await fs.readFile(docAbsolute, "utf-8");
-      items.push({
-        entityKind: "system",
-        manifestPath: null,
-        slot: null,
-        ref: entry.file,
-        label: entry.file,
-        displayPath:
-          entry.root === "project" ? entry.file : `workspaces/agent-cms-core/${entry.file}`,
-        description: entry.description,
-        runtimeLoadAlways: true,
-        exists: true,
-        content
-      });
-    } catch {
-      // skip unreadable platform doc
-    }
-  }
+  // Platform rules + response style (session-context); MCP map / README → get_session_documentation.
+  items.push(
+    ...(await loadSessionPlatformDocItems(platformSettings, SESSION_ALWAYS_PLATFORM_FILES, {
+      entityKind: "platform-always"
+    }))
+  );
 
   const wsFolder = getPlatformAlwaysContextWsFolder(platformSettings);
   if (wsFolder && agentRoot) {
@@ -11787,11 +11830,63 @@ async function buildAgentAlwaysContextRegistry() {
     version: 1,
     model: "always-context",
     hint:
-      "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + " +
-      "документы платформы (настройки → Автоконтекст) + файлы из ws/. Полное содержимое каждого файла.",
+      "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. " +
+      "Platform docs (GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
     items,
     itemCount: items.length
   };
+}
+
+async function buildAgentSessionDocumentationRegistry(options = {}) {
+  let platformSettings = {};
+  try {
+    platformSettings = await getPlatformSettings(getProjectRoot());
+  } catch {
+    platformSettings = {};
+  }
+
+  const requested = parseSessionDocumentationDocFilter(options.docs || options.doc || options.files);
+  let entries = SESSION_DOCUMENTATION_PLATFORM_FILES;
+  if (requested.size) {
+    entries = entries.filter((entry) => requested.has(normalizeSessionDocumentationDocId(entry.file)));
+  }
+
+  const items = await loadSessionPlatformDocItems(platformSettings, entries, {
+    entityKind: "session-documentation"
+  });
+
+  return {
+    version: 1,
+    model: "session-documentation",
+    hint:
+      "Platform documentation on demand (not in get_session_context). Settings: always-context-global-mcp-doc, always-context-platform-readme, always-context-global-markdown-showcase.",
+    items,
+    itemCount: items.length,
+    availableDocs: SESSION_DOCUMENTATION_PLATFORM_FILES.map((e) => e.file)
+  };
+}
+
+function normalizeSessionDocumentationDocId(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .toLowerCase();
+}
+
+function parseSessionDocumentationDocFilter(raw) {
+  const set = new Set();
+  const list = Array.isArray(raw)
+    ? raw
+    : String(raw || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+  for (const item of list) {
+    const id = normalizeSessionDocumentationDocId(item);
+    if (id) set.add(id);
+  }
+  return set;
 }
 
 async function buildAgentCronRegistry() {
@@ -14172,6 +14267,8 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
 }
 
 const SESSION_CONTEXT_API_MAP = {
+  // Dev/HTTP catalog — not included in get_session_context (agents use MCP tools only).
+  // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
   storageSummary:
@@ -14224,7 +14321,9 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
+  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-DOC-MCP/README); MCP: list_workspace_always_context",
+  sessionDocumentation:
+    "GET /api/agent/session-documentation?docs= — GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -14273,10 +14372,17 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — retain_workspace_fact MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — create_workspace_fact MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — update_workspace_fact MCP",
   workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — list_workspace_facts MCP",
-  workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q=&kind=&tags=&limit= — recall_workspace_facts MCP",
-  workspaceFactsStats: "GET /api/agent/workspace-facts/stats — sidebar stats for awn-facts",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — search_workspace_facts MCP",
+  workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
+  workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
+  workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",
+  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — create_glossary_term MCP",
+  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
+  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
+  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -14449,7 +14555,6 @@ async function buildAgentSessionContext() {
     agentRootRel,
     kitFolder,
     pathHints: SESSION_PATH_HINTS,
-    apiMap: SESSION_CONTEXT_API_MAP,
     menuSummary,
     awnSystem,
     platformSettings: workspaceSettings.platform,
@@ -14463,7 +14568,8 @@ async function buildAgentSessionContext() {
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry (skill-карта) + dataStoresSummary (инфоблоки) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. platformSettings — MCP policy; workspaceSettings — параметры хранилища."
+      "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace + RULES + RESPONSE-STYLE). " +
+      "Доки платформы: get_session_documentation. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
   };
 }
 
@@ -18209,7 +18315,7 @@ function isTextSearchableFileName(name) {
 
 function shouldSkipSearchDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
-  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return false;
+  if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return false;
   if (lower === ".agent-cms") return false;
   if (lower === "journal") return false;
   const normalized = normalizeStorageSubfolderName(name);
@@ -22119,6 +22225,21 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/session-documentation") {
+    try {
+      const docsParam = url.searchParams.get("docs") || url.searchParams.get("doc") || "";
+      const payload = await buildAgentSessionDocumentationRegistry({
+        docs: docsParam || undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read session documentation",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/cron-registry") {
     try {
       return sendJson(res, 200, await buildAgentCronRegistry());
@@ -22805,10 +22926,40 @@ async function handleApiForAgent(req, res, url) {
     return handleWorkspaceContextSearchGet(req, res, "searchAndGetContext");
   }
 
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceFactsService().createWorkspaceFact(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create workspace fact",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceFactsService().updateWorkspaceFact(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update workspace fact",
+        details: message
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/retain") {
     try {
       const body = await readJsonBody(req);
-      const payload = await getWorkspaceFactsService().retainWorkspaceFact(body || {});
+      const payload = await getWorkspaceFactsService().createWorkspaceFact(body || {});
       return sendJson(res, 200, payload);
     } catch (error) {
       const message = String(error.message || error);
@@ -22837,6 +22988,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceFactsService().searchWorkspaceFacts({
+        query,
+        kind: url.searchParams.get("kind") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search workspace facts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/recall") {
     const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
     if (query.length < 2) {
@@ -22844,7 +23018,7 @@ async function handleApiForAgent(req, res, url) {
     }
     try {
       const limitRaw = Number(url.searchParams.get("limit"));
-      const payload = await getWorkspaceFactsService().recallWorkspaceFacts({
+      const payload = await getWorkspaceFactsService().searchWorkspaceFacts({
         query,
         kind: url.searchParams.get("kind") || "",
         tags: url.searchParams.get("tags") || "",
@@ -22867,6 +23041,74 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace facts stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-glossary/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceGlossaryService().createGlossaryTerm(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create glossary term",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-glossary/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceGlossaryService().updateGlossaryTerm(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update glossary term",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-glossary/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceGlossaryService().listGlossaryTerms({
+        prefix: url.searchParams.get("prefix") || url.searchParams.get("letter") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list glossary terms",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-glossary/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceGlossaryService().searchGlossaryTerms({
+        query,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search glossary terms",
         details: String(error.message || error)
       });
     }
@@ -24530,6 +24772,28 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold taxonomies group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-contents") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const preset = String(payload?.preset || "both").trim().toLowerCase();
+      const result = ensureContentsGroupScaffold(agentRoot, getProjectRoot(), { preset });
+      return sendJson(res, 201, {
+        ok: true,
+        groupRel: CONTENTS_GROUP_REL,
+        factsStoreRel: FACTS_STORE_REL,
+        glossaryStoreRel: GLOSSARY_STORE_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold contents group",
         details: String(error.message || error)
       });
     }

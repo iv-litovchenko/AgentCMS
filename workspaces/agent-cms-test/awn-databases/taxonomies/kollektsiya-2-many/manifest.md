@@ -1,5 +1,5 @@
 ---
-awn-name: 777
+awn-name: Коллекция-2-many
 awn-description: ""
 awn-preview: ""
 awn-web-url: ""
@@ -19,28 +19,22 @@ awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
 awn-type: awn.database.frame.taxonomy-collection
-awn-create: 2026-09-28T09:59:53.186Z
-awn-update: 2026-09-28T09:59:53.186Z
+awn-create: 2026-09-26T07:52:29.154Z
+awn-update: 2026-09-26T07:52:29.154Z
 awn-version: 1
-awn-viz-graph: ""
-awn-viz-mindmap: ""
-awn-viz-roadmap: ""
-awn-auto-toc: false
-awn-summary: ""
-awn-tags: []
 awn-record-hierarchy: false
 awn-record-file-types: ""
-awn-id: awn-taxonomies.777
+awn-id: taxonomies.kollektsiya-2-many
 awn-collection-type: csv
 awn-record-storage: csv
 awn-record-id-mode: slug
 awn-record-file: main.csv
-awn-taxonomy-cardinality: one
+awn-taxonomy-cardinality: many
 awn-taxonomy-hierarchy: false
 ---
 
-# 777
+# Коллекция-2-many
 
-777
+Коллекция-2-many
 
-Словарь `awn-taxonomy.777` (ключ из slug папки). Кардинальность: one. Иерархия: нет.
+Словарь `awn-taxonomy.kollektsiya-2-many` (ключ из slug папки). Кардинальность: many. Иерархия: нет.

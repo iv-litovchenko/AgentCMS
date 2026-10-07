@@ -22,11 +22,11 @@
     {
       "title": "Справочники",
       "items": [
-        { "label": "Таксономии (справочники)", "path": "awn-databases/awn-taxonomies/manifest.md" },
-        { "label": "Теги", "path": "awn-databases/awn-taxonomies/tags/manifest.md" },
-        { "label": "Категории", "path": "awn-databases/awn-taxonomies/categories/manifest.md" },
-        { "label": "Приоритеты", "path": "awn-databases/awn-taxonomies/priorities/manifest.md" },
-        { "label": "Палитра", "path": "awn-databases/awn-taxonomies/colors/manifest.md" }
+        { "label": "Таксономии (справочники)", "path": "awn-databases/taxonomies/manifest.md" },
+        { "label": "Теги", "path": "awn-databases/taxonomies/tags/manifest.md" },
+        { "label": "Категории", "path": "awn-databases/taxonomies/categories/manifest.md" },
+        { "label": "Приоритеты", "path": "awn-databases/taxonomies/priorities/manifest.md" },
+        { "label": "Палитра", "path": "awn-databases/taxonomies/colors/manifest.md" }
       ]
     },
     {
