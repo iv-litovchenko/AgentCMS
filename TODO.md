@@ -89,5 +89,78 @@
 * External Download Manager (или аналогичные Open Source решения) — расширения, которые позволяют связать Chrome практически с любым внешним загрузчиком (например, Aria2, wget или вашим собственным скриптом).
 
 
+## 🏠 Главная (landing `/`, `showAppLandingView`)
 
+| # | Запрос / ресурс | Когда | ⏱️ | 🔥 | Блокирует? |
+|---|-----------------|--------|-----|-----|------------|
+| 1 | **Статика ~11 MB** (`main.js` ~4 MB, mermaid ~3 MB, CSS ~1.3 MB, `index.html` ~350 KB) | каждый F5 | 10–60+ с | 🔥🔥🔥 | да (парс JS) |
+| 2 | `GET /api/agents` | `init()` → `loadAgents()` | 2–5 с | 🔥🔥 | **да** (await до UI) |
+| 3 | `GET /api/agents/groups` | внутри `loadAgents()` | 0.1–1 с | 🔥 | **да** |
+| 4 | `GET /api/platform/settings-global` | `init()` | быстро | — | **да** |
+| 5 | `GET /api/agents/main` **без agent** | landing: `loadGlobalMainItems()` | **10–60+ с** | 🔥🔥🔥🔥 | нет*, но UI пустой |
+| 6 | `GET /api/agents/recent-updates?limit=30` | landing: `loadGlobalFlowItems()` | **10–60+ с** | 🔥🔥🔥🔥 | вкладка Flow |
+| 7 | `GET /api/agents/menus?maxDepth=3` | landing: `loadGlobalLandingHubTopicItems()` | **5–120+ с** | 🔥🔥🔥🔥 | Hub/Orbit |
+| 8 | `GET /api/platform/ui-rotators` | ротатор заголовка | мелочь | — | нет |
+| 9 | Splash **min 900 ms** | `APP_SPLASH_MIN_MS` | +0.9 с | 🔥 | да |
+
+\*Orbit/Flow/Hub ждут данные — кажется, что «висит».
+
+**Почему 3–4 мин на главной:** п.1 + п.5–7 **по всем хранилищам** (журналы, меню, focus) + тяжёлый диск.
+
+---
+
+## 🗄️ Главная хранилища (`showAgentHomeView`, дашборд 1/2/3)
+
+### Boot (если открыли URL агента, не landing)
+
+| # | Запрос | Когда | ⏱️ | 🔥 | Блокирует? |
+|---|--------|--------|-----|-----|------------|
+| A | `GET /api/agents` + `/groups` | `init()` | 2–5 с | 🔥🔥 | **да** |
+| B | `GET /api/menu?maxDepth=7` | `await refreshMenu()` | 0.02 с (кэш) / **10–120 с** (холод) | 🔥🔥🔥 | **да** |
+| C | `GET /api/user/settings` | при активном агенте | быстро | — | частично |
+| D | `GET /api/awn-types` | фоном после меню | 1–10 с | 🔥 | нет |
+
+### При показе «домой» хранилища
+
+| # | Запрос | Когда | ⏱️ | 🔥 | Блокирует? |
+|---|--------|--------|-----|-----|------------|
+| 1 | `GET /api/agents/focus?agent=…` | `loadAgentFocusItems()` | **5–60 с** | 🔥🔥🔥 | focus-панели |
+| 2 | `GET /api/file?path=manifest.md` | дашборд **1** (`dashboard`) | 0.1–2 с | 🔥 | блок карточки |
+| 3 | — (только `currentMenuData`) | дашборд **2** (`dashboard2`) | быстро | ✅ | нет |
+| 4 | `GET /api/workspace/fs/read` × (1 + N виджетов) | дашборд **3** (`dashboard3`) | **5–30+ с** | 🔥🔥 | «Загрузка дашборда…» |
+| 5 | + виджеты: `/api/agent/activity`, `folder/browse`, внешние URL | dashboard3 | varies | 🔥🔥 | по виджетам |
+
+### После `renderMenu` (часто главный убийца времени)
+
+| # | Запрос | Когда | ⏱️ | 🔥 | Блокирует? |
+|---|--------|--------|-----|-----|------------|
+| 💀 | **`GET /api/node/read` × N** (N = все темы в дереве) | `prefetchMenuReadStates()` | **1–4+ мин** при сотнях нод | 🔥🔥🔥🔥🔥 | сервер + браузер |
+| 6 | `GET /api/agent/workspace-stats` | `syncMenuAgentStats` | 1–30 с | 🔥🔥 | сайдбар stats |
+| 7 | `GET /api/workspace-index/monitor` + id/nav flags | `WorkspaceIndexPanel.refreshStatus()` | 1–10 с | 🔥🔥 | фон |
+| 8 | `GET /api/awn-databases`, gdrive, dialogs, facts, repos… | после `switchActiveAgent` | пачка | 🔥🔥 | сайдбар |
+
+---
+
+## 📊 Сводка: кто виноват в 3–4 минутах
+
+| Виновник | Страница | Эмодзи |
+|----------|----------|--------|
+| Сотни/тысячи `/api/node/read` после меню | хранилище | 💀🔥 |
+| `/api/agents/menus` + `/main` + `/recent-updates` по **всем** агентам | главная | 🔥🔥🔥 |
+| Холодный `buildAgentMenu` на большом workspace | обе | 🔥🔥🔥 |
+| 11 MB статики без кэша + парс 4 MB `main.js` | обе | 🔥🔥 |
+| `/api/agents/focus` + превью нод (диск) | хранилище | 🔥🔥 |
+| Dashboard3 — последовательные `fs/read` | dashboard3 | 🔥 |
+
+---
+
+## 🎯 Что резать в первую очередь (идеи, не правки)
+
+1. 💀 **Batch `/api/node/read`** или отложить prefetch / лимит параллелизма  
+2. 🏠 **Не вызывать** `/agents/main`, `/recent-updates`, `/agents/menus` без нужды / по одному агенту  
+3. 🗄️ **Не `await refreshMenu`** на critical path — показать UI из кэша  
+4. 📦 **Lazy** mermaid/editor + cache vendor  
+5. 🎯 **Focus** — лёгкий ответ без `getNodePreviewMeta` на boot  
+
+Если скажешь, какая вкладка landing (orbit/flow/hub) и какой дашборд (1/2/3) — сузим до 2–3 запросов.
 
