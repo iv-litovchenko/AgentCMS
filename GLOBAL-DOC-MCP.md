@@ -42,17 +42,13 @@
 | **Slot** | Место хранения на странице (= имя папки) | `slot` → `main`, `inbox`, `media`… |
 | **Content** | Файл внутри слота | `path` + `slot` + `ref` (путь внутри слота) |
 
-Путь на диске: `{область}/{тема}/awn-storage/{слот}/{файл}`. Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`).
+Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index`, `resolve_workspace_path`.
 
-### Дерево агента
+### Разделы дерева (для `parentPath` в `create_page`)
 
-| Папка | Зачем |
-|-------|-------|
-| `awn-agent-kit/` | Служебные темы агента (persona, rules, voice…) |
-| `awn-shared/` | Общие ресурсы между темами |
-| `awn-container/` | Пользовательский контент — области и темы |
-| `awn-databases/` | Инфоблоки (вне дерева страниц) |
-| корень | `manifest.md`, `AGENTS.md`, `SKILL.md`, `NOTE.md`, `TODO.md`, `awn-temp/`, `awn-scripts/`, `awn-dialogs/`, `awn-recycle/`, `awn-media-cloud/`, runtime `.agent-cms/` |
+- `awn-container/` — пользовательские области и темы (по умолчанию);
+- `awn-agent-kit/` — служебные темы агента (persona, rules, voice…);
+- `awn-shared/` — общие ресурсы между темами.
 
 ### Страницы vs инфоблоки — когда что
 
@@ -90,7 +86,7 @@
 
 Типы: `awn.page.ws` (корень), `awn.page.area` (область), `awn.page.topic` (тема со слотами), `awn.page.section.*` (служебные разделы).
 
-**Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в `discussion/`.
+**Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
 **Параметры без схемы в MCP** (передавай так):
 
@@ -117,15 +113,17 @@
 | `assets` | Ресурсы **записей**: `preview/`, `pasted/`, `attachments/`, `materials/` |
 | `repository`, `scripts` | Код и скрипты темы |
 | `comments`, `discussion` | Только через свои tools (раздел 7) |
-| `main-single`, `main-single-csv`, `todo-single` | Однофайловые (`main.md`, `main.csv`, `todo.md`) |
+| `main-single`, `main-single-csv`, `todo-single` | Однофайловые: страница памяти, таблица, TODO |
 
 Системный `history` руками не трогать.
 
-**`media` ≠ `assets`.** Картинка в текст (`assets/pasted/`), превью темы (`assets/preview/`, поле `awn-preview`), вложение записи (`assets/attachments/`, поле `awn-attachments`) — всё в `assets`. В `media` — только самостоятельные файлы темы.
+**`media` ≠ `assets`.** Картинка в текст, превью темы (поле `awn-preview`), вложение записи (поле `awn-attachments`) — всё в `assets`. В `media` — только самостоятельные файлы темы.
+
+`upload_file` принимает только полный путь: `{папка темы}/awn-storage/assets/pasted|preview|attachments/{файл}`. В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
 
 ### Гибкий слот
 
-Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольная структура в `awn-storage/`. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
+Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
 
 ### Доп. материалы записи — `assets/materials/{awn-id}/`
 
@@ -142,15 +140,15 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **frame** (`database_frame_*`) — каркас group / collection / single в `awn-databases/{slug}/`; **element** (`database_element_*`) — записи и разделы внутри. В `database_frame_list` и меню — только frames.
+Два слоя: **frame** (`database_frame_*`) — каркас group / collection / single; **element** (`database_element_*`) — записи и разделы внутри. В `database_frame_list` и меню — только frames.
 
-| `awn-collection-type` | Хранение | Тип записи |
-|-----------------------|----------|------------|
-| `md` | `{id}.md` | `awn.database.element.record` — сущности с полями |
-| `md-lite` | `{id}.md` | `…record-lite` — простые списки |
-| `csv` | `main.csv` | `…record-csv` — табличный реестр |
-| `csv-files` | `{id}.csv` | `…record-csv` — таблица на запись |
-| `files` | файлы в `data/` | `…record` |
+| `collectionType` | Тип записи | Когда |
+|------------------|------------|-------|
+| `md` | `awn.database.element.record` | Сущности с полями |
+| `md-lite` | `…record-lite` | Простые списки (тексты, слоганы) |
+| `csv` | `…record-csv` | Табличный реестр в одной таблице |
+| `csv-files` | `…record-csv` | Отдельная таблица на запись |
+| `files` | `…record` | Загрузка файлов |
 
 **Имена полей:** `awn-*` — только системные поля платформы. Пользовательские поля — **без** префикса (`amount`, `label`, `status`). Не дублируй системные ключи в `schema.yml`.
 
@@ -164,9 +162,9 @@
 
 | Что | Куда |
 |-----|------|
-| Решение, предпочтение, сущность (1–2 фразы) | `create_workspace_fact` → `awn-databases/contents/facts/` |
-| Термин и определение | `create_glossary_term` → `contents/glossary/` |
-| Событие (жизнь, действие, UI, система) | `append_journal_entry` → `.agent-cms/journal/` (`log.md` в темах не используется) |
+| Решение, предпочтение, сущность (1–2 фразы) | `create_workspace_fact` |
+| Термин и определение | `create_glossary_term` |
+| Событие (жизнь, действие, UI, система) | `append_journal_entry` |
 | Обсуждение одной темы | `append_discussion` |
 | Комментарий к manifest / записи | `append_comment` |
 | Входящие | `create_content({ slot: "inbox", status: "new" })` |
@@ -174,7 +172,7 @@
 | Инструкции агента | `AGENTS.md` / `SKILL.md` через `write_file` |
 | Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
 
-В `comments/`, `discussion/`, коллекцию фактов не писать через `create_content` / `write_file`.
+Комментарии, дискуссии и факты — только через их tools, не через `create_content` / `write_file`.
 
 ### Банк фактов — когда писать
 
@@ -199,7 +197,6 @@
 
 - `awn-temp/` — все временные файлы (`incoming/`, `scratch/`, `exports/`…). Не создавай `temp/` в темах.
 - `awn-scripts/` — общие скрипты workspace; слот `scripts/` — только для своей темы.
-- `awn-recycle/` — корзина.
 
 **`batch_invoke`** — N вызовов **одного** tool за раз. Лимиты: read/list/search — до 20, write/create/delete — до 10. Частичный успех возможен — проверяй каждый item.
 
@@ -215,14 +212,14 @@
 
 ### Настройки — 4 независимых scope (не merge)
 
-| Scope | Файл | Что там |
-|-------|------|---------|
-| `platform` | `.agent-cms-global/settings/platform.yml` в корне репо | MCP policy (`mcp-mode`, `batch-*`, `confirm-*`), индексы, always-context |
-| `workspace` | `.agent-cms/settings/workspace.yml` | `awn-id-*`, Voice (`voice-*`), колонки зависимостей |
-| `integrations` | `.agent-cms/settings/integrations.yml` | skills / MCP / плагины (stub) |
-| `user` | `.agent-cms/settings/user.yml` | дерево меню, сайдбар |
+| Scope | Что там |
+|-------|---------|
+| `platform` | MCP policy (`mcp-mode`, `batch-*`, `confirm-*`), индексы, always-context — общее для всех workspace |
+| `workspace` | `awn-id-*`, Voice (`voice-*`), колонки зависимостей |
+| `integrations` | skills / MCP / плагины (stub) |
+| `user` | дерево меню, сайдбар |
 
-MCP policy задаётся только в `platform`. Секреты — в корневом `.env`, не в yaml. `schema.yml` / `config.yml` / `.env` тем и инфоблоков — не settings: для них `*_page_*` / `database_frame_*`.
+MCP policy задаётся только в `platform`. Секреты в settings не хранятся. Схема и конфиг тем и инфоблоков — не settings: для них `*_page_*` / `database_frame_*`.
 
 ### Типы
 
