@@ -48034,10 +48034,14 @@ function extractAwnSchemaYamlFromConfig(content) {
   return NodeConfigBundle.extractSectionYamlText(content, "awn_schema");
 }
 
-function getNodeSettingsFieldMeta(key, fieldDef) {
+function getNodeSettingsFieldMeta(key, fieldDef, options = {}) {
+  const hintSource =
+    options.repeaterSubfield
+      ? fieldDef?.hint || ""
+      : fieldDef?.hint || fieldDef?.description || "";
   return {
     label: getFieldDefDisplayName(fieldDef, key),
-    hint: coerceSettingsTextValue(fieldDef?.hint || fieldDef?.description || "", ""),
+    hint: coerceSettingsTextValue(hintSource, ""),
     required: Boolean(fieldDef?.required),
     format: fieldDef?.format || "",
     fieldDef
@@ -59485,7 +59489,7 @@ function resolveRepeaterItemPropertyDefs(fieldDef, fieldKey = "") {
           : settingsFieldKey === "module-git-commit-batches"
             ? ["id", "label", "extensions", "messageTemplate", "maxFileSizeMb"]
             : settingsFieldKey === "registry-query-presets"
-              ? ["id", "name", "description", "query"]
+              ? ["id", "name", "about", "query"]
               : ["id", "key", "label", "text", "group"];
   const inlineProperties = fieldDef?.properties && typeof fieldDef.properties === "object" ? fieldDef.properties : null;
   if (inlineProperties && Object.keys(inlineProperties).length) {
@@ -59574,8 +59578,11 @@ function resolveRepeaterItemPropValue(item, propKey, parentFieldKey = "") {
   }
   const parent = String(parentFieldKey || "").trim();
   if (parent === "registry-query-presets") {
-    if (propKey === "description") return item.comment ?? "";
-    if (propKey === "comment") return item.description ?? "";
+    if (propKey === "about") {
+      return item.description ?? item.comment ?? "";
+    }
+    if (propKey === "description") return item.about ?? item.comment ?? "";
+    if (propKey === "comment") return item.about ?? item.description ?? "";
   }
   return direct ?? "";
 }
@@ -59589,18 +59596,25 @@ function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = fal
   label.className = "props-form-repeater-subfield-label";
   label.textContent = propDef?.title || propKey;
 
+  const displayValue = value !== undefined && value !== null ? value : fieldDefDefaultValue(propDef);
   const entry = {
     key: propKey,
     kind: fieldDefToEntryKind(propDef),
-    value: value ?? fieldDefDefaultValue(propDef),
+    value: displayValue,
     fieldDef: propDef
   };
   const control = createPropsFormValueControl(entry, {
-    ...getNodeSettingsFieldMeta(propKey, propDef),
+    ...getNodeSettingsFieldMeta(propKey, propDef, { repeaterSubfield: true }),
     fieldDef: propDef,
-    locked
+    locked,
+    settingsRepeaterSubfield: true
   });
   control.classList.add("props-form-repeater-subfield-value");
+  const textControl = control.querySelector("textarea.props-form-value, input.props-form-value");
+  if (textControl && displayValue !== undefined && displayValue !== null) {
+    const text = String(displayValue);
+    if (textControl.value !== text) textControl.value = text;
+  }
   subfield.append(label, control);
   return subfield;
 }
@@ -63987,7 +64001,9 @@ function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
 }
 
 function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}) {
-  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const fieldDef = meta.settingsRepeaterSubfield
+    ? meta.fieldDef
+    : meta.fieldDef || getPropsFieldDef(entry.key);
   const locked = Boolean(entry.key && meta.locked);
   const widget = resolvePropsFieldWidget(entry.key, fieldDef);
   const compact = editorCompact;

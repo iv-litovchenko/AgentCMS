@@ -415,10 +415,10 @@ fields:
       name:
         type: awn.field.string
         title: Название
-      description:
+      about:
         type: awn.field.text
         title: Описание
-        description: Для агента и подсказок в UI — что возвращает эта выборка (в registry-queries.yml — ключ comment)
+        hint: Для агента и подсказок в UI — что возвращает выборка (в registry-queries.yml — ключ comment)
       query:
         type: awn.field.text.code
         title: Запрос (фильтр)
