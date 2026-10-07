@@ -30462,6 +30462,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-journal-btn,
+.menu-agent-stats-dependencies-btn,
 .menu-agent-stats-reload-btn,
 .menu-agent-stats-env-btn,
 .menu-agent-stats-settings-btn {
@@ -30484,6 +30485,7 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-journal-btn:hover:not(:disabled),
+.menu-agent-stats-dependencies-btn:hover:not(:disabled),
 .menu-agent-stats-reload-btn:hover:not(:disabled),
 .menu-agent-stats-env-btn:hover:not(:disabled),
 .menu-agent-stats-settings-btn:hover:not(:disabled) {
@@ -30507,20 +30509,28 @@ body.workspace-pomodoro-break-active {
 }
 
 .menu-agent-stats-env-btn.is-active,
-.menu-agent-stats-journal-btn.is-active {
+.menu-agent-stats-journal-btn.is-active,
+.menu-agent-stats-dependencies-btn.is-active {
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
 }
 
-.menu-agent-stats-journal-btn:focus {
+.menu-agent-stats-dependencies-btn.is-generated:not(.is-active) {
+  opacity: 0.78;
+}
+
+.menu-agent-stats-journal-btn:focus,
+.menu-agent-stats-dependencies-btn:focus {
   outline: none;
 }
 
-.menu-agent-stats-journal-btn:focus-visible {
+.menu-agent-stats-journal-btn:focus-visible,
+.menu-agent-stats-dependencies-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.42);
 }
 
 .menu-agent-stats-journal-icon,
+.menu-agent-stats-dependencies-icon,
 .menu-agent-stats-env-icon,
 .menu-agent-stats-settings-icon {
   display: block;
@@ -73041,20 +73051,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
-.menu-repositories-shortcuts-row > .menu-repositories-dependencies-open {
-  flex: 0 1 5.25rem;
-  max-width: 5.5rem;
-  min-width: 0;
-  width: auto;
-  padding: 0 0.3rem;
-  font-size: 10px;
-  line-height: 1.15;
-  min-height: 28px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .menu-repositories-shortcuts-row > .menu-repositories-index-row {
   flex: 1 1 0;
   min-width: 0;
@@ -73386,8 +73382,10 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-repository-body {
   display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -73863,37 +73861,56 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-repository-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.25;
   color: #1f2937;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
 
 .menu-repository-meta,
 .menu-repository-meta-row {
-  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0.25rem;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.45rem;
+  justify-content: flex-end;
+  gap: 0.35rem;
   min-width: 0;
 }
 
 .menu-repository-slug {
-  font-size: 0.6875rem;
-  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 
-.menu-repository-files {
+.menu-repositories-band-body .menu-repository-slug-badge {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 1.125rem;
+  margin: 0;
+  padding: 0 0.4rem;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.92);
+  max-width: 6.5rem;
+}
+
+.menu-repository-files-badge {
   flex-shrink: 0;
-  font-size: 0.6875rem;
-  color: #94a3b8;
-  white-space: nowrap;
 }
 
 .menu-repository-item.is-dragging-voice-chat-context {

@@ -197,7 +197,6 @@ const menuRepositoriesShortcutsRow = document.getElementById("menu-repositories-
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
 const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
-const menuRepositoriesDependenciesOpenBtn = document.getElementById("menu-repositories-dependencies-open-btn");
 const menuRepositoriesSearchInputNode = document.getElementById("menu-repositories-search-input");
 const REPOSITORY_INDEX_REL = "awn-repositories/index.md";
 const REPOSITORY_STATS_THEME_STORAGE_KEY = "agentcms.repositoryStatsTheme.v1";
@@ -101984,15 +101983,50 @@ function createMenuAgentStatsJournalButton() {
   return button;
 }
 
+function createMenuAgentStatsDependenciesButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-dependencies-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-dependencies-btn is-generated";
+  button.title = "Создать и заполнить dependencies.csv";
+  button.setAttribute("aria-label", "Внешние зависимости workspace (dependencies.csv)");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-dependencies-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="2"/>' +
+    '<circle cx="18" cy="6" r="2.5" stroke="currentColor" stroke-width="2"/>' +
+    '<circle cx="12" cy="18" r="2.5" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M8.2 7.4 10.8 9.2M15.8 7.4 13.2 9.2M10.8 14.8 11.2 15.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    "</svg>";
+  return button;
+}
+
 function createMenuAgentStatsActions() {
   const wrap = document.createElement("div");
   wrap.className = "menu-agent-stats-actions";
   wrap.append(
     createMenuAgentStatsJournalButton(),
+    createMenuAgentStatsDependenciesButton(),
     createMenuAgentStatsEnvironmentButton(),
     createMenuAgentStatsSettingsButton()
   );
   return wrap;
+}
+
+function openWorkspaceDependenciesCsv() {
+  const entry = getSystemFileCacheEntry("dependencies.csv");
+  void openRootSystemMenuFile(
+    entry || {
+      name: "dependencies.csv",
+      systemFile: "dependencies.csv",
+      exists: false,
+      empty: true,
+      openMode: "system"
+    }
+  );
+}
+
+function isWorkspaceDependenciesCsvActive() {
+  return normalizeSystemFileName(activeSystemFile) === "dependencies.csv";
 }
 
 function isWorkspaceJournalModuleActive() {
@@ -102002,8 +102036,10 @@ function isWorkspaceJournalModuleActive() {
 function syncMenuAgentStatsModuleBtnState() {
   const settingsBtn = document.getElementById("menu-agent-stats-env-btn");
   const journalBtn = document.getElementById("menu-agent-stats-journal-btn");
+  const dependenciesBtn = document.getElementById("menu-agent-stats-dependencies-btn");
   const settingsActive = isProjectSettingsMode();
   const journalActive = isWorkspaceJournalModuleActive();
+  const dependenciesActive = isWorkspaceDependenciesCsvActive();
 
   if (settingsBtn) {
     settingsBtn.classList.toggle("is-active", settingsActive);
@@ -102012,6 +102048,10 @@ function syncMenuAgentStatsModuleBtnState() {
   if (journalBtn) {
     journalBtn.classList.toggle("is-active", journalActive);
     journalBtn.setAttribute("aria-pressed", journalActive ? "true" : "false");
+  }
+  if (dependenciesBtn) {
+    dependenciesBtn.classList.toggle("is-active", dependenciesActive);
+    dependenciesBtn.setAttribute("aria-pressed", dependenciesActive ? "true" : "false");
   }
 }
 
@@ -102077,6 +102117,7 @@ function renderMenuAgentStatsContent({ counts, workspace = null, summaryLine = n
   band.appendChild(createMenuAgentStatsActions());
   menuAgentStatsNode.appendChild(band);
   syncMenuAgentStatsSettingsBtnState();
+  syncRepositoriesDependenciesButtonState();
 }
 
 function hideMenuAgentStats() {
@@ -115255,6 +115296,15 @@ function setupMenuStaticFooterGroup() {
       void openWorkspaceJournalModule();
       return;
     }
+    const dependenciesBtn = event.target.closest("#menu-agent-stats-dependencies-btn");
+    if (dependenciesBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenuAgentStatsSummaryPopover();
+      closeMenuAgentStatsEnvPopover();
+      openWorkspaceDependenciesCsv();
+      return;
+    }
     const settingsBtn = event.target.closest("#menu-agent-stats-env-btn");
     if (settingsBtn) {
       event.preventDefault();
@@ -124274,9 +124324,14 @@ function createMenuRepositoryBookIcon() {
   return icon;
 }
 
-function formatMenuRepositoryFileCount(entryCount) {
-  if (entryCount == null || Number(entryCount) < 0) return "";
-  return `${entryCount} файлов`;
+function formatMenuRepositoryFilesTitle(entryCount) {
+  const n = Number(entryCount);
+  if (!Number.isFinite(n) || n < 0) return "";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} файл`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} файла`;
+  return `${n} файлов`;
 }
 
 function resolveMenuRepositoryAwnId(entry) {
@@ -124290,30 +124345,45 @@ function createMenuRepositoryRowBody(entry) {
   const body = document.createElement("span");
   body.className = "menu-repository-body";
 
-  const nameRow = document.createElement("span");
-  nameRow.className = "menu-repository-name-row";
-  nameRow.append(createMenuRepositoryBookIcon());
-  const nameNode = document.createElement("span");
-  nameNode.className = "menu-repository-name";
-  nameNode.textContent = name;
-  nameRow.appendChild(nameNode);
+  body.appendChild(createMenuRepositoryBookIcon());
+
   const idBadge = createNavBookTocIdBadge(resolveMenuRepositoryAwnId(entry));
   if (idBadge) {
     idBadge.classList.add("menu-repository-id-badge");
-    nameRow.appendChild(idBadge);
+    body.appendChild(idBadge);
   }
 
-  const metaRow = document.createElement("span");
-  metaRow.className = "menu-repository-meta-row";
-  const slugNode = document.createElement("span");
-  slugNode.className = "menu-repository-slug";
-  slugNode.textContent = slug || "—";
-  const filesNode = document.createElement("span");
-  filesNode.className = "menu-repository-files";
-  filesNode.textContent = formatMenuRepositoryFileCount(entry.entryCount);
-  metaRow.append(slugNode, filesNode);
+  const nameNode = document.createElement("span");
+  nameNode.className = "menu-repository-name";
+  nameNode.textContent = name;
 
-  body.append(nameRow, metaRow);
+  const metaNode = document.createElement("span");
+  metaNode.className = "menu-repository-meta";
+
+  if (slug) {
+    const folderPath = String(entry.folderPath || `awn-repositories/${slug}`)
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim();
+    const slugBadge = document.createElement("span");
+    slugBadge.className = "menu-repository-slug menu-repository-slug-badge";
+    slugBadge.textContent = slug;
+    slugBadge.title = folderPath ? `ключ: ${slug} · ${folderPath}/` : `ключ: ${slug}`;
+    metaNode.appendChild(slugBadge);
+  }
+
+  if (entry.entryCount != null && Number(entry.entryCount) >= 0) {
+    const count = Number(entry.entryCount);
+    const filesBadge = document.createElement("span");
+    filesBadge.className =
+      "menu-repository-files-badge menu-awn-databases-store-badge menu-awn-databases-store-badge--count";
+    if (count <= 0) filesBadge.classList.add("is-zero");
+    filesBadge.textContent = String(count);
+    filesBadge.title = formatMenuRepositoryFilesTitle(count);
+    metaNode.appendChild(filesBadge);
+  }
+
+  body.append(nameNode, metaNode);
   return body;
 }
 
@@ -124792,18 +124862,19 @@ function renderMenuRepositories(payload = null, { loading = false, error = false
 }
 
 function syncRepositoriesDependenciesButtonState() {
-  if (!menuRepositoriesDependenciesOpenBtn) return;
+  const dependenciesBtn = document.getElementById("menu-agent-stats-dependencies-btn");
+  if (!dependenciesBtn) return;
   const entry = getSystemFileCacheEntry("dependencies.csv");
   const exists = Boolean(entry?.exists);
   const empty = Boolean(entry?.empty ?? !exists);
-  menuRepositoriesDependenciesOpenBtn.classList.toggle("is-available", exists && !empty);
-  menuRepositoriesDependenciesOpenBtn.classList.toggle("is-generated", !exists || empty);
-  menuRepositoriesDependenciesOpenBtn.title =
+  dependenciesBtn.classList.toggle("is-available", exists && !empty);
+  dependenciesBtn.classList.toggle("is-generated", !exists || empty);
+  dependenciesBtn.title =
     exists && !empty
-      ? "Открыть dependencies.csv"
+      ? "Внешние зависимости workspace — открыть dependencies.csv"
       : exists
-        ? "Открыть для редактирования"
-        : "Создать и заполнить dependencies.csv";
+        ? "Внешние зависимости workspace — открыть для редактирования"
+        : "Внешние зависимости workspace — создать и заполнить dependencies.csv";
 }
 
 function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
@@ -125643,20 +125714,6 @@ function setupRepositoriesUi() {
     event.preventDefault();
     event.stopPropagation();
     void handleRepositoryIndexRefreshClick();
-  });
-  menuRepositoriesDependenciesOpenBtn?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const entry = getSystemFileCacheEntry("dependencies.csv");
-    void openRootSystemMenuFile(
-      entry || {
-        name: "dependencies.csv",
-        systemFile: "dependencies.csv",
-        exists: false,
-        empty: true,
-        openMode: "system"
-      }
-    );
   });
   menuRepositoriesSearchInputNode?.addEventListener("input", (event) => {
     menuRepositoriesSearchQuery = String(event.target.value || "");
