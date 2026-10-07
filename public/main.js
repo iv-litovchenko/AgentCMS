@@ -70844,6 +70844,7 @@ async function appendTopicSlotCounterStrip(
   { isStale = () => false, entryOverview = false, slots = null, prepend = false } = {}
 ) {
   if (!container || usesNavigationHubInlineSubsections(topicPath)) return null;
+  if (isMediaLibraryPageNodePath(topicPath)) return null;
   if (await shouldHideTopicStorageSlots(topicPath)) return null;
   const topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath));
   if (isStale()) return null;
@@ -74344,6 +74345,7 @@ function getEntryOverviewTocRootEntryKind(memoryKind) {
 
 function getEntryOverviewTocTitle(memoryKind) {
   if (memoryKind === "external") return "Оглавление многофайловой памяти";
+  if (memoryKind === "files") return "Содержимое медиатеки";
   if (memoryKind === "media") return "Оглавление медиа";
   if (memoryKind === "assets") return "Оглавление активов";
   if (memoryKind === "internal") return "Память (однофайловая)";
@@ -78118,8 +78120,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   }
 
   if (mediaLibraryPage) {
-    const allowed = new Set(["files", "assets"]);
-    return slots.filter((slot) => allowed.has(slot.id));
+    return [];
   }
 
   return slots;
@@ -79481,8 +79482,56 @@ function getEntryOverviewSiblingFiles(context, navigationIndex) {
     .sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 }
 
+function getEntryOverviewSiblingSectionFolders(context, navigationIndex) {
+  if (!navigationIndex || !isEntryOverviewCategoryContext(context)) return [];
+
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!isSectionReadmePath(relativePath)) return [];
+
+  const sectionFolder = relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+  const parentFolder = sectionFolder.includes("/")
+    ? sectionFolder.slice(0, sectionFolder.lastIndexOf("/"))
+    : "";
+  const prefix = parentFolder ? `${parentFolder}/` : "";
+  const folderLabels =
+    navigationIndex.folderLabels instanceof Map ? navigationIndex.folderLabels : new Map();
+  const folderPaths =
+    navigationIndex.folderPaths instanceof Set ? navigationIndex.folderPaths : new Set();
+
+  const entries = [];
+  for (const folderPath of folderPaths) {
+    const path = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+    if (!path || path === sectionFolder) continue;
+    if (parentFolder) {
+      if (!path.startsWith(prefix)) continue;
+      const rel = path.slice(prefix.length);
+      if (!rel || rel.includes("/")) continue;
+    } else if (path.includes("/")) {
+      continue;
+    }
+    const title =
+      String(folderLabels.get(path) || "").trim() || path.split("/").pop() || path;
+    entries.push({
+      path: `${path}/${AREA_MANIFEST_FILE}`,
+      folderPath: path,
+      title,
+      isSectionCategory: true
+    });
+  }
+
+  return entries.sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
+}
+
+function getEntryOverviewSiblingEntries(context, navigationIndex) {
+  if (isEntryOverviewCategoryContext(context) && isSectionReadmePath(String(context.relativePath || ""))) {
+    const sectionSiblings = getEntryOverviewSiblingSectionFolders(context, navigationIndex);
+    if (sectionSiblings.length) return sectionSiblings;
+  }
+  return getEntryOverviewSiblingFiles(context, navigationIndex);
+}
+
 function getEntryOverviewAdjacentSiblings(context, navigationIndex) {
-  const siblings = getEntryOverviewSiblingFiles(context, navigationIndex);
+  const siblings = getEntryOverviewSiblingEntries(context, navigationIndex);
   const currentPath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const index = siblings.findIndex((item) => String(item.path || "").replace(/\\/g, "/") === currentPath);
   if (index === -1) return { prev: null, next: null };
@@ -79512,6 +79561,29 @@ function resolveEntryOverviewUpNavigation(context) {
     return { kind: "folder", folderPath: parentFolder };
   }
   return { kind: "toc" };
+}
+
+function buildEntryOverviewBrowseTocNavOptions(context, topicPath = activePath) {
+  if (!context || !isEntryOverviewMemoryTocRoot(context)) return null;
+
+  const resolvedTopicPath = getResolvedNodePath(topicPath) || getActiveNodeApiPath() || activePath;
+  if (isMediaLibraryPageNodePath(resolvedTopicPath)) {
+    const topicLabel = getEntryOverviewTopicTitle();
+    return {
+      prevItem: null,
+      nextItem: null,
+      onFileClick: null,
+      onUpClick: resolvedTopicPath
+        ? () => {
+            void openNodeNavigation(topicLabel, resolvedTopicPath);
+          }
+        : null,
+      upTitle: topicLabel || "Медиатека",
+      ariaLabel: "Навигация по медиатеке"
+    };
+  }
+
+  return buildEntryOverviewSlotTocNavOptions(context, topicPath);
 }
 
 function buildEntryOverviewSlotTocNavOptions(context, topicPath = activePath) {
@@ -79683,6 +79755,7 @@ function relocateEntryOverviewSlotCountersChrome(hubMain) {
 }
 
 function shouldShowEntryOverviewSlotCountersOnHubMain(context) {
+  if (isMediaLibraryPageNodePath()) return false;
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
   if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
@@ -79696,9 +79769,7 @@ function shouldShowEntryOverviewSlotCountersInHero() {
 }
 
 function shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot = false) {
-  if (isMediaLibraryPageNodePath()) {
-    return Boolean(isMemoryTocRoot && isEntryOverviewMemoryTocRoot(context));
-  }
+  if (isMediaLibraryPageNodePath()) return false;
   if (isMemoryTocRoot || isEntryOverviewMemoryTocRoot(context)) return true;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
   if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
@@ -79936,12 +80007,27 @@ function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
 
   const { prev, next } = getEntryOverviewAdjacentSiblings(context, navigationIndex);
   const upNavigation = resolveEntryOverviewUpNavigation(context);
-  const { onFileClick, onFolderClick } = getEntryOverviewNavigationHandlers(context.memoryKind);
+  const { onFileClick: openNavFile, onFolderClick } = getEntryOverviewNavigationHandlers(context.memoryKind);
 
   return {
     prevItem: prev,
     nextItem: next,
-    onFileClick,
+    onFileClick: (item) => {
+      if (!item) return;
+      if (item.isSectionCategory || item.folderPath || isSectionReadmePath(String(item.path || ""))) {
+        const folder =
+          String(item.folderPath || "").replace(/\\/g, "/").replace(/\/$/, "") ||
+          String(item.path || "")
+            .replace(/\\/g, "/")
+            .replace(/\/manifest\.md$/i, "")
+            .replace(/\/$/, "");
+        if (folder) {
+          onFolderClick(folder);
+          return;
+        }
+      }
+      openNavFile(item);
+    },
     onUpClick: upNavigation
       ? () => {
           if (upNavigation.kind === "toc") {
@@ -79954,7 +80040,10 @@ function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
     upTitle:
       upNavigation?.kind === "folder"
         ? upNavigation.folderPath.split("/").pop() || upNavigation.folderPath
-        : "Оглавление"
+        : "Оглавление",
+    ariaLabel: isMediaLibraryPageNodePath()
+      ? "Навигация по содержимому медиатеки"
+      : "Навигация по записям раздела"
   };
 }
 
@@ -80013,8 +80102,11 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
   const { tree, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder } = built;
   if (!tree.folders.size && !tree.files.length) return null;
 
-  const sectionTitle =
-    context.memoryKind === "media" ? "Содержимое раздела" : "Записи раздела";
+  const sectionTitle = isMediaLibrarySlotMemoryKind(context.memoryKind)
+    ? "Содержимое раздела"
+    : context.memoryKind === "media"
+      ? "Содержимое раздела"
+      : "Записи раздела";
 
   const section = document.createElement("section");
   section.className = "node-entry-overview-memory-toc node-entry-overview-section-list";
@@ -81378,7 +81470,7 @@ async function renderEntryOverview() {
       if (isStale()) return;
       slotFolderMissing = !slotFolderExists;
     }
-    const slotTocNav = buildEntryOverviewSlotTocNavOptions(context, topicPath);
+    const slotTocNav = buildEntryOverviewBrowseTocNavOptions(context, topicPath);
     const topicPreview =
       context.memoryKind === "assets"
         ? await fetchNodeOverviewPreview(topicPath).catch(() => null)
@@ -97410,8 +97502,15 @@ function renderEntryOverviewPathBreadcrumbs(context, state = entryOverviewBreadc
 
   appendBreadcrumbCrumb(topicTitle, {
     className: "is-topic",
-    onClick: () => setContentMode(NODE_NAVIGATION_MODE),
-    title: "Тема"
+    onClick: () => {
+      const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+      if (isMediaLibraryPageNodePath(topicPath)) {
+        void openNodeNavigation(topicTitle, topicPath);
+        return;
+      }
+      setContentMode(NODE_NAVIGATION_MODE);
+    },
+    title: isMediaLibraryPageNodePath() ? "Медиатека" : "Тема"
   });
   appendBreadcrumbSeparator();
 
