@@ -23338,6 +23338,9 @@ const MENU_AWN_STATUS_OPTIONS = [
   { key: "done", name: "✅ Готова" },
   { key: "closed", name: "🔴 Закрыта" },
   { key: "archived", name: "⚫ Архив" },
+  { key: "incoming", name: "📬 Входящей" },
+  { key: "in-discussion", name: "💬 На обсуждении" },
+  { key: "outgoing", name: "📤 Исходящей" },
   { key: "none", name: "⚪ Без статуса" }
 ];
 
