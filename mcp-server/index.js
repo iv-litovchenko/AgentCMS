@@ -19,6 +19,7 @@ import {
 } from "./lib/workspace-fs-tools.js";
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
+import { registerMediaLibraryTools } from "./lib/media-library-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
@@ -190,6 +191,7 @@ function createServer() {
   registerSearchWorkspaceTools(reg, client);
 
   registerRepositoryTools(reg, client);
+  registerMediaLibraryTools(reg, client);
 
   registerBrainTools(reg, client);
 

@@ -96,6 +96,14 @@ const {
   shouldSkipAwnRepositoriesSearch
 } = require("./lib/services/awn-repositories-service");
 const {
+  listMediaLibraries,
+  getMediaLibrary,
+  registerMediaLibrary,
+  updateMediaLibrary,
+  writeMediaLibraryIndex,
+  shouldSkipAwnMediaSearch
+} = require("./lib/services/awn-media-service");
+const {
   readDependencies,
   writeDependencies
 } = require("./lib/services/dependencies-service");
@@ -230,6 +238,7 @@ const {
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
+  STORAGE_SUBFOLDER_FILES,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_ATTACHMENTS,
   STORAGE_SUBFOLDER_SCRIPTS,
@@ -289,7 +298,8 @@ const {
   formatCommentTimestampLabel,
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
-  normalizeDeclaredManifestTreeType
+  normalizeDeclaredManifestTreeType,
+  resolveMediaStorageSubfolderForManifest
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -18350,6 +18360,7 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
   for (const entry of entries) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (shouldSkipAwnRepositoriesSearch(prefix, entry.name, entry.isDirectory())) continue;
+    if (shouldSkipAwnMediaSearch(prefix, entry.name, entry.isDirectory())) continue;
     if (shouldSkipSearchEntry(entry.name, entry.isDirectory())) continue;
     const absolute = path.join(dirAbsolute, entry.name);
 
@@ -22124,6 +22135,86 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to write repository groups",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listMediaLibraries(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list media libraries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await registerMediaLibrary(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 201, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to register media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const manifestPath = String(payload.path || payload.manifestPath || "").trim();
+      if (!manifestPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await updateMediaLibrary(agentRoot, manifestPath, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-library-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeMediaLibraryIndex(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 409, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to refresh media library index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/media-library") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await getMediaLibrary(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read media library",
         details: String(error.message || error)
       });
     }
@@ -26553,9 +26644,13 @@ async function handleApiForAgent(req, res, url) {
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
-      const folderParam = String(payload.folder || STORAGE_SUBFOLDER_MEDIA).trim();
-      const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
-      const slotKey = folderName === STORAGE_SUBFOLDER_ASSETS ? "assets" : "media";
+      const folderName = resolveMediaStorageSubfolderForManifest(relPath, payload.folder);
+      const slotKey =
+        folderName === STORAGE_SUBFOLDER_ASSETS
+          ? "assets"
+          : folderName === STORAGE_SUBFOLDER_FILES
+            ? "files"
+            : "media";
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
@@ -27437,8 +27532,7 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const folderParam = String(url.searchParams.get("folder") || STORAGE_SUBFOLDER_MEDIA).trim();
-    const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
+    const folderName = resolveMediaStorageSubfolderForManifest(relPath, url.searchParams.get("folder"));
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
 

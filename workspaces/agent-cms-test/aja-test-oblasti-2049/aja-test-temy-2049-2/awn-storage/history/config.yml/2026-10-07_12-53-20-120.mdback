@@ -1,8 +1,5 @@
 # Agent CMS — конфигурация
 
-awn_ui:
-  navigation_media_images_layout_media: 5
-
 awn_settings:
   awn-mask-file: ""
   topic-setting-area-setting-1: 123

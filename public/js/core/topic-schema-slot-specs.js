@@ -150,6 +150,17 @@
         }
       },
       {
+        slotKey: "files",
+        label: "Файлы",
+        tabGroup: "files",
+        defaultKind: "sidecar",
+        targets: {
+          record: { id: "slot_files_record", labelSuffix: " · запись" },
+          category: { id: "slot_files_category" },
+          sidecar: { id: "slot_files" }
+        }
+      },
+      {
         slotKey: "repository",
         label: "Репозитории",
         tabGroup: "files",
