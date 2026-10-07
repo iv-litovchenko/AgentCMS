@@ -1,5 +1,5 @@
 ---
-awn-type: awn.media
+awn-type: awn.hub.media
 awn-name: Demo медиатека
 awn-description: Пример awn-media для тестов UI и API
 awn-media-status: active

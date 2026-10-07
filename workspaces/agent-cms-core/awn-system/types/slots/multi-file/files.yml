@@ -7,7 +7,7 @@ extends: awn.slot
 slot-category: files
 storage-driver: external
 description: >
-  Основная медиатека workspace — awn-storage/files/ у awn.media.
+  Основная медиатека workspace — awn-storage/files/ у awn.hub.media.
   Разделы (awn.content.category), записи .md, бинарники + sidecar — как слот media у темы.
 path: files/
 slot-order: 8

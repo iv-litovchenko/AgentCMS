@@ -1,5 +1,5 @@
 ---
-awn-type: awn.repository
+awn-type: awn.hub.repository
 awn-name: 9999
 awn-description: "Кратко: зачем клон, что смотреть"
 awn-repo-origin: ""

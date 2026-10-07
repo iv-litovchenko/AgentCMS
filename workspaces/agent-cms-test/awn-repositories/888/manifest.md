@@ -23,7 +23,7 @@ awn-viz-roadmap: ""
 awn-auto-toc: false
 awn-tags: []
 awn-taxonomy: ""
-awn-type: awn.repository
+awn-type: awn.hub.repository
 awn-create: 2026-10-06T19:13:43.410Z
 awn-update: 2026-10-06T19:13:43.410Z
 awn-viewed: ""

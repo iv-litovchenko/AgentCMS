@@ -189,7 +189,8 @@ const repositoryCreateModalHintNode = document.getElementById("repository-create
 const repositoryCreateOpenManifestBtn = document.getElementById("repository-create-open-manifest-btn");
 const repositoryCreateCancelBtn = document.getElementById("repository-create-cancel-btn");
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
-const REPOSITORY_CREATE_TYPE_ID = "awn.repository";
+const REPOSITORY_CREATE_TYPE_ID = "awn.hub.repository";
+const HUB_MEDIA_TYPE_ID = "awn.hub.media";
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
 const menuRepositoriesShortcutsRow = document.getElementById("menu-repositories-shortcuts-row");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
@@ -5591,7 +5592,10 @@ function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
 }
 
 function isRepositoryTypeLabel(typeLabel) {
-  return normalizeAwnTypeName(typeLabel) === normalizeAwnTypeName("awn.repository");
+  const n = normalizeAwnTypeName(typeLabel);
+  return (
+    n === normalizeAwnTypeName("awn.hub.repository") || n === normalizeAwnTypeName("awn.repository")
+  );
 }
 
 function isRepositoryPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
@@ -5623,7 +5627,8 @@ function isMediaLibraryFolderPath(path = getResolvedNodePath(activePath)) {
 }
 
 function isMediaLibraryTypeLabel(typeLabel) {
-  return normalizeAwnTypeName(typeLabel) === normalizeAwnTypeName("awn.media");
+  const n = normalizeAwnTypeName(typeLabel);
+  return n === normalizeAwnTypeName(HUB_MEDIA_TYPE_ID) || n === normalizeAwnTypeName("awn.media");
 }
 
 function isMediaLibraryPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
@@ -5712,7 +5717,7 @@ function resolveMediaLibraryWorkspaceIblockDescriptionMarkdown(title, manifestMa
 function populateMediaLibraryWorkspaceIblockCard(block, {
   title,
   manifestPath,
-  typeLabel = "awn.media",
+  typeLabel = HUB_MEDIA_TYPE_ID,
   manifestEntries = [],
   manifestBodyMarkdown = "",
   onEditClick,
@@ -5726,8 +5731,12 @@ function populateMediaLibraryWorkspaceIblockCard(block, {
 
   const badgeNode = block.querySelector(".awn-databases-view-kind-badge");
   if (badgeNode) {
-    const typeName = String(typeLabel || "awn.media").trim();
-    badgeNode.textContent = typeName.toLowerCase() === "awn.media" ? "Медиатека" : typeName;
+    const typeName = String(typeLabel || HUB_MEDIA_TYPE_ID).trim();
+    const typeNorm = normalizeAwnTypeName(typeName);
+    badgeNode.textContent =
+      typeNorm === normalizeAwnTypeName(HUB_MEDIA_TYPE_ID) || typeNorm === normalizeAwnTypeName("awn.media")
+        ? "Медиатека"
+        : typeName;
     badgeNode.classList.remove("hidden", "is-single", "is-group", "is-storage-csv", "is-storage-csv-files", "is-storage-md");
     badgeNode.classList.add("is-collection", "is-media-library");
   }
@@ -5833,7 +5842,7 @@ async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeAgentId) 
     storeRel: String(data.folderRel || data.store || `awn-media/${normalizedSlug}`).trim(),
     mediaLibrarySlug: normalizedSlug,
     storeKind: String(data.kind || "collection").trim() || "collection",
-    frameTypeId: String(data.frameTypeId || "awn.media").trim(),
+    frameTypeId: String(data.frameTypeId || HUB_MEDIA_TYPE_ID).trim(),
     cacheKey: `media-library:${normalizedSlug}`,
     schemeModRelPath: data.schemeModRelPath || "",
     awnSchema: normalizeAwnDataStoreSchemaState(data.awnSchema),
@@ -81718,7 +81727,7 @@ async function renderEntryOverview() {
       const iblockLayout = createMediaLibraryWorkspaceIblockLayout({
         title: mediaLibraryTitle,
         manifestPath,
-        typeLabel: getPropsEntryValueByKey(manifestEntries, "awn-type") || "awn.media",
+        typeLabel: getPropsEntryValueByKey(manifestEntries, "awn-type") || HUB_MEDIA_TYPE_ID,
         manifestEntries,
         manifestBodyMarkdown: manifestBody,
         onEditClick: openDescriptionFromOverview,

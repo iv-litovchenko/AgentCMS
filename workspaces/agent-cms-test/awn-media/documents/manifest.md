@@ -23,7 +23,7 @@ awn-viz-roadmap: ""
 awn-auto-toc: false
 awn-tags: []
 awn-taxonomy: ""
-awn-type: awn.media
+awn-type: awn.hub.media
 awn-create: 2026-10-07T12:25:09.108Z
 awn-update: 2026-10-07T12:25:09.108Z
 awn-viewed: ""

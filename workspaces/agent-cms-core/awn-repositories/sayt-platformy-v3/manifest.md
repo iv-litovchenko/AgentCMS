@@ -1,5 +1,5 @@
 ---
-awn-type: awn.repository
+awn-type: awn.hub.repository
 awn-name: "Сайт платформы v3"
 awn-description: "HTML-макет лендинга Agent CMS, версия 3 (макет с медиа)"
 awn-repo-origin: ""
