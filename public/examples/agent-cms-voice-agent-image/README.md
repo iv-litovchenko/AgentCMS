@@ -20,7 +20,7 @@ Symlink: `public/examples/agent-cms-voice-agent-image` → `examples/agent-cms-v
 |--------|------------|
 | Превью workspace | `preview.jpg` / `preview.png` в bundle `_Storage` (см. AWN Storage `_Preview`) |
 | API (как в проде) | `GET /api/agents/workspace-preview?path=workspaces%2F…&thumb=1&max=800` |
-| Слайдер вдохновения | `_Storage/_Assets/slider/*.jpg` — ротация в `#agent-preview-wrap` |
+| Слайдер вдохновения | `awn-media/slider/awn-storage/assets/*` (медиатека «Слайдер») — ротация в `#agent-preview-wrap` |
 | Фон окна Voice | поле «Своя картинка (URL)» в настройках окна Shell |
 
 DOM в Editor (текущая точка):

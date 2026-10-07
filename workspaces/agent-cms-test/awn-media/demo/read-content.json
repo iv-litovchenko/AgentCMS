@@ -1,7 +1,11 @@
 {
   "paths": [
     "files/1.md",
+    "main/1.md",
+    "main/3.md",
+    "main/009/manifest.md",
+    "main/prostaya-kartinka.png",
     "topic-index-generated/awn-media/demo/index.md"
   ],
-  "updatedAt": "2026-10-07T12:37:23.528Z"
+  "updatedAt": "2026-10-07T13:43:36.666Z"
 }

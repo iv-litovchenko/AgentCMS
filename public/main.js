@@ -5689,7 +5689,7 @@ function resolveMediaLibraryWorkspaceIblockDescriptionMarkdown(title, manifestMa
   return stripAwnDataManifestTitleHeading(String(manifestMarkdown || ""), title).trim();
 }
 
-function createMediaLibraryWorkspaceIblockCard({
+function populateMediaLibraryWorkspaceIblockCard(block, {
   title,
   manifestPath,
   typeLabel = "awn.media",
@@ -5698,13 +5698,7 @@ function createMediaLibraryWorkspaceIblockCard({
   onEditClick,
   onIdAssigned = refreshUiAfterWorkspaceRecordIdAssign
 } = {}) {
-  const template = document.getElementById("awn-databases-view-template");
-  const sourceBlock = template?.content?.querySelector(".awn-databases-view-iblock-description-block");
-  if (!sourceBlock) return null;
-
-  const block = sourceBlock.cloneNode(true);
-  block.classList.remove("hidden");
-  block.classList.add("media-library-workspace-iblock-block");
+  if (!block) return;
 
   const displayTitle = String(title || "Медиатека").trim();
   const titleNode = block.querySelector(".awn-databases-view-title");
@@ -5773,8 +5767,95 @@ function createMediaLibraryWorkspaceIblockCard({
       }
     }
   }
+}
 
-  return block;
+function createMediaLibraryWorkspaceIblockLayout(options = {}) {
+  const template = document.getElementById("awn-databases-view-template");
+  const sourceLayout = template?.content?.querySelector(".awn-databases-view-iblock-layout");
+  if (!sourceLayout) return null;
+
+  const layout = sourceLayout.cloneNode(true);
+  layout.classList.add("media-library-workspace-iblock-layout");
+
+  const descBlock = layout.querySelector(".awn-databases-view-iblock-description-block");
+  descBlock?.classList.remove("hidden");
+  descBlock?.classList.add("media-library-workspace-iblock-block");
+  populateMediaLibraryWorkspaceIblockCard(descBlock, options);
+
+  const schemaPanel = layout.querySelector(".awn-databases-view-schema-panel");
+  schemaPanel?.classList.remove("hidden");
+  schemaPanel?.setAttribute("aria-label", "Медиатека");
+  layout.querySelector(".awn-databases-view-schema-settings-accordion")?.classList.add("hidden");
+
+  const fieldsAccordion = layout.querySelector(".awn-databases-view-schema-fields-accordion");
+  fieldsAccordion?.classList.remove("hidden");
+
+  const leadNode = layout.querySelector(".awn-databases-view-element-schema-panel .topic-schema-lead");
+  if (leadNode) {
+    leadNode.innerHTML = `Дополнительные поля для медиатеки, разделов, записей в слотах <code>files</code>/<code>assets</code> и sidecar. <span class="topic-schema-lead-hint">Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с <code>manifest.md</code> медиатеки.</span>`;
+  }
+
+  return layout;
+}
+
+async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeAgentId) {
+  const normalizedSlug = String(slug || "").trim();
+  if (!normalizedSlug) return null;
+  const response = await fetch(
+    buildApiUrl("/api/agent/media-libraries/store-schema", { slug: normalizedSlug }, agentId)
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  if (!awnTypesCache?.types) await loadAwnTypes(agentId);
+  const cache = {
+    storeRel: String(data.folderRel || data.store || `awn-media/${normalizedSlug}`).trim(),
+    mediaLibrarySlug: normalizedSlug,
+    storeKind: String(data.kind || "collection").trim() || "collection",
+    frameTypeId: String(data.frameTypeId || "awn.media").trim(),
+    cacheKey: `media-library:${normalizedSlug}`,
+    schemeModRelPath: data.schemeModRelPath || "",
+    awnSchema: normalizeAwnDataStoreSchemaState(data.awnSchema),
+    activeTarget: resolveAwnDataStoreSchemaActiveTarget("collection"),
+    targetLabels: MEDIA_LIBRARY_SCHEMA_TARGET_LABELS,
+    fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {}
+  };
+  enrichAwnDataStoreSchemaCacheFromTypes(cache);
+  stripInheritedAwnDataSchemaFields(cache);
+  return cache;
+}
+
+async function mountMediaLibraryWorkspaceStoreSchema(layout, manifestPath) {
+  const slug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
+  const panel = layout?.querySelector(".awn-databases-view-element-schema-panel");
+  const fieldsAccordion = layout?.querySelector(".awn-databases-view-schema-fields-accordion");
+  const fieldsCountNode = layout?.querySelector(".awn-databases-view-schema-fields-count");
+  if (!slug || !panel) return;
+
+  const openSchemaBtn = layout.querySelector('[data-awn-databases-action="open-schema-editor"]');
+  openSchemaBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (fieldsAccordion) fieldsAccordion.open = true;
+    panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+
+  const baseFieldsNode = panel.querySelector(".awn-databases-view-element-schema-base-fields");
+  if (baseFieldsNode) baseFieldsNode.textContent = "Загрузка…";
+
+  try {
+    const cache = await loadMediaLibraryStoreSchemaEditor(slug);
+    panel._awnDataStoreSchemaCache = cache;
+    panel._awnDataStoreSchemaDirty = false;
+    bindAwnDataStoreSchemaPanelEvents(panel);
+    renderAwnDataStoreSchemaEditor(panel, cache);
+    if (fieldsCountNode) {
+      fieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(
+        countAwnDataStoreSchemaFields(cache.awnSchema, cache.storeKind)
+      );
+    }
+  } catch (error) {
+    if (baseFieldsNode) baseFieldsNode.textContent = `Ошибка: ${error.message}`;
+  }
 }
 
 function getRepositoryFolderPathFromManifest(manifestPath) {
@@ -5872,11 +5953,19 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
     hideContentLoading();
   }
 
+  const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
+  const openSliderAssetsSlot =
+    Boolean(options.openAssetsSlot) ||
+    (mediaLibrarySlug === "slider" && !options.keepMediaLibraryToc);
+
   suspendAppRouteSync();
   try {
     await openEntryOverviewMemoryTocFromNavigation(
       isMediaLibraryPageNodePath(manifestPath) ? "files" : "media"
     );
+    if (openSliderAssetsSlot) {
+      openMediaLibraryAssetsFolderFromNavigation("");
+    }
     applyNodeWorkspaceViewUi();
     updateBreadcrumbsForActiveMode();
     void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
@@ -8370,9 +8459,47 @@ async function removeAgentPreviewFile(agentPath) {
   return response.json();
 }
 
-const AGENT_SLIDER_FOLDER_REF = "awn-storage/assets/slider";
+const AGENT_SLIDER_FOLDER_REF = "awn-media/slider/awn-storage/assets";
+const AGENT_SLIDER_MANIFEST_REF = "awn-media/slider/manifest.md";
+const LEGACY_AGENT_SLIDER_FOLDER_REFS = new Set([
+  "awn-storage/assets/slider",
+  "storage/assets/slider"
+]);
 const AGENT_SLIDER_ROTATE_MS = 12000;
-let agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+
+function normalizeAgentSliderFolderPath(folderPath) {
+  const normalized = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
+    return AGENT_SLIDER_FOLDER_REF;
+  }
+  if (/^awn-media\/slider\/awn-storage\/assets$/i.test(normalized)) {
+    return AGENT_SLIDER_FOLDER_REF;
+  }
+  return normalized;
+}
+
+function normalizeAgentSliderManifestPath(manifestPath) {
+  const normalized = String(manifestPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
+    return AGENT_SLIDER_MANIFEST_REF;
+  }
+  if (/^awn-media\/slider\/manifest\.md$/i.test(normalized)) {
+    return AGENT_SLIDER_MANIFEST_REF;
+  }
+  return normalized || AGENT_SLIDER_MANIFEST_REF;
+}
+let agentSliderCatalog = {
+  folderPath: AGENT_SLIDER_FOLDER_REF,
+  manifestPath: AGENT_SLIDER_MANIFEST_REF,
+  files: [],
+  loadedForAgentId: null
+};
 let agentSliderPlaybackOrder = [];
 let agentSliderRotateTimer = null;
 let agentSliderIndex = 0;
@@ -8451,9 +8578,13 @@ function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
 }
 
 function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeAgentId) {
-  const relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  let relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relFile) return "";
-  return buildApiUrl("/api/media/file", { path: MANIFEST_FILE, file: relFile }, agentId);
+  relFile = relFile.replace(/^slider\//i, "");
+  const manifestPath =
+    String(agentSliderCatalog.manifestPath || AGENT_SLIDER_MANIFEST_REF).trim() ||
+    AGENT_SLIDER_MANIFEST_REF;
+  return buildApiUrl("/api/media/file", { path: manifestPath, file: relFile }, agentId);
 }
 
 function stopAgentSliderRotation() {
@@ -8483,7 +8614,12 @@ function restartAgentSliderRotation() {
 async function refreshAgentSliderCatalog(force = false) {
   const agent = getActiveAgentMeta();
   if (!agent?.path) {
-    agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+    agentSliderCatalog = {
+      folderPath: AGENT_SLIDER_FOLDER_REF,
+      manifestPath: AGENT_SLIDER_MANIFEST_REF,
+      files: [],
+      loadedForAgentId: null
+    };
     agentSliderPlaybackOrder = [];
     agentSliderIndex = 0;
     stopAgentSliderRotation();
@@ -8499,13 +8635,15 @@ async function refreshAgentSliderCatalog(force = false) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     agentSliderCatalog = {
-      folderPath: String(data.folderPath || AGENT_SLIDER_FOLDER_REF).trim() || AGENT_SLIDER_FOLDER_REF,
+      folderPath: normalizeAgentSliderFolderPath(data.folderPath),
+      manifestPath: normalizeAgentSliderManifestPath(data.manifestPath),
       files: Array.isArray(data.files) ? data.files : [],
       loadedForAgentId: agent.id
     };
   } catch {
     agentSliderCatalog = {
       folderPath: AGENT_SLIDER_FOLDER_REF,
+      manifestPath: AGENT_SLIDER_MANIFEST_REF,
       files: [],
       loadedForAgentId: agent.id
     };
@@ -8624,11 +8762,19 @@ function openAgentSliderModal() {
   void (async () => {
     await refreshAgentSliderCatalog(true);
     if (agentSliderModalPathNode) {
-      const agentLabel = String(agent.name || agent.id || "").trim();
-      const folderPath = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
-      agentSliderModalPathNode.textContent = agentLabel
-        ? `${agentLabel} · ${folderPath}`
-        : folderPath;
+      const folderPath = normalizeAgentSliderFolderPath(agentSliderCatalog.folderPath);
+      agentSliderModalPathNode.replaceChildren();
+      const hint = document.createElement("span");
+      hint.className = "agent-slider-modal-path-label";
+      hint.textContent = `Кадры в медиатеке «Слайдер»: ${folderPath}`;
+      const openLibraryBtn = document.createElement("button");
+      openLibraryBtn.type = "button";
+      openLibraryBtn.className = "agent-slider-modal-open-library-btn";
+      openLibraryBtn.textContent = "Открыть медиатеку";
+      openLibraryBtn.addEventListener("click", () => {
+        void openAgentSliderMediaLibrary();
+      });
+      agentSliderModalPathNode.append(hint, document.createTextNode(" "), openLibraryBtn);
     }
     renderAgentSliderModalGrid();
     agentSliderModalNode.classList.remove("hidden");
@@ -8640,6 +8786,25 @@ function closeAgentSliderModal() {
   if (!agentSliderModalNode) return;
   agentSliderModalNode.classList.add("hidden");
   document.body.classList.remove("modal-open");
+}
+
+async function openAgentSliderMediaLibrary() {
+  closeAgentSliderModal();
+  const manifestPath = normalizeAgentSliderManifestPath(AGENT_SLIDER_MANIFEST_REF);
+  const entry =
+    resolveMediaLibraryEntryFromWorkspaceRel(manifestPath) || {
+      slug: "slider",
+      folderPath: "awn-media/slider",
+      manifestPath,
+      name: "Слайдер",
+      registered: true
+    };
+  if (entry.registered === false) {
+    showToast("Сначала зарегистрируйте медиатеку «Слайдер» в каталоге", "error");
+    return;
+  }
+  await openMediaLibraryWorkspaceEntry({ ...entry, registered: true }, { openAssetsSlot: true });
+  syncAppRouteToUrl({ replace: true });
 }
 
 async function uploadAgentSliderFiles(fileList) {
@@ -8676,7 +8841,7 @@ async function uploadAgentSliderFiles(fileList) {
 }
 
 async function showAgentSliderFolderPath() {
-  const folderPath = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
+  const folderPath = normalizeAgentSliderFolderPath(agentSliderCatalog.folderPath);
   try {
     await navigator.clipboard.writeText(folderPath);
     showToast(`Путь скопирован: ${folderPath}`, "success");
@@ -81152,7 +81317,7 @@ async function renderEntryOverview() {
       const manifestPath = isMediaLibraryManifestPath(topicPath)
         ? topicPath
         : getMediaLibraryManifestPathFromFolder(topicPath);
-      const iblockCard = createMediaLibraryWorkspaceIblockCard({
+      const iblockLayout = createMediaLibraryWorkspaceIblockLayout({
         title: mediaLibraryTitle,
         manifestPath,
         typeLabel: getPropsEntryValueByKey(manifestEntries, "awn-type") || "awn.media",
@@ -81161,7 +81326,10 @@ async function renderEntryOverview() {
         onEditClick: openDescriptionFromOverview,
         onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign
       });
-      if (iblockCard) hubMain.appendChild(iblockCard);
+      if (iblockLayout) {
+        hubMain.appendChild(iblockLayout);
+        void mountMediaLibraryWorkspaceStoreSchema(iblockLayout, manifestPath);
+      }
     }
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
@@ -115046,6 +115214,18 @@ const AWN_DATA_SCHEMA_TARGET_LABELS = {
   "record-csv": "Запись (csv)",
   sidecar: "Sidecar"
 };
+const MEDIA_LIBRARY_SCHEMA_TARGET_LABELS = {
+  frame: "Медиатека",
+  category: "Раздел",
+  record: "Запись",
+  "record-csv": "Запись (csv)",
+  sidecar: "Sidecar"
+};
+
+function resolveAwnDataSchemaTargetLabel(targetId, cache = null) {
+  const labels = cache?.targetLabels || AWN_DATA_SCHEMA_TARGET_LABELS;
+  return labels[targetId] || AWN_DATA_SCHEMA_TARGET_LABELS[targetId] || targetId;
+}
 const AWN_DATA_SCHEMA_TARGET_TYPES = {
   category: "awn.database.element.category",
   record: "awn.database.element.record",
@@ -117106,7 +117286,7 @@ function renderAwnDataStoreSchemaTargetTabs(panel, cache) {
     btn.appendChild(mark);
     const labelNode = document.createElement("span");
     labelNode.className = "topic-schema-target-tab-label";
-    labelNode.textContent = AWN_DATA_SCHEMA_TARGET_LABELS[targetId] || targetId;
+    labelNode.textContent = resolveAwnDataSchemaTargetLabel(targetId, cache);
     btn.appendChild(labelNode);
     const countNode = document.createElement("span");
     countNode.className = "topic-schema-target-tab-count";
@@ -117132,7 +117312,7 @@ function renderAwnDataStoreSchemaBaseFields(panel, cache) {
   const base = resolveAwnDataSchemaBaseType(target, cache);
   const typeName = resolveAwnDataSchemaExtendsRef(target, cache);
   if (titleNode) {
-    const label = AWN_DATA_SCHEMA_TARGET_LABELS[target] || target;
+    const label = resolveAwnDataSchemaTargetLabel(target, cache);
     titleNode.textContent = typeName
       ? `Поля типа · ${label} (${typeName})`
       : "Поля типа (только просмотр)";
@@ -117304,14 +117484,29 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   stripInheritedAwnDataSchemaFields(cache);
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
   const storeRel = cache.storeRel || awnDataViewStoreRel;
-  const response = await fetch(buildApiUrl("/api/awn-databases/store-schema", {}, catalogAgentId), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      store: storeRel,
-      awnSchema: normalizeAwnDataStoreSchemaState(cache.awnSchema)
-    })
-  });
+  const mediaLibrarySlug = String(cache.mediaLibrarySlug || "").trim();
+  const response = await fetch(
+    buildApiUrl(
+      mediaLibrarySlug ? "/api/agent/media-libraries/store-schema" : "/api/awn-databases/store-schema",
+      {},
+      catalogAgentId
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        mediaLibrarySlug
+          ? {
+              slug: mediaLibrarySlug,
+              awnSchema: normalizeAwnDataStoreSchemaState(cache.awnSchema)
+            }
+          : {
+              store: storeRel,
+              awnSchema: normalizeAwnDataStoreSchemaState(cache.awnSchema)
+            }
+      )
+    }
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
   cache.awnSchema = normalizeAwnDataStoreSchemaState(data.awnSchema || cache.awnSchema);
@@ -117319,22 +117514,33 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   panel._awnDataStoreSchemaDirty = false;
   panel.querySelector(".awn-databases-view-element-schema-save-btn")?.classList.remove("is-dirty");
   renderAwnDataStoreSchemaEditor(panel, cache);
-  if (awnDataViewSchemaFieldsCountNode) {
-    awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(
-      countAwnDataStoreSchemaFields(cache.awnSchema, cache.storeKind)
-    );
-  }
+  const fieldsCountText = formatAwnDataSchemaFieldsCount(
+    countAwnDataStoreSchemaFields(cache.awnSchema, cache.storeKind)
+  );
+  const localFieldsCountNode = panel
+    ?.closest(".media-library-workspace-iblock-layout")
+    ?.querySelector(".awn-databases-view-schema-fields-count");
+  if (localFieldsCountNode) localFieldsCountNode.textContent = fieldsCountText;
+  if (awnDataViewSchemaFieldsCountNode) awnDataViewSchemaFieldsCountNode.textContent = fieldsCountText;
   invalidateTypeCatalogCache(catalogAgentId);
-  await refreshMenuAwnDataStores(catalogAgentId);
-  if (storeRel) {
-    const reloadResponse = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, catalogAgentId));
-    if (reloadResponse.ok) {
-      const reloadData = await reloadResponse.json();
-      const store = normalizeAwnDataStoreView(reloadData.store);
-      if (store) {
-        awnDataViewStoreCache = store;
-        renderAwnDataViewHeader(store, { preserveSchemaEditor: true });
-        if (store.kind !== "group") renderAwnDataViewStoreContent(store, catalogAgentId);
+  if (mediaLibrarySlug) {
+    const reloaded = await loadMediaLibraryStoreSchemaEditor(mediaLibrarySlug, catalogAgentId);
+    if (reloaded) {
+      cache.awnSchema = reloaded.awnSchema;
+      enrichAwnDataStoreSchemaCacheFromTypes(cache);
+    }
+  } else {
+    await refreshMenuAwnDataStores(catalogAgentId);
+    if (storeRel) {
+      const reloadResponse = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, catalogAgentId));
+      if (reloadResponse.ok) {
+        const reloadData = await reloadResponse.json();
+        const store = normalizeAwnDataStoreView(reloadData.store);
+        if (store) {
+          awnDataViewStoreCache = store;
+          renderAwnDataViewHeader(store, { preserveSchemaEditor: true });
+          if (store.kind !== "group") renderAwnDataViewStoreContent(store, catalogAgentId);
+        }
       }
     }
   }

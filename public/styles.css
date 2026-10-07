@@ -25035,6 +25035,24 @@ a.header-tool-btn {
   overflow: auto;
 }
 
+.agent-slider-modal-open-library-btn {
+  margin-left: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.agent-slider-modal-open-library-btn:hover,
+.agent-slider-modal-open-library-btn:focus-visible {
+  color: #1d4ed8;
+}
+
 .agent-slider-modal-path {
   margin: 0 0 12px;
   padding: 8px 10px;
@@ -74178,6 +74196,17 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-databases-view-iblock-card .awn-databases-view-id-path .node-navigation-hero-path-fix--id {
   margin-left: 0.35rem;
+}
+
+.is-media-library-workspace-hub .media-library-workspace-iblock-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.is-media-library-workspace-hub .media-library-workspace-iblock-layout .awn-databases-view-schema-panel {
+  margin: 0;
 }
 
 .is-media-library-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {

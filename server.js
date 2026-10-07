@@ -101,7 +101,14 @@ const {
   registerMediaLibrary,
   updateMediaLibrary,
   writeMediaLibraryIndex,
-  shouldSkipAwnMediaSearch
+  shouldSkipAwnMediaSearch,
+  getMediaLibrarySliderAssetsRel,
+  getMediaLibrarySliderManifestRel,
+  migrateLegacyWorkspaceSliderAssetsToMediaLibrary,
+  resolveAgentSliderAssetsFolderAbsolute,
+  listImageFilesInDir,
+  readMediaLibraryStoreSchemaPayload,
+  writeMediaLibraryStoreSchema
 } = require("./lib/services/awn-media-service");
 const {
   readDependencies,
@@ -15885,9 +15892,8 @@ async function persistMediaUploadBuffer({
   };
 }
 
-const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
-const AGENT_SLIDER_FOLDER_REF = `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${AGENT_SLIDER_ASSETS_SUBDIR}`;
-const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg"]);
+const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderAssetsRel();
+const AGENT_SLIDER_MANIFEST_REF = getMediaLibrarySliderManifestRel();
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {
   const agentId = String(url.searchParams.get("agent") || "").trim();
@@ -15922,49 +15928,21 @@ function resolveAgentWorkspaceManifestAbsoluteSync(agentPath) {
 async function resolveAgentSliderFolderAbsolute(agentPath, options = {}) {
   const safePath = assertSafeAgentPath(agentPath);
   const workspaceAbsolute = resolveAgentRootAbsolute(safePath);
-  const folderAbsolute = path.join(workspaceAbsolute, AGENT_SLIDER_FOLDER_REF);
-  if (options.create) {
-    await fs.mkdir(folderAbsolute, { recursive: true });
-    return folderAbsolute;
-  }
-  try {
-    const stat = await fs.stat(folderAbsolute);
-    return stat.isDirectory() ? folderAbsolute : null;
-  } catch (error) {
-    if (error && error.code === "ENOENT") return null;
-    throw error;
-  }
+  await migrateLegacyWorkspaceSliderAssetsToMediaLibrary(workspaceAbsolute).catch(() => null);
+  return resolveAgentSliderAssetsFolderAbsolute(workspaceAbsolute, options);
 }
 
 async function listAgentSliderImages(agentPath) {
   const folderAbsolute = await resolveAgentSliderFolderAbsolute(agentPath);
   if (!folderAbsolute) return [];
 
-  let entries = [];
-  try {
-    entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
-  } catch (error) {
-    if (error && error.code === "ENOENT") return [];
-    throw error;
-  }
-
-  const files = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || entry.name.startsWith(".")) continue;
-    const ext = path.extname(entry.name).toLowerCase();
-    if (!AGENT_SLIDER_IMAGE_EXTENSIONS.has(ext)) continue;
-    const fileAbsolute = path.join(folderAbsolute, entry.name);
-    const stat = await fs.stat(fileAbsolute);
-    files.push({
-      name: entry.name,
-      mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${entry.name}`,
-      size: stat.size,
-      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
-    });
-  }
-
-  files.sort((a, b) => a.name.localeCompare(b.name, "ru", { sensitivity: "base", numeric: true }));
-  return files;
+  const listed = await listImageFilesInDir(folderAbsolute);
+  return listed.map((file) => ({
+    name: file.name,
+    mediaFile: file.name,
+    size: file.size,
+    updatedAt: file.updatedAt
+  }));
 }
 
 async function getAgentPreviewMeta(agent) {
@@ -22183,6 +22161,45 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/media-libraries/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const slug = String(url.searchParams.get("slug") || url.searchParams.get("library") || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug query parameter" });
+      const payload = readMediaLibraryStoreSchemaPayload(agentRoot, getProjectRoot(), slug);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read media library store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const slug = String(payload?.slug || payload?.library || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = writeMediaLibraryStoreSchema(agentRoot, getProjectRoot(), slug, {
+        content: payload?.content,
+        awnSchema: payload?.awnSchema,
+        fields: payload?.fields,
+        tabs: payload?.tabs,
+        elementSchemaTabs: payload?.elementSchemaTabs
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save media library store schema",
         details: String(error.message || error)
       });
     }
@@ -30727,6 +30744,7 @@ async function handleApi(req, res, url) {
       const files = await listAgentSliderImages(agentPath);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
+        manifestPath: AGENT_SLIDER_MANIFEST_REF,
         files,
         agentPath
       });
@@ -30790,10 +30808,11 @@ async function handleApi(req, res, url) {
       const storedName = path.basename(targetAbsolute);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
+        manifestPath: AGENT_SLIDER_MANIFEST_REF,
         agentPath,
         file: {
           name: storedName,
-          mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${storedName}`
+          mediaFile: storedName
         }
       });
     } catch (error) {

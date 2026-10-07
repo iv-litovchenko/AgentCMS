@@ -1,6 +1,6 @@
 ---
 awn-name: Слайдер
-awn-description: ""
+awn-description: Кадры для слайдера вдохновения в превью агента (ротация в сайдбаре).
 awn-preview: ""
 awn-web-url: ""
 awn-status: open
@@ -25,7 +25,7 @@ awn-tags: []
 awn-taxonomy: ""
 awn-type: awn.media
 awn-create: 2026-10-07T12:25:23.162Z
-awn-update: 2026-10-07T12:25:23.162Z
+awn-update: 2026-10-07T13:35:00.000Z
 awn-viewed: ""
 awn-deadline: ""
 awn-version: 1
@@ -39,4 +39,10 @@ awn-media-status: active
 awn-id: 94
 ---
 
-Медиатека workspace: файлы в awn-storage/files/ и awn-storage/assets/ — с привязкой к темам и без.
+## Слайдер вдохновения
+
+Кадры для ротации в превью агента (модалка «Слайдер вдохновения» и API `/api/agents/slider`).
+
+- **Хранение:** `awn-media/slider/awn-storage/assets/` — JPG, PNG, GIF, WEBP, AVIF, SVG.
+- **Слот «Файлы»** (`awn-storage/files/`) — обычные файлы медиатеки, не участвуют в слайдере.
+- Старый путь `awn-storage/assets/slider/` при первом обращении переносится сюда автоматически.
