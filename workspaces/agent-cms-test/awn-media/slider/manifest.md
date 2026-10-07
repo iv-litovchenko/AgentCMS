@@ -43,6 +43,5 @@ awn-id: 94
 
 Кадры для ротации в превью агента (модалка «Слайдер вдохновения» и API `/api/agents/slider`).
 
-- **Хранение:** `awn-media/slider/awn-storage/assets/` — JPG, PNG, GIF, WEBP, AVIF, SVG.
-- **Слот «Файлы»** (`awn-storage/files/`) — обычные файлы медиатеки, не участвуют в слайдере.
-- Старый путь `awn-storage/assets/slider/` при первом обращении переносится сюда автоматически.
+- **Хранение:** `awn-media/slider/awn-storage/files/` — JPG, PNG, GIF, WEBP, AVIF, SVG.
+- Старые пути `awn-storage/assets/slider/` и `awn-storage/assets/` в этой медиатеке при первом обращении переносятся в `files/`.

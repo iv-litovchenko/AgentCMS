@@ -102,6 +102,7 @@ const {
   updateMediaLibrary,
   writeMediaLibraryIndex,
   shouldSkipAwnMediaSearch,
+  getMediaLibrarySliderFilesRel,
   getMediaLibrarySliderAssetsRel,
   getMediaLibrarySliderManifestRel,
   migrateLegacyWorkspaceSliderAssetsToMediaLibrary,
@@ -15892,7 +15893,7 @@ async function persistMediaUploadBuffer({
   };
 }
 
-const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderAssetsRel();
+const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderFilesRel();
 const AGENT_SLIDER_MANIFEST_REF = getMediaLibrarySliderManifestRel();
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {

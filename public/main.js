@@ -5955,9 +5955,7 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
   }
 
   const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
-  const openSliderAssetsSlot =
-    Boolean(options.openAssetsSlot) ||
-    (mediaLibrarySlug === "slider" && !options.keepMediaLibraryToc);
+  const openSliderAssetsSlot = Boolean(options.openAssetsSlot) && mediaLibrarySlug !== "slider";
 
   suspendAppRouteSync();
   try {
@@ -8460,11 +8458,12 @@ async function removeAgentPreviewFile(agentPath) {
   return response.json();
 }
 
-const AGENT_SLIDER_FOLDER_REF = "awn-media/slider/awn-storage/assets";
+const AGENT_SLIDER_FOLDER_REF = "awn-media/slider/awn-storage/files";
 const AGENT_SLIDER_MANIFEST_REF = "awn-media/slider/manifest.md";
 const LEGACY_AGENT_SLIDER_FOLDER_REFS = new Set([
   "awn-storage/assets/slider",
-  "storage/assets/slider"
+  "storage/assets/slider",
+  "awn-media/slider/awn-storage/assets"
 ]);
 const AGENT_SLIDER_ROTATE_MS = 12000;
 
@@ -8476,7 +8475,7 @@ function normalizeAgentSliderFolderPath(folderPath) {
   if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
     return AGENT_SLIDER_FOLDER_REF;
   }
-  if (/^awn-media\/slider\/awn-storage\/assets$/i.test(normalized)) {
+  if (/^awn-media\/slider\/awn-storage\/(?:assets|files)$/i.test(normalized)) {
     return AGENT_SLIDER_FOLDER_REF;
   }
   return normalized;
@@ -8585,7 +8584,11 @@ function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeAgentId) {
   const manifestPath =
     String(agentSliderCatalog.manifestPath || AGENT_SLIDER_MANIFEST_REF).trim() ||
     AGENT_SLIDER_MANIFEST_REF;
-  return buildApiUrl("/api/media/file", { path: manifestPath, file: relFile }, agentId);
+  return buildApiUrl(
+    "/api/media/file",
+    { path: manifestPath, file: relFile, folder: STORAGE_SUBFOLDER_FILES },
+    agentId
+  );
 }
 
 function stopAgentSliderRotation() {
