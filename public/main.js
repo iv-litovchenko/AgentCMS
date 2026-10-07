@@ -75,10 +75,12 @@ const mediaLibraryCreateModalTitleNode = document.getElementById("media-library-
 const mediaLibraryCreateModalHintNode = document.getElementById("media-library-create-modal-hint");
 const mediaLibraryCreateNameInputNode = document.getElementById("media-library-create-name-input");
 const mediaLibraryCreateSlugInputNode = document.getElementById("media-library-create-slug-input");
+const mediaLibraryCreateSlugUnlinkBtn = document.getElementById("media-library-create-slug-unlink-btn");
 const mediaLibraryCreateDescriptionInputNode = document.getElementById("media-library-create-description-input");
 const mediaLibraryCreateCancelBtn = document.getElementById("media-library-create-cancel-btn");
 const mediaLibraryCreateSubmitBtn = document.getElementById("media-library-create-submit-btn");
 let mediaLibraryCreateModalState = { mode: "custom" };
+let mediaLibraryCreateSlugController = null;
 let menuMediaLibrariesLastPayload = null;
 let menuMediaLibrariesLoadSeq = 0;
 let menuMediaLibrariesCachedAgentId = "";
@@ -5681,6 +5683,98 @@ function getMediaLibraryManifestPathFromFolder(folderPath) {
     .trim();
   if (!folder) return "";
   return `${folder}/manifest.md`;
+}
+
+function resolveMediaLibraryWorkspaceIblockDescriptionMarkdown(title, manifestMarkdown) {
+  return stripAwnDataManifestTitleHeading(String(manifestMarkdown || ""), title).trim();
+}
+
+function createMediaLibraryWorkspaceIblockCard({
+  title,
+  manifestPath,
+  typeLabel = "awn.media",
+  manifestEntries = [],
+  manifestBodyMarkdown = "",
+  onEditClick,
+  onIdAssigned = refreshUiAfterWorkspaceRecordIdAssign
+} = {}) {
+  const template = document.getElementById("awn-databases-view-template");
+  const sourceBlock = template?.content?.querySelector(".awn-databases-view-iblock-description-block");
+  if (!sourceBlock) return null;
+
+  const block = sourceBlock.cloneNode(true);
+  block.classList.remove("hidden");
+  block.classList.add("media-library-workspace-iblock-block");
+
+  const displayTitle = String(title || "Медиатека").trim();
+  const titleNode = block.querySelector(".awn-databases-view-title");
+  if (titleNode) titleNode.textContent = displayTitle;
+
+  const badgeNode = block.querySelector(".awn-databases-view-kind-badge");
+  if (badgeNode) {
+    const typeName = String(typeLabel || "awn.media").trim();
+    badgeNode.textContent = typeName.toLowerCase() === "awn.media" ? "Медиатека" : typeName;
+    badgeNode.classList.remove("hidden", "is-single", "is-group", "is-storage-csv", "is-storage-csv-files", "is-storage-md");
+    badgeNode.classList.add("is-collection", "is-media-library");
+  }
+
+  const pathNode = block.querySelector(".awn-databases-view-path");
+  if (pathNode) {
+    pathNode.replaceChildren();
+    const slug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
+    const awnId = getPropsEntryValueByKey(manifestEntries, "awn-id") || "";
+    const metaPathRow = createNavigationHeroIdSlugPathRow({
+      awnId,
+      assignPath: manifestPath,
+      onIdAssigned,
+      slug: slug || "",
+      pathLabel: slug ? `slug: ${slug}` : formatNodeHeroSlugLabel(manifestPath)
+    });
+    metaPathRow.classList.add("awn-databases-view-id-path");
+    pathNode.appendChild(metaPathRow);
+    pathNode.classList.remove("hidden");
+  }
+
+  const actionsNode = block.querySelector(".awn-databases-view-iblock-card-head-actions");
+  if (actionsNode) {
+    actionsNode.replaceChildren();
+    actionsNode.appendChild(
+      createNodeOverviewHeroActions(manifestPath, {
+        editOnly: true,
+        onEditClick,
+        pageManifestPath: manifestPath,
+        recordPath: manifestPath,
+        propEntries: manifestEntries
+      })
+    );
+    actionsNode.classList.remove("hidden");
+  }
+
+  const descNode = block.querySelector(".awn-databases-view-iblock-description");
+  const emptyNode = block.querySelector(".awn-databases-view-iblock-description-empty");
+  const briefFold = block.querySelector(".awn-databases-view-iblock-brief-fold");
+  const markdown = resolveMediaLibraryWorkspaceIblockDescriptionMarkdown(displayTitle, manifestBodyMarkdown);
+  if (descNode) {
+    if (!markdown) {
+      descNode.replaceChildren();
+      descNode.classList.add("hidden");
+      emptyNode?.classList.remove("hidden");
+      if (emptyNode) emptyNode.textContent = IBLOCK_INSTRUCTION_EMPTY_TEXT;
+      briefFold?.classList.toggle("is-empty", true);
+      if (briefFold && !briefFold.open) briefFold.open = true;
+    } else {
+      descNode.classList.remove("hidden");
+      emptyNode?.classList.add("hidden");
+      briefFold?.classList.toggle("is-empty", false);
+      if (typeof renderMarkdownToHtml === "function") {
+        descNode.innerHTML = renderMarkdownToHtml(markdown, { nodePath: manifestPath });
+      } else {
+        descNode.textContent = markdown;
+      }
+    }
+  }
+
+  return block;
 }
 
 function getRepositoryFolderPathFromManifest(manifestPath) {
@@ -81052,37 +81146,22 @@ async function renderEntryOverview() {
     if (isStale()) return;
 
     if (isMediaLibraryWorkspace) {
-      const preview = await fetchNodeOverviewPreview(topicPath).catch(() => null);
-      if (isStale()) return;
       const manifestEntries = resolveNodeOverviewPropsEntries();
       const { body: manifestBody } = splitFrontmatter(modeContentCache.description || "");
       const mediaLibraryTitle = getEntryOverviewTopicTitle();
-      const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(topicPath);
-      const hero = createNavigationHero(preview, mediaLibraryTitle, topicPath, {
-        meta: nodeMeta,
-        propEntries: manifestEntries,
-        descriptionRaw: manifestBody,
+      const manifestPath = isMediaLibraryManifestPath(topicPath)
+        ? topicPath
+        : getMediaLibraryManifestPathFromFolder(topicPath);
+      const iblockCard = createMediaLibraryWorkspaceIblockCard({
+        title: mediaLibraryTitle,
+        manifestPath,
         typeLabel: getPropsEntryValueByKey(manifestEntries, "awn-type") || "awn.media",
-        compact: false,
-        editOnly: true,
+        manifestEntries,
+        manifestBodyMarkdown: manifestBody,
         onEditClick: openDescriptionFromOverview,
-        pageManifestPath: topicPath,
-        recordPath: topicPath,
-        pathLabel: mediaLibrarySlug ? `slug: ${mediaLibrarySlug}` : formatNodeHeroSlugLabel(topicPath),
-        slugIssue: mediaLibrarySlug ? { current: mediaLibrarySlug } : null,
-        onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
-        showHeroInstruction: false,
-        showSettingsProps: false,
-        hideSharedSlot: true,
-        thumbWrap: createOverviewThumbWrap(preview, mediaLibraryTitle, topicPath, {
-          propEntries: manifestEntries
-        })
+        onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign
       });
-      hero.classList.add("node-navigation-hero--media-library-store");
-      hero
-        .querySelector(".node-navigation-hero-meta-path")
-        ?.classList.add("awn-databases-view-id-path");
-      hubMain.appendChild(hero);
+      if (iblockCard) hubMain.appendChild(iblockCard);
     }
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
@@ -125029,10 +125108,26 @@ function openMediaLibraryCreateModal(options = {}) {
       : "Папка <code>awn-media/{slug}/</code> с <code>manifest.md</code> и <code>awn-storage/files/</code>, <code>assets/</code>.";
   }
   if (mediaLibraryCreateNameInputNode) mediaLibraryCreateNameInputNode.value = name || slug;
-  if (mediaLibraryCreateSlugInputNode) {
-    mediaLibraryCreateSlugInputNode.value = slug;
-    mediaLibraryCreateSlugInputNode.readOnly = lockSlug;
-    mediaLibraryCreateSlugInputNode.classList.toggle("is-readonly", lockSlug);
+  if (mediaLibraryCreateSlugUnlinkBtn) {
+    mediaLibraryCreateSlugUnlinkBtn.classList.toggle("hidden", lockSlug);
+    mediaLibraryCreateSlugUnlinkBtn.disabled = lockSlug;
+  }
+  if (lockSlug) {
+    if (mediaLibraryCreateSlugInputNode) {
+      mediaLibraryCreateSlugInputNode.value = slug;
+      mediaLibraryCreateSlugInputNode.readOnly = true;
+      mediaLibraryCreateSlugInputNode.classList.add("is-readonly");
+    }
+  } else {
+    mediaLibraryCreateSlugController?.reset();
+    if (slug) {
+      mediaLibraryCreateSlugController?.setLinked(false);
+      if (mediaLibraryCreateSlugInputNode) {
+        mediaLibraryCreateSlugInputNode.value = sanitizeSlugValue(slug);
+      }
+    } else {
+      mediaLibraryCreateSlugController?.sync();
+    }
   }
   if (mediaLibraryCreateDescriptionInputNode) {
     mediaLibraryCreateDescriptionInputNode.value = String(options.description || "").trim();
@@ -125047,7 +125142,9 @@ function closeMediaLibraryCreateModal() {
 }
 
 async function submitMediaLibraryCreateModal() {
-  const slug = String(mediaLibraryCreateSlugInputNode?.value || "")
+  const slug = String(
+    mediaLibraryCreateSlugController?.getSlug() || mediaLibraryCreateSlugInputNode?.value || ""
+  )
     .trim()
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
@@ -125104,6 +125201,17 @@ function promptCreateMenuMediaLibrary() {
 function setupMenuMediaLibrariesUi() {
   if (setupMenuMediaLibrariesUi.initialized) return;
   setupMenuMediaLibrariesUi.initialized = true;
+  if (
+    mediaLibraryCreateNameInputNode &&
+    mediaLibraryCreateSlugInputNode &&
+    mediaLibraryCreateSlugUnlinkBtn
+  ) {
+    mediaLibraryCreateSlugController = createSlugFieldController({
+      nameInput: mediaLibraryCreateNameInputNode,
+      slugInput: mediaLibraryCreateSlugInputNode,
+      unlinkBtn: mediaLibraryCreateSlugUnlinkBtn
+    });
+  }
   syncMenuMediaLibraryIndexRowState(menuMediaLibrariesLastPayload);
   wireMenuStaticSummaryRefreshButton(menuMediaLibraryRefreshBtn, handleMenuMediaLibrariesRefreshClick);
   menuMediaLibraryCreateBtn?.addEventListener("click", () => promptCreateMenuMediaLibrary());

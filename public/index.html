@@ -7378,10 +7378,18 @@ awn-type: awn.page.ws
               placeholder="documents"
               spellcheck="false"
               autocomplete="off"
+              readonly
               required
             />
+            <button
+              id="media-library-create-slug-unlink-btn"
+              class="slug-unlink-btn is-linked"
+              type="button"
+              title="Редактировать slug вручную"
+              aria-label="Редактировать slug вручную"
+            >✎</button>
           </div>
-          <p class="slug-field-hint">Латиница, без пробелов: <code>awn-media/{slug}/</code></p>
+          <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную. Путь: <code>awn-media/{slug}/</code></p>
         </div>
         <label class="agents-registry-field agents-registry-create-field">
           <span>Описание</span>
@@ -7391,6 +7399,16 @@ awn-type: awn.page.ws
             rows="2"
             placeholder="Кратко о назначении медиатеки"
           ></textarea>
+        </label>
+        <label
+          class="awn-databases-create-checkbox-field create-form-indexing-option is-disabled"
+          id="media-library-create-index-exclude-wrap"
+          title="Заготовка — настройка при создании пока недоступна"
+        >
+          <input type="checkbox" disabled aria-disabled="true" />
+          <span class="awn-databases-create-checkbox-label"
+            >Запретить индексирование <span class="stub-static-mark">(static)</span></span
+          >
         </label>
         <div class="modal-actions">
           <button id="media-library-create-cancel-btn" class="save-btn" type="button">Отмена</button>
