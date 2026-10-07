@@ -853,7 +853,6 @@ const agentJournalPeriodFilterNode = document.getElementById("agent-journal-peri
 const agentJournalRefreshBtn = document.getElementById("agent-journal-refresh-btn");
 const agentRecyclerPaneNode = document.getElementById("agent-recycler-pane");
 const agentRecyclerContentNode = document.getElementById("agent-recycler-content");
-const agentRecyclerMetaNode = document.getElementById("agent-recycler-meta");
 const agentRecyclerSummaryNode = document.getElementById("agent-recycler-summary");
 const agentRecyclerRefreshBtn = document.getElementById("agent-recycler-refresh-btn");
 const agentRecyclerClearBtn = document.getElementById("agent-recycler-clear-btn");
@@ -20337,13 +20336,23 @@ const DATA_HUB_SHARED_RETURN_STORAGE_KEY = "agentcms.dataHub.sharedReturn.v1";
 const entryOverviewSlotCountersCache = new Map();
 const entryOverviewSlotCountersInflight = new Map();
 
-function loadEntryOverviewSlotCounters(topicPath) {
+function invalidateEntryOverviewSlotCountersCache(manifestPath = "") {
+  const key = String(
+    manifestPath || getEntryOverviewDataSlotBarManifestPath() || getActiveNodeApiPath() || ""
+  ).trim();
+  if (!key) return;
+  entryOverviewSlotCountersCache.delete(key);
+  entryOverviewSlotCountersInflight.delete(key);
+}
+
+function loadEntryOverviewSlotCounters(topicPath, { force = false } = {}) {
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   if (!resolvedTopicPath) return Promise.resolve([]);
 
   const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
+  if (force) invalidateEntryOverviewSlotCountersCache(manifestPath);
   const cached = entryOverviewSlotCountersCache.get(manifestPath);
-  if (cached?.length) return Promise.resolve(cached);
+  if (!force && cached?.length) return Promise.resolve(cached);
 
   if (entryOverviewSlotCountersInflight.has(manifestPath)) {
     return entryOverviewSlotCountersInflight.get(manifestPath);
@@ -20400,6 +20409,7 @@ function loadDataHubAllItemsPanel(container) {
 
 function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
   if (manifestPath) storageRootScanCache.delete(manifestPath);
+  invalidateEntryOverviewSlotCountersCache(manifestPath);
   if (!manifestPath || manifestPath === getActiveNodeApiPath()) {
     activeStorageRootScan = null;
     const slotTree = getStorageSlotTreeNode();
@@ -25191,8 +25201,19 @@ async function refreshResourceFileViews(state = resourceContextMenuState) {
   }
 }
 
+function refreshEntryOverviewSlotCounterStripsForTopic(topicPath = getResolvedNodePath(activePath)) {
+  if (!nodeOverviewContentNode || !topicPath) return;
+  const context = activeEntryOverviewContext;
+  const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(topicPath) : topicPath;
+  nodeOverviewContentNode
+    .querySelectorAll(`.node-entry-overview-slot-counters[data-topic-node-path="${escaped}"]`)
+    .forEach((wrap) => refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath));
+}
+
 async function refreshMemorySectionViews(state = resourceContextMenuState) {
   invalidateStorageRootScanCache();
+  const topicPath = getResolvedNodePath(activePath);
+  refreshEntryOverviewSlotCounterStripsForTopic(topicPath);
   if (state?.storageMode) {
     await reloadFlatStorageFolderMode(state.storageMode);
     rerenderFlatStorageListViewBody(state.storageMode);
@@ -46184,6 +46205,7 @@ function closeMediaSidecarEditor() {
 }
 
 async function refreshExternalMemoryCaches() {
+  invalidateStorageRootScanCache();
   const [filesResponse, listingResponse] = await Promise.all([
     fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() })),
     fetch(buildApiUrl("/api/external", { path: getActiveNodeApiPath() }))
@@ -46206,11 +46228,13 @@ async function refreshExternalMemoryCaches() {
     modeContentCache.external =
       listingData.content || buildExternalListingFallbackContent(externalFilesCache, externalFoldersCache);
     syncExternalSectionTreeFromCaches();
+    refreshEntryOverviewSlotCounterStripsForTopic(getResolvedNodePath(activePath));
     return Boolean(listingData.exists);
   }
 
   modeContentCache.external = buildExternalListingFallbackContent(externalFilesCache, externalFoldersCache);
   syncExternalSectionTreeFromCaches();
+  refreshEntryOverviewSlotCounterStripsForTopic(getResolvedNodePath(activePath));
   return externalFilesCache.length > 0;
 }
 
@@ -80100,7 +80124,7 @@ function refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath) {
   if (!wrap || !context) return;
   wrap.querySelector(".node-navigation-workspace-counter-topic-index-row")?.remove();
   const resolvedTopicPath = topicPath || wrap.dataset.topicNodePath || getResolvedNodePath(activePath);
-  void loadEntryOverviewSlotCounters(resolvedTopicPath).then((slots) => {
+  void loadEntryOverviewSlotCounters(resolvedTopicPath, { force: true }).then((slots) => {
     if (!wrap.isConnected || !slots.length) return;
     if (wrap.querySelector(".node-navigation-workspace-counter-list")) {
       updateEntryOverviewDataSlotBarCounts(wrap, slots);
@@ -108727,16 +108751,12 @@ async function renderAgentJournalView() {
 let agentRecyclerRenderSeq = 0;
 
 function syncAgentRecyclerInfoBar({ total = 0, loading = false } = {}) {
-  if (agentRecyclerMetaNode) {
-    agentRecyclerMetaNode.textContent = loading ? "Загрузка…" : AWN_RECYCLE_FOLDER;
-  }
-  if (agentRecyclerSummaryNode) {
-    agentRecyclerSummaryNode.textContent = loading
-      ? ""
-      : total
-        ? `В корзине: ${total}`
-        : "Корзина пуста";
-  }
+  if (!agentRecyclerSummaryNode) return;
+  agentRecyclerSummaryNode.textContent = loading
+    ? "Загрузка…"
+    : total
+      ? `В корзине: ${total}`
+      : "Корзина пуста";
 }
 
 async function renderAgentRecyclerView() {
@@ -108851,6 +108871,8 @@ async function restoreRecyclerItemFromUi(item) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
     showToast("Восстановлено", "success");
+    invalidateStorageRootScanCache();
+    refreshEntryOverviewSlotCounterStripsForTopic(getResolvedNodePath(activePath));
     invalidateMenuAgentCache(activeAgentId);
     await refreshMenu();
     await renderAgentRecyclerView();

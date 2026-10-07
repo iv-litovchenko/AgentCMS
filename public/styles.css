@@ -15518,21 +15518,32 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
 .agent-recycler-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .agent-recycler-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head actions"
+    "path actions"
+    "meta actions";
+  column-gap: 20px;
+  row-gap: 4px;
+  align-items: start;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   background: rgba(15, 23, 42, 0.02);
 }
 
 .agent-recycler-item-head {
+  grid-area: head;
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .agent-recycler-marker {
@@ -15540,35 +15551,82 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
   padding: 2px 6px;
   border-radius: 6px;
   background: rgba(100, 116, 139, 0.12);
+  flex-shrink: 0;
+}
+
+.agent-recycler-title {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .agent-recycler-path,
 .agent-recycler-meta-line {
-  margin: 6px 0 0;
+  margin: 0;
   font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--muted, #64748b);
   word-break: break-all;
 }
 
+.agent-recycler-path {
+  grid-area: path;
+  padding-top: 2px;
+}
+
+.agent-recycler-meta-line {
+  grid-area: meta;
+  padding-top: 2px;
+}
+
 .agent-recycler-actions {
-  margin-top: 10px;
+  grid-area: actions;
+  margin: 0;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .agent-recycler-restore-btn {
   font-size: 0.82rem;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   border: 1px solid rgba(59, 130, 246, 0.45);
   background: rgba(59, 130, 246, 0.08);
   cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .agent-recycler-item {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "path"
+      "meta"
+      "actions";
+    row-gap: 6px;
+  }
+
+  .agent-recycler-actions {
+    align-self: stretch;
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
 }
 
 .agent-recycler-summary {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 0.82rem;
   color: var(--muted, #94a3b8);
+}
+
+.agent-recycler-head-summary {
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .agent-canvas-head-aside .agent-workspace-refresh-btn.is-danger {

@@ -59,7 +59,8 @@ const {
   softDeleteWorkspacePath,
   listRecycleItems,
   restoreRecycleItem,
-  clearRecycleBin
+  clearRecycleBin,
+  isTrashMarkerFileName
 } = require("./lib/workspace-recycler/service");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
 const { getWorkspaceIndexMonitor, formatAge } = require("./lib/indexes/workspace-index/monitor");
@@ -5410,6 +5411,7 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     if (entry.isDirectory() && shouldSkipExternalMemoryDirectory(entry.name)) continue;
     if (entry.isDirectory() && shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
@@ -5464,6 +5466,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "", options = {}) {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -5503,6 +5506,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}
   const files = [];
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -7173,9 +7177,14 @@ function isBlockedStorageFileExtension(filename) {
   return BLOCKED_STORAGE_FILE_EXTENSIONS.has(ext);
 }
 
+function shouldSkipWorkspaceRecycleTombstoneFileName(fileName) {
+  return isTrashMarkerFileName(fileName);
+}
+
 function shouldSkipStoragePolicyFileName(fileName, { slotKey } = {}) {
   const name = String(fileName || "");
   if (!name || name === ".DS_Store") return true;
+  if (shouldSkipWorkspaceRecycleTombstoneFileName(name)) return true;
   if (name.startsWith(".")) return true;
   if (isAreaManifestFileName(name)) return true;
   if (slotKey === "media" && name.toLowerCase().endsWith(".sidecar.md")) return true;
@@ -10996,6 +11005,7 @@ async function countDirectoryFiles(dirAbsolute) {
 
   for (const entry of entries) {
     if (entry.name === ".DS_Store" || entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(dirAbsolute, entry.name);
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name)) continue;
