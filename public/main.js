@@ -18303,7 +18303,9 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set(["files"]),
     defaultMode: "files",
     sectionKind: "media",
-    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES,
+    /** Слот workspace-медиатеки (awn-media); не показывать счётчик на обзоре обычных тем. */
+    hideEntryOverviewCounter: true
   },
   {
     key: "assets",
@@ -75255,6 +75257,12 @@ function supportsDataEntryOverview(slotKey) {
   return Boolean(getEntryOverviewMemoryKindForSlot(spec));
 }
 
+function shouldShowEntryOverviewSlotCounter(spec, topicPath = getResolvedNodePath(activePath)) {
+  if (!spec || spec.disabled || !supportsDataEntryOverview(spec.key)) return false;
+  if (spec.hideEntryOverviewCounter && !isMediaLibraryPageNodePath(topicPath)) return false;
+  return true;
+}
+
 function isDataEntryViewSelectAvailable() {
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
   if (!activePath) return false;
@@ -78237,8 +78245,8 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     }
   }
 
-  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter(
-    (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
+  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
+    shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
 
   const mediaLibraryPage = isMediaLibraryPageNodePath(topicPath);
@@ -79890,8 +79898,8 @@ function buildEntryOverviewBrowseTocNavOptions(context, topicPath = activePath) 
 function buildEntryOverviewSlotTocNavOptions(context, topicPath = activePath) {
   if (!context || !isEntryOverviewMemoryTocRoot(context)) return null;
 
-  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter(
-    (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
+  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
+    shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
   const currentKind = String(context.memoryKind || "").trim();
   const currentIndex = overviewSpecs.findIndex((spec) => {
