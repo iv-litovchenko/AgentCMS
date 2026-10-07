@@ -107,3 +107,7 @@ awn_settings:
   voice-window-keep-awake: true
   voice-window-processing-sound: off
   voice-window-compact-mode: false
+  awn-recycle-id-next: 2
+  awn-recycle-id-issued: 1
+  awn-recycle-id-updated-at: "2026-10-07T21:03:34.138Z"
+  awn-recycle-id-model: workspace-recycle-marker-v1

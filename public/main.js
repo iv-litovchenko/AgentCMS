@@ -8165,6 +8165,7 @@ function askMoveTarget(options = {}) {
 
 async function deleteFlatStorageRecord(filePath, mode, manifestPath = getActiveNodeApiPath()) {
   const folder = getFlatStorageSectionFolderName(mode);
+  if (!folder) throw new Error(`Неизвестный слот: ${mode}`);
   const response = await fetch(
     buildApiUrl("/api/storage/file", { path: manifestPath, folder, file: filePath }),
     { method: "DELETE" }
@@ -8172,7 +8173,8 @@ async function deleteFlatStorageRecord(filePath, mode, manifestPath = getActiveN
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const reason = errorData.error || `Request failed with ${response.status}`;
-    throw new Error(reason);
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
   }
   return response.json();
 }
@@ -25939,7 +25941,7 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
-  if (actionId === "delete" && state.kind === "flatStorageFile" && state.filePath && state.mode) {
+  if (actionId === "delete" && state.kind === "flatStorageFile" && state.filePath) {
     void deleteFlatStorageRecordFromMenu(state);
     return;
   }
@@ -25951,8 +25953,11 @@ function handleResourceContextMenuAction(actionId) {
 
 async function deleteFlatStorageRecordFromMenu(state) {
   const rel = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  const mode = state.mode;
-  if (!rel || !mode) return;
+  const mode = state.mode || state.storageMode || resolveResourceStateMemoryKind(state);
+  if (!rel || !mode) {
+    showToast("Не удалось определить слот для удаления", "error");
+    return;
+  }
   const label = state.label || rel.split("/").pop() || rel;
   const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
   if (!confirmed) return;
@@ -108736,7 +108741,13 @@ async function renderAgentRecyclerView() {
 
   try {
     const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeAgentId));
-    const data = response.ok ? await response.json() : null;
+    const rawBody = await response.text();
+    let data = {};
+    try {
+      data = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      data = { error: rawBody.trim().slice(0, 240) || `HTTP ${response.status}` };
+    }
     if (isStale()) return;
     if (!response.ok) {
       const detail = data?.details ? `: ${data.details}` : "";
