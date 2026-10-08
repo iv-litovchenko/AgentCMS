@@ -30225,17 +30225,83 @@ body.workspace-pomodoro-break-active {
 .menu-sidebar-bottom {
   flex: 0 1 auto;
   min-height: 0;
-  max-height: min(52%, 460px);
+  max-height: none;
   margin-top: auto;
   position: relative;
   z-index: 6;
   background: var(--panel);
   border-top: 1px solid var(--border);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-slab-menu > .menu-sidebar-bottom:has(
+    > .menu-awn-databases-band:not(.is-collapsed),
+    > .menu-media-library-band:not(.is-collapsed),
+    > .menu-awn-scripts-band:not(.is-collapsed),
+    > .menu-repositories-band:not(.is-collapsed),
+    > #menu-static-footer:not(.is-collapsed)
+  ) {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.sidebar-slab-menu > .menu-sidebar-bottom:not(:has(
+    > .menu-awn-databases-band:not(.is-collapsed),
+    > .menu-media-library-band:not(.is-collapsed),
+    > .menu-awn-scripts-band:not(.is-collapsed),
+    > .menu-repositories-band:not(.is-collapsed),
+    > #menu-static-footer:not(.is-collapsed)
+  )) {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.menu-sidebar-bottom > #menu-agent-stats:not(.hidden) {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.menu-sidebar-bottom > .menu-awn-databases-band:not(.is-collapsed),
+.menu-sidebar-bottom > .menu-media-library-band:not(.is-collapsed),
+.menu-sidebar-bottom > .menu-awn-scripts-band:not(.is-collapsed),
+.menu-sidebar-bottom > .menu-repositories-band:not(.is-collapsed),
+.menu-sidebar-bottom > #menu-static-footer:not(.is-collapsed) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.menu-sidebar-bottom > .menu-awn-databases-band:not(.is-collapsed) .menu-awn-databases-band-head,
+.menu-sidebar-bottom > .menu-media-library-band:not(.is-collapsed) .menu-media-library-band-head,
+.menu-sidebar-bottom > .menu-awn-scripts-band:not(.is-collapsed) .menu-awn-scripts-band-head,
+.menu-sidebar-bottom > .menu-repositories-band:not(.is-collapsed) .menu-repositories-band-head,
+.menu-sidebar-bottom > #menu-static-footer:not(.is-collapsed) .menu-static-footer-toggle-btn {
+  order: 2;
+  flex-shrink: 0;
+}
+
+.menu-sidebar-bottom > .menu-awn-databases-band:not(.is-collapsed) .menu-awn-databases-band-body,
+.menu-sidebar-bottom > .menu-media-library-band:not(.is-collapsed) .menu-media-library-band-body,
+.menu-sidebar-bottom > .menu-awn-scripts-band:not(.is-collapsed) .menu-awn-scripts-band-body,
+.menu-sidebar-bottom > .menu-repositories-band:not(.is-collapsed) .menu-repositories-band-body,
+.menu-sidebar-bottom > #menu-static-footer:not(.is-collapsed) .menu-static-footer-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu-sidebar-bottom > #menu-static-footer:not(.is-collapsed) .menu-static-footer-body {
+  order: 1;
 }
 
 .sidebar.is-menu-bottom-focus .menu-view-ghost-strip,
@@ -30298,15 +30364,18 @@ body.workspace-pomodoro-break-active {
   overflow: hidden;
 }
 
-.sidebar.is-menu-static-footer-focus .menu-sidebar-bottom > :not(#menu-static-footer) {
+.sidebar.is-menu-static-footer-focus .menu-sidebar-bottom > :not(#menu-static-footer):not(#menu-agent-stats) {
   display: none !important;
 }
 
-.sidebar.is-menu-static-footer-focus .menu-static-footer:not(.is-collapsed) {
+.sidebar.is-menu-static-footer-focus .menu-sidebar-bottom > #menu-agent-stats:not(.hidden) {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-sidebar-bottom > #menu-static-footer:not(.is-collapsed) {
   flex: 1 1 0;
   min-height: 0;
-  display: flex;
-  flex-direction: column-reverse;
   overflow: hidden;
   border-top: 0;
 }
@@ -31185,7 +31254,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron {
   transform: rotate(-135deg);
-  margin-top: -1px;
+  margin-top: 2px;
 }
 
 .sidebar-accent-band-title {
@@ -72712,10 +72781,6 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar.is-menu-bottom-focus .menu-repositories-band-body .menu-repositories-list {
   max-height: none;
   overflow: visible;
-}
-
-.sidebar.is-menu-static-footer-focus.is-menu-bottom-focus .menu-static-footer:not(.is-collapsed) {
-  flex-direction: column-reverse;
 }
 
 .menu-awn-databases-store {
