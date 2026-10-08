@@ -31177,15 +31177,15 @@ body.workspace-pomodoro-break-active {
   margin-top: -3px;
 }
 
-/* drawer снизу вверх: свернуто — › вправо; раскрыто — v вниз (как у соседних полос) */
+/* drawer снизу вверх: свернуто — › вправо; раскрыто — ^ вверх */
 .menu-static-footer.is-collapsed .sidebar-accent-band-chevron {
   transform: rotate(-45deg);
   margin-top: -1px;
 }
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron {
-  transform: rotate(45deg);
-  margin-top: -3px;
+  transform: rotate(-135deg);
+  margin-top: -1px;
 }
 
 .sidebar-accent-band-title {
