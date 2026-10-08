@@ -31254,7 +31254,7 @@ body.workspace-pomodoro-break-active {
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron {
   transform: rotate(-135deg);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .sidebar-accent-band-title {
