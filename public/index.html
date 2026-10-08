@@ -1078,6 +1078,7 @@
                       disabled
                       aria-disabled="true"
                       aria-label="Сбросить кэш (удалить все временные файлы)"
+                      title="Удалить .agent-cms/cache и awn-temp"
                     >
                       Сбросить кэш (удалить все временные файлы)
                     </button>
@@ -1085,7 +1086,7 @@
                       type="button"
                       id="menu-workspace-index-cache-reset-hint-btn"
                       class="header-index-cache-reset-hint-btn"
-                      data-hint="Удалить временные файлы в .agent-cms/cache и awn-temp/ (скоро)"
+                      data-hint="Удаляет всё содержимое .agent-cms/cache (индексы, миниатюры, снимки shell) и awn-temp/. Настройки и журнал в .agent-cms не затрагиваются. После сброса пересоберите индексы."
                       aria-label="Подсказка: что удаляется при сбросе кэша"
                       aria-expanded="false"
                     >
@@ -2808,6 +2809,37 @@
                 </span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
+                <div class="menu-static-footer-search-toolbar">
+                  <div class="menu-search-wrap menu-static-footer-search-wrap">
+                    <label class="menu-search-bar" for="menu-static-footer-search-input">
+                      <span class="menu-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="7"></circle>
+                          <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                      </span>
+                      <input
+                        id="menu-static-footer-search-input"
+                        class="menu-search-input"
+                        type="search"
+                        placeholder="Поиск секций…"
+                        autocomplete="off"
+                        spellcheck="false"
+                        aria-label="Поиск системных и дополнительных секций"
+                        aria-controls="menu-static-footer-sections"
+                      />
+                    </label>
+                  </div>
+                  <p
+                    id="menu-static-footer-search-empty"
+                    class="menu-static-footer-search-empty hidden"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Ничего не найдено
+                  </p>
+                </div>
+                <div id="menu-static-footer-sections" class="menu-static-footer-sections" aria-label="Список секций">
               <details class="menu-static-section menu-static-section--languagetool menu-static-accordion">
                 <summary
                   class="menu-static-summary"
@@ -2991,51 +3023,6 @@
                   </button>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--awn-temp menu-static-accordion">
-                <summary class="menu-static-summary" title="Временные файлы workspace (awn-temp)">
-                  <span class="menu-static-title menu-static-title--awn-temp">
-                    <span id="menu-awn-temp-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
-                    <span class="menu-static-title-text">
-                      Временные файлы
-                      <span class="menu-static-subtitle">awn-temp · scratch / staging</span>
-                    </span>
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-awn-temp-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить awn-temp"
-                      aria-label="Обновить awn-temp"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p id="menu-awn-temp-stats" class="menu-awn-temp-stats is-empty" aria-live="polite"></p>
-                  <p class="menu-static-description">
-                    Общая папка для любых временных файлов агента и человека: черновики, staging, экспорты.
-                    Не привязана к теме — можно подпапки по задаче или дате.
-                  </p>
-                  <button
-                    id="menu-awn-temp-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    title="Открыть папку awn-temp"
-                  >
-                    Открыть awn-temp
-                  </button>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--awn-backup menu-static-accordion">
                 <summary class="menu-static-summary" title="Резервное копирование workspace (awn-backup) — скоро">
                   <span class="menu-static-title menu-static-title--awn-backup">
@@ -3099,6 +3086,7 @@
                   </button>
                 </div>
               </details>
+                </div>
               </div>
             </section>
             <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
@@ -8497,7 +8485,7 @@ awn-type: awn.page.ws
     <script type="module" src="/js/pomodoro/pomodoro-state-bootstrap.js?v=1"></script>
     <script src="/js/pomodoro/workspace-pomodoro.js?v=9"></script>
     <script src="/js/app/connection-status.js?v=1"></script>
-    <script src="/js/panels/semantic-index-panel.js?v=22"></script>
+    <script src="/js/panels/semantic-index-panel.js?v=23"></script>
     <script src="/js/panels/languagetool-panel.js?v=2"></script>
     <script src="/js/panels/file-find-bar.js?v=2"></script>
     <script src="/js/core/slug-translit.js?v=1"></script>

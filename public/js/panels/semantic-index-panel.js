@@ -35,6 +35,7 @@
   const runLogBtn = document.getElementById("menu-workspace-index-run-log-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const indexPolicyHintNode = document.getElementById("menu-workspace-index-policy-hint");
+  const cacheResetBtn = document.getElementById("menu-workspace-index-cache-reset-btn");
   const storageModeSelect = document.getElementById("menu-storage-index-mode-select");
   const PIPELINE_BTN_LABEL_FULL =
     "Полная цепочка (OCR → слова → смысл → поля → связи → id → карта)";
@@ -702,9 +703,17 @@
     }
   }
 
+  function syncCacheResetButtonState(enabled) {
+    if (!cacheResetBtn) return;
+    const on = Boolean(enabled);
+    cacheResetBtn.disabled = !on;
+    cacheResetBtn.setAttribute("aria-disabled", on ? "false" : "true");
+  }
+
   async function refreshStatus() {
     const agentId = getActiveAgentId();
     if (!agentId) {
+      syncCacheResetButtonState(false);
       summaryStatsNode.textContent = "агент не выбран";
       summaryStatsNode.classList.add("is-empty");
       summaryStatsNode.classList.remove("is-error");
@@ -714,6 +723,7 @@
       }
       return;
     }
+    syncCacheResetButtonState(true);
     try {
       const [monitorRes, idStatus] = await Promise.all([
         fetch(buildApiUrl("/api/workspace-index/monitor")),
@@ -1543,6 +1553,54 @@
   }
 
   initCacheResetHintButton();
+
+  async function runCacheReset() {
+    const agentId = getActiveAgentId();
+    if (!agentId || !cacheResetBtn || cacheResetBtn.disabled) return;
+
+    const confirmMessage =
+      "Удалить все временные файлы в .agent-cms/cache и awn-temp/?\n\nИндексы, миниатюры и прочий кэш придётся пересобрать.";
+    let confirmed = false;
+    if (typeof askConfirm === "function") {
+      confirmed = await askConfirm(confirmMessage, { okLabel: "Сбросить кэш", variant: "danger" });
+    } else {
+      confirmed = window.confirm(confirmMessage);
+    }
+    if (!confirmed) return;
+
+    cacheResetBtn.disabled = true;
+    cacheResetBtn.classList.add("is-loading");
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-index/cache-reset"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      const removed = Number(data.removedEntries) || 0;
+      const toastMessage = removed
+        ? `Кэш очищен: удалено ${removed} элементов`
+        : "Кэш уже был пуст";
+      if (typeof showToast === "function") showToast(toastMessage, "success");
+      if (typeof window.invalidateContentSearchFieldCatalog === "function") {
+        window.invalidateContentSearchFieldCatalog();
+      }
+      await refreshStatus();
+    } catch (error) {
+      if (typeof showToast === "function") {
+        showToast(String(error.message || error), "error");
+      }
+    } finally {
+      cacheResetBtn.classList.remove("is-loading");
+      syncCacheResetButtonState(getActiveAgentId());
+    }
+  }
+
+  cacheResetBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void runCacheReset();
+  });
 
   window.addEventListener("header-index-popover-open", () => {
     void refreshStatus();

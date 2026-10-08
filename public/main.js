@@ -104,6 +104,9 @@ const menuRepositoriesBandBodyNode = document.getElementById("menu-repositories-
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
 const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
+const menuStaticFooterSearchInputNode = document.getElementById("menu-static-footer-search-input");
+const menuStaticFooterSearchEmptyNode = document.getElementById("menu-static-footer-search-empty");
+const menuStaticFooterSectionsNode = document.getElementById("menu-static-footer-sections");
 const menuTreeBandNode = document.getElementById("menu-tree-band");
 const menuTreeBandToggleBtn = document.getElementById("menu-tree-band-toggle");
 const menuTreeBandBodyNode = document.getElementById("menu-tree-band-body");
@@ -115066,6 +115069,38 @@ function isSidebarBottomPanelActive() {
   );
 }
 
+function isMenuStaticFooterPanelActive() {
+  return (
+    isMenuStaticFooterExpanded() &&
+    Boolean(menuStaticFooterBodyNode && !menuStaticFooterBodyNode.hidden)
+  );
+}
+
+function isSidebarBottomPanelActiveExcludingStaticFooter() {
+  if (
+    isMenuAwnDataBandExpanded() &&
+    Boolean(menuAwnDataBandBodyNode && !menuAwnDataBandBodyNode.hidden)
+  ) {
+    return true;
+  }
+  if (
+    isMenuMediaLibraryBandExpanded() &&
+    Boolean(menuMediaLibraryBandBodyNode && !menuMediaLibraryBandBodyNode.hidden)
+  ) {
+    return true;
+  }
+  if (
+    isMenuAwnScriptsBandExpanded() &&
+    Boolean(menuAwnScriptsBandBodyNode && !menuAwnScriptsBandBodyNode.hidden)
+  ) {
+    return true;
+  }
+  return (
+    isMenuRepositoriesBandExpanded() &&
+    Boolean(menuRepositoriesBandBodyNode && !menuRepositoriesBandBodyNode.hidden)
+  );
+}
+
 function captureSidebarTreeZoneSnapshot() {
   if (sidebarTreeZoneSnapshot !== null) return;
   sidebarTreeZoneSnapshot = {
@@ -115159,10 +115194,14 @@ function syncSidebarBottomFocusMode() {
   if (!sidebarNode) return;
   const active = isSidebarBottomPanelActive();
   if (active) {
-    captureSidebarTreeZoneSnapshot();
-    if (isSidebarNotePreviewExpanded()) applySidebarNotePreviewExpanded(false);
-    if (isMenuAwnChannelsBandExpanded()) applyMenuAwnChannelsBandExpanded(false);
-    if (isMenuTreeBandExpanded()) applyMenuTreeBandExpanded(false);
+    const staticFooterOnly =
+      isMenuStaticFooterPanelActive() && !isSidebarBottomPanelActiveExcludingStaticFooter();
+    if (!staticFooterOnly) {
+      captureSidebarTreeZoneSnapshot();
+      if (isSidebarNotePreviewExpanded()) applySidebarNotePreviewExpanded(false);
+      if (isMenuAwnChannelsBandExpanded()) applyMenuAwnChannelsBandExpanded(false);
+      if (isMenuTreeBandExpanded()) applyMenuTreeBandExpanded(false);
+    }
     sidebarNode.classList.add("is-menu-bottom-focus");
     return;
   }
@@ -115331,6 +115370,17 @@ function syncMenuStaticFooterAccordionUi() {
     menuStaticFooterBodyNode.hidden = !expanded;
     menuStaticFooterBodyNode.classList.toggle("is-collapsed", !expanded);
   }
+  if (!expanded) resetMenuStaticFooterSectionSearch();
+  syncMenuStaticFooterFocusMode();
+}
+
+function syncMenuStaticFooterFocusMode() {
+  if (!sidebarNode) return;
+  const active = isMenuStaticFooterPanelActive();
+  sidebarNode.classList.toggle("is-menu-static-footer-focus", active);
+  if (active) {
+    sidebarNode.scrollTop = 0;
+  }
 }
 
 function setMenuStaticFooterExpanded(expanded) {
@@ -115347,13 +115397,67 @@ function toggleMenuStaticFooterExpanded() {
   setMenuStaticFooterExpanded(!isMenuStaticFooterExpanded());
 }
 
+function getMenuStaticFooterAccordionSections() {
+  const root = menuStaticFooterSectionsNode || menuStaticFooterBodyNode;
+  if (!root) return [];
+  return Array.from(root.querySelectorAll(":scope > .menu-static-accordion"));
+}
+
+function buildMenuStaticFooterSectionSearchHaystack(section) {
+  const title = section.querySelector(".menu-static-title-text")?.textContent || "";
+  const summaryTitle = section.querySelector(".menu-static-summary")?.getAttribute("title") || "";
+  const description = section.querySelector(".menu-static-description")?.textContent || "";
+  const haystack = `${title} ${summaryTitle} ${description}`.replace(/\s+/g, " ").trim();
+  section.dataset.staticSearchHaystack = haystack;
+  return haystack;
+}
+
+function applyMenuStaticFooterSectionSearch(query = "") {
+  const sections = getMenuStaticFooterAccordionSections();
+  if (!sections.length) return;
+  const normalized = String(query || "").trim().toLowerCase();
+  let visibleCount = 0;
+  for (const section of sections) {
+    const haystack = (
+      section.dataset.staticSearchHaystack || buildMenuStaticFooterSectionSearchHaystack(section)
+    ).toLowerCase();
+    const match = !normalized || haystack.includes(normalized);
+    section.classList.toggle("is-search-hidden", !match);
+    section.hidden = !match;
+    if (match) visibleCount += 1;
+  }
+  if (menuStaticFooterSearchEmptyNode) {
+    menuStaticFooterSearchEmptyNode.classList.toggle(
+      "hidden",
+      visibleCount > 0 || !normalized
+    );
+  }
+}
+
+function resetMenuStaticFooterSectionSearch() {
+  if (menuStaticFooterSearchInputNode) menuStaticFooterSearchInputNode.value = "";
+  applyMenuStaticFooterSectionSearch("");
+}
+
+function setupMenuStaticFooterSectionSearch() {
+  if (!menuStaticFooterSearchInputNode || setupMenuStaticFooterSectionSearch.initialized) return;
+  setupMenuStaticFooterSectionSearch.initialized = true;
+  for (const section of getMenuStaticFooterAccordionSections()) {
+    buildMenuStaticFooterSectionSearchHaystack(section);
+  }
+  menuStaticFooterSearchInputNode.addEventListener("input", (event) => {
+    applyMenuStaticFooterSectionSearch(event.target.value);
+  });
+  menuStaticFooterSearchInputNode.addEventListener("search", (event) => {
+    if (event.target.value === "") applyMenuStaticFooterSectionSearch("");
+  });
+}
+
 function setupMenuStaticFooterExclusiveAccordions() {
   if (!menuStaticFooterBodyNode || setupMenuStaticFooterExclusiveAccordions.initialized) return;
   setupMenuStaticFooterExclusiveAccordions.initialized = true;
 
-  const sections = Array.from(
-    menuStaticFooterBodyNode.querySelectorAll(":scope > .menu-static-accordion")
-  );
+  const sections = getMenuStaticFooterAccordionSections();
   if (!sections.length) return;
 
   for (const section of sections) {
@@ -115872,6 +115976,7 @@ function setupProjectSettingsScopeSearch() {
 function setupMenuStaticFooterGroup() {
   syncMenuStaticFooterAccordionUi();
   syncSidebarBottomFocusMode();
+  setupMenuStaticFooterSectionSearch();
   setupMenuStaticFooterExclusiveAccordions();
   menuStaticFooterToggleBtn?.addEventListener("click", () => {
     toggleMenuStaticFooterExpanded();

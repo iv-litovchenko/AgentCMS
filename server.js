@@ -62,6 +62,7 @@ const {
   clearRecycleBin,
   isTrashMarkerFileName
 } = require("./lib/workspace-recycler/service");
+const { clearWorkspaceTransientCache } = require("./lib/workspace/clear-transient-cache");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
 const { getWorkspaceIndexMonitor, formatAge } = require("./lib/indexes/workspace-index/monitor");
 const {
@@ -14414,6 +14415,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
   workspaceIndexMonitor:
     "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи, awn-id)",
+  workspaceIndexCacheReset:
+    "POST /api/workspace-index/cache-reset — удалить временные файлы (.agent-cms/cache, awn-temp)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
@@ -21024,6 +21027,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace index progress",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace-index/cache-reset") {
+    try {
+      const payload = await readJsonBody(req);
+      if (!payload?.confirm) {
+        return sendJson(res, 400, { error: "confirm=true is required to reset workspace cache" });
+      }
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await clearWorkspaceTransientCache(agentRoot);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to reset workspace cache",
         details: String(error.message || error)
       });
     }

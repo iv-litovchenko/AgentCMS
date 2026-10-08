@@ -23088,18 +23088,31 @@ a.header-tool-btn {
   min-width: 0;
   min-height: 28px;
   padding: 0 12px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(244, 63, 94, 0.28);
   border-radius: 8px;
   background: #fff;
-  color: #64748b;
+  color: #9f1239;
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
-  cursor: not-allowed;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.header-index-cache-reset-btn:disabled {
+.header-index-cache-reset-btn:hover:not(:disabled) {
+  border-color: rgba(244, 63, 94, 0.48);
+  background: #fff1f2;
+  color: #881337;
+}
+
+.header-index-cache-reset-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.header-index-cache-reset-btn:disabled,
+.header-index-cache-reset-btn.is-loading {
   opacity: 0.52;
+  cursor: not-allowed;
   pointer-events: none;
 }
 
@@ -30239,6 +30252,83 @@ body.workspace-pomodoro-break-active {
   overflow: hidden;
 }
 
+/* «Системные секции»: drawer вверх; блок агента (превью, тулбар, NOTE) не трогаем */
+.sidebar.is-menu-static-footer-focus {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar.is-menu-static-footer-focus .sidebar-slab-menu-channels-band,
+.sidebar.is-menu-static-footer-focus .sidebar-slab-menu-tree-band {
+  display: none !important;
+}
+
+.sidebar.is-menu-static-footer-focus .sidebar-slab-agent {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-static-footer-focus .sidebar-agent-select-block,
+.sidebar.is-menu-static-footer-focus .sidebar-agent-avatar-block,
+.sidebar.is-menu-static-footer-focus .sidebar-agent-avatar-block .agent-preview-wrap:not(.hidden),
+.sidebar.is-menu-static-footer-focus .sidebar-agent-avatar-block .agent-preview-frame,
+.sidebar.is-menu-static-footer-focus .sidebar-agent-avatar-block .agent-preview-thumb {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-static-footer-focus .sidebar-slab-menu {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-scroll-shell,
+.sidebar.is-menu-static-footer-focus .menu-view-ghost-strip {
+  display: none !important;
+}
+
+.sidebar.is-menu-static-footer-focus .sidebar-slab-menu > .menu-sidebar-bottom {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-sidebar-bottom > :not(#menu-static-footer) {
+  display: none !important;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-static-footer:not(.is-collapsed) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  border-top: 0;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-static-footer-toggle-btn {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-static-footer-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar.is-menu-static-footer-focus .menu-static-footer-sections {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .menu-scroll-chrome {
   position: absolute;
   inset: 0 0 auto 0;
@@ -31076,7 +31166,6 @@ body.workspace-pomodoro-break-active {
   margin-top: -1px;
 }
 
-.menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-databases-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-media-library-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-scripts-band:not(.is-collapsed) .sidebar-accent-band-chevron,
@@ -31084,6 +31173,17 @@ body.workspace-pomodoro-break-active {
 .menu-awn-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .sidebar-slab-menu-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-system-environment.is-open > .sidebar-accent-band-toggle .sidebar-accent-band-chevron {
+  transform: rotate(45deg);
+  margin-top: -3px;
+}
+
+/* drawer снизу вверх: свернуто — › вправо; раскрыто — v вниз (как у соседних полос) */
+.menu-static-footer.is-collapsed .sidebar-accent-band-chevron {
+  transform: rotate(-45deg);
+  margin-top: -1px;
+}
+
+.menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron {
   transform: rotate(45deg);
   margin-top: -3px;
 }
@@ -71348,6 +71448,64 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f5f3ff;
 }
 
+.menu-static-footer-search-toolbar {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -2px 0 4px;
+  padding-bottom: 2px;
+  background: #f5f3ff;
+}
+
+.menu-static-footer-search-wrap {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.menu-static-footer-search-wrap .menu-search-bar {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-color: rgba(167, 139, 250, 0.75);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.menu-static-footer-search-wrap .menu-search-bar:focus-within {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.14);
+}
+
+.menu-static-footer-search-empty {
+  margin: 0;
+  padding: 4px 2px 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #6b7280;
+  text-align: center;
+}
+
+.menu-static-footer-search-empty.hidden {
+  display: none;
+}
+
+.menu-static-footer-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.menu-static-section.menu-static-accordion.is-search-hidden {
+  display: none !important;
+}
+
 .menu-static-footer-body[hidden],
 .menu-static-footer-accordion.is-collapsed > .menu-static-footer-body {
   display: none !important;
@@ -72547,13 +72705,17 @@ body.is-cms-page-picker-active #discuss-aside * {
   flex-shrink: 0;
 }
 
-.menu-static-footer-body > .menu-static-section {
+.menu-static-footer-sections > .menu-static-section {
   flex-shrink: 0;
 }
 
 .sidebar.is-menu-bottom-focus .menu-repositories-band-body .menu-repositories-list {
   max-height: none;
   overflow: visible;
+}
+
+.sidebar.is-menu-static-footer-focus.is-menu-bottom-focus .menu-static-footer:not(.is-collapsed) {
+  flex-direction: column-reverse;
 }
 
 .menu-awn-databases-store {
