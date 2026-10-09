@@ -254,7 +254,7 @@ fields:
     type: awn.field.boolean
     title: "{A2!} В напоминание"
     description: >
-      Показывать в реестре «Напоминания» (обычно вместе с «Дата события» — awn-event-at).
+      Включить запись в реестр «Напоминания» (флаг не связан с «Дата события» и расписанием).
     default: false
     placement: aside-body
     group: runtime

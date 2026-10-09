@@ -46769,7 +46769,7 @@ const PROPS_FIELD_META = {
   },
   "awn-runtime-reminder": {
     label: "В напоминание",
-    hint: "Включить в реестр «Напоминания» (лучше указать дату события)"
+    hint: "Включить в реестр «Напоминания» (независимо от даты события и cron)"
   },
   "awn-runtime-heartbeat": {
     label: "Heartbeat",

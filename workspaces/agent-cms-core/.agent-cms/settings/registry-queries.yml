@@ -56,7 +56,7 @@ queries:
       limit: 500
   - id: reminders
     name: Напоминания
-    comment: 'Записи с awn-runtime-reminder: true. Сортировка по awn-event-at (встречи, мероприятия).'
+    comment: 'Записи с awn-runtime-reminder: true (только этот флаг, без привязки к датам).'
     source: storage-index
     query:
       where:
@@ -66,10 +66,8 @@ queries:
         - path
         - awn-name
         - awn-description
-        - awn-event-at
-        - awn-deadline
       sort:
-        field: awn-event-at
+        field: path
         dir: asc
       limit: 500
   - id: nav-main
