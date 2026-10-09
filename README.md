@@ -246,7 +246,7 @@ Copyright © 2026 Agent CMS
 
 - Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
 - GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
-- Telegram: [https://t.me/AGI_2043](https://t.me/AGI_2043) (@AGI_2043 — про жизнь с ИИ и технологиями)
+- Telegram: [https://t.me/AgentCMS](https://t.me/AgentCMS) (@AgentCMS — про жизнь с ИИ и технологиями)
 - Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
@@ -305,7 +305,7 @@ Copyright © 2026 Agent CMS
 
 Общайтесь — знакомтесь! 👋
 
-Буду рад всем, кому близка тема цифровой памяти и агентов на своих файлах — пишите в [Telegram](https://t.me/AGI_2043) или на [почту](mailto:iv-litovchenko@mail.ru).
+Буду рад всем, кому близка тема цифровой памяти и агентов на своих файлах — пишите в [Telegram](https://t.me/AgentCMS) или на [почту](mailto:iv-litovchenko@mail.ru).
 
 ---
 
@@ -313,4 +313,4 @@ Copyright © 2026 Agent CMS
 >
 > Say hi — get to know the project! 👋
 >
-> Glad to hear from anyone into digital memory and agents on their own files — write on [Telegram](https://t.me/AGI_2043) or [email](mailto:iv-litovchenko@mail.ru).
+> Glad to hear from anyone into digital memory and agents on their own files — write on [Telegram](https://t.me/AgentCMS) or [email](mailto:iv-litovchenko@mail.ru).
