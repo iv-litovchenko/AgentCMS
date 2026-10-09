@@ -46710,6 +46710,10 @@ const PROPS_FIELD_META = {
     label: "Просмотрен (последний раз)",
     hint: "Когда запись последний раз открывали (пока заглушка)"
   },
+  "awn-event-at": {
+    label: "Дата события",
+    hint: "Встреча, мероприятие и другие события по записи"
+  },
   "awn-deadline": {
     label: "Дедлайн",
     hint: "Крайний срок по записи (пока заглушка)"
@@ -54848,6 +54852,7 @@ const PROPS_FIELD_ICONS = {
   "awn-create": "📅",
   "awn-update": "🕒",
   "awn-viewed": "👁",
+  "awn-event-at": "📅",
   "awn-deadline": "⏰",
   "awn-description": "📝",
   "awn-focus": "⊙",
@@ -58421,6 +58426,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-create": "system",
   "awn-update": "system",
   "awn-viewed": "system",
+  "awn-event-at": "system",
   "awn-deadline": "system",
   "awn-version": "system",
   "awn-collection-type": "infoblock",
