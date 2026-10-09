@@ -46534,6 +46534,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-heartbeat",
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
+  "awn-runtime-reminder",
   "awn-runtime-commands",
   "awn-slots-flexible"
 ];
@@ -46765,6 +46766,10 @@ const PROPS_FIELD_META = {
   "awn-runtime-cron-schedule": {
     label: "",
     hint: "Cron-выражение повтора: каждые N минут, каждый день, по будням…"
+  },
+  "awn-runtime-reminder": {
+    label: "В напоминание",
+    hint: "Включить в реестр «Напоминания» (лучше указать дату события)"
   },
   "awn-runtime-heartbeat": {
     label: "Heartbeat",
@@ -54872,7 +54877,8 @@ const PROPS_FIELD_ICONS = {
   "awn-quality": "⭐",
   "awn-importance": "❗",
   "awn-runtime-load-always": "",
-  "awn-runtime-cron-schedule": "🕐"
+  "awn-runtime-cron-schedule": "🕐",
+  "awn-runtime-reminder": "🔔"
 };
 
 function resolveFieldLabelIcon(typeId, key = "") {
@@ -58419,6 +58425,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-runtime-load-always": "runtime",
   "awn-runtime-cron": "runtime",
   "awn-runtime-cron-schedule": "runtime",
+  "awn-runtime-reminder": "runtime",
   "awn-runtime-heartbeat": "runtime",
   "awn-runtime-commands": "runtime",
   "awn-id": "system",
@@ -59067,6 +59074,7 @@ const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-main": "boolean",
   "awn-slots-flexible": "boolean",
   "awn-runtime-cron": "runtime-schedule-type",
+  "awn-runtime-reminder": "boolean",
   "awn-runtime-heartbeat": "boolean",
   "awn-runtime-commands": "boolean",
   "awn-runtime-load-always": "boolean"
@@ -67455,6 +67463,7 @@ function extractRuntimePropsFromPropEntries(entries) {
     runtimeLoadLabel: RUNTIME_LOAD_ALWAYS_LABELS[String(Boolean(runtimeLoadAlways))] || RUNTIME_LOAD_ALWAYS_LABELS.false,
     runtimeCron: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-cron")),
     runtimeCronSchedule: String(getPropsEntryValueByKey(list, "awn-runtime-cron-schedule") || "").trim(),
+    runtimeReminder: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-reminder")),
     runtimeHeartbeat: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-heartbeat")),
     runtimeCommands: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-commands"))
   };

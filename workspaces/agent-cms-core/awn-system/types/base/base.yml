@@ -250,6 +250,16 @@ fields:
       field: awn-runtime-cron
       equals: true
 
+  awn-runtime-reminder:
+    type: awn.field.boolean
+    title: "{A2!} В напоминание"
+    description: >
+      Показывать в реестре «Напоминания» (обычно вместе с «Дата события» — awn-event-at).
+    default: false
+    placement: aside-body
+    group: runtime
+    sort: 4.5
+
   awn-runtime-commands:
     type: awn.field.boolean
     title: "{A2!} Выполнение команд"
