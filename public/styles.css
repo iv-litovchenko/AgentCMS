@@ -10977,6 +10977,378 @@ body.workspace-idle-screensaver-active {
   background: rgba(15, 23, 42, 0.45);
 }
 
+.agent-visualization-pane.agent-rmm-subview-live .agent-rmm-mockup-links {
+  display: none;
+}
+
+.agent-visualization-pane.agent-rmm-subview-live .agent-rmm-view-chrome {
+  display: none;
+}
+
+.agent-rmm-live-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
+  color: hsl(205 12% 90%);
+  font-size: 12px;
+  line-height: 1.45;
+  font-family: ui-monospace, Menlo, monospace;
+  background: hsl(205 22% 6%);
+}
+
+.agent-rmm-live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 6px 12px 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.agent-rmm-live-bar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.45);
+}
+
+.agent-rmm-live-bar-sys b {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.agent-rmm-live-bar-meta {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.agent-rmm-live-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) minmax(0, 260px);
+  align-items: stretch;
+}
+
+.agent-rmm-live-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 14px;
+}
+
+.agent-rmm-live-col--left {
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.agent-rmm-live-col--right {
+  border-left: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.agent-rmm-live-col--center {
+  padding: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agent-rmm-live-clock {
+  margin-bottom: 14px;
+}
+
+.agent-rmm-live-clock-time {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f07a2e;
+  line-height: 1.1;
+}
+
+.agent-rmm-live-clock-date {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.agent-rmm-live-metrics {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.agent-rmm-live-metric {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.agent-rmm-live-metric dt {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.agent-rmm-live-metric dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-rmm-live-subhead {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+}
+
+.agent-rmm-live-areas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.agent-rmm-live-areas li {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.55);
+  font-size: 11px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-rmm-live-graph-host {
+  flex: 1;
+  min-height: 320px;
+  height: 100%;
+  position: relative;
+}
+
+.agent-rmm-live-graph-host--solo {
+  min-height: min(70vh, 640px);
+  height: 100%;
+  flex: 1;
+}
+
+.agent-rmm-live-brain {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
+  background: hsl(205 22% 6%);
+}
+
+.agent-rmm-live-brain-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #788790;
+}
+
+.agent-rmm-live-brain-toolbar-label {
+  margin-right: 4px;
+}
+
+.agent-rmm-live-brain-view,
+.agent-rmm-live-brain-fit {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: hsl(205 25% 9%);
+  color: #a3b0b8;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.agent-rmm-live-brain-view.is-active,
+.agent-rmm-live-brain-fit:hover,
+.agent-rmm-live-brain-view:hover {
+  border-color: rgba(240, 122, 46, 0.55);
+  color: #f07a2e;
+}
+
+.agent-rmm-live-brain-view.is-active {
+  background: rgba(240, 122, 46, 0.12);
+}
+
+.agent-rmm-live-brain-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+  max-width: min(52vw, 420px);
+  justify-content: flex-end;
+}
+
+.agent-rmm-live-brain-legend-chip {
+  border: 1px solid color-mix(in srgb, var(--area-color) 55%, transparent);
+  background: color-mix(in srgb, var(--area-color) 14%, hsl(205 25% 9%));
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-rmm-live-brain-legend-chip.is-active {
+  border-color: #f07a2e;
+  box-shadow: 0 0 0 1px rgba(240, 122, 46, 0.35);
+}
+
+.agent-rmm-live-brain-core {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+}
+
+.agent-rmm-live-brain-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.agent-rmm-live-brain-canvas:active {
+  cursor: grabbing;
+}
+
+.agent-rmm-live-brain-tip {
+  position: absolute;
+  z-index: 4;
+  max-width: 220px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: hsl(205 25% 9%);
+  color: #e2e8f0;
+  font-size: 10px;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.agent-rmm-live-brain-tip.hidden {
+  display: none;
+}
+
+.agent-rmm-live-brain-empty {
+  margin: 0;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #788790;
+  font-size: 12px;
+}
+
+.agent-visualization-pane.agent-rmm-subview-live .agent-graph-content {
+  background: hsl(205 22% 6%);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+
+.agent-rmm-live-stream-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agent-rmm-live-stream-badge {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(165, 180, 252, 0.35);
+  color: #c7d2fe;
+  background: rgba(49, 46, 129, 0.35);
+}
+
+.agent-rmm-live-stream-host {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.agent-rmm-live-stream-host .workspace-journal-panel {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.agent-rmm-live-stream-host .workspace-journal-list {
+  gap: 8px;
+}
+
+.agent-rmm-live-stream-host .workspace-journal-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.agent-rmm-live-stream-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+@media (max-width: 1100px) {
+  .agent-rmm-live-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(280px, 1fr) auto;
+  }
+
+  .agent-rmm-live-col--left,
+  .agent-rmm-live-col--right {
+    border: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  }
+
+  .agent-rmm-live-stream-host {
+    max-height: 220px;
+  }
+}
+
 .agent-visualization-pane .agent-rmm-host {
   flex: 1;
   min-height: 0;
@@ -11078,6 +11450,7 @@ body.workspace-idle-screensaver-active {
 
 .agent-visualization-pane .agent-rmm-content .external-graph-wrap,
 .agent-visualization-pane .agent-rmm-content .node-graph-wrap,
+.agent-visualization-pane .agent-rmm-content .agent-rmm-live-graph-host,
 .agent-visualization-pane .agent-rmm-content .node-navigation-elements-nav-mindmap-shell,
 .agent-visualization-pane .agent-rmm-content .node-navigation-elements-nav-mindmap-host,
 .agent-visualization-pane .agent-rmm-content .node-mindmap-wrap {

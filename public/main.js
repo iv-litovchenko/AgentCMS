@@ -1228,6 +1228,7 @@ function syncAgentRoadmapMapDepthSelectUi() {
 let agentRoadmapMapRenderSeq = 0;
 let agentRoadmapMapViewportApi = null;
 let agentRoadmapMapGraphViewportApi = null;
+let agentRoadmapMapLiveBrainUnmount = null;
 let agentRoadmapMapGraphSearchQuery = "";
 const agentRoadmapMapMindmapCollapsedIds = new Set();
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
@@ -111143,28 +111144,36 @@ function syncAgentRoadmapMapViewNotesVisibility() {
   });
 }
 
+function clearAgentRoadmapMapLiveTimers() {
+  if (agentRoadmapMapLiveBrainUnmount) {
+    agentRoadmapMapLiveBrainUnmount();
+    agentRoadmapMapLiveBrainUnmount = null;
+  }
+}
+
 function renderAgentRoadmapMapView() {
   if (!agentRoadmapMapHostNode) return;
   ensureAgentRoadmapMapUiBindings();
   syncAgentRoadmapMapViewNotesVisibility();
   applyAgentGraphSettingsUi();
+  clearAgentRoadmapMapLiveTimers();
   const renderSeq = ++agentRoadmapMapRenderSeq;
+  agentRoadmapMapHostNode?.classList.toggle("agent-rmm-host--live-solo", agentRoadmapMapSubview === "live");
   agentRoadmapMapHostNode.replaceChildren();
   agentRoadmapMapDetailNode?.classList.add("hidden");
   agentRoadmapMapViewportApi = null;
+  agentRoadmapMapPaneNode?.classList.toggle("agent-rmm-subview-live", agentRoadmapMapSubview === "live");
   const showZoom =
-    agentRoadmapMapSubview === "graph" || agentRoadmapMapSubview === "mindmap";
+    agentRoadmapMapSubview === "graph" ||
+    agentRoadmapMapSubview === "mindmap" ||
+    agentRoadmapMapSubview === "live";
   agentRoadmapMapZoomNode?.classList.toggle("hidden", !showZoom);
   const graphChrome = document.getElementById("agent-rmm-graph-chrome");
   const showGraphToolbar = agentRoadmapMapSubview === "graph";
   graphChrome?.classList.toggle("hidden", !showGraphToolbar);
   graphChrome?.setAttribute("aria-hidden", showGraphToolbar ? "false" : "true");
 
-  if (
-    agentRoadmapMapSubview === "live" ||
-    agentRoadmapMapSubview === "toc" ||
-    agentRoadmapMapSubview === "kanban"
-  ) {
+  if (agentRoadmapMapSubview === "toc" || agentRoadmapMapSubview === "kanban") {
     renderAgentRoadmapMapPlaceholderSubview(agentRoadmapMapHostNode);
     return;
   }
@@ -111175,6 +111184,10 @@ function renderAgentRoadmapMapView() {
   }
 
   applyAgentGraphSettingsUi();
+  if (agentRoadmapMapSubview === "live") {
+    void renderAgentRoadmapMapLiveView(renderSeq);
+    return;
+  }
   if (agentRoadmapMapSubview === "graph") {
     void renderAgentRoadmapMapGraphView(renderSeq);
     return;
@@ -111191,6 +111204,65 @@ const AGENT_RMM_PLACEHOLDER_ARIA_LABELS = {
   toc: "Оглавление",
   kanban: "Канбан"
 };
+
+async function renderAgentRoadmapMapLiveView(renderSeq) {
+  if (!agentRoadmapMapHostNode) return;
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка карты…");
+
+  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
+    loadAgentGraphRepositoriesPayload(),
+    loadAgentGraphAwnDataPayload(),
+    fetchAgentWorkspacePageIndexPayload()
+  ]);
+  if (renderSeq !== agentRoadmapMapRenderSeq) return;
+
+  const graph = buildGraphDataFromAgentMenu(currentMenuData, {
+    repositoriesPayload,
+    awnDataPayload,
+    pageIndexPayload
+  });
+  if (renderSeq !== agentRoadmapMapRenderSeq) return;
+
+  agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
+
+  const graphHost = document.createElement("div");
+  graphHost.className = "agent-rmm-live-graph-host agent-rmm-live-graph-host--solo";
+  agentRoadmapMapHostNode.appendChild(graphHost);
+
+  if (graph.nodes.length > 1 && typeof AgentRmmLiveBrain !== "undefined") {
+    agentRoadmapMapGraphViewportApi = null;
+    const brainMount = AgentRmmLiveBrain.mount(graphHost, {
+      graph,
+      onNodeClick: (node) => {
+        setAgentRoadmapMapDetail(node.label || node.id, node.nodePath || node.graphTarget?.path || "");
+        handleAgentGraphNodeClick(node);
+      },
+      onViewportReady: (api) => {
+        agentRoadmapMapGraphViewportApi = api;
+        if (agentRoadmapMapZoomNode && !agentRoadmapMapZoomNode._rmmLiveBrainHandler) {
+          const handler = (event) => {
+            const button = event.target.closest("[data-action]");
+            if (!button || agentRoadmapMapSubview !== "live") return;
+            if (button.dataset.action === "reset") api.reset();
+            else if (button.dataset.action === "zoom-in") api.zoomIn();
+            else if (button.dataset.action === "zoom-out") api.zoomOut();
+          };
+          agentRoadmapMapZoomNode._rmmLiveBrainHandler = handler;
+          agentRoadmapMapZoomNode.addEventListener("click", handler);
+        }
+      }
+    });
+    agentRoadmapMapLiveBrainUnmount = brainMount?.destroy || null;
+  } else if (graph.nodes.length > 1) {
+    renderListEmptyMessage(
+      graphHost,
+      "Не загружен модуль живой карты (d3 / agent-rmm-live-brain.js)."
+    );
+  } else {
+    renderListEmptyMessage(graphHost, "В workspace пока нет узлов для карты");
+  }
+}
 
 function renderAgentRoadmapMapPlaceholderSubview(container) {
   if (!container) return;
