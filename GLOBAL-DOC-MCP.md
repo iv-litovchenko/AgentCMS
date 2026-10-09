@@ -76,6 +76,8 @@
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты и термины — `search_workspace_facts` / `search_glossary_terms`.
 
+**Строки в результатах:** у semantic / fulltext / hybrid hits — `startLine`, `endLine`, `locationHint` (`L12` или `L12-18`); открой фрагмент через `read_file` с `startLine` + `limitLines`. У `search_workspace_links` в каждом item — `line` (номер строки ссылки в исходном файле). Каталог файлов: `query_workspace_storage` — `lineCountTotal`, `lineCountBody` на записи.
+
 **Поиск в теме:** `resolve_workspace_path` → `topic.folderPath` → передай как `pathPrefix`.
 
 После правки одного файла — `sync_workspace_index_file`, а не полный `rebuild_workspace_indexes`.

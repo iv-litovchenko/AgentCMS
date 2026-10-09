@@ -30097,8 +30097,24 @@ function getSearchResultDisplayName(item) {
 
 function getSearchResultLocationHint(item) {
   if (item?.locationHint) return item.locationHint;
+  if (item?.startLine != null && Number.isFinite(Number(item.startLine))) {
+    const start = Number(item.startLine);
+    const end =
+      item.endLine != null && Number.isFinite(Number(item.endLine)) ? Number(item.endLine) : start;
+    if (end > start) return `L${start}-${end}`;
+    return `L${start}`;
+  }
   if (item?.systemFile) return "Системный файл workspace";
   return item?.filePath || item?.nodePath || "";
+}
+
+function scrollToSearchResultLine(line) {
+  const lineNo = Number(line);
+  if (!Number.isFinite(lineNo) || lineNo < 1) return;
+  const attempt = () => scrollEditorToLine(lineNo - 1);
+  requestAnimationFrame(attempt);
+  setTimeout(attempt, 120);
+  setTimeout(attempt, 450);
 }
 
 function buildContentSearchResultItem(item, query, { showAgent = false, showFileType = true } = {}) {
@@ -30348,6 +30364,8 @@ function mapSemanticSearchResults(data) {
         locationHint: row.locationHint || filePath,
         pathBreadcrumb: filePath,
         snippet: row.snippet || "",
+        startLine: row.startLine ?? null,
+        endLine: row.endLine ?? null,
         matchKindLabel: row.score != null ? `≈ ${row.score}` : "смысл",
         kindLabel: "Смысл"
       };
@@ -30387,6 +30405,8 @@ function mapHybridSearchResults(data, query = "") {
         locationHint: row.locationHint || filePath,
         pathBreadcrumb: filePath,
         snippet: row.snippet || "",
+        startLine: row.startLine ?? null,
+        endLine: row.endLine ?? null,
         matchKindLabel: row.score != null ? `≈ ${row.score}` : sources || "hybrid",
         kindLabel: sources.includes("semantic") ? "Смысл" : "Текст"
       };
@@ -30847,6 +30867,7 @@ async function openContentSearchResult(result, { agentId = null } = {}) {
       ...result,
       label: getSearchResultTitle(result)
     });
+    scrollToSearchResultLine(result.startLine);
     syncAppRouteToUrl({ push: true });
   } catch (error) {
     showToast(`Не удалось открыть файл: ${error.message}`, "error");

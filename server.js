@@ -46,6 +46,10 @@ const {
   matchesSearchExtensions,
   formatSearchExtensionsForResponse
 } = require("./lib/search/search-extensions");
+const {
+  buildSearchSnippet: buildSearchSnippetFromLib,
+  buildSearchMatchLines: buildSearchMatchLinesFromLib
+} = require("./lib/search/text-match-position");
 const { createSemanticSearchService } = require("./lib/indexes/semantic-search/service");
 const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
@@ -1873,7 +1877,8 @@ function getFulltextSearchService() {
       resolvePathAbsolute: normalizeWorkspacePath,
       isTextSearchableFileName,
       getIndexPolicy: getActiveIndexPolicy,
-      isEntityIndexExcluded
+      isEntityIndexExcluded,
+      parseSearchQuery
     });
   }
   return fulltextSearchService;
@@ -19026,12 +19031,30 @@ function classifyMarkdownLinkGroup(relPath, meta) {
   return "other";
 }
 
+function formatSearchLineLocationHint(startLine, endLine) {
+  if (startLine == null || !Number.isFinite(Number(startLine))) return null;
+  const start = Number(startLine);
+  const end = endLine != null && Number.isFinite(Number(endLine)) ? Number(endLine) : start;
+  if (end <= start) return `L${start}`;
+  return `L${start}-${end}`;
+}
+
+function buildSearchMatchPayload(content, query, parsed) {
+  const lines = buildSearchMatchLinesFromLib(content, query, parsed, parseSearchQuery);
+  return {
+    snippet: buildSearchSnippetFromLib(content, query, 64, parsed, parseSearchQuery),
+    startLine: lines.startLine,
+    endLine: lines.endLine
+  };
+}
+
 function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all", extensionSet = null) {
   if (!meta) return null;
   if (!matchesSearchExtensions(relPath, extensionSet)) return null;
   const fileType = classifySearchFileFormat(relPath);
   if (fileTypeFilter !== "all" && fileType !== fileTypeFilter) return null;
   const display = resolveSearchResultDisplay(relPath, meta);
+  const lineHint = formatSearchLineLocationHint(payload.startLine, payload.endLine);
   return {
     ...meta,
     ...payload,
@@ -19039,7 +19062,7 @@ function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all", 
     fileType,
     fileTypeLabel: SEARCH_FILE_FORMAT_LABELS[fileType] || SEARCH_FILE_FORMAT_LABELS.other,
     displayName: display.displayName,
-    locationHint: display.locationHint
+    locationHint: lineHint || payload.locationHint || display.locationHint
   };
 }
 
@@ -19313,45 +19336,7 @@ function matchesSearchHaystack(haystack, parsed) {
 
 function buildSearchSnippet(content, query, radius = 64, parsed = null) {
   const p = parsed || parseSearchQuery(query);
-  const text = String(content || "");
-  const lower = text.toLowerCase();
-  let idx = -1;
-  let highlightLen = 0;
-
-  if (p.mode === "strict") {
-    idx = lower.indexOf(p.literal.toLowerCase());
-    highlightLen = p.literal.length;
-  } else if (p.mode === "wildcard" && p.regex) {
-    const match = text.match(p.regex);
-    if (match && match.index != null) {
-      idx = match.index;
-      highlightLen = match[0].length;
-    }
-  } else {
-    for (const term of p.terms) {
-      const token = term.toLowerCase();
-      idx = lower.indexOf(token);
-      if (idx !== -1) {
-        highlightLen = term.length;
-        break;
-      }
-      const compactIdx = normalizeSearchCompact(text).indexOf(normalizeSearchCompact(term));
-      if (compactIdx !== -1 && normalizeSearchCompact(term).length >= 2) {
-        idx = 0;
-        highlightLen = Math.min(term.length, text.length);
-        break;
-      }
-    }
-  }
-
-  if (idx === -1) return "";
-
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(text.length, idx + highlightLen + radius);
-  let snippet = text.slice(start, end).replace(/\s+/g, " ").trim();
-  if (start > 0) snippet = `…${snippet}`;
-  if (end < text.length) snippet = `${snippet}…`;
-  return snippet;
+  return buildSearchSnippetFromLib(content, query, radius, p, parseSearchQuery);
 }
 
 function normalizeSearchScope(scope) {
@@ -19976,7 +19961,7 @@ async function searchByContent(
           relPath,
           meta,
           {
-            snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+            ...buildSearchMatchPayload(content, trimmed, parsed),
             matchCount: countTextMatches(content, trimmed, parsed)
           },
           normalizedFileType,
@@ -20036,7 +20021,7 @@ async function searchByContent(
       relPath,
       meta,
       {
-        snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+        ...buildSearchMatchPayload(content, trimmed, parsed),
         matchCount: countTextMatches(content, trimmed, parsed)
       },
       normalizedFileType,
