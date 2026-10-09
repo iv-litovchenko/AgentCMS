@@ -124,6 +124,12 @@ fields:
         name: ⚫ Архив
       - key: backlog
         name: 📥 Backlog
+      - key: incoming
+        name: 📬 Входящей
+      - key: in-discussion
+        name: 💬 На обсуждении
+      - key: outgoing
+        name: 📤 Исходящей
       - key: none
         name: ⚪ Без статуса
     default: open

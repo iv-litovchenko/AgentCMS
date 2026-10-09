@@ -7,9 +7,9 @@ awn_settings:
   workspace-idle-screensaver-minutes: 3
   workspace-pomodoro-enabled: true
   workspace-pomodoro-work-minutes: 1
-  awn-id-next: 86
-  awn-id-issued: 85
-  awn-id-updated-at: "2026-10-06T20:09:51.604Z"
+  awn-id-next: 9005
+  awn-id-issued: 101
+  awn-id-updated-at: "2026-10-07T20:44:26.133Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0
@@ -77,3 +77,7 @@ awn_settings:
   ws-static-example-1: значение 1
   ws-static-example-2: значение 2
   ws-static-example-3: значение 3
+  awn-recycle-id-next: 3
+  awn-recycle-id-issued: 2
+  awn-recycle-id-updated-at: "2026-10-07T21:23:11.615Z"
+  awn-recycle-id-model: workspace-recycle-marker-v1

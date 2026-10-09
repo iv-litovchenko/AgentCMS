@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "markerId": 2,
+  "markerLabel": "00000002",
+  "kind": "file",
+  "originalName": "111.md",
+  "originalRelativePath": "awn-container/009/awn-storage/main/111.md",
+  "recycleName": "re-00000002-111.md",
+  "deletedAt": "2026-10-07T21:23:11.620Z",
+  "context": {
+    "source": "external",
+    "manifestRelPath": "awn-container/009/manifest.md",
+    "relFile": "111.md"
+  },
+  "tombstoneRelativePath": "awn-container/009/awn-storage/main/.trash.00000002"
+}

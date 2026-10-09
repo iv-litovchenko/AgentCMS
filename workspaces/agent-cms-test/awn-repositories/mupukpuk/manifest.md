@@ -1,5 +1,5 @@
 ---
-awn-type: awn.repository
+awn-type: awn.hub.repository
 awn-name: "мупукпук"
 awn-description: "пкупку"
 awn-repo-origin: ""

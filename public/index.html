@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.963" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.964" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1078,6 +1078,7 @@
                       disabled
                       aria-disabled="true"
                       aria-label="Сбросить кэш (удалить все временные файлы)"
+                      title="Удалить .agent-cms/cache и awn-temp"
                     >
                       Сбросить кэш (удалить все временные файлы)
                     </button>
@@ -1085,7 +1086,7 @@
                       type="button"
                       id="menu-workspace-index-cache-reset-hint-btn"
                       class="header-index-cache-reset-hint-btn"
-                      data-hint="Удалить временные файлы в .agent-cms/cache и awn-temp/ (скоро)"
+                      data-hint="Удаляет всё содержимое .agent-cms/cache (индексы, миниатюры, снимки shell) и awn-temp/. Настройки и журнал в .agent-cms не затрагиваются. После сброса пересоберите индексы."
                       aria-label="Подсказка: что удаляется при сбросе кэша"
                       aria-expanded="false"
                     >
@@ -2389,7 +2390,7 @@
             <section
               id="menu-media-library-band"
               class="menu-media-library-band menu-media-library-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
-              aria-label="Медиатека — файлы без привязки"
+              aria-label="Медиатеки и файлы — awn-media"
             >
               <div class="menu-media-library-band-head">
                 <button
@@ -2398,7 +2399,7 @@
                   class="menu-media-library-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--media-library"
                   aria-expanded="false"
                   aria-controls="menu-media-library-band-body"
-                  title="Медиатека — свернуть или показать"
+                  title="Медиатеки и файлы — свернуть или показать"
                 >
                   <span class="sidebar-accent-band-toggle-main">
                     <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
@@ -2418,7 +2419,7 @@
                       <circle cx="8.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
                       <path d="m21 16-5.5-5.5a2 2 0 0 0-2.8 0L3 20" />
                     </svg>
-                    <span class="menu-media-library-band-title sidebar-accent-band-title">Медиатека — файлы без привязки</span>
+                    <span class="menu-media-library-band-title sidebar-accent-band-title">Медиатеки и файлы</span>
                   </span>
                 </button>
                 <div class="menu-media-library-band-head-actions" aria-label="Действия медиатеки">
@@ -2426,8 +2427,8 @@
                     id="menu-media-library-help-btn"
                     type="button"
                     class="menu-band-help-btn"
-                    title="Файлы вне тем дерева и без записи в infoblock: вложения, импорт, черновики. Позже — дерево и загрузка здесь; хранилище связано с медиатекой workspace."
-                    aria-label="Файлы вне тем дерева и без записи в infoblock: вложения, импорт, черновики. Позже — дерево и загрузка здесь; хранилище связано с медиатекой workspace."
+                    title="Каталог awn-media/ — медиатеки workspace (awn-storage/files и assets). Зависимые и независимые файлы."
+                    aria-label="Каталог awn-media/ — медиатеки workspace (awn-storage/files и assets). Зависимые и независимые файлы."
                   >
                     ?
                   </button>
@@ -2435,9 +2436,8 @@
                     id="menu-media-library-refresh-btn"
                     type="button"
                     class="menu-refresh-btn"
-                    disabled
-                    title="Обновить список (скоро)"
-                    aria-label="Обновить список (скоро)"
+                    title="Обновить каталог медиатек"
+                    aria-label="Обновить каталог медиатек"
                   >
                     <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
@@ -2453,9 +2453,9 @@
                     id="menu-media-library-search-btn"
                     type="button"
                     class="menu-band-search-btn"
-                    disabled
-                    title="Поиск (скоро)"
-                    aria-label="Поиск (скоро)"
+                    title="Поиск медиатек"
+                    aria-label="Поиск медиатек"
+                    aria-pressed="false"
                   >
                     <svg class="menu-band-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
@@ -2465,18 +2465,69 @@
                 </div>
               </div>
               <div id="menu-media-library-band-body" class="menu-media-library-band-body" hidden>
-                <p class="menu-media-library-intro">
-                  Здесь будут файлы без привязки к теме или накопителю: загрузки, вложения, «положил и разберу потом».
-                </p>
-                <div class="menu-media-library-placeholder" role="status">
-                  <span class="menu-media-library-placeholder-icon" aria-hidden="true">📂</span>
-                  <p class="menu-media-library-placeholder-title">Список файлов — скоро</p>
-                  <p class="menu-media-library-placeholder-text">
-                    Планируется дерево папок и быстрая загрузка; данные пойдут в медиатеку workspace, без дублирования
-                    репозиториев.
-                  </p>
+                <div class="menu-media-library-toolbar">
+                  <div class="menu-media-library-toolbar-row menu-media-library-actions-row">
+                    <button
+                      id="menu-media-library-create-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-media-library-create-btn menu-media-library-create-btn--icon"
+                      title="Своя медиатека: awn-media/{slug}/, manifest.md и awn-storage/files|assets"
+                      aria-label="Создать свою медиатеку"
+                    >
+                      +
+                    </button>
+                    <div
+                      id="menu-media-library-index-row"
+                      class="menu-media-library-index-row node-navigation-workspace-counter-topic-index-row"
+                    >
+                      <button
+                        id="menu-media-library-index-open-btn"
+                        type="button"
+                        class="menu-media-library-index-open node-navigation-workspace-counter-topic-index is-generated"
+                        title="Открыть awn-media/index.md"
+                      >
+                        Оглавление медиатек
+                      </button>
+                      <button
+                        id="menu-media-library-index-refresh-btn"
+                        type="button"
+                        class="menu-media-library-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                        aria-label="Пересобрать awn-media/index.md"
+                        title="Обновить и сохранить awn-media/index.md"
+                      >
+                        ⟲
+                      </button>
+                    </div>
+                  </div>
+                  <div class="menu-media-library-toolbar-row menu-media-library-toolbar-row--search">
+                    <div class="menu-search-wrap menu-media-library-search-wrap">
+                      <label class="menu-search-bar" for="menu-media-library-search-input">
+                        <span class="menu-search-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                          </svg>
+                        </span>
+                        <input
+                          id="menu-media-library-search-input"
+                          class="menu-search-input"
+                          type="search"
+                          placeholder="Поиск медиатек…"
+                          autocomplete="off"
+                          spellcheck="false"
+                          aria-label="Поиск медиатек"
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                <p class="menu-media-library-footer-caption">Плоские файлы (медиатека workspace)</p>
+                <ul
+                  id="menu-media-library-list"
+                  class="menu-awn-databases-stores menu-media-library-list"
+                  role="list"
+                  aria-label="Медиатеки и файлы"
+                ></ul>
+                <p class="menu-media-library-footer-caption">Медиатеки и файлы (awn-media)</p>
               </div>
             </section>
             <section
@@ -2583,7 +2634,7 @@
             <section
               id="menu-repositories-band"
               class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
-              aria-label="Зависимости и репозитории"
+              aria-label="Репозитории и исходники"
             >
               <div class="menu-repositories-band-head">
                 <button
@@ -2592,7 +2643,7 @@
                   class="menu-repositories-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--repositories"
                   aria-expanded="true"
                   aria-controls="menu-repositories-band-body"
-                  title="Зависимости и репозитории — свернуть или показать"
+                  title="Репозитории и исходники — свернуть или показать"
                 >
                   <span class="sidebar-accent-band-toggle-main">
                     <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
@@ -2602,7 +2653,7 @@
                       <path d="M13 14v4" />
                       <path d="M13 12h-1" />
                     </svg>
-                    <span class="menu-repositories-band-title sidebar-accent-band-title">Зависимости и репозитории</span>
+                    <span class="menu-repositories-band-title sidebar-accent-band-title">Репозитории и исходники</span>
                   </span>
                 </button>
                 <div class="menu-repositories-band-head-actions" aria-label="Действия репозиториев">
@@ -2676,14 +2727,6 @@
                   </button>
                 </div>
                 <div id="menu-repositories-shortcuts-row" class="menu-repositories-shortcuts-row hidden">
-                  <button
-                    id="menu-repositories-dependencies-open-btn"
-                    type="button"
-                    class="menu-repositories-dependencies-open node-navigation-workspace-counter-topic-index is-generated"
-                    title="Открыть dependencies.csv"
-                  >
-                    Зависимости
-                  </button>
                   <div
                     id="menu-repositories-index-row"
                     class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row"
@@ -2766,6 +2809,37 @@
                 </span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
+                <div class="menu-static-footer-search-toolbar">
+                  <div class="menu-search-wrap menu-static-footer-search-wrap">
+                    <label class="menu-search-bar" for="menu-static-footer-search-input">
+                      <span class="menu-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="7"></circle>
+                          <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                      </span>
+                      <input
+                        id="menu-static-footer-search-input"
+                        class="menu-search-input"
+                        type="search"
+                        placeholder="Поиск секций…"
+                        autocomplete="off"
+                        spellcheck="false"
+                        aria-label="Поиск системных и дополнительных секций"
+                        aria-controls="menu-static-footer-sections"
+                      />
+                    </label>
+                  </div>
+                  <p
+                    id="menu-static-footer-search-empty"
+                    class="menu-static-footer-search-empty hidden"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Ничего не найдено
+                  </p>
+                </div>
+                <div id="menu-static-footer-sections" class="menu-static-footer-sections" aria-label="Список секций">
               <details class="menu-static-section menu-static-section--languagetool menu-static-accordion">
                 <summary
                   class="menu-static-summary"
@@ -2867,55 +2941,6 @@
                   </button>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
-                <summary class="menu-static-summary" title="Медиа в облаке — awn-media-cloud (файлы, без sidecar)">
-                  <span class="menu-static-title menu-static-title--google-drive">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">Медиа в облаке</span>
-                  </span>
-                  <span
-                    id="menu-google-drive-stats"
-                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
-                    aria-live="polite"
-                  >
-                    —
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-google-drive-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить медиа в облаке"
-                      aria-label="Обновить медиа в облаке"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <button
-                    id="menu-google-drive-repair-btn"
-                    type="button"
-                    class="menu-static-action-btn menu-static-action-btn--google-drive"
-                    title="Пересчитать относительные пути symlink в media → awn-media-cloud"
-                  >
-                    Синхронизировать ссылки
-                  </button>
-                  <ul
-                    id="menu-google-drive-files"
-                    class="menu-google-drive-files"
-                    aria-label="Файлы awn-media-cloud"
-                  ></ul>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--awn-dialogs menu-static-accordion">
                 <summary class="menu-static-summary" title="Диалоги с ИИ — архив переписки Shell / Voice (awn-dialogs)">
                   <span class="menu-static-title menu-static-title--awn-dialogs">
@@ -2998,76 +3023,6 @@
                   </button>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--awn-temp menu-static-accordion">
-                <summary class="menu-static-summary" title="Временные файлы workspace (awn-temp)">
-                  <span class="menu-static-title menu-static-title--awn-temp">
-                    <span id="menu-awn-temp-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
-                    <span class="menu-static-title-text">
-                      Временные файлы
-                      <span class="menu-static-subtitle">awn-temp · scratch / staging</span>
-                    </span>
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-awn-temp-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить awn-temp"
-                      aria-label="Обновить awn-temp"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p id="menu-awn-temp-stats" class="menu-awn-temp-stats is-empty" aria-live="polite"></p>
-                  <p class="menu-static-description">
-                    Общая папка для любых временных файлов агента и человека: черновики, staging, экспорты.
-                    Не привязана к теме — можно подпапки по задаче или дате.
-                  </p>
-                  <button
-                    id="menu-awn-temp-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    title="Открыть папку awn-temp"
-                  >
-                    Открыть awn-temp
-                  </button>
-                </div>
-              </details>
-              <details class="menu-static-section menu-static-section--awn-recycle menu-static-accordion">
-                <summary class="menu-static-summary" title="Корзина workspace (awn-recycle) — скоро">
-                  <span class="menu-static-title menu-static-title--awn-recycle">
-                    <span aria-hidden="true">⚪</span>
-                    <span class="menu-static-title-text">
-                      Корзина
-                      <span class="menu-static-subtitle stub-static-mark">awn-recycle · (static)</span>
-                    </span>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Удалённые файлы workspace (мягкое удаление). Пока заглушка: папка
-                    <code>awn-recycle/</code> для будущего восстановления и автоочистки.
-                  </p>
-                  <button
-                    id="menu-awn-recycle-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    title="Открыть папку awn-recycle"
-                  >
-                    Открыть корзину
-                  </button>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--awn-backup menu-static-accordion">
                 <summary class="menu-static-summary" title="Резервное копирование workspace (awn-backup) — скоро">
                   <span class="menu-static-title menu-static-title--awn-backup">
@@ -3131,6 +3086,7 @@
                   </button>
                 </div>
               </details>
+                </div>
               </div>
             </section>
             <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
@@ -3787,16 +3743,24 @@
         </div>
       </main>
 
-      <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
+      <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы (медиа в облаке)">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Крупные файлы</h2>
+            <h2 class="agent-canvas-title">Крупные файлы (медиа в облаке)</h2>
             <p class="agent-canvas-lead">
-              Файлы больше 45 МБ — с путями относительно корня агента.
+              Файлы больше 45 МБ — с путями относительно корня агента. Если файл лежит в облаке, у строки показан префикс blob.
             </p>
           </div>
           <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button
+              id="menu-google-drive-repair-btn"
+              class="agent-workspace-refresh-btn agent-large-files-repair-btn"
+              type="button"
+              title="Пересчитать относительные пути symlink в media → awn-media-cloud"
+            >
+              Синхронизировать ссылки
+            </button>
             <button id="agent-large-files-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Повторить сканирование">
               Обновить
             </button>
@@ -3804,6 +3768,15 @@
         </div>
         <div id="agent-large-files-info" class="agent-tool-info agent-large-files-info">
           <div id="agent-large-files-meta" class="agent-large-files-meta">
+            <div class="agent-large-files-toolbar-row">
+              <span class="agent-large-files-meta-label">В облаке</span>
+              <div
+                id="agent-large-files-cloud-stats"
+                class="agent-large-files-cloud-stats"
+                aria-live="polite"
+                aria-label="Размер медиа в облаке по драйверам"
+              ></div>
+            </div>
             <div class="agent-large-files-toolbar-row">
               <span class="agent-large-files-meta-label">Размер от</span>
               <div class="agent-large-files-threshold-scroll">
@@ -4575,6 +4548,28 @@
         <div id="agent-journal-content" class="agent-tool-body agent-journal-content"></div>
       </main>
 
+      <main id="agent-recycler-pane" class="agent-canvas-pane agent-tool-pane agent-recycler-pane hidden" aria-label="Корзина workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Корзина</h2>
+            <p class="agent-canvas-lead">
+              Мягко удалённые файлы и папки. Хранятся в <code>awn-recycler/</code>; на месте удаления — маркер <code>.trash.&lt;метка&gt;</code>.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-recycler-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить список корзины">
+              Обновить
+            </button>
+            <p id="agent-recycler-summary" class="agent-recycler-summary agent-recycler-head-summary" aria-live="polite"></p>
+            <button id="agent-recycler-clear-btn" class="agent-workspace-refresh-btn is-danger" type="button" title="Очистить корзину без восстановления">
+              Очистить корзину
+            </button>
+          </div>
+        </div>
+        <div id="agent-recycler-content" class="agent-tool-body agent-recycler-content"></div>
+      </main>
+
       <main id="agent-project-settings-pane" class="agent-canvas-pane agent-tool-pane agent-project-settings-pane hidden" aria-label="Настройки и параметры проекта">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
@@ -4816,7 +4811,7 @@
           </div>
           <div class="agent-canvas-head-aside agent-graph-head-actions agent-rmm-head-actions" role="toolbar" aria-label="Режим визуализации">
             <div class="agent-rmm-mode-tabs" role="tablist" aria-label="Тип представления">
-              <button type="button" class="agent-rmm-mode" data-rmm-mode="live" role="tab">Живая трансляция</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="live" role="tab">Живая трансляция (idea)</button>
               <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф связей</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Интеллект-карта</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Дорожная карта</button>
@@ -4948,8 +4943,8 @@
               </div>
               <div class="agent-rmm-view-notes-body">
                 <p>
-                  Тестовый текст: режим «Живая трансляция» — здесь будет описание потока событий workspace в реальном
-                  времени. Поток изменений и активности в workspace как они происходят, без сводки «на конец дня».
+                  Canvas-мозг (кольца, круг, силовые «области» и «связи»). Чипы справа в тулбаре и клик по hub-области
+                  фильтруют сектор; «все» сбрасывает. Клик по теме открывает узел, двойной клик — закрепить подпись.
                 </p>
               </div>
             </aside>
@@ -6749,7 +6744,9 @@
           </div>
         </section>
         <div id="agent-slider-grid" class="agent-slider-grid" role="list" aria-label="Изображения слайдера"></div>
-        <p id="agent-slider-empty-note" class="agent-slider-empty-note hidden">Папка пуста — загрузите первое изображение.</p>
+        <p id="agent-slider-empty-note" class="agent-slider-empty-note hidden">
+          В медиатеке «Слайдер» (слот «Активы») пока нет кадров — загрузите первое изображение.
+        </p>
       </div>
     </div>
 
@@ -7298,6 +7295,71 @@ awn-type: awn.page.ws
         <div class="modal-actions repository-groups-modal-actions">
           <button id="repository-groups-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="repository-groups-save-btn" class="external-create-section-btn" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="media-library-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="media-library-create-modal-title">
+      <div class="modal-card awn-databases-modal-card">
+        <div class="modal-message" id="media-library-create-modal-title">Новая медиатека</div>
+        <p class="agents-registry-hint" id="media-library-create-modal-hint">
+          Папка <code>awn-media/{slug}/</code> с <code>manifest.md</code> и <code>awn-storage/files/</code>, <code>assets/</code>.
+        </p>
+        <label class="popover-label" for="media-library-create-name-input">Название</label>
+        <input
+          id="media-library-create-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Документы"
+          spellcheck="false"
+          autocomplete="off"
+          required
+        />
+        <div class="slug-field-row">
+          <label class="slug-field-label" for="media-library-create-slug-input">Ключ (slug)</label>
+          <div class="slug-input-row">
+            <input
+              id="media-library-create-slug-input"
+              class="popover-input slug-input"
+              type="text"
+              placeholder="documents"
+              spellcheck="false"
+              autocomplete="off"
+              readonly
+              required
+            />
+            <button
+              id="media-library-create-slug-unlink-btn"
+              class="slug-unlink-btn is-linked"
+              type="button"
+              title="Редактировать slug вручную"
+              aria-label="Редактировать slug вручную"
+            >✎</button>
+          </div>
+          <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную. Путь: <code>awn-media/{slug}/</code></p>
+        </div>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Описание</span>
+          <textarea
+            id="media-library-create-description-input"
+            class="agents-registry-create-description-input"
+            rows="2"
+            placeholder="Кратко о назначении медиатеки"
+          ></textarea>
+        </label>
+        <label
+          class="awn-databases-create-checkbox-field create-form-indexing-option is-disabled"
+          id="media-library-create-index-exclude-wrap"
+          title="Заготовка — настройка при создании пока недоступна"
+        >
+          <input type="checkbox" disabled aria-disabled="true" />
+          <span class="awn-databases-create-checkbox-label"
+            >Запретить индексирование <span class="stub-static-mark">(static)</span></span
+          >
+        </label>
+        <div class="modal-actions">
+          <button id="media-library-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="media-library-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
         </div>
       </div>
     </div>
@@ -8163,10 +8225,10 @@ awn-type: awn.page.ws
           </a>
           <a
             class="header-author-github-link header-author-telegram-link"
-            href="https://t.me/AGI_2043"
+            href="https://t.me/AgentCMS"
             target="_blank"
             rel="noopener noreferrer"
-            title="Telegram: про жизнь с ИИ и технологиями (@AGI_2043)"
+            title="Telegram: про жизнь с ИИ и технологиями (@AgentCMS)"
           >
             <span class="header-author-github-icon header-author-telegram-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18" focusable="false">
@@ -8175,7 +8237,7 @@ awn-type: awn.page.ws
             </span>
             <span class="header-author-github-copy">
               <span class="header-author-github-label">Telegram-канал</span>
-              <span class="header-author-github-meta">@AGI_2043</span>
+              <span class="header-author-github-meta">@AgentCMS</span>
             </span>
             <span class="header-author-github-arrow" aria-hidden="true">↗</span>
           </a>
@@ -8423,7 +8485,7 @@ awn-type: awn.page.ws
     <script type="module" src="/js/pomodoro/pomodoro-state-bootstrap.js?v=1"></script>
     <script src="/js/pomodoro/workspace-pomodoro.js?v=9"></script>
     <script src="/js/app/connection-status.js?v=1"></script>
-    <script src="/js/panels/semantic-index-panel.js?v=22"></script>
+    <script src="/js/panels/semantic-index-panel.js?v=23"></script>
     <script src="/js/panels/languagetool-panel.js?v=2"></script>
     <script src="/js/panels/file-find-bar.js?v=2"></script>
     <script src="/js/core/slug-translit.js?v=1"></script>
@@ -8437,7 +8499,9 @@ awn-type: awn.page.ws
     <script src="/js/editor/marker-blocks-preview.js?v=11"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>
     <script src="/js/panels/api-docs-ui.js?v=2"></script>
-    <script src="/main.js?v=0.5.996"></script>
+    <script src="/vendor/d3.min.js?v=1"></script>
+    <script src="/js/panels/agent-rmm-live-brain.js?v=2"></script>
+    <script src="/main.js?v=0.5.1008"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
     <script src="/js/app/privacy-mode.js?v=5"></script>
     <script src="/js/app/sensitive-input.js?v=3"></script>

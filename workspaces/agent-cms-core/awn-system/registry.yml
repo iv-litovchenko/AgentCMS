@@ -10,6 +10,7 @@ domains:
   - annotations
   - fields
   - pages
+  - hub
   - slots
   - mixins
   - database

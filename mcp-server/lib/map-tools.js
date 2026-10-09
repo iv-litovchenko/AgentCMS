@@ -188,6 +188,28 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "list_workspace_registry_queries",
+    "Named registry queries for this workspace (.agent-cms/settings/registry-queries.yml): always-context, cron, focus, SQL-like storage-index presets. Defaults merged with file.",
+    z.object({}),
+    () => client.get("/api/agent/registry-queries")
+  );
+
+  reg(
+    "run_workspace_registry_query",
+    "Run a named registry query by id (see list_workspace_registry_queries). Combines storage-index where/sort/fields or runtime cron/heartbeat/nav registries.",
+    z.object({
+      id: z.string().min(1).describe("Query id, e.g. always-context, cron, nav-focus, topics"),
+      registryId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Alias for id")
+    }),
+    ({ id, registryId }) =>
+      client.post("/api/agent/registry-queries/run", { id: registryId || id })
+  );
+
+  reg(
     "get_workspace_index_status",
     "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     z.object({}),

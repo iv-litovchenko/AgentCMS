@@ -19,7 +19,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: []
-awn-type: awn.repository
+awn-type: awn.hub.repository
 awn-create: 2026-09-25T13:36:02.773Z
 awn-update: 2026-09-25T13:36:02.773Z
 awn-version: 1

@@ -1,9 +1,9 @@
 # Agent CMS — настройки workspace (только это хранилище)
 
 awn_settings:
-  awn-id-next: 27
-  awn-id-issued: 26
-  awn-id-updated-at: "2026-10-05T13:48:44.779Z"
+  awn-id-next: 30
+  awn-id-issued: 29
+  awn-id-updated-at: "2026-10-07T20:10:59.499Z"
   awn-id-model: workspace-id-autoincrement-v1
   voice-cms-topic-path: awn-agent-kit/agent/manifest.md
   voice-cms-channel: thread
@@ -107,3 +107,7 @@ awn_settings:
   voice-window-keep-awake: true
   voice-window-processing-sound: off
   voice-window-compact-mode: false
+  awn-recycle-id-next: 2
+  awn-recycle-id-issued: 1
+  awn-recycle-id-updated-at: "2026-10-07T21:03:34.138Z"
+  awn-recycle-id-model: workspace-recycle-marker-v1

@@ -25,6 +25,12 @@ fieldGroups:
     description: >
       Глобальный счётчик awn-id для записей workspace (только просмотр в UI).
       Значения в settings.yml; обновляются при присвоении id и sync-counter.
+  - id: registry-queries
+    name: Реестр запросов
+    description: >
+      Именованные выборки для агента: SQL-like по storage-index (поля frontmatter)
+      или готовые runtime-сборки (cron, heartbeat). Файл .agent-cms/settings/registry-queries.yml.
+      MCP list_workspace_registry_queries · run_workspace_registry_query.
   - id: memory
     name: Память
     description: Слоты и TTL временных данных workspace (пока не подключены в runtime).
@@ -301,6 +307,133 @@ fields:
     default: workspace-id-autoincrement-v1
     group: autoincrement
     sort: 23
+
+  awn-recycle-id-next:
+    type: awn.field.number.integer
+    title: Следующая метка удаления
+    description: Следующий номер для мягкого удаления (корзина awn-recycler)
+    locked: true
+    default: 1
+    group: autoincrement
+    sort: 24
+
+  awn-recycle-id-issued:
+    type: awn.field.number.integer
+    title: Выдано меток удаления
+    description: Сколько меток удаления уже выдано счётчиком
+    locked: true
+    default: 0
+    group: autoincrement
+    sort: 25
+
+  awn-recycle-id-updated-at:
+    type: awn.field.string
+    title: Метки удаления — обновлено
+    description: Время последнего изменения счётчика меток (ISO 8601)
+    locked: true
+    group: autoincrement
+    sort: 26
+
+  awn-recycle-id-model:
+    type: awn.field.string
+    title: Модель меток удаления
+    description: Версия схемы счётчика меток корзины
+    locked: true
+    default: workspace-recycle-marker-v1
+    group: autoincrement
+    sort: 27
+
+  awn-recycle-id-pad-width:
+    type: awn.field.number.integer
+    title: Ширина метки (ведущие нули)
+    description: Длина числовой метки в имени re-… и .trash.… (4–12)
+    locked: true
+    default: 8
+    group: autoincrement
+    sort: 28
+
+  registry-queries-lead:
+    type: awn.field.text
+    title: Как это работает
+    description: Концепция раздела
+    readonly: true
+    group: registry-queries
+    sort: 5
+    default: |
+      Именованные выборки по индексу полей (как «Поля SQL-like»).
+      У каждого шаблона: id, название, фильтр where/fields/limit.
+      MCP: run_workspace_registry_query({ id: "cron" }). Свои шаблоны — кнопка «+».
+
+  registry-queries-filter-example:
+    type: awn.field.text.code
+    title: Пример запроса (фильтр)
+    description: Скопируйте в свой шаблон и измените поля. Индекс — «Поля (SQL-like)».
+    readonly: true
+    group: registry-queries
+    sort: 8
+    default: |
+      # Ограничить поддерево workspace (папка темы, контейнер, awn-databases/…)
+      pathPrefix: awn-container/moya-tema
+      # Условия (все строки where — AND). Поля — как в YAML-frontmatter записей.
+      where:
+        - field: awn-runtime-cron
+          eq: true
+        # - field: awn-tags
+        #   contains: важное
+        # - field: awn-id
+        #   gte: 100
+      fields:
+        - path
+        - awn-name
+        - awn-description
+      sort:
+        field: path
+        dir: asc
+      limit: 100
+      # Окно по дате (пересчёт при run): relativeDays: 7, relativeDaysField: awn-create
+      # (по умолчанию relativeDaysField — awn-update, «изменены за N дней»)
+      # Фиксированная дата без relativeDays:
+      # where:
+      #   - field: awn-create
+      #     gte: "2026-10-01T00:00:00.000Z"
+
+  registry-query-presets:
+    type: awn.field.repeater
+    title: Шаблоны реестров
+    description: >
+      Встроенные шаблоны (только просмотр). Изменение — в .agent-cms/settings/registry-queries.yml
+      или через MCP list_workspace_registry_queries / run_workspace_registry_query.
+    readonly: true
+    locked: true
+    group: registry-queries
+    sort: 10
+    properties:
+      id:
+        type: awn.field.string.slug
+        title: ID
+        description: cron, heartbeat, always-context, nav-focus, …
+      name:
+        type: awn.field.string
+        title: Название
+      about:
+        type: awn.field.text
+        title: Описание
+        hint: Для агента и подсказок в UI — что возвращает выборка (в registry-queries.yml — ключ comment)
+      query:
+        type: awn.field.text.code
+        title: Запрос (фильтр)
+        description: |
+          Фильтр по каталогу полей workspace (storage-index). Ключи where: field + eq | contains | gte | lte | gt | lt.
+          pathPrefix в корне — только файлы под этой папкой (без ведущего /).
+        hint: "where: [{ field, eq|contains… }], fields: [path, …], sort, limit"
+        default: |
+          where:
+            - field: awn-type
+              eq: awn.page.topic
+          fields:
+            - path
+            - awn-name
+          limit: 50
 
   default-slot:
     type: awn.field.string

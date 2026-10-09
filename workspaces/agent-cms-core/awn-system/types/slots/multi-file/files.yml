@@ -1,0 +1,20 @@
+id: awn.slot.files
+name: Файлы
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: files
+storage-driver: external
+description: >
+  Основная медиатека workspace — awn-storage/files/ у awn.hub.media.
+  Разделы (awn.content.category), записи .md, бинарники + sidecar — как слот media у темы.
+  На обзоре обычной темы счётчик «Файлы» не показывается (только на страницах awn-media).
+path: files/
+slot-order: 8
+allowed-content:
+  - awn.content.record
+  - awn.content.category
+  - awn.annotation.sidecar
+accept-files:
+  - "*"

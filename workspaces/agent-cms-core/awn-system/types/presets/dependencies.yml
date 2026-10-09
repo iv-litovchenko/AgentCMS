@@ -5,7 +5,7 @@ domain: presets
 status: active
 extends: awn.preset
 target-file: "dependencies.csv"
-hint-title: "Зависимости workspace"
+hint-title: "Внешние зависимости workspace"
 hint-text: >
   Корневой <code>dependencies.csv</code>: плагины, MCP, runtime, env-ключи.
   Схема колонок — в настройках проекта → «Зависимости».

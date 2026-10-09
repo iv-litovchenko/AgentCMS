@@ -55,6 +55,14 @@ const { generateWorkspaceSlug } = require("./lib/workspace/slug-service");
 const recordMaterials = require("./lib/record-materials");
 const { createNavFlagsRegistryService } = require("./lib/nav-flags-registry/service");
 const { allocateNextId, readCounter } = require("./lib/workspace-id/store");
+const {
+  softDeleteWorkspacePath,
+  listRecycleItems,
+  restoreRecycleItem,
+  clearRecycleBin,
+  isTrashMarkerFileName
+} = require("./lib/workspace-recycler/service");
+const { clearWorkspaceTransientCache } = require("./lib/workspace/clear-transient-cache");
 const { syncWorkspaceIndexFile } = require("./lib/indexes/workspace-index/sync");
 const { getWorkspaceIndexMonitor, formatAge } = require("./lib/indexes/workspace-index/monitor");
 const {
@@ -96,6 +104,22 @@ const {
   shouldSkipAwnRepositoriesSearch
 } = require("./lib/services/awn-repositories-service");
 const {
+  listMediaLibraries,
+  getMediaLibrary,
+  registerMediaLibrary,
+  updateMediaLibrary,
+  writeMediaLibraryIndex,
+  shouldSkipAwnMediaSearch,
+  getMediaLibrarySliderFilesRel,
+  getMediaLibrarySliderAssetsRel,
+  getMediaLibrarySliderManifestRel,
+  migrateLegacyWorkspaceSliderAssetsToMediaLibrary,
+  resolveAgentSliderAssetsFolderAbsolute,
+  listImageFilesInDir,
+  readMediaLibraryStoreSchemaPayload,
+  writeMediaLibraryStoreSchema
+} = require("./lib/services/awn-media-service");
+const {
   readDependencies,
   writeDependencies
 } = require("./lib/services/dependencies-service");
@@ -115,6 +139,13 @@ const {
   parsePayloadIndexExcludeFlags,
   createWorkspaceIndexExcludeResolver
 } = require("./lib/workspace/workspace-index-exclude");
+const {
+  loadRegistryQueriesCatalog,
+  readRegistryQueriesFile,
+  writeRegistryQueriesYaml,
+  runRegistryQueryById,
+  REGISTRY_QUERIES_MODEL
+} = require("./lib/workspace/registry-queries");
 const {
   createWorkspaceFactsService,
   FACTS_DIR: WORKSPACE_FACTS_DIR,
@@ -230,6 +261,7 @@ const {
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
+  STORAGE_SUBFOLDER_FILES,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_ATTACHMENTS,
   STORAGE_SUBFOLDER_SCRIPTS,
@@ -289,7 +321,8 @@ const {
   formatCommentTimestampLabel,
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
-  normalizeDeclaredManifestTreeType
+  normalizeDeclaredManifestTreeType,
+  resolveMediaStorageSubfolderForManifest
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -1854,8 +1887,7 @@ function getStorageIndexService() {
       getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy,
-      isEntityIndexExcluded
+      getIndexPolicy: getActiveIndexPolicy
     });
   }
   return storageIndexService;
@@ -2062,8 +2094,22 @@ async function drainWorkspaceIndexFileSyncQueue() {
   }
 }
 
+let cachedActiveIndexPolicy = null;
+let cachedActiveIndexPolicyRoot = "";
+
 async function getActiveIndexPolicy() {
-  return buildIndexPolicy(await getPlatformSettings(getProjectRoot()));
+  const root = getProjectRoot();
+  if (cachedActiveIndexPolicy && cachedActiveIndexPolicyRoot === root) {
+    return cachedActiveIndexPolicy;
+  }
+  cachedActiveIndexPolicy = buildIndexPolicy(await getPlatformSettings(root));
+  cachedActiveIndexPolicyRoot = root;
+  return cachedActiveIndexPolicy;
+}
+
+function invalidateActiveIndexPolicyCache() {
+  cachedActiveIndexPolicy = null;
+  cachedActiveIndexPolicyRoot = "";
 }
 
 let workspaceIndexExcludeResolver = null;
@@ -3560,7 +3606,11 @@ async function deleteFileComment({ manifestRelPath, mode, file, systemName, comm
     commentId
   });
   const commentRelPath = `${resolved.commentsDirRel}/${resolved.relPath}`.replace(/\\/g, "/");
-  await fs.rm(resolved.fileAbsolute, { force: false });
+  const agentRoot = getAgentRoot();
+  const recycled = await softDeleteWorkspacePath(agentRoot, resolved.fileAbsolute, {
+    context: { source: "file-comment", commentId: resolved.relPath, manifestRelPath }
+  });
+  if (recycled.error) throw new Error(recycled.error);
   await recordWorkspaceActivityAsync({
     action: "delete",
     path: commentRelPath,
@@ -5368,6 +5418,7 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     if (entry.isDirectory() && shouldSkipExternalMemoryDirectory(entry.name)) continue;
     if (entry.isDirectory() && shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
@@ -5422,6 +5473,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "", options = {}) {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -5461,6 +5513,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}
   const files = [];
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -7131,9 +7184,14 @@ function isBlockedStorageFileExtension(filename) {
   return BLOCKED_STORAGE_FILE_EXTENSIONS.has(ext);
 }
 
+function shouldSkipWorkspaceRecycleTombstoneFileName(fileName) {
+  return isTrashMarkerFileName(fileName);
+}
+
 function shouldSkipStoragePolicyFileName(fileName, { slotKey } = {}) {
   const name = String(fileName || "");
   if (!name || name === ".DS_Store") return true;
+  if (shouldSkipWorkspaceRecycleTombstoneFileName(name)) return true;
   if (name.startsWith(".")) return true;
   if (isAreaManifestFileName(name)) return true;
   if (slotKey === "media" && name.toLowerCase().endsWith(".sidecar.md")) return true;
@@ -8568,12 +8626,19 @@ async function deleteStorageFlatFile(manifestRelPath, storageFolder, relFile) {
     return { error: resolved.error, status: resolved.status || 404 };
   }
 
-  await fs.rm(resolved.fileAbsolute, { force: false });
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), resolved.fileAbsolute, {
+    context: { source: "storage", manifestRelPath, storageFolder, relFile: resolved.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
 
   return {
     deleted: resolved.normalizedRelFile.replace(/\\/g, "/"),
     folder: resolved.folder,
-    path: manifestRelPath
+    path: manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -8699,8 +8764,18 @@ async function saveMemorySectionSortOrderRecord(
 async function deleteMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath) {
   const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
   if (ctx.error) return ctx;
-  await fs.rm(ctx.sectionAbsolute, { recursive: true, force: false });
-  return { deleted: ctx.sectionRelPath, exists: false };
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.sectionAbsolute, {
+    context: { source: "memorySection", manifestRelPath, scopeType, storageFolder, sectionRelPath: ctx.sectionRelPath }
+  });
+  if (recycled.error) return recycled;
+  return {
+    deleted: ctx.sectionRelPath,
+    exists: false,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
+  };
 }
 
 async function updateMemorySectionStatusRecord(
@@ -9895,10 +9970,17 @@ async function resolveExternalFileOpContext(manifestRelPath, relFile) {
 async function deleteExternalMemoryFile(manifestRelPath, relFile) {
   const ctx = await resolveExternalFileOpContext(manifestRelPath, relFile);
   if (ctx.error) return ctx;
-  await fs.rm(ctx.fileAbsolute, { force: false });
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.fileAbsolute, {
+    context: { source: "external", manifestRelPath, relFile: ctx.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
   return {
     deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
-    path: ctx.manifestRelPath
+    path: ctx.manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -9983,9 +10065,12 @@ async function deleteMediaStorageFile(manifestRelPath, relFile) {
   const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
   if (ctx.error) return ctx;
 
-  await fs.rm(ctx.mediaAbsolute, { force: false });
-
   const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
+
+  const recycled = await softDeleteWorkspacePath(getAgentRoot(), ctx.mediaAbsolute, {
+    context: { source: "media", manifestRelPath, relFile: ctx.normalizedRelFile }
+  });
+  if (recycled.error) return recycled;
   if (
     sidecarAbsolute &&
     (await isAllowedMediaSidecarAbsolute(ctx.nodeAbsolute, sidecarAbsolute))
@@ -9995,7 +10080,11 @@ async function deleteMediaStorageFile(manifestRelPath, relFile) {
 
   return {
     deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
-    path: ctx.manifestRelPath
+    path: ctx.manifestRelPath,
+    recycled: true,
+    markerId: recycled.markerId,
+    markerLabel: recycled.markerLabel,
+    recycleName: recycled.recycleName
   };
 }
 
@@ -10611,7 +10700,8 @@ function shouldSkipMenuDirectory(name) {
   if (lower === String(LEGACY_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_SCRIPTS_FOLDER || "awn-scripts").toLowerCase()) return true;
-  if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycler").toLowerCase()) return true;
+  if (lower === "awn-recycle") return true;
   if (lower === String(AWN_WORKSPACE_BACKUP_FOLDER || "awn-backup").toLowerCase()) return true;
   if (lower === String(AWN_DASHBOARDS_FOLDER || "awn-dashboards").toLowerCase()) return true;
   return MENU_SKIP_DIRS.has(lower);
@@ -10922,6 +11012,7 @@ async function countDirectoryFiles(dirAbsolute) {
 
   for (const entry of entries) {
     if (entry.name === ".DS_Store" || entry.name.startsWith(".")) continue;
+    if (shouldSkipWorkspaceRecycleTombstoneFileName(entry.name)) continue;
     const absolute = path.join(dirAbsolute, entry.name);
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name)) continue;
@@ -11912,6 +12003,28 @@ async function buildAgentCronRegistry() {
     items,
     itemCount: items.length,
     scheduleCount: items.filter((item) => String(item.runtimeCronSchedule || "").trim()).length
+  };
+}
+
+async function buildRegistryQueryRunners() {
+  const agentId = getActiveAgentId();
+  const agent = agentId ? resolveAgent(agentId) : null;
+  const nav = getNavFlagsRegistryService();
+
+  return {
+    queryStorage: (payload) => getStorageIndexService().query(payload),
+    getCronRegistry: () => buildAgentCronRegistry(),
+    getHeartbeatRegistry: () => buildAgentHeartbeatRegistry(),
+    getAlwaysContextRegistry: () => buildAgentAlwaysContextRegistry(),
+    getTopicRegistry: () => buildAgentTopicRegistry(),
+    getNavFocusRegistry: async () => {
+      const items = agent ? await nav.getAgentEntries(agent, "focus") : null;
+      return { model: "nav-focus-registry-v1", items: items || [] };
+    },
+    getNavMainRegistry: async () => {
+      const items = agent ? await nav.getAgentEntries(agent, "main") : null;
+      return { model: "nav-main-registry-v1", items: items || [] };
+    }
   };
 }
 
@@ -14302,6 +14415,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
   workspaceIndexMonitor:
     "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи, awn-id)",
+  workspaceIndexCacheReset:
+    "POST /api/workspace-index/cache-reset — удалить временные файлы (.agent-cms/cache, awn-temp)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
@@ -15875,9 +15990,8 @@ async function persistMediaUploadBuffer({
   };
 }
 
-const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
-const AGENT_SLIDER_FOLDER_REF = `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${AGENT_SLIDER_ASSETS_SUBDIR}`;
-const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg"]);
+const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderFilesRel();
+const AGENT_SLIDER_MANIFEST_REF = getMediaLibrarySliderManifestRel();
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {
   const agentId = String(url.searchParams.get("agent") || "").trim();
@@ -15912,49 +16026,21 @@ function resolveAgentWorkspaceManifestAbsoluteSync(agentPath) {
 async function resolveAgentSliderFolderAbsolute(agentPath, options = {}) {
   const safePath = assertSafeAgentPath(agentPath);
   const workspaceAbsolute = resolveAgentRootAbsolute(safePath);
-  const folderAbsolute = path.join(workspaceAbsolute, AGENT_SLIDER_FOLDER_REF);
-  if (options.create) {
-    await fs.mkdir(folderAbsolute, { recursive: true });
-    return folderAbsolute;
-  }
-  try {
-    const stat = await fs.stat(folderAbsolute);
-    return stat.isDirectory() ? folderAbsolute : null;
-  } catch (error) {
-    if (error && error.code === "ENOENT") return null;
-    throw error;
-  }
+  await migrateLegacyWorkspaceSliderAssetsToMediaLibrary(workspaceAbsolute).catch(() => null);
+  return resolveAgentSliderAssetsFolderAbsolute(workspaceAbsolute, options);
 }
 
 async function listAgentSliderImages(agentPath) {
   const folderAbsolute = await resolveAgentSliderFolderAbsolute(agentPath);
   if (!folderAbsolute) return [];
 
-  let entries = [];
-  try {
-    entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
-  } catch (error) {
-    if (error && error.code === "ENOENT") return [];
-    throw error;
-  }
-
-  const files = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || entry.name.startsWith(".")) continue;
-    const ext = path.extname(entry.name).toLowerCase();
-    if (!AGENT_SLIDER_IMAGE_EXTENSIONS.has(ext)) continue;
-    const fileAbsolute = path.join(folderAbsolute, entry.name);
-    const stat = await fs.stat(fileAbsolute);
-    files.push({
-      name: entry.name,
-      mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${entry.name}`,
-      size: stat.size,
-      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
-    });
-  }
-
-  files.sort((a, b) => a.name.localeCompare(b.name, "ru", { sensitivity: "base", numeric: true }));
-  return files;
+  const listed = await listImageFilesInDir(folderAbsolute);
+  return listed.map((file) => ({
+    name: file.name,
+    mediaFile: file.name,
+    size: file.size,
+    updatedAt: file.updatedAt
+  }));
 }
 
 async function getAgentPreviewMeta(agent) {
@@ -16869,17 +16955,29 @@ async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTE
   await collectLargeFilesInDir(agentRoot, "", minBytes, results);
   results.sort((left, right) => right.size - left.size || left.path.localeCompare(right.path));
   const totalSize = results.reduce((sum, item) => sum + item.size, 0);
+  const files = [];
+  for (const item of results) {
+    let cloudBlob = "";
+    try {
+      const meta = await getGoogleDriveSymlinkMeta(path.join(agentRoot, item.path), agentRoot);
+      if (meta?.synced) cloudBlob = String(meta.blobName || "").trim();
+    } catch {
+      cloudBlob = "";
+    }
+    files.push({
+      path: item.path,
+      size: item.size,
+      sizeLabel: formatBytesLabel(item.size),
+      cloudBlob
+    });
+  }
   return {
     threshold: minBytes,
     thresholdMb: minBytes / (1024 * 1024),
     count: results.length,
     totalSize,
     totalSizeLabel: formatBytesLabel(totalSize),
-    files: results.map((item) => ({
-      path: item.path,
-      size: item.size,
-      sizeLabel: formatBytesLabel(item.size)
-    }))
+    files
   };
 }
 
@@ -18350,6 +18448,7 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
   for (const entry of entries) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (shouldSkipAwnRepositoriesSearch(prefix, entry.name, entry.isDirectory())) continue;
+    if (shouldSkipAwnMediaSearch(prefix, entry.name, entry.isDirectory())) continue;
     if (shouldSkipSearchEntry(entry.name, entry.isDirectory())) continue;
     const absolute = path.join(dirAbsolute, entry.name);
 
@@ -20933,6 +21032,24 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/workspace-index/cache-reset") {
+    try {
+      const payload = await readJsonBody(req);
+      if (!payload?.confirm) {
+        return sendJson(res, 400, { error: "confirm=true is required to reset workspace cache" });
+      }
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await clearWorkspaceTransientCache(agentRoot);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to reset workspace cache",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agents/git-summaries") {
     try {
       refreshAgentsFromDisk();
@@ -22129,6 +22246,125 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listMediaLibraries(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list media libraries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await registerMediaLibrary(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 201, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to register media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/media-libraries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const manifestPath = String(payload.path || payload.manifestPath || "").trim();
+      if (!manifestPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await updateMediaLibrary(agentRoot, manifestPath, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/media-libraries/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const slug = String(url.searchParams.get("slug") || url.searchParams.get("library") || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug query parameter" });
+      const payload = readMediaLibraryStoreSchemaPayload(agentRoot, getProjectRoot(), slug);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read media library store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const slug = String(payload?.slug || payload?.library || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = writeMediaLibraryStoreSchema(agentRoot, getProjectRoot(), slug, {
+        content: payload?.content,
+        awnSchema: payload?.awnSchema,
+        fields: payload?.fields,
+        tabs: payload?.tabs,
+        elementSchemaTabs: payload?.elementSchemaTabs
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save media library store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-library-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeMediaLibraryIndex(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 409, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to refresh media library index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/media-library") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await getMediaLibrary(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/repository") {
     const relPath = String(url.searchParams.get("path") || "").trim();
     try {
@@ -22258,6 +22494,72 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to read heartbeat registry",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/registry-queries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const file = await readRegistryQueriesFile(agentRoot);
+      return sendJson(res, 200, {
+        model: REGISTRY_QUERIES_MODEL,
+        path: file.path,
+        exists: file.exists,
+        catalog: file.catalog
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read registry queries catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/registry-queries") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const yamlText = body?.yaml ?? body?.content ?? "";
+      const saved = await writeRegistryQueriesYaml(agentRoot, yamlText);
+      return sendJson(res, 200, {
+        ok: true,
+        path: saved.path,
+        catalog: saved.catalog
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save registry queries catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/registry-queries/run") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const registryId = String(body?.id || body?.registryId || "").trim();
+      if (!registryId) return sendJson(res, 400, { error: "id is required" });
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const catalog = await loadRegistryQueriesCatalog(agentRoot);
+      const entry = catalog.queries.find((q) => q.id === registryId);
+      if (entry?.source === "storage-index") {
+        const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
+        if (disabled) return sendJson(res, disabled.status, disabled.body);
+      }
+      const runners = await buildRegistryQueryRunners();
+      const result = await runRegistryQueryById(agentRoot, registryId, runners);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /Unknown registry query/i.test(message) ? 404 : 500;
+      return sendJson(res, status, {
+        error: "Failed to run registry query",
+        details: message
       });
     }
   }
@@ -22565,6 +22867,12 @@ async function handleApiForAgent(req, res, url) {
       } catch {
         // shell.json optional
       }
+      try {
+        const { hydrateWorkspaceRegistryQueryPresets } = require("./lib/workspace/workspace-registry-queries-bridge");
+        awnSettings = await hydrateWorkspaceRegistryQueryPresets(agentRoot, awnSettings);
+      } catch {
+        // registry-queries optional
+      }
       const content = composeSettingsFileContent({
         headerComment: parsed.headerComment || file.headerComment || "",
         awn_settings: awnSettings
@@ -22600,6 +22908,14 @@ async function handleApiForAgent(req, res, url) {
         existing.exists ? parseSettingsFileContent(existing.content || "").awn_settings || {} : {}
       );
       const nextFlat = flattenAwnSettingsValues(parsed.awn_settings || {});
+      if (Object.prototype.hasOwnProperty.call(nextFlat, "registry-query-presets")) {
+        try {
+          const { syncRegistryQueriesFileFromWorkspacePresets } = require("./lib/workspace/workspace-registry-queries-bridge");
+          await syncRegistryQueriesFileFromWorkspacePresets(agentRoot, nextFlat["registry-query-presets"]);
+        } catch {
+          // non-fatal
+        }
+      }
       if (workspaceAwnSettingsFlatEqual(prevFlat, nextFlat)) {
         return sendJson(res, 200, {
           path: existing.path,
@@ -23153,6 +23469,56 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace journal stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-recycler/list") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listRecycleItems(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list recycle bin",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-recycler/restore") {
+    try {
+      const payload = await readJsonBody(req);
+      const marker = payload?.markerId ?? payload?.markerLabel ?? payload?.id;
+      const result = await restoreRecycleItem(getAgentRoot(), marker);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      recordWorkspaceActivity({
+        action: "restore",
+        path: String(result.restored || "").replace(/\\/g, "/"),
+        label: path.posix.basename(String(result.restored || ""))
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to restore recycle item",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-recycler/clear") {
+    try {
+      const payload = await readJsonBody(req);
+      if (!payload?.confirm) {
+        return sendJson(res, 400, { error: "confirm=true is required to clear recycle bin" });
+      }
+      const result = await clearRecycleBin(getAgentRoot());
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear recycle bin",
         details: String(error.message || error)
       });
     }
@@ -25204,7 +25570,7 @@ async function handleApiForAgent(req, res, url) {
       const recordRef = String(url.searchParams.get("record") || "").trim();
       if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
       if (!recordRef) return sendJson(res, 400, { error: "Missing record query parameter" });
-      const payload = deleteAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef);
+      const payload = await deleteAwnDataRecord(agentRoot, getProjectRoot(), storeRel, recordRef);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
@@ -25284,7 +25650,7 @@ async function handleApiForAgent(req, res, url) {
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const storeRel = String(url.searchParams.get("store") || "").trim();
       if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
-      const payload = deleteAwnDataStore(agentRoot, getProjectRoot(), storeRel);
+      const payload = await deleteAwnDataStore(agentRoot, getProjectRoot(), storeRel);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
@@ -26553,9 +26919,13 @@ async function handleApiForAgent(req, res, url) {
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
-      const folderParam = String(payload.folder || STORAGE_SUBFOLDER_MEDIA).trim();
-      const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
-      const slotKey = folderName === STORAGE_SUBFOLDER_ASSETS ? "assets" : "media";
+      const folderName = resolveMediaStorageSubfolderForManifest(relPath, payload.folder);
+      const slotKey =
+        folderName === STORAGE_SUBFOLDER_ASSETS
+          ? "assets"
+          : folderName === STORAGE_SUBFOLDER_FILES
+            ? "files"
+            : "media";
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
@@ -27437,8 +27807,7 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const folderParam = String(url.searchParams.get("folder") || STORAGE_SUBFOLDER_MEDIA).trim();
-    const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
+    const folderName = resolveMediaStorageSubfolderForManifest(relPath, url.searchParams.get("folder"));
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
 
@@ -27585,7 +27954,22 @@ async function handleApiForAgent(req, res, url) {
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    const manifestRel = String(relPath || contextPath || "").replace(/\\/g, "/");
+    const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRel, url.searchParams.get("folder"));
+    let fileAbsolute = null;
+    const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(storageContext.absolute, libraryFolder);
+    if (libraryFolderAbsolute) {
+      const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+      if (
+        isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+        (await fileExists(directAbsolute))
+      ) {
+        fileAbsolute = directAbsolute;
+      }
+    }
+    if (!fileAbsolute) {
+      fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    }
     if (!fileAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
     try {
@@ -29066,19 +29450,35 @@ async function handleApiForAgent(req, res, url) {
           return sendJson(res, 400, { error: "Root Workspaces folder cannot be deleted" });
         }
         const folderAbsolute = path.dirname(absolute);
-        await fs.rm(folderAbsolute, { recursive: true, force: false });
+        const recycledFolder = await softDeleteWorkspacePath(getAgentRoot(), folderAbsolute, {
+          context: { source: "manifest-folder", relPath }
+        });
+        if (recycledFolder.error) {
+          return sendJson(res, recycledFolder.status || 400, { error: recycledFolder.error });
+        }
         recordWorkspaceActivity({
           action: "delete",
           path: relPath.replace(/\\/g, "/"),
           label: path.posix.basename(path.dirname(relPath.replace(/\\/g, "/"))),
           fileKind: "manifest"
         });
-        return sendJson(res, 200, { deleted: relPath, deletedType: "folder" });
+        return sendJson(res, 200, {
+          deleted: relPath,
+          deletedType: "folder",
+          recycled: true,
+          markerId: recycledFolder.markerId,
+          markerLabel: recycledFolder.markerLabel
+        });
       }
 
       const contentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
 
-      await fs.rm(absolute, { force: false });
+      const recycledFile = await softDeleteWorkspacePath(getAgentRoot(), absolute, {
+        context: { source: "manifest-file", relPath }
+      });
+      if (recycledFile.error) {
+        return sendJson(res, recycledFile.status || 400, { error: recycledFile.error });
+      }
       if (contentAbsolute) await removeIfExists(contentAbsolute);
       const slotAbsolute = normalizeWorkspacePath(
         getNamedStorageSlotDirRel(normalized, getStoragePathOptions())
@@ -30633,6 +31033,7 @@ async function handleApi(req, res, url) {
       const files = await listAgentSliderImages(agentPath);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
+        manifestPath: AGENT_SLIDER_MANIFEST_REF,
         files,
         agentPath
       });
@@ -30696,10 +31097,11 @@ async function handleApi(req, res, url) {
       const storedName = path.basename(targetAbsolute);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
+        manifestPath: AGENT_SLIDER_MANIFEST_REF,
         agentPath,
         file: {
           name: storedName,
-          mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${storedName}`
+          mediaFile: storedName
         }
       });
     } catch (error) {

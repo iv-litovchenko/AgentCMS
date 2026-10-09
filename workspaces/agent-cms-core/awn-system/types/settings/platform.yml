@@ -377,6 +377,26 @@ fields:
     group: indexing
     sort: 27
 
+  index-storage-sqlite-enabled:
+    type: awn.field.boolean
+    title: Каталог полей в SQLite
+    description: >
+      Дополнительно писать catalog.sqlite при пересборке (для будущих SQL-запросов).
+      Выключено по умолчанию — быстрее; JSON-индекс всегда сохраняется.
+    default: false
+    group: indexing
+    sort: 28
+
+  index-storage-batch-size:
+    type: awn.field.number.integer
+    title: Пачка записей (поля → SQLite)
+    description: >
+      Сколько записей каталога полей записывать в catalog.sqlite за одну транзакцию
+      при пересборке индекса (1–500). Меньше — чаще коммит и отзывчивее UI; больше — быстрее на больших workspace.
+    default: 30
+    group: indexing
+    sort: 29
+
   index-file-extensions:
     type: awn.field.choice.many
     title: Типы файлов для индекса
@@ -400,7 +420,7 @@ fields:
       - key: ".yaml"
         name: YAML (.yaml)
     group: indexing
-    sort: 28
+    sort: 30
 
   index-exclude-patterns:
     type: awn.field.text
