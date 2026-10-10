@@ -124,6 +124,10 @@ const {
   writeMediaLibraryStoreSchema
 } = require("./lib/services/awn-media-service");
 const {
+  listAwnChannels,
+  registerAwnChannel
+} = require("./lib/services/awn-channels-service");
+const {
   readDependencies,
   writeDependencies
 } = require("./lib/services/dependencies-service");
@@ -22313,6 +22317,36 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to save media library store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/awn-channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listAwnChannels(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list awn-channels",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/awn-channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await registerAwnChannel(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 201, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to register awn-channel",
         details: String(error.message || error)
       });
     }

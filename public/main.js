@@ -119,8 +119,24 @@ const menuAwnChannelsHelpBtn = document.getElementById("menu-awn-channels-help-b
 const menuAwnChannelsCreateBtn = document.getElementById("menu-awn-channels-create-btn");
 const menuAwnChannelsIndexOpenBtn = document.getElementById("menu-awn-channels-index-open-btn");
 const menuAwnChannelsIndexRefreshBtn = document.getElementById("menu-awn-channels-index-refresh-btn");
+const menuAwnChannelsSearchBtn = document.getElementById("menu-awn-channels-search-btn");
 const menuAwnChannelsSearchInputNode = document.getElementById("menu-awn-channels-search-input");
 const menuAwnChannelsFlowStripNode = document.getElementById("menu-awn-channels-flow-strip");
+const awnChannelsCreateModalNode = document.getElementById("awn-channels-create-modal");
+const awnChannelsCreateModalTitleNode = document.getElementById("awn-channels-create-modal-title");
+const awnChannelsCreateModalHintNode = document.getElementById("awn-channels-create-modal-hint");
+const awnChannelsCreatePresetsNode = document.getElementById("awn-channels-create-presets");
+const awnChannelsCreateNameInputNode = document.getElementById("awn-channels-create-name-input");
+const awnChannelsCreateSlugInputNode = document.getElementById("awn-channels-create-slug-input");
+const awnChannelsCreateSlugUnlinkBtn = document.getElementById("awn-channels-create-slug-unlink-btn");
+const awnChannelsCreateDescriptionInputNode = document.getElementById("awn-channels-create-description-input");
+const awnChannelsCreateCancelBtn = document.getElementById("awn-channels-create-cancel-btn");
+const awnChannelsCreateSubmitBtn = document.getElementById("awn-channels-create-submit-btn");
+let awnChannelsCreateModalState = { mode: "custom", presetSlug: "" };
+let awnChannelsCreateSlugController = null;
+let menuAwnChannelsLastPayload = null;
+let menuAwnChannelsLoadSeq = 0;
+let menuAwnChannelsCachedAgentId = "";
 const agentLargeFilesCloudStatsNode = document.getElementById("agent-large-files-cloud-stats");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
 const menuAwnDialogsRuntimesNode = document.getElementById("menu-awn-dialogs-runtimes");
@@ -194,6 +210,7 @@ const repositoryCreateCancelBtn = document.getElementById("repository-create-can
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
 const REPOSITORY_CREATE_TYPE_ID = "awn.hub.repository";
 const HUB_MEDIA_TYPE_ID = "awn.hub.media";
+const HUB_CHANNEL_TYPE_ID = "awn.hub.channel";
 const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
 const menuRepositoriesShortcutsRow = document.getElementById("menu-repositories-shortcuts-row");
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
@@ -282,27 +299,38 @@ const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const MENU_AWN_CHANNELS_BAND_OPEN_KEY = "yamlcms.menuAwnChannelsBandOpen.v1";
 const AWN_CHANNELS_INDEX_REL_PATH = "awn-channels/index.md";
-const MENU_AWN_CHANNELS_STATIC_EXAMPLES = [
-  { icon: "💬", label: "Форум дискуссии и обсуждения (где люди могут" },
-  { icon: "📝", label: "Блог (куда агент анпример что то пишет что меня интересует), что интересного собрал агент сегодня — по моим запросам" },
-  { icon: "📰", label: "Дайджесты сюда он собирает что-то сводки" },
-  { icon: "▶️", label: "Ютуб что то обсудить подискутироват" },
-  { icon: "✈️", label: "Телеграмм (я могу например сюда выгружать темы)" },
-  { icon: "💬", label: "Ватсап может быть" },
-  { icon: "🌐", label: "Интернет" },
-  { icon: "🔖", label: "Закладки" },
-  { icon: "📥", label: "Загрузки из браузера" },
-  { icon: "📓", label: "Печатные тетради" },
-  { icon: "🖼️", label: "Фотоархив" },
-  { icon: "📱", label: "Фотоархив (телефон)" },
-  { icon: "📊", label: "аналитика" },
-  { icon: "🌍", label: "Объекты реального мира" },
-  { icon: "🛒", label: "Барахолка" },
-  { icon: "📒", label: "Заметки" },
-  { icon: "🎞️", label: "Слайдер" },
-  { icon: "🖥️", label: "Скриншоты" },
-  { icon: "📦", label: "Другое (не знаю куда деть)" }
+/** Заготовки каналов — порядок и slug синхронны с lib/config/channel-presets.js */
+const CHANNEL_BUILTIN_PRESETS = [
+  {
+    slug: "forum",
+    icon: "💬",
+    name: "Форум дискуссии и обсуждения (где люди могут"
+  },
+  {
+    slug: "blog-agent",
+    icon: "📝",
+    name:
+      "Блог (куда агент анпример что то пишет что меня интересует), что интересного собрал агент сегодня — по моим запросам"
+  },
+  { slug: "digest", icon: "📰", name: "Дайджесты сюда он собирает что-то сводки" },
+  { slug: "youtube", icon: "▶️", name: "Ютуб что то обсудить подискутироват" },
+  { slug: "telegram", icon: "✈️", name: "Телеграмм (я могу например сюда выгружать темы)" },
+  { slug: "whatsapp", icon: "💬", name: "Ватсап может быть" },
+  { slug: "web", icon: "🌐", name: "Интернет" },
+  { slug: "bookmarks", icon: "🔖", name: "Закладки" },
+  { slug: "browser-downloads", icon: "📥", name: "Загрузки из браузера" },
+  { slug: "notebooks", icon: "📓", name: "Печатные тетради" },
+  { slug: "photo-archive", icon: "🖼️", name: "Фотоархив" },
+  { slug: "photo-phone", icon: "📱", name: "Фотоархив (телефон)" },
+  { slug: "analytics", icon: "📊", name: "аналитика" },
+  { slug: "real-world", icon: "🌍", name: "Объекты реального мира" },
+  { slug: "market", icon: "🛒", name: "Барахолка" },
+  { slug: "notes", icon: "📒", name: "Заметки" },
+  { slug: "slider", icon: "🎞️", name: "Слайдер" },
+  { slug: "screenshots", icon: "🖥️", name: "Скриншоты" },
+  { slug: "other", icon: "📦", name: "Другое (не знаю куда деть)" }
 ];
+const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
 let menuAwnChannelsSearchQuery = "";
 const MENU_AWN_CHANNELS_FLOW_KEY = "yamlcms.menuAwnChannelsFlow.v1";
 let menuAwnChannelsFlowMode = "ingress-external";
@@ -3305,6 +3333,10 @@ async function applyChpuResolvedRoute(resolved) {
       await openMediaLibraryWorkspacePath(folderPath, { skipRouteSync: true });
       return;
     }
+    if (isAwnChannelWorkspaceRel(folderPath)) {
+      await openAwnChannelWorkspacePath(folderPath, { skipRouteSync: true });
+      return;
+    }
     if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
@@ -3330,6 +3362,10 @@ async function applyChpuResolvedRoute(resolved) {
     }
     if (isMediaLibraryWorkspaceRel(filePath)) {
       await openMediaLibraryWorkspacePath(filePath, { skipRouteSync: true });
+      return;
+    }
+    if (isAwnChannelWorkspaceRel(filePath)) {
+      await openAwnChannelWorkspacePath(filePath, { skipRouteSync: true });
       return;
     }
     if (/^(?:awn-databases|awn-data)\//i.test(filePath)) {
@@ -3419,6 +3455,23 @@ async function applyChpuResolvedRoute(resolved) {
       await openMediaLibraryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
       return;
     }
+    if (isAwnChannelWorkspaceRel(topicPath)) {
+      hideHomeView();
+      const manifestPath = String(
+        resolved.topicManifestPath || getAwnChannelManifestPathFromFolder(topicPath)
+      ).replace(/\\/g, "/");
+      const entry =
+        resolveAwnChannelEntryFromWorkspaceRel(manifestPath) ||
+        resolveAwnChannelEntryFromWorkspaceRel(topicPath) || {
+          slug: topicPath.split("/").filter(Boolean).pop() || "",
+          folderPath: topicPath,
+          manifestPath,
+          name: topicPath.split("/").filter(Boolean).pop() || topicPath,
+          registered: true
+        };
+      await openAwnChannelWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
+      return;
+    }
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
     const topicEntry = entry?.path ? entry : await resolveChpuTopicEntry(resolved);
     if (!topicEntry?.path) {
@@ -3452,6 +3505,10 @@ async function applyChpuResolvedRoute(resolved) {
     }
     if (isMediaLibraryWorkspaceRel(fileRel)) {
       await openMediaLibraryWorkspacePath(fileRel, { skipRouteSync: true });
+      return;
+    }
+    if (isAwnChannelWorkspaceRel(fileRel)) {
+      await openAwnChannelWorkspacePath(fileRel, { skipRouteSync: true });
       return;
     }
     if (isAwnDataIndexRelPath(fileRel)) {
@@ -5646,6 +5703,112 @@ function isMediaLibraryWorkspaceRel(workspaceRel) {
   return /^awn-media(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
 
+function isAwnChannelManifestPath(path = getResolvedNodePath(activePath)) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return /^awn-channels\/[^/]+\/manifest\.md$/i.test(normalized);
+}
+
+function isAwnChannelFolderPath(path = getResolvedNodePath(activePath)) {
+  const normalized = String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return /^awn-channels\/[^/]+$/i.test(normalized) && !/\.md$/i.test(normalized);
+}
+
+function isAwnChannelTypeLabel(typeLabel) {
+  const n = normalizeAwnTypeName(typeLabel);
+  return n === normalizeAwnTypeName(HUB_CHANNEL_TYPE_ID);
+}
+
+function isAwnChannelPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
+  const resolved = getResolvedNodePath(nodePath);
+  if (isAwnChannelManifestPath(resolved) || isAwnChannelFolderPath(resolved)) return true;
+  if (getResolvedNodePath(activePath) !== resolved) return false;
+  const propsEntries = Array.isArray(entries) ? entries : resolveNodeOverviewPropsEntries();
+  return isAwnChannelTypeLabel(getPropsEntryValueByKey(propsEntries, "awn-type"));
+}
+
+function isAwnChannelWorkspaceRel(workspaceRel) {
+  return /^awn-channels(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
+}
+
+function getAwnChannelSlugFromWorkspacePath(workspaceRel) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  const match = normalized.match(/^awn-channels\/([^/]+)/i);
+  return match ? match[1] : "";
+}
+
+function getActiveAwnChannelMenuFolderPath() {
+  const resolved = normalizeLinkFilePath(getResolvedNodePath(activePath));
+  if (!resolved || resolved.toLowerCase() === AWN_CHANNELS_INDEX_REL_PATH.toLowerCase()) return "";
+  const slugMatch = resolved.match(/^awn-channels\/([^/]+)/i);
+  if (!slugMatch) return "";
+  const folderPath = `awn-channels/${slugMatch[1]}`;
+  const manifestPath = `${folderPath}/manifest.md`;
+  if (!isAwnChannelPageNodePath(manifestPath)) return "";
+  return folderPath;
+}
+
+function syncMenuAwnChannelsActiveState(folderPath = getActiveAwnChannelMenuFolderPath()) {
+  if (!menuAwnChannelsListNode) return;
+  const normalized = normalizeLinkFilePath(folderPath).replace(/\/+$/, "").toLowerCase();
+  for (const row of menuAwnChannelsListNode.querySelectorAll(".menu-awn-channels-item")) {
+    const rowFolder = normalizeLinkFilePath(row.dataset.awnChannelFolderPath || "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+    const active =
+      Boolean(normalized) &&
+      rowFolder === normalized &&
+      !row.classList.contains("menu-awn-channels-item--pending");
+    row.classList.toggle("is-active", active);
+  }
+}
+
+function getAwnChannelManifestPathFromFolder(folderPath) {
+  const folder = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  return `${folder}/manifest.md`;
+}
+
+function resolveAwnChannelEntryFromWorkspaceRel(workspaceRel) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  const slugMatch = normalized.match(/^awn-channels\/([^/]+)(?:\/manifest\.md)?$/i);
+  if (!slugMatch) return null;
+  const slug = slugMatch[1];
+  const folderPath = `awn-channels/${slug}`;
+  const manifestPath = `${folderPath}/manifest.md`;
+  const payload = menuAwnChannelsLastPayload;
+  const all = [
+    ...(Array.isArray(payload?.presets) ? payload.presets : []),
+    ...(Array.isArray(payload?.channels) ? payload.channels : [])
+  ];
+  const registered = all.find(
+    (entry) => String(entry.slug || "").toLowerCase() === slug.toLowerCase() && entry.registered !== false
+  );
+  if (registered) return registered;
+  const unregistered = payload?.unregistered?.find(
+    (entry) => String(entry.slug || "").toLowerCase() === slug.toLowerCase()
+  );
+  if (unregistered) return { ...unregistered, registered: false };
+  const preset = CHANNEL_BUILTIN_PRESETS.find((entry) => entry.slug === slug);
+  return {
+    slug,
+    folderPath,
+    manifestPath,
+    name: preset?.name || slug,
+    icon: preset?.icon,
+    description: preset?.description,
+    registered: false,
+    stub: true
+  };
+}
+
 function getMediaLibrarySlugFromWorkspacePath(workspaceRel) {
   const normalized = normalizeLinkFilePath(workspaceRel);
   const match = normalized.match(/^awn-media\/([^/]+)/i);
@@ -6011,6 +6174,87 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
   }
 }
 
+async function openAwnChannelWorkspaceEntry(entry, options = {}) {
+  if (!entry || entry.registered === false) return;
+  const folderPath = normalizeLinkFilePath(entry.folderPath || `awn-channels/${entry.slug || ""}`);
+  const manifestPath = normalizeLinkFilePath(
+    entry.manifestPath || getAwnChannelManifestPathFromFolder(folderPath)
+  );
+  const slug = String(entry.slug || folderPath.split("/").pop() || "").trim();
+  const label = String(entry.name || slug || "Канал").trim();
+
+  hideHomeView();
+  clearActiveSystemFile();
+  clearActiveThreadScope();
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  activeExternalFilePath = null;
+  nodeOverviewRenderSeq += 1;
+  clearMediaSidecarEditor();
+  resetPropsLibrariesCache();
+
+  activePath = manifestPath;
+  activeLabel = label;
+  hideLiveFileUpdateBanner();
+  hideLiveFileDiffPanel();
+  clearLiveSyncInlineDiffState();
+  liveSyncPendingChange = null;
+  liveSyncMtimeBaselineReady = false;
+  liveSyncMtimeByPath = new Map();
+
+  updateActiveButton();
+  titleInputNode.value = label;
+
+  modeContentCache.description = "";
+  propsFormEntries = [];
+  navigationManifestCachedPath = null;
+
+  showContentLoading({ variant: "default", message: "Загрузка…" });
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }));
+    if (response.ok) {
+      const data = await response.json();
+      modeContentCache.description = data.content || "";
+      navigationManifestCachedPath = manifestPath;
+      await loadPropertiesForActivePath();
+    } else {
+      modeContentCache.description = "";
+    }
+  } catch {
+    modeContentCache.description = "";
+  } finally {
+    hideContentLoading();
+  }
+
+  suspendAppRouteSync();
+  try {
+    await openEntryOverviewMemoryTocFromNavigation("inbox");
+    applyNodeWorkspaceViewUi();
+    updateBreadcrumbsForActiveMode();
+    void markNodePageRead(resolveManifestPathForNodeApi(manifestPath));
+    updateActiveButton();
+  } finally {
+    resumeAppRouteSync();
+  }
+
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: !options.replaceRoute, replace: Boolean(options.replaceRoute) });
+  }
+  syncMenuAwnChannelsActiveState();
+}
+
+async function openAwnChannelWorkspacePath(workspaceRel, options = {}) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  if (!normalized || !isAwnChannelWorkspaceRel(normalized)) return false;
+  const entry = resolveAwnChannelEntryFromWorkspaceRel(normalized);
+  if (!entry || entry.registered === false) return false;
+  await openAwnChannelWorkspaceEntry({ ...entry, registered: true }, options);
+  return true;
+}
+
 async function openRepositoryWorkspaceEntry(entry, options = {}) {
   if (!entry || entry.registered === false) return;
   if (options.openMockupPreview) {
@@ -6143,6 +6387,12 @@ async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
     const mediaEntry = resolveMediaLibraryEntryFromWorkspaceRel(normalized);
     if (mediaEntry?.registered === false) return false;
     await openMediaLibraryWorkspaceEntry({ ...mediaEntry, registered: true }, options);
+    return true;
+  }
+  if (isAwnChannelWorkspaceRel(normalized)) {
+    const channelEntry = resolveAwnChannelEntryFromWorkspaceRel(normalized);
+    if (channelEntry?.registered === false) return false;
+    await openAwnChannelWorkspaceEntry({ ...channelEntry, registered: true }, options);
     return true;
   }
   try {
@@ -6307,6 +6557,14 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
 
   if (isRepositoryWorkspaceRel(normalized)) {
     return openRepositoryWorkspacePath(normalized, options);
+  }
+
+  if (isMediaLibraryWorkspaceRel(normalized)) {
+    return openMediaLibraryWorkspacePath(normalized, options);
+  }
+
+  if (isAwnChannelWorkspaceRel(normalized)) {
+    return openAwnChannelWorkspacePath(normalized, options);
   }
 
   if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(normalized)) {
@@ -16032,6 +16290,7 @@ async function switchActiveAgent(nextAgentId) {
         void refreshMenuAwnDataStores(switchedAgentId, { showLoading: true });
         void refreshMenuRepositories(switchedAgentId);
         void refreshMenuMediaLibraries(switchedAgentId);
+        void refreshMenuAwnChannels(switchedAgentId);
         void refreshMenuAwnDialogsStats(switchedAgentId);
         void refreshMenuAwnFactsStats(switchedAgentId);
         void refreshMenuAwnTempStats(switchedAgentId);
@@ -115648,46 +115907,584 @@ function setMenuAwnChannelsBandExpanded(expanded) {
   }
   applyMenuAwnChannelsBandExpanded(expanded);
   syncSidebarBottomFocusMode();
+  if (expanded) void refreshMenuAwnChannels();
 }
 
 function toggleMenuAwnChannelsBandExpanded() {
   setMenuAwnChannelsBandExpanded(!isMenuAwnChannelsBandExpanded());
 }
 
-function renderMenuAwnChannelsStaticList() {
-  if (!menuAwnChannelsListNode) return;
-  menuAwnChannelsListNode.replaceChildren();
-  const query = String(menuAwnChannelsSearchQuery || "")
-    .trim()
-    .toLowerCase();
-  const items = MENU_AWN_CHANNELS_STATIC_EXAMPLES.filter((entry) => {
-    if (!query) return true;
-    return String(entry.label || "")
-      .toLowerCase()
-      .includes(query);
+function getAwnChannelPresetDisplayName(entry) {
+  return String(entry?.name || entry?.label || entry?.slug || "").trim();
+}
+
+function menuAwnChannelEntrySearchHaystack(entry) {
+  return [getAwnChannelPresetDisplayName(entry), entry?.slug, entry?.description, entry?.icon]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function resolveMenuAwnChannelPresets(payload) {
+  const fromApi = Array.isArray(payload?.presets) ? payload.presets : null;
+  if (fromApi?.length) return fromApi;
+  const channels = Array.isArray(payload?.channels) ? payload.channels : [];
+  const unregistered = Array.isArray(payload?.unregistered) ? payload.unregistered : [];
+  const channelBySlug = new Map(channels.map((entry) => [entry.slug, entry]));
+  const unregisteredBySlug = new Map(unregistered.map((entry) => [entry.slug, entry]));
+  return CHANNEL_BUILTIN_PRESETS.map((preset) => {
+    const registered = channelBySlug.get(preset.slug);
+    if (registered) return { ...registered, ...preset, builtin: true, preset: true, registered: true };
+    const loose = unregisteredBySlug.get(preset.slug);
+    if (loose) return { ...loose, ...preset, builtin: true, preset: true, registered: false };
+    const folderPath = `awn-channels/${preset.slug}`;
+    return {
+      ...preset,
+      folderPath,
+      manifestPath: `${folderPath}/manifest.md`,
+      builtin: true,
+      preset: true,
+      registered: false,
+      stub: true,
+      description: "Заготовка — создайте канал по клику"
+    };
   });
-  if (!items.length) {
-    const empty = document.createElement("li");
-    empty.className = "menu-awn-channels-item menu-awn-channels-item--empty";
-    empty.textContent = query ? "Ничего не найдено" : "Нет каналов";
-    menuAwnChannelsListNode.appendChild(empty);
+}
+
+function filterMenuAwnChannelsPayload(payload, query = menuAwnChannelsSearchQuery) {
+  const queryLower = String(query || "").trim().toLowerCase();
+  if (!queryLower || !payload) return payload;
+  return {
+    ...payload,
+    presets: resolveMenuAwnChannelPresets(payload).filter((entry) =>
+      menuAwnChannelEntrySearchHaystack(entry).includes(queryLower)
+    ),
+    channels: (Array.isArray(payload.channels) ? payload.channels : []).filter((entry) =>
+      menuAwnChannelEntrySearchHaystack(entry).includes(queryLower)
+    ),
+    unregistered: (Array.isArray(payload.unregistered) ? payload.unregistered : []).filter((entry) =>
+      menuAwnChannelEntrySearchHaystack(entry).includes(queryLower)
+    ),
+    _searchActive: true
+  };
+}
+
+function createMenuAwnChannelKindNode(icon = "📡") {
+  const wrap = document.createElement("span");
+  wrap.className = "menu-awn-databases-store-kind-wrap";
+  wrap.title = "Канал ingress (awn.hub.channel)";
+  wrap.setAttribute("aria-hidden", "true");
+  const iconNode = document.createElement("span");
+  iconNode.className = "menu-awn-databases-store-kind menu-awn-databases-store-kind--channel";
+  iconNode.textContent = icon;
+  wrap.appendChild(iconNode);
+  return wrap;
+}
+
+function createMenuAwnChannelRow(channel) {
+  const row = document.createElement("li");
+  const isPreset = Boolean(channel?.preset || channel?.builtin);
+  const isRegistered = channel?.registered !== false;
+  const isPendingCreate = !isRegistered;
+  const slug = channel.slug || "";
+  const displayName = getAwnChannelPresetDisplayName(channel) || slug || "—";
+  const folderPath = channel.folderPath || `awn-channels/${slug}`;
+  row.className = "menu-awn-databases-store menu-awn-channels-item";
+  if (isPreset) row.classList.add("menu-awn-channels-item--preset");
+  if (isPendingCreate) row.classList.add("menu-awn-channels-item--pending");
+  row.dataset.awnChannelSlug = slug;
+  row.dataset.awnChannelLabel = displayName;
+  row.dataset.awnChannelFolderPath = folderPath;
+  row.title =
+    channel.description ||
+    (isPendingCreate
+      ? `Заготовка — создайте awn-channels/${slug}/`
+      : displayName);
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "menu-awn-databases-store-name menu-awn-channels-item-name";
+  nameNode.textContent = displayName;
+
+  const metaNode = document.createElement("span");
+  metaNode.className = "menu-awn-databases-store-meta";
+
+  const openCreateModal = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation();
+    openAwnChannelsCreateModal({
+      slug,
+      name: displayName,
+      description: channel.description && !channel.stub ? channel.description : "",
+      icon: channel.icon,
+      preset: isPreset,
+      lockSlug: isPreset
+    });
+  };
+
+  const provisionAndOpenChannel = async () => {
+    let entry = channel;
+    if (!isRegistered) {
+      try {
+        const created = await registerMenuAwnChannel(
+          {
+            slug,
+            name: displayName,
+            ...(channel.description && !channel.stub ? { description: channel.description } : {})
+          },
+          activeAgentId,
+          { skipAutoOpen: true }
+        );
+        if (!created?.path) return;
+        entry = {
+          ...channel,
+          registered: true,
+          manifestPath: created.path,
+          folderPath: created.folderPath || channel.folderPath
+        };
+        await refreshMenuAwnChannels(activeAgentId);
+      } catch (error) {
+        showToast(String(error.message || error), "error");
+        return;
+      }
+    }
+    await openAwnChannelWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
+  };
+
+  if (slug) {
+    if (isPendingCreate) {
+      const keyBtn = document.createElement("button");
+      keyBtn.type = "button";
+      keyBtn.className = "menu-awn-databases-store-badge menu-awn-channels-key-btn";
+      keyBtn.textContent = slug;
+      keyBtn.title = `Создать awn-channels/${slug}/ (manifest + inbox/)`;
+      keyBtn.setAttribute("aria-label", `Создать канал ${slug}`);
+      keyBtn.addEventListener("click", openCreateModal);
+      metaNode.appendChild(keyBtn);
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      row.addEventListener("click", openCreateModal);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") openCreateModal(event);
+      });
+    } else {
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const slugBadge = document.createElement("span");
+      slugBadge.className = "menu-awn-databases-store-badge menu-awn-channels-slug-badge";
+      slugBadge.textContent = slug;
+      slugBadge.title = `ключ: ${slug} · ${folderPath}/inbox/`;
+      metaNode.appendChild(slugBadge);
+      const openChannel = (event) => {
+        event?.preventDefault?.();
+        event?.stopPropagation();
+        suspendAppRouteSync();
+        void provisionAndOpenChannel().finally(() => {
+          resumeAppRouteSync();
+          syncAppRouteToUrl({ push: true });
+        });
+      };
+      row.addEventListener("click", openChannel);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") openChannel(event);
+      });
+    }
+  }
+
+  row.append(createMenuAwnChannelKindNode(channel.icon || "📡"), nameNode, metaNode);
+  return row;
+}
+
+function renderMenuAwnChannelsList(payload = null, { loading = false, error = false } = {}) {
+  if (!menuAwnChannelsListNode) return;
+  menuAwnChannelsListNode.classList.remove("is-loading");
+  menuAwnChannelsListNode.replaceChildren();
+
+  if (loading && !menuAwnChannelsLastPayload) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-channels-empty menu-awn-channels-empty--skeleton";
+    item.textContent = "Загрузка…";
+    menuAwnChannelsListNode.appendChild(item);
     return;
   }
-  for (const entry of items) {
+
+  if (error && !menuAwnChannelsLastPayload) {
     const item = document.createElement("li");
-    item.className = "menu-awn-channels-item";
-    item.dataset.staticChannel = "1";
-    const icon = document.createElement("span");
-    icon.className = "menu-awn-channels-item-icon";
-    icon.textContent = entry.icon;
-    icon.setAttribute("aria-hidden", "true");
-    const label = document.createElement("span");
-    label.className = "menu-awn-channels-item-label";
-    label.textContent = entry.label;
-    item.appendChild(icon);
-    item.appendChild(label);
+    item.className = "menu-awn-channels-empty is-error";
+    item.textContent = "Не удалось прочитать каталог каналов";
     menuAwnChannelsListNode.appendChild(item);
+    return;
   }
+
+  const data = filterMenuAwnChannelsPayload(payload || menuAwnChannelsLastPayload);
+  if (!data) return;
+
+  if (data.emptyHint === "select-agent") {
+    const item = document.createElement("li");
+    item.className = "menu-awn-channels-empty";
+    item.textContent = "Выберите агента";
+    menuAwnChannelsListNode.appendChild(item);
+    return;
+  }
+
+  const presets =
+    data._searchActive && Array.isArray(data.presets)
+      ? data.presets
+      : resolveMenuAwnChannelPresets(data);
+
+  const channels = (Array.isArray(data.channels) ? data.channels : []).filter(
+    (entry) => !CHANNEL_BUILTIN_SLUGS.has(entry.slug)
+  );
+  const unregistered = (Array.isArray(data.unregistered) ? data.unregistered : []).filter(
+    (entry) => !CHANNEL_BUILTIN_SLUGS.has(entry.slug)
+  );
+  const userRows = [
+    ...channels.map((entry) => ({ kind: "registered", entry })),
+    ...unregistered.map((entry) => ({ kind: "unregistered", entry }))
+  ].sort((a, b) =>
+    String(a.entry?.name || a.entry?.slug || "").localeCompare(
+      String(b.entry?.name || b.entry?.slug || ""),
+      "ru",
+      { sensitivity: "base", numeric: true }
+    )
+  );
+
+  if (!presets.length && !userRows.length) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-channels-empty";
+    item.textContent = data._searchActive ? "Ничего не найдено" : "Своих каналов пока нет — «+»";
+    menuAwnChannelsListNode.appendChild(item);
+    return;
+  }
+
+  for (const preset of presets) {
+    menuAwnChannelsListNode.appendChild(createMenuAwnChannelRow(preset));
+  }
+
+  if (presets.length && userRows.length) {
+    const divider = document.createElement("li");
+    divider.className = "menu-awn-channels-user-divider";
+    divider.setAttribute("role", "presentation");
+    divider.textContent = "Свои каналы";
+    menuAwnChannelsListNode.appendChild(divider);
+  }
+
+  for (const row of userRows) {
+    menuAwnChannelsListNode.appendChild(createMenuAwnChannelRow(row.entry));
+  }
+  syncMenuAwnChannelsActiveState();
+}
+
+async function refreshMenuAwnChannels(agentId = activeAgentId) {
+  if (!menuAwnChannelsListNode) return;
+
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (resolvedAgent !== menuAwnChannelsCachedAgentId) {
+    menuAwnChannelsLastPayload = null;
+    menuAwnChannelsCachedAgentId = resolvedAgent;
+  }
+
+  const seq = ++menuAwnChannelsLoadSeq;
+  const hasCached = Boolean(menuAwnChannelsLastPayload);
+  if (hasCached) {
+    menuAwnChannelsListNode.classList.add("is-loading");
+  } else {
+    renderMenuAwnChannelsList(null, { loading: true });
+  }
+
+  if (!resolvedAgent) {
+    if (seq !== menuAwnChannelsLoadSeq) return;
+    menuAwnChannelsLastPayload = { presets: [], channels: [], emptyHint: "select-agent" };
+    renderMenuAwnChannelsList(menuAwnChannelsLastPayload);
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/awn-channels", {}, resolvedAgent));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnChannelsLoadSeq) return;
+    menuAwnChannelsLastPayload = data;
+    renderMenuAwnChannelsList(data);
+  } catch {
+    if (seq !== menuAwnChannelsLoadSeq) return;
+    if (!menuAwnChannelsLastPayload) {
+      renderMenuAwnChannelsList(null, { error: true });
+    } else {
+      menuAwnChannelsListNode.classList.remove("is-loading");
+      showToast("Не удалось обновить каталог каналов", "error");
+    }
+  }
+}
+
+async function handleMenuAwnChannelsRefreshClick() {
+  setMenuStaticSummaryRefreshSpinning(menuAwnChannelsRefreshBtn, true);
+  try {
+    await refreshMenuAwnChannels();
+    showToast("Каталог каналов обновлён", "success", 2400);
+  } finally {
+    setMenuStaticSummaryRefreshSpinning(menuAwnChannelsRefreshBtn, false);
+  }
+}
+
+async function registerMenuAwnChannel(payload = {}, agentId = activeAgentId, options = {}) {
+  const slug = String(payload.slug || "").trim();
+  if (!slug) return null;
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return null;
+  }
+  const response = await fetch(buildApiUrl("/api/agent/awn-channels", {}, resolvedAgent), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      slug,
+      ...(payload.name ? { name: payload.name } : {}),
+      ...(payload.description ? { description: payload.description } : {})
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  }
+  if (!options.skipAutoOpen && data.path) {
+    await openAwnChannelWorkspaceEntry(
+      {
+        slug,
+        name: payload.name || slug,
+        folderPath: data.folderPath || `awn-channels/${slug}`,
+        manifestPath: data.path,
+        registered: true
+      },
+      { skipRouteSync: true }
+    );
+  }
+  return data;
+}
+
+function syncAwnChannelsCreateModalPresetUi() {
+  if (!awnChannelsCreatePresetsNode) return;
+  const selected = String(awnChannelsCreateModalState.presetSlug || "");
+  for (const btn of awnChannelsCreatePresetsNode.querySelectorAll("[data-awn-channel-preset-slug]")) {
+    const slug = String(btn.getAttribute("data-awn-channel-preset-slug") || "");
+    const active = Boolean(selected && slug === selected);
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  }
+}
+
+function applyAwnChannelsCreateModalPreset(preset) {
+  if (!preset) return;
+  const slug = String(preset.slug || "").trim();
+  const name = getAwnChannelPresetDisplayName(preset) || slug;
+  awnChannelsCreateModalState.presetSlug = slug;
+  awnChannelsCreateModalState.mode = "preset";
+  if (awnChannelsCreateNameInputNode) awnChannelsCreateNameInputNode.value = name;
+  if (awnChannelsCreateDescriptionInputNode) {
+    awnChannelsCreateDescriptionInputNode.value = String(preset.description || "").trim();
+  }
+  if (awnChannelsCreateSlugUnlinkBtn) {
+    awnChannelsCreateSlugUnlinkBtn.classList.toggle("hidden", true);
+    awnChannelsCreateSlugUnlinkBtn.disabled = true;
+  }
+  if (awnChannelsCreateSlugInputNode) {
+    awnChannelsCreateSlugInputNode.value = slug;
+    awnChannelsCreateSlugInputNode.readOnly = true;
+    awnChannelsCreateSlugInputNode.classList.add("is-readonly");
+  }
+  syncAwnChannelsCreateModalPresetUi();
+}
+
+function renderAwnChannelsCreateModalPresets() {
+  if (!awnChannelsCreatePresetsNode) return;
+  awnChannelsCreatePresetsNode.replaceChildren();
+  for (const preset of CHANNEL_BUILTIN_PRESETS) {
+    const label = getAwnChannelPresetDisplayName(preset);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "create-node-action-btn awn-channels-create-preset-btn";
+    btn.setAttribute("data-awn-channel-preset-slug", preset.slug);
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", "false");
+    btn.title = label;
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "awn-channels-create-preset-btn-icon";
+    iconSpan.textContent = preset.icon || "📡";
+    iconSpan.setAttribute("aria-hidden", "true");
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "awn-channels-create-preset-btn-label";
+    labelSpan.textContent = label;
+    btn.append(iconSpan, labelSpan);
+    btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
+    awnChannelsCreatePresetsNode.appendChild(btn);
+  }
+}
+
+function openAwnChannelsCreateModal(options = {}) {
+  if (!awnChannelsCreateModalNode) return;
+  const slug = String(options.slug || "").trim();
+  const name = String(options.name || "").trim();
+  const lockSlug = Boolean(options.lockSlug);
+  const isPreset = Boolean(options.preset);
+  awnChannelsCreateModalState = {
+    mode: isPreset || slug ? "preset" : "custom",
+    presetSlug: isPreset ? slug : ""
+  };
+  if (awnChannelsCreateModalTitleNode) {
+    awnChannelsCreateModalTitleNode.textContent = isPreset && name
+      ? `Создать канал «${name}»`
+      : "Свой канал";
+  }
+  if (awnChannelsCreateModalHintNode) {
+    awnChannelsCreateModalHintNode.innerHTML = lockSlug
+      ? `Заготовка ingress: фиксированный ключ <code>${escapeHtml(slug)}</code> → <code>awn-channels/${escapeHtml(slug)}/</code>.`
+      : "Папка <code>awn-channels/{slug}/</code> с <code>manifest.md</code> (<code>awn.hub.channel</code>), слот <code>inbox/</code>.";
+  }
+  if (awnChannelsCreateDescriptionInputNode) {
+    awnChannelsCreateDescriptionInputNode.value = String(options.description || "").trim();
+  }
+  if (lockSlug) {
+    applyAwnChannelsCreateModalPreset({
+      slug,
+      name: name || slug,
+      description: options.description,
+      icon: options.icon
+    });
+    if (awnChannelsCreateSlugUnlinkBtn) {
+      awnChannelsCreateSlugUnlinkBtn.classList.toggle("hidden", true);
+      awnChannelsCreateSlugUnlinkBtn.disabled = true;
+    }
+  } else {
+    awnChannelsCreateModalState.presetSlug = "";
+    if (awnChannelsCreateNameInputNode) awnChannelsCreateNameInputNode.value = name || "";
+    if (awnChannelsCreateSlugUnlinkBtn) {
+      awnChannelsCreateSlugUnlinkBtn.classList.remove("hidden");
+      awnChannelsCreateSlugUnlinkBtn.disabled = false;
+    }
+    awnChannelsCreateSlugController?.reset();
+    if (slug) {
+      awnChannelsCreateSlugController?.setLinked(false);
+      if (awnChannelsCreateSlugInputNode) {
+        awnChannelsCreateSlugInputNode.value = sanitizeSlugValue(slug);
+      }
+    } else {
+      awnChannelsCreateSlugController?.sync();
+    }
+    syncAwnChannelsCreateModalPresetUi();
+  }
+  awnChannelsCreateModalNode.classList.remove("hidden");
+  awnChannelsCreateNameInputNode?.focus();
+}
+
+function closeAwnChannelsCreateModal() {
+  awnChannelsCreateModalNode?.classList.add("hidden");
+  awnChannelsCreateModalState = { mode: "custom", presetSlug: "" };
+  syncAwnChannelsCreateModalPresetUi();
+}
+
+async function submitAwnChannelsCreateModal() {
+  const slug = String(
+    awnChannelsCreateSlugController?.getSlug() || awnChannelsCreateSlugInputNode?.value || ""
+  )
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  const name = String(awnChannelsCreateNameInputNode?.value || slug).trim() || slug;
+  const description = String(awnChannelsCreateDescriptionInputNode?.value || "").trim();
+  if (!slug || slug.includes("/")) {
+    showToast("Укажите корректный ключ (slug)", "error");
+    return;
+  }
+  if (awnChannelsCreateModalState.mode === "custom" && CHANNEL_BUILTIN_SLUGS.has(slug)) {
+    showToast("Этот ключ зарезервирован заготовкой — выберите её в списке или в модалке", "info");
+    return;
+  }
+  if (awnChannelsCreateSubmitBtn) awnChannelsCreateSubmitBtn.disabled = true;
+  try {
+    const created = await registerMenuAwnChannel(
+      { slug, name, ...(description ? { description } : {}) },
+      activeAgentId,
+      { skipAutoOpen: true }
+    );
+    if (!created?.path) return;
+    closeAwnChannelsCreateModal();
+    showToast("Канал создан", "success");
+    await refreshMenuAwnChannels();
+    suspendAppRouteSync();
+    try {
+      await openAwnChannelWorkspaceEntry(
+        {
+          slug,
+          name,
+          folderPath: created.folderPath || `awn-channels/${slug}`,
+          manifestPath: created.path,
+          registered: true
+        },
+        { skipRouteSync: true }
+      );
+      syncAppRouteToUrl({ push: true });
+    } finally {
+      resumeAppRouteSync();
+    }
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    if (awnChannelsCreateSubmitBtn) awnChannelsCreateSubmitBtn.disabled = false;
+  }
+}
+
+function promptCreateMenuAwnChannel() {
+  openAwnChannelsCreateModal();
+}
+
+function syncMenuAwnChannelsSearchBtnUi() {
+  if (!menuAwnChannelsSearchBtn) return;
+  const hasQuery = Boolean(String(menuAwnChannelsSearchQuery || "").trim());
+  const focused = document.activeElement === menuAwnChannelsSearchInputNode;
+  const active = hasQuery || focused;
+  menuAwnChannelsSearchBtn.classList.toggle("is-active", active);
+  menuAwnChannelsSearchBtn.setAttribute("aria-pressed", active ? "true" : "false");
+}
+
+function focusMenuAwnChannelsSearch() {
+  setMenuAwnChannelsBandExpanded(true);
+  window.requestAnimationFrame(() => {
+    menuAwnChannelsSearchInputNode?.focus();
+    syncMenuAwnChannelsSearchBtnUi();
+  });
+}
+
+function setupMenuAwnChannelsUi() {
+  if (setupMenuAwnChannelsUi.initialized) return;
+  setupMenuAwnChannelsUi.initialized = true;
+  renderAwnChannelsCreateModalPresets();
+  if (
+    awnChannelsCreateNameInputNode &&
+    awnChannelsCreateSlugInputNode &&
+    awnChannelsCreateSlugUnlinkBtn
+  ) {
+    awnChannelsCreateSlugController = createSlugFieldController({
+      nameInput: awnChannelsCreateNameInputNode,
+      slugInput: awnChannelsCreateSlugInputNode,
+      unlinkBtn: awnChannelsCreateSlugUnlinkBtn
+    });
+  }
+  menuAwnChannelsCreateBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    promptCreateMenuAwnChannel();
+  });
+  awnChannelsCreateCancelBtn?.addEventListener("click", closeAwnChannelsCreateModal);
+  awnChannelsCreateSubmitBtn?.addEventListener("click", () => void submitAwnChannelsCreateModal());
+  awnChannelsCreateModalNode?.addEventListener("click", (event) => {
+    if (event.target === awnChannelsCreateModalNode) closeAwnChannelsCreateModal();
+  });
+  menuAwnChannelsSearchBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    focusMenuAwnChannelsSearch();
+  });
+  menuAwnChannelsSearchInputNode?.addEventListener("focus", syncMenuAwnChannelsSearchBtnUi);
+  menuAwnChannelsSearchInputNode?.addEventListener("blur", syncMenuAwnChannelsSearchBtnUi);
 }
 
 function syncMenuAwnChannelsFlowStripUi() {
@@ -115734,17 +116531,15 @@ function setupMenuAwnChannelsFlowStrip() {
 function setupMenuAwnChannelsBandGroup() {
   syncMenuAwnChannelsBandAccordionUi();
   setupMenuAwnChannelsFlowStrip();
-  renderMenuAwnChannelsStaticList();
+  setupMenuAwnChannelsUi();
+  if (isMenuAwnChannelsBandExpanded()) void refreshMenuAwnChannels();
   menuAwnChannelsBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnChannelsBandExpanded();
   });
   menuAwnChannelsSearchInputNode?.addEventListener("input", (event) => {
     menuAwnChannelsSearchQuery = String(event.target.value || "");
-    renderMenuAwnChannelsStaticList();
-  });
-  menuAwnChannelsCreateBtn?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    showToast("Создание канала — статичный набросок (awn-channels/{slug}/)", "info", 4800);
+    renderMenuAwnChannelsList();
+    syncMenuAwnChannelsSearchBtnUi();
   });
   menuAwnChannelsIndexOpenBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -115754,11 +116549,7 @@ function setupMenuAwnChannelsBandGroup() {
     event.stopPropagation();
     showToast(`Обновление ${AWN_CHANNELS_INDEX_REL_PATH} — статичный набросок`, "info", 4200);
   });
-  menuAwnChannelsRefreshBtn?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    renderMenuAwnChannelsStaticList();
-    showToast("Список каналов (примеры) обновлён", "success", 2400);
-  });
+  wireMenuStaticSummaryRefreshButton(menuAwnChannelsRefreshBtn, handleMenuAwnChannelsRefreshClick);
   wireMenuBandHelpButton(menuAwnChannelsHelpBtn);
 }
 
@@ -116155,6 +116946,7 @@ function setupMenuStaticFooterGroup() {
   void refreshMenuAwnDataStores();
   void refreshMenuRepositories();
   void refreshMenuMediaLibraries();
+  void refreshMenuAwnChannels();
   void refreshMenuAwnDialogsStats();
   void refreshMenuAwnFactsStats();
   void refreshMenuAwnTempStats();

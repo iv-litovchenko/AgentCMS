@@ -1,0 +1,30 @@
+id: awn.hub.channel
+name: Канал ingress (workspace)
+kind: type
+domain: hub
+status: active
+extends: awn.page.base
+description: >
+  Карточка канала в awn-channels/{slug}/ — manifest.md и слот inbox/ для входящего (ingress).
+  Не витрина и не лента UI: единый шлюз сырого потока до triage.
+manifest-pattern: "awn-channels/{slug}/manifest.md"
+
+storage-slots:
+  - inbox
+
+form:
+  panel-title: "{A2!} Канал"
+  create:
+    title: "Новый канал"
+    edit-title: "Канал"
+    hint: >
+      Папка awn-channels/{slug}/ с manifest.md; при создании — inbox/.
+    bootstrap:
+      slug:
+        title: "Папка (slug)"
+        placeholder: "telegram"
+        footnote: "kebab-case, одна папка — без /"
+        required: true
+    field-keys:
+      - awn-name
+      - awn-description

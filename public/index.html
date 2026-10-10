@@ -1883,9 +1883,9 @@
                 id="menu-awn-channels-search-btn"
                 type="button"
                 class="menu-band-search-btn"
-                disabled
-                title="Поиск (скоро)"
-                aria-label="Поиск (скоро)"
+                title="Поиск по каналам"
+                aria-label="Поиск по каналам"
+                aria-pressed="false"
               >
                 <svg class="menu-band-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
@@ -1896,56 +1896,59 @@
           </div>
           <div id="menu-awn-channels-band-body" class="menu-awn-channels-band-body" hidden>
             <div class="menu-awn-channels-toolbar">
-              <button
-                id="menu-awn-channels-create-btn"
-                type="button"
-                class="menu-static-action-btn menu-awn-channels-create-btn"
-                title="Создать awn-channels/{slug}/ с manifest.md (скоро)"
-              >
-                + Новый канал
-              </button>
-              <div
-                id="menu-awn-channels-index-row"
-                class="menu-awn-channels-index-row node-navigation-workspace-counter-topic-index-row"
-              >
+              <div class="menu-awn-channels-toolbar-row menu-awn-channels-actions-row">
                 <button
-                  id="menu-awn-channels-index-open-btn"
+                  id="menu-awn-channels-create-btn"
                   type="button"
-                  class="menu-awn-channels-index-open node-navigation-workspace-counter-topic-index is-generated"
-                  title="Открыть awn-channels/index.md"
+                  class="menu-static-action-btn menu-awn-channels-create-btn menu-awn-channels-create-btn--icon"
+                  title="Свой канал: awn-channels/{slug}/, manifest.md (awn.hub.channel)"
+                  aria-label="Создать канал"
                 >
-                  Индекс каналов
+                  +
                 </button>
-                <button
-                  id="menu-awn-channels-index-refresh-btn"
-                  type="button"
-                  class="menu-awn-channels-index-refresh node-navigation-workspace-counter-topic-index-refresh"
-                  aria-label="Обновить index.md каналов"
-                  title="Обновить и сохранить awn-channels/index.md"
+                <div
+                  id="menu-awn-channels-index-row"
+                  class="menu-awn-channels-index-row node-navigation-workspace-counter-topic-index-row"
                 >
-                  ⟲
-                </button>
+                  <button
+                    id="menu-awn-channels-index-open-btn"
+                    type="button"
+                    class="menu-awn-channels-index-open node-navigation-workspace-counter-topic-index is-generated"
+                    title="Открыть awn-channels/index.md"
+                  >
+                    Индекс каналов
+                  </button>
+                  <button
+                    id="menu-awn-channels-index-refresh-btn"
+                    type="button"
+                    class="menu-awn-channels-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                    aria-label="Обновить index.md каналов"
+                    title="Обновить и сохранить awn-channels/index.md"
+                  >
+                    ⟲
+                  </button>
+                </div>
               </div>
-            </div>
-            <div class="menu-awn-channels-toolbar-row menu-awn-channels-toolbar-row--search">
-              <div class="menu-search-wrap menu-awn-channels-search-wrap">
-                <label class="menu-search-bar" for="menu-awn-channels-search-input">
-                  <span class="menu-search-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="11" cy="11" r="7"></circle>
-                      <path d="M20 20l-3.5-3.5"></path>
-                    </svg>
-                  </span>
-                  <input
-                    id="menu-awn-channels-search-input"
-                    class="menu-search-input"
-                    type="search"
-                    placeholder="Поиск по каналам..."
-                    autocomplete="off"
-                    spellcheck="false"
-                    aria-label="Поиск по каналам"
-                  />
-                </label>
+              <div class="menu-awn-channels-toolbar-row menu-awn-channels-toolbar-row--search">
+                <div class="menu-search-wrap menu-awn-channels-search-wrap">
+                  <label class="menu-search-bar" for="menu-awn-channels-search-input">
+                    <span class="menu-search-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="M20 20l-3.5-3.5"></path>
+                      </svg>
+                    </span>
+                    <input
+                      id="menu-awn-channels-search-input"
+                      class="menu-search-input"
+                      type="search"
+                      placeholder="Поиск по каналам…"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-label="Поиск по каналам"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
             <div
@@ -2010,8 +2013,9 @@
             </div>
             <ul
               id="menu-awn-channels-list"
-              class="menu-awn-channels-list"
-              aria-label="Каналы awn-channels (примеры)"
+              class="menu-awn-databases-stores menu-awn-channels-list"
+              role="list"
+              aria-label="Каналы awn-channels"
             ></ul>
             <p class="menu-awn-channels-footer-caption">
               awn-channels — источники информации (хаотичная информация, хаотичные входящие, сырье, источники). Дальше — triage в темы и инфоблоки.
@@ -7295,6 +7299,71 @@ awn-type: awn.page.ws
         <div class="modal-actions repository-groups-modal-actions">
           <button id="repository-groups-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="repository-groups-save-btn" class="external-create-section-btn" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="awn-channels-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="awn-channels-create-modal-title">
+      <div class="modal-card awn-databases-modal-card awn-channels-create-modal-card">
+        <div class="modal-message" id="awn-channels-create-modal-title">Новый канал</div>
+        <p class="agents-registry-hint" id="awn-channels-create-modal-hint">
+          Папка <code>awn-channels/{slug}/</code> с <code>manifest.md</code> (<code>awn.hub.channel</code>), слот <code>inbox/</code> для входящего.
+        </p>
+        <div id="awn-channels-create-presets-wrap" class="awn-channels-create-presets-wrap">
+          <span class="popover-label">Тип канала (заготовка)</span>
+          <div
+            id="awn-channels-create-presets"
+            class="awn-channels-create-presets create-node-service-docs-actions create-node-service-docs-actions--cols-3"
+            role="listbox"
+            aria-label="Тип канала"
+          ></div>
+        </div>
+        <hr class="create-node-divider" />
+        <label class="popover-label" for="awn-channels-create-name-input">Название</label>
+        <input
+          id="awn-channels-create-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Telegram — темы"
+          spellcheck="false"
+          autocomplete="off"
+          required
+        />
+        <div class="slug-field-row">
+          <label class="slug-field-label" for="awn-channels-create-slug-input">Ключ (slug)</label>
+          <div class="slug-input-row">
+            <input
+              id="awn-channels-create-slug-input"
+              class="popover-input slug-input"
+              type="text"
+              placeholder="telegram"
+              spellcheck="false"
+              autocomplete="off"
+              readonly
+              required
+            />
+            <button
+              id="awn-channels-create-slug-unlink-btn"
+              class="slug-unlink-btn is-linked"
+              type="button"
+              title="Редактировать slug вручную"
+              aria-label="Редактировать slug вручную"
+            >✎</button>
+          </div>
+          <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную. Путь: <code>awn-channels/{slug}/</code></p>
+        </div>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Описание</span>
+          <textarea
+            id="awn-channels-create-description-input"
+            class="agents-registry-create-description-input"
+            rows="2"
+            placeholder="Кратко о назначении канала (ingress)"
+          ></textarea>
+        </label>
+        <div class="modal-actions">
+          <button id="awn-channels-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="awn-channels-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
         </div>
       </div>
     </div>
