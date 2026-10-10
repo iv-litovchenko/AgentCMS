@@ -125,7 +125,10 @@ const {
 } = require("./lib/services/awn-media-service");
 const {
   listAwnChannels,
+  getAwnChannel,
   registerAwnChannel,
+  updateAwnChannel,
+  assertChannelManifestRel,
   readChannelStoreSchemaPayload,
   writeChannelStoreSchema
 } = require("./lib/services/awn-channels-service");
@@ -22324,7 +22327,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/awn-channels") {
+  if (req.method === "GET" && url.pathname === "/api/agent/channels") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22332,13 +22335,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to list awn-channels",
+        error: "Failed to list channels",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/agent/awn-channels") {
+  if (req.method === "POST" && url.pathname === "/api/agent/channels") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22348,13 +22351,147 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 201, result);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to register awn-channel",
+        error: "Failed to register channel",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/awn-channels/store-schema") {
+  if (req.method === "GET" && url.pathname === "/api/agent/channel") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await getAwnChannel(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const result = await updateAwnChannel(agentRoot, relPath, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels/items") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    const manifestRel = assertChannelManifestRel(relPath);
+    if (!manifestRel) {
+      return sendJson(res, 400, { error: "path must be awn-channels/{slug}/manifest.md" });
+    }
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(manifestRel);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid channel manifest path" });
+
+    const folderName = resolveMediaStorageSubfolderForManifest(manifestRel, url.searchParams.get("folder"));
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
+    if (!folderAbsolute) {
+      return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+    }
+
+    try {
+      const stat = await fs.stat(folderAbsolute);
+      if (!stat.isDirectory()) {
+        return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+      }
+
+      const sectionManifests = [];
+      const items = await collectMediaFilesStructured(folderAbsolute, "", [], sectionManifests);
+      const groups = groupMediaFiles(items);
+      const { content, files } = buildMediaListContent(groups);
+
+      const sectionRelPaths = [];
+      for (const manifest of sectionManifests) {
+        const manifestPath = String(manifest.path || "").replace(/\\/g, "/");
+        if (!manifestPath) continue;
+        const folderKey = manifestPath.slice(0, manifestPath.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+        if (folderKey) sectionRelPaths.push(folderKey);
+      }
+      for (const item of items) {
+        const itemPath = String(item.path || "").replace(/\\/g, "/");
+        if (!itemPath) continue;
+        const parentParts = itemPath.split("/").filter(Boolean);
+        parentParts.pop();
+        if (parentParts.length) sectionRelPaths.push(parentParts.join("/"));
+      }
+      const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+
+      return sendJson(res, 200, {
+        exists: true,
+        files,
+        groups,
+        sectionManifests,
+        sectionSortOrders,
+        path: manifestRel,
+        folder: folderName
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+      }
+      return sendJson(res, 500, { error: "Failed to read channel storage", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/file") {
+    try {
+      const payload = await readJsonBody(req, 12_000_000);
+      const relPath = payload.path;
+      const contextRel = payload.contextPath || relPath;
+      const manifestRel = assertChannelManifestRel(contextRel || relPath);
+      if (!manifestRel) {
+        return sendJson(res, 400, { error: "path must be awn-channels/{slug}/manifest.md" });
+      }
+      const data = payload.data;
+      const fileName = payload.fileName;
+      const mimeType = payload.mimeType;
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
+
+      const storageContext = await resolveApiStorageContext(manifestRel);
+      if (!storageContext) return sendJson(res, 400, { error: "Invalid channel storage context" });
+
+      const buffer = decodeBase64UploadData(data, { label: "file data" });
+      const slot = payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_FILES;
+      const result = await persistMediaUploadBuffer({
+        relPath: manifestRel,
+        storageContext,
+        buffer,
+        fileName,
+        mimeType,
+        libraryFolder: slot,
+        subdir: payload.subdir || "",
+        createSubdir: Boolean(payload.createSubdir)
+      });
+      return sendJson(res, 200, { ...result, path: manifestRel, folder: slot });
+    } catch (error) {
+      if (error?.status) {
+        return sendJson(res, error.status, {
+          error: String(error.message || error),
+          ...(error.details ? { details: error.details } : {})
+        });
+      }
+      return sendJson(res, 500, { error: "Failed to upload channel file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels/store-schema") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
@@ -22370,7 +22507,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/agent/awn-channels/store-schema") {
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/store-schema") {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });

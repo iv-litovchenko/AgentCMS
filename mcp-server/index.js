@@ -20,6 +20,7 @@ import {
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
 import { registerMediaLibraryTools } from "./lib/media-library-tools.js";
+import { registerChannelTools } from "./lib/channel-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
@@ -192,6 +193,12 @@ function createServer() {
 
   registerRepositoryTools(reg, client);
   registerMediaLibraryTools(reg, client, {
+    registerBinaryReadFile: (name, description, schema, fn) =>
+      reg(name, description, schema, fn, {
+        formatResult: (data) => formatReadFileToolResult(data, jsonText)
+      })
+  });
+  registerChannelTools(reg, client, {
     registerBinaryReadFile: (name, description, schema, fn) =>
       reg(name, description, schema, fn, {
         formatResult: (data) => formatReadFileToolResult(data, jsonText)

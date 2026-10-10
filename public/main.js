@@ -6074,7 +6074,7 @@ function resolveHubWorkspaceStoreFromManifest(manifestPath) {
       kind: "channel",
       slug: channelSlug,
       storeRel: `awn-channels/${channelSlug}`,
-      schemaUrl: "/api/agent/awn-channels/store-schema"
+      schemaUrl: "/api/agent/channels/store-schema"
     };
   }
   const mediaSlug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
@@ -116343,7 +116343,7 @@ async function refreshMenuAwnChannels(agentId = activeAgentId) {
   }
 
   try {
-    const response = await fetch(buildApiUrl("/api/agent/awn-channels", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/agent/channels", {}, resolvedAgent));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuAwnChannelsLoadSeq) return;
@@ -116378,7 +116378,7 @@ async function registerMenuAwnChannel(payload = {}, agentId = activeAgentId, opt
     showToast("Выберите агента", "error");
     return null;
   }
-  const response = await fetch(buildApiUrl("/api/agent/awn-channels", {}, resolvedAgent), {
+  const response = await fetch(buildApiUrl("/api/agent/channels", {}, resolvedAgent), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -119504,7 +119504,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
     cache.schemaSaveUrl ||
     (mediaLibrarySlug
       ? hubWorkspaceKind === "channel"
-        ? "/api/agent/awn-channels/store-schema"
+        ? "/api/agent/channels/store-schema"
         : "/api/agent/media-libraries/store-schema"
       : "/api/awn-databases/store-schema");
   const response = await fetch(
