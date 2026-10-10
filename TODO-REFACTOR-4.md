@@ -6,6 +6,52 @@
 
 Оглавления / индексы — в конце файла (⚠️ обсудить отдельно).
 
+### Пример MCP: страница (тема + слот + файл)
+
+**Сейчас — `read_content_body`**
+
+```json
+// call
+{
+  "path": "topics/product-launch",
+  "slot": "media",
+  "ref": "hero.md"
+}
+
+// result (фрагмент)
+{
+  "file": "hero.md",
+  "content": "Текст markdown без frontmatter…"
+}
+```
+
+Поля `path` + `slot` + `ref` = «контент **на странице**»; имя tool говорит только про **body** (properties/schema — другие tools).
+
+**План — `read_content`**
+
+```json
+// call
+{
+  "placement": {
+    "kind": "page",
+    "path": "topics/product-launch",
+    "slot": "media",
+    "ref": "hero.md"
+  },
+  "part": "body"
+}
+
+// result (тот же смысл; имя tool — про сущность «контент»)
+{
+  "placement": { "kind": "page", "path": "…", "slot": "media", "ref": "hero.md" },
+  "body": "Текст markdown без frontmatter…",
+  "file": "hero.md"
+}
+```
+
+`part`: `body` | `properties` | `schema` | `meta` | `all` — вместо отдельных `read_content_body` / `read_content_properties` / … (детали ⚠️).  
+Позже тот же `read_content` с `placement.kind`: `channel` | `media` | `tree` — без смены имени tool.
+
 ---
 
 ## Мета
