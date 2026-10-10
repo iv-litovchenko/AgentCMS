@@ -74207,30 +74207,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-width: 0;
 }
 
-.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-static-action-btn.menu-awn-channels-create-btn--icon {
-  flex: 0 0 30px;
-  width: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  margin: 0;
-  padding: 0;
-  min-height: 30px;
-  height: 30px;
-  box-sizing: border-box;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1;
-  border-color: rgba(248, 113, 113, 0.55);
-  color: #991b1b;
-  background: rgba(255, 255, 255, 0.88);
-}
-
-.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-awn-channels-create-btn--icon:hover:not(:disabled) {
-  border-color: rgba(220, 38, 38, 0.55);
-  background: #fee2e2;
-  color: #7f1d1d;
-}
-
 .menu-awn-channels-toolbar .menu-awn-channels-index-row.node-navigation-workspace-counter-topic-index-row {
   flex: 1 1 auto;
   min-width: 0;
@@ -78654,9 +78630,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 30px;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
@@ -78666,6 +78643,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   text-align: center;
   -webkit-font-smoothing: antialiased;
   background: rgba(255, 255, 255, 0.88);
+  background-image: none;
 }
 
 .menu-static-action-btn.menu-media-library-create-btn--icon {
@@ -78673,9 +78651,21 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #0e7490;
 }
 
+.menu-static-action-btn.menu-media-library-create-btn--icon:hover:not(:disabled) {
+  border-color: rgba(8, 145, 178, 0.55);
+  background: #ecfeff;
+  color: #0e7490;
+}
+
 .menu-static-action-btn.menu-awn-channels-create-btn--icon {
   border-color: rgba(248, 113, 113, 0.55);
   color: #991b1b;
+}
+
+.menu-static-action-btn.menu-awn-channels-create-btn--icon:hover:not(:disabled) {
+  border-color: rgba(220, 38, 38, 0.55);
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .menu-static-drop-hint {

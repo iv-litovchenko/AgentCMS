@@ -6101,7 +6101,8 @@ async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeA
     schemeModRelPath: data.schemeModRelPath || "",
     awnSchema: normalizeAwnDataStoreSchemaState(data.awnSchema),
     activeTarget: resolveAwnDataStoreSchemaActiveTarget("collection"),
-    targetLabels: MEDIA_LIBRARY_SCHEMA_TARGET_LABELS,
+    targetLabels:
+      hub.kind === "channel" ? CHANNEL_SCHEMA_TARGET_LABELS : MEDIA_LIBRARY_SCHEMA_TARGET_LABELS,
     fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {}
   };
   enrichAwnDataStoreSchemaCacheFromTypes(cache);
@@ -117210,6 +117211,14 @@ const AWN_DATA_SCHEMA_TARGET_LABELS = {
 };
 const MEDIA_LIBRARY_SCHEMA_TARGET_LABELS = {
   frame: "Медиатека",
+  category: "Раздел",
+  record: "Запись",
+  "record-csv": "Запись (csv)",
+  sidecar: "Sidecar"
+};
+
+const CHANNEL_SCHEMA_TARGET_LABELS = {
+  frame: "Канал (источник информации)",
   category: "Раздел",
   record: "Запись",
   "record-csv": "Запись (csv)",
