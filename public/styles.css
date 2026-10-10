@@ -64344,6 +64344,14 @@ button.node-navigation-memory-title:focus-visible {
   opacity: 1;
 }
 
+.toast.is-multiline {
+  max-width: min(520px, calc(100vw - 32px));
+  white-space: pre-wrap;
+  text-align: left;
+  line-height: 1.45;
+  padding: 14px 18px;
+}
+
 .toast.success {
   background: rgba(21, 128, 61, 0.95);
 }
@@ -70834,7 +70842,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 30px;
   height: 30px;
   box-sizing: border-box;
-  font-size: 1rem;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   border-color: rgba(248, 113, 113, 0.55);
@@ -71450,7 +71458,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 30px;
   height: 30px;
   box-sizing: border-box;
-  font-size: 1rem;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   border-color: rgba(14, 116, 144, 0.35);
@@ -75246,22 +75254,45 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-left: 0.35rem;
 }
 
-.is-media-library-workspace-hub .media-library-workspace-iblock-layout {
+.node-navigation-hub.is-media-library-workspace-hub > .node-navigation-hub-main {
+  gap: 8px;
+}
+
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: 0;
+  margin-bottom: 0;
 }
 
-.is-media-library-workspace-hub .media-library-workspace-iblock-layout .awn-databases-view-schema-panel {
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout .awn-databases-view-schema-panel {
   margin: 0;
+  gap: 0;
 }
 
-.is-media-library-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {
-  border-radius: 12px;
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {
   border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout .awn-databases-view-schema-fields-accordion {
+  border-radius: 0 0 12px 12px;
+}
+
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout .awn-databases-view-schema-fields-accordion .awn-databases-view-accordion-body {
+  padding-bottom: 0.55rem;
+}
+
+.node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout .topic-schema-panel {
+  padding-bottom: 0;
+}
+
+.node-navigation-hub.is-media-library-workspace-hub .node-entry-overview-browse-panel > .node-entry-overview-browse-hero-nav.node-navigation-manifest-nav {
+  margin-top: 0;
+  margin-bottom: 8px;
 }
 
 .is-media-library-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-kind-badge.is-media-library {
@@ -75283,18 +75314,25 @@ body.is-cms-page-picker-active #discuss-aside * {
   border: 1px solid #fecaca;
 }
 
-.is-awn-channel-workspace-hub .media-library-workspace-iblock-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+.node-navigation-hub.is-media-library-workspace-hub.is-awn-channel-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {
+  border-color: rgba(252, 165, 165, 0.55);
+  box-shadow: 0 1px 2px rgba(127, 29, 29, 0.06);
 }
 
-.is-awn-channel-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {
-  border-radius: 12px;
-  border: 1px solid rgba(252, 165, 165, 0.55);
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(127, 29, 29, 0.06);
+.node-navigation-hub.is-media-library-workspace-hub.is-awn-channel-workspace-hub
+  .media-library-workspace-iblock-layout
+  .awn-databases-view-schema-fields-accordion {
+  border-color: rgba(252, 165, 165, 0.55);
+}
+
+#node-overview-block.is-awn-channel-workspace .node-overview-content {
+  background: linear-gradient(180deg, #fff1f2 0%, #fff5f5 280px, #ffffff 460px);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+.node-navigation-hub.is-awn-channel-workspace-hub .node-entry-overview-browse-panel > .node-entry-overview-browse-hero-nav.node-navigation-manifest-nav {
+  background: rgba(255, 241, 242, 0.9);
+  border-color: rgba(252, 165, 165, 0.34);
 }
 
 .menu-awn-databases-store-id-badge {
@@ -78633,7 +78671,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   box-sizing: border-box;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;

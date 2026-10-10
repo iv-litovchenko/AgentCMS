@@ -114,6 +114,7 @@ const menuAwnChannelsBandNode = document.getElementById("menu-awn-channels-band"
 const menuAwnChannelsBandToggleBtn = document.getElementById("menu-awn-channels-band-toggle");
 const menuAwnChannelsBandBodyNode = document.getElementById("menu-awn-channels-band-body");
 const menuAwnChannelsListNode = document.getElementById("menu-awn-channels-list");
+const menuAwnChannelsHelpBtn = document.getElementById("menu-awn-channels-help-btn");
 const menuAwnChannelsRefreshBtn = document.getElementById("menu-awn-channels-refresh-btn");
 const menuAwnChannelsCreateBtn = document.getElementById("menu-awn-channels-create-btn");
 const menuAwnChannelsIndexOpenBtn = document.getElementById("menu-awn-channels-index-open-btn");
@@ -302,6 +303,10 @@ const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const MENU_AWN_CHANNELS_BAND_OPEN_KEY = "yamlcms.menuAwnChannelsBandOpen.v1";
 const AWN_CHANNELS_INDEX_REL_PATH = "awn-channels/index.md";
+const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `Кратко: ты попал в точку. awn-channels — это не «каналы показа» (лента, дайджест, блог как витрина), а единый шлюз входящего хаоса: всё с одной стороны приходит «грязным», с untrusted, потом triage → темы / инфоблоки / факты. Лента и дайджест — после; бортовой журнал — события системы, не Telegram и не закладки.
+
+Одна ось в типе: ingress (откуда) + trust + слот inbox/; вторая ось отдельно: forum / blog-agent / digest — это уже режимы работы над тем же хаосом, не соседи Telegram в одной папке без метки.
+Статичный сайдбар — хороший чертёж; следующий шаг по смыслу — awn-channels/{slug}/ + index + triage, без новых «витрин» в этой папке.`;
 /** Заготовки каналов — порядок и slug синхронны с lib/config/channel-presets.js */
 const CHANNEL_BUILTIN_PRESETS = [
   {
@@ -31490,6 +31495,7 @@ function scheduleLandingSearch() {
 
 function showToast(message, type = "", duration = 1600) {
   toastNode.textContent = message;
+  toastNode.classList.toggle("is-multiline", String(message || "").includes("\n"));
   toastNode.classList.remove("success", "error", "show");
   if (type) toastNode.classList.add(type);
   if (toastTimer) clearTimeout(toastTimer);
@@ -116703,6 +116709,7 @@ function setupMenuAwnChannelsBandGroup() {
   menuAwnChannelsBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnChannelsBandExpanded();
   });
+  wireMenuBandHelpButton(menuAwnChannelsHelpBtn, MENU_AWN_CHANNELS_BAND_HELP_TEXT);
   menuAwnChannelsSearchInputNode?.addEventListener("input", (event) => {
     menuAwnChannelsSearchQuery = String(event.target.value || "");
     renderMenuAwnChannelsList();
@@ -116976,16 +116983,19 @@ function setupMenuRepositoriesBandGroup() {
   wireMenuBandHelpButton(menuRepositoriesHelpBtn);
 }
 
-function wireMenuBandHelpButton(button) {
+function wireMenuBandHelpButton(button, helpText = "") {
   if (!button || button.dataset.helpWired === "1") return;
   button.dataset.helpWired = "1";
-  const text = String(button.getAttribute("aria-label") || button.getAttribute("title") || "").trim();
+  const text = String(
+    helpText || button.getAttribute("data-band-help-text") || button.getAttribute("aria-label") || button.getAttribute("title") || ""
+  ).trim();
   if (!text) return;
   button.removeAttribute("title");
+  const toastMs = text.length > 240 ? Math.min(28000, 6000 + text.length * 42) : 5200;
   button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    showToast(text, "info", 5200);
+    showToast(text, "info", toastMs);
   });
 }
 
