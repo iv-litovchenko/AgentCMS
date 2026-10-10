@@ -334,7 +334,6 @@ const CHANNEL_BUILTIN_PRESETS = [
   { slug: "real-world", icon: "🌍", name: "Объекты реального мира" },
   { slug: "market", icon: "🛒", name: "Барахолка" },
   { slug: "notes", icon: "📒", name: "Заметки" },
-  { slug: "slider", icon: "🎞️", name: "Слайдер" },
   { slug: "screenshots", icon: "🖥️", name: "Скриншоты" },
   { slug: "other", icon: "📦", name: "Другое (не знаю куда деть)" }
 ];
