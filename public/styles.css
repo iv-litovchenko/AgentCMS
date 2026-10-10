@@ -70818,6 +70818,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
 }
 
+.menu-awn-channels-toolbar-row.menu-awn-channels-actions-row {
+  align-items: center;
+}
+
 .menu-awn-channels-actions-row {
   align-items: center;
   gap: 0.35rem;
@@ -70842,9 +70846,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 30px;
   height: 30px;
   box-sizing: border-box;
+  display: grid;
+  place-items: center;
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+  padding-bottom: 1px;
   border-color: rgba(248, 113, 113, 0.55);
   background: rgba(255, 255, 255, 0.88);
   color: #991b1b;
@@ -71437,6 +71444,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #0891b2;
 }
 
+.menu-media-library-toolbar-row.menu-media-library-actions-row {
+  align-items: center;
+}
+
 .menu-media-library-actions-row {
   align-items: center;
   gap: 0.35rem;
@@ -71458,9 +71469,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   min-height: 30px;
   height: 30px;
   box-sizing: border-box;
+  display: grid;
+  place-items: center;
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+  padding-bottom: 1px;
   border-color: rgba(14, 116, 144, 0.35);
   background: rgba(255, 255, 255, 0.88);
   color: #0e7490;
@@ -78667,7 +78681,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   height: 30px;
   min-height: 30px;
   margin: 0;
-  padding: 0;
+  padding: 0 0 1px;
   box-sizing: border-box;
   border-radius: 6px;
   font-family: inherit;
@@ -78675,9 +78689,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   text-align: center;
   -webkit-font-smoothing: antialiased;
   background: rgba(255, 255, 255, 0.88);
