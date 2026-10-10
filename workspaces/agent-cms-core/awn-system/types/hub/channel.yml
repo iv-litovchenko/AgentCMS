@@ -5,12 +5,13 @@ domain: hub
 status: active
 extends: awn.page.base
 description: >
-  Карточка канала в awn-channels/{slug}/ — manifest.md и слот inbox/ для входящего (ingress).
-  Не витрина и не лента UI: единый шлюз сырого потока до triage.
+  Карточка канала в awn-channels/{slug}/ — manifest.md и слоты awn-storage/files/ и assets/ (как у медиатеки).
+  Ingress и triage сырого потока до тем и инфоблоков.
 manifest-pattern: "awn-channels/{slug}/manifest.md"
 
 storage-slots:
-  - inbox
+  - files
+  - assets
 
 form:
   panel-title: "{A2!} Канал"

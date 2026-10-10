@@ -70412,10 +70412,37 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-band-head {
+  position: relative;
   display: flex;
   align-items: center;
   overflow: visible;
   background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 52%, #fca5a5 100%);
+}
+
+.menu-awn-channels-help-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 8px;
+  z-index: 140;
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px;
+  border: 1px solid rgba(252, 165, 165, 0.85);
+  border-radius: 10px;
+  background: rgba(255, 241, 242, 0.98);
+  box-shadow: 0 12px 28px rgba(127, 29, 29, 0.22);
+}
+
+.menu-awn-channels-help-popover.hidden {
+  display: none;
+}
+
+.menu-awn-channels-help-popover.menu-awn-channels-thesis {
+  margin: 0;
+  max-height: min(70vh, 420px);
+  background: rgba(255, 241, 242, 0.98);
 }
 
 .menu-awn-channels-band-head .sidebar-accent-band-toggle--channels {
@@ -70566,7 +70593,6 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-channels-toolbar,
 .menu-awn-channels-toolbar-row--search,
 .menu-awn-channels-flow-strip,
-.menu-awn-channels-thesis,
 .menu-awn-channels-footer-caption {
   flex-shrink: 0;
 }
@@ -70692,43 +70718,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   gap: 0.35rem;
 }
 
-.menu-awn-channels-create-btn {
-  flex: 0 1 8.5rem;
-  max-width: 9rem;
-  min-width: 0;
-  width: auto;
-  margin: 0;
-  font-size: 0.6875rem;
-  padding: 0 0.45rem;
-  min-height: 30px;
-  height: 30px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-color: rgba(248, 113, 113, 0.65);
-  color: #991b1b;
-}
-
-.menu-awn-channels-create-btn:hover:not(:disabled) {
-  border-color: #dc2626;
-  background: rgba(254, 226, 226, 0.85);
-}
-
 .menu-awn-channels-index-row {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  gap: 0.25rem;
+  gap: 0.35rem;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  min-height: 30px;
 }
 
 .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 30px;
   height: 30px;
@@ -70736,10 +70737,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-color: rgba(252, 165, 165, 0.85);
   background: rgba(255, 255, 255, 0.92);
   color: #991b1b;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.15;
   box-sizing: border-box;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
@@ -70761,6 +70762,10 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   flex: 0 0 30px;
   width: 30px;
   min-width: 30px;
@@ -70809,6 +70814,9 @@ body.is-cms-page-picker-active #discuss-aside * {
   align-items: center;
   gap: 0.35rem;
   min-height: 30px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .menu-awn-channels-actions-row .menu-awn-channels-create-btn.menu-static-action-btn {
@@ -70978,35 +70986,85 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-channels-create-presets-wrap {
   margin: 0.35rem 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.awn-channels-create-presets-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .awn-channels-create-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   max-height: 14rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+  margin: 0;
+  padding: 0;
+}
+
+.awn-channels-create-presets-empty {
+  margin: 0;
+  padding: 0.5rem 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #9f1239;
+  text-align: center;
 }
 
 .awn-channels-create-preset-btn {
   display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  text-align: left;
-  white-space: normal;
-  line-height: 1.25;
-  min-height: 2.25rem;
-  height: auto;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
   padding: 0.35rem 0.45rem;
+  min-height: 1.75rem;
+  height: auto;
+  text-align: left;
+  white-space: nowrap;
+  line-height: 1.25;
+  font: inherit;
+  font-size: 0.6875rem;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #7f1d1d;
+  cursor: pointer;
+}
+
+.awn-channels-create-preset-btn:hover {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: #fff5f5;
 }
 
 .awn-channels-create-preset-btn-icon {
   flex: 0 0 auto;
-  line-height: 1.25;
+  line-height: 1;
 }
 
 .awn-channels-create-preset-btn-label {
   flex: 1 1 auto;
   min-width: 0;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.awn-channels-create-preset-btn-slug {
+  flex: 0 0 auto;
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9f1239;
+  opacity: 0.85;
 }
 
 .menu-awn-channels-item-name.menu-awn-databases-store-name {
@@ -74144,75 +74202,42 @@ body.is-cms-page-picker-active #discuss-aside * {
   white-space: nowrap;
 }
 
-.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-static-action-btn {
-  flex: 0 1 8.5rem;
-  max-width: 9rem;
+.menu-awn-channels-toolbar .menu-awn-channels-actions-row {
+  width: 100%;
   min-width: 0;
-  width: auto;
+}
+
+.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-static-action-btn.menu-awn-channels-create-btn--icon {
+  flex: 0 0 30px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
   margin: 0;
-  padding: 0 0.45rem;
-  min-height: 28px;
-  height: 28px;
+  padding: 0;
+  min-height: 30px;
+  height: 30px;
   box-sizing: border-box;
-  font-size: 0.6875rem;
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 1.15;
-  border-color: rgba(248, 113, 113, 0.65);
+  line-height: 1;
+  border-color: rgba(248, 113, 113, 0.55);
   color: #991b1b;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.88);
 }
 
-.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-static-action-btn:hover:not(:disabled) {
-  border-color: #dc2626;
-  background: rgba(254, 226, 226, 0.85);
-}
-
-.menu-awn-channels-toolbar .menu-awn-channels-index-row.node-navigation-workspace-counter-topic-index-row {
-  margin: 0;
-  flex: 1 1 0;
-  min-width: 0;
-  gap: 0.25rem;
-}
-
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index {
-  min-height: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border-color: rgba(252, 165, 165, 0.85);
-  background: rgba(255, 255, 255, 0.92);
-  color: #991b1b;
-  font-size: 10px;
-  line-height: 1.15;
-  box-sizing: border-box;
-}
-
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index.is-generated:hover,
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index.is-available:hover {
-  border-color: rgba(220, 38, 38, 0.62);
+.menu-awn-channels-toolbar .menu-awn-channels-create-btn.menu-awn-channels-create-btn--icon:hover:not(:disabled) {
+  border-color: rgba(220, 38, 38, 0.55);
   background: #fee2e2;
   color: #7f1d1d;
 }
 
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index-refresh {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  border-radius: 6px;
-  font-size: 12px;
-  border-color: rgba(252, 165, 165, 0.85);
-  background: rgba(255, 255, 255, 0.92);
-  color: #b91c1c;
-  box-sizing: border-box;
-}
-
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index-refresh:hover:not(:disabled),
-.menu-awn-channels-toolbar .menu-awn-channels-index-row .node-navigation-workspace-counter-topic-index-refresh:focus-visible {
-  border-color: rgba(220, 38, 38, 0.55);
-  background: #fee2e2;
-  color: #991b1b;
+.menu-awn-channels-toolbar .menu-awn-channels-index-row.node-navigation-workspace-counter-topic-index-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 30px;
 }
 
 .menu-repositories-groups-btn {
@@ -75273,6 +75298,27 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #0e7490;
   background: #ecfeff;
   border: 1px solid #a5f3fc;
+}
+
+.is-awn-channel-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-kind-badge.is-awn-channel,
+.awn-databases-view-kind-badge.is-awn-channel {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.is-awn-channel-workspace-hub .media-library-workspace-iblock-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.is-awn-channel-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-iblock-card {
+  border-radius: 12px;
+  border: 1px solid rgba(252, 165, 165, 0.55);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(127, 29, 29, 0.06);
 }
 
 .menu-awn-databases-store-id-badge {
@@ -78596,6 +78642,40 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-static-action-btn--google-drive {
   margin-top: 6px;
+}
+
+.menu-static-action-btn.menu-media-library-create-btn--icon,
+.menu-static-action-btn.menu-awn-channels-create-btn--icon {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  flex: 0 0 30px;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  -webkit-font-smoothing: antialiased;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.menu-static-action-btn.menu-media-library-create-btn--icon {
+  border-color: rgba(14, 116, 144, 0.35);
+  color: #0e7490;
+}
+
+.menu-static-action-btn.menu-awn-channels-create-btn--icon {
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #991b1b;
 }
 
 .menu-static-drop-hint {

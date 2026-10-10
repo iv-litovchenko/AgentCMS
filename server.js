@@ -125,7 +125,9 @@ const {
 } = require("./lib/services/awn-media-service");
 const {
   listAwnChannels,
-  registerAwnChannel
+  registerAwnChannel,
+  readChannelStoreSchemaPayload,
+  writeChannelStoreSchema
 } = require("./lib/services/awn-channels-service");
 const {
   readDependencies,
@@ -22347,6 +22349,45 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to register awn-channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/awn-channels/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const slug = String(url.searchParams.get("slug") || url.searchParams.get("channel") || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug query parameter" });
+      const payload = readChannelStoreSchemaPayload(agentRoot, getProjectRoot(), slug);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read channel store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/awn-channels/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const slug = String(payload?.slug || payload?.channel || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = writeChannelStoreSchema(agentRoot, getProjectRoot(), slug, {
+        content: payload?.content,
+        awnSchema: payload?.awnSchema,
+        fields: payload?.fields,
+        tabs: payload?.tabs,
+        elementSchemaTabs: payload?.elementSchemaTabs
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save channel store schema",
         details: String(error.message || error)
       });
     }
