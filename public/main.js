@@ -303,7 +303,11 @@ const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const MENU_AWN_CHANNELS_BAND_OPEN_KEY = "yamlcms.menuAwnChannelsBandOpen.v1";
 const AWN_CHANNELS_INDEX_REL_PATH = "awn-channels/index.md";
-const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `Кратко: ты попал в точку. awn-channels — это не «каналы показа» (лента, дайджест, блог как витрина), а единый шлюз входящего хаоса: всё с одной стороны приходит «грязным», с untrusted, потом triage → темы / инфоблоки / факты. Лента и дайджест — после; бортовой журнал — события системы, не Telegram и не закладки.
+const MENU_AWN_CHANNELS_BAND_HELP_INTRO =
+  "Каталог awn-channels/ — каналы ingress (awn.hub.channel): manifest и awn-storage/files|assets. Сырой входящий поток до triage, не витрина.";
+const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `${MENU_AWN_CHANNELS_BAND_HELP_INTRO}
+
+Кратко: ты попал в точку. awn-channels — это не «каналы показа» (лента, дайджест, блог как витрина), а единый шлюз входящего хаоса: всё с одной стороны приходит «грязным», с untrusted, потом triage → темы / инфоблоки / факты. Лента и дайджест — после; бортовой журнал — события системы, не Telegram и не закладки.
 
 Одна ось в типе: ingress (откуда) + trust + слот inbox/; вторая ось отдельно: forum / blog-agent / digest — это уже режимы работы над тем же хаосом, не соседи Telegram в одной папке без метки.
 Статичный сайдбар — хороший чертёж; следующий шаг по смыслу — awn-channels/{slug}/ + index + triage, без новых «витрин» в этой папке.`;
