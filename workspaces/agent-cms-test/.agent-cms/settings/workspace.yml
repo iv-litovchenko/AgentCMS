@@ -7,9 +7,9 @@ awn_settings:
   workspace-idle-screensaver-minutes: 3
   workspace-pomodoro-enabled: true
   workspace-pomodoro-work-minutes: 1
-  awn-id-next: 9007
-  awn-id-issued: 103
-  awn-id-updated-at: "2026-10-10T18:17:46.667Z"
+  awn-id-next: 9008
+  awn-id-issued: 104
+  awn-id-updated-at: "2026-10-10T19:03:17.910Z"
   awn-id-model: workspace-id-autoincrement-v1
   default-slot: main
   awn-temp-ttl-days: 0

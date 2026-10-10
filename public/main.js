@@ -5694,9 +5694,24 @@ function isMediaLibraryTypeLabel(typeLabel) {
   return n === normalizeAwnTypeName(HUB_MEDIA_TYPE_ID) || n === normalizeAwnTypeName("awn.media");
 }
 
+function isMediaLibraryHubWorkspacePath(nodePath) {
+  const resolved = normalizeLinkFilePath(getResolvedNodePath(nodePath));
+  if (!resolved) return false;
+  if (isMediaLibraryManifestPath(resolved) || isMediaLibraryFolderPath(resolved)) return true;
+  return /^awn-media\/[^/]+/i.test(resolved);
+}
+
+function isAwnChannelHubWorkspacePath(nodePath) {
+  const resolved = normalizeLinkFilePath(getResolvedNodePath(nodePath));
+  if (!resolved) return false;
+  if (isAwnChannelManifestPath(resolved) || isAwnChannelFolderPath(resolved)) return true;
+  return /^awn-channels\/[^/]+/i.test(resolved);
+}
+
 function isMediaLibraryPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
   const resolved = getResolvedNodePath(nodePath);
-  if (isMediaLibraryManifestPath(resolved) || isMediaLibraryFolderPath(resolved)) return true;
+  if (isAwnChannelHubWorkspacePath(resolved)) return false;
+  if (isMediaLibraryHubWorkspacePath(resolved)) return true;
   if (getResolvedNodePath(activePath) !== resolved) return false;
   const propsEntries = Array.isArray(entries) ? entries : resolveNodeOverviewPropsEntries();
   return isMediaLibraryTypeLabel(getPropsEntryValueByKey(propsEntries, "awn-type"));
@@ -5729,10 +5744,29 @@ function isAwnChannelTypeLabel(typeLabel) {
 
 function isAwnChannelPageNodePath(nodePath = getResolvedNodePath(activePath), entries = null) {
   const resolved = getResolvedNodePath(nodePath);
-  if (isAwnChannelManifestPath(resolved) || isAwnChannelFolderPath(resolved)) return true;
+  if (isMediaLibraryHubWorkspacePath(resolved)) return false;
+  if (isAwnChannelHubWorkspacePath(resolved)) return true;
   if (getResolvedNodePath(activePath) !== resolved) return false;
   const propsEntries = Array.isArray(entries) ? entries : resolveNodeOverviewPropsEntries();
   return isAwnChannelTypeLabel(getPropsEntryValueByKey(propsEntries, "awn-type"));
+}
+
+function coerceMediaLibraryWorkspaceEntry(entry) {
+  if (!entry) return null;
+  const slug = String(entry.slug || "").trim();
+  if (!slug) return null;
+  const folderPath = normalizeLinkFilePath(`awn-media/${slug}`);
+  const manifestPath = normalizeLinkFilePath(`${folderPath}/manifest.md`);
+  return { ...entry, slug, folderPath, manifestPath };
+}
+
+function coerceAwnChannelWorkspaceEntry(entry) {
+  if (!entry) return null;
+  const slug = String(entry.slug || "").trim();
+  if (!slug) return null;
+  const folderPath = normalizeLinkFilePath(`awn-channels/${slug}`);
+  const manifestPath = normalizeLinkFilePath(`${folderPath}/manifest.md`);
+  return { ...entry, slug, folderPath, manifestPath };
 }
 
 /** Медиатека и канал: manifest + слоты awn-storage/files и assets (как в UI медиатеки). */
@@ -5756,8 +5790,7 @@ function getActiveAwnChannelMenuFolderPath() {
   const slugMatch = resolved.match(/^awn-channels\/([^/]+)/i);
   if (!slugMatch) return "";
   const folderPath = `awn-channels/${slugMatch[1]}`;
-  const manifestPath = `${folderPath}/manifest.md`;
-  if (!isAwnChannelPageNodePath(manifestPath)) return "";
+  if (!isAwnChannelHubWorkspacePath(resolved)) return "";
   return folderPath;
 }
 
@@ -5829,8 +5862,7 @@ function getActiveMediaLibraryMenuFolderPath() {
   const slugMatch = resolved.match(/^awn-media\/([^/]+)/i);
   if (!slugMatch) return "";
   const folderPath = `awn-media/${slugMatch[1]}`;
-  const manifestPath = `${folderPath}/manifest.md`;
-  if (!isMediaLibraryPageNodePath(manifestPath)) return "";
+  if (!isMediaLibraryHubWorkspacePath(resolved)) return "";
   return folderPath;
 }
 
@@ -5900,7 +5932,7 @@ function populateMediaLibraryWorkspaceIblockCard(block, {
 } = {}) {
   if (!block) return;
 
-  const isChannelHub = hubWorkspaceKind === "channel" || isAwnChannelPageNodePath(manifestPath);
+  const isChannelHub = hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(manifestPath);
   const displayTitle = String(title || (isChannelHub ? "Канал" : "Медиатека")).trim();
   const titleNode = block.querySelector(".awn-databases-view-title");
   if (titleNode) titleNode.textContent = displayTitle;
@@ -5996,7 +6028,7 @@ function createMediaLibraryWorkspaceIblockLayout(options = {}) {
   if (!sourceLayout) return null;
 
   const hubWorkspaceKind =
-    options.hubWorkspaceKind === "channel" || isAwnChannelPageNodePath(options.manifestPath)
+    options.hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(options.manifestPath)
       ? "channel"
       : "media";
   const layout = sourceLayout.cloneNode(true);
@@ -6158,11 +6190,11 @@ function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
 
 async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
   if (!entry || entry.registered === false) return;
-  const folderPath = normalizeLinkFilePath(entry.folderPath || `awn-media/${entry.slug || ""}`);
-  const manifestPath = normalizeLinkFilePath(
-    entry.manifestPath || getMediaLibraryManifestPathFromFolder(folderPath)
-  );
-  const slug = String(entry.slug || folderPath.split("/").pop() || "").trim();
+  const coerced = coerceMediaLibraryWorkspaceEntry(entry);
+  if (!coerced) return;
+  const folderPath = coerced.folderPath;
+  const manifestPath = coerced.manifestPath;
+  const slug = coerced.slug;
   const label = String(entry.name || slug || "Медиатека").trim();
 
   hideHomeView();
@@ -6230,6 +6262,9 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
     resumeAppRouteSync();
   }
 
+  syncMenuMediaLibraryActiveState(folderPath);
+  syncMenuAwnChannelsActiveState("");
+
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: !options.replaceRoute, replace: Boolean(options.replaceRoute) });
   }
@@ -6237,11 +6272,11 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
 
 async function openAwnChannelWorkspaceEntry(entry, options = {}) {
   if (!entry || entry.registered === false) return;
-  const folderPath = normalizeLinkFilePath(entry.folderPath || `awn-channels/${entry.slug || ""}`);
-  const manifestPath = normalizeLinkFilePath(
-    entry.manifestPath || getAwnChannelManifestPathFromFolder(folderPath)
-  );
-  const slug = String(entry.slug || folderPath.split("/").pop() || "").trim();
+  const coerced = coerceAwnChannelWorkspaceEntry(entry);
+  if (!coerced) return;
+  const folderPath = coerced.folderPath;
+  const manifestPath = coerced.manifestPath;
+  const slug = coerced.slug;
   const label = String(entry.name || slug || "Канал").trim();
 
   hideHomeView();
@@ -6303,10 +6338,12 @@ async function openAwnChannelWorkspaceEntry(entry, options = {}) {
     resumeAppRouteSync();
   }
 
+  syncMenuAwnChannelsActiveState(folderPath);
+  syncMenuMediaLibraryActiveState("");
+
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: !options.replaceRoute, replace: Boolean(options.replaceRoute) });
   }
-  syncMenuAwnChannelsActiveState();
 }
 
 async function openAwnChannelWorkspacePath(workspaceRel, options = {}) {
@@ -82222,7 +82259,8 @@ async function renderEntryOverview() {
     const useSplitLayout = !isArea;
 
     const isHubFilesSlotWorkspace = isHubWorkspaceFilesSlotPage(topicPath);
-    const isAwnChannelWorkspace = isAwnChannelPageNodePath(topicPath);
+    const isAwnChannelWorkspace = isAwnChannelHubWorkspacePath(topicPath);
+    const isMediaLibraryWorkspace = isMediaLibraryHubWorkspacePath(topicPath);
     const hub = document.createElement("div");
     hub.className = useSplitLayout && !isHubFilesSlotWorkspace
       ? "node-navigation-hub node-navigation-hub--split"
@@ -82247,6 +82285,13 @@ async function renderEntryOverview() {
           ? getAwnChannelManifestPathFromFolder(topicPath)
           : getMediaLibraryManifestPathFromFolder(topicPath);
       const defaultTypeId = isAwnChannelWorkspace ? HUB_CHANNEL_TYPE_ID : HUB_MEDIA_TYPE_ID;
+      const hubWorkspaceKind = isAwnChannelWorkspace
+        ? "channel"
+        : isMediaLibraryWorkspace
+          ? "media"
+          : isAwnChannelPageNodePath(topicPath, manifestEntries)
+            ? "channel"
+            : "media";
       const iblockLayout = createMediaLibraryWorkspaceIblockLayout({
         title: hubWorkspaceTitle,
         manifestPath,
@@ -82255,7 +82300,7 @@ async function renderEntryOverview() {
         manifestBodyMarkdown: manifestBody,
         onEditClick: openDescriptionFromOverview,
         onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
-        hubWorkspaceKind: isAwnChannelWorkspace ? "channel" : "media"
+        hubWorkspaceKind
       });
       if (iblockLayout) {
         hubMain.appendChild(iblockLayout);
@@ -116134,7 +116179,9 @@ function createMenuAwnChannelRow(channel) {
         return;
       }
     }
-    await openAwnChannelWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
+    const coerced = coerceAwnChannelWorkspaceEntry({ ...entry, registered: true });
+    if (!coerced) return;
+    await openAwnChannelWorkspaceEntry(coerced, { skipRouteSync: true });
   };
 
   if (slug) {
@@ -116159,7 +116206,7 @@ function createMenuAwnChannelRow(channel) {
       const slugBadge = document.createElement("span");
       slugBadge.className = "menu-awn-databases-store-badge menu-awn-channels-slug-badge";
       slugBadge.textContent = slug;
-      slugBadge.title = `ключ: ${slug} · ${folderPath}/inbox/`;
+      slugBadge.title = `ключ: ${slug} · ${folderPath}/awn-storage/files/`;
       metaNode.appendChild(slugBadge);
       const openChannel = (event) => {
         event?.preventDefault?.();
@@ -126913,7 +126960,9 @@ function createMenuMediaLibraryRow(library) {
         return;
       }
     }
-    await openMediaLibraryWorkspaceEntry({ ...entry, registered: true }, { skipRouteSync: true });
+    const coerced = coerceMediaLibraryWorkspaceEntry({ ...entry, registered: true });
+    if (!coerced) return;
+    await openMediaLibraryWorkspaceEntry(coerced, { skipRouteSync: true });
   };
 
   if (slug) {
