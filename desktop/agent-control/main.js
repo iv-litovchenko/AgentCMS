@@ -61,24 +61,22 @@ function buildMcpConnectInfo(root) {
 
   const configJson = JSON.stringify(buildAnonymizedMcpConfig(cmsBaseUrl, envExtra), null, 2);
 
-  const configJsonCopy = docs?.cursorConfigExample
-    ? JSON.stringify(docs.cursorConfigExample, null, 2)
-    : JSON.stringify(
-        {
-          mcpServers: {
-            "agent-cms": {
-              command: "node",
-              args: [mcpServerPath],
-              env: {
-                AGENT_CMS_BASE_URL: cmsBaseUrl,
-                ...envExtra
-              }
-            }
+  const configJsonCopy = JSON.stringify(
+    {
+      mcpServers: {
+        "agent-cms": {
+          command: "node",
+          args: [mcpServerPath],
+          env: {
+            AGENT_CMS_BASE_URL: cmsBaseUrl,
+            ...envExtra
           }
-        },
-        null,
-        2
-      );
+        }
+      }
+    },
+    null,
+    2
+  );
 
   return {
     cmsBaseUrl,

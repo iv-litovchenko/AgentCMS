@@ -2509,7 +2509,7 @@
             </section>
             <section
               id="menu-awn-scripts-band"
-              class="menu-awn-scripts-band menu-awn-scripts-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
+              class="menu-awn-scripts-band menu-awn-scripts-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed is-ui-locked"
               aria-label="Скрипты workspace — awn-scripts"
             >
               <div class="menu-awn-scripts-band-head">
@@ -2518,10 +2518,13 @@
                   type="button"
                   class="menu-awn-scripts-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--awn-scripts"
                   aria-expanded="false"
+                  aria-disabled="true"
                   aria-controls="menu-awn-scripts-band-body"
-                  title="Скрипты workspace — свернуть или показать"
+                  disabled
+                  title="Скрипты workspace — раздел временно закрыт (скоро)"
                 >
                   <span class="sidebar-accent-band-toggle-main">
+                    <span class="sidebar-accent-band-lock" aria-hidden="true" title="Временно недоступно">🔒</span>
                     <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
                     <svg
                       class="sidebar-accent-band-icon"

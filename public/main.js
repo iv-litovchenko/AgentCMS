@@ -298,6 +298,8 @@ let awnDataViewColumnsWrapNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_MEDIA_LIBRARY_BAND_OPEN_KEY = "yamlcms.menuMediaLibraryBandOpen.v1";
 const MENU_AWN_SCRIPTS_BAND_OPEN_KEY = "yamlcms.menuAwnScriptsBandOpen.v1";
+/** Панель awn-scripts в сайдбаре — только заголовок, без раскрытия (до готовности UI). */
+const MENU_AWN_SCRIPTS_BAND_UI_LOCKED = true;
 const MENU_REPOSITORIES_BAND_OPEN_KEY = "yamlcms.menuRepositoriesBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
@@ -6564,11 +6566,18 @@ async function openAwnChannelWorkspaceEntry(entry, options = {}) {
       modeContentCache.description = data.content || "";
       navigationManifestCachedPath = manifestPath;
       await loadPropertiesForActivePath();
+      const manifestTitle = getOverviewTitleFromProps(resolveNodeOverviewPropsEntries());
+      if (manifestTitle) {
+        activeLabel = manifestTitle;
+        titleInputNode.value = manifestTitle;
+      }
     } else {
       modeContentCache.description = "";
+      navigationManifestCachedPath = manifestPath;
     }
   } catch {
     modeContentCache.description = "";
+    navigationManifestCachedPath = manifestPath;
   } finally {
     hideContentLoading();
   }
@@ -68831,8 +68840,9 @@ function getOverviewManifestFrontmatterEntries() {
 
   const apiPath = getActiveNodeApiPath();
   const cachedManifest = String(modeContentCache.description || "");
-  const cacheMatchesActiveNode =
-    !apiPath || !navigationManifestCachedPath || navigationManifestCachedPath === apiPath;
+  const cacheMatchesActiveNode = Boolean(
+    apiPath && navigationManifestCachedPath && navigationManifestCachedPath === apiPath
+  );
   if (cachedManifest.trim() && cacheMatchesActiveNode) {
     absorbYaml(splitFrontmatter(cachedManifest).frontmatter);
   }
@@ -82981,14 +82991,28 @@ async function renderEntryOverview() {
     if (isStale()) return;
 
     if (isHubFilesSlotWorkspace) {
-      const manifestEntries = resolveNodeOverviewPropsEntries();
-      const { body: manifestBody } = splitFrontmatter(modeContentCache.description || "");
-      const hubWorkspaceTitle = getEntryOverviewTopicTitle();
       const manifestPath = isMediaLibraryManifestPath(topicPath) || isAwnChannelManifestPath(topicPath)
         ? topicPath
         : isAwnChannelWorkspace
           ? getAwnChannelManifestPathFromFolder(topicPath)
           : getMediaLibraryManifestPathFromFolder(topicPath);
+      if (manifestPath && navigationManifestCachedPath !== manifestPath) {
+        await ensureNavigationManifestCached({ forceReload: true });
+        if (isStale()) return;
+        if (propsFormEntries.length || propsFormHiddenEntries.length) {
+          await loadPropertiesForActivePath();
+          if (isStale()) return;
+        }
+      }
+      const manifestEntries = resolveNodeOverviewPropsEntries();
+      const manifestCachedForHub =
+        navigationManifestCachedPath === manifestPath ? modeContentCache.description || "" : "";
+      const { body: manifestBody } = splitFrontmatter(manifestCachedForHub);
+      const hubWorkspaceTitle =
+        getOverviewTitleFromProps(manifestEntries) ||
+        String(activeLabel || "").trim() ||
+        getLabelFromPath(manifestPath) ||
+        (isAwnChannelWorkspace ? "Канал" : "Медиатека");
       const defaultTypeId = isAwnChannelWorkspace ? HUB_CHANNEL_TYPE_ID : HUB_MEDIA_TYPE_ID;
       const hubWorkspaceKind = isAwnChannelWorkspace
         ? "channel"
@@ -116586,6 +116610,7 @@ function focusMenuMediaLibrarySearch() {
 }
 
 function isMenuAwnScriptsBandExpanded() {
+  if (MENU_AWN_SCRIPTS_BAND_UI_LOCKED) return false;
   try {
     const saved = localStorage.getItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY);
     if (saved === "0") return false;
@@ -116598,16 +116623,36 @@ function isMenuAwnScriptsBandExpanded() {
 
 function syncMenuAwnScriptsBandAccordionUi() {
   if (!menuAwnScriptsBandNode) return;
-  const expanded = isMenuAwnScriptsBandExpanded();
+  const locked = MENU_AWN_SCRIPTS_BAND_UI_LOCKED;
+  menuAwnScriptsBandNode.classList.toggle("is-ui-locked", locked);
+  const expanded = !locked && isMenuAwnScriptsBandExpanded();
   menuAwnScriptsBandNode.classList.toggle("is-collapsed", !expanded);
-  menuAwnScriptsBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuAwnScriptsBandToggleBtn) {
+    menuAwnScriptsBandToggleBtn.disabled = locked;
+    menuAwnScriptsBandToggleBtn.setAttribute("aria-disabled", locked ? "true" : "false");
+    menuAwnScriptsBandToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    menuAwnScriptsBandToggleBtn.title = locked
+      ? "Скрипты workspace — раздел временно закрыт (скоро)"
+      : "Скрипты workspace — свернуть или показать";
+  }
   if (menuAwnScriptsBandBodyNode) {
     menuAwnScriptsBandBodyNode.hidden = !expanded;
     menuAwnScriptsBandBodyNode.classList.toggle("is-collapsed", !expanded);
   }
+  if (locked) {
+    try {
+      localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+  }
 }
 
 function setMenuAwnScriptsBandExpanded(expanded) {
+  if (MENU_AWN_SCRIPTS_BAND_UI_LOCKED) {
+    if (expanded) return;
+    expanded = false;
+  }
   try {
     localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116618,6 +116663,7 @@ function setMenuAwnScriptsBandExpanded(expanded) {
 }
 
 function toggleMenuAwnScriptsBandExpanded() {
+  if (MENU_AWN_SCRIPTS_BAND_UI_LOCKED) return;
   setMenuAwnScriptsBandExpanded(!isMenuAwnScriptsBandExpanded());
 }
 

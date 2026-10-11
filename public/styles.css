@@ -71772,6 +71772,26 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom-color: rgba(255, 255, 255, 0.95);
 }
 
+.menu-awn-scripts-band.is-ui-locked .menu-awn-scripts-band-toggle-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.menu-awn-scripts-band.is-ui-locked .sidebar-accent-band-chevron {
+  opacity: 0.35;
+}
+
+.menu-awn-scripts-band .sidebar-accent-band-lock {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.menu-awn-scripts-band.is-ui-locked .menu-awn-scripts-band-head-actions .menu-band-help-btn {
+  opacity: 0.85;
+}
+
 .menu-awn-scripts-band-title.sidebar-accent-band-title {
   flex: 1 1 auto;
   min-width: 0;

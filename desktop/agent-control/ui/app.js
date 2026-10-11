@@ -627,6 +627,7 @@ function syncServerUi(server) {
     button.disabled = !isRunning || serverActionBusy;
   });
 
+  syncMcpConfigPreview();
 }
 
 async function handleServerStatusUpdate(server, options = {}) {
@@ -795,6 +796,53 @@ function getPorts() {
       voiceHttp: 3088
     }
   );
+}
+
+function getEffectiveCmsBaseUrl() {
+  const server = lastServer || bootstrap?.server;
+  const fromProbe = String(server?.urls?.cms || "").trim();
+  if (server?.cms && fromProbe) return fromProbe;
+
+  const mcpUrl = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim();
+  if (mcpUrl) return mcpUrl;
+
+  const ports = getPorts();
+  return `https://localhost:${ports.editorHttps}`;
+}
+
+function getMcpTlsInsecureEnv() {
+  const mcp = bootstrap?.mcpConnect || {};
+  const raw = mcp.configJsonCopy || mcp.configJson || "";
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    const insecure = parsed?.mcpServers?.["agent-cms"]?.env?.AGENT_CMS_TLS_INSECURE;
+    if (insecure) return { AGENT_CMS_TLS_INSECURE: String(insecure) };
+  } catch {
+    // ignore stale JSON
+  }
+  return {};
+}
+
+function buildMcpConfigObject({ useAbsPath = false } = {}) {
+  const mcp = bootstrap?.mcpConnect || {};
+  const root = String(bootstrap?.projectRoot || "").trim();
+  const scriptPath = useAbsPath
+    ? "<ABS_PATH>/mcp-server/index.js"
+    : mcp.mcpServerPath || `${root}/mcp-server/index.js`;
+
+  return {
+    mcpServers: {
+      "agent-cms": {
+        command: "node",
+        args: [scriptPath],
+        env: {
+          AGENT_CMS_BASE_URL: getEffectiveCmsBaseUrl(),
+          ...getMcpTlsInsecureEnv()
+        }
+      }
+    }
+  };
 }
 
 function getTestUrl(kind) {
@@ -1072,24 +1120,7 @@ function syncMcpConfigPreview() {
   const node = document.getElementById("mcp-config-json");
   if (!node) return;
 
-  const mcp = bootstrap?.mcpConnect || {};
-  const fallback = JSON.stringify(
-    {
-      mcpServers: {
-        "agent-cms": {
-          command: "node",
-          args: ["<ABS_PATH>/mcp-server/index.js"],
-          env: {
-            AGENT_CMS_BASE_URL: mcp.cmsBaseUrl || `https://localhost:${getPorts().editorHttps}`
-          }
-        }
-      }
-    },
-    null,
-    2
-  );
-
-  node.textContent = mcp.configJson || fallback;
+  node.textContent = JSON.stringify(buildMcpConfigObject({ useAbsPath: true }), null, 2);
 }
 
 function escapePromptHtml(text) {
@@ -1472,8 +1503,7 @@ function bindActionHandlers() {
 
   actionsRoot.querySelectorAll("[data-copy-mcp-config]").forEach((button) => {
     button.addEventListener("click", () => {
-      const mcp = bootstrap?.mcpConnect || {};
-      copyText(mcp.configJsonCopy || mcp.configJson || "");
+      copyText(JSON.stringify(buildMcpConfigObject({ useAbsPath: false }), null, 2));
     });
   });
 
