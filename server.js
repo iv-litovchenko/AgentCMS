@@ -426,6 +426,8 @@ const {
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
+  ensureAgentQueueStoreScaffold,
+  AGENT_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
@@ -25464,6 +25466,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold contents group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-agent-queue") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = ensureAgentQueueStoreScaffold(agentRoot, getProjectRoot());
+      return sendJson(res, 201, {
+        ok: true,
+        storeRel: AGENT_QUEUE_STORE_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold agent queue store",
         details: String(error.message || error)
       });
     }

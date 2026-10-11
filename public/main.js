@@ -345,30 +345,90 @@ const CHANNEL_BUILTIN_PRESETS = [
     name: "Telegram",
     hintTitle: "Выгрузка тем и сообщений из Telegram. Входящий поток из Телеграмм"
   },
-  { slug: "whatsapp", icon: "💬", name: "Ватсап может быть" },
-  { slug: "web", icon: "🌐", name: "Интернет" },
-  { slug: "bookmarks", icon: "🔖", name: "Закладки" },
+  {
+    slug: "whatsapp",
+    icon: "💬",
+    name: "WhatsApp",
+    hintTitle: "Входящий поток из WhatsApp"
+  },
+  {
+    slug: "web",
+    icon: "🌐",
+    name: "Интернет",
+    hintTitle: "Страницы, ссылки и материалы из сети"
+  },
+  {
+    slug: "bookmarks",
+    icon: "🔖",
+    name: "Закладки",
+    hintTitle: "Сохранённые ссылки и закладки до triage"
+  },
   {
     slug: "downloads",
     icon: "📥",
     name: "Загрузки",
     hintTitle: "Файлы из загрузок браузера"
   },
-  { slug: "notebooks", icon: "📓", name: "Печатные тетради" },
-  { slug: "photo-archive", icon: "🖼️", name: "Фотоархив" },
-  { slug: "photo-phone", icon: "📱", name: "Фотоархив (телефон)" },
-  { slug: "analytics", icon: "📊", name: "аналитика" },
-  { slug: "real-world", icon: "🌍", name: "Объекты реального мира" },
-  { slug: "market", icon: "🛒", name: "Барахолка" },
+  {
+    slug: "notebooks",
+    icon: "📓",
+    name: "Печатные тетради",
+    hintTitle: "Скан и фото тетрадей, рукописные заметки"
+  },
+  {
+    slug: "photo-archive",
+    icon: "🖼️",
+    name: "Фотоархив",
+    hintTitle: "Общий фотоархив — входящие снимки"
+  },
+  {
+    slug: "photo-phone",
+    icon: "📱",
+    name: "Фото (телефон)",
+    hintTitle: "Фото с телефона до разбора"
+  },
+  {
+    slug: "analytics",
+    icon: "📊",
+    name: "Аналитика",
+    hintTitle: "Метрики, отчёты и дашборды"
+  },
+  {
+    slug: "real-world",
+    icon: "🌍",
+    name: "Реальный мир",
+    hintTitle: "Объекты и факты из офлайн-мира"
+  },
+  {
+    slug: "market",
+    icon: "🛒",
+    name: "Барахолка",
+    hintTitle: "Объявления о покупке и продаже, личные сделки"
+  },
   {
     slug: "announcements",
     icon: "📢",
     name: "Объявления",
     hintTitle: "Объявления и информационные публикации"
   },
-  { slug: "notes", icon: "📒", name: "Заметки" },
-  { slug: "screenshots", icon: "🖥️", name: "Скриншоты" },
-  { slug: "other", icon: "📦", name: "Другое (не знаю куда деть)" }
+  {
+    slug: "notes",
+    icon: "📒",
+    name: "Заметки",
+    hintTitle: "Разрозненные заметки до разбора"
+  },
+  {
+    slug: "screenshots",
+    icon: "🖥️",
+    name: "Скриншоты",
+    hintTitle: "Снимки экрана, ingress до triage"
+  },
+  {
+    slug: "other",
+    icon: "📦",
+    name: "Другое",
+    hintTitle: "Временный вход — не знаю куда деть"
+  }
 ];
 const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
 let menuAwnChannelsSearchQuery = "";
@@ -18256,6 +18316,7 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
+const AWN_AGENT_QUEUE_STORE = "agent-queue";
 const LEGACY_AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_SCRIPTS_FOLDER = "awn-scripts";
@@ -18731,6 +18792,10 @@ const WORKSPACE_TOOL_MODULE_META = {
   [`awn-databases/${AWN_CONTENTS_FACTS_STORE}`]: {
     title: "Банк фактов",
     lead: "Коллекция contents/facts — create / search_workspace_facts."
+  },
+  [`awn-databases/${AWN_AGENT_QUEUE_STORE}`]: {
+    title: "Очередь задач для агента",
+    lead: "Коллекция agent-queue — чекпоинты и задачи (как слот agent-queue в теме)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -21041,6 +21106,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   const namesByKey = {
     memory: ["main", "content", "memory"],
     inbox: ["inbox"],
+    outbox: ["outbox"],
     notes: ["notes", "note"],
     references: ["references"],
     artefacts: ["artefacts"],
@@ -34059,6 +34125,7 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
 const STORAGE_SUBFOLDER_MEMORY = "main";
 const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_OUTBOX = "outbox";
 const STORAGE_SUBFOLDER_DISCUSSION = "discussion";
 const STORAGE_SUBFOLDER_THREAD = STORAGE_SUBFOLDER_DISCUSSION;
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
@@ -34459,6 +34526,7 @@ function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
+  outbox: STORAGE_SUBFOLDER_OUTBOX,
   discussion: STORAGE_SUBFOLDER_DISCUSSION,
   thread: STORAGE_SUBFOLDER_DISCUSSION,
   note: STORAGE_SUBFOLDER_NOTE,
@@ -77200,10 +77268,7 @@ function createEntryOverviewSlotFolderMissingNotice(context, topicPath = getReso
 }
 
 async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath) {
-  const actions = panel?.querySelector(".node-entry-overview-browse-actions");
-  if (!actions || !shouldOfferEntryOverviewStorageSlotCreate(context)) return;
-
-  actions.querySelector(".entry-overview-create-slot-folder-btn")?.remove();
+  if (!panel || !shouldOfferEntryOverviewStorageSlotCreate(context, topicPath)) return;
 
   let folderExists = true;
   try {
@@ -77218,25 +77283,28 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
     return;
   }
 
-  actions
-    .querySelectorAll(
-      ".external-create-section-btn, .external-create-btn, .media-upload-btn, .node-navigation-hub-rail-upload-btn"
-    )
-    .forEach((node) => node.remove());
-
-  panel.querySelector(".node-entry-overview-slot-folder-missing")?.remove();
-  panel.classList.add("is-slot-folder-missing");
-
-  appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath);
-
   panel.querySelector(
     ".node-entry-overview-memory-toc, .node-entry-overview-section-list"
   )?.remove();
+  panel.classList.add("is-slot-folder-missing");
+
+  const resolvedTopicPath = getResolvedNodePath(topicPath);
+  const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
+  if (shouldShowEntryOverviewBrowseActions(context)) {
+    const freshToolbar = createEntryOverviewBrowseToolbar(context, {
+      slotFolderMissing: true,
+      topicPath: resolvedTopicPath
+    });
+    if (freshToolbar) {
+      if (toolbar) toolbar.replaceWith(freshToolbar);
+      else panel.appendChild(freshToolbar);
+    } else if (toolbar) toolbar.remove();
+  }
 
   if (!panel.querySelector(":scope > .node-entry-overview-slot-folder-missing")) {
-    const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
-    const notice = createEntryOverviewSlotFolderMissingNotice(context, topicPath);
-    if (toolbar) panel.insertBefore(notice, toolbar);
+    const notice = createEntryOverviewSlotFolderMissingNotice(context, resolvedTopicPath);
+    const toolbarAfter = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
+    if (toolbarAfter) panel.insertBefore(notice, toolbarAfter);
     else panel.appendChild(notice);
   }
 
@@ -78644,7 +78712,7 @@ function shouldShowEntryOverviewBrowseActions(context) {
   return false;
 }
 
-function createEntryOverviewBrowseActions(context, { slotFolderMissing = false } = {}) {
+function createEntryOverviewBrowseActions(context, { slotFolderMissing = false, topicPath = null } = {}) {
   if (!shouldShowEntryOverviewBrowseActions(context)) return null;
 
   const targetMode = getEntryOverviewBrowseUploadTargetMode(context);
@@ -78668,7 +78736,11 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
   };
 
   if (slotFolderMissing) {
-    appendEntryOverviewCreateSlotFolderButton(actions, context, getResolvedNodePath(activePath));
+    appendEntryOverviewCreateSlotFolderButton(
+      actions,
+      context,
+      getResolvedNodePath(topicPath) || getResolvedNodePath(activePath)
+    );
   } else {
     if (supportsNavigationHubRailSectionCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
@@ -78739,9 +78811,9 @@ function createEntryOverviewExternalBrowseActions(context) {
   return createEntryOverviewBrowseActions(context);
 }
 
-function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false } = {}) {
+function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false, topicPath = null } = {}) {
   const searchBar = slotFolderMissing ? null : createEntryOverviewSearchBar(context);
-  const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
+  const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing, topicPath });
   const mediaCols =
     !slotFolderMissing &&
     (context?.memoryKind === "media" ||
@@ -78912,7 +78984,10 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
 
   let deferredToolbar = null;
   if (showSearch || showActions) {
-    const toolbar = createEntryOverviewBrowseToolbar(context, { slotFolderMissing });
+    const toolbar = createEntryOverviewBrowseToolbar(context, {
+      slotFolderMissing,
+      topicPath: getResolvedNodePath(activePath)
+    });
     if (toolbar) {
       if (slotFolderMissing) deferredToolbar = toolbar;
       else panel.appendChild(toolbar);
@@ -119056,6 +119131,19 @@ function syncAwnDataCreateGroupPresetsUi() {
       ? "Коллекция awn-databases/contents/glossary уже создана"
       : "Группа contents/ и коллекция glossary (md-lite, MCP глоссарий)";
   }
+
+  const agentQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="agent-queue"]'
+  );
+  if (agentQueueBtn) {
+    const exists = isAwnContentsCollectionPresent(AWN_AGENT_QUEUE_STORE, activeAgentId);
+    agentQueueBtn.disabled = exists;
+    agentQueueBtn.classList.toggle("is-disabled", exists);
+    agentQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+    agentQueueBtn.title = exists
+      ? "Коллекция awn-databases/agent-queue/ уже создана"
+      : "Коллекция agent-queue — md с разделами, как слот «Очередь задач» в теме";
+  }
 }
 
 function openAwnDataCreateModal(kind = "collection", options = {}) {
@@ -128344,6 +128432,38 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
   }
 }
 
+async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
+  if (!agentId) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
+    '[data-awn-data-group-preset="agent-queue"]'
+  );
+  if (presetBtn) presetBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-agent-queue", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    closeAwnDataCreateModal();
+    if (data.storeCreated) {
+      showToast("Создана коллекция «Очередь задач для агента»", "success");
+    } else {
+      showToast("Коллекция agent-queue уже существует", "success");
+    }
+    await refreshMenuAwnDataStores(agentId);
+    void openAwnDataViewPage(AWN_AGENT_QUEUE_STORE, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    syncAwnDataCreateGroupPresetsUi();
+  }
+}
+
 async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId, { withDefaults = false } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
@@ -128389,6 +128509,7 @@ function setupAwnDataStoresUi() {
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
     if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
+    if (preset === "agent-queue") void submitAwnDataScaffoldAgentQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));
