@@ -37,6 +37,7 @@ import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
+import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
@@ -395,13 +396,7 @@ function createServer() {
   registerAgentUtilsTools(reg, client);
   registerMediaCloudTools(reg, client, { pagePath });
   registerSidecarTools(reg, client);
-
-  reg(
-    "list_system_files",
-    "List agent system files (AGENTS.md, SKILL.md, …). For shared NOTE/TODO pads use read_workspace_note / read_workspace_todo.",
-    z.object({}),
-    () => client.get("/api/system-files")
-  );
+  registerWorkspaceRootTools(reg, client, { jsonText });
 
   // ── Уведомление (1) ────────────────────────────────────────────────────────
 

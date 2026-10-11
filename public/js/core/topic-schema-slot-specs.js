@@ -239,7 +239,7 @@
       },
       {
         slotKey: "roadmap-single",
-        label: "Дорожная карта",
+        label: "Карты",
         tabGroup: "planning",
         defaultKind: "record",
         targets: {

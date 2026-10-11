@@ -75272,6 +75272,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   gap: 8px;
 }
 
+.node-navigation-hub.is-awn-channel-workspace-hub > .node-navigation-hub-main > .node-entry-overview-hub-top-slot-counters {
+  margin: 0 0 4px;
+}
+
 .node-navigation-hub.is-media-library-workspace-hub .media-library-workspace-iblock-layout {
   display: flex;
   flex-direction: column;

@@ -621,7 +621,7 @@ awn-storage/
 | Discuss-комментарий | `list_comments` / `append_comment` | Не писать в `comments/` через `create_content` / `write_file` |
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` / `upload_file_from_url` |
 | Файл в слот темы по URL | `import_content_from_url` |
-| Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
+| Файлы корня workspace (`AGENTS.md`, …) | `list_root_files` → `read_root_file` / `write_root_file` (history); также `read_file` / `patch_file` |
 | Зависимости workspace (`dependencies.csv`) | `read_dependencies` / `write_dependencies` — колонки из settings «Зависимости» |
 | Обход папки | `list_folder` |
 | Поиск по содержимому workspace | `search_workspace_content` (опц. `pathPrefix`) |
@@ -909,7 +909,7 @@ awn-description: Черновики и ресурсы для разбора
 - запись с **history** (как system files)
 - не путать: слот `notes/` / `todo-single` в теме — другие tools
 
-Для `AGENTS.md`, `SKILL.md` — `list_system_files` → `read_file` / `write_file`.
+Для `AGENTS.md`, `SKILL.md` — `list_root_files` → `read_root_file` / `write_root_file`.
 
 ---
 
@@ -917,15 +917,15 @@ awn-description: Черновики и ресурсы для разбора
 
 Корень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`…
 
-- список: `list_system_files` → какие служебные файлы есть / scaffold
-- читать / писать: `read_file("AGENTS.md")` / `write_file("AGENTS.md", …)` — **с history** при записи
+- список: `list_root_files` → какие файлы есть / scaffold
+- читать / писать: `read_root_file({ name: "AGENTS.md" })` / `write_root_file({ name: "AGENTS.md", content })` — **с history**; эквивалент через `read_file` / `patch_file` с `path: "AGENTS.md"`
 
 `NOTE.md` / `TODO.md` — предпочтительно **`read_workspace_*` / `write_workspace_*`** (см. выше).
 
 В always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  
 Плюс всегда глобально: `GLOBAL-DOC-MCP.md` из корня репозитория (для всех агентов).
 
-`read_system_file` / `write_system_file` — **удалены из MCP**; UI по-прежнему использует HTTP `/api/system-file`.
+`list_system_files` / `read_system_file` / `write_system_file` — **алиасы** на `list_root_files` / `read_root_file` / `write_root_file`. UI по-прежнему использует HTTP `/api/system-file`.
 
 ---
 

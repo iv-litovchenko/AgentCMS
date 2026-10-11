@@ -497,7 +497,10 @@ module.exports = {
       id: "filesystem",
       title: "Система + FS",
       tools: [
-        { name: "list_system_files", description: "AGENTS.md, SKILL.md, … → read_file/write_file.", parameters: "—", http: "GET /api/system-files" },
+        { name: "list_root_files", description: "Workspace root: AGENTS.md, SKILL.md, …", parameters: "—", http: "GET /api/system-files" },
+        { name: "read_root_file", description: "Read workspace root file by name.", parameters: "name, …partial read", http: "GET /api/workspace/fs/read" },
+        { name: "write_root_file", description: "Write workspace root file (history).", parameters: "name, content, mode?", http: "POST /api/workspace/fs/write" },
+        { name: "list_system_files", description: "Deprecated → list_root_files.", parameters: "—", http: "GET /api/system-files" },
         { name: "read_file", description: "Файл по workspace path.", parameters: "path, maxBytes?", http: "GET /api/workspace/fs/read" },
         { name: "write_file", description: "Текстовый файл по path.", parameters: "path, content", http: "POST /api/workspace/fs/write" },
         { name: "upload_file", description: "Base64 → path (media/assets/бинарники).", parameters: "path, data, mimeType?", http: "POST /api/workspace/fs/upload" },

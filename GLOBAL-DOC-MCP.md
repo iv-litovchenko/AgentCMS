@@ -197,7 +197,7 @@
 
 ## 8. Файлы и выполнение
 
-**Path-based** (`read_file`, `write_file`, `patch_file`, `upload_file`, `list_folder`) — для кода, HTML, бинарников, свободной памяти, системных файлов. Для `.md` в слотах — `create_content` / `write_content_body`; для manifest — `write_page_body`. Бинарники — никогда через `create_content`.
+**Path-based** (`read_file`, `write_file`, `patch_file`, `upload_file`, `list_folder`) — для кода, HTML, бинарников, свободной памяти. **Корень workspace** (`AGENTS.md`, …): `list_root_files` → `read_root_file` / `write_root_file` (или `read_file` / `write_file` / `patch_file` с тем же basename; запись с history). `NOTE.md` / `TODO.md` — `read_workspace_*` / `write_workspace_*`. Для `.md` в слотах — `create_content` / `write_content_body`; для manifest — `write_page_body`. Бинарники — никогда через `create_content`.
 
 **Служебные папки корня:**
 

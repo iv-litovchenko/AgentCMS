@@ -5777,9 +5777,79 @@ function coerceAwnChannelWorkspaceEntry(entry) {
   return { ...entry, slug, folderPath, manifestPath };
 }
 
-/** Медиатека и канал: manifest + слоты awn-storage/files и assets (как в UI медиатеки). */
+/** Медиатека и канал: manifest + слоты awn-storage (политика hub.*). */
 function isHubWorkspaceFilesSlotPage(nodePath = getResolvedNodePath(activePath), entries = null) {
+  if (resolveHubWorkspaceSlotPolicy(nodePath, entries)) return true;
   return isMediaLibraryPageNodePath(nodePath, entries) || isAwnChannelPageNodePath(nodePath, entries);
+}
+
+function resolveHubWorkspaceSlotPolicy(topicPath = getResolvedNodePath(activePath), entries = null) {
+  const path = String(topicPath || "").trim();
+  if (!path) return null;
+
+  const propsEntries = Array.isArray(entries)
+    ? entries
+    : getResolvedNodePath(path) === getResolvedNodePath(activePath)
+      ? resolveNodeOverviewPropsEntries()
+      : null;
+  const typeId = propsEntries ? getPropsEntryValueByKey(propsEntries, "awn-type") : "";
+
+  if (
+    isAwnChannelTypeLabel(typeId) ||
+    isAwnChannelHubWorkspacePath(path) ||
+    isAwnChannelPageNodePath(path, propsEntries)
+  ) {
+    return { kind: "channel", slotKeys: ["inbox", "todo-single", "outbox"], defaultMemoryKind: "inbox" };
+  }
+  if (
+    isMediaLibraryTypeLabel(typeId) ||
+    isMediaLibraryHubWorkspacePath(path) ||
+    isMediaLibraryPageNodePath(path, propsEntries)
+  ) {
+    return { kind: "media", slotKeys: ["files"], defaultMemoryKind: "media" };
+  }
+  return null;
+}
+
+function filterHubWorkspaceSlotCounters(topicPath, slots, entries = null) {
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath, entries);
+  if (!policy) return slots;
+  const allowed = new Set(policy.slotKeys);
+  return (slots || []).filter((slot) => allowed.has(slot.id));
+}
+
+function shouldShowHubWorkspaceSlotStrip(topicPath, slotCount, entries = null) {
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath, entries);
+  if (!policy) return false;
+  return slotCount > 1;
+}
+
+function hubPolicyIncludesMemoryKind(policy, memoryKind) {
+  const kind = String(memoryKind || "").trim();
+  if (!kind || !policy) return false;
+  const slotKey = getDataStorageSlotForMode(kind)?.key || kind;
+  return policy.slotKeys.includes(slotKey);
+}
+
+function applyHubWorkspaceDefaultOverviewMemoryKind(context, topicPath) {
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (!policy || !context || !isEntryOverviewMemoryTocRoot(context)) return context;
+  const kind = String(context.memoryKind || "").trim();
+  const onLegacyHubFiles = kind === "media" || kind === "files" || kind === "assets";
+  const outsidePolicy =
+    policy.kind === "channel"
+      ? onLegacyHubFiles || (kind && !hubPolicyIncludesMemoryKind(policy, kind))
+      : policy.kind === "media" && kind !== "media" && kind !== "files";
+  if (!outsidePolicy && kind === policy.defaultMemoryKind) return context;
+  if (!outsidePolicy && hubPolicyIncludesMemoryKind(policy, kind)) return context;
+  const memoryKind = policy.defaultMemoryKind;
+  const next = {
+    ...context,
+    memoryKind,
+    entryKind: getEntryOverviewTocRootEntryKind(memoryKind)
+  };
+  activeEntryOverviewContext = next;
+  return next;
 }
 
 function isAwnChannelWorkspaceRel(workspaceRel) {
@@ -7611,7 +7681,7 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "base", label: "База", modeId: "base" },
   { id: "notebooklm", label: "NotebookLM", modeId: "notebooklm" },
   { id: "todo-single", label: "TODO", modeId: "todo" },
-  { id: "roadmap-single", label: "Дорожная карта", modeId: "roadmap" }
+  { id: "roadmap-single", label: "Карты", modeId: "roadmap" }
 ];
 
 function isFullWorkspaceRelPath(relPath) {
@@ -18167,6 +18237,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "media",
   "files",
   "inbox",
+  "outbox",
   "note",
   "notes",
   "references",
@@ -18184,6 +18255,7 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.memory.toc.root",
   "awn.media.memory.toc.root",
   "awn.inbox.toc.root",
+  "awn.outbox.toc.root",
   "awn.note.toc.root",
   "awn.notes.toc.root",
   "awn.references.toc.root",
@@ -18635,6 +18707,17 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
+    key: "outbox",
+    label: "Исходящие",
+    icon: "📤",
+    modes: new Set(["outbox"]),
+    defaultMode: "outbox",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER,
+    /** Канал (awn-channels): исходящий поток; на обычных темах скрыт в обзоре. */
+    hideEntryOverviewCounter: true
+  },
+  {
     key: "notes",
     label: "Заметки",
     icon: "📒",
@@ -18777,7 +18860,7 @@ const DATA_STORAGE_SLOT_SPECS = [
   },
   {
     key: "roadmap-single",
-    label: "Дорожная карта",
+    label: "Карты",
     icon: "🗺️",
     modes: new Set(["roadmap"]),
     defaultMode: "roadmap",
@@ -20721,20 +20804,23 @@ function invalidateEntryOverviewSlotCountersCache(manifestPath = "") {
   entryOverviewSlotCountersInflight.delete(key);
 }
 
-function loadEntryOverviewSlotCounters(topicPath, { force = false } = {}) {
+function loadEntryOverviewSlotCounters(topicPath, { force = false, propsEntries = null, hubSlotPolicy = null } = {}) {
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   if (!resolvedTopicPath) return Promise.resolve([]);
 
   const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
   if (force) invalidateEntryOverviewSlotCountersCache(manifestPath);
   const cached = entryOverviewSlotCountersCache.get(manifestPath);
-  if (!force && cached?.length) return Promise.resolve(cached);
+  if (!force && cached?.length && !propsEntries && !hubSlotPolicy) return Promise.resolve(cached);
 
   if (entryOverviewSlotCountersInflight.has(manifestPath)) {
     return entryOverviewSlotCountersInflight.get(manifestPath);
   }
 
-  const promise = buildEntryOverviewDataSlotCounters(resolvedTopicPath)
+  const promise = buildEntryOverviewDataSlotCounters(resolvedTopicPath, {
+    propsEntries,
+    hubSlotPolicy
+  })
     .then((slots) => {
       entryOverviewSlotCountersCache.set(manifestPath, slots);
       entryOverviewSlotCountersInflight.delete(manifestPath);
@@ -22749,7 +22835,7 @@ function getContentModeLabel(mode) {
   if (mode === "notebooklm") return "NotebookLM";
   if (mode === "agent-queue") return "Очередь задач для агента";
   if (mode === "todo") return "TODO";
-  if (mode === "roadmap") return "Дорожная карта";
+  if (mode === "roadmap") return "Карты";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
   if (mode === "assets") return "Активы";
@@ -27131,6 +27217,7 @@ async function shouldHideTopicStorageSlots(nodePath, entries = null) {
 
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
   if (isRepositoryManifestPath(nodePath)) return false;
+  if (isHubWorkspaceFilesSlotPage(nodePath)) return false;
   return !usesNavigationHubInlineSubsections(nodePath);
 }
 
@@ -71666,12 +71753,14 @@ function renderNodeNavigationWorkspaceCounterStrip(
 async function appendTopicSlotCounterStrip(
   container,
   topicPath,
-  { isStale = () => false, entryOverview = false, slots = null, prepend = false } = {}
+  { isStale = () => false, entryOverview = false, slots = null, prepend = false, propsEntries = null } = {}
 ) {
   if (!container || usesNavigationHubInlineSubsections(topicPath)) return null;
+  if (resolveHubWorkspaceSlotPolicy(topicPath, propsEntries)) return null;
   if (isMediaLibraryPageNodePath(topicPath)) return null;
   if (await shouldHideTopicStorageSlots(topicPath)) return null;
-  const topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath));
+  let topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath, { propsEntries }));
+  topicSlotCounters = filterHubWorkspaceSlotCounters(topicPath, topicSlotCounters, propsEntries);
   if (isStale()) return null;
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     topicSlotCounters.map((slot) => ({
@@ -75176,7 +75265,7 @@ function getEntryOverviewTocTitle(memoryKind) {
   if (memoryKind === "internal") return "Память (однофайловая)";
   if (memoryKind === "tabular") return "Память (табличная)";
   if (memoryKind === "todo") return "TODO";
-  if (memoryKind === "roadmap") return "Дорожная карта";
+  if (memoryKind === "roadmap") return "Карты";
   const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === memoryKind);
   return spec ? `Оглавление: ${spec.label}` : "Оглавление";
 }
@@ -75787,6 +75876,8 @@ function supportsDataEntryOverview(slotKey) {
 
 function shouldShowEntryOverviewSlotCounter(spec, topicPath = getResolvedNodePath(activePath)) {
   if (!spec || spec.disabled || !supportsDataEntryOverview(spec.key)) return false;
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (policy) return policy.slotKeys.includes(spec.key);
   if (spec.hideEntryOverviewCounter && !isHubWorkspaceFilesSlotPage(topicPath)) return false;
   return true;
 }
@@ -78956,8 +79047,12 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     slot.hasIndex = Boolean(slot.indexFile);
   }
 
-  if (mediaLibraryPage) {
-    return [];
+  const policy =
+    prefetched.hubSlotPolicy ??
+    resolveHubWorkspaceSlotPolicy(topicPath, prefetched.propsEntries || null);
+  if (policy) {
+    const allowed = new Set(policy.slotKeys);
+    return slots.filter((slot) => allowed.has(slot.id));
   }
 
   return slots;
@@ -80554,6 +80649,21 @@ function relocateEntryOverviewSlotCountersChrome(hubMain) {
     return;
   }
 
+  const iblock = hubMain.querySelector(":scope > .media-library-workspace-iblock-layout");
+  if (iblock) {
+    if (strip.nextElementSibling !== iblock) {
+      hubMain.insertBefore(strip, iblock);
+    }
+    strip.classList.add("node-entry-overview-hub-top-slot-counters");
+    strip.classList.remove("node-entry-overview-manifest-top-slot-counters");
+    syncEntryOverviewCrossSlotSearchChrome(
+      hubMain,
+      activeEntryOverviewContext,
+      strip.dataset.topicNodePath || getResolvedNodePath(activePath)
+    );
+    return;
+  }
+
   const hero = hubMain.querySelector(
     ":scope > .node-navigation-hero, :scope > .node-entry-overview-media-asset"
   );
@@ -80607,6 +80717,12 @@ function shouldShowEntryOverviewSlotCountersInHero() {
 }
 
 function shouldShowEntryOverviewSlotCountersInBrowsePanel(context, isMemoryTocRoot = false) {
+  const topicPath = getResolvedNodePath(activePath);
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (policy) {
+    if (!isMemoryTocRoot && !isEntryOverviewMemoryTocRoot(context)) return false;
+    return shouldShowHubWorkspaceSlotStrip(topicPath, policy.slotKeys.length);
+  }
   if (isHubWorkspaceFilesSlotPage()) return false;
   if (isMemoryTocRoot || isEntryOverviewMemoryTocRoot(context)) return true;
   if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return false;
@@ -80641,20 +80757,52 @@ function renderEntryOverviewSlotCounterStripFromSlots(context, topicPath, slots 
   return strip;
 }
 
-async function createEntryOverviewSlotCounterStripElement(context, topicPath) {
+async function createEntryOverviewSlotCounterStripElement(context, topicPath, { propsEntries = null } = {}) {
   if (!context) return null;
-  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
-  if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  if (!resolvedTopicPath) return null;
+  const hubPolicy = resolveHubWorkspaceSlotPolicy(resolvedTopicPath, propsEntries);
+  const hubNavigationStrip =
+    hubPolicy && activeContentMode === NODE_NAVIGATION_MODE && !isEntryOverviewMemoryTocRoot(context);
+  if (!hubNavigationStrip) {
+    if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+    if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
+      return null;
+    }
+  }
+
+  let slots = await loadEntryOverviewSlotCounters(resolvedTopicPath, {
+    propsEntries,
+    hubSlotPolicy: hubPolicy
+  });
+  slots = filterHubWorkspaceSlotCounters(resolvedTopicPath, slots, propsEntries);
+  if (!slots.length) return null;
+  if (hubPolicy && !shouldShowHubWorkspaceSlotStrip(resolvedTopicPath, slots.length, propsEntries)) {
     return null;
   }
 
-  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
-  if (!resolvedTopicPath) return null;
+  const activeSlotKey = hubPolicy
+    ? getDataStorageSlotForMode(hubPolicy.defaultMemoryKind)?.key || hubPolicy.slotKeys[0]
+    : getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
 
-  const slots = await loadEntryOverviewSlotCounters(resolvedTopicPath);
-  if (!slots.length) return null;
-
-  return renderEntryOverviewSlotCounterStripFromSlots(context, resolvedTopicPath, slots);
+  const strip = renderNodeNavigationWorkspaceCounterStrip(
+    slots.map((slot) => ({
+      ...slot,
+      modeId: slot.spec?.defaultMode || slot.id
+    })),
+    {
+      entryOverview: true,
+      activeSlotKey,
+      topicPath: resolvedTopicPath,
+      includeTopicIndexFooter: false
+    }
+  );
+  if (!strip) return null;
+  strip.classList.add("node-entry-overview-slot-counters");
+  strip.dataset.topicIndexFooter = "0";
+  strip.dataset.topicNodePath = resolvedTopicPath;
+  strip.setAttribute("aria-label", "Слоты данных");
+  return strip;
 }
 
 function refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath) {
@@ -80680,6 +80828,40 @@ function placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, strip) {
   if (strip.parentElement === hubMain && strip.nextElementSibling === anchor) return;
   if (strip.parentElement) strip.remove();
   hubMain.insertBefore(strip, anchor);
+}
+
+/** Полоса слотов hub (канал / медиатека) над iblock-карточкой — не зависит от browse-панели. */
+async function mountHubWorkspaceSlotCounterStrip(hubMain, anchor, context, topicPath) {
+  if (!hubMain || !anchor || !context) return null;
+  if (!shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) return null;
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  const mountSeq = (hubMain._hubWorkspaceSlotStripSeq = (hubMain._hubWorkspaceSlotStripSeq || 0) + 1);
+  const existing = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  if (
+    existing?.dataset.topicNodePath === resolvedTopicPath &&
+    existing.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    if (existing.nextElementSibling !== anchor) hubMain.insertBefore(existing, anchor);
+    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
+    return existing;
+  }
+
+  const strip = await createEntryOverviewSlotCounterStripElement(context, resolvedTopicPath, {
+    propsEntries: context?.propsEntries || null
+  });
+  if (mountSeq !== hubMain._hubWorkspaceSlotStripSeq || !hubMain.isConnected) return strip;
+  if (!strip) return null;
+
+  strip.classList.add(
+    "node-entry-overview-hub-main-slot-counters",
+    "node-entry-overview-hub-top-slot-counters",
+    "node-entry-overview-hub-workspace-slot-counters"
+  );
+  if (existing) existing.replaceWith(strip);
+  else hubMain.insertBefore(strip, anchor);
+  syncAllWorkspaceCounterStripActiveStates(context);
+  return strip;
 }
 
 async function mountEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, context, topicPath) {
@@ -82215,7 +82397,8 @@ async function renderEntryOverview() {
   if (!nodeOverviewContentNode || !activeEntryOverviewContext) return;
 
   const renderSeq = ++nodeOverviewRenderSeq;
-  const context = activeEntryOverviewContext;
+  const topicPathForHub = getResolvedNodePath(activePath);
+  const context = applyHubWorkspaceDefaultOverviewMemoryKind(activeEntryOverviewContext, topicPathForHub);
   const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
   const isStale = () =>
     renderSeq !== nodeOverviewRenderSeq ||
@@ -82315,6 +82498,9 @@ async function renderEntryOverview() {
       if (iblockLayout) {
         hubMain.appendChild(iblockLayout);
         void mountHubWorkspaceStoreSchema(iblockLayout, manifestPath);
+        if (shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) {
+          void mountHubWorkspaceSlotCounterStrip(hubMain, iblockLayout, context, topicPath);
+        }
       }
     }
 
@@ -93223,11 +93409,20 @@ async function renderNodeNavigation() {
     todoData
   });
 
+  const hubFilesSlotWorkspace = isHubWorkspaceFilesSlotPage(nodePath, entries);
+  const hubSlotPolicy = resolveHubWorkspaceSlotPolicy(nodePath, entries);
+  navigationPrefetch.propsEntries = entries;
+  navigationPrefetch.hubSlotPolicy = hubSlotPolicy;
+
   const hub = document.createElement("div");
   const useSplitLayout = shouldUseNavigationSplitRailLayout(nodePath);
   hub.className = useSplitLayout
     ? "node-navigation-hub node-navigation-hub--split"
     : "node-navigation-hub";
+  if (hubFilesSlotWorkspace) {
+    hub.classList.add("is-media-library-workspace-hub");
+    if (hubSlotPolicy?.kind === "channel") hub.classList.add("is-awn-channel-workspace-hub");
+  }
 
   const hubMain = document.createElement("div");
   hubMain.className = "node-navigation-hub-main";
@@ -93235,34 +93430,90 @@ async function renderNodeNavigation() {
   const topicSiblingNav = buildTopicSiblingNavOptions(nodePath);
   const topicTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
 
-  const hero = createNavigationHero(preview, heroTitle, nodePath, {
-    meta: nodeMeta,
-    propEntries: entries,
-    configSettingsEntries,
-    descriptionRaw: modeContentCache.description || "",
-    typeLabel: topicTypeLabel,
-    showHeroInstruction: true,
-    onEditClick: openDescriptionFromOverview,
-    settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
-    hideSharedSlot:
-      isRepositoryManifestPath(nodePath) || isHubWorkspaceFilesSlotPage(nodePath, entries),
-    showWorkspaceMarkers: !isRepositoryManifestPath(nodePath),
-    slugIssue: getNodeManifestSlugIssue(nodePath),
-    recordPath: getOverviewNodeApiPath(nodePath),
-    pageManifestPath: getOverviewNodeApiPath(nodePath),
-    onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
-    showUnread: showHeroUnread,
-    entryOverviewNav: topicSiblingNav,
-  });
-  hubMain.appendChild(hero);
+  if (hubFilesSlotWorkspace) {
+    const hubPolicy = hubSlotPolicy;
+    const defaultMemoryKind = hubPolicy?.defaultMemoryKind || "inbox";
+    const hubCtx = {
+      relPath: nodePath,
+      memoryKind: defaultMemoryKind,
+      relativePath: "",
+      title: heroTitle,
+      entryKind: getEntryOverviewTocRootEntryKind(defaultMemoryKind),
+      propsEntries: entries
+    };
+    const slotAnchor = document.createElement("div");
+    slotAnchor.className = "node-navigation-hub-workspace-slot-anchor";
+    hubMain.appendChild(slotAnchor);
+
+    const isAwnChannelWorkspace =
+      hubPolicy?.kind === "channel" ||
+      isAwnChannelHubWorkspacePath(nodePath) ||
+      isAwnChannelPageNodePath(nodePath, entries);
+    const isMediaLibraryWorkspace =
+      hubPolicy?.kind === "media" ||
+      isMediaLibraryHubWorkspacePath(nodePath) ||
+      isMediaLibraryPageNodePath(nodePath, entries);
+    const manifestPath =
+      isMediaLibraryManifestPath(nodePath) || isAwnChannelManifestPath(nodePath)
+        ? nodePath
+        : isAwnChannelWorkspace
+          ? getAwnChannelManifestPathFromFolder(nodePath)
+          : getMediaLibraryManifestPathFromFolder(nodePath);
+    const { body: manifestBody } = splitFrontmatter(modeContentCache.description || "");
+    const hubWorkspaceKind = isAwnChannelWorkspace ? "channel" : "media";
+    const iblockLayout = createMediaLibraryWorkspaceIblockLayout({
+      title: heroTitle,
+      manifestPath,
+      typeLabel: topicTypeLabel || (hubWorkspaceKind === "channel" ? HUB_CHANNEL_TYPE_ID : HUB_MEDIA_TYPE_ID),
+      manifestEntries: entries,
+      manifestBodyMarkdown: manifestBody,
+      onEditClick: openDescriptionFromOverview,
+      onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
+      hubWorkspaceKind
+    });
+    if (iblockLayout) {
+      hubMain.appendChild(iblockLayout);
+      void mountHubWorkspaceStoreSchema(iblockLayout, manifestPath);
+      if (hubPolicy && shouldShowHubWorkspaceSlotStrip(nodePath, hubPolicy.slotKeys.length, entries)) {
+        void mountHubWorkspaceSlotCounterStrip(hubMain, iblockLayout, hubCtx, nodePath).then(() => {
+          slotAnchor.remove();
+        });
+      } else {
+        slotAnchor.remove();
+      }
+    } else {
+      slotAnchor.remove();
+    }
+  } else {
+    const hero = createNavigationHero(preview, heroTitle, nodePath, {
+      meta: nodeMeta,
+      propEntries: entries,
+      configSettingsEntries,
+      descriptionRaw: modeContentCache.description || "",
+      typeLabel: topicTypeLabel,
+      showHeroInstruction: true,
+      onEditClick: openDescriptionFromOverview,
+      settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
+      hideSharedSlot: isRepositoryManifestPath(nodePath),
+      showWorkspaceMarkers: !isRepositoryManifestPath(nodePath),
+      slugIssue: getNodeManifestSlugIssue(nodePath),
+      recordPath: getOverviewNodeApiPath(nodePath),
+      pageManifestPath: getOverviewNodeApiPath(nodePath),
+      onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
+      showUnread: showHeroUnread,
+      entryOverviewNav: topicSiblingNav,
+    });
+    hubMain.appendChild(hero);
+  }
 
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
-  const topicSlotCounters =
+  let topicSlotCounters =
     isInlineNavHub || slotsDisabled
       ? []
       : await buildEntryOverviewDataSlotCounters(nodePath, navigationPrefetch);
+  topicSlotCounters = filterHubWorkspaceSlotCounters(nodePath, topicSlotCounters, entries);
   if (isInlineNavHub || slotsDisabled) {
     navigationPrefetch.topicSlotCounters = [];
   } else {
@@ -93270,8 +93521,8 @@ async function renderNodeNavigation() {
   }
   if (isStale()) return;
 
-  if (!isInlineNavHub && !slotsDisabled) {
-    await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
+  if (!isInlineNavHub && !slotsDisabled && !hubFilesSlotWorkspace) {
+    await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters, propsEntries: entries });
     if (isStale()) return;
   }
 
@@ -93309,9 +93560,9 @@ async function renderNodeNavigation() {
         if (subsectionsBlock) topicNavCluster.appendChild(subsectionsBlock);
       }
       if (topicNavCluster.childElementCount) hubMain.appendChild(topicNavCluster);
-    } else if (elementsNavAccordion) {
+    } else if (!hubFilesSlotWorkspace && elementsNavAccordion) {
       hubMain.appendChild(elementsNavAccordion);
-    } else if (!useSplitLayout) {
+    } else if (!useSplitLayout && !hubFilesSlotWorkspace) {
       const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
       if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
     }
@@ -93322,7 +93573,7 @@ async function renderNodeNavigation() {
     if (internalPanel) hubMain.appendChild(internalPanel);
   }
 
-  if (panelsWrap) {
+  if (panelsWrap && !hubFilesSlotWorkspace) {
     hubMain.appendChild(panelsWrap);
   }
 
@@ -105602,7 +105853,7 @@ async function saveContent() {
       modeContentCache.roadmap = data.content || "";
       fileContentInputNode.value = modeContentCache.roadmap;
       saveSucceeded = true;
-      showToast("Дорожная карта сохранена", "success");
+      showToast("Карты сохранены", "success");
       refreshEditorViewContent();
       return;
     }

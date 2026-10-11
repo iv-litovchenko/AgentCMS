@@ -6441,7 +6441,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   for (const prefix of WORKSPACE_FS_BLOCKED_WRITE_PREFIXES) {
     if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
       return {
-        error: `Writes to ${prefix} are not allowed via filesystem tools; use write_agent_system_file`,
+        error: `Writes to ${prefix} are not allowed via filesystem tools; use POST /api/agent-system/file or the agent-system UI`,
         status: 403
       };
     }
@@ -12646,7 +12646,7 @@ const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
   "todo-single": "TODO",
-  "roadmap-single": "Дорожная карта"
+  "roadmap-single": "Карты"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {

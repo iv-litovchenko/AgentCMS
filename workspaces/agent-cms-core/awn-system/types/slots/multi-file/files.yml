@@ -9,9 +9,11 @@ storage-driver: external
 description: >
   Основная медиатека workspace — awn-storage/files/ у awn.hub.media.
   Разделы (awn.content.category), записи .md, бинарники + sidecar — как слот media у темы.
-  На обзоре обычной темы счётчик «Файлы» не показывается (только на страницах awn-media).
+  Только hub.media (allowed-containers). На обзоре обычной темы слот не предлагается.
 path: files/
 slot-order: 8
+allowed-containers:
+  - hub.media
 allowed-content:
   - awn.content.record
   - awn.content.category

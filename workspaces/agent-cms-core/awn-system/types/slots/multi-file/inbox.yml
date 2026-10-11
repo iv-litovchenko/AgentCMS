@@ -9,6 +9,9 @@ storage-driver: external
 description: Входящие заметки и черновики
 path: inbox/
 slot-order: 4
+allowed-containers:
+  - topic
+  - hub.channel
 allowed-content:
   - awn.content.record
   - awn.content.category

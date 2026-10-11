@@ -64,3 +64,10 @@ properties:
     title: Уровень
     description: system — служебный слот, управляется runtime
     enum: [user, system]
+  allowed-containers:
+    title: Где можно создавать
+    type: list
+    description: >
+      Контейнеры размещения: topic — страница темы/области; hub.media — awn-media;
+      hub.channel — awn-channels. Пусто или topic — везде, где слот в политике темы.
+    enum: [topic, hub.media, hub.channel]

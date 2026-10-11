@@ -100,7 +100,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
   reg(
     "write_file",
-    "Write a plain-text workspace file. mode=replace (default) overwrites; mode=append adds to end. Prefer patch_file for edits. Root system files (AGENTS.md, SKILL.md, …) are saved with history. For shared NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
+    "Write a plain-text workspace file. mode=replace (default) overwrites; mode=append adds to end. Prefer patch_file for edits. Workspace root basenames (AGENTS.md, …) are saved with history — prefer write_root_file. For NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
     z.object({
       path: workspacePath,
       content: z.string(),
