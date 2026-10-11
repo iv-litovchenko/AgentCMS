@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const workspacePath = z
   .string()
@@ -92,23 +93,25 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
     "[Legacy] Prefer read_content with placement.kind=root. Read workspace file by path (text; binary: format=base64). Partial: startLine+limitLines. Slot .md → read_content page/channel/media; manifest → read_page_body.";
   const readFileCall = (args) => readFileHandler(client, args);
 
-  if (registerReadFile) {
-    registerReadFile(readFileDescription, readFileInputSchema, readFileCall);
-  } else {
-    reg("read_file", readFileDescription, readFileInputSchema, readFileCall);
-  }
+  if (isLegacyMcpToolsEnabled()) {
+    if (registerReadFile) {
+      registerReadFile(readFileDescription, readFileInputSchema, readFileCall);
+    } else {
+      reg("read_file", readFileDescription, readFileInputSchema, readFileCall);
+    }
 
-  reg(
-    "write_file",
-    "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Special roots: write_root_file, write_workspace_note, write_workspace_todo.",
-    z.object({
-      path: workspacePath,
-      content: z.string(),
-      mode: writeMode
-    }),
-    ({ path, content, mode }) =>
-      client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
-  );
+    reg(
+      "write_file",
+      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Special roots: write_root_file, write_workspace_note, write_workspace_todo.",
+      z.object({
+        path: workspacePath,
+        content: z.string(),
+        mode: writeMode
+      }),
+      ({ path, content, mode }) =>
+        client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
+    );
+  }
 
   reg(
     "patch_file",

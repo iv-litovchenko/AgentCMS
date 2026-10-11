@@ -23,6 +23,7 @@ npm install
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
+| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 
 ## Термины (синонимы `agentId`)
 
@@ -49,10 +50,10 @@ get_session_context({ agentId: "<выбранный-id>" })
 |--------|-------|
 | Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `agentId`; остальное **с `agentId`** |
 | Platform | `get_platform_info`, `get_platform_health` (нужен `agentId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
-| Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `get_page_url`, `list_repositories`, `get_repository`, `refresh_repository_index`, `register_repository`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
+| Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `get_page_url`, `list_repositories`, `get_repository`, `refresh_repository_index`, `register_repository`, `list_channels`, `read_channels_index`, `refresh_channels_index`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
 | Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
-| Слот | `list_slots` (alias `list_page_slots`) |
-| Контент | `read_content` / `write_content` (`placement.kind`: page \| channel \| media), `content_exists`, `get_content_meta`, legacy `read/write_content_*`, properties/schema/lifecycle |
+| Слот | `list_slots` |
+| Контент | `read_content` / `write_content` / `list_content` (`placement.kind`: page \| channel \| media \| root), `content_exists`, `get_content_meta`, properties/schema/lifecycle; legacy имена — только при `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы); `iblock_*` deprecated |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |

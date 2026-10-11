@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { z } from "zod";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
 
@@ -90,6 +91,8 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
     z.object({}),
     () => client.post("/api/agent/media-library-index", {})
   );
+
+  if (!isLegacyMcpToolsEnabled()) return;
 
   reg(
     "list_media_library_items",

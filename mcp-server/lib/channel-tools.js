@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { z } from "zod";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -79,6 +80,30 @@ export function registerChannelTools(reg, client, options = {}) {
     }),
     (payload) => client.put("/api/agent/channels", payload)
   );
+
+  reg(
+    "read_channels_index",
+    "Read awn-channels/index.md (catalog table of ingress channels).",
+    z.object({}),
+    () => client.get("/api/agent/channels-index")
+  );
+
+  reg(
+    "refresh_channels_index",
+    "Rebuild awn-channels/index.md from channel manifests and presets.",
+    z.object({
+      overwrite: z
+        .boolean()
+        .optional()
+        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+    }),
+    ({ overwrite }) =>
+      client.post("/api/agent/channels-index", {
+        ...(overwrite === false ? { overwrite: false } : {})
+      })
+  );
+
+  if (!isLegacyMcpToolsEnabled()) return;
 
   reg(
     "list_channel_items",

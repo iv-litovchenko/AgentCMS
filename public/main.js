@@ -117041,6 +117041,56 @@ async function refreshMenuAwnChannels(agentId = activeAgentId) {
   }
 }
 
+async function refreshAwnChannelsIndex(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return false;
+  }
+  const response = await fetch(buildApiUrl("/api/agent/channels-index", {}, resolvedAgent), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ overwrite: true })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  }
+  return true;
+}
+
+async function openAwnChannelsIndexOverview(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  hideHomeView();
+  const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(AWN_CHANNELS_INDEX_REL_PATH));
+  await openFolderBrowseFile("Каталог ingress-каналов", AWN_CHANNELS_INDEX_REL_PATH, {
+    folderPath,
+    agentId: resolvedAgent,
+    skipRouteSync: true
+  });
+  syncAppRouteToUrl({ push: true });
+}
+
+async function handleMenuAwnChannelsIndexRefreshClick() {
+  const btn = menuAwnChannelsIndexRefreshBtn;
+  if (!btn || btn.disabled || btn.classList.contains("is-loading")) return;
+  btn.disabled = true;
+  btn.classList.add("is-loading");
+  try {
+    await refreshAwnChannelsIndex();
+    showToast(`${AWN_CHANNELS_INDEX_REL_PATH} обновлён`, "success", 3200);
+  } catch (error) {
+    showToast(error?.message || "Не удалось обновить index.md каналов", "error");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("is-loading");
+  }
+}
+
 async function handleMenuAwnChannelsRefreshClick() {
   setMenuStaticSummaryRefreshSpinning(menuAwnChannelsRefreshBtn, true);
   try {
@@ -117401,11 +117451,11 @@ function setupMenuAwnChannelsBandGroup() {
   });
   menuAwnChannelsIndexOpenBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    showToast(`Открытие ${AWN_CHANNELS_INDEX_REL_PATH} — скоро`, "info", 4200);
+    void openAwnChannelsIndexOverview();
   });
   menuAwnChannelsIndexRefreshBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    showToast(`Обновление ${AWN_CHANNELS_INDEX_REL_PATH} — статичный набросок`, "info", 4200);
+    void handleMenuAwnChannelsIndexRefreshClick();
   });
   wireMenuStaticSummaryRefreshButton(menuAwnChannelsRefreshBtn, handleMenuAwnChannelsRefreshClick);
 }

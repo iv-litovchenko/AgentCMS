@@ -385,12 +385,7 @@ function createServer() {
 
   registerWorkspacePadTools(reg, client);
   registerFileHubQueueTools(reg, client);
-  registerWorkspaceFsTools(reg, client, {
-    registerReadFile: (description, schema, fn) =>
-      reg("read_file", description, schema, fn, {
-        formatResult: (data) => formatReadFileToolResult(data, jsonText)
-      })
-  });
+  registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
   registerAgentUtilsTools(reg, client);

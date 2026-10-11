@@ -24,6 +24,7 @@ import {
   placementSchema,
   placementKindSchema
 } from "./content-placement-zod.js";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const contentPartSchema = z
   .enum(["body", "properties", "schema"])
@@ -109,34 +110,6 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
-    "read_content_body",
-    "[Legacy] Use read_content with part=body. Supports placement { kind, path, slot, ref }.",
-    address({}),
-    (args) => readContentBody(client, args)
-  );
-
-  reg(
-    "write_content_body",
-    "[Legacy] Use write_content with part=body.",
-    address({ content: z.string() }),
-    (args) => writeContentBody(client, args)
-  );
-
-  reg(
-    "read_content_properties",
-    "[Legacy] Use read_content with part=properties.",
-    address({}),
-    (args) => readContentProperties(client, args)
-  );
-
-  reg(
-    "write_content_properties",
-    "[Legacy] Use write_content with part=properties.",
-    address({ content: z.string() }),
-    (args) => writeContentProperties(client, args)
-  );
-
-  reg(
     "read_content_property",
     "Read one frontmatter property of a .md content item.",
     address({ key: z.string().min(1) }),
@@ -153,32 +126,50 @@ export function registerContentTools({ reg, client, pagePath }) {
     (args) => writeContentProperty(client, args)
   );
 
-  reg(
-    "read_content_schema",
-    "[Legacy] Use read_content with part=schema.",
-    address({
-      mode: z
-        .enum(["effective", "layers", "local"])
-        .optional()
-        .describe("effective (default) = merged slot_* fields; layers = topic+section; local = section file only"),
-      ref: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Required for schema reads, e.g. razdel-1/manifest.md")
-    }),
-    (args) => readContentSchema(client, args)
-  );
-
-  reg(
-    "write_content_schema",
-    "[Legacy] Use write_content with part=schema.",
-    address({
-      ref: z.string().min(1).optional(),
-      content: z.string().describe("YAML with awn_schema slot_* blocks")
-    }),
-    (args) => writeContentSchema(client, args)
-  );
+  if (isLegacyMcpToolsEnabled()) {
+    reg(
+      "read_content_body",
+      "[Legacy] Use read_content with part=body.",
+      address({}),
+      (args) => readContentBody(client, args)
+    );
+    reg(
+      "write_content_body",
+      "[Legacy] Use write_content with part=body.",
+      address({ content: z.string() }),
+      (args) => writeContentBody(client, args)
+    );
+    reg(
+      "read_content_properties",
+      "[Legacy] Use read_content with part=properties.",
+      address({}),
+      (args) => readContentProperties(client, args)
+    );
+    reg(
+      "write_content_properties",
+      "[Legacy] Use write_content with part=properties.",
+      address({ content: z.string() }),
+      (args) => writeContentProperties(client, args)
+    );
+    reg(
+      "read_content_schema",
+      "[Legacy] Use read_content with part=schema.",
+      address({
+        mode: z.enum(["effective", "layers", "local"]).optional(),
+        ref: z.string().min(1).optional()
+      }),
+      (args) => readContentSchema(client, args)
+    );
+    reg(
+      "write_content_schema",
+      "[Legacy] Use write_content with part=schema.",
+      address({
+        ref: z.string().min(1).optional(),
+        content: z.string().describe("YAML with awn_schema slot_* blocks")
+      }),
+      (args) => writeContentSchema(client, args)
+    );
+  }
 
   reg(
     "create_content",

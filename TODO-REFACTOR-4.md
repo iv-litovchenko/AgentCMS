@@ -112,7 +112,7 @@
 | Медиатека   | то же с `kind: media` (+ legacy media tools) |
 | Root (workspace path) | `read_content` / `write_content` с `kind: root` (+ legacy `read_file` / `write_file`) |
 
-Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Осталось:** guard на `/api/content/schema`, transfer/section API; свернуть legacy `read_file` в подсказки.
+Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Сделано:** guard на `/api/content/schema`, section/create, `/api/storage/transfer`; legacy MCP tools по умолчанию выключены (`MCP_LEGACY_TOOLS=1` — старые имена).
 
 ---
 
@@ -143,7 +143,9 @@
 │   │   └── refresh_media_library_index
 │   ├── awn-repositories/index.md
 │   │   └── refresh_repository_index
-│   └── awn-channels/index.md           … MCP index пока нет ⚠️
+│   └── awn-channels/index.md
+│       ├── read_channels_index
+│       └── refresh_channels_index
 │
 ⚠️ Поиск (read-only, по индексам / тексту)
 ├── search_workspace_content            … fulltext
@@ -223,3 +225,255 @@
 | ❌ | `companion` | 🧩 | Companion | Расширение браузера / companion-приложение |
 
 Примечание: ingress-канал по модели — `inbox` / `todo-single` / `outbox` в `awn-storage/`; пресет в сайдбаре — только **метка источника** и папка `awn-channels/{slug}/`, не отдельный «тип показа».
+
+---
+
+## 🗺️ Полная карта MCP (`agent-cms` v0.4.0)
+
+Источник: `mcp-server/index.js` + `mcp-server/lib/*`. **~200 tools** (с legacy-алиасами).  
+**agentId** — почти везде обязателен; **без agentId**: registry workspaces, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
+
+```
+🚀 Старт чата
+├── list_workspaces / list_vaults          … реестр хранилищ (id, name, path)
+├── get_session_context                    … topicRegistry, always-context, RULES
+├── get_session_documentation              … GLOBAL-DOC-MCP, README (по вызову)
+├── get_user_active_context_now            … фокус UI → готовые path/slot/ref
+├── list_workspace_always_context          … always-load файлы workspace
+├── list_workspace_cron                    … awn-runtime-cron
+├── list_workspace_heartbeat               … awn-runtime-heartbeat
+└── test_mcp_connection                    … ping CMS + версии
+
+🏢 Registry workspace (без agentId в args; path/agentId в теле где нужно)
+├── create_workspace                       … папка + manifest + запись в реестре
+├── register_workspace                     … подхват существующей папки
+├── discover_workspaces                    … скан диска на awn.page.ws
+├── update_workspace                       … имя, статус, emoji, preview…
+├── set_default_workspace                  … дефолт при старте платформы
+├── set_orchestrator_workspace             … один orchestrator
+├── list_workspace_groups                  … группы сайдбара
+├── create_workspace_group                 … новая группа UI
+├── update_workspace_group                 … rename / light|dark
+├── delete_workspace_group                 … группа (ws не удаляются)
+├── assign_workspace_to_group              … ws → группа
+├── remove_workspace_from_group            … ws в «без группы»
+└── reorder_workspace_groups               … порядок групп
+
+⚙️ Platform · settings · deps · git
+├── get_platform_info / get_platform_health … CMS / MCP метаданные
+├── list_platform_docs / read_platform_doc / write_platform_doc … .md в корне репо
+├── list_platform_config                   … сводка platform.yml
+├── list_settings / read_setting / write_setting … scope: platform|workspace|user|integrations
+├── read_dependencies / write_dependencies … package/deps workspace
+├── module_git_init / status / diff / commit / pull / push / remote … git корня workspace
+
+🧭 Навигация · карты · id
+├── get_page_map                           … дерево manifest + folder без manifest
+├── get_workspace_page_index               … read INDEX.md
+├── refresh_workspace_page_index           … rebuild INDEX.md ← page map
+├── get_content_map                        … meta по слотам страницы (тяжелее)
+├── get_content_index                      … read index.md темы/слота
+├── refresh_content_index                  … rebuild index.md темы/слота
+├── get_workspace_wsmap / refresh_workspace_wsmap … реестр всех index/INDEX
+├── resolve_workspace_path                 … breadcrumbs, slot/ref, mcp hints
+├── get_page_url                           … URL страницы в UI (CHPU)
+├── resolve_workspace_id                   … awn-id → paths[]
+└── assign_workspace_id                    … «Присвоить id» записи
+
+🔍 Поиск workspace (read-only)
+├── search_workspace_content               … fulltext (как поиск в шапке)
+├── search_workspace_semantic              … hash-TF-IDF offline
+├── search_workspace_hybrid                  … semantic + fulltext + where
+├── search_workspace_batch                 … пакет hybrid (до 20 запросов)
+├── search_workspace_links                 … backlinks / outbound / neighbors
+├── query_workspace_storage                … SQL-like по field catalog
+├── list_workspace_registry_queries        … именованные пресеты
+└── run_workspace_registry_query           … выполнить пресет
+
+📊 Offline-индексы (.agent-cms/cache/indexes/*)
+├── get_workspace_index_status             … OCR, fulltext, semantic, storage, link
+├── get_workspace_index_monitor            … stale / размер / здоровье
+├── rebuild_workspace_fulltext_index
+├── rebuild_workspace_semantic_index
+├── rebuild_workspace_storage_index        … field catalog (frontmatter)
+├── rebuild_workspace_link_index           … sqlite link graph
+├── run_workspace_ocr_index                … OCR вложений → sidecar
+├── rebuild_workspace_indexes              … pipeline «всё» + WS-MAP
+└── sync_workspace_index_file              … инкремент одного файла
+
+🧠 Сводка · память · Q&A
+├── audit_workspace_memory                 … stale always-context, ## Current State
+├── list_workspace_feed                    … activity + intake + audit summary
+├── ask_workspace                          … semantic + fulltext + always → цитаты
+├── search_and_get_context                 … то же для «найди в архиве»
+├── create_workspace_fact / update_workspace_fact … awn-databases/contents/facts
+├── list_workspace_facts / search_workspace_facts
+├── create_glossary_term / update_glossary_term   … contents/glossary
+├── list_glossary_terms / search_glossary_terms
+├── list_journal_entries / append_journal_entry   … .agent-cms/journal/
+└── list_workspace_notifications           … колокольчик CMS
+
+📄 Страница (manifest.md)
+├── page_exists / get_page_meta
+├── read_page_body / write_page_body
+├── read_page_properties / write_page_properties
+├── read_page_property / write_page_property
+├── read_page_schema / write_page_schema
+├── read_page_config / write_page_config
+├── read_page_env / write_page_env
+├── create_page / delete_page / rename_page / move_page
+
+📦 Слоты
+├── list_slots                             … канон
+└── list_page_slots                        … alias
+
+📝 Контент (placement.kind: page | channel | media | root)
+├── content_exists / get_content_meta
+├── read_content                           … part: body | properties | schema | meta | all
+├── write_content                          … то же; root: base64 upload
+├── list_content                           … каталог слота или папки (root)
+├── read_content_property / write_content_property
+├── create_content / import_content_from_url
+├── rename_content / move_content / delete_content
+└── 🗄️ legacy (env): read/write_content_body|properties|schema
+
+🏷️ Типы схем
+├── list_types                             … реестр awn-types
+└── get_type                               … одна схема типа
+
+🗄️ awn-databases (канон database_*; iblock_* — deprecated зеркала)
+├── database_frame_list / get / create / delete / rename
+├── database_frame_read_index / refresh_index   … awn-databases/index.md
+├── database_frame_read_schema / write_schema
+├── database_frame_read_properties / write_properties
+├── database_frame_read_property / write_property
+├── database_element_list / create / delete / rename
+├── database_element_read_body / write_body
+└── database_element_read_properties / write_properties / read_property / write_property
+
+📡 Каналы (awn-channels/)
+├── list_channels / get_channel / register_channel / update_channel
+├── list_channel_items
+├── upload_channel_file
+├── read_channels_index / refresh_channels_index   … awn-channels/index.md ⚠️
+
+🖼️ Медиатеки (awn-media/)
+├── list_media_libraries / get_media_library / register_media_library / update_media_library
+├── list_media_library_items / upload_media_library_file
+└── refresh_media_library_index            … awn-media/index.md
+
+📚 Репозитории (awn-repositories/)
+├── list_repositories / get_repository / register_repository / update_repository
+└── refresh_repository_index               … awn-repositories/index.md
+
+📥 Inbox · обсуждение · комментарии
+├── list_inbox / triage_inbox_item
+├── read_discussion / append_discussion    … slot discussion/
+├── read_dialogs / append_dialog           … deprecated → discussion
+├── list_comments / read_comment / append_comment / update_comment / delete_comment
+└── toggle_comment_reaction
+
+📎 Sidecar (awn.annotation.sidecar)
+├── resolve_sidecar_path
+├── read_sidecar / write_sidecar
+├── create_sidecar / delete_sidecar
+
+📁 Файлы workspace (root / произвольный path)
+├── list_root_files / read_root_file / write_root_file
+├── list_system_files / read_system_file / write_system_file   … alias root
+├── read_file / write_file / patch_file
+├── upload_file / upload_file_from_url
+├── list_folder
+└── batch_invoke                           … пакет одного tool
+
+☁️ Media cloud (локальные blobs + заглушки API)
+├── list_media_cloud_providers
+├── get_media_cloud_file_status / sync_media_cloud_file / repair_media_cloud_links
+├── upload_media_cloud_to_provider_zzz     … stub
+└── get_remote_url_zzz                     … stub
+
+🌐 Web (часть без agentId)
+├── search_web / search_web_images
+├── read_web_page
+├── get_link_preview                       … OpenGraph
+└── extract_document_text                  … pdf/docx/… URL или path
+
+⚡ Shell / скрипты
+├── run_script                             … npm/node в sandbox CMS
+├── exec_command                           … argv без shell
+└── exec_shell                             … произвольная строка shell
+
+🛠️ Утилиты
+├── generate_workspace_slug                … slug из title (presets)
+├── get_workspace_storage_info               … stats + git + индексы
+├── get_agent_identity / get_user_identity   … awn-agent-kit
+└── list_recent_activity
+
+📤 File hub queue (Shell «в файлообменник»)
+├── read_file_hub_queue
+├── add_file_to_file_hub / remove_file_from_file_hub
+└── clear_file_hub_queue
+
+📓 Workspace pads (.agent-cms/)
+├── read_workspace_note / write_workspace_note
+└── read_workspace_todo / write_workspace_todo
+
+🔔 notify_user                            … push в колокольчик UI
+
+🗄️ Legacy / deprecated (не использовать в новом коде)
+├── iblock_frame_* / iblock_content_* / iblock_*     … → database_frame_* / database_element_*
+├── retain_workspace_fact / recall_workspace_facts … → create/search_workspace_facts
+├── read/write_content_* (body|properties|schema)  … → read/write_content + part
+├── list_page_slots                                … → list_slots
+├── read_dialogs / append_dialog                   … → discussion
+└── read_file / write_file                         … root: prefer read/write_content kind=root
+```
+
+**placement (план рефакторинга):** `page` · `channel` · `media` · `root` (`tree`) — единые `read_content` / `write_content` / `list_content`; hub-индексы и поиск — ветки ⚠️ выше (отдельно от CRUD).
+
+---
+
+## Остаток рефакторинга (нумерация из общего списка)
+
+Пункты **2, 3, 4** закрыты (индекс каналов, guard, legacy MCP). Ниже — **№ 1, 5, 6, 7** (номера **не** перенумеровывать в 1–4).
+
+| № | Статус | Тема |
+| ---: | --- | --- |
+| **1** | ❌ | Индексы и поиск — без `placement` |
+| **5** | ❌ | `read_content`: `part: meta` \| `all` |
+| **6** | ❌ | Канал: YAML `storage-slots` vs policy слотов |
+| **7** | ❌ | Репозиторий hub — вне `placement` |
+
+### 1. Индексы и поиск — отдельный блок, без `placement`
+
+| | |
+| --- | --- |
+| **Зачем отдельно** | `read_content` / `write_content` / `list_content` — CRUD **одного** объекта по адресу (`manifest` + `slot` + `ref` или `kind: root`). Индексы и поиск — **агрегаты**: карты (`get_page_map`), markdown-оглавления (`INDEX.md`, `index.md` темы/слота), hub-каталоги (`awn-media/index.md`, …), offline-кэш (`.agent-cms/cache/indexes/*`), `search_workspace_*`, rebuild слоёв. Адрес там часто «пересобери каталог» или «ищи с `pathPrefix`», а не файл в слоте. |
+| **Для чего** | Агенту и UI нужна **навигация и обзор** workspace без смешивания с моделью «контент в слоте». Десятки отдельных tools/API; рефактор `placement` их не унифицировал — пока нет отдельного дизайна. |
+| **Что делать** | Зафиксировать границу **content + placement** vs **index/search** (дерево «Индексы, оглавления, поиск» выше в этом файле). Решить, нужен ли общий «адрес индекса» или оставить именованные tools. Hub-каталоги: паритет read/refresh где нужно. Не тащить rebuild/search в `content_*` без решения продукта. |
+
+### 5. `read_content`: нет `part: meta` и `part: all`
+
+| | |
+| --- | --- |
+| **Зачем в плане** | Один вход `read_content`: `body` \| `properties` \| `schema` \| **`meta`** \| **`all`**. Меньше round-trip, единая семантика `placement`. |
+| **Для чего** | **`meta`** — как `get_content_meta` (драйвер, размер, mime, exists). **`all`** — meta + body + properties (+ schema при необходимости) за один вызов. |
+| **Сейчас** | В zod только `body` \| `properties` \| `schema`; `content_exists` и `get_content_meta` — отдельные tools. |
+| **Что делать** | Расширить `contentPartSchema`; реализовать в `content-core`; обновить `GLOBAL-DOC-MCP.md`. Решить, оставлять ли отдельные `get_content_meta` / `content_exists` как алиасы. |
+
+### 6. Канал (`awn.hub.channel`): YAML `storage-slots` vs policy слотов (inbox / files / …)
+
+| | |
+| --- | --- |
+| **В чём расхождение** | **`channel.yml`**: `storage-slots: [files, assets]`; hint create — «**inbox/**». Каталог слотов: **inbox** допускает `awn.hub.channel`; **files** в policy — в основном **`awn.hub.media`**. Guard: `storage-slots` типа + `allowed-containers` слота → противоречия для агента и API. |
+| **Зачем выровнять** | Ingress-канал: сырой поток → triage. Нужен **один** список слотов и одни правила на сервере. |
+| **Что делать** | Продуктово: канал = только **files/assets** или **inbox/outbox/todo** (+ files/assets). Синхронизировать `channel.yml`, `types/slots/**`, bootstrap в `awn-channels-service`. Проверить guard, `list_slots`, `list_content`. Документировать `placement.slot` для `kind: channel`. |
+
+### 7. Репозиторий hub (`awn.hub.repository`) — нет в модели `placement`
+
+| | |
+| --- | --- |
+| **Зачем отдельно** | Repo — **карточка** `awn-repositories/{slug}/` (manifest, readme, index), не слотированный контент темы. Код клона в git не в поиске CMS по умолчанию. |
+| **Сейчас** | `list_repositories`, `get_repository`, `register_repository`, `refresh_repository_index`. Файлы клона — `kind: root`, не `kind: repository`. |
+| **Для чего решать** | Пока repo = каталог + manifest, **`kind: repository` не нужен**. Если появятся слоты у repo — тогда отдельный kind или подтип. |
+| **Что делать** | Зафиксировать в доке границу hub vs `root`. Опционально `read_repository_index`. Не вводить `kind: repository` в `content-placement.js` без слотов/lifecycle как у page. |

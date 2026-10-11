@@ -129,6 +129,8 @@ const {
   registerAwnChannel,
   updateAwnChannel,
   assertChannelManifestRel,
+  readChannelsIndex,
+  writeChannelsIndex,
   readChannelStoreSchemaPayload,
   writeChannelStoreSchema
 } = require("./lib/services/awn-channels-service");
@@ -21904,6 +21906,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const manifestCtx = await resolveApiManifestContext(relPath);
       if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceContentSlotPolicy(res, manifestCtx.rel, slot))) return;
       const payload = await getContentSchemaApi().readContentSchema(manifestCtx.rel, slot, ref, { mode });
       if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error, ...(payload.hint ? { hint: payload.hint } : {}) });
       return sendJson(res, 200, payload);
@@ -21927,6 +21930,7 @@ async function handleApiForAgent(req, res, url) {
 
       const manifestCtx = await resolveApiManifestContext(relPath);
       if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceContentSlotPolicy(res, manifestCtx.rel, slot))) return;
 
       let schemaInput;
       if (payload.awnSchema && typeof payload.awnSchema === "object") {
@@ -22597,6 +22601,37 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to save channel store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await readChannelsIndex(agentRoot);
+      if (result.error) return sendJson(res, result.status || 404, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read channels index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeChannelsIndex(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 409, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to refresh channels index",
         details: String(error.message || error)
       });
     }
@@ -27120,6 +27155,9 @@ async function handleApiForAgent(req, res, url) {
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      const manifestRel = await manifestRelFromApiPath(res, relPath);
+      if (!manifestRel) return;
+      if (!(await enforceContentSlotPolicy(res, manifestRel, "memory"))) return;
 
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
@@ -27203,6 +27241,8 @@ async function handleApiForAgent(req, res, url) {
           : folderName === STORAGE_SUBFOLDER_FILES
             ? "files"
             : "media";
+      const manifestRel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+      if (!(await enforceSlotPolicyForManifestFolder(res, manifestRel, folderName))) return;
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
@@ -27279,6 +27319,7 @@ async function handleApiForAgent(req, res, url) {
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
 
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
@@ -27405,6 +27446,18 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       if (!payload.path) return sendJson(res, 400, { error: "Missing file path" });
+      const manifestRel = await manifestRelFromApiPath(res, payload.path);
+      if (!manifestRel) return;
+      const rawItems = Array.isArray(payload.items) ? payload.items : payload.item ? [payload.item] : [];
+      for (const item of rawItems) {
+        const sourceScope = resolveSlotTransferScope(item.sourceSlot);
+        const targetScope = resolveSlotTransferScope(item.targetSlot);
+        if (!sourceScope || !targetScope) {
+          return sendJson(res, 400, { error: "Invalid slot in transfer item" });
+        }
+        if (!(await enforceContentSlotPolicy(res, manifestRel, sourceScope.slotKey))) return;
+        if (!(await enforceContentSlotPolicy(res, manifestRel, targetScope.slotKey))) return;
+      }
       const result = await transferStorageItemsRecord(payload.path, payload);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);

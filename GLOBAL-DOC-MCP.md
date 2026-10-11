@@ -40,7 +40,7 @@
 |----------|---------|----------|
 | **Placement** | Где лежит контент | `placement.kind`: `page` \| `channel` \| `media` \| `root` + `path` (+ `slot` + `ref` кроме root) |
 | **Page** | Тема/область в дереве (`manifest.md`) | `kind: page`, `path` → `…/manifest.md` |
-| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest |
+| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; каталог: `read_channels_index` / `refresh_channels_index` → `awn-channels/index.md` |
 | **Media hub** | Карточка `awn-media/{slug}/` | `kind: media` |
 | **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
