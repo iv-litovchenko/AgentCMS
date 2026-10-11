@@ -119767,7 +119767,8 @@ function formatAwnDataCollectionTypeLabel(type) {
 
 function formatAwnDataCollectionStorageBadgeLabel(format) {
   const key = String(format || "md").trim().toLowerCase();
-  if (key === "csv-files") return "csves";
+  if (key === "md-lite") return "md-lite";
+  if (key === "csv-files") return "csv-files";
   return key;
 }
 
