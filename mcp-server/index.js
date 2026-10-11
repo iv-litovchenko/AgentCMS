@@ -212,7 +212,7 @@ function createServer() {
   registerGlossaryTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── awn-databases: database_frame_* + database_element_* (iblock_* deprecated) ─
+  // ── awn-databases: database_frame_* + database_element_* ─
 
   registerDatabaseTools(reg, client);
 

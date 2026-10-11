@@ -389,7 +389,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "get_content_index_toc",
-    legacy: "get_content_index",
     description: getContentIndexTocDescription,
     schema: getContentIndexTocSchema,
     handler: getContentIndexTocHandler
@@ -420,7 +419,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "refresh_content_index_toc",
-    legacy: "refresh_content_index",
     description: refreshContentIndexDescription,
     schema: refreshContentIndexSchema,
     handler: runRefreshContentIndex
@@ -431,7 +429,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "get_workspace_page_index_toc",
-    legacy: "get_workspace_page_index",
     description: workspacePageIndexTocDescription,
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-page-index")
@@ -449,7 +446,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "refresh_workspace_page_index_toc",
-    legacy: "refresh_workspace_page_index",
     description: refreshWorkspacePageIndexDescription,
     schema: refreshWorkspacePageIndexSchema,
     handler: ({ overwrite }) =>

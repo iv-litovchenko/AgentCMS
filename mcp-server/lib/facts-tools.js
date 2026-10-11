@@ -103,18 +103,4 @@ export function registerFactsTools(reg, client) {
     searchFactsSchema,
     searchHandler
   );
-
-  reg(
-    "retain_workspace_fact",
-    "[deprecated] Use create_workspace_fact. Same behavior — create fact in contents/facts.",
-    createFactSchema,
-    createHandler
-  );
-
-  reg(
-    "recall_workspace_facts",
-    "[deprecated] Use search_workspace_facts. Semantic + fulltext over contents/facts.",
-    searchFactsSchema,
-    searchHandler
-  );
 }

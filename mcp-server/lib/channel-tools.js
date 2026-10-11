@@ -88,7 +88,6 @@ export function registerChannelTools(reg, client, options = {}) {
 
   registerTocTool(reg, {
     canonical: "read_channels_index_toc",
-    legacy: "read_channels_index",
     description: readChannelsIndexDescription,
     schema: readChannelsIndexSchema,
     handler: readChannelsIndexHandler
@@ -106,7 +105,6 @@ export function registerChannelTools(reg, client, options = {}) {
 
   registerTocTool(reg, {
     canonical: "refresh_channels_index_toc",
-    legacy: "refresh_channels_index",
     description: refreshChannelsIndexDescription,
     schema: refreshChannelsIndexSchema,
     handler: ({ overwrite }) =>

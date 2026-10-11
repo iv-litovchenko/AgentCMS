@@ -476,6 +476,48 @@
 
 ---
 
+**Только если `MCP_LEGACY_TOOLS=1`** (по умолчанию выключено):
+
+```
+MCP_LEGACY_TOOLS
+│
+├─ content (страница / канал / медиа — по placement)
+│   ├─ read_content_body      → read_content  (part=body)
+│   ├─ write_content_body     → write_content (part=body)
+│   ├─ read_content_properties  → part=properties
+│   ├─ write_content_properties → part=properties
+│   ├─ read_content_schema      → part=schema
+│   └─ write_content_schema     → part=schema
+│
+├─ файлы workspace (не слот)
+│   ├─ read_file  → read_content  (kind=root)
+│   └─ write_file → write_content (kind=root)
+│
+├─ слоты страницы
+│   └─ list_page_slots → list_slots
+│
+├─ канал (awn-channels)
+│   ├─ list_channel_items    → list_content   (kind=channel)
+│   ├─ read_channel_file     → read_content
+│   └─ upload_channel_file   → write_content (+ base64)
+│
+└─ медиатека (awn-media)
+    ├─ list_media_library_items    → list_content   (kind=media)
+    ├─ read_media_library_file     → read_content
+    └─ upload_media_library_file   → write_content (+ base64)
+```
+
+**Вне этого флага** (агент видит всегда, пока не удалишь):
+
+```
+всегда в MCP
+├─ list_vaults → list_workspaces
+├─ list/read/write_system_* → list/read/write_root_*
+└─ read_dialogs / append_dialog → read/append_discussion
+```
+
+---
+
 
 
 ## Остаток рефакторинга (нумерация из общего списка)
