@@ -68,6 +68,6 @@ properties:
     title: Где можно создавать
     type: list
     description: >
-      Контейнеры размещения: topic — страница темы/области; hub.media — awn-media;
-      hub.channel — awn-channels. Пусто или topic — везде, где слот в политике темы.
-    enum: [topic, hub.media, hub.channel]
+      Тип страницы-контейнера (awn.page.* / awn.hub.*): тема, медиатека, канал.
+      Пустой список — везде, где слот есть в политике контейнера.
+    enum: [awn.page.topic, awn.hub.media, awn.hub.channel]

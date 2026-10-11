@@ -10,8 +10,8 @@ description: Входящие заметки и черновики
 path: inbox/
 slot-order: 4
 allowed-containers:
-  - topic
-  - hub.channel
+  - awn.page.topic
+  - awn.hub.channel
 allowed-content:
   - awn.content.record
   - awn.content.category

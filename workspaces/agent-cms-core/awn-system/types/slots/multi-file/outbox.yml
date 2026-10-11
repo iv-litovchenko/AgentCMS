@@ -12,7 +12,7 @@ description: >
 path: outbox/
 slot-order: 5
 allowed-containers:
-  - hub.channel
+  - awn.hub.channel
 allowed-content:
   - awn.content.record
   - awn.content.category

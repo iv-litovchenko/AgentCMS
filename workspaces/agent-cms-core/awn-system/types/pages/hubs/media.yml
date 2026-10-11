@@ -1,7 +1,7 @@
 id: awn.hub.media
 name: Медиатека (workspace)
 kind: type
-domain: hub
+domain: hubs
 status: active
 extends: awn.page.base
 description: >

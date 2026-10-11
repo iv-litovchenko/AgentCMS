@@ -10,8 +10,8 @@ description: Список задач топика — todo.md
 path: todo.md
 slot-order: 15
 allowed-containers:
-  - topic
-  - hub.channel
+  - awn.page.topic
+  - awn.hub.channel
 allowed-content:
   - awn.content.record
   - awn.content.category

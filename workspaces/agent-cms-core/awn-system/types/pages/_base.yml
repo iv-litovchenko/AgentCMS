@@ -4,7 +4,9 @@ kind: base
 domain: pages
 status: active
 extends: awn.base
-description: Узел дерева (ws / section / area / topic) — навигация и runtime
+description: >
+  Узел дерева (ws / section / area / topic) — навигация и runtime.
+  Карточки hub (channel / media / repository) — types/pages/hubs/, домен hubs.
 mixins:
   - awn.mixin.indexing-container
 
