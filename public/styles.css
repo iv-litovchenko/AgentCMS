@@ -30691,6 +30691,100 @@ body.workspace-pomodoro-break-active {
   overflow: hidden;
 }
 
+/* Нижние аккордеоны (инфоблоки, медиатеки, скрипты, репо): drawer вверх до дерева; stats внизу */
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-slab-menu-channels-band,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-slab-menu-tree-band {
+  display: none !important;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-slab-agent {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-agent-select-block,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-agent-avatar-block,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-agent-avatar-block .agent-preview-wrap:not(.hidden),
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-agent-avatar-block .agent-preview-frame,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-agent-avatar-block .agent-preview-thumb {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-slab-menu {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-scroll-shell,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-view-ghost-strip {
+  display: none !important;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .sidebar-slab-menu > .menu-sidebar-bottom {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  margin-top: 0;
+  border-top: 0;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-sidebar-bottom > .agent-focus-panel--sidebar.is-collapsed,
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-sidebar-bottom > #menu-static-footer {
+  display: none !important;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-sidebar-bottom > #menu-agent-stats:not(.hidden) {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-bottom-focus:not(.is-menu-static-footer-focus) .menu-sidebar-bottom > .agent-focus-panel--sidebar:not(.is-collapsed) {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 0;
+}
+
+/* «Дерево и поиск» раскрыто: нижние аккордеоны скрыты, остаётся только stats */
+.sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus)
+  .sidebar-slab-menu
+  > .menu-sidebar-bottom
+  > :not(#menu-agent-stats) {
+  display: none !important;
+}
+
+.sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus)
+  .menu-sidebar-bottom
+  > #menu-agent-stats:not(.hidden) {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus)
+  .sidebar-slab-menu
+  > .menu-sidebar-bottom {
+  flex: 0 0 auto;
+  margin-top: auto;
+  border-top: 0;
+}
+
+.sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-channels-focus) .menu-scroll-shell {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 /* «Системные секции»: drawer вверх; блок агента (превью, тулбар, NOTE) не трогаем */
 .sidebar.is-menu-static-footer-focus {
   overflow-x: hidden;
@@ -31608,10 +31702,15 @@ body.workspace-pomodoro-break-active {
   margin-top: -1px;
 }
 
+/* drawer снизу вверх: раскрыто — ^ вверх (как menu-static-footer) */
 .menu-awn-databases-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-media-library-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-scripts-band:not(.is-collapsed) .sidebar-accent-band-chevron,
-.menu-repositories-band:not(.is-collapsed) .sidebar-accent-band-chevron,
+.menu-repositories-band:not(.is-collapsed) .sidebar-accent-band-chevron {
+  transform: rotate(-135deg);
+  margin-top: 4px;
+}
+
 .menu-awn-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .sidebar-slab-menu-channels-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-system-environment.is-open > .sidebar-accent-band-toggle .sidebar-accent-band-chevron {

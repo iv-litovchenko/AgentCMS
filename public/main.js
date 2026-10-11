@@ -116511,6 +116511,61 @@ function applyMenuTreeBandExpanded(expanded, { persist = true } = {}) {
   syncMenuTreeBandAccordionUi();
 }
 
+function collapseOtherMenuBottomBands(keep) {
+  if (keep !== "awn-data") {
+    try {
+      localStorage.setItem(MENU_AWN_DATA_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuAwnDataBandAccordionUi();
+  }
+  if (keep !== "media-library") {
+    try {
+      localStorage.setItem(MENU_MEDIA_LIBRARY_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuMediaLibraryBandAccordionUi();
+  }
+  if (keep !== "scripts") {
+    try {
+      localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuAwnScriptsBandAccordionUi();
+  }
+  if (keep !== "repositories") {
+    try {
+      localStorage.setItem(MENU_REPOSITORIES_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuRepositoriesBandAccordionUi();
+  }
+  if (keep !== "static-footer") {
+    try {
+      localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuStaticFooterAccordionUi();
+  }
+}
+
+function normalizeExclusiveMenuBottomAccentBand() {
+  const accentBands = [
+    { keep: "awn-data", is: isMenuAwnDataBandExpanded },
+    { keep: "media-library", is: isMenuMediaLibraryBandExpanded },
+    { keep: "scripts", is: isMenuAwnScriptsBandExpanded },
+    { keep: "repositories", is: isMenuRepositoriesBandExpanded },
+  ];
+  const open = accentBands.filter((band) => band.is());
+  if (open.length <= 1) return;
+  collapseOtherMenuBottomBands(open[0].keep);
+}
+
 function syncSidebarBottomFocusMode() {
   if (!sidebarNode) return;
   const active = isSidebarBottomPanelActive();
@@ -116518,10 +116573,12 @@ function syncSidebarBottomFocusMode() {
     const staticFooterOnly =
       isMenuStaticFooterPanelActive() && !isSidebarBottomPanelActiveExcludingStaticFooter();
     if (!staticFooterOnly) {
+      normalizeExclusiveMenuBottomAccentBand();
       captureSidebarTreeZoneSnapshot();
       if (isSidebarNotePreviewExpanded()) applySidebarNotePreviewExpanded(false);
       if (isMenuAwnChannelsBandExpanded()) applyMenuAwnChannelsBandExpanded(false);
       if (isMenuTreeBandExpanded()) applyMenuTreeBandExpanded(false);
+      sidebarNode.scrollTop = 0;
     }
     sidebarNode.classList.add("is-menu-bottom-focus");
     return;
@@ -116542,6 +116599,7 @@ function syncMenuAwnDataBandAccordionUi() {
 }
 
 function setMenuAwnDataBandExpanded(expanded) {
+  if (expanded) collapseOtherMenuBottomBands("awn-data");
   try {
     localStorage.setItem(MENU_AWN_DATA_BAND_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116578,6 +116636,7 @@ function syncMenuMediaLibraryBandAccordionUi() {
 }
 
 function setMenuMediaLibraryBandExpanded(expanded) {
+  if (expanded) collapseOtherMenuBottomBands("media-library");
   try {
     localStorage.setItem(MENU_MEDIA_LIBRARY_BAND_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116653,6 +116712,7 @@ function setMenuAwnScriptsBandExpanded(expanded) {
     if (expanded) return;
     expanded = false;
   }
+  if (expanded) collapseOtherMenuBottomBands("scripts");
   try {
     localStorage.setItem(MENU_AWN_SCRIPTS_BAND_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116690,6 +116750,7 @@ function syncMenuRepositoriesBandAccordionUi() {
 }
 
 function setMenuRepositoriesBandExpanded(expanded) {
+  if (expanded) collapseOtherMenuBottomBands("repositories");
   try {
     localStorage.setItem(MENU_REPOSITORIES_BAND_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116727,6 +116788,7 @@ function syncMenuStaticFooterFocusMode() {
 }
 
 function setMenuStaticFooterExpanded(expanded) {
+  if (expanded) collapseOtherMenuBottomBands("static-footer");
   try {
     localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, expanded ? "1" : "0");
   } catch {
@@ -116833,6 +116895,7 @@ function syncMenuTreeBandAccordionUi() {
     menuTreeBandBodyNode.hidden = !expanded;
     menuTreeBandBodyNode.classList.toggle("is-collapsed", !expanded);
   }
+  sidebarNode?.classList.toggle("is-menu-tree-focus", expanded);
 }
 
 function setMenuTreeBandExpanded(expanded) {
