@@ -9713,6 +9713,30 @@ function getAgentsForLandingGrid() {
   return agentsCache.filter((agent) => agent.folderExists !== false && !isPlatformAgent(agent));
 }
 
+/** Порядок как в hub/grid: оркестратор, группы реестра, без группы. */
+function getAgentsForLandingOrbit() {
+  const pool = getAgentsForLandingGrid();
+  const seen = new Set();
+  const ordered = [];
+  const push = (agent) => {
+    if (!agent?.id || seen.has(agent.id)) return;
+    seen.add(agent.id);
+    ordered.push(agent);
+  };
+
+  const { orchestrator, rest } = splitLandingOrchestratorAgent(pool);
+  const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
+
+  if (orchestrator) push(orchestrator);
+  for (const group of grouped) {
+    for (const agent of group.agents || []) push(agent);
+  }
+  for (const agent of ungrouped) push(agent);
+  for (const agent of pool) push(agent);
+
+  return ordered;
+}
+
 function getPlatformAgentForLanding() {
   return agentsCache.find(isPlatformAgent) || null;
 }
@@ -14437,6 +14461,8 @@ function setLandingAgentsView(view) {
 
 const ORBIT_LINK_CENTER = { x: 50, y: 50 };
 const ORBIT_LAYOUT_BOUNDS = { xMin: 13, xMax: 87, yMin: 17, yMax: 74 };
+/** Запретная зона hub/логотипа (радиус от центра до якоря, %). */
+const ORBIT_HUB_MIN_RADIUS_PERCENT = 27;
 
 function clampOrbitLayoutPoint(layout) {
   layout.x = Math.min(ORBIT_LAYOUT_BOUNDS.xMax, Math.max(ORBIT_LAYOUT_BOUNDS.xMin, layout.x));
@@ -14444,10 +14470,52 @@ function clampOrbitLayoutPoint(layout) {
   return layout;
 }
 
+function ensureOrbitLayoutClearOfHub(layout) {
+  const dx = layout.x - ORBIT_LINK_CENTER.x;
+  const dy = layout.y - ORBIT_LINK_CENTER.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist >= ORBIT_HUB_MIN_RADIUS_PERCENT) return layout;
+  if (dist < 0.05) {
+    layout.x = ORBIT_LINK_CENTER.x;
+    layout.y = ORBIT_LINK_CENTER.y - ORBIT_HUB_MIN_RADIUS_PERCENT;
+    return layout;
+  }
+  const scale = ORBIT_HUB_MIN_RADIUS_PERCENT / dist;
+  layout.x = ORBIT_LINK_CENTER.x + dx * scale;
+  layout.y = ORBIT_LINK_CENTER.y + dy * scale;
+  return layout;
+}
+
+function finalizeOrbitBubbleLayout(layout) {
+  ensureOrbitLayoutClearOfHub(layout);
+  clampOrbitLayoutPoint(layout);
+  ensureOrbitLayoutClearOfHub(layout);
+  return layout;
+}
+
 function getOrbitCircleRadiusPercent(total) {
   const count = Math.max(1, total);
-  if (count <= 1) return 30;
-  return Math.min(36, 28 + Math.max(0, count - 4) * 0.85);
+  if (count <= 1) return 34;
+  return Math.min(38, 33 + Math.max(0, count - 4) * 0.55);
+}
+
+/** Верхний пузырь: нижняя часть аватара ближе к hub — слегка выдвигаем верхнюю дугу. */
+function nudgeOrbitLayoutForLogoClearance(layout, angle) {
+  const sin = Math.sin(angle);
+  if (sin >= -0.08) return layout;
+
+  const dx = layout.x - ORBIT_LINK_CENTER.x;
+  const dy = layout.y - ORBIT_LINK_CENTER.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const sizePct = ((layout.size || 64) / 480) * 100;
+  const minDist =
+    ORBIT_HUB_MIN_RADIUS_PERCENT + sizePct * 0.9 + 3.5 + Math.max(0, -sin - 0.35) * 5.5;
+
+  if (dist >= minDist) return layout;
+  const scale = minDist / dist;
+  layout.x = ORBIT_LINK_CENTER.x + dx * scale;
+  layout.y = ORBIT_LINK_CENTER.y + dy * scale;
+  return layout;
 }
 
 function getOrbitBubbleLayout(index, total, agentId) {
@@ -14465,7 +14533,8 @@ function getOrbitBubbleLayout(index, total, agentId) {
     floatX: 6 + (hash % 10),
     floatY: 8 + (hash % 10)
   };
-  return clampOrbitLayoutPoint(layout);
+  nudgeOrbitLayoutForLogoClearance(layout, angle);
+  return finalizeOrbitBubbleLayout(layout);
 }
 
 function buildOrbitBubbleLayouts(agents) {
@@ -14545,7 +14614,8 @@ function syncLandingAgentsViewUi() {
     void loadGlobalFlowItems({ showLoading: true });
   }
   if (isHub || isOrbit || isFlow) {
-    renderAppLandingAttention(buildMockAgentAttentionShares(getAgentsForLandingGrid()));
+    const attentionAgents = isOrbit ? getAgentsForLandingOrbit() : getAgentsForLandingGrid();
+    renderAppLandingAttention(buildMockAgentAttentionShares(attentionAgents));
   } else {
     appLandingAttentionNode?.classList.add("hidden");
   }
@@ -15400,7 +15470,7 @@ function renderAppLandingOrbit() {
   orbitAgentsNode.replaceChildren();
   clearOrbitAttentionHighlight();
 
-  const agents = getAgentsForLandingGrid();
+  const agents = getAgentsForLandingOrbit();
   if (agents.length === 0) {
     const empty = document.createElement("p");
     empty.className = "app-landing-orbit-empty";
@@ -15518,7 +15588,10 @@ function renderOrbitAllAgentFocusGraphs() {
   appLandingOrbitTwigsNode.replaceChildren();
   appLandingOrbitFocusLinksNode.replaceChildren();
 
-  const agents = getAgentsForLandingGrid();
+  const agents = getAgentsForLandingOrbit();
+  const orbitLayoutByAgentId = new Map(
+    buildOrbitBubbleLayouts(agents).map((entry) => [entry.agentId, entry])
+  );
   let hasAny = false;
   const svgNs = "http://www.w3.org/2000/svg";
 
@@ -15527,7 +15600,9 @@ function renderOrbitAllAgentFocusGraphs() {
     if (!agentFocusItems.length) return;
 
     hasAny = true;
-    const agentLayout = getOrbitBubbleLayout(agentIndex, agents.length, agent.id);
+    const agentLayout =
+      orbitLayoutByAgentId.get(agent.id) ||
+      getOrbitBubbleLayout(agentIndex, agents.length, agent.id);
     const shown = agentFocusItems.slice(0, ORBIT_FOCUS_TWIG_LIMIT);
 
     shown.forEach((focusItem, focusIndex) => {
