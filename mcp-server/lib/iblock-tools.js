@@ -8,7 +8,9 @@ const storePath = z
 const recordRef = z
   .string()
   .optional()
-  .describe("Record id or rel path (e.g. 1, section/2). Omit for single stores (main.md).");
+  .describe(
+    "Record id or rel path (e.g. 1, section/2). Omit for single stores (main.md) and for CSV table stores (main.csv is one file)."
+  );
 
 function registerFrameTool(reg, { name, description, schema, handler }) {
   reg(`database_frame_${name}`, description, schema, handler);
@@ -242,7 +244,7 @@ export function registerDatabaseTools(reg, client) {
   registerElementTool(
     reg,
     "read_body",
-    "Read database element body. For .md: markdown below frontmatter. For .py/.html/…: full file text.",
+    "Read database element body. For .md: markdown below frontmatter. For CSV collection stores: entire main.csv (omit record). For .py/.html/…: full file text.",
     z.object({
       store: storePath,
       record: recordRef
@@ -257,7 +259,7 @@ export function registerDatabaseTools(reg, client) {
   registerElementTool(
     reg,
     "write_body",
-    "Write database element body. For .md frontmatter is preserved; for .py/.html/… overwrites file text.",
+    "Write database element body. For .md frontmatter is preserved. For CSV collection stores: replace entire main.csv (omit record). For .py/.html/… overwrites file text.",
     z.object({
       store: storePath,
       record: recordRef,
