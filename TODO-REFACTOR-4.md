@@ -1,6 +1,6 @@
 # Рефакторинг — часть 4
 
-**Задача:** единая модель **контент** (не «контент страницы»); размещение — страница / канал / медиатека / дерево — отдельно. MCP: один набор методов + `placement` (или `contentRef`).
+**Задача:** единая модель **контент** (не «контент страницы»); размещение — страница / канал / медиатека / **root** (workspace path) — отдельно. MCP: один набор методов + `placement` (или `contentRef`).
 
 **✅** сделано · **❌** не сделано.
 
@@ -50,7 +50,7 @@
 ```
 
 `part`: `body` | `properties` | `schema` | `meta` | `all` — вместо отдельных `read_content_body` / `read_content_properties` / … (детали ⚠️).  
-**MCP:** `lib/config/content-placement.js` + `placement.kind`: `page` | `channel` | `media`; legacy `path`+`slot` = `page`. Основные tools — ниже (✅ MCP = `placement` в MCP + серверная политика слотов частично). **`tree`** — шаг 7. Индексы — ⚠️ в конце файла.
+**MCP:** `lib/config/content-placement.js` + `placement.kind`: `page` | `channel` | `media` | **`root`** (alias `tree`); legacy `path`+`slot` = `page`. **`root`** — workspace path без слота (`read_content` / `write_content`). Индексы — ⚠️ в конце файла.
 
 ---
 
@@ -99,7 +99,7 @@
 | Статус | MCP (сейчас)      | План (имя)   |
 | ------ | ----------------- | ------------ |
 | ✅ MCP | `list_page_slots` | `list_slots` |
-| ✅ MCP | —                 | `list_content` (каталог файлов в слоте; channel/media/page) |
+| ✅ MCP | —                 | `list_content` (слот page/channel/media; **root** — каталог родительской папки по `path`) |
 
 ---
 
@@ -110,9 +110,9 @@
 | Страница    | `read/write/list_content` + `list_slots` (+ legacy `content_*`) |
 | Канал       | `read_content` / `write_content` / `list_content` (+ legacy channel tools) |
 | Медиатека   | то же с `kind: media` (+ legacy media tools) |
-| Дерево      | в основном `read_file` / `write_file` |
+| Root (workspace path) | `read_content` / `write_content` с `kind: root` (+ legacy `read_file` / `write_file`) |
 
-Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Осталось:** `kind: tree`; при необходимости — guard на `/api/content/schema`, transfer/section API.
+Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Осталось:** guard на `/api/content/schema`, transfer/section API; свернуть legacy `read_file` в подсказки.
 
 ---
 

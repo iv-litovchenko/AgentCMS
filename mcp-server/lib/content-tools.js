@@ -51,8 +51,15 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content",
-    "Read content by placement.kind: page | channel | media (or legacy path+slot). part=body|properties|schema.",
-    address({ part: contentPartSchema }),
+    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema. root: optional format=base64, startLine/limitLines.",
+    address({
+      part: contentPartSchema,
+      format: z.enum(["base64"]).optional(),
+      maxBytes: z.number().int().optional(),
+      startLine: z.number().int().min(1).optional(),
+      limitLines: z.number().int().min(1).max(500).optional(),
+      offsetBytes: z.number().int().min(0).optional()
+    }),
     async (args) => {
       if (args.part === "properties") return readContentProperties(client, args);
       if (args.part === "schema") return readContentSchema(client, args);
@@ -62,18 +69,19 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "list_content",
-    "List items in a slot: placement.kind page|channel|media + path + slot (inbox, files, media, …).",
+    "List items: placement.kind page|channel|media + slot, or root + path (folder inferred from file path).",
     z
       .object({
         placement: z
           .object({
             kind: placementKindSchema,
             path: z.string().min(1),
-            slot: z.string().min(1)
+            slot: z.string().min(1).optional()
           })
           .optional(),
         path: z.string().min(1).optional(),
-        slot: z.string().min(1).optional()
+        slot: z.string().min(1).optional(),
+        depth: z.union([z.number(), z.string()]).optional()
       })
       .superRefine((val, ctx) => {
         if (val.placement?.path || val.path) return;
@@ -84,13 +92,14 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content",
-    "Write content by placement. part=body|properties|schema. Binary: data (base64) + ref (channel/media/page external slots).",
+    "Write content by placement. part=body|properties|schema. Binary: data (base64); root uses placement.path as file path.",
     address({
       part: contentPartSchema,
       content: z.string().optional(),
       data: z.string().optional().describe("Base64 file bytes (upload); use instead of content"),
       mimeType: z.string().optional(),
-      createSubdir: z.boolean().optional()
+      createSubdir: z.boolean().optional(),
+      mode: z.enum(["append", "replace"]).optional().describe("root workspace write mode (default replace)")
     }),
     async (args) => {
       if (args.part === "properties") return writeContentProperties(client, args);

@@ -20,6 +20,11 @@ const placementPath = z
   .min(1)
   .describe("Container path or slug (page manifest, awn-channels/{slug}, awn-media/{slug})");
 
+const rootWorkspacePath = z
+  .string()
+  .min(1)
+  .describe("Workspace-relative file path (AGENTS.md, folder/file.md, …) — no slot/ref");
+
 export const placementSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("page"),
@@ -38,6 +43,10 @@ export const placementSchema = z.discriminatedUnion("kind", [
     path: placementPath,
     slot: z.string().min(1),
     ref: z.string().min(1).optional()
+  }),
+  z.object({
+    kind: z.literal("root"),
+    path: rootWorkspacePath
   })
 ]);
 
@@ -51,7 +60,10 @@ export function withContentAddress(baseShape, contentSlot) {
       ...baseShape
     })
     .superRefine((val, ctx) => {
-      if (val.placement) return;
+      if (val.placement) {
+        if (val.placement.kind === "root") return;
+        return;
+      }
       if (!val.path) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement is required" });
       }

@@ -76,21 +76,77 @@ function resolveArgs(args) {
   return resolveContentAddress(args);
 }
 
+function rejectRootLifecycle(address, operation) {
+  if (address.kind === "root") {
+    throw new Error(`${operation} is not supported for placement.kind=root (use write_content / read_file tools)`);
+  }
+}
+
+async function readRootWorkspaceFile(client, args, workspaceFilePath) {
+  return readFileHandler(client, {
+    path: workspaceFilePath,
+    format: args.format,
+    maxBytes: args.maxBytes,
+    startLine: args.startLine,
+    limitLines: args.limitLines,
+    offsetBytes: args.offsetBytes
+  });
+}
+
+async function readRootMarkdownText(client, args, workspaceFilePath) {
+  const payload = await readRootWorkspaceFile(client, args, workspaceFilePath);
+  const text = typeof payload?.content === "string" ? payload.content : "";
+  return { payload, text };
+}
+
 export async function contentExists(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  if (address.kind === "root") {
+    try {
+      await client.get("/api/workspace/fs/read", { path: address.workspaceFilePath, maxBytes: "1" });
+      return { placement: address.placement, exists: true, driver: "root" };
+    } catch {
+      return { placement: address.placement, exists: false, driver: "root" };
+    }
+  }
+  const { manifestPath, slot, ref } = address;
   return client.get("/api/content/exists", { path: manifestPath, slot, ...(ref ? { ref } : {}) });
 }
 
 export async function getContentMeta(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  if (address.kind === "root") {
+    const payload = await readRootWorkspaceFile(client, { maxBytes: 1 }, address.workspaceFilePath);
+    return {
+      placement: address.placement,
+      driver: "root",
+      exists: true,
+      file: payload
+    };
+  }
+  const { manifestPath, slot, ref } = address;
   return client.get("/api/content/meta", { path: manifestPath, slot, ...(ref ? { ref } : {}) });
 }
 
 export async function readContentBody(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, workspaceFilePath, placement } = address;
+  const { manifestPath, slot, ref, workspaceFilePath, placement, kind } = address;
+  if (kind === "root") {
+    const path = workspaceFilePath;
+    const payload = await readRootWorkspaceFile(client, args, path);
+    if (!path.toLowerCase().endsWith(".md")) {
+      return { placement, ...payload };
+    }
+    const text = typeof payload?.content === "string" ? payload.content : "";
+    const { description } = splitMarkdownFrontmatter(text);
+    return { placement, path, file: path, content: description };
+  }
   if (workspaceFilePath) {
-    const payload = await readFileHandler(client, { path: workspaceFilePath });
+    const payload = await readFileHandler(client, {
+      path: workspaceFilePath,
+      format: args.format,
+      maxBytes: args.maxBytes
+    });
     return { placement, file: ref, content: payload?.content ?? payload?.text ?? "" };
   }
   if (isInternalBundleSlot(slot)) {
@@ -106,9 +162,16 @@ export async function readContentBody(client, args) {
 
 export async function writeContentBinary(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, kind, placement } = address;
+  const { manifestPath, slot, ref, kind, placement, workspaceFilePath } = address;
   const data = String(args.data || "").trim();
   if (!data) throw new Error("data (base64) is required for binary upload");
+  if (kind === "root") {
+    return client.post("/api/workspace/fs/upload", {
+      path: workspaceFilePath,
+      data,
+      mimeType: args.mimeType
+    });
+  }
   if (!ref) throw new Error("placement.ref is required for upload");
   const { fileName, subdir } = splitContentUploadRef(ref);
   const mimeType = args.mimeType;
@@ -158,9 +221,24 @@ export async function writeContentBinary(client, args) {
 export async function writeContentBody(client, args) {
   if (args.data) return writeContentBinary(client, args);
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, workspaceFilePath, placement } = address;
+  const { manifestPath, slot, ref, workspaceFilePath, placement, kind } = address;
   const content = args.content;
   if (content == null) throw new Error("content or data (base64) is required");
+  if (kind === "root") {
+    const mode = args.mode;
+    let body = content;
+    if (workspaceFilePath.toLowerCase().endsWith(".md")) {
+      const { text } = await readRootMarkdownText(client, {}, workspaceFilePath).catch(() => ({ text: "" }));
+      const { properties } = splitMarkdownFrontmatter(text);
+      body = mergeMarkdownFrontmatter(properties, content);
+    }
+    await client.post("/api/workspace/fs/write", {
+      path: workspaceFilePath,
+      content: body,
+      ...(mode ? { mode } : {})
+    });
+    return { placement, path: workspaceFilePath, ok: true };
+  }
   if (workspaceFilePath) {
     await client.post("/api/workspace/fs/write", { path: workspaceFilePath, content });
     return { placement, file: ref, ok: true };
@@ -180,7 +258,12 @@ export async function writeContentBody(client, args) {
 
 export async function readContentProperties(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, placement } = address;
+  const { manifestPath, slot, ref, placement, kind, workspaceFilePath } = address;
+  if (kind === "root") {
+    const { text } = await readRootMarkdownText(client, args, workspaceFilePath);
+    const { properties } = splitMarkdownFrontmatter(text);
+    return { placement, content: properties };
+  }
   if (isInternalBundleSlot(slot)) {
     const payload = await readInternalContent(client, manifestPath, slot);
     const { properties } = splitMarkdownFrontmatter(payload?.content || "");
@@ -194,8 +277,15 @@ export async function readContentProperties(client, args) {
 
 export async function writeContentProperties(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, placement } = address;
+  const { manifestPath, slot, ref, placement, kind, workspaceFilePath } = address;
   const content = args.content;
+  if (kind === "root") {
+    const { text } = await readRootMarkdownText(client, {}, workspaceFilePath).catch(() => ({ text: "" }));
+    const { properties, description } = splitMarkdownFrontmatter(text);
+    const merged = mergeMarkdownFrontmatter(mergeFrontmatterBlocks(properties, content), description);
+    await client.post("/api/workspace/fs/write", { path: workspaceFilePath, content: merged });
+    return { placement, path: workspaceFilePath, ok: true };
+  }
   if (isInternalBundleSlot(slot)) {
     const payload = await readInternalContent(client, manifestPath, slot);
     const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
@@ -213,8 +303,14 @@ export async function writeContentProperties(client, args) {
 
 export async function readContentProperty(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, placement } = address;
+  const { manifestPath, slot, ref, placement, kind, workspaceFilePath } = address;
   const key = args.key;
+  if (kind === "root") {
+    const { text } = await readRootMarkdownText(client, args, workspaceFilePath);
+    const { properties } = splitMarkdownFrontmatter(text);
+    const { value, exists } = getFrontmatterScalar(properties, key);
+    return { placement, key, value, exists };
+  }
   if (isInternalBundleSlot(slot)) {
     const payload = await readInternalContent(client, manifestPath, slot);
     const { properties } = splitMarkdownFrontmatter(payload?.content || "");
@@ -230,10 +326,17 @@ export async function readContentProperty(client, args) {
 
 export async function writeContentProperty(client, args) {
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref } = address;
+  const { manifestPath, slot, ref, kind, workspaceFilePath } = address;
   const { key, value } = args;
   const patchOne = (properties, description) =>
     mergeMarkdownFrontmatter(upsertYamlScalarLine(properties, key, value), description);
+  if (kind === "root") {
+    const { text } = await readRootMarkdownText(client, {}, workspaceFilePath).catch(() => ({ text: "" }));
+    const { properties, description } = splitMarkdownFrontmatter(text);
+    const merged = patchOne(properties, description);
+    await client.post("/api/workspace/fs/write", { path: workspaceFilePath, content: merged });
+    return { placement: address.placement, path: workspaceFilePath, ok: true };
+  }
   if (isInternalBundleSlot(slot)) {
     const payload = await readInternalContent(client, manifestPath, slot);
     const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
@@ -246,18 +349,24 @@ export async function writeContentProperty(client, args) {
 }
 
 export async function readContentSchema(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "read_content_schema");
+  const { manifestPath, slot, ref } = address;
   const mode = args.mode;
   return client.get("/api/content/schema", { path: manifestPath, slot, ref, ...(mode ? { mode } : {}) });
 }
 
 export async function writeContentSchema(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "write_content_schema");
+  const { manifestPath, slot, ref } = address;
   return client.post("/api/content/schema", { path: manifestPath, slot, ref, content: args.content });
 }
 
 export async function createContent(client, args) {
-  const { manifestPath, slot } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "create_content");
+  const { manifestPath, slot } = address;
   const {
     awnType,
     title,
@@ -307,8 +416,13 @@ export async function createContent(client, args) {
 }
 
 export async function importContentFromUrl(client, args) {
-  const { manifestPath, slot } = resolveArgs(args);
-  const { url, fileName, mimeType, parent, createSubdir } = args;
+  const address = resolveArgs(args);
+  const { url } = args;
+  if (address.kind === "root") {
+    return client.post("/api/workspace/fs/import", { path: address.workspaceFilePath, url });
+  }
+  const { manifestPath, slot } = address;
+  const { fileName, mimeType, parent, createSubdir } = args;
   if (isInternalBundleSlot(slot)) {
     throw new Error(`Cannot import_content_from_url to internal slot "${slot}". Use write_content for text slots.`);
   }
@@ -327,7 +441,9 @@ export async function importContentFromUrl(client, args) {
 }
 
 export async function renameContent(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "rename_content");
+  const { manifestPath, slot, ref } = address;
   const { displayName, title } = args;
   if (isInternalBundleSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
   const name = displayName || title;
@@ -347,7 +463,9 @@ export async function renameContent(client, args) {
 }
 
 export async function moveContent(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "move_content");
+  const { manifestPath, slot, ref } = address;
   const { targetPath, targetRef, targetParent } = args;
   if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
   if (isExternalMemorySlot(slot)) {
@@ -370,6 +488,18 @@ export async function moveContent(client, args) {
 }
 
 export async function listContentItems(client, args) {
+  if (args.placement?.kind === "root") {
+    const rawPath = String(args.placement.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const slash = rawPath.lastIndexOf("/");
+    const folder = slash === -1 ? "" : rawPath.slice(0, slash);
+    const depth = args.depth != null ? String(args.depth) : "1";
+    const data = await client.get("/api/workspace/fs/list", { path: folder, depth });
+    return {
+      placement: { kind: "root", path: folder || "." },
+      ...data,
+      hint: "Directory listing; open files with placement.kind=root and path=<file>."
+    };
+  }
   const slot = String(args.slot || args.placement?.slot || "inbox").trim();
   const listAddr = args.placement
     ? resolveSlotsListAddress({ placement: { kind: args.placement.kind, path: args.placement.path } })
@@ -400,7 +530,9 @@ export async function listContentItems(client, args) {
 }
 
 export async function deleteContent(client, args) {
-  const { manifestPath, slot, ref } = resolveArgs(args);
+  const address = resolveArgs(args);
+  rejectRootLifecycle(address, "delete_content");
+  const { manifestPath, slot, ref } = address;
   if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
   if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path: manifestPath, file: ref });
   if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path: manifestPath, file: ref });
