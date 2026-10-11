@@ -2692,7 +2692,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-vizualization": "module-visualization",
   "module-vizualization": "module-visualization",
   "m-mcp-methods": "module-catalog",
-  "module-mcp-methods": "module-catalog"
+  "module-mcp-methods": "module-catalog",
+  "agent-queue": "agent-task-queue"
 };
 
 /** @deprecated legacy /a/…/v/{mode} */
@@ -18319,7 +18320,8 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
-const AWN_AGENT_QUEUE_STORE = "agent-task-queue";
+const AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
+const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-queue";
 const LEGACY_AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_SCRIPTS_FOLDER = "awn-scripts";
@@ -18384,7 +18386,8 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.templates.toc.root": "Оглавление",
   "awn.base.toc.root": "Оглавление",
   "awn.notebooklm.toc.root": "Оглавление",
-  "awn.agent-task-queue.toc.root": "Оглавление"
+  "awn.agent-task-queue.toc.root": "Оглавление",
+  "awn.agent-queue.toc.root": "Оглавление"
 };
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
@@ -18400,7 +18403,8 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
-  "agent-task-queue"
+  "agent-task-queue",
+  "agent-queue"
 ]);
 const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
@@ -18419,6 +18423,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "base",
   "notebooklm",
   "agent-task-queue",
+  "agent-queue",
   "todo"
 ]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
@@ -18436,7 +18441,8 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.templates.toc.root",
   "awn.base.toc.root",
   "awn.notebooklm.toc.root",
-  "awn.agent-task-queue.toc.root"
+  "awn.agent-task-queue.toc.root",
+  "awn.agent-queue.toc.root"
 ]);
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
@@ -18796,7 +18802,7 @@ const WORKSPACE_TOOL_MODULE_META = {
     title: "Банк фактов",
     lead: "Коллекция contents/facts — create / search_workspace_facts."
   },
-  [`awn-databases/${AWN_AGENT_QUEUE_STORE}`]: {
+  [`awn-databases/${AWN_AGENT_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач для агента",
     lead: "Коллекция agent-task-queue — чекпоинты и задачи (как слот agent-task-queue в теме)."
   },
@@ -119139,7 +119145,9 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="agent-task-queue"]'
   );
   if (agentQueueBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_AGENT_QUEUE_STORE, activeAgentId);
+    const exists =
+      isAwnContentsCollectionPresent(AWN_AGENT_TASK_QUEUE_STORE, activeAgentId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeAgentId);
     agentQueueBtn.disabled = exists;
     agentQueueBtn.classList.toggle("is-disabled", exists);
     agentQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -128459,7 +128467,12 @@ async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
       showToast("Коллекция agent-task-queue уже существует", "success");
     }
     await refreshMenuAwnDataStores(agentId);
-    void openAwnDataViewPage(AWN_AGENT_QUEUE_STORE, agentId);
+    const openRel =
+      data.store?.relPath ||
+      (isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, agentId)
+        ? LEGACY_AWN_AGENT_TASK_QUEUE_STORE
+        : AWN_AGENT_TASK_QUEUE_STORE);
+    void openAwnDataViewPage(openRel, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
   } finally {
