@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
+import { registerTocTool } from "./register-toc-tool.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -81,27 +82,38 @@ export function registerChannelTools(reg, client, options = {}) {
     (payload) => client.put("/api/agent/channels", payload)
   );
 
-  reg(
-    "read_channels_index",
-    "Read awn-channels/index.md (catalog table of ingress channels).",
-    z.object({}),
-    () => client.get("/api/agent/channels-index")
-  );
+  const readChannelsIndexSchema = z.object({});
+  const readChannelsIndexHandler = () => client.get("/api/agent/channels-index");
+  const readChannelsIndexDescription = "Read awn-channels/index.md (catalog table of ingress channels).";
 
-  reg(
-    "refresh_channels_index",
-    "Rebuild awn-channels/index.md from channel manifests and presets.",
-    z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-    }),
-    ({ overwrite }) =>
+  registerTocTool(reg, {
+    canonical: "read_channels_index_toc",
+    legacy: "read_channels_index",
+    description: readChannelsIndexDescription,
+    schema: readChannelsIndexSchema,
+    handler: readChannelsIndexHandler
+  });
+
+  const refreshChannelsIndexSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+  });
+
+  const refreshChannelsIndexDescription =
+    "Rebuild awn-channels/index.md from channel manifests and presets.";
+
+  registerTocTool(reg, {
+    canonical: "refresh_channels_index_toc",
+    legacy: "refresh_channels_index",
+    description: refreshChannelsIndexDescription,
+    schema: refreshChannelsIndexSchema,
+    handler: ({ overwrite }) =>
       client.post("/api/agent/channels-index", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
-  );
+  });
 
   if (!isLegacyMcpToolsEnabled()) return;
 

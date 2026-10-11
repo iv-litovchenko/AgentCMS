@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerTocTool } from "./register-toc-tool.js";
 
 const workspaceRelPath = z
   .string()
@@ -350,7 +351,7 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index.",
+    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index_toc.",
     z.object({
       path: pagePath,
       slot: z
@@ -366,25 +367,33 @@ export function registerMapTools(reg, client, pagePath) {
       })
   );
 
-  reg(
-    "get_content_index",
-    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
-    z.object({
-      path: pagePath,
-      slot: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
-        )
-    }),
-    ({ path, slot }) =>
-      client.get("/api/agent/content-index", {
-        path,
-        ...(slot ? { slot } : {})
-      })
-  );
+  const getContentIndexTocSchema = z.object({
+    path: pagePath,
+    slot: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
+      )
+  });
+
+  const getContentIndexTocHandler = ({ path, slot }) =>
+    client.get("/api/agent/content-index", {
+      path,
+      ...(slot ? { slot } : {})
+    });
+
+  const getContentIndexTocDescription =
+    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.";
+
+  registerTocTool(reg, {
+    canonical: "get_content_index_toc",
+    legacy: "get_content_index",
+    description: getContentIndexTocDescription,
+    schema: getContentIndexTocSchema,
+    handler: getContentIndexTocHandler
+  });
 
   const refreshContentIndexSchema = z.object({
     path: pagePath,
@@ -406,34 +415,48 @@ export function registerMapTools(reg, client, pagePath) {
       ...(overwrite === false ? { overwrite: false } : {})
     });
 
-  reg(
-    "refresh_content_index",
-    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
-    refreshContentIndexSchema,
-    runRefreshContentIndex
-  );
+  const refreshContentIndexDescription =
+    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.";
 
-  reg(
-    "get_workspace_page_index",
-    "Quick TOC for all workspace pages: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.",
-    z.object({}),
-    () => client.get("/api/agent/workspace-page-index")
-  );
+  registerTocTool(reg, {
+    canonical: "refresh_content_index_toc",
+    legacy: "refresh_content_index",
+    description: refreshContentIndexDescription,
+    schema: refreshContentIndexSchema,
+    handler: runRefreshContentIndex
+  });
 
-  reg(
-    "refresh_workspace_page_index",
-    "Refresh (rebuild and save) INDEX.md at workspace root from get_page_map (path, type, title, description table). overwrite=false skips if file exists.",
-    z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
-    }),
-    ({ overwrite }) =>
+  const workspacePageIndexTocDescription =
+    "Quick TOC for all workspace pages: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
+
+  registerTocTool(reg, {
+    canonical: "get_workspace_page_index_toc",
+    legacy: "get_workspace_page_index",
+    description: workspacePageIndexTocDescription,
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/workspace-page-index")
+  });
+
+  const refreshWorkspacePageIndexSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+  });
+
+  const refreshWorkspacePageIndexDescription =
+    "Refresh (rebuild and save) INDEX.md at workspace root from get_page_map (path, type, title, description table). overwrite=false skips if file exists.";
+
+  registerTocTool(reg, {
+    canonical: "refresh_workspace_page_index_toc",
+    legacy: "refresh_workspace_page_index",
+    description: refreshWorkspacePageIndexDescription,
+    schema: refreshWorkspacePageIndexSchema,
+    handler: ({ overwrite }) =>
       client.post("/api/agent/workspace-page-index", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
-  );
+  });
 
   reg(
     "get_workspace_wsmap",

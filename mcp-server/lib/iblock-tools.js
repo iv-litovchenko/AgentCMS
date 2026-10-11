@@ -87,31 +87,65 @@ export function registerDatabaseTools(reg, client) {
       })
   });
 
+  const readDatabasesIndexTocSchema = z.object({});
+  const readDatabasesIndexTocHandler = () => client.get("/api/agent/awn-databases-index");
+  const readDatabasesIndexTocDescription =
+    "Quick TOC for all database frames: kind, group, path, title, description, recordCount (awn-databases/index.md).";
+
   registerFrameTool(reg, {
     legacyName: "iblock_read_index",
-    name: "read_index",
-    description:
-      "Quick TOC for all database frames: kind, group, path, title, description, recordCount (awn-databases/index.md).",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/awn-databases-index")
+    name: "read_index_toc",
+    description: readDatabasesIndexTocDescription,
+    schema: readDatabasesIndexTocSchema,
+    handler: readDatabasesIndexTocHandler
   });
+
+  reg(
+    "database_frame_read_index",
+    `[Legacy] Use database_frame_read_index_toc. ${readDatabasesIndexTocDescription}`,
+    readDatabasesIndexTocSchema,
+    readDatabasesIndexTocHandler
+  );
+  reg(
+    "iblock_frame_read_index",
+    `[Legacy] Use database_frame_read_index_toc. ${readDatabasesIndexTocDescription}`,
+    readDatabasesIndexTocSchema,
+    readDatabasesIndexTocHandler
+  );
+
+  const refreshDatabasesIndexTocSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+  });
+  const refreshDatabasesIndexTocDescription =
+    "Refresh awn-databases/index.md from database_frame_list. overwrite=false skips if file exists.";
+  const refreshDatabasesIndexTocHandler = ({ overwrite }) =>
+    client.post("/api/agent/awn-databases-index", {
+      ...(overwrite === false ? { overwrite: false } : {})
+    });
 
   registerFrameTool(reg, {
     legacyName: "iblock_refresh_index",
-    name: "refresh_index",
-    description:
-      "Refresh awn-databases/index.md from database_frame_list. overwrite=false skips if file exists.",
-    schema: z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-    }),
-    handler: ({ overwrite }) =>
-      client.post("/api/agent/awn-databases-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
+    name: "refresh_index_toc",
+    description: refreshDatabasesIndexTocDescription,
+    schema: refreshDatabasesIndexTocSchema,
+    handler: refreshDatabasesIndexTocHandler
   });
+
+  reg(
+    "database_frame_refresh_index",
+    `[Legacy] Use database_frame_refresh_index_toc. ${refreshDatabasesIndexTocDescription}`,
+    refreshDatabasesIndexTocSchema,
+    refreshDatabasesIndexTocHandler
+  );
+  reg(
+    "iblock_frame_refresh_index",
+    `[Legacy] Use database_frame_refresh_index_toc. ${refreshDatabasesIndexTocDescription}`,
+    refreshDatabasesIndexTocSchema,
+    refreshDatabasesIndexTocHandler
+  );
 
   registerFrameTool(reg, {
     legacyName: "iblock_read_schema",

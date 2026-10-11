@@ -28,7 +28,7 @@
 
 **Устаревшие tools не используй:** `iblock_*` → `database_*`; `retain_workspace_fact` / `recall_workspace_facts` → `create_workspace_fact` / `search_workspace_facts`; `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `*_zzz` — заглушки.
 
-**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_page_map`, `get_content_index` по активной теме.
+**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_page_map`, `get_content_index_toc` по активной теме.
 
 ---
 
@@ -40,7 +40,7 @@
 |----------|---------|----------|
 | **Placement** | Где лежит контент | `placement.kind`: `page` \| `channel` \| `media` \| `root` + `path` (+ `slot` + `ref` кроме root) |
 | **Page** | Тема/область в дереве (`manifest.md`) | `kind: page`, `path` → `…/manifest.md` |
-| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; каталог: `read_channels_index` / `refresh_channels_index` → `awn-channels/index.md` |
+| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; каталог: `read_channels_index_toc` / `refresh_channels_index_toc` → `awn-channels/index.md` |
 | **Media hub** | Карточка `awn-media/{slug}/` | `kind: media` |
 | **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
@@ -48,7 +48,7 @@
 
 **Предпочитай:** `read_content` / `write_content` / `list_content` / `list_slots` с `placement`. Legacy: `path`+`slot`+`ref` (= `page`); `read_file`/`write_file` (= `root`). Бинарь: `write_content` + `data` (base64).
 
-Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index`, `list_content`, `resolve_workspace_path`.
+Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index_toc`, `list_content`, `resolve_workspace_path`.
 
 ### Разделы дерева (для `parentPath` в `create_page`)
 
@@ -77,8 +77,8 @@
 
 - Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
-- Обзор — сначала реестры (`get_page_map`, `get_workspace_page_index`, `get_content_index`), потом точечно `read_*`.
-- `get_content_index` — лёгкий (без properties), `get_content_map` — тяжелее, для планирования правок.
+- Обзор — сначала реестры (`get_page_map`, `get_workspace_page_index_toc`, `get_content_index_toc`), потом точечно `read_*`.
+- `get_content_index_toc` — лёгкий (без properties), `get_content_map` — тяжелее, для планирования правок.
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты и термины — `search_workspace_facts` / `search_glossary_terms`.
 
@@ -135,7 +135,7 @@
 
 ### Гибкий слот
 
-Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
+Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index_toc` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
 
 ### Доп. материалы записи — `assets/materials/{awn-id}/`
 

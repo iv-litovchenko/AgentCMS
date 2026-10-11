@@ -124,28 +124,30 @@
 ⚠️ Навигация и оглавления (файлы в workspace)
 ├── Workspace (дерево страниц)
 │   ├── get_page_map                    … runtime: manifest + папки без manifest
-│   ├── get_workspace_page_index        … read INDEX.md
-│   └── refresh_workspace_page_index    … rebuild INDEX.md ← get_page_map
+│   ├── get_workspace_page_index_toc        … read INDEX.md
+│   └── refresh_workspace_page_index_toc    … rebuild INDEX.md ← get_page_map
 ├── Тема / слот (TOC контента)
 │   ├── get_content_map                 … meta по всем слотам страницы (тяжелее)
-│   ├── get_content_index               … read index.md темы или слота
-│   └── refresh_content_index           … rebuild index.md темы/слота
+│   ├── get_content_index_toc               … read index.md темы или слота
+│   └── refresh_content_index_toc           … rebuild index.md темы/слота
 ├── WS-MAP (реестр всех index/INDEX в ws)
 │   ├── get_workspace_wsmap
 │   └── refresh_workspace_wsmap         … rebuild WS-MAP.md
 ├── Hub-каталоги (index.md в корне раздела)
 │   ├── awn-databases/index.md
-│   │   ├── database_frame_read_index
-│   │   ├── database_frame_refresh_index
-│   │   ├── iblock_read_index           … alias read
-│   │   └── iblock_refresh_index        … alias refresh
+│   │   ├── database_frame_read_index_toc
+│   │   ├── database_frame_refresh_index_toc
+│   │   ├── iblock_read_index             … legacy → read_index_toc
+│   │   └── iblock_refresh_index          … legacy → refresh_index_toc
 │   ├── awn-media/index.md
-│   │   └── refresh_media_library_index
+│   │   ├── read_media_library_index_toc
+│   │   └── refresh_media_library_index_toc
 │   ├── awn-repositories/index.md
-│   │   └── refresh_repository_index
+│   │   ├── read_repository_index_toc
+│   │   └── refresh_repository_index_toc
 │   └── awn-channels/index.md
-│       ├── read_channels_index
-│       └── refresh_channels_index
+│       ├── read_channels_index_toc
+│       └── refresh_channels_index_toc
 │
 ⚠️ Поиск (read-only, по индексам / тексту)
 ├── search_workspace_content            … fulltext
@@ -269,11 +271,11 @@
 
 🧭 Навигация · карты · id
 ├── get_page_map                           … дерево manifest + folder без manifest
-├── get_workspace_page_index               … read INDEX.md
-├── refresh_workspace_page_index           … rebuild INDEX.md ← page map
+├── get_workspace_page_index_toc           … read INDEX.md
+├── refresh_workspace_page_index_toc       … rebuild INDEX.md ← page map
 ├── get_content_map                        … meta по слотам страницы (тяжелее)
-├── get_content_index                      … read index.md темы/слота
-├── refresh_content_index                  … rebuild index.md темы/слота
+├── get_content_index_toc                  … read index.md темы/слота
+├── refresh_content_index_toc              … rebuild index.md темы/слота
 ├── get_workspace_wsmap / refresh_workspace_wsmap … реестр всех index/INDEX
 ├── resolve_workspace_path                 … breadcrumbs, slot/ref, mcp hints
 ├── get_page_url                           … URL страницы в UI (CHPU)
@@ -343,7 +345,7 @@
 
 🗄️ awn-databases (канон database_*; iblock_* — deprecated зеркала)
 ├── database_frame_list / get / create / delete / rename
-├── database_frame_read_index / refresh_index   … awn-databases/index.md
+├── database_frame_read_index_toc / refresh_index_toc   … awn-databases/index.md
 ├── database_frame_read_schema / write_schema
 ├── database_frame_read_properties / write_properties
 ├── database_frame_read_property / write_property
@@ -355,16 +357,16 @@
 ├── list_channels / get_channel / register_channel / update_channel
 ├── list_channel_items
 ├── upload_channel_file
-├── read_channels_index / refresh_channels_index   … awn-channels/index.md ⚠️
+├── read_channels_index_toc / refresh_channels_index_toc   … awn-channels/index.md
 
 🖼️ Медиатеки (awn-media/)
 ├── list_media_libraries / get_media_library / register_media_library / update_media_library
 ├── list_media_library_items / upload_media_library_file
-└── refresh_media_library_index            … awn-media/index.md
+├── read_media_library_index_toc / refresh_media_library_index_toc … awn-media/index.md
 
 📚 Репозитории (awn-repositories/)
 ├── list_repositories / get_repository / register_repository / update_repository
-└── refresh_repository_index               … awn-repositories/index.md
+└── read_repository_index_toc / refresh_repository_index_toc … awn-repositories/index.md
 
 📥 Inbox · обсуждение · комментарии
 ├── list_inbox / triage_inbox_item
@@ -427,6 +429,7 @@
 ├── list_page_slots                                … → list_slots
 ├── read_dialogs / append_dialog                   … → discussion
 └── read_file / write_file                         … root: prefer read/write_content kind=root
+├── get/refresh_*_index (без _toc)                 … → *_index_toc (markdown TOC)
 ```
 
 **placement (план рефакторинга):** `page` · `channel` · `media` · `root` (`tree`) — единые `read_content` / `write_content` / `list_content`; hub-индексы и поиск — ветки ⚠️ выше (отдельно от CRUD).
