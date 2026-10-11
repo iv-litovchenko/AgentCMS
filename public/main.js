@@ -39744,6 +39744,7 @@ async function findRecordPartsWorkspaceFolder(context) {
 
 function shouldShowEntryOverviewRecordParts(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
   if (isEntryOverviewCategoryContext(context)) return false;
   if (context.entryKind === "awn.media.asset") return false;
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
@@ -68452,12 +68453,14 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     const toolbar = document.createElement("div");
     toolbar.className = "node-navigation-hero-compact-toolbar";
 
-    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
-      hideEmpty: true,
-      propEntries: options.propEntries || [],
-      showHeroQuality: options.showHeroQuality
-    });
-    if (datesPanel.childElementCount > 0) toolbar.appendChild(datesPanel);
+    if (!options.hideCompactHeroMeta) {
+      const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
+        hideEmpty: true,
+        propEntries: options.propEntries || [],
+        showHeroQuality: options.showHeroQuality
+      });
+      if (datesPanel.childElementCount > 0) toolbar.appendChild(datesPanel);
+    }
     toolbar.appendChild(actions);
     body.appendChild(toolbar);
   } else {
@@ -76940,9 +76943,15 @@ function resolveEntryOverviewStorageSlotFolderWorkspacePath(context, topicPath) 
   return `${slotDir}/${folderName}`.replace(/\\/g, "/");
 }
 
-function shouldOfferEntryOverviewStorageSlotCreate(context) {
+function shouldOfferEntryOverviewStorageSlotCreate(context, topicPath = getResolvedNodePath(activePath)) {
   if (!context?.memoryKind || !activePath) return false;
   if (!isEntryOverviewMemoryTocRoot(context)) return false;
+  const hubPolicy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (hubPolicy?.kind === "channel") {
+    if (context.memoryKind === "todo" || context.memoryKind === "roadmap") return true;
+    if (isFlatEntryOverviewMemoryKind(context.memoryKind)) return true;
+    return false;
+  }
   if (isTopicSharedSlotActive()) {
     if (context.memoryKind === "media" || context.memoryKind === "assets") return false;
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) return false;
@@ -76957,6 +76966,14 @@ async function fetchEntryOverviewStorageSlotFolderExists(context, topicPath) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!spec || !manifestPath) return true;
   try {
+    if (spec.key === "todo-single") {
+      const todo = await fetchTodoForOverview(topicPath || manifestPath);
+      return Boolean(todo?.exists);
+    }
+    if (spec.key === "roadmap-single") {
+      const roadmap = await fetchRoadmapForOverview(topicPath || manifestPath);
+      return Boolean(roadmap?.exists);
+    }
     const scan = await fetchStorageRootScan(manifestPath);
     if (!scan?.exists) return false;
     return Boolean(findScanFolderForSlotKey(spec.key, scan.folders || []));
@@ -76980,6 +76997,36 @@ function resolveStorageSlotFolderExistsFromScan(spec, storageScan) {
 }
 
 async function ensureEntryOverviewStorageSlotFolder(context, topicPath) {
+  const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
+  const spec = resolveEntryOverviewStorageSlotSpec(context, topicPath);
+  if (spec?.key === "todo-single") {
+    const apiPath = getOverviewNodeApiPath(topicPath || manifestPath);
+    if (!apiPath) throw new Error("Не удалось определить путь слота");
+    const response = await fetch(buildApiUrl("/api/todo"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, content: "---\n---\n\n" })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+  if (spec?.key === "roadmap-single") {
+    const apiPath = getOverviewNodeApiPath(topicPath || manifestPath);
+    if (!apiPath) throw new Error("Не удалось определить путь слота");
+    const response = await fetch(buildApiUrl("/api/roadmap"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, content: "---\n---\n\n" })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    }
+    return response.json();
+  }
   const workspacePath = resolveEntryOverviewStorageSlotFolderWorkspacePath(context, topicPath);
   if (!workspacePath) throw new Error("Не удалось определить путь слота");
   return ensureRecordPartsWorkspaceFolder(workspacePath);
@@ -76993,7 +77040,13 @@ async function handleCreateStorageSlotFolder(slotKey, topicPath) {
   await ensureEntryOverviewStorageSlotFolder(context, topicPath);
   invalidateStorageRootScanCache();
   await refreshNavigationHubAfterSlotMutation();
-  showToast(`Папка слота «${spec?.label || slotKey}» создана`, "success");
+  const isBundle = spec?.sectionKind === "bundle";
+  showToast(
+    isBundle
+      ? `Файл слота «${spec?.label || slotKey}» создан`
+      : `Папка слота «${spec?.label || slotKey}» создана`,
+    "success"
+  );
 }
 
 function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) {
@@ -78828,6 +78881,54 @@ function appendEntryOverviewBrowsePanel(
     );
   }
   return mounted;
+}
+
+async function appendHubChannelWorkspaceBrowsePanel(hubMain, context, topicPath, entries = null) {
+  if (!hubMain || !context) return null;
+  const resolvedPath = getResolvedNodePath(topicPath);
+  if (resolveHubWorkspaceSlotPolicy(resolvedPath, entries)?.kind !== "channel") return null;
+
+  const navigationIndex = await fetchEntryOverviewNavigationIndex(context, resolvedPath);
+  let slotFolderMissing = false;
+  if (shouldOfferEntryOverviewStorageSlotCreate(context, resolvedPath)) {
+    slotFolderMissing = !(await fetchEntryOverviewStorageSlotFolderExists(context, resolvedPath));
+  }
+  const slotTocNav = buildEntryOverviewBrowseTocNavOptions(context, resolvedPath);
+  const panel = appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, {
+    isMemoryTocRoot: true,
+    slotFolderMissing,
+    browseNavOptions: slotTocNav,
+    topicPreview: null
+  });
+  if (panel) {
+    void syncEntryOverviewBrowseSlotFolderAction(panel, context, resolvedPath);
+  }
+  return panel;
+}
+
+async function refreshHubChannelBrowsePanelContent(panel, context, navigationIndex, topicPath) {
+  if (!panel || !context) return;
+  const resolvedPath = getResolvedNodePath(topicPath);
+  let folderExists = true;
+  if (shouldOfferEntryOverviewStorageSlotCreate(context, resolvedPath)) {
+    folderExists = await fetchEntryOverviewStorageSlotFolderExists(context, resolvedPath);
+  }
+  if (!folderExists) {
+    await syncEntryOverviewBrowseSlotFolderAction(panel, context, resolvedPath);
+    return;
+  }
+  panel.classList.remove("is-slot-folder-missing");
+  panel.querySelector(".node-entry-overview-slot-folder-missing")?.remove();
+  refreshEntryOverviewBrowseList(panel, context, navigationIndex, true);
+  panel.dataset.railMemoryKind = context?.memoryKind || "";
+  mountNavigationHubRailSlotTreeDragDrop(panel);
+  const actions = panel.querySelector(".node-entry-overview-browse-actions");
+  if (actions && shouldShowEntryOverviewBrowseActions(context)) {
+    const freshActions = createEntryOverviewBrowseActions(context, { slotFolderMissing: false });
+    if (freshActions) actions.replaceWith(freshActions);
+    else actions.remove();
+  }
+  finalizeEntryOverviewBrowsePanelChromeOrder(panel);
 }
 
 function refreshEntryOverviewListFromSearch() {
@@ -80766,9 +80867,7 @@ function tryRefreshHubChannelEntryOverviewInPlace(context, topicPath, navigation
   syncEntryOverviewKindClass(getEntryOverviewKindClass(context.entryKind));
   syncEntryOverviewMediaAssetKindClass(null);
 
-  refreshEntryOverviewBrowseList(panel, context, navigationIndex, true);
-  panel.dataset.railMemoryKind = context?.memoryKind || "";
-  mountNavigationHubRailSlotTreeDragDrop(panel);
+  void refreshHubChannelBrowsePanelContent(panel, context, navigationIndex, topicPath);
 
   const browseNavOptions = buildEntryOverviewBrowseTocNavOptions(context, topicPath);
   if (browseNavOptions) {
@@ -82756,6 +82855,10 @@ async function renderEntryOverview() {
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
     syncAllWorkspaceCounterStripActiveStates(context);
     relocateEntryOverviewSlotCountersChrome(hubMain);
+    const channelBrowsePanel = hubMain.querySelector(".node-entry-overview-browse-panel");
+    if (channelBrowsePanel && resolveHubWorkspaceSlotPolicy(topicPath)?.kind === "channel") {
+      void syncEntryOverviewBrowseSlotFolderAction(channelBrowsePanel, context, topicPath);
+    }
     return;
   }
 
@@ -82787,19 +82890,20 @@ async function renderEntryOverview() {
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
+  const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
+
   const materialsContext = buildRecordMaterialsContext(context, {
     propEntries: entries,
     navigationIndex,
     recordBody: rawBody
   });
   let recordPartsWorkspaceFolderPath = "";
-  const showRecordParts = shouldShowEntryOverviewRecordParts(materialsContext);
+  const showRecordParts =
+    !isBundleEntryOverview && shouldShowEntryOverviewRecordParts(materialsContext);
   if (showRecordParts) {
     recordPartsWorkspaceFolderPath = await findRecordPartsWorkspaceFolder(materialsContext);
     if (isStale()) return;
   }
-
-  const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
   const entryTypeLabel = resolveEntryOverviewHeroTypeLabel(entries, context, navigationIndex);
   const indexEntryReadOnly = isStorageIndexMdEntryContext(context);
   const showHeroUnread = isMemoryTocRoot
@@ -82833,8 +82937,12 @@ async function renderEntryOverview() {
             : createEntryOverviewThumbWrap(context, preview, title, entries),
           showHeroInstruction: false,
           showSettingsProps: false,
+          showWorkspaceMarkers: !isBundleEntryOverview,
+          showHeroProps: !isBundleEntryOverview,
+          showHeroTags: !isBundleEntryOverview,
+          hideCompactHeroMeta: isBundleEntryOverview,
           showUnread: showHeroUnread,
-          hasRecordMaterials: Boolean(recordPartsWorkspaceFolderPath),
+          hasRecordMaterials: isBundleEntryOverview ? false : Boolean(recordPartsWorkspaceFolderPath),
           onEditClick: indexEntryReadOnly ? undefined : () => openEntryOverviewEdit(context),
           editDisabled: indexEntryReadOnly,
           hideSharedSlot: isContentRecordOverviewEntry(context),
@@ -82849,7 +82957,9 @@ async function renderEntryOverview() {
     await appendEntryOverviewSectionSchemaPanel(hero, context);
     if (isStale()) return;
   }
-  appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
+  if (!isBundleEntryOverview) {
+    appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
+  }
   appendEntryOverviewSectionReadmeOffer(hubMain, context, {
     navigationIndex,
     manifestBodyFetchOk
@@ -93690,6 +93800,10 @@ async function renderNodeNavigation() {
         });
       } else {
         slotAnchor.remove();
+      }
+      if (hubPolicy?.kind === "channel") {
+        await appendHubChannelWorkspaceBrowsePanel(hubMain, hubCtx, nodePath, entries);
+        if (isStale()) return;
       }
     } else {
       slotAnchor.remove();
