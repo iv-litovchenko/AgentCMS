@@ -14460,9 +14460,38 @@ function setLandingAgentsView(view) {
 }
 
 const ORBIT_LINK_CENTER = { x: 50, y: 50 };
-const ORBIT_LAYOUT_BOUNDS = { xMin: 13, xMax: 87, yMin: 17, yMax: 74 };
+/** Референс высоты .app-landing-orbit (clamp 440–760px, ~60vh). */
+const ORBIT_LAYOUT_STAGE_REF_HEIGHT_PX = 560;
+/** Высота hub-copy (mark + текст), px — по styles.css. */
+const ORBIT_HUB_COPY_HEIGHT_PX = 198;
+/** Подпись + meta под центром аватара в orbit-direct, px. */
+const ORBIT_BUBBLE_STACK_BELOW_CENTER_PX = 90;
+/** Зазор между низом карточки агента и верхом hub, px. */
+const ORBIT_LOGO_GAP_PX = 12;
+const ORBIT_LAYOUT_BOUNDS = {
+  xMin: 13,
+  xMax: 87,
+  yMin: 12,
+  yMax: 74
+};
 /** Запретная зона hub/логотипа (радиус от центра до якоря, %). */
 const ORBIT_HUB_MIN_RADIUS_PERCENT = 27;
+
+/** Макс. Y якоря (центр аватара) у верхнего слота, % — чтобы meta не заходила на hub. */
+function getOrbitTopAnchorMaxYPercent() {
+  const hubTop =
+    ORBIT_LINK_CENTER.y -
+    (ORBIT_HUB_COPY_HEIGHT_PX / ORBIT_LAYOUT_STAGE_REF_HEIGHT_PX) * 50;
+  const stackBelowCenter =
+    (ORBIT_BUBBLE_STACK_BELOW_CENTER_PX / ORBIT_LAYOUT_STAGE_REF_HEIGHT_PX) * 100;
+  const gap = (ORBIT_LOGO_GAP_PX / ORBIT_LAYOUT_STAGE_REF_HEIGHT_PX) * 100;
+  return hubTop - stackBelowCenter - gap;
+}
+
+/** Мин. радиус кольца, %: 50 − maxY ≈ 36 при референсных размерах. */
+function getOrbitMinCircleRadiusPercent() {
+  return ORBIT_LINK_CENTER.y - getOrbitTopAnchorMaxYPercent();
+}
 
 function clampOrbitLayoutPoint(layout) {
   layout.x = Math.min(ORBIT_LAYOUT_BOUNDS.xMax, Math.max(ORBIT_LAYOUT_BOUNDS.xMin, layout.x));
@@ -14495,8 +14524,10 @@ function finalizeOrbitBubbleLayout(layout) {
 
 function getOrbitCircleRadiusPercent(total) {
   const count = Math.max(1, total);
-  if (count <= 1) return 34;
-  return Math.min(38, 33 + Math.max(0, count - 4) * 0.55);
+  const minForLogo = getOrbitMinCircleRadiusPercent();
+  let radius = count <= 1 ? 34 : 33 + Math.max(0, count - 4) * 0.55;
+  radius = Math.max(radius, minForLogo);
+  return Math.min(40, radius);
 }
 
 /** Верхний пузырь: нижняя часть аватара ближе к hub — слегка выдвигаем верхнюю дугу. */
@@ -14508,8 +14539,11 @@ function nudgeOrbitLayoutForLogoClearance(layout, angle) {
   const dy = layout.y - ORBIT_LINK_CENTER.y;
   const dist = Math.hypot(dx, dy) || 1;
   const sizePct = ((layout.size || 64) / 480) * 100;
-  const minDist =
-    ORBIT_HUB_MIN_RADIUS_PERCENT + sizePct * 0.9 + 3.5 + Math.max(0, -sin - 0.35) * 5.5;
+  const logoRadius = getOrbitMinCircleRadiusPercent();
+  const minDist = Math.max(
+    logoRadius,
+    ORBIT_HUB_MIN_RADIUS_PERCENT + sizePct * 0.9 + 3.5 + Math.max(0, -sin - 0.35) * 5.5
+  );
 
   if (dist >= minDist) return layout;
   const scale = minDist / dist;
