@@ -285,7 +285,7 @@ const {
   STORAGE_SUBFOLDER_TEMPLATES,
   STORAGE_SUBFOLDER_BASE,
   STORAGE_SUBFOLDER_NOTEBOOKLM,
-  STORAGE_SUBFOLDER_AGENT_QUEUE,
+  STORAGE_SUBFOLDER_AGENT_TASK_QUEUE,
   STORAGE_SUBFOLDER_CONFIGURATION,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
@@ -426,8 +426,8 @@ const {
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
-  ensureAgentQueueStoreScaffold,
-  AGENT_QUEUE_STORE_REL,
+  ensureAgentTaskQueueStoreScaffold,
+  AGENT_TASK_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
@@ -5359,8 +5359,11 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "notebooklm") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_NOTEBOOKLM);
   }
-  if (mode === "agent-queue") {
-    return path.join(storageRoot, STORAGE_SUBFOLDER_AGENT_QUEUE);
+  if (mode === "agent-task-queue" || mode === "agent-queue") {
+    const folder =
+      getStorageSubfolderForMode(mode) ||
+      (mode === "agent-queue" ? "agent-queue" : STORAGE_SUBFOLDER_AGENT_TASK_QUEUE);
+    return path.join(storageRoot, folder);
   }
   return nodeAbsolute;
 }
@@ -6399,7 +6402,17 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
 }
 
 const WORKSPACE_FS_BLOCKED_WRITE_PREFIXES = ["awn-system/"];
-const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "templates", "base", "agent-queue", "quick-notes"]);
+const WORKSPACE_FS_TYPED_MD_LAYERS = new Set([
+  "main",
+  "inbox",
+  "notes",
+  "references",
+  "templates",
+  "base",
+  "agent-task-queue",
+  "agent-queue",
+  "quick-notes"
+]);
 const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["discussion", "thread", "comments", "history", "temp", "volume"]);
 const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".md",
@@ -11587,7 +11600,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_TEMPLATES, slot: "templates" },
   { folder: STORAGE_SUBFOLDER_BASE, slot: "base" },
   { folder: STORAGE_SUBFOLDER_NOTEBOOKLM, slot: "notebooklm" },
-  { folder: STORAGE_SUBFOLDER_AGENT_QUEUE, slot: "agent-queue" },
+  { folder: STORAGE_SUBFOLDER_AGENT_TASK_QUEUE, slot: "agent-task-queue" },
   { folder: STORAGE_SUBFOLDER_REPOSITORY, slot: "repository" }
 ];
 
@@ -13719,6 +13732,7 @@ const CONTENT_INDEX_SLOT_LABELS = {
   main: "Память (многофайловая)",
   external: "Память (многофайловая)",
   assets: "Активы",
+  "agent-task-queue": "Чекпоинты и очередь задач для агента",
   "agent-queue": "Чекпоинты и очередь задач для агента",
   templates: "Шаблоны",
   base: "База",
@@ -25471,19 +25485,23 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-agent-queue") {
+  if (
+    req.method === "POST" &&
+    (url.pathname === "/api/awn-databases/scaffold-agent-task-queue" ||
+      url.pathname === "/api/awn-databases/scaffold-agent-queue")
+  ) {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
-      const result = ensureAgentQueueStoreScaffold(agentRoot, getProjectRoot());
+      const result = ensureAgentTaskQueueStoreScaffold(agentRoot, getProjectRoot());
       return sendJson(res, 201, {
         ok: true,
-        storeRel: AGENT_QUEUE_STORE_REL,
+        storeRel: AGENT_TASK_QUEUE_STORE_REL,
         ...result
       });
     } catch (error) {
       return sendJson(res, 400, {
-        error: "Failed to scaffold agent queue store",
+        error: "Failed to scaffold agent task queue store",
         details: String(error.message || error)
       });
     }

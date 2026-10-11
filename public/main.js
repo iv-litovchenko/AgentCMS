@@ -2713,6 +2713,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "agent-task-queue",
   "agent-queue",
   "artefacts",
   "assets",
@@ -2746,6 +2747,7 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
+  "agent-task-queue": "agent-task-queue",
   "agent-queue": "agent-queue",
   temp: "temp"
 };
@@ -2765,7 +2767,8 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
-  "agent-queue": "agent-queue",
+  "agent-task-queue": "agent-task-queue",
+  "agent-queue": "agent-task-queue",
   temp: "temp"
 };
 
@@ -7840,7 +7843,7 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "artefacts", label: "Артефакты", modeId: "artefacts" },
   { id: "assets", label: "Активы", modeId: "assets" },
   { id: "media", label: "Медиа", modeId: "media" },
-  { id: "agent-queue", label: "Очередь задач для агента", modeId: "agent-queue" },
+  { id: "agent-task-queue", label: "Очередь задач для агента", modeId: "agent-task-queue" },
   { id: "scripts", label: "Скрипты", modeId: "scripts" },
   { id: "templates", label: "Шаблоны", modeId: "templates" },
   { id: "base", label: "База", modeId: "base" },
@@ -18316,7 +18319,7 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
-const AWN_AGENT_QUEUE_STORE = "agent-queue";
+const AWN_AGENT_QUEUE_STORE = "agent-task-queue";
 const LEGACY_AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_SCRIPTS_FOLDER = "awn-scripts";
@@ -18381,7 +18384,7 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.templates.toc.root": "Оглавление",
   "awn.base.toc.root": "Оглавление",
   "awn.notebooklm.toc.root": "Оглавление",
-  "awn.agent-queue.toc.root": "Оглавление"
+  "awn.agent-task-queue.toc.root": "Оглавление"
 };
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
@@ -18397,7 +18400,7 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
-  "agent-queue"
+  "agent-task-queue"
 ]);
 const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
@@ -18415,7 +18418,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
-  "agent-queue",
+  "agent-task-queue",
   "todo"
 ]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
@@ -18433,7 +18436,7 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.templates.toc.root",
   "awn.base.toc.root",
   "awn.notebooklm.toc.root",
-  "awn.agent-queue.toc.root"
+  "awn.agent-task-queue.toc.root"
 ]);
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
@@ -18795,7 +18798,7 @@ const WORKSPACE_TOOL_MODULE_META = {
   },
   [`awn-databases/${AWN_AGENT_QUEUE_STORE}`]: {
     title: "Очередь задач для агента",
-    lead: "Коллекция agent-queue — чекпоинты и задачи (как слот agent-queue в теме)."
+    lead: "Коллекция agent-task-queue — чекпоинты и задачи (как слот agent-task-queue в теме)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -18945,11 +18948,11 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
-    key: "agent-queue",
+    key: "agent-task-queue",
     label: "Очередь задач для агента",
     icon: "⏳",
-    modes: new Set(["agent-queue"]),
-    defaultMode: "agent-queue",
+    modes: new Set(["agent-task-queue"]),
+    defaultMode: "agent-task-queue",
     sectionKind: "flat",
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
@@ -19185,7 +19188,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   templates: "Markdown (.md) — шаблоны записей и manifest",
   base: "Markdown (.md) — строки структурированных данных",
   notebooklm: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
-  "agent-queue": "Markdown (.md) — задачи агента",
+  "agent-task-queue": "Markdown (.md) — задачи агента",
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
   "main-single": "Markdown (.md) — main.md",
@@ -21118,7 +21121,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     templates: ["templates"],
     base: ["base"],
     notebooklm: ["notebooklm"],
-    "agent-queue": ["agent-queue"],
+    "agent-task-queue": ["agent-task-queue"],
     discussion: ["discussion"],
     temp: ["temp"],
     volume: ["volume"],
@@ -22844,7 +22847,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
-    mode === "agent-queue" ||
+    mode === "agent-task-queue" ||
     mode === "todo" ||
     mode === "roadmap" ||
     mode === NODE_DISCUSSION_MODE
@@ -23005,7 +23008,7 @@ function getContentModeLabel(mode) {
   if (mode === "templates") return "Шаблоны";
   if (mode === "base") return "База";
   if (mode === "notebooklm") return "NotebookLM";
-  if (mode === "agent-queue") return "Очередь задач для агента";
+  if (mode === "agent-task-queue") return "Очередь задач для агента";
   if (mode === "todo") return "TODO";
   if (mode === "roadmap") return "Карты";
   if (mode === "references") return "Источники";
@@ -44086,7 +44089,7 @@ function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "templates") return "Разделы шаблонов";
   if (mode === "base") return "Разделы базы";
   if (mode === "notebooklm") return "Разделы NotebookLM";
-  if (mode === "agent-queue") return "Разделы очереди задач";
+  if (mode === "agent-task-queue") return "Разделы очереди задач";
   return "Разделы";
 }
 
@@ -45879,7 +45882,7 @@ function isFlatStorageListMode(mode = activeContentMode) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
-    mode === "agent-queue" ||
+    mode === "agent-task-queue" ||
     mode === "artefacts" ||
     mode === "repository" ||
     mode === "temp"
@@ -55123,7 +55126,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return inferContentTypeFromStoragePath(normalized, lower);
   }
 
-  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm", "agent-queue"];
+  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm", "agent-task-queue"];
   const isFlatStorageContentFile =
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
@@ -71780,7 +71783,7 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["notes", "references", "artefacts", "agent-queue", "scripts", "templates", "base", "notebooklm"];
+  const flatCounterModes = ["notes", "references", "artefacts", "agent-task-queue", "scripts", "templates", "base", "notebooklm"];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
@@ -104444,7 +104447,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "discussion", "references", "scripts", "templates", "base", "notebooklm", "agent-queue", "artefacts", "assets", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "discussion", "references", "scripts", "templates", "base", "notebooklm", "agent-task-queue", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");
@@ -119133,7 +119136,7 @@ function syncAwnDataCreateGroupPresetsUi() {
   }
 
   const agentQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
-    '[data-awn-data-group-preset="agent-queue"]'
+    '[data-awn-data-group-preset="agent-task-queue"]'
   );
   if (agentQueueBtn) {
     const exists = isAwnContentsCollectionPresent(AWN_AGENT_QUEUE_STORE, activeAgentId);
@@ -119141,8 +119144,8 @@ function syncAwnDataCreateGroupPresetsUi() {
     agentQueueBtn.classList.toggle("is-disabled", exists);
     agentQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     agentQueueBtn.title = exists
-      ? "Коллекция awn-databases/agent-queue/ уже создана"
-      : "Коллекция agent-queue — md с разделами, как слот «Очередь задач» в теме";
+      ? "Коллекция awn-databases/agent-task-queue/ уже создана"
+      : "Коллекция agent-task-queue — md с разделами, как слот «Очередь задач» в теме";
   }
 }
 
@@ -128438,11 +128441,11 @@ async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
     return;
   }
   const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
-    '[data-awn-data-group-preset="agent-queue"]'
+    '[data-awn-data-group-preset="agent-task-queue"]'
   );
   if (presetBtn) presetBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-agent-queue", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-agent-task-queue", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
@@ -128453,7 +128456,7 @@ async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
     if (data.storeCreated) {
       showToast("Создана коллекция «Очередь задач для агента»", "success");
     } else {
-      showToast("Коллекция agent-queue уже существует", "success");
+      showToast("Коллекция agent-task-queue уже существует", "success");
     }
     await refreshMenuAwnDataStores(agentId);
     void openAwnDataViewPage(AWN_AGENT_QUEUE_STORE, agentId);
@@ -128509,7 +128512,7 @@ function setupAwnDataStoresUi() {
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
     if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
-    if (preset === "agent-queue") void submitAwnDataScaffoldAgentQueue();
+    if (preset === "agent-task-queue") void submitAwnDataScaffoldAgentQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));

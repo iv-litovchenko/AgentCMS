@@ -1,4 +1,4 @@
-id: awn.slot.agent-queue
+id: awn.slot.agent-task-queue
 name: Чекпоинты и очередь задач для агента
 kind: slot
 domain: slots
@@ -7,7 +7,7 @@ extends: awn.slot
 slot-category: memory
 storage-driver: external
 description: Чекпоинты и очередь задач для агента — многофайловая папка с записями и разделами
-path: agent-queue/
+path: agent-task-queue/
 slot-order: 25
 allowed-content:
   - awn.content.record
