@@ -309,30 +309,47 @@ const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `${MENU_AWN_CHANNELS_BAND_HELP_INTRO}
 
 Кратко: ты попал в точку. awn-channels — это не «каналы показа» (лента, дайджест, блог как витрина), а единый шлюз входящего хаоса: всё с одной стороны приходит «грязным», с untrusted, потом triage → темы / инфоблоки / факты. Лента и дайджест — после; бортовой журнал — события системы, не Telegram и не закладки.
 
-Одна ось в типе: ingress (откуда) + trust + слот inbox/; вторая ось отдельно: forum / blog-agent / digest — это уже режимы работы над тем же хаосом, не соседи Telegram в одной папке без метки.
+Одна ось в типе: ingress (откуда) + trust + слот inbox/; вторая ось отдельно: forum / blog / digest — это уже режимы работы над тем же хаосом, не соседи Telegram в одной папке без метки.
 Статичный сайдбар — хороший чертёж; следующий шаг по смыслу — awn-channels/{slug}/ + index + triage, без новых «витрин» в этой папке.`;
 /** Заготовки каналов — порядок и slug синхронны с lib/config/channel-presets.js */
 const CHANNEL_BUILTIN_PRESETS = [
   {
     slug: "forum",
     icon: "💬",
-    name: "Форум дискуссии и обсуждения (где люди могут"
+    name: "Форум",
+    hintTitle: "Дискуссии и обсуждения, где люди могут обсуждать свои идеи"
   },
   {
-    slug: "blog-agent",
+    slug: "blog",
     icon: "📝",
     name: "Блог",
     hintTitle:
-      "Куда агент пишет то, что интересует; что собрал агент сегодня — по моим запросам"
+      "Аккумуляция постов на интересующие темы по запросам; агент может собирать по расписанию и публиковать информацию в данном канале"
   },
-  { slug: "digest", icon: "📰", name: "Дайджесты сюда он собирает что-то сводки" },
-  { slug: "youtube", icon: "▶️", name: "Ютуб что то обсудить подискутироват" },
-  { slug: "telegram", icon: "✈️", name: "Телеграмм (я могу например сюда выгружать темы)" },
+  {
+    slug: "digest",
+    icon: "📰",
+    name: "Дайджесты",
+    hintTitle:
+      "Сводки и подборки, которые агент собирает сюда. Различные сводки и подборки собираются в данном месте"
+  },
+  {
+    slug: "youtube",
+    icon: "▶️",
+    name: "YouTube",
+    hintTitle: "Выгрузка видео и тем из YouTube. Входящий поток из YouTube"
+  },
+  {
+    slug: "telegram",
+    icon: "✈️",
+    name: "Telegram",
+    hintTitle: "Выгрузка тем и сообщений из Telegram. Входящий поток из Телеграмм"
+  },
   { slug: "whatsapp", icon: "💬", name: "Ватсап может быть" },
   { slug: "web", icon: "🌐", name: "Интернет" },
   { slug: "bookmarks", icon: "🔖", name: "Закладки" },
   {
-    slug: "browser-downloads",
+    slug: "downloads",
     icon: "📥",
     name: "Загрузки",
     hintTitle: "Файлы из загрузок браузера"
@@ -343,6 +360,12 @@ const CHANNEL_BUILTIN_PRESETS = [
   { slug: "analytics", icon: "📊", name: "аналитика" },
   { slug: "real-world", icon: "🌍", name: "Объекты реального мира" },
   { slug: "market", icon: "🛒", name: "Барахолка" },
+  {
+    slug: "announcements",
+    icon: "📢",
+    name: "Объявления",
+    hintTitle: "Объявления и информационные публикации"
+  },
   { slug: "notes", icon: "📒", name: "Заметки" },
   { slug: "screenshots", icon: "🖥️", name: "Скриншоты" },
   { slug: "other", icon: "📦", name: "Другое (не знаю куда деть)" }
