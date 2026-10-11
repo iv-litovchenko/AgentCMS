@@ -26,7 +26,7 @@
 
 **Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
 
-**Устаревшие tools не используй:** `iblock_*` → `database_*`; `retain_workspace_fact` / `recall_workspace_facts` → `create_workspace_fact` / `search_workspace_facts`; `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `*_zzz` — заглушки.
+**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки.
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_page_map`, `get_content_index_toc` по активной теме.
 
@@ -46,7 +46,18 @@
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
 | **Root file** | Произвольный путь в workspace | `kind: root`, `path` — `AGENTS.md`, `folder/note.md` (без slot) |
 
-**Предпочитай:** `read_content` / `write_content` / `list_content` / `list_slots` с `placement`. `read_content.part`: `body` | `properties` | `schema` | **`meta`** (как `get_content_meta`) | **`all`** (meta + body + properties + schema при `ref`). Legacy: `path`+`slot`+`ref` (= `page`); `read_file`/`write_file` (= `root`). Бинарь: `write_content` + `data` (base64).
+**Работа с контентом — `read_content` / `write_content` / `list_content` / `list_slots` с `placement`.** У этих tools (и у `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `import_content_from_url`, `*_content_property`) схема в MCP приходит пустой — передавай так:
+
+```json
+{ "agentId": "…", "placement": { "kind": "page", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
+{ "agentId": "…", "placement": { "kind": "root", "path": "AGENTS.md" } }
+```
+
+- `placement.kind`: `page` | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
+- Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: page`.
+- `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`; для root ещё `startLine` + `limitLines` (до 500), `format: "base64"`, `maxBytes`, `offsetBytes`.
+- `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; текст — `content`, бинарь — `data` (base64) + `mimeType`; для root — `mode: append | replace`.
+- `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.
 
 Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index_toc`, `list_content`, `resolve_workspace_path`.
 
@@ -82,9 +93,11 @@
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты и термины — `search_workspace_facts` / `search_glossary_terms`.
 
-**Строки в результатах:** у semantic / fulltext / hybrid hits — `startLine`, `endLine`, `locationHint` (`L12` или `L12-18`); открой фрагмент через `read_file` с `startLine` + `limitLines`. У `search_workspace_links` в каждом item — `line` (номер строки ссылки в исходном файле). Каталог файлов: `query_workspace_storage` — `lineCountTotal`, `lineCountBody` на записи.
+**Строки в результатах:** у semantic / fulltext / hybrid hits — `startLine`, `endLine`, `locationHint` (`L12` или `L12-18`); открой фрагмент через `read_content({ placement: { kind: "root", path }, startLine, limitLines })`. У `search_workspace_links` в каждом item — `line` (номер строки ссылки в исходном файле). Каталог файлов: `query_workspace_storage` — `lineCountTotal`, `lineCountBody` на записи.
 
 **Поиск в теме:** `resolve_workspace_path` → `topic.folderPath` → передай как `pathPrefix`.
+
+**Готовые выборки** (always-context, cron, фокус, пресеты по полям): `list_workspace_registry_queries` → `run_workspace_registry_query({ id })`.
 
 После правки одного файла — `sync_workspace_index_file`, а не полный `rebuild_workspace_indexes`.
 
@@ -98,9 +111,9 @@
 
 **Параметры без схемы в MCP** (передавай так):
 
-- `create_page`: `parentPath` (обычно внутри `awn-container/`), `type` (`area` / `topic` или полный `awn.page.*`), `displayName` или `title` → `awn-name`, `slug` или `name` → папка, `awnType` — нестандартный подтип.
-- `rename_page`: `path`, `displayName` → `awn-name`, `slug` → папка.
-- `generate_workspace_slug`: `text`, `preset` (`page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
+- `create_page`: `type`* (`area` / `topic` или полный `awn.page.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
+- `rename_page`: `path`*, `displayName` или `title`* → `awn-name`, `slug` → папка.
+- `generate_workspace_slug`: `text` (или `title` / `displayName` / `name`), `preset` (`page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
 
 **Схемы:** свойства (`*_properties`) — значения frontmatter; схема (`schema.yml`) — описание полей формы; `config.yml` — UI, не поля; тип (`get_type`) — база, `schema.yml` — локальный override. `read_page_schema` — без `mode=full` без нужды.
 
@@ -110,7 +123,7 @@
 
 ### Слоты
 
-`list_slots` (alias `list_page_slots`) для `placement` page/channel/media → `driver`: `external` (папка, нужен `ref`) или `internal` (один файл, **без `ref`**). Содержимое слота: `list_content`.
+`list_slots({ placement: { kind, path } })` для page/channel/media → `driver`: `external` (папка, нужен `ref`) или `internal` (один файл, **без `ref`**). Содержимое слота: `list_content`.
 
 | Слот | Зачем |
 |------|-------|
@@ -127,11 +140,11 @@
 
 **`media` ≠ `assets`.** Картинка в текст, превью темы (поле `awn-preview`), вложение записи (поле `awn-attachments`) — всё в `assets`. В `media` — только самостоятельные файлы темы.
 
-`upload_file` принимает только полный путь: `{папка темы}/awn-storage/assets/pasted|preview|attachments/{файл}`. В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
+Загрузка в `assets`: `write_content({ placement: { kind: "page", path, slot: "assets", ref: "pasted/shot.png" }, data })` (подпапки `pasted/`, `preview/`, `attachments/`). В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
 
 ### Медиатеки workspace (`awn-media/{slug}/`)
 
-Не слот темы. Карточка: `list_media_libraries`, `get_media_library`, `register_media_library`, … Контент в слотах: `placement.kind: media`, `read_content` / `write_content` / `list_content` (`slot`: `files` \| `assets` \| …). Legacy: `list_media_library_items`, `read_media_library_file`, `upload_media_library_file`.
+Не слот темы. Карточка: `list_media_libraries`, `get_media_library`, `register_media_library`, … Контент в слотах: `placement.kind: media`, `read_content` / `write_content` / `list_content` (`slot`: `files` \| `assets` \| …).
 
 ### Гибкий слот
 
@@ -146,7 +159,7 @@
 ### Sidecar и свободная память
 
 - **Sidecar** — мета к одному файлу: `photo.png` → `photo.sidecar.md` рядом. Не создаётся автоматически; только `create_sidecar`.
-- **Свободная память** — папки без `manifest.md` (`kind: "folder"` в `get_page_map`). Работа через `list_folder` / `read_file`, не `read_page_*`. Описание папки — `{folder}/sidecar.md` через `write_file`. Превратить в тему — `create_page`.
+- **Свободная память** — папки без `manifest.md` (`kind: "folder"` в `get_page_map`). Работа через `list_folder` и `read_content` / `write_content` с `kind: root`, не `read_page_*`. Описание папки — `{folder}/sidecar.md` так же через `kind: root`. Превратить в тему — `create_page`.
 
 ---
 
@@ -181,10 +194,10 @@
 | Комментарий к manifest / записи | `append_comment` |
 | Входящие | `create_content({ slot: "inbox", status: "new" })` |
 | Заметка на сессию / задача с человеком | `write_workspace_note` / `write_workspace_todo` (не слоты `notes/` / `todo-single`) |
-| Инструкции агента | `AGENTS.md` / `SKILL.md` через `write_file` |
+| Инструкции агента | `AGENTS.md` / `SKILL.md` через `write_root_file` |
 | Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
 
-Комментарии, дискуссии и факты — только через их tools, не через `create_content` / `write_file`.
+Комментарии, дискуссии и факты — только через их tools, не через `create_content` / `write_content`.
 
 ### Банк фактов — когда писать
 
@@ -203,7 +216,15 @@
 
 ## 8. Файлы и выполнение
 
-**Path-based** (`read_file`, `write_file`, `patch_file`, `upload_file`, `list_folder`) — для кода, HTML, бинарников, свободной памяти. **Корень workspace** (`AGENTS.md`, …): `list_root_files` → `read_root_file` / `write_root_file` (или `read_file` / `write_file` / `patch_file` с тем же basename; запись с history). `NOTE.md` / `TODO.md` — `read_workspace_*` / `write_workspace_*`. Для `.md` в слотах — `create_content` / `write_content_body`; для manifest — `write_page_body`. Бинарники — никогда через `create_content`.
+| Что | Чем |
+|-----|-----|
+| `.md` в слотах | `create_content` (новый) / `write_content` (правка) |
+| Бинарник в слот | `write_content` + `data`, по URL — `import_content_from_url`; никогда не `create_content` |
+| Тело / свойства manifest | `write_page_body` / `write_page_properties` |
+| Файлы корня (`AGENTS.md`, `SKILL.md`…) | `list_root_files` → `read_root_file` / `write_root_file` (с history) |
+| `NOTE.md` / `TODO.md` | `read_workspace_*` / `write_workspace_*` |
+| Любой файл по пути (код, HTML, свободная память) | `read_content` / `write_content` с `kind: root`; точечная правка — `patch_file`; обход папки — `list_folder` |
+| Загрузка по полному пути | `upload_file` / `upload_file_from_url` |
 
 **Служебные папки корня:**
 
@@ -250,7 +271,7 @@ MCP policy задаётся только в `platform`. Секреты в settin
 
 ### Антипаттерны
 
-1. Файлы в корень темы — только через слот или `upload_file` (кроме гибкого слота).
+1. Файлы в корень темы не класть — только в слот (кроме гибкого слота).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы и пути не угадывать — `get_type`, `resolve_workspace_path`, `get_user_active_context_now`.
 4. Табличный реестр — в инфоблок, не в `main/`; заметку без общей схемы — не в инфоблок.
