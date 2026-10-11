@@ -177,6 +177,10 @@
 | `csv-files` | `…record-csv` | Отдельная таблица на запись |
 | `files` | `…record` | Загрузка файлов |
 
+**CSV (`recordStorage: csv`) — как править агенту:** одна таблица = один файл (`main.csv` или `record.file`). Читай и пиши **целиком**: `database_element_read_body` / `database_element_write_body` по `store`, **`record` не передавай**. Не используй `database_element_*_property*` и не правь строки по одной через `create` — отредактируй CSV и перезапиши. В `database_frame_get` смотри `recordEditMode: whole-file-csv` и `agentRecordHint`.
+
+**Табличная память темы (`slot: main-single-csv`):** то же правило — `read_content` / `write_content` с `part=body` (или legacy body-tools): **весь** `main.csv` узла, не frontmatter и не построчные properties.
+
 **Имена полей:** `awn-*` — только системные поля платформы. Пользовательские поля — **без** префикса (`amount`, `label`, `status`). Не дублируй системные ключи в `schema.yml`.
 
 `database_frame_write_schema` — передавай **полный** набор полей: сначала `database_frame_read_schema`, иначе потеряешь поля.

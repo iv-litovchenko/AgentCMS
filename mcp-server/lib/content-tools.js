@@ -56,7 +56,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content",
-    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. root: optional format=base64, startLine/limitLines.",
+    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. Slot main-single-csv: part=body returns entire main.csv. root: optional format=base64, startLine/limitLines.",
     address({
       part: contentPartSchema,
       format: z.enum(["base64"]).optional(),
@@ -99,7 +99,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content",
-    "Write content by placement. part=body|properties|schema. Binary: data (base64); root uses placement.path as file path.",
+    "Write content by placement. part=body|properties|schema. Slot main-single-csv: part=body replaces entire main.csv. Binary: data (base64); root uses placement.path as file path.",
     address({
       part: contentPartSchema,
       content: z.string().optional(),

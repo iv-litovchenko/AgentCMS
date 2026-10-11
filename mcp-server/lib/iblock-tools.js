@@ -32,7 +32,8 @@ export function registerDatabaseTools(reg, client) {
 
   registerFrameTool(reg, {
     name: "get",
-    description: "One database frame with schema, records and tree (MD or CSV).",
+    description:
+      "One database frame with schema, records and tree (MD or CSV). If recordEditMode is whole-file-csv, edit table via database_element_read_body/write_body (full main.csv).",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),
@@ -306,7 +307,7 @@ export function registerDatabaseTools(reg, client) {
   registerElementTool(
     reg,
     "read_properties",
-    "Read full YAML frontmatter of database record ({id}.md or single main.md).",
+    "Read YAML frontmatter of a .md record ({id}.md or single main.md). Not for CSV table stores — use read_body (full main.csv).",
     z.object({
       store: storePath,
       record: recordRef
@@ -321,7 +322,7 @@ export function registerDatabaseTools(reg, client) {
   registerElementTool(
     reg,
     "write_properties",
-    "Patch YAML frontmatter of database record. Send only keys to change — body and other keys preserved; awn-updated bumped when present.",
+    "Patch YAML frontmatter of a .md record. Not for CSV table stores — use write_body (full main.csv).",
     z.object({
       store: storePath,
       record: recordRef,
