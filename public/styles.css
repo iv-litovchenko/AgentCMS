@@ -70488,11 +70488,47 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .sidebar.is-channels-focus {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar.is-channels-focus .sidebar-slab-menu-tree-band,
-.sidebar.is-channels-focus .sidebar-slab-menu {
+.sidebar.is-channels-focus .sidebar-slab-agent {
+  flex-shrink: 0;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu-tree-band {
   display: none !important;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu {
+  display: flex !important;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: visible;
+  border-bottom: 0;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu .menu-scroll-shell,
+.sidebar.is-channels-focus .sidebar-slab-menu .menu-view-ghost-strip {
+  display: none !important;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu > .menu-sidebar-bottom > :not(#menu-agent-stats) {
+  display: none !important;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu > .menu-sidebar-bottom > #menu-agent-stats:not(.hidden) {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sidebar.is-channels-focus .sidebar-slab-menu > .menu-sidebar-bottom {
+  flex: 0 0 auto;
+  margin-top: 0;
+  border-top: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar.is-channels-focus .sidebar-slab.sidebar-slab-menu-channels-band:not(.is-collapsed) {
