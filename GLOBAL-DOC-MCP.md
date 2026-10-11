@@ -40,13 +40,13 @@
 |----------|---------|----------|
 | **Placement** | Где лежит контент | `placement.kind`: `page` \| `channel` \| `media` \| `root` + `path` (+ `slot` + `ref` кроме root) |
 | **Page** | Тема/область в дереве (`manifest.md`) | `kind: page`, `path` → `…/manifest.md` |
-| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; каталог: `read_channels_index_toc` / `refresh_channels_index_toc` → `awn-channels/index.md` |
+| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; слоты: **`inbox`**, **`outbox`**, **`files`**, **`assets`** (см. `awn.hub.channel` storage-slots); каталог: `read_channels_index_toc` / `refresh_channels_index_toc` |
 | **Media hub** | Карточка `awn-media/{slug}/` | `kind: media` |
 | **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
 | **Root file** | Произвольный путь в workspace | `kind: root`, `path` — `AGENTS.md`, `folder/note.md` (без slot) |
 
-**Предпочитай:** `read_content` / `write_content` / `list_content` / `list_slots` с `placement`. Legacy: `path`+`slot`+`ref` (= `page`); `read_file`/`write_file` (= `root`). Бинарь: `write_content` + `data` (base64).
+**Предпочитай:** `read_content` / `write_content` / `list_content` / `list_slots` с `placement`. `read_content.part`: `body` | `properties` | `schema` | **`meta`** (как `get_content_meta`) | **`all`** (meta + body + properties + schema при `ref`). Legacy: `path`+`slot`+`ref` (= `page`); `read_file`/`write_file` (= `root`). Бинарь: `write_content` + `data` (base64).
 
 Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index_toc`, `list_content`, `resolve_workspace_path`.
 

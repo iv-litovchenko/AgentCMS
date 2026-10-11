@@ -113,6 +113,69 @@ export async function contentExists(client, args) {
   return client.get("/api/content/exists", { path: manifestPath, slot, ...(ref ? { ref } : {}) });
 }
 
+export async function readContentMeta(client, args) {
+  const payload = await getContentMeta(client, args);
+  return { part: "meta", ...payload };
+}
+
+export async function readContentAll(client, args) {
+  const meta = await getContentMeta(client, args);
+  const placement = meta.placement ?? resolveArgs(args).placement;
+  const address = resolveArgs(args);
+  const result = {
+    part: "all",
+    placement,
+    meta
+  };
+
+  if (meta.exists === false) {
+    return { ...result, body: null, properties: null, schema: null };
+  }
+
+  try {
+    const bodyPayload = await readContentBody(client, args);
+    if (bodyPayload.content !== undefined) {
+      result.body = bodyPayload.content;
+      if (bodyPayload.file) result.file = bodyPayload.file;
+    } else {
+      result.body = bodyPayload;
+    }
+  } catch (error) {
+    result.body = null;
+    result.bodyError = String(error.message || error);
+  }
+
+  const canReadProperties =
+    address.kind === "root"
+      ? String(address.workspaceFilePath || "").toLowerCase().endsWith(".md")
+      : Boolean(address.ref) || isInternalBundleSlot(address.slot);
+
+  if (canReadProperties) {
+    try {
+      const propsPayload = await readContentProperties(client, args);
+      result.properties = propsPayload.content ?? "";
+    } catch (error) {
+      result.properties = null;
+      result.propertiesError = String(error.message || error);
+    }
+  } else {
+    result.properties = null;
+  }
+
+  if (address.kind !== "root" && address.ref) {
+    try {
+      result.schema = await readContentSchema(client, args);
+    } catch (error) {
+      result.schema = null;
+      result.schemaError = String(error.message || error);
+    }
+  } else {
+    result.schema = null;
+  }
+
+  return result;
+}
+
 export async function getContentMeta(client, args) {
   const address = resolveArgs(args);
   if (address.kind === "root") {

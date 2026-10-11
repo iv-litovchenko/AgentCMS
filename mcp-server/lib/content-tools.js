@@ -3,6 +3,8 @@ import {
   contentExists,
   getContentMeta,
   readContentBody,
+  readContentMeta,
+  readContentAll,
   writeContentBody,
   readContentProperties,
   writeContentProperties,
@@ -27,10 +29,12 @@ import {
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const contentPartSchema = z
-  .enum(["body", "properties", "schema"])
+  .enum(["body", "properties", "schema", "meta", "all"])
   .optional()
   .default("body")
-  .describe("body — markdown below frontmatter; properties — YAML block; schema — section schema.yml");
+  .describe(
+    "body — markdown below frontmatter; properties — YAML block; schema — section schema.yml; meta — exists/driver/stat (no body); all — meta + body + properties (+ schema when ref set)"
+  );
 
 export function registerContentTools({ reg, client, pagePath }) {
   const contentSlot = buildContentSlotSchema(listSectionCapableSlotKeys);
@@ -45,14 +49,14 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "get_content_meta",
-    "Lightweight content metadata: exists, driver, file stat — no body.",
+    "Lightweight content metadata: exists, driver, file stat — no body. Prefer read_content with part=meta.",
     address({}),
     (args) => getContentMeta(client, args)
   );
 
   reg(
     "read_content",
-    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema. root: optional format=base64, startLine/limitLines.",
+    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. root: optional format=base64, startLine/limitLines.",
     address({
       part: contentPartSchema,
       format: z.enum(["base64"]).optional(),
@@ -62,6 +66,8 @@ export function registerContentTools({ reg, client, pagePath }) {
       offsetBytes: z.number().int().min(0).optional()
     }),
     async (args) => {
+      if (args.part === "meta") return readContentMeta(client, args);
+      if (args.part === "all") return readContentAll(client, args);
       if (args.part === "properties") return readContentProperties(client, args);
       if (args.part === "schema") return readContentSchema(client, args);
       return readContentBody(client, args);

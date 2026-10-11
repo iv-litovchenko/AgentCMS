@@ -148,6 +148,7 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 const files = findJsonlFiles(TRANSCRIPTS_DIR);
 const usedNames = new Map();
 let count = 0;
+let lastExport = null;
 
 for (const file of files) {
   const chat = parseJsonl(file);
@@ -158,6 +159,28 @@ for (const file of files) {
   const outPath = path.join(OUT_DIR, `${base}.md`);
   fs.writeFileSync(outPath, toMarkdown(chat), "utf8");
   count++;
+  lastExport = {
+    file: `${base}.md`,
+    path: outPath,
+    chatId: chat.chatId,
+    date: chat.firstTs || chat.dateIso,
+    title: chat.title,
+    sourceJsonl: file,
+  };
 }
 
-console.log(JSON.stringify({ exported: count, outDir: OUT_DIR }, null, 2));
+if (lastExport) {
+  const lastTxt = path.join(OUT_DIR, "last.txt");
+  const lines = [
+    `exportedAt: ${new Date().toISOString()}`,
+    `total: ${count}`,
+    `file: ${lastExport.file}`,
+    `date: ${lastExport.date}`,
+    `title: ${lastExport.title}`,
+    `chatId: ${lastExport.chatId}`,
+    `source: ${lastExport.sourceJsonl}`,
+  ];
+  fs.writeFileSync(lastTxt, lines.join("\n") + "\n", "utf8");
+}
+
+console.log(JSON.stringify({ exported: count, outDir: OUT_DIR, last: lastExport?.file }, null, 2));

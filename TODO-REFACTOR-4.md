@@ -8,7 +8,7 @@
 
 ### Пример MCP: страница (тема + слот + файл)
 
-**Сейчас — `read_content_body`**
+**Сейчас —** `read_content_body`
 
 ```json
 // call
@@ -27,7 +27,7 @@
 
 Поля `path` + `slot` + `ref` = «контент **на странице**»; имя tool говорит только про **body** (properties/schema — другие tools).
 
-**План — `read_content`**
+**План —** `read_content`
 
 ```json
 // call
@@ -50,75 +50,105 @@
 ```
 
 `part`: `body` | `properties` | `schema` | `meta` | `all` — вместо отдельных `read_content_body` / `read_content_properties` / … (детали ⚠️).  
-**MCP:** `lib/config/content-placement.js` + `placement.kind`: `page` | `channel` | `media` | **`root`** (alias `tree`); legacy `path`+`slot` = `page`. **`root`** — workspace path без слота (`read_content` / `write_content`). Индексы — ⚠️ в конце файла.
+**MCP:** `lib/config/content-placement.js` + `placement.kind`: `page` | `channel` | `media` | `root` (alias `tree`); legacy `path`+`slot` = `page`. `root` — workspace path без слота (`read_content` / `write_content`). Индексы — ⚠️ в конце файла.
 
 ---
+
+
 
 ## Мета
 
-| Статус | MCP (сейчас)     | План (имя)   |
-| ------ | ---------------- | ------------ |
-| ✅ MCP | `content_exists` | `content_exists` |
-| ✅ MCP | `get_content_meta` | `get_content_meta` |
+
+| Статус | MCP (сейчас)       | План (имя)         |
+| ------ | ------------------ | ------------------ |
+| ✅ MCP  | `content_exists`   | `content_exists`   |
+| ✅ MCP  | `get_content_meta` | `get_content_meta` |
+
+
+
 
 ## Body
 
-| Статус | MCP (сейчас)        | План (имя)     |
-| ------ | ------------------- | -------------- |
-| ✅ MCP | `read_content_body` | `read_content` |
-| ✅ MCP | `write_content_body` | `write_content` |
+
+| Статус | MCP (сейчас)         | План (имя)      |
+| ------ | -------------------- | --------------- |
+| ✅ MCP  | `read_content_body`  | `read_content`  |
+| ✅ MCP  | `write_content_body` | `write_content` |
+
+
+
 
 ## Properties
 
-| Статус | MCP (сейчас)              | План (имя)                |
-| ------ | ------------------------- | ------------------------- |
-| ✅ MCP | `read_content_properties` | `read_content` (`part: properties`) или legacy |
-| ✅ MCP | `write_content_properties` | `write_content` (`part: properties`) или legacy |
-| ✅ MCP | `read_content_property`   | `read_content_property`   |
-| ✅ MCP | `write_content_property`  | `write_content_property`  |
+
+| Статус | MCP (сейчас)               | План (имя)                                      |
+| ------ | -------------------------- | ----------------------------------------------- |
+| ✅ MCP  | `read_content_properties`  | `read_content` (`part: properties`) или legacy  |
+| ✅ MCP  | `write_content_properties` | `write_content` (`part: properties`) или legacy |
+| ✅ MCP  | `read_content_property`    | `read_content_property`                         |
+| ✅ MCP  | `write_content_property`   | `write_content_property`                        |
+
+
+
 
 ## Schema
 
-| Статус | MCP (сейчас)           | План (имя)             |
-| ------ | ---------------------- | ---------------------- |
-| ✅ MCP | `read_content_schema`  | `read_content` (`part: schema`) или legacy |
-| ✅ MCP | `write_content_schema` | `write_content` (`part: schema`) или legacy |
+
+| Статус | MCP (сейчас)           | План (имя)                                  |
+| ------ | ---------------------- | ------------------------------------------- |
+| ✅ MCP  | `read_content_schema`  | `read_content` (`part: schema`) или legacy  |
+| ✅ MCP  | `write_content_schema` | `write_content` (`part: schema`) или legacy |
+
+
+
 
 ## Жизненный цикл
 
-| Статус | MCP (сейчас)              | План (имя)              |
-| ------ | ------------------------- | ----------------------- |
-| ✅ MCP | `create_content`          | `create_content`        |
-| ✅ MCP | `import_content_from_url` | `import_content_from_url` |
-| ✅ MCP | `rename_content`          | `rename_content`        |
-| ✅ MCP | `move_content`            | `move_content`          |
-| ✅ MCP | `delete_content`          | `delete_content`        |
+
+| Статус | MCP (сейчас)              | План (имя)                |
+| ------ | ------------------------- | ------------------------- |
+| ✅ MCP  | `create_content`          | `create_content`          |
+| ✅ MCP  | `import_content_from_url` | `import_content_from_url` |
+| ✅ MCP  | `rename_content`          | `rename_content`          |
+| ✅ MCP  | `move_content`            | `move_content`            |
+| ✅ MCP  | `delete_content`          | `delete_content`          |
+
+
+
 
 ## Слоты / контейнер
 
-| Статус | MCP (сейчас)      | План (имя)   |
-| ------ | ----------------- | ------------ |
-| ✅ MCP | `list_page_slots` | `list_slots` |
-| ✅ MCP | —                 | `list_content` (слот page/channel/media; **root** — каталог родительской папки по `path`) |
+
+| Статус | MCP (сейчас)      | План (имя)                                                                                |
+| ------ | ----------------- | ----------------------------------------------------------------------------------------- |
+| ✅ MCP  | `list_page_slots` | `list_slots`                                                                              |
+| ✅ MCP  | —                 | `list_content` (слот page/channel/media; **root** — каталог родительской папки по `path`) |
+
 
 ---
 
+
+
 ## Scope размещения (план)
 
-| Контейнер   | Сейчас (отдельные tools)        |
-| ----------- | ------------------------------- |
-| Страница    | `read/write/list_content` + `list_slots` (+ legacy `content_*`) |
-| Канал       | `read_content` / `write_content` / `list_content` (+ legacy channel tools) |
-| Медиатека   | то же с `kind: media` (+ legacy media tools) |
+
+| Контейнер             | Сейчас (отдельные tools)                                                              |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| Страница              | `read/write/list_content` + `list_slots` (+ legacy `content_*`)                       |
+| Канал                 | `read_content` / `write_content` / `list_content` (+ legacy channel tools)            |
+| Медиатека             | то же с `kind: media` (+ legacy media tools)                                          |
 | Root (workspace path) | `read_content` / `write_content` с `kind: root` (+ legacy `read_file` / `write_file`) |
+
 
 Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Сделано:** guard на `/api/content/schema`, section/create, `/api/storage/transfer`; legacy MCP tools по умолчанию выключены (`MCP_LEGACY_TOOLS=1` — старые имена).
 
 ---
 
+
+
 ## ⚠️ Индексы, оглавления, поиск — обсудить отдельно
 
-Не CRUD контента (`read_content` / `write_content` / …). Здесь: **карты**, **markdown-оглавления на диске**, **каталоги hub**, **кэши** `.agent-cms/cache/indexes/*`, **поиск**.
+Не CRUD контента (`read_content` / `write_content` / …). Здесь: **карты**, **markdown-оглавления на диске**, **каталоги hub**, **кэши** `.agent-cms/cache/indexes/`*, **поиск**.
 
 ```
 ⚠️ Навигация и оглавления (файлы в workspace)
@@ -178,6 +208,8 @@
 
 ---
 
+
+
 ## Типы каналов (`awn.hub.channel` / sidebar `menu-awn-channels-list`)
 
 Источник заготовок: `lib/config/channel-presets.js` ↔ `CHANNEL_BUILTIN_PRESETS` в `public/main.js`.  
@@ -185,55 +217,61 @@
 
 ### Встроенные заготовки (есть в коде)
 
-| Статус | slug | Иконка | Название | Описание |
-| ------ | ---- | ------ | -------- | -------- |
-| ✅ preset | `forum` | 💬 | Форум | Дискуссии и обсуждения (где люди могут…) |
-| ✅ preset | `blog-agent` | 📝 | Блог | Куда агент пишет то, что интересует; что собрал агент сегодня — по моим запросам |
-| ✅ preset | `digest` | 📰 | Дайджесты | Сводки и подборки, которые агент собирает сюда |
-| ✅ preset | `youtube` | ▶️ | YouTube | Видео и темы для обсуждения / разбора |
-| ✅ preset | `telegram` | ✈️ | Telegram | Выгрузка тем и сообщений из Telegram |
-| ✅ preset | `whatsapp` | 💬 | WhatsApp | Входящий поток из WhatsApp |
-| ✅ preset | `web` | 🌐 | Интернет | Страницы, ссылки и материалы из сети |
-| ✅ preset | `bookmarks` | 🔖 | Закладки | Сохранённые ссылки до triage |
-| ✅ preset | `browser-downloads` | 📥 | Загрузки | Файлы из загрузок браузера |
-| ✅ preset | `notebooks` | 📓 | Печатные тетради | Скан/фото тетрадей, рукописные заметки |
-| ✅ preset | `photo-archive` | 🖼️ | Фотоархив | Общий фотоархив |
-| ✅ preset | `photo-phone` | 📱 | Фотоархив (телефон) | Фото с телефона |
-| ✅ preset | `analytics` | 📊 | Аналитика | Метрики, отчёты, дашборды |
-| ✅ preset | `real-world` | 🌍 | Реальный мир | Объекты и факты из офлайн-мира |
-| ✅ preset | `market` | 🛒 | Барахолка | Объявления, покупки/продажи |
-| ✅ preset | `notes` | 📒 | Заметки | Разрозненные заметки до разбора |
-| ✅ preset | `screenshots` | 🖥️ | Скриншоты | Снимки экрана, ingress до triage |
-| ✅ preset | `other` | 📦 | Другое | Не знаю куда деть — временный вход |
+
+| Статус   | slug                | Иконка | Название            | Описание                                                                         |
+| -------- | ------------------- | ------ | ------------------- | -------------------------------------------------------------------------------- |
+| ✅ preset | `forum`             | 💬     | Форум               | Дискуссии и обсуждения (где люди могут…)                                         |
+| ✅ preset | `blog-agent`        | 📝     | Блог                | Куда агент пишет то, что интересует; что собрал агент сегодня — по моим запросам |
+| ✅ preset | `digest`            | 📰     | Дайджесты           | Сводки и подборки, которые агент собирает сюда                                   |
+| ✅ preset | `youtube`           | ▶️     | YouTube             | Видео и темы для обсуждения / разбора                                            |
+| ✅ preset | `telegram`          | ✈️     | Telegram            | Выгрузка тем и сообщений из Telegram                                             |
+| ✅ preset | `whatsapp`          | 💬     | WhatsApp            | Входящий поток из WhatsApp                                                       |
+| ✅ preset | `web`               | 🌐     | Интернет            | Страницы, ссылки и материалы из сети                                             |
+| ✅ preset | `bookmarks`         | 🔖     | Закладки            | Сохранённые ссылки до triage                                                     |
+| ✅ preset | `browser-downloads` | 📥     | Загрузки            | Файлы из загрузок браузера                                                       |
+| ✅ preset | `notebooks`         | 📓     | Печатные тетради    | Скан/фото тетрадей, рукописные заметки                                           |
+| ✅ preset | `photo-archive`     | 🖼️    | Фотоархив           | Общий фотоархив                                                                  |
+| ✅ preset | `photo-phone`       | 📱     | Фотоархив (телефон) | Фото с телефона                                                                  |
+| ✅ preset | `analytics`         | 📊     | Аналитика           | Метрики, отчёты, дашборды                                                        |
+| ✅ preset | `real-world`        | 🌍     | Реальный мир        | Объекты и факты из офлайн-мира                                                   |
+| ✅ preset | `market`            | 🛒     | Барахолка           | Объявления, покупки/продажи                                                      |
+| ✅ preset | `notes`             | 📒     | Заметки             | Разрозненные заметки до разбора                                                  |
+| ✅ preset | `screenshots`       | 🖥️    | Скриншоты           | Снимки экрана, ingress до triage                                                 |
+| ✅ preset | `other`             | 📦     | Другое              | Не знаю куда деть — временный вход                                               |
+
 
 Пользовательские каналы (созданные в workspace, не из списка выше) — отдельные строки в том же списке без `--preset` (например `slider`, `screenshots` как живые папки).
 
 ### Заготовки к добавлению (❌ в `channel-presets.js` пока нет)
 
-| Статус | slug (предлож.) | Иконка | Название | Описание |
-| ------ | --------------- | ------ | -------- | -------- |
-| ❌ | `news` | 📰 | Новости | Ленты новостей, статьи, анонсы |
-| ❌ | `notebook-white` | 📄 | Белая тетрадь | Печатная тетрадь с нумерацией страниц |
-| ❌ | `notebook-pink` | 🩷 | Розовый блокнот | Блокнот с нумерацией страниц |
-| ❌ | `capabilities` | 💡 | Возможности | Обсуждение возможностей и идей с агентом |
-| ❌ | `mailbox` | 📧 | Почта | Mailbox / входящая почта |
-| ❌ | `rss` | 📡 | RSS | Подписки и feed-агрегаторы |
-| ❌ | `github` | 🐙 | GitHub | Issues, pull requests, уведомления репозитория |
-| ❌ | `voice` | 🎙️ | Голос | STT, записи встреч, голосовые заметки |
-| ❌ | `ocr` | 🔍 | OCR | Сканы, фото документов, распознавание текста |
-| ❌ | `clipboard` | 📋 | Clipboard | Буфер обмена и быстрые вставки |
-| ❌ | `webhook` | 🔗 | Webhook | API, n8n и прочие автоматические входы |
-| ❌ | `cloud-inbox` | ☁️ | Облачный inbox | Drive, Dropbox и другие облачные папки-источники |
-| ❌ | `companion` | 🧩 | Companion | Расширение браузера / companion-приложение |
 
-Примечание: ingress-канал по модели — `inbox` / `todo-single` / `outbox` в `awn-storage/`; пресет в сайдбаре — только **метка источника** и папка `awn-channels/{slug}/`, не отдельный «тип показа».
+| Статус | slug (предлож.)  | Иконка | Название        | Описание                                         |
+| ------ | ---------------- | ------ | --------------- | ------------------------------------------------ |
+| ❌      | `news`           | 📰     | Новости         | Ленты новостей, статьи, анонсы                   |
+| ❌      | `notebook-white` | 📄     | Белая тетрадь   | Печатная тетрадь с нумерацией страниц            |
+| ❌      | `notebook-pink`  | 🩷     | Розовый блокнот | Блокнот с нумерацией страниц                     |
+| ❌      | `capabilities`   | 💡     | Возможности     | Обсуждение возможностей и идей с агентом         |
+| ❌      | `mailbox`        | 📧     | Почта           | Mailbox / входящая почта                         |
+| ❌      | `rss`            | 📡     | RSS             | Подписки и feed-агрегаторы                       |
+| ❌      | `github`         | 🐙     | GitHub          | Issues, pull requests, уведомления репозитория   |
+| ❌      | `voice`          | 🎙️    | Голос           | STT, записи встреч, голосовые заметки            |
+| ❌      | `ocr`            | 🔍     | OCR             | Сканы, фото документов, распознавание текста     |
+| ❌      | `clipboard`      | 📋     | Clipboard       | Буфер обмена и быстрые вставки                   |
+| ❌      | `webhook`        | 🔗     | Webhook         | API, n8n и прочие автоматические входы           |
+| ❌      | `cloud-inbox`    | ☁️     | Облачный inbox  | Drive, Dropbox и другие облачные папки-источники |
+| ❌      | `companion`      | 🧩     | Companion       | Расширение браузера / companion-приложение       |
+
+
+Примечание: ingress-канал по модели — `inbox` / `outbox` / `files` / `assets` в `awn-storage/` (`awn.hub.channel` storage-slots); пресет в сайдбаре — только **метка источника** и папка `awn-channels/{slug}/`, не отдельный «тип показа».
 
 ---
+
+
 
 ## 🗺️ Полная карта MCP (`agent-cms` v0.4.0)
 
 Источник: `mcp-server/index.js` + `mcp-server/lib/*`. **~200 tools** (с legacy-алиасами).  
-**agentId** — почти везде обязателен; **без agentId**: registry workspaces, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
+**agentId** — почти везде обязателен; **без agentId**: registry workspaces, `search_web`*, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
 
 ```
 🚀 Старт чата
@@ -432,51 +470,55 @@
 ├── get/refresh_*_index (без _toc)                 … → *_index_toc (markdown TOC)
 ```
 
+
+
 **placement (план рефакторинга):** `page` · `channel` · `media` · `root` (`tree`) — единые `read_content` / `write_content` / `list_content`; hub-индексы и поиск — ветки ⚠️ выше (отдельно от CRUD).
 
 ---
 
+
+
 ## Остаток рефакторинга (нумерация из общего списка)
 
-Пункты **2, 3, 4** закрыты (индекс каналов, guard, legacy MCP). Ниже — **№ 1, 5, 6, 7** (номера **не** перенумеровывать в 1–4).
+Пункты **2, 3, 4** закрыты (индекс каналов, guard, legacy MCP). **5, 6, 7** — закрыты. Открыт по сути только **№ 1** (номера **не** перенумеровывать в 1–4).
 
-| № | Статус | Тема |
-| ---: | --- | --- |
-| **1** | ❌ | Индексы и поиск — без `placement` |
-| **5** | ❌ | `read_content`: `part: meta` \| `all` |
-| **6** | ❌ | Канал: YAML `storage-slots` vs policy слотов |
-| **7** | ❌ | Репозиторий hub — вне `placement` |
+
+| №     | Статус | Тема                                         |
+| ----- | ------ | -------------------------------------------- |
+| **1** | ❌      | Индексы и поиск — без `placement`            |
+| **5** | ✅      | `read_content`: `part: meta` | `all`         |
+| **6** | ✅      | Канал: YAML `storage-slots` vs policy слотов |
+| **7** | ✅      | Репозиторий hub — вне `placement` (не делаем) |
+
+
+
 
 ### 1. Индексы и поиск — отдельный блок, без `placement`
 
-| | |
-| --- | --- |
-| **Зачем отдельно** | `read_content` / `write_content` / `list_content` — CRUD **одного** объекта по адресу (`manifest` + `slot` + `ref` или `kind: root`). Индексы и поиск — **агрегаты**: карты (`get_page_map`), markdown-оглавления (`INDEX.md`, `index.md` темы/слота), hub-каталоги (`awn-media/index.md`, …), offline-кэш (`.agent-cms/cache/indexes/*`), `search_workspace_*`, rebuild слоёв. Адрес там часто «пересобери каталог» или «ищи с `pathPrefix`», а не файл в слоте. |
-| **Для чего** | Агенту и UI нужна **навигация и обзор** workspace без смешивания с моделью «контент в слоте». Десятки отдельных tools/API; рефактор `placement` их не унифицировал — пока нет отдельного дизайна. |
-| **Что делать** | Зафиксировать границу **content + placement** vs **index/search** (дерево «Индексы, оглавления, поиск» выше в этом файле). Решить, нужен ли общий «адрес индекса» или оставить именованные tools. Hub-каталоги: паритет read/refresh где нужно. Не тащить rebuild/search в `content_*` без решения продукта. |
 
-### 5. `read_content`: нет `part: meta` и `part: all`
+|                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Зачем отдельно** | `read_content` / `write_content` / `list_content` — CRUD **одного** объекта по адресу (`manifest` + `slot` + `ref` или `kind: root`). Индексы и поиск — **агрегаты**: карты (`get_page_map`), markdown-оглавления (`INDEX.md`, `index.md` темы/слота), hub-каталоги (`awn-media/index.md`, …), offline-кэш (`.agent-cms/cache/indexes/`*), `search_workspace_*`, rebuild слоёв. Адрес там часто «пересобери каталог» или «ищи с `pathPrefix`», а не файл в слоте. |
+| **Для чего**       | Агенту и UI нужна **навигация и обзор** workspace без смешивания с моделью «контент в слоте». Десятки отдельных tools/API; рефактор `placement` их не унифицировал — пока нет отдельного дизайна.                                                                                                                                                                                                                                                                 |
+| **Что делать**     | Зафиксировать границу **content + placement** vs **index/search** (дерево «Индексы, оглавления, поиск» выше в этом файле). Решить, нужен ли общий «адрес индекса» или оставить именованные tools. Hub-каталоги: паритет read/refresh где нужно. Не тащить rebuild/search в `content_`* без решения продукта.                                                                                                                                                      |
 
-| | |
-| --- | --- |
-| **Зачем в плане** | Один вход `read_content`: `body` \| `properties` \| `schema` \| **`meta`** \| **`all`**. Меньше round-trip, единая семантика `placement`. |
-| **Для чего** | **`meta`** — как `get_content_meta` (драйвер, размер, mime, exists). **`all`** — meta + body + properties (+ schema при необходимости) за один вызов. |
-| **Сейчас** | В zod только `body` \| `properties` \| `schema`; `content_exists` и `get_content_meta` — отдельные tools. |
-| **Что делать** | Расширить `contentPartSchema`; реализовать в `content-core`; обновить `GLOBAL-DOC-MCP.md`. Решить, оставлять ли отдельные `get_content_meta` / `content_exists` как алиасы. |
 
-### 6. Канал (`awn.hub.channel`): YAML `storage-slots` vs policy слотов (inbox / files / …)
 
-| | |
-| --- | --- |
-| **В чём расхождение** | **`channel.yml`**: `storage-slots: [files, assets]`; hint create — «**inbox/**». Каталог слотов: **inbox** допускает `awn.hub.channel`; **files** в policy — в основном **`awn.hub.media`**. Guard: `storage-slots` типа + `allowed-containers` слота → противоречия для агента и API. |
-| **Зачем выровнять** | Ingress-канал: сырой поток → triage. Нужен **один** список слотов и одни правила на сервере. |
-| **Что делать** | Продуктово: канал = только **files/assets** или **inbox/outbox/todo** (+ files/assets). Синхронизировать `channel.yml`, `types/slots/**`, bootstrap в `awn-channels-service`. Проверить guard, `list_slots`, `list_content`. Документировать `placement.slot` для `kind: channel`. |
 
-### 7. Репозиторий hub (`awn.hub.repository`) — нет в модели `placement`
+### 5. `read_content`: `part: meta` | `all` — ✅
 
-| | |
-| --- | --- |
-| **Зачем отдельно** | Repo — **карточка** `awn-repositories/{slug}/` (manifest, readme, index), не слотированный контент темы. Код клона в git не в поиске CMS по умолчанию. |
-| **Сейчас** | `list_repositories`, `get_repository`, `register_repository`, `refresh_repository_index`. Файлы клона — `kind: root`, не `kind: repository`. |
-| **Для чего решать** | Пока repo = каталог + manifest, **`kind: repository` не нужен**. Если появятся слоты у repo — тогда отдельный kind или подтип. |
-| **Что делать** | Зафиксировать в доке границу hub vs `root`. Опционально `read_repository_index`. Не вводить `kind: repository` в `content-placement.js` без слотов/lifecycle как у page. |
+Реализовано: `contentPartSchema` + `readContentMeta` / `readContentAll` в `content-core.js`. `get_content_meta` / `content_exists` остаются тонкими алиасами.
+
+
+
+
+### 6. Канал (`awn.hub.channel`): YAML `storage-slots` vs policy слотов — ✅
+
+Выровнено: `channel.yml` → `inbox`, `outbox`, `files`, `assets`; `files.yml` / `assets.yml` — `awn.hub.channel` в `allowed-containers`; `ensureChannelStorageDirs` создаёт все четыре; `todo-single` без channel; `GLOBAL-DOC-MCP` — слоты channel.
+
+
+
+
+### 7. Репозиторий hub (`awn.hub.repository`) — ✅ решение: не в `placement`
+
+**Продуктово закрыто:** отдельный `placement.kind: repository` **не вводим**. Repo остаётся hub-карточкой (`list_repositories`, `get_repository`, …, index toc) + файлы клона через **`kind: root`**. Если когда-нибудь у repo появятся слоты как у page — тогда новый дизайн; до этого пункт не работа.

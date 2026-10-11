@@ -6,9 +6,13 @@ status: active
 extends: awn.slot
 slot-category: files
 storage-driver: external
-description: Медиа-библиотека активов — файлы, разделы и sidecar
+description: >
+  Активы hub — awn-storage/assets/ у awn.hub.media и awn.hub.channel.
 path: assets/
 slot-order: 9
+allowed-containers:
+  - awn.hub.media
+  - awn.hub.channel
 allowed-content:
   - awn.content.record
   - awn.content.category
