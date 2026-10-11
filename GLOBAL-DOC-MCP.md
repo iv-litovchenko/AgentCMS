@@ -86,6 +86,8 @@
 
 ## 3. Навигация и поиск
 
+**Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: карты workspace (`get_page_map`, `get_content_map`), markdown-оглавления (`get_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
+
 - Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
 - Обзор — сначала реестры (`get_page_map`, `get_workspace_page_index_toc`, `get_content_index_toc`), потом точечно `read_*`.
