@@ -121,7 +121,7 @@
 
 | Статус | MCP (сейчас)      | План (имя)                                                                                |
 | ------ | ----------------- | ----------------------------------------------------------------------------------------- |
-| ✅ MCP  | `list_page_slots` | `list_slots`                                                                              |
+| ✅ MCP  | —                 | `list_slots` (page / channel / media; алиас `list_page_slots` снят)                       |
 | ✅ MCP  | —                 | `list_content` (слот page/channel/media; **root** — каталог родительской папки по `path`) |
 
 
@@ -166,9 +166,7 @@
 ├── Hub-каталоги (index.md в корне раздела)
 │   ├── awn-databases/index.md
 │   │   ├── database_frame_read_index_toc
-│   │   ├── database_frame_refresh_index_toc
-│   │   ├── iblock_read_index             … legacy → read_index_toc
-│   │   └── iblock_refresh_index          … legacy → refresh_index_toc
+│   │   └── database_frame_refresh_index_toc
 │   ├── awn-media/index.md
 │   │   ├── read_media_library_index_toc
 │   │   └── refresh_media_library_index_toc
@@ -270,7 +268,7 @@
 
 ## 🗺️ Полная карта MCP (`agent-cms` v0.4.0)
 
-Источник: `mcp-server/index.js` + `mcp-server/lib/*`. **~200 tools** (с legacy-алиасами).  
+Источник: `mcp-server/index.js` + `mcp-server/lib/*`. **~200 tools** (часть алиасов — см. ниже).  
 **agentId** — почти везде обязателен; **без agentId**: registry workspaces, `search_web`*, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
 
 ```
@@ -364,8 +362,7 @@
 ├── create_page / delete_page / rename_page / move_page
 
 📦 Слоты
-├── list_slots                             … канон
-└── list_page_slots                        … alias
+└── list_slots                             … page / channel / media
 
 📝 Контент (placement.kind: page | channel | media | root)
 ├── content_exists / get_content_meta
@@ -381,7 +378,7 @@
 ├── list_types                             … реестр awn-types
 └── get_type                               … одна схема типа
 
-🗄️ awn-databases (канон database_*; iblock_* — deprecated зеркала)
+🗄️ awn-databases (только database_frame_* / database_element_*)
 ├── database_frame_list / get / create / delete / rename
 ├── database_frame_read_index_toc / refresh_index_toc   … awn-databases/index.md
 ├── database_frame_read_schema / write_schema
@@ -460,14 +457,10 @@
 
 🔔 notify_user                            … push в колокольчик UI
 
-🗄️ Legacy / deprecated (не использовать в новом коде)
-├── iblock_frame_* / iblock_content_* / iblock_*     … → database_frame_* / database_element_*
-├── retain_workspace_fact / recall_workspace_facts … → create/search_workspace_facts
-├── read/write_content_* (body|properties|schema)  … → read/write_content + part
-├── list_page_slots                                … → list_slots
-├── read_dialogs / append_dialog                   … → discussion
-└── read_file / write_file                         … root: prefer read/write_content kind=root
-├── get/refresh_*_index (без _toc)                 … → *_index_toc (markdown TOC)
+🗄️ MCP legacy (состояние на 2026-03)
+├── ✅ снято с MCP: `*_index` без `_toc`, все `iblock_*`, `retain_workspace_fact` / `recall_workspace_facts`, `list_page_slots`
+├── всегда (алиасы): `list_vaults`, `list/read/write_system_*`, `read_dialogs` / `append_dialog`
+└── только `MCP_LEGACY_TOOLS=1`: read/write_content_{body,properties,schema}, `read_file`/`write_file`, channel/media list|read|upload_*
 ```
 
 
@@ -492,9 +485,6 @@ MCP_LEGACY_TOOLS
 ├─ файлы workspace (не слот)
 │   ├─ read_file  → read_content  (kind=root)
 │   └─ write_file → write_content (kind=root)
-│
-├─ слоты страницы
-│   └─ list_page_slots → list_slots
 │
 ├─ канал (awn-channels)
 │   ├─ list_channel_items    → list_content   (kind=channel)
