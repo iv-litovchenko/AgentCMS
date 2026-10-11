@@ -14444,20 +14444,21 @@ function clampOrbitLayoutPoint(layout) {
   return layout;
 }
 
+function getOrbitCircleRadiusPercent(total) {
+  const count = Math.max(1, total);
+  if (count <= 1) return 30;
+  return Math.min(36, 28 + Math.max(0, count - 4) * 0.85);
+}
+
 function getOrbitBubbleLayout(index, total, agentId) {
   const hash = hashAgentIdForOrbit(String(agentId || index));
-  const golden = 2.399963229728653;
-  const t = index + 1;
   const count = Math.max(1, total);
-  const spread = 1 + Math.max(0, count - 2) * 0.14;
-  const minRadius = 30 + Math.max(0, count - 3) * 3;
-  const radius = (minRadius + (t / count) * 22 + (hash % 9)) * spread;
-  const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
-  const x = 50 + Math.cos(angle) * radius * (0.94 + (hash % 7) * 0.012);
-  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.8;
+  const radius = getOrbitCircleRadiusPercent(count);
+  const angle =
+    count <= 1 ? -Math.PI / 2 : (index / count) * Math.PI * 2 - Math.PI / 2;
   const layout = {
-    x,
-    y,
+    x: ORBIT_LINK_CENTER.x + Math.cos(angle) * radius,
+    y: ORBIT_LINK_CENTER.y + Math.sin(angle) * radius,
     size: 54 + (hash % 18),
     duration: 7 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
@@ -14467,42 +14468,12 @@ function getOrbitBubbleLayout(index, total, agentId) {
   return clampOrbitLayoutPoint(layout);
 }
 
-function relaxOrbitBubbleLayouts(layouts, total = layouts.length) {
-  if (!Array.isArray(layouts) || layouts.length < 2) return layouts;
-  const minSep = 15.5 + Math.min(10, Math.max(0, total - 2) * 1.8);
-  for (let pass = 0; pass < 20; pass += 1) {
-    let moved = false;
-    for (let i = 0; i < layouts.length; i += 1) {
-      for (let j = i + 1; j < layouts.length; j += 1) {
-        const a = layouts[i];
-        const b = layouts[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist >= minSep) continue;
-        const push = (minSep - dist) / 2;
-        const ux = dist > 0.05 ? dx / dist : Math.cos((i - j) * 0.85);
-        const uy = dist > 0.05 ? dy / dist : Math.sin((i - j) * 0.85);
-        a.x -= ux * push;
-        a.y -= uy * push;
-        b.x += ux * push;
-        b.y += uy * push;
-        moved = true;
-      }
-    }
-    for (const layout of layouts) clampOrbitLayoutPoint(layout);
-    if (!moved) break;
-  }
-  return layouts;
-}
-
 function buildOrbitBubbleLayouts(agents) {
   const list = Array.isArray(agents) ? agents : [];
-  const layouts = list.map((agent, index) => ({
+  return list.map((agent, index) => ({
     agentId: agent.id,
     ...getOrbitBubbleLayout(index, list.length, agent.id)
   }));
-  return relaxOrbitBubbleLayouts(layouts, list.length);
 }
 
 function syncLandingAgentsViewUi() {
