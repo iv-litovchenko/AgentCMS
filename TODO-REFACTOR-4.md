@@ -153,3 +153,55 @@
 | ⚠️ | **Offline-индексы** | `run_workspace_ocr_index` | OCR вложений |
 | ⚠️ | **Offline-индексы** | `rebuild_workspace_indexes` | UI pipeline: всё сразу + WS-MAP |
 | ⚠️ | **Offline-индексы** | `sync_workspace_index_file` | инкремент после правки одного файла |
+
+---
+
+## Типы каналов (`awn.hub.channel` / sidebar `menu-awn-channels-list`)
+
+Источник заготовок: `lib/config/channel-presets.js` ↔ `CHANNEL_BUILTIN_PRESETS` в `public/main.js`.  
+У всех экземпляров в UI: `menu-awn-channels-item--preset`; до создания папки `awn-channels/{slug}/` — ещё `menu-awn-channels-item--pending`.
+
+### Встроенные заготовки (есть в коде)
+
+| Статус | slug | Иконка | Название в сайдбаре |
+| ------ | ---- | ------ | ------------------- |
+| ✅ preset | `forum` | 💬 | Форум дискуссии и обсуждения (где люди могут |
+| ✅ preset | `blog-agent` | 📝 | Блог (куда агент … что интересного собрал агент сегодня — по моим запросам) |
+| ✅ preset | `digest` | 📰 | Дайджесты сюда он собирает что-то сводки |
+| ✅ preset | `youtube` | ▶️ | Ютуб что то обсудить подискутироват |
+| ✅ preset | `telegram` | ✈️ | Телеграмм (я могу например сюда выгружать темы) |
+| ✅ preset | `whatsapp` | 💬 | Ватсап может быть |
+| ✅ preset | `web` | 🌐 | Интернет |
+| ✅ preset | `bookmarks` | 🔖 | Закладки |
+| ✅ preset | `browser-downloads` | 📥 | Загрузки из браузера |
+| ✅ preset | `notebooks` | 📓 | Печатные тетради |
+| ✅ preset | `photo-archive` | 🖼️ | Фотоархив |
+| ✅ preset | `photo-phone` | 📱 | Фотоархив (телефон) |
+| ✅ preset | `analytics` | 📊 | аналитика |
+| ✅ preset | `real-world` | 🌍 | Объекты реального мира |
+| ✅ preset | `market` | 🛒 | Барахолка |
+| ✅ preset | `notes` | 📒 | Заметки |
+| ✅ preset | `screenshots` | 🖥️ | Скриншоты |
+| ✅ preset | `other` | 📦 | Другое (не знаю куда деть) |
+
+Пользовательские каналы (созданные в workspace, не из списка выше) — отдельные строки в том же списке без `--preset` (например `slider`, `screenshots` как живые папки).
+
+### Заготовки к добавлению (❌ в `channel-presets.js` пока нет)
+
+| Статус | slug (предлож.) | Иконка | Название / смысл |
+| ------ | --------------- | ------ | ---------------- |
+| ❌ | `news` | 📰 | **НОВОСТИ** |
+| ❌ | `notebook-white` | 📄 | **Белая тетрадь** (нумерация страниц) |
+| ❌ | `notebook-pink` | 🩷 | **Розовый блокнот** (нумерация страниц) |
+| ❌ | `agent-kit` | 🧰 | Темы в **Agent kit** (обсуждение возможностей / идей с агентом) |
+| ❌ | `mailbox` | 📧 | **Почта** / mailbox |
+| ❌ | `rss` | 📡 | **RSS** / feed |
+| ❌ | `github` | 🐙 | **GitHub** — issues / PR |
+| ❌ | `voice` | 🎙️ | **Голос** / STT / встречи |
+| ❌ | `ocr` | 🔍 | **OCR** / сканы / фото |
+| ❌ | `clipboard` | 📋 | **Clipboard** |
+| ❌ | `webhook` | 🔗 | **Webhook** / API / n8n |
+| ❌ | `cloud-inbox` | ☁️ | **Облачные inbox** (Drive, Dropbox, …) |
+| ❌ | `companion` | 🧩 | **Companion** / расширение браузера |
+
+Примечание: ingress-канал по модели — `inbox` / `todo-single` / `outbox` в `awn-storage/`; пресет в сайдбаре — только **метка источника** и папка `awn-channels/{slug}/`, не отдельный «тип показа».
