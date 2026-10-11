@@ -5818,6 +5818,36 @@ function filterHubWorkspaceSlotCounters(topicPath, slots, entries = null) {
   return (slots || []).filter((slot) => allowed.has(slot.id));
 }
 
+function buildHubPolicySlotCounters(policy) {
+  if (!policy?.slotKeys?.length) return [];
+  return policy.slotKeys
+    .map((key) => {
+      const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === key);
+      if (!spec) return null;
+      return {
+        id: key,
+        label: spec.label,
+        spec,
+        count: 0,
+        filled: false,
+        folderExists: false,
+        available: true,
+        display: "count",
+        tone: "",
+        title: spec.label,
+        hasIndex: false
+      };
+    })
+    .filter(Boolean);
+}
+
+function mergeHubPolicySlotCounters(policy, fetchedSlots = []) {
+  const base = buildHubPolicySlotCounters(policy);
+  if (!base.length) return fetchedSlots || [];
+  const byId = new Map((fetchedSlots || []).map((slot) => [slot.id, slot]));
+  return base.map((slot) => ({ ...slot, ...(byId.get(slot.id) || {}) }));
+}
+
 function shouldShowHubWorkspaceSlotStrip(topicPath, slotCount, entries = null) {
   const policy = resolveHubWorkspaceSlotPolicy(topicPath, entries);
   if (!policy) return false;
@@ -18220,6 +18250,7 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "inbox",
+  "outbox",
   "note",
   "notes",
   "references",
@@ -80624,13 +80655,14 @@ function dedupeEntryOverviewSlotCounterStrips(hubMain) {
 
   const strips = Array.from(
     hubMain.querySelectorAll(
-      ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters"
+      ".node-entry-overview-browse-slot-counters, .node-entry-overview-hub-main-slot-counters, .node-entry-overview-hub-workspace-slot-counters"
     )
   );
   if (!strips.length) return null;
   if (strips.length === 1) return strips[0];
 
   let keeper =
+    strips.find((strip) => strip.classList.contains("node-entry-overview-hub-workspace-slot-counters")) ||
     strips.find((strip) => strip.parentElement === hubMain) ||
     strips.find((strip) => strip.classList.contains("node-entry-overview-hub-top-slot-counters")) ||
     strips[0];
@@ -80640,8 +80672,131 @@ function dedupeEntryOverviewSlotCounterStrips(hubMain) {
   return keeper;
 }
 
+function resolveHubWorkspaceSlotCounterActiveKey(context, hubPolicy) {
+  if (!hubPolicy) return getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
+  const fromView = getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
+  if (fromView && hubPolicy.slotKeys.includes(fromView)) return fromView;
+  const memoryKind = String(context?.memoryKind || "").trim();
+  if (memoryKind) {
+    const fromKind = getDataStorageSlotForMode(memoryKind)?.key;
+    if (fromKind && hubPolicy.slotKeys.includes(fromKind)) return fromKind;
+  }
+  return (
+    getDataStorageSlotForMode(hubPolicy.defaultMemoryKind)?.key || hubPolicy.slotKeys[0] || null
+  );
+}
+
+function renderHubWorkspaceSlotCounterStripElement(
+  context,
+  topicPath,
+  propsEntries = null,
+  { activeSlotKey = null } = {}
+) {
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
+  const hubPolicy = resolveHubWorkspaceSlotPolicy(resolvedTopicPath, propsEntries);
+  if (!hubPolicy || !shouldShowHubWorkspaceSlotStrip(resolvedTopicPath, hubPolicy.slotKeys.length, propsEntries)) {
+    return null;
+  }
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(resolvedTopicPath);
+  const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath);
+  const slots = mergeHubPolicySlotCounters(
+    hubPolicy,
+    filterHubWorkspaceSlotCounters(resolvedTopicPath, cachedSlots || [], propsEntries)
+  );
+  if (!slots.length) return null;
+
+  const strip = renderNodeNavigationWorkspaceCounterStrip(
+    slots.map((slot) => ({
+      ...slot,
+      modeId: slot.spec?.defaultMode || slot.id
+    })),
+    {
+      entryOverview: true,
+      activeSlotKey: activeSlotKey ?? resolveHubWorkspaceSlotCounterActiveKey(context, hubPolicy),
+      topicPath: resolvedTopicPath,
+      includeTopicIndexFooter: false
+    }
+  );
+  if (!strip) return null;
+  strip.classList.add(
+    "node-entry-overview-slot-counters",
+    "node-entry-overview-hub-top-slot-counters",
+    "node-entry-overview-hub-workspace-slot-counters"
+  );
+  strip.dataset.topicIndexFooter = "0";
+  strip.dataset.topicNodePath = resolvedTopicPath;
+  strip.setAttribute("aria-label", "Слоты данных");
+  return strip;
+}
+
+function detachPreservedHubWorkspaceSlotCounterStrip(topicPath) {
+  const resolvedTopicPath = getResolvedNodePath(topicPath);
+  if (!resolvedTopicPath || !nodeOverviewContentNode) return null;
+  const prevMain = nodeOverviewContentNode.querySelector(".node-navigation-hub-main");
+  const prevStrip = prevMain?.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  if (
+    !prevStrip ||
+    prevStrip.dataset.topicNodePath !== resolvedTopicPath ||
+    !prevStrip.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    return null;
+  }
+  prevStrip.remove();
+  return prevStrip;
+}
+
+function tryRefreshHubChannelEntryOverviewInPlace(context, topicPath, navigationIndex, isStale) {
+  if (isStale()) return false;
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (!policy || policy.kind !== "channel" || !isHubWorkspaceFilesSlotPage(topicPath)) return false;
+  if (!isEntryOverviewMemoryTocRoot(context) || !nodeOverviewContentNode) return false;
+
+  const hub = nodeOverviewContentNode.querySelector(".node-navigation-hub.is-awn-channel-workspace-hub");
+  const hubMain = hub?.querySelector(":scope > .node-navigation-hub-main");
+  if (!hubMain) return false;
+
+  const resolvedTopicPath = getResolvedNodePath(topicPath);
+  const strip = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  const iblock = hubMain.querySelector(":scope > .media-library-workspace-iblock-layout");
+  const panel = hubMain.querySelector(":scope > .node-entry-overview-browse-panel");
+  if (!strip || !iblock || !panel || strip.dataset.topicNodePath !== resolvedTopicPath) return false;
+
+  entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
+  entryOverviewBreadcrumbState = { context, navigationIndex, title: "Оглавление" };
+  syncEntryOverviewKindClass(getEntryOverviewKindClass(context.entryKind));
+  syncEntryOverviewMediaAssetKindClass(null);
+
+  refreshEntryOverviewBrowseList(panel, context, navigationIndex, true);
+  panel.dataset.railMemoryKind = context?.memoryKind || "";
+  mountNavigationHubRailSlotTreeDragDrop(panel);
+
+  const browseNavOptions = buildEntryOverviewBrowseTocNavOptions(context, topicPath);
+  if (browseNavOptions) {
+    panel.querySelector(":scope > .node-entry-overview-browse-hero-nav")?.remove();
+    prependEntryOverviewBrowseHeroNav(panel, browseNavOptions);
+  }
+
+  syncAllWorkspaceCounterStripActiveStates(context);
+  refreshEntryOverviewSlotCounterStripCounts(strip, context, resolvedTopicPath, { force: false });
+  updateBreadcrumbsForActiveMode();
+  scheduleWorkspaceScrollChromeSync();
+  syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
+
+  return true;
+}
+
 function relocateEntryOverviewSlotCountersChrome(hubMain) {
   if (!hubMain) return;
+
+  const workspaceStrip = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  if (workspaceStrip) {
+    const iblock = hubMain.querySelector(":scope > .media-library-workspace-iblock-layout");
+    if (iblock && workspaceStrip.nextElementSibling !== iblock) {
+      hubMain.insertBefore(workspaceStrip, iblock);
+    }
+    syncAllWorkspaceCounterStripActiveStates();
+    return;
+  }
 
   const strip = dedupeEntryOverviewSlotCounterStrips(hubMain);
   if (!strip) {
@@ -80762,9 +80917,8 @@ async function createEntryOverviewSlotCounterStripElement(context, topicPath, { 
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
   if (!resolvedTopicPath) return null;
   const hubPolicy = resolveHubWorkspaceSlotPolicy(resolvedTopicPath, propsEntries);
-  const hubNavigationStrip =
-    hubPolicy && activeContentMode === NODE_NAVIGATION_MODE && !isEntryOverviewMemoryTocRoot(context);
-  if (!hubNavigationStrip) {
+
+  if (!hubPolicy) {
     if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
     if (!isDataEntryOverviewMemoryKind(context.memoryKind) && !isEntryOverviewMemoryTocRoot(context)) {
       return null;
@@ -80776,13 +80930,17 @@ async function createEntryOverviewSlotCounterStripElement(context, topicPath, { 
     hubSlotPolicy: hubPolicy
   });
   slots = filterHubWorkspaceSlotCounters(resolvedTopicPath, slots, propsEntries);
-  if (!slots.length) return null;
-  if (hubPolicy && !shouldShowHubWorkspaceSlotStrip(resolvedTopicPath, slots.length, propsEntries)) {
+  if (hubPolicy) {
+    slots = mergeHubPolicySlotCounters(hubPolicy, slots);
+    if (!shouldShowHubWorkspaceSlotStrip(resolvedTopicPath, hubPolicy.slotKeys.length, propsEntries)) {
+      return null;
+    }
+  } else if (!slots.length) {
     return null;
   }
 
   const activeSlotKey = hubPolicy
-    ? getDataStorageSlotForMode(hubPolicy.defaultMemoryKind)?.key || hubPolicy.slotKeys[0]
+    ? resolveHubWorkspaceSlotCounterActiveKey(context, hubPolicy)
     : getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
 
   const strip = renderNodeNavigationWorkspaceCounterStrip(
@@ -80805,11 +80963,11 @@ async function createEntryOverviewSlotCounterStripElement(context, topicPath, { 
   return strip;
 }
 
-function refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath) {
+function refreshEntryOverviewSlotCounterStripCounts(wrap, context, topicPath, { force = true } = {}) {
   if (!wrap || !context) return;
   wrap.querySelector(".node-navigation-workspace-counter-topic-index-row")?.remove();
   const resolvedTopicPath = topicPath || wrap.dataset.topicNodePath || getResolvedNodePath(activePath);
-  void loadEntryOverviewSlotCounters(resolvedTopicPath, { force: true }).then((slots) => {
+  void loadEntryOverviewSlotCounters(resolvedTopicPath, { force }).then((slots) => {
     if (!wrap.isConnected || !slots.length) return;
     if (wrap.querySelector(".node-navigation-workspace-counter-list")) {
       updateEntryOverviewDataSlotBarCounts(wrap, slots);
@@ -80833,34 +80991,54 @@ function placeEntryOverviewHubMainSlotCounterStrip(hubMain, anchor, strip) {
 /** Полоса слотов hub (канал / медиатека) над iblock-карточкой — не зависит от browse-панели. */
 async function mountHubWorkspaceSlotCounterStrip(hubMain, anchor, context, topicPath) {
   if (!hubMain || !anchor || !context) return null;
-  if (!shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) return null;
 
   const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
-  const mountSeq = (hubMain._hubWorkspaceSlotStripSeq = (hubMain._hubWorkspaceSlotStripSeq || 0) + 1);
-  const existing = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  const propsEntries = context?.propsEntries || null;
+  const policy = resolveHubWorkspaceSlotPolicy(resolvedTopicPath, propsEntries);
+  if (!policy || !shouldShowHubWorkspaceSlotStrip(resolvedTopicPath, policy.slotKeys.length, propsEntries)) {
+    return null;
+  }
+  let existing = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
   if (
     existing?.dataset.topicNodePath === resolvedTopicPath &&
     existing.querySelector(".node-navigation-workspace-counter-list")
   ) {
     if (existing.nextElementSibling !== anchor) hubMain.insertBefore(existing, anchor);
-    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath);
+    syncAllWorkspaceCounterStripActiveStates(context);
+    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath, { force: false });
+    return existing;
+  }
+
+  if (!existing) {
+    const syncStrip = renderHubWorkspaceSlotCounterStripElement(context, resolvedTopicPath, propsEntries);
+    if (syncStrip) {
+      hubMain.insertBefore(syncStrip, anchor);
+      existing = syncStrip;
+      syncAllWorkspaceCounterStripActiveStates(context);
+    }
+  }
+
+  const mountSeq = (hubMain._hubWorkspaceSlotStripSeq = (hubMain._hubWorkspaceSlotStripSeq || 0) + 1);
+  if (existing?.dataset.topicNodePath === resolvedTopicPath && existing.querySelector(".node-navigation-workspace-counter-list")) {
+    refreshEntryOverviewSlotCounterStripCounts(existing, context, resolvedTopicPath, { force: false });
     return existing;
   }
 
   const strip = await createEntryOverviewSlotCounterStripElement(context, resolvedTopicPath, {
-    propsEntries: context?.propsEntries || null
+    propsEntries
   });
-  if (mountSeq !== hubMain._hubWorkspaceSlotStripSeq || !hubMain.isConnected) return strip;
-  if (!strip) return null;
+  if (mountSeq !== hubMain._hubWorkspaceSlotStripSeq || !hubMain.isConnected) return strip || existing;
+  if (!strip) return existing;
 
   strip.classList.add(
-    "node-entry-overview-hub-main-slot-counters",
     "node-entry-overview-hub-top-slot-counters",
     "node-entry-overview-hub-workspace-slot-counters"
   );
-  if (existing) existing.replaceWith(strip);
-  else hubMain.insertBefore(strip, anchor);
+  const live = hubMain.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters");
+  if (live && live !== strip) live.replaceWith(strip);
+  else if (!live) hubMain.insertBefore(strip, anchor);
   syncAllWorkspaceCounterStripActiveStates(context);
+  refreshEntryOverviewSlotCounterStripCounts(strip, context, resolvedTopicPath, { force: false });
   return strip;
 }
 
@@ -80926,6 +81104,12 @@ async function mountEntryOverviewBrowseSlotCounterStrip(
   if (!resolvedTopicPath) return null;
 
   const hubMain = panel.closest(".node-navigation-hub-main");
+  const hubChannelPolicy = resolveHubWorkspaceSlotPolicy(resolvedTopicPath);
+  if (hubChannelPolicy?.kind === "channel") {
+    relocateEntryOverviewSlotCountersChrome(hubMain);
+    syncAllWorkspaceCounterStripActiveStates(context);
+    return hubMain?.querySelector(":scope > .node-entry-overview-hub-workspace-slot-counters") || null;
+  }
   const mountSeq = (panel._browseSlotStripSeq = (panel._browseSlotStripSeq || 0) + 1);
   const existingInPanel = panel.querySelector(".node-entry-overview-browse-slot-counters");
   const existingGlobal = hubMain
@@ -82448,6 +82632,12 @@ async function renderEntryOverview() {
   syncEntryOverviewMediaAssetKindClass(mediaAssetKind);
 
   if (isMemoryTocRoot) {
+    if (tryRefreshHubChannelEntryOverviewInPlace(context, topicPath, navigationIndex, isStale)) {
+      return;
+    }
+
+    const preservedHubWorkspaceSlotStrip = detachPreservedHubWorkspaceSlotCounterStrip(topicPath);
+
     const isArea = isAreaNodePath(topicPath);
     const useSplitLayout = !isArea;
 
@@ -82460,7 +82650,10 @@ async function renderEntryOverview() {
       : "node-navigation-hub";
     if (isHubFilesSlotWorkspace) {
       hub.classList.add("is-media-library-workspace-hub");
-      if (isAwnChannelWorkspace) hub.classList.add("is-awn-channel-workspace-hub");
+      const hubChannelPolicy = resolveHubWorkspaceSlotPolicy(topicPath);
+      if (isAwnChannelWorkspace || hubChannelPolicy?.kind === "channel") {
+        hub.classList.add("is-awn-channel-workspace-hub");
+      }
     }
 
     const hubMain = document.createElement("div");
@@ -82496,9 +82689,22 @@ async function renderEntryOverview() {
         hubWorkspaceKind
       });
       if (iblockLayout) {
+        const hubStripPolicy = resolveHubWorkspaceSlotPolicy(topicPath, manifestEntries);
+        const showHubStrip =
+          hubStripPolicy &&
+          shouldShowHubWorkspaceSlotStrip(topicPath, hubStripPolicy.slotKeys.length, manifestEntries);
+        if (showHubStrip) {
+          if (preservedHubWorkspaceSlotStrip) {
+            hubMain.appendChild(preservedHubWorkspaceSlotStrip);
+            syncAllWorkspaceCounterStripActiveStates(context);
+          } else {
+            const syncStrip = renderHubWorkspaceSlotCounterStripElement(context, topicPath, manifestEntries);
+            if (syncStrip) hubMain.appendChild(syncStrip);
+          }
+        }
         hubMain.appendChild(iblockLayout);
         void mountHubWorkspaceStoreSchema(iblockLayout, manifestPath);
-        if (shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) {
+        if (showHubStrip) {
           void mountHubWorkspaceSlotCounterStrip(hubMain, iblockLayout, context, topicPath);
         }
       }
@@ -82549,15 +82755,7 @@ async function renderEntryOverview() {
     scheduleWorkspaceScrollChromeSync();
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
     syncAllWorkspaceCounterStripActiveStates(context);
-    const tocBrowsePanel = hubMain.querySelector(".node-entry-overview-browse-panel");
-    if (tocBrowsePanel && shouldShowEntryOverviewSlotCountersInBrowsePanel(context, true)) {
-      void mountEntryOverviewBrowseSlotCounterStrip(tocBrowsePanel, context, topicPath, {
-        isMemoryTocRoot: true
-      }).then(() => {
-        finalizeEntryOverviewBrowsePanelChromeOrder(tocBrowsePanel);
-        relocateEntryOverviewSlotCountersChrome(hubMain);
-      });
-    }
+    relocateEntryOverviewSlotCountersChrome(hubMain);
     return;
   }
 
@@ -93431,6 +93629,8 @@ async function renderNodeNavigation() {
   const topicTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
 
   if (hubFilesSlotWorkspace) {
+    const preservedNavHubStrip =
+      hubSlotPolicy?.kind === "channel" ? detachPreservedHubWorkspaceSlotCounterStrip(nodePath) : null;
     const hubPolicy = hubSlotPolicy;
     const defaultMemoryKind = hubPolicy?.defaultMemoryKind || "inbox";
     const hubCtx = {
@@ -93472,9 +93672,19 @@ async function renderNodeNavigation() {
       hubWorkspaceKind
     });
     if (iblockLayout) {
+      const showNavHubStrip =
+        hubPolicy && shouldShowHubWorkspaceSlotStrip(nodePath, hubPolicy.slotKeys.length, entries);
+      if (showNavHubStrip) {
+        if (preservedNavHubStrip) {
+          hubMain.appendChild(preservedNavHubStrip);
+        } else {
+          const syncStrip = renderHubWorkspaceSlotCounterStripElement(hubCtx, nodePath, entries);
+          if (syncStrip) hubMain.appendChild(syncStrip);
+        }
+      }
       hubMain.appendChild(iblockLayout);
       void mountHubWorkspaceStoreSchema(iblockLayout, manifestPath);
-      if (hubPolicy && shouldShowHubWorkspaceSlotStrip(nodePath, hubPolicy.slotKeys.length, entries)) {
+      if (showNavHubStrip) {
         void mountHubWorkspaceSlotCounterStrip(hubMain, iblockLayout, hubCtx, nodePath).then(() => {
           slotAnchor.remove();
         });

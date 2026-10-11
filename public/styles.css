@@ -58807,7 +58807,8 @@ button.node-navigation-memory-title:focus-visible {
 .is-media-library-workspace-hub .node-navigation-hub-rail,
 .is-media-library-workspace-hub .node-entry-overview-cross-slot-search,
 .is-media-library-workspace-hub .node-entry-overview-browse-slot-counters,
-.is-media-library-workspace-hub .node-entry-overview-hub-main-slot-counters {
+.is-media-library-workspace-hub
+  .node-entry-overview-hub-main-slot-counters:not(.node-entry-overview-hub-workspace-slot-counters) {
   display: none !important;
 }
 
@@ -70606,7 +70607,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-channels-band-body .menu-awn-channels-flow-strip {
-  display: flex;
+  display: none; /* временно: поток Входящие/Обсуждения/Исходящие в сайдбаре */
   align-items: center;
   justify-content: center;
   gap: 4px;
