@@ -51,8 +51,8 @@ get_session_context({ agentId: "<выбранный-id>" })
 | Platform | `get_platform_info`, `get_platform_health` (нужен `agentId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
 | Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `get_page_url`, `list_repositories`, `get_repository`, `refresh_repository_index`, `register_repository`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
 | Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
-| Слот | `list_page_slots` |
-| Контент | `content_exists`, `get_content_meta`, `read/write_content_*`, `read/write_content_property`, `create_content`, `import_content_from_url`, `rename/move/delete_content` |
+| Слот | `list_slots` (alias `list_page_slots`) |
+| Контент | `read_content` / `write_content` (`placement.kind`: page \| channel \| media), `content_exists`, `get_content_meta`, legacy `read/write_content_*`, properties/schema/lifecycle |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы); `iblock_*` deprecated |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |

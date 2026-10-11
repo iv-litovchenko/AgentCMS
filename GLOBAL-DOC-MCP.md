@@ -34,15 +34,20 @@
 
 ## 2. Модель данных
 
-### Page · Slot · Content
+### Page · Slot · Content · Placement
 
 | Сущность | Что это | Ключ MCP |
 |----------|---------|----------|
-| **Page** | Узел дерева меню (`manifest.md`) | `path` → `…/manifest.md` |
-| **Slot** | Место хранения на странице (= имя папки) | `slot` → `main`, `inbox`, `media`… |
-| **Content** | Файл внутри слота | `path` + `slot` + `ref` (путь внутри слота) |
+| **Placement** | Где лежит контент | `placement.kind`: `page` \| `channel` \| `media` + `path` + `slot` + `ref` |
+| **Page** | Тема/область в дереве (`manifest.md`) | `kind: page`, `path` → `…/manifest.md` |
+| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest |
+| **Media hub** | Карточка `awn-media/{slug}/` | `kind: media` |
+| **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
+| **Content** | Файл в слоте | `ref` — путь внутри слота |
 
-Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index`, `resolve_workspace_path`.
+**Предпочитай:** `read_content` / `write_content` / `list_content` / `list_slots` с `placement`. Legacy: `path` + `slot` + `ref` (= `kind: page`). Бинарь: `write_content` + `data` (base64) + `ref`.
+
+Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index`, `list_content`, `resolve_workspace_path`.
 
 ### Разделы дерева (для `parentPath` в `create_page`)
 
@@ -104,7 +109,7 @@
 
 ### Слоты
 
-`list_page_slots` → `driver`: `external` (папка, много файлов, нужен `ref`) или `internal` (один файл, **без `ref`**).
+`list_slots` (alias `list_page_slots`) для `placement` page/channel/media → `driver`: `external` (папка, нужен `ref`) или `internal` (один файл, **без `ref`**). Содержимое слота: `list_content`.
 
 | Слот | Зачем |
 |------|-------|
@@ -125,7 +130,7 @@
 
 ### Медиатеки workspace (`awn-media/{slug}/`)
 
-Не слот темы. Карточка: `list_media_libraries`, `get_media_library`, `register_media_library`, `update_media_library`, `refresh_media_library_index`. Файлы внутри: `list_media_library_items` (`path` = manifest, `folder` = `files` | `assets`), `read_media_library_file`, `upload_media_library_file`. Разделы — `…/files/{раздел}/manifest.md` (как у многофайловой памяти).
+Не слот темы. Карточка: `list_media_libraries`, `get_media_library`, `register_media_library`, … Контент в слотах: `placement.kind: media`, `read_content` / `write_content` / `list_content` (`slot`: `files` \| `assets` \| …). Legacy: `list_media_library_items`, `read_media_library_file`, `upload_media_library_file`.
 
 ### Гибкий слот
 

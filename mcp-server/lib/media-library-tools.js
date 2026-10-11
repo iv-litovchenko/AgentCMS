@@ -1,5 +1,13 @@
+import { createRequire } from "node:module";
 import { z } from "zod";
 import { readFileHandler } from "./workspace-fs-tools.js";
+import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
+
+const require = createRequire(import.meta.url);
+const {
+  normalizeMediaManifestPath,
+  hubStorageWorkspacePath
+} = require("../../lib/config/content-placement.js");
 
 const workspaceRelPath = z
   .string()
@@ -12,22 +20,11 @@ const mediaLibraryFolder = z
   .describe("awn-storage subfolder; for awn-media libraries default is files (not topic media/)");
 
 function normalizeMediaLibraryManifestPath(path) {
-  let manifest = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifest.startsWith("awn-media/")) {
-    manifest = `awn-media/${manifest}`;
-  }
-  if (!/\/manifest\.md$/i.test(manifest)) {
-    manifest = `${manifest.replace(/\/$/, "")}/manifest.md`;
-  }
-  return manifest;
+  return normalizeMediaManifestPath(path);
 }
 
 function resolveMediaLibraryStorageRel(manifestPath, folder, file) {
-  const manifest = normalizeMediaLibraryManifestPath(manifestPath);
-  const base = manifest.replace(/\/manifest\.md$/i, "");
-  const slot = folder === "assets" ? "assets" : "files";
-  const relFile = String(file || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  return `${base}/awn-storage/${slot}/${relFile}`;
+  return hubStorageWorkspacePath(normalizeMediaManifestPath(manifestPath), folder, file);
 }
 
 function splitMediaLibraryUploadRef(fileRef) {
@@ -96,33 +93,26 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
 
   reg(
     "list_media_library_items",
-    "List files and section manifests inside awn-media/{slug}/awn-storage/files or assets (same as UI media browser).",
+    "[Legacy] Use list_content with placement.kind=media and slot files|assets.",
     z.object({
       path: workspaceRelPath,
       folder: mediaLibraryFolder
     }),
     async ({ path, folder }) => {
-      const manifestPath = normalizeMediaLibraryManifestPath(path);
-      const data = await client.get("/api/media", {
-        path: manifestPath,
-        folder: folder || "files"
+      const slot = folder === "assets" ? "assets" : "files";
+      const data = await listContentItems(client, {
+        placement: { kind: "media", path, slot }
       });
-      if (!data || typeof data !== "object") return data;
-      const { content, ...lean } = data;
       return {
-        ...lean,
-        path: manifestPath,
-        folder: folder || "files",
-        hint:
-          "Items are in groups (by type). Section folders have manifest.md paths in sectionManifests. " +
-          "Open a file with read_media_library_file; upload with upload_media_library_file."
+        ...data,
+        hint: "Prefer list_content with placement.kind=media."
       };
     }
   );
 
   regRead(
     "read_media_library_file",
-    "Read one file inside a media library (path = manifest, file = path inside files/ or assets/, e.g. photo.png or 009/note.md).",
+    "[Legacy] Prefer read_content with placement.kind=media. Read one file inside a media library.",
     z.object({
       path: workspaceRelPath,
       file: z.string().min(1).describe("Relative path inside the library folder, e.g. prostaya-kartinka.png"),
@@ -130,19 +120,31 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
       format: z.enum(["base64"]).optional().describe("For images/binaries: return base64 via workspace read"),
       maxBytes: z.number().int().min(1024).max(1_500_000).optional()
     }),
-    (args) => {
-      const storagePath = resolveMediaLibraryStorageRel(args.path, args.folder || "files", args.file);
-      return readFileHandler(client, {
-        path: storagePath,
-        format: args.format,
-        maxBytes: args.maxBytes
+    async (args) => {
+      const folder = args.folder || "files";
+      const slot = folder === "assets" ? "assets" : "files";
+      if (args.format === "base64") {
+        const storagePath = resolveMediaLibraryStorageRel(args.path, folder, args.file);
+        return readFileHandler(client, {
+          path: storagePath,
+          format: args.format,
+          maxBytes: args.maxBytes
+        });
+      }
+      return readContentBody(client, {
+        placement: {
+          kind: "media",
+          path: args.path,
+          slot,
+          ref: args.file
+        }
       });
     }
   );
 
   reg(
     "upload_media_library_file",
-    "Upload base64 bytes into awn-media/{slug}/awn-storage/files or assets/.",
+    "[Legacy] Prefer write_content with placement.kind=media and data (base64).",
     z.object({
       path: workspaceRelPath,
       file: z.string().min(1).describe("Target relative path including file name, e.g. imports/photo.png"),
@@ -155,19 +157,12 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
         .describe("Create parent folders under files/ or assets/ if missing (default true)")
     }),
     ({ path, file, data, folder, mimeType, createSubdir }) => {
-      const manifestPath = normalizeMediaLibraryManifestPath(path);
-      const { fileName, subdir } = splitMediaLibraryUploadRef(file);
-      const libraryFolder = folder || "files";
-      return client.post("/api/media/file", {
-        path: manifestPath,
-        contextPath: manifestPath,
-        fileName,
+      const slot = folder === "assets" ? "assets" : folder || "files";
+      return writeContentBinary(client, {
+        placement: { kind: "media", path, slot, ref: file },
         data,
         mimeType,
-        folder: libraryFolder,
-        libraryFolder,
-        subdir,
-        createSubdir: createSubdir !== false
+        createSubdir
       });
     }
   );

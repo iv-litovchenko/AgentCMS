@@ -50,7 +50,7 @@
 ```
 
 `part`: `body` | `properties` | `schema` | `meta` | `all` — вместо отдельных `read_content_body` / `read_content_properties` / … (детали ⚠️).  
-Позже тот же `read_content` с `placement.kind`: `channel` | `media` | `tree` — без смены имени tool.
+**MCP:** `lib/config/content-placement.js` + `placement.kind`: `page` | `channel` | `media`; legacy `path`+`slot` = `page`. Основные tools — ниже (✅ MCP = `placement` в MCP + серверная политика слотов частично). **`tree`** — шаг 7. Индексы — ⚠️ в конце файла.
 
 ---
 
@@ -58,47 +58,48 @@
 
 | Статус | MCP (сейчас)     | План (имя)   |
 | ------ | ---------------- | ------------ |
-| ❌      | `content_exists` | `content_exists` |
-| ❌      | `get_content_meta` | `get_content_meta` |
+| ✅ MCP | `content_exists` | `content_exists` |
+| ✅ MCP | `get_content_meta` | `get_content_meta` |
 
 ## Body
 
 | Статус | MCP (сейчас)        | План (имя)     |
 | ------ | ------------------- | -------------- |
-| ❌      | `read_content_body` | `read_content` |
-| ❌      | `write_content_body` | `write_content` |
+| ✅ MCP | `read_content_body` | `read_content` |
+| ✅ MCP | `write_content_body` | `write_content` |
 
 ## Properties
 
 | Статус | MCP (сейчас)              | План (имя)                |
 | ------ | ------------------------- | ------------------------- |
-| ❌      | `read_content_properties` | `read_content_properties` |
-| ❌      | `write_content_properties` | `write_content_properties` |
-| ❌      | `read_content_property`   | `read_content_property`   |
-| ❌      | `write_content_property`  | `write_content_property`  |
+| ✅ MCP | `read_content_properties` | `read_content` (`part: properties`) или legacy |
+| ✅ MCP | `write_content_properties` | `write_content` (`part: properties`) или legacy |
+| ✅ MCP | `read_content_property`   | `read_content_property`   |
+| ✅ MCP | `write_content_property`  | `write_content_property`  |
 
 ## Schema
 
 | Статус | MCP (сейчас)           | План (имя)             |
 | ------ | ---------------------- | ---------------------- |
-| ❌      | `read_content_schema`  | `read_content_schema`  |
-| ❌      | `write_content_schema` | `write_content_schema` |
+| ✅ MCP | `read_content_schema`  | `read_content` (`part: schema`) или legacy |
+| ✅ MCP | `write_content_schema` | `write_content` (`part: schema`) или legacy |
 
 ## Жизненный цикл
 
 | Статус | MCP (сейчас)              | План (имя)              |
 | ------ | ------------------------- | ----------------------- |
-| ❌      | `create_content`          | `create_content`        |
-| ❌      | `import_content_from_url` | `import_content_from_url` |
-| ❌      | `rename_content`          | `rename_content`        |
-| ❌      | `move_content`            | `move_content`          |
-| ❌      | `delete_content`          | `delete_content`        |
+| ✅ MCP | `create_content`          | `create_content`        |
+| ✅ MCP | `import_content_from_url` | `import_content_from_url` |
+| ✅ MCP | `rename_content`          | `rename_content`        |
+| ✅ MCP | `move_content`            | `move_content`          |
+| ✅ MCP | `delete_content`          | `delete_content`        |
 
 ## Слоты / контейнер
 
 | Статус | MCP (сейчас)      | План (имя)   |
 | ------ | ----------------- | ------------ |
-| ❌      | `list_page_slots` | `list_slots` |
+| ✅ MCP | `list_page_slots` | `list_slots` |
+| ✅ MCP | —                 | `list_content` (каталог файлов в слоте; channel/media/page) |
 
 ---
 
@@ -106,53 +107,70 @@
 
 | Контейнер   | Сейчас (отдельные tools)        |
 | ----------- | ------------------------------- |
-| Страница    | `content_*` + слоты             |
-| Канал       | `read_channel_file`, `upload_channel_file`, … |
-| Медиатека   | `read_media_library_file`, `upload_media_library_file`, … |
+| Страница    | `read/write/list_content` + `list_slots` (+ legacy `content_*`) |
+| Канал       | `read_content` / `write_content` / `list_content` (+ legacy channel tools) |
+| Медиатека   | то же с `kind: media` (+ legacy media tools) |
 | Дерево      | в основном `read_file` / `write_file` |
 
-Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties).
+Цель: те же **content_*** + `placement.kind` для всех контейнеров (где применимо schema/properties). **Осталось:** `kind: tree`; при необходимости — guard на `/api/content/schema`, transfer/section API.
 
 ---
 
 ## ⚠️ Индексы, оглавления, поиск — обсудить отдельно
 
-Одна таблица: всё, что строит/читает `index.md` / `INDEX.md` / `WS-MAP.md`, каталоги manifest, offline-кэши `.agent-cms/cache/indexes/*`, поиск по workspace. CRUD контента сюда не входит.
+Не CRUD контента (`read_content` / `write_content` / …). Здесь: **карты**, **markdown-оглавления на диске**, **каталоги hub**, **кэши** `.agent-cms/cache/indexes/*`, **поиск**.
 
-| ⚠️ | Группа | MCP (сейчас) | Кратко |
-| -- | ------ | ------------ | ------ |
-| ⚠️ | **Карта workspace** | `get_page_map` | дерево: manifest-страницы + папки без manifest |
-| ⚠️ | **Карта workspace** | `get_workspace_page_index` | read `INDEX.md` (оглавление страниц) |
-| ⚠️ | **Карта workspace** | `refresh_workspace_page_index` | rebuild `INDEX.md` из `get_page_map` |
-| ⚠️ | **Карта контента (тема)** | `get_content_map` | все слоты страницы, meta без body |
-| ⚠️ | **Карта контента (тема)** | `get_content_index` | read `index.md` темы/слота (TOC) |
-| ⚠️ | **Карта контента (тема)** | `refresh_content_index` | rebuild `index.md` темы или слота |
-| ⚠️ | **WS-MAP** | `get_workspace_wsmap` | список всех `index.md` / `INDEX.md` в workspace |
-| ⚠️ | **WS-MAP** | `refresh_workspace_wsmap` | rebuild `WS-MAP.md` |
-| ⚠️ | **Инфоблоки (каталог БД)** | `database_frame_read_index` | read `awn-databases/index.md` |
-| ⚠️ | **Инфоблоки (каталог БД)** | `database_frame_refresh_index` | rebuild `awn-databases/index.md` |
-| ⚠️ | **Инфоблоки (каталог БД)** | `iblock_read_index` | alias → `database_frame_read_index` |
-| ⚠️ | **Инфоблоки (каталог БД)** | `iblock_refresh_index` | alias → `database_frame_refresh_index` |
-| ⚠️ | **Медиатека** | `refresh_media_library_index` | rebuild `awn-media/index.md` |
-| ⚠️ | **Репозитории** | `refresh_repository_index` | rebuild `awn-repositories/index.md` |
-| ⚠️ | **Каналы** | — | index MCP пока нет (аналог медиатеки — ⚠️) |
-| ⚠️ | **Поиск (read)** | `search_workspace_content` | fulltext по workspace |
-| ⚠️ | **Поиск (read)** | `search_workspace_semantic` | semantic (hash-TF-IDF) |
-| ⚠️ | **Поиск (read)** | `search_workspace_hybrid` | semantic + fulltext |
-| ⚠️ | **Поиск (read)** | `search_workspace_batch` | пакет hybrid-запросов |
-| ⚠️ | **Поиск (read)** | `search_workspace_links` | граф ссылок / backlinks |
-| ⚠️ | **Поиск (read)** | `query_workspace_storage` | SQL-like по field catalog |
-| ⚠️ | **Поиск (read)** | `list_workspace_registry_queries` | именованные пресеты запросов |
-| ⚠️ | **Поиск (read)** | `run_workspace_registry_query` | выполнить пресет |
-| ⚠️ | **Offline-индексы** | `get_workspace_index_status` | статус слоёв (OCR, fulltext, semantic, storage, link) |
-| ⚠️ | **Offline-индексы** | `get_workspace_index_monitor` | здоровье / stale / размер |
-| ⚠️ | **Offline-индексы** | `rebuild_workspace_fulltext_index` | `.agent-cms/cache/indexes/fulltext` |
-| ⚠️ | **Offline-индексы** | `rebuild_workspace_semantic_index` | `.agent-cms/cache/indexes/semantic` |
-| ⚠️ | **Offline-индексы** | `rebuild_workspace_storage_index` | field catalog (frontmatter) |
-| ⚠️ | **Offline-индексы** | `rebuild_workspace_link_index` | link graph (sqlite) |
-| ⚠️ | **Offline-индексы** | `run_workspace_ocr_index` | OCR вложений |
-| ⚠️ | **Offline-индексы** | `rebuild_workspace_indexes` | UI pipeline: всё сразу + WS-MAP |
-| ⚠️ | **Offline-индексы** | `sync_workspace_index_file` | инкремент после правки одного файла |
+```
+⚠️ Навигация и оглавления (файлы в workspace)
+├── Workspace (дерево страниц)
+│   ├── get_page_map                    … runtime: manifest + папки без manifest
+│   ├── get_workspace_page_index        … read INDEX.md
+│   └── refresh_workspace_page_index    … rebuild INDEX.md ← get_page_map
+├── Тема / слот (TOC контента)
+│   ├── get_content_map                 … meta по всем слотам страницы (тяжелее)
+│   ├── get_content_index               … read index.md темы или слота
+│   └── refresh_content_index           … rebuild index.md темы/слота
+├── WS-MAP (реестр всех index/INDEX в ws)
+│   ├── get_workspace_wsmap
+│   └── refresh_workspace_wsmap         … rebuild WS-MAP.md
+├── Hub-каталоги (index.md в корне раздела)
+│   ├── awn-databases/index.md
+│   │   ├── database_frame_read_index
+│   │   ├── database_frame_refresh_index
+│   │   ├── iblock_read_index           … alias read
+│   │   └── iblock_refresh_index        … alias refresh
+│   ├── awn-media/index.md
+│   │   └── refresh_media_library_index
+│   ├── awn-repositories/index.md
+│   │   └── refresh_repository_index
+│   └── awn-channels/index.md           … MCP index пока нет ⚠️
+│
+⚠️ Поиск (read-only, по индексам / тексту)
+├── search_workspace_content            … fulltext
+├── search_workspace_semantic           … semantic (hash-TF-IDF)
+├── search_workspace_hybrid             … semantic + fulltext (дефолт)
+├── search_workspace_batch              … пакет hybrid
+├── search_workspace_links              … backlinks / outbound (отдельный граф)
+├── query_workspace_storage             … SQL-like по field catalog
+├── list_workspace_registry_queries     … именованные пресеты
+└── run_workspace_registry_query        … выполнить пресет
+│
+⚠️ Offline-индексы (.agent-cms/cache/indexes/*)
+├── Диагностика
+│   ├── get_workspace_index_status      … слои: OCR, fulltext, semantic, storage, link
+│   └── get_workspace_index_monitor     … stale / размер / здоровье
+├── Rebuild по слою
+│   ├── rebuild_workspace_fulltext_index
+│   ├── rebuild_workspace_semantic_index
+│   ├── rebuild_workspace_storage_index … field catalog (frontmatter)
+│   ├── rebuild_workspace_link_index    … sqlite link graph
+│   └── run_workspace_ocr_index         … OCR вложений
+└── Операции
+    ├── rebuild_workspace_indexes       … UI: всё сразу + WS-MAP
+    └── sync_workspace_index_file       … инкремент после правки одного файла
+```
+
+**Как читать:** сверху вниз — «где лежит правда» (карта → md-оглавление → hub index), отдельно ветки **поиск** и **offline-кэш**. Рефактор `placement` сюда не относится, пока не решим единый `placement` для `get_content_index` по channel/media.
 
 ---
 

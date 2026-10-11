@@ -1,5 +1,13 @@
+import { createRequire } from "node:module";
 import { z } from "zod";
 import { readFileHandler } from "./workspace-fs-tools.js";
+import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
+
+const require = createRequire(import.meta.url);
+const {
+  normalizeChannelManifestPath,
+  hubStorageWorkspacePath
+} = require("../../lib/config/content-placement.js");
 
 const workspaceRelPath = z
   .string()
@@ -11,23 +19,8 @@ const channelStorageFolder = z
   .optional()
   .describe("awn-storage subfolder; default files (ingress storage, not topic media/)");
 
-function normalizeChannelManifestPath(path) {
-  let manifest = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifest.startsWith("awn-channels/")) {
-    manifest = `awn-channels/${manifest}`;
-  }
-  if (!/\/manifest\.md$/i.test(manifest)) {
-    manifest = `${manifest.replace(/\/$/, "")}/manifest.md`;
-  }
-  return manifest;
-}
-
 function resolveChannelStorageRel(manifestPath, folder, file) {
-  const manifest = normalizeChannelManifestPath(manifestPath);
-  const base = manifest.replace(/\/manifest\.md$/i, "");
-  const slot = folder === "assets" ? "assets" : "files";
-  const relFile = String(file || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  return `${base}/awn-storage/${slot}/${relFile}`;
+  return hubStorageWorkspacePath(normalizeChannelManifestPath(manifestPath), folder, file);
 }
 
 function splitChannelUploadRef(fileRef) {
@@ -89,31 +82,27 @@ export function registerChannelTools(reg, client, options = {}) {
 
   reg(
     "list_channel_items",
-    "List files and section manifests inside awn-channels/{slug}/awn-storage/files or assets.",
+    "[Legacy] Use list_content with placement.kind=channel and slot (files, assets, inbox, …).",
     z.object({
       path: workspaceRelPath,
       folder: channelStorageFolder
     }),
     async ({ path, folder }) => {
-      const manifestPath = normalizeChannelManifestPath(path);
-      const data = await client.get("/api/agent/channels/items", {
-        path: manifestPath,
-        folder: folder || "files"
+      const slot =
+        folder === "assets" ? "assets" : folder === "files" ? "files" : folder || "files";
+      const data = await listContentItems(client, {
+        placement: { kind: "channel", path, slot }
       });
-      if (!data || typeof data !== "object") return data;
       return {
         ...data,
-        path: manifestPath,
-        folder: folder || "files",
-        hint:
-          "Ingress storage for channel. Open a file with read_channel_file; upload with upload_channel_file."
+        hint: "Prefer list_content with placement.kind=channel."
       };
     }
   );
 
   regRead(
     "read_channel_file",
-    "Read one file inside a channel (path = manifest, file = path inside files/ or assets/).",
+    "[Legacy] Prefer read_content with placement.kind=channel (slot files|assets or inbox/…). Read one file inside a channel.",
     z.object({
       path: workspaceRelPath,
       file: z.string().min(1).describe("Relative path inside the channel storage folder"),
@@ -121,19 +110,32 @@ export function registerChannelTools(reg, client, options = {}) {
       format: z.enum(["base64"]).optional().describe("For images/binaries: return base64 via workspace read"),
       maxBytes: z.number().int().min(1024).max(1_500_000).optional()
     }),
-    (args) => {
-      const storagePath = resolveChannelStorageRel(args.path, args.folder || "files", args.file);
-      return readFileHandler(client, {
-        path: storagePath,
-        format: args.format,
-        maxBytes: args.maxBytes
-      });
+    async (args) => {
+      const folder = args.folder || "files";
+      const slot = folder === "assets" ? "assets" : "files";
+      const placementArgs = {
+        placement: {
+          kind: "channel",
+          path: args.path,
+          slot,
+          ref: args.file
+        }
+      };
+      if (args.format === "base64") {
+        const storagePath = resolveChannelStorageRel(args.path, folder, args.file);
+        return readFileHandler(client, {
+          path: storagePath,
+          format: args.format,
+          maxBytes: args.maxBytes
+        });
+      }
+      return readContentBody(client, placementArgs);
     }
   );
 
   reg(
     "upload_channel_file",
-    "Upload base64 bytes into awn-channels/{slug}/awn-storage/files or assets/.",
+    "[Legacy] Prefer write_content with placement.kind=channel and data (base64).",
     z.object({
       path: workspaceRelPath,
       file: z.string().min(1).describe("Target relative path including file name, e.g. inbox/photo.png"),
@@ -146,19 +148,12 @@ export function registerChannelTools(reg, client, options = {}) {
         .describe("Create parent folders under files/ or assets/ if missing (default true)")
     }),
     ({ path, file, data, folder, mimeType, createSubdir }) => {
-      const manifestPath = normalizeChannelManifestPath(path);
-      const { fileName, subdir } = splitChannelUploadRef(file);
-      const libraryFolder = folder || "files";
-      return client.post("/api/agent/channels/file", {
-        path: manifestPath,
-        contextPath: manifestPath,
-        fileName,
+      const slot = folder === "assets" ? "assets" : folder || "files";
+      return writeContentBinary(client, {
+        placement: { kind: "channel", path, slot, ref: file },
         data,
         mimeType,
-        folder: libraryFolder,
-        libraryFolder,
-        subdir,
-        createSubdir: createSubdir !== false
+        createSubdir
       });
     }
   );
