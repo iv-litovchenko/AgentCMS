@@ -2108,10 +2108,11 @@
 
 /* Справка о странице — под капсулой панели */
 .asc-page-context-strip {
-  width: 100%;
+  width: fit-content;
   max-width: min(640px, calc(100vw - 40px));
-  padding: 5px 8px 6px;
-  border-radius: 12px;
+  align-self: center;
+  padding: 4px 6px 5px;
+  border-radius: 10px;
   border: 1px solid rgba(167, 139, 250, 0.22);
   background: rgba(17, 12, 32, 0.88);
   box-shadow: 0 6px 18px rgba(15, 10, 30, 0.22);
@@ -2119,18 +2120,20 @@
 }
 
 .asc-page-context-strip-chips {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px 6px;
+  width: fit-content;
+  max-width: 100%;
+  gap: 3px 4px;
   align-items: center;
 }
 
 .asc-page-context-chip {
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
   max-width: 100%;
-  padding: 2px 7px;
+  padding: 1px 5px 1px 4px;
   border-radius: 999px;
   border: 1px solid rgba(167, 139, 250, 0.2);
   background: rgba(255, 255, 255, 0.05);
@@ -2139,11 +2142,20 @@
   white-space: nowrap;
 }
 
-.asc-page-context-chip-label {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: rgba(167, 139, 250, 0.78);
+.asc-page-context-chip-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: rgba(167, 139, 250, 0.82);
+}
+
+.asc-page-context-chip-icon-svg {
+  display: block;
+  width: 12px;
+  height: 12px;
 }
 
 .asc-page-context-chip-value {
@@ -2159,8 +2171,8 @@
   background: rgba(34, 211, 238, 0.08);
 }
 
-.asc-page-context-chip--cursor .asc-page-context-chip-label {
-  color: rgba(103, 232, 249, 0.88);
+.asc-page-context-chip--cursor .asc-page-context-chip-icon {
+  color: rgba(103, 232, 249, 0.92);
 }
 
 .asc-page-context-chip--cursor .asc-page-context-chip-value {
@@ -2169,8 +2181,32 @@
   letter-spacing: 0.02em;
 }
 
+.asc-page-context-chip--scroll {
+  border-color: rgba(74, 222, 128, 0.38);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.asc-page-context-chip--scroll .asc-page-context-chip-icon {
+  color: rgba(134, 239, 172, 0.95);
+}
+
+.asc-page-context-chip--scroll .asc-page-context-chip-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* В полоске тулбара скрыты визуально; данные по-прежнему рендерятся в DOM */
+.asc-page-context-chip[data-chip="dpr"],
+.asc-page-context-chip[data-chip="lang"],
+.asc-page-context-chip[data-chip="https"],
+.asc-page-context-chip[data-chip="host"] {
+  display: none;
+}
+
 .asc-page-context-strip-title {
-  margin: 4px 2px 0;
+  display: none;
+  margin: 3px 1px 0;
   font-size: 10px;
   font-weight: 500;
   line-height: 1.3;

@@ -46,8 +46,8 @@
   }
 
   function mountRoot() {
-    if (root.isConnected) return;
-    const parent = document.body || document.documentElement;
+    const parent = document.documentElement;
+    // Тулбар (#agent-shell-companion-toolbar) тоже на <html> — оверлей должен быть последним sibling.
     parent.appendChild(root);
   }
 
