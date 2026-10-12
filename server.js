@@ -337,7 +337,9 @@ const {
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
   normalizeDeclaredManifestTreeType,
-  resolveMediaStorageSubfolderForManifest
+  resolveMediaStorageSubfolderForManifest,
+  isWorkspaceAwnMediaLibraryManifestRel,
+  isWorkspaceAwnChannelManifestRel
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -9055,6 +9057,12 @@ async function resolveExistingWorkspaceRelPath(relPath) {
   };
 
   pushCandidate(normalized);
+  if (/^awn-media\/[^/]+$/i.test(normalized)) {
+    pushCandidate(`${normalized}/manifest.md`);
+  }
+  if (/^awn-channels\/[^/]+$/i.test(normalized)) {
+    pushCandidate(`${normalized}/manifest.md`);
+  }
   await appendGitRepoContainerRelCandidates(candidates, normalized, seen);
   await appendPrefixedWorkspaceManifestCandidates(candidates, normalized, seen);
 
@@ -9797,7 +9805,11 @@ function stripPlatformDataFromMenuTree(menu) {
   const stripNode = (node) => {
     if (!node || typeof node !== "object") return node;
     const sections = (node.sections || [])
-      .filter((section) => !isPlatformDataMenuFolderPath(section?.folderPath))
+      .filter(
+        (section) =>
+          !isPlatformDataMenuFolderPath(section?.folderPath) &&
+          !isPlatformDataRootFolderName(section?.title)
+      )
       .map((section) => stripNode(section));
     const items = (node.items || []).filter((item) => !isPlatformDataMenuFolderPath(item?.path));
     const repoItems = (node.repoItems || node.repoServiceItems || []).filter(
@@ -10072,32 +10084,53 @@ async function moveExternalMemoryFile(manifestRelPath, relFile, options = {}) {
   };
 }
 
-async function resolveMediaFileOpContext(manifestRelPath, relFile) {
+async function resolveMediaFileOpContext(manifestRelPath, relFile, options = {}) {
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
   if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
 
   const normalizedRelFile = normalizeRelativeFilePath(relFile);
   if (!normalizedRelFile) return { error: "Invalid media file path", status: 400 };
 
-  const mediaAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRelFile);
+  const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRelPath, options.folder);
+  const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, libraryFolder);
+  let mediaAbsolute = null;
+  if (libraryFolderAbsolute) {
+    const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+    if (
+      isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+      (await fileExists(directAbsolute))
+    ) {
+      mediaAbsolute = directAbsolute;
+    }
+  }
+  if (!mediaAbsolute) {
+    mediaAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRelFile);
+  }
   if (!mediaAbsolute) return { error: "Media file not found", status: 404 };
 
-  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-  if (!folderAbsolute || !isPathInsideDirectory(folderAbsolute, mediaAbsolute)) {
+  const allowedRoots = [];
+  if (libraryFolderAbsolute) allowedRoots.push(libraryFolderAbsolute);
+  const legacyMediaFolder = await getMediaFolderAbsolute(nodeAbsolute);
+  if (legacyMediaFolder) allowedRoots.push(legacyMediaFolder);
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute);
+  if (assetsFolder) allowedRoots.push(assetsFolder);
+
+  const insideAllowed = allowedRoots.some((root) => isPathInsideDirectory(root, mediaAbsolute));
+  if (!insideAllowed) {
     return { error: "Invalid media file path", status: 400 };
   }
 
   return {
     manifestRelPath,
     nodeAbsolute,
-    folderAbsolute,
+    folderAbsolute: libraryFolderAbsolute || legacyMediaFolder,
     normalizedRelFile,
     mediaAbsolute
   };
 }
 
-async function deleteMediaStorageFile(manifestRelPath, relFile) {
-  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
+async function deleteMediaStorageFile(manifestRelPath, relFile, options = {}) {
+  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile, options);
   if (ctx.error) return ctx;
 
   const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
@@ -20473,6 +20506,9 @@ function applyApiPathAliases(url) {
 let existsApi = null;
 
 async function readManifestAwnTypeId(manifestRelPath) {
+  const canonical = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (isWorkspaceAwnMediaLibraryManifestRel(canonical)) return "awn.hub.media";
+  if (isWorkspaceAwnChannelManifestRel(canonical)) return "awn.hub.channel";
   const { frontmatter } = await readNodeFrontmatterContent(manifestRelPath);
   const props = parseFrontmatterProps(frontmatter);
   return String(props["awn-type"] || props.awnType || "awn.page.topic").trim();
@@ -29150,12 +29186,17 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const normalizedRelFile = normalizeRelativeFilePath(relFile);
-    const mediaFolderKey = normalizedRelFile && /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
+    const libraryFolder = resolveMediaStorageSubfolderForManifest(relPath, url.searchParams.get("folder"));
+    const mediaFolderKey =
+      libraryFolder === STORAGE_SUBFOLDER_ASSETS
+        ? "assets"
+        : libraryFolder === STORAGE_SUBFOLDER_FILES
+          ? "files"
+          : "media";
     if (!(await enforceSlotPolicyForStorageFolder(res, relPath, mediaFolderKey))) return;
 
     try {
-      const result = await deleteMediaStorageFile(relPath, relFile);
+      const result = await deleteMediaStorageFile(relPath, relFile, { folder: libraryFolder });
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
     } catch (error) {

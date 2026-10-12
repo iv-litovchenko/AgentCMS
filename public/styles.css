@@ -15874,6 +15874,7 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
 
 .agent-recycler-pane {
   min-height: 0;
+  box-sizing: border-box;
 }
 
 .agent-recycler-pane.agent-tool-pane {
@@ -15882,10 +15883,10 @@ html:not(.is-privacy-mode) .agent-sensitive-input .agent-git-settings-input {
 }
 
 .agent-recycler-content {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 0 16px 16px;
+  overflow: visible;
+  padding: 0 4px 48px;
 }
 
 .agent-recycler-list {
@@ -28673,7 +28674,8 @@ body.workspace-pomodoro-break-active {
 .agent-large-files-content,
 .agent-broken-links-content,
 .agent-runtime-registry-content,
-.agent-git-content {
+.agent-git-content,
+.agent-recycler-content {
   overflow: visible;
   flex: 0 0 auto;
   min-height: 0;
@@ -30593,6 +30595,7 @@ body.workspace-pomodoro-break-active {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  overflow-anchor: none;
 }
 
 .menu-sidebar-bottom {
@@ -30755,7 +30758,7 @@ body.workspace-pomodoro-break-active {
 /* «Дерево и поиск» раскрыто: нижние аккордеоны скрыты, остаётся только stats */
 .sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus) {
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .sidebar.is-menu-tree-focus:not(.is-menu-bottom-focus):not(.is-menu-static-footer-focus):not(.is-channels-focus)
@@ -73605,9 +73608,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 12px;
-  padding: 0 3px;
-  font-size: 6.5px;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.2rem;
+  font-size: 0.625rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
@@ -74019,6 +74023,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.3rem;
 }
 
 .menu-awn-databases-store-badge {
