@@ -2695,7 +2695,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   "module-vizualization": "module-visualization",
   "m-mcp-methods": "module-catalog",
   "module-mcp-methods": "module-catalog",
-  "agent-queue": "agent-task-queue"
+  "agent-queue": "task-queue",
+  "agent-task-queue": "task-queue"
 };
 
 /** @deprecated legacy /a/…/v/{mode} */
@@ -2716,6 +2717,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "task-queue",
   "agent-task-queue",
   "agent-queue",
   "artefacts",
@@ -2750,8 +2752,9 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
-  "agent-task-queue": "agent-task-queue",
-  "agent-queue": "agent-queue",
+  "task-queue": "task-queue",
+  "agent-task-queue": "task-queue",
+  "agent-queue": "task-queue",
   temp: "temp"
 };
 
@@ -2770,8 +2773,9 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
-  "agent-task-queue": "agent-task-queue",
-  "agent-queue": "agent-task-queue",
+  "task-queue": "task-queue",
+  "agent-task-queue": "task-queue",
+  "agent-queue": "task-queue",
   temp: "temp"
 };
 
@@ -5894,7 +5898,7 @@ function resolveHubWorkspaceSlotPolicy(topicPath = getResolvedNodePath(activePat
     isAwnChannelHubWorkspacePath(path) ||
     isAwnChannelPageNodePath(path, propsEntries)
   ) {
-    return { kind: "channel", slotKeys: ["inbox", "todo-single", "outbox"], defaultMemoryKind: "inbox" };
+    return { kind: "channel", slotKeys: ["inbox", "task-queue", "outbox"], defaultMemoryKind: "inbox" };
   }
   if (
     isMediaLibraryTypeLabel(typeId) ||
@@ -5990,7 +5994,8 @@ function resolveHubChannelWorkspaceBrowseMemoryKind(topicPath = getResolvedNodeP
   }
   const mode = String(activeContentMode || "").trim();
   if (hubPolicyIncludesMemoryKind(policy, mode)) return mode;
-  if (mode === "todo" && policy.slotKeys.includes("todo-single")) return "todo";
+  if (mode === "task-queue" && policy.slotKeys.includes("task-queue")) return "task-queue";
+  if (mode === "agent-task-queue" && policy.slotKeys.includes("task-queue")) return "task-queue";
   if (mode === "roadmap" && policy.slotKeys.includes("roadmap-single")) return "roadmap";
   return policy.defaultMemoryKind;
 }
@@ -7978,7 +7983,7 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "artefacts", label: "Артефакты", modeId: "artefacts" },
   { id: "assets", label: "Активы", modeId: "assets" },
   { id: "media", label: "Медиа", modeId: "media" },
-  { id: "agent-task-queue", label: "Очередь задач для агента", modeId: "agent-task-queue" },
+  { id: "task-queue", label: "Очередь задач", modeId: "task-queue" },
   { id: "scripts", label: "Скрипты", modeId: "scripts" },
   { id: "templates", label: "Шаблоны", modeId: "templates" },
   { id: "base", label: "База", modeId: "base" },
@@ -18538,8 +18543,11 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
-const AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
-const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-queue";
+const AWN_TASK_QUEUE_STORE = "task-queue";
+const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
+const LEGACY_AWN_AGENT_QUEUE_STORE = "agent-queue";
+/** @deprecated use AWN_TASK_QUEUE_STORE */
+const AWN_AGENT_TASK_QUEUE_STORE = AWN_TASK_QUEUE_STORE;
 const LEGACY_AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_SCRIPTS_FOLDER = "awn-scripts";
@@ -18604,6 +18612,7 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.templates.toc.root": "Оглавление",
   "awn.base.toc.root": "Оглавление",
   "awn.notebooklm.toc.root": "Оглавление",
+  "awn.task-queue.toc.root": "Оглавление",
   "awn.agent-task-queue.toc.root": "Оглавление",
   "awn.agent-queue.toc.root": "Оглавление"
 };
@@ -18621,6 +18630,7 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "task-queue",
   "agent-task-queue",
   "agent-queue"
 ]);
@@ -18640,6 +18650,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "task-queue",
   "agent-task-queue",
   "agent-queue",
   "todo"
@@ -18659,6 +18670,7 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.templates.toc.root",
   "awn.base.toc.root",
   "awn.notebooklm.toc.root",
+  "awn.task-queue.toc.root",
   "awn.agent-task-queue.toc.root",
   "awn.agent-queue.toc.root"
 ]);
@@ -19020,9 +19032,9 @@ const WORKSPACE_TOOL_MODULE_META = {
     title: "Банк фактов",
     lead: "Коллекция contents/facts — create / search_workspace_facts."
   },
-  [`awn-databases/${AWN_AGENT_TASK_QUEUE_STORE}`]: {
-    title: "Очередь задач для агента",
-    lead: "Коллекция agent-task-queue — чекпоинты и задачи (как слот agent-task-queue в теме)."
+  [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
+    title: "Очередь задач",
+    lead: "Коллекция task-queue — чекпоинты и задачи (слот task-queue в теме и канале)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -19172,11 +19184,11 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
-    key: "agent-task-queue",
-    label: "Очередь задач для агента",
+    key: "task-queue",
+    label: "Очередь задач",
     icon: "⏳",
-    modes: new Set(["agent-task-queue"]),
-    defaultMode: "agent-task-queue",
+    modes: new Set(["task-queue"]),
+    defaultMode: "task-queue",
     sectionKind: "flat",
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
@@ -19412,7 +19424,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   templates: "Markdown (.md) — шаблоны записей и manifest",
   base: "Markdown (.md) — строки структурированных данных",
   notebooklm: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
-  "agent-task-queue": "Markdown (.md) — задачи агента",
+  "task-queue": "Markdown (.md) — очередь задач",
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
   "main-single": "Markdown (.md) — main.md",
@@ -21345,7 +21357,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     templates: ["templates"],
     base: ["base"],
     notebooklm: ["notebooklm"],
-    "agent-task-queue": ["agent-task-queue"],
+    "task-queue": ["task-queue"],
     discussion: ["discussion"],
     temp: ["temp"],
     volume: ["volume"],
@@ -23071,6 +23083,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
+    mode === "task-queue" ||
     mode === "agent-task-queue" ||
     mode === "todo" ||
     mode === "roadmap" ||
@@ -23232,7 +23245,7 @@ function getContentModeLabel(mode) {
   if (mode === "templates") return "Шаблоны";
   if (mode === "base") return "База";
   if (mode === "notebooklm") return "NotebookLM";
-  if (mode === "agent-task-queue") return "Очередь задач для агента";
+  if (mode === "task-queue" || mode === "agent-task-queue") return "Очередь задач";
   if (mode === "todo") return "TODO";
   if (mode === "roadmap") return "Карты";
   if (mode === "references") return "Источники";
@@ -44379,7 +44392,7 @@ function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "templates") return "Разделы шаблонов";
   if (mode === "base") return "Разделы базы";
   if (mode === "notebooklm") return "Разделы NotebookLM";
-  if (mode === "agent-task-queue") return "Разделы очереди задач";
+  if (mode === "task-queue" || mode === "agent-task-queue") return "Разделы очереди задач";
   return "Разделы";
 }
 
@@ -46195,6 +46208,7 @@ function isFlatStorageListMode(mode = activeContentMode) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
+    mode === "task-queue" ||
     mode === "agent-task-queue" ||
     mode === "artefacts" ||
     mode === "repository" ||
@@ -55439,7 +55453,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return inferContentTypeFromStoragePath(normalized, lower);
   }
 
-  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm", "agent-task-queue"];
+  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm", "task-queue", "agent-task-queue"];
   const isFlatStorageContentFile =
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
@@ -72126,7 +72140,7 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["notes", "references", "artefacts", "agent-task-queue", "scripts", "templates", "base", "notebooklm"];
+  const flatCounterModes = ["notes", "references", "artefacts", "task-queue", "agent-task-queue", "scripts", "templates", "base", "notebooklm"];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
@@ -105112,7 +105126,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "discussion", "references", "scripts", "templates", "base", "notebooklm", "agent-task-queue", "artefacts", "assets", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "discussion", "references", "scripts", "templates", "base", "notebooklm", "task-queue", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");
@@ -119928,19 +119942,20 @@ function syncAwnDataCreateGroupPresetsUi() {
       : "Группа contents/ и коллекция glossary (md-lite, MCP глоссарий)";
   }
 
-  const agentQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
-    '[data-awn-data-group-preset="agent-task-queue"]'
+  const taskQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="task-queue"]'
   );
-  if (agentQueueBtn) {
+  if (taskQueueBtn) {
     const exists =
-      isAwnContentsCollectionPresent(AWN_AGENT_TASK_QUEUE_STORE, activeAgentId) ||
-      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeAgentId);
-    agentQueueBtn.disabled = exists;
-    agentQueueBtn.classList.toggle("is-disabled", exists);
-    agentQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
-    agentQueueBtn.title = exists
-      ? "Коллекция awn-databases/agent-task-queue/ уже создана"
-      : "Коллекция agent-task-queue — md с разделами, как слот «Очередь задач» в теме";
+      isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, activeAgentId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeAgentId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_QUEUE_STORE, activeAgentId);
+    taskQueueBtn.disabled = exists;
+    taskQueueBtn.classList.toggle("is-disabled", exists);
+    taskQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+    taskQueueBtn.title = exists
+      ? "Коллекция awn-databases/task-queue/ уже создана"
+      : "Коллекция task-queue — md с разделами, как слот «Очередь задач» в теме и канале";
   }
 }
 
@@ -129231,17 +129246,17 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
   }
 }
 
-async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
+async function submitAwnDataScaffoldTaskQueue(agentId = activeAgentId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
   }
   const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
-    '[data-awn-data-group-preset="agent-task-queue"]'
+    '[data-awn-data-group-preset="task-queue"]'
   );
   if (presetBtn) presetBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-agent-task-queue", {}, agentId), {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-task-queue", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
@@ -129250,16 +129265,19 @@ async function submitAwnDataScaffoldAgentQueue(agentId = activeAgentId) {
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
     closeAwnDataCreateModal();
     if (data.storeCreated) {
-      showToast("Создана коллекция «Очередь задач для агента»", "success");
+      showToast("Создана коллекция «Очередь задач»", "success");
     } else {
-      showToast("Коллекция agent-task-queue уже существует", "success");
+      showToast("Коллекция task-queue уже существует", "success");
     }
     await refreshMenuAwnDataStores(agentId);
     const openRel =
       data.store?.relPath ||
-      (isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, agentId)
-        ? LEGACY_AWN_AGENT_TASK_QUEUE_STORE
-        : AWN_AGENT_TASK_QUEUE_STORE);
+      data.storeRel ||
+      (isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, agentId)
+        ? AWN_TASK_QUEUE_STORE
+        : isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, agentId)
+          ? LEGACY_AWN_AGENT_TASK_QUEUE_STORE
+          : LEGACY_AWN_AGENT_QUEUE_STORE);
     void openAwnDataViewPage(openRel, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
@@ -129313,7 +129331,7 @@ function setupAwnDataStoresUi() {
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
     if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
-    if (preset === "agent-task-queue") void submitAwnDataScaffoldAgentQueue();
+    if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));

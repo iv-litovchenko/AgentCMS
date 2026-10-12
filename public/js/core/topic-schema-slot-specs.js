@@ -216,7 +216,7 @@
         }
       },
       {
-        slotKey: "agent-task-queue",
+        slotKey: "task-queue",
         label: "Чекпоинты и очередь задач для агента",
         tabGroup: "workspace",
         defaultKind: "record",
