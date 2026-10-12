@@ -6046,6 +6046,15 @@ function isHubChannelEntryOverviewFlatSlot(
   return Boolean(resolveHubChannelWorkspaceTopicPath(context));
 }
 
+function isEntryOverviewHubChannelFlatSlotActive(
+  context = activeEntryOverviewContext,
+  targetMode = null
+) {
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !context) return false;
+  const mode = targetMode ?? getEntryOverviewBrowseUploadTargetMode(context);
+  return isHubChannelEntryOverviewFlatSlot(context, mode);
+}
+
 function supportsHubChannelFlatSlotBrowseUpload(
   context,
   targetMode = getEntryOverviewBrowseUploadTargetMode(context)
@@ -25590,9 +25599,21 @@ function resolveResourceStateMemoryKind(state) {
   if (!state) return null;
   if (state.railSlotMemoryKind) return state.railSlotMemoryKind;
   if (state.storageMode) return state.storageMode;
+  if (state.mode) return state.mode;
   if (state.externalMode) return "external";
   if (state.mediaMode) return "media";
   return null;
+}
+
+function resolveFlatStorageRecordManifestApiPath(state = null) {
+  const fromState =
+    state?.manifestPath ||
+    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath ||
+    activeEntryOverviewContext?.relPath ||
+    "";
+  const normalized = String(fromState || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (normalized) return normalized;
+  return getWorkspaceStorageManifestApiPath(getResolvedNodePath(activePath));
 }
 
 function appendResourceClipboardMenuItems(kind) {
@@ -26065,11 +26086,21 @@ function refreshEntryOverviewSlotCounterStripsForTopic(topicPath = getResolvedNo
 async function refreshMemorySectionViews(state = resourceContextMenuState) {
   invalidateStorageRootScanCache();
   const topicPath = getResolvedNodePath(activePath);
+  const manifestPath = resolveFlatStorageRecordManifestApiPath(state);
+  if (manifestPath) invalidateEntryOverviewSlotCountersCache(manifestPath);
   refreshEntryOverviewSlotCounterStripsForTopic(topicPath);
-  if (state?.storageMode) {
-    await reloadFlatStorageFolderMode(state.storageMode);
-    rerenderFlatStorageListViewBody(state.storageMode);
-    await refreshNavigationHubRailSlotTreeForMemoryKind(state.railSlotMemoryKind || state.storageMode);
+  const flatMode =
+    state?.storageMode ||
+    state?.mode ||
+    (state?.kind === "flatStorageFile" ? resolveResourceStateMemoryKind(state) : null);
+  if (flatMode && (FLAT_STORAGE_SECTION_MODES.has(flatMode) || isFlatEntryOverviewMemoryKind(flatMode))) {
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && nodeOverviewContentNode) {
+      await refreshNavigationHubAfterSlotMutation();
+      return;
+    }
+    await reloadFlatStorageFolderMode(flatMode);
+    rerenderFlatStorageListViewBody(flatMode);
+    await refreshNavigationHubRailSlotTreeForMemoryKind(state?.railSlotMemoryKind || flatMode);
     return;
   }
   if (state?.externalMode) {
@@ -26844,8 +26875,8 @@ async function deleteFlatStorageRecordFromMenu(state) {
   const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
   if (!confirmed) return;
   try {
-    await deleteFlatStorageRecord(rel, mode, getWorkspaceStorageManifestApiPath());
-    await refreshMemorySectionViews(state);
+    await deleteFlatStorageRecord(rel, mode, resolveFlatStorageRecordManifestApiPath(state));
+    await refreshMemorySectionViews({ ...state, mode, storageMode: mode });
     refreshStorageSlotTree();
     showToast("В корзину", "success");
   } catch (error) {
@@ -43533,7 +43564,10 @@ async function uploadNavigationHubRailFlexibleSlotFiles(files, context) {
 }
 
 async function uploadHubChannelFlatSlotBrowseFiles(files, context, targetMode) {
-  const topicPath = getResolvedNodePath(context?.relPath || activePath);
+  const manifestPath =
+    String(context?.relPath || "").trim() ||
+    getWorkspaceStorageManifestApiPath(resolveHubChannelWorkspaceTopicPath(context));
+  const topicPath = manifestPath || getResolvedNodePath(activePath);
   const parentFolder = getEntryOverviewBrowseUploadParentFolder(context);
   const base = getNodeStorageSubfolderPath(topicPath, targetMode);
   const folderPath = parentFolder
@@ -43632,6 +43666,9 @@ function getActiveSlotRecordCreateFolder() {
   if (railMode && FLAT_STORAGE_SECTION_MODES.has(railMode)) {
     return getFlatStorageSectionFolderName(railMode);
   }
+  if (isEntryOverviewHubChannelFlatSlotActive()) {
+    return getFlatStorageSectionFolderName(getEntryOverviewBrowseUploadTargetMode());
+  }
   if (activeContentMode === "external") return "main";
   if (entryOverviewExternalCreateActive || isEntryOverviewExternalMemory()) return "main";
   if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
@@ -43652,6 +43689,9 @@ function getActiveSlotRecordCreateParentFolder(createMode, folder) {
 function getActiveSlotRecordCreateMode() {
   if (navigationHubRailSlotCreateState?.targetMode) return navigationHubRailSlotCreateState.targetMode;
   if (entryOverviewExternalCreateActive || isEntryOverviewExternalMemory()) return "external";
+  if (isEntryOverviewHubChannelFlatSlotActive()) {
+    return getEntryOverviewBrowseUploadTargetMode();
+  }
   return activeContentMode;
 }
 
@@ -66735,14 +66775,9 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
       return;
     }
   } else if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
-    const entryOverviewHubFlatSlot =
-      activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
-      activeEntryOverviewContext &&
-      getEntryOverviewBrowseUploadTargetMode(activeEntryOverviewContext) === targetMode &&
-      isHubChannelEntryOverviewFlatSlot(activeEntryOverviewContext, targetMode);
     if (
       !isNavigationHubRailSlotCreateActive(targetMode) &&
-      !entryOverviewHubFlatSlot &&
+      !isEntryOverviewHubChannelFlatSlotActive(activeEntryOverviewContext, targetMode) &&
       activeContentMode !== targetMode
     ) {
       return;
@@ -66816,6 +66851,7 @@ async function createWorkspaceSection() {
   } else if (FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode)) {
     if (
       !isNavigationHubRailSlotCreateActive(createSectionTargetMode) &&
+      !isEntryOverviewHubChannelFlatSlotActive(activeEntryOverviewContext, createSectionTargetMode) &&
       activeContentMode !== createSectionTargetMode
     ) {
       return;
@@ -76117,14 +76153,6 @@ function resolveNavigationHubRailResourceContextMenuScope(memoryKind) {
       fileKind: "externalFile"
     };
   }
-  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
-    return {
-      sectionState: { mediaMode: true },
-      sectionReadmeExists: mediaSectionReadmeExists,
-      onReadmeEdit: (readmePath, sectionFolder) => void openMediaSectionReadme(readmePath, sectionFolder),
-      fileKind: "mediaFile"
-    };
-  }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     return {
       sectionState: { storageMode: memoryKind },
@@ -76132,6 +76160,14 @@ function resolveNavigationHubRailResourceContextMenuScope(memoryKind) {
       onReadmeEdit: (readmePath, sectionFolder) =>
         void openFlatStorageSectionReadme(memoryKind, readmePath, sectionFolder),
       fileKind: "flatStorageFile"
+    };
+  }
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
+    return {
+      sectionState: { mediaMode: true },
+      sectionReadmeExists: mediaSectionReadmeExists,
+      onReadmeEdit: (readmePath, sectionFolder) => void openMediaSectionReadme(readmePath, sectionFolder),
+      fileKind: "mediaFile"
     };
   }
   return null;
