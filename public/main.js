@@ -4786,9 +4786,7 @@ async function applyEntryOverviewRouteStateFromUrl(route) {
   if (!relativePath) return;
 
   const relPath = getEntryOverviewItemContextPath(relativePath, memoryKind);
-  const isMarkdown = /\.md$/i.test(relativePath);
-  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind });
-  if (isMediaLibrarySlotMemoryKind(memoryKind) && !isMarkdown) entryKind = "awn.media.asset";
+  const entryKind = resolveEntryOverviewEntryKindForStoragePath(relPath, relativePath, memoryKind);
 
   await openEntryOverviewFromNavigation(
     {
@@ -20722,6 +20720,56 @@ function isMediaLibrarySlotMemoryKind(memoryKind) {
   return kind === "media" || kind === "files" || kind === "assets";
 }
 
+function resolveFlatStorageMemoryKindFromPaths(relPath = "", relativePath = "") {
+  const candidates = [String(relativePath || ""), String(relPath || "")];
+  for (const raw of candidates) {
+    const normalized = raw.replace(/\\/g, "/");
+    const match = normalized.match(/(?:^|\/)(?:awn-storage|storage)\/([^/]+)\//i);
+    if (!match) continue;
+    const folder = String(match[1] || "").trim().toLowerCase();
+    const legacyFolder = CHPU_LEGACY_SLOT_VIEW_TO_FOLDER[folder];
+    const mode =
+      CHPU_SLOT_FOLDER_TO_MODE[folder] ||
+      (legacyFolder ? CHPU_SLOT_FOLDER_TO_MODE[legacyFolder] : null) ||
+      folder;
+    if (isFlatEntryOverviewMemoryKind(mode)) return mode;
+  }
+  return null;
+}
+
+function resolveEntryOverviewStorageMemoryKind(context, topicPath = activePath) {
+  const kind = String(context?.memoryKind || "").trim();
+  if (isFlatEntryOverviewMemoryKind(kind)) return kind;
+  const fromPath = resolveFlatStorageMemoryKindFromPaths(context?.relPath, context?.relativePath);
+  if (fromPath) return fromPath;
+  const policy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (policy && kind && hubPolicyIncludesMemoryKind(policy, kind)) return kind;
+  return kind || "external";
+}
+
+function resolveEntryOverviewEntryKindForStoragePath(relPath, relativePath, memoryKind) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const mode = resolveEntryOverviewStorageMemoryKind(
+    { memoryKind, relPath, relativePath: rel },
+    getResolvedNodePath(activePath)
+  );
+  const isMarkdown = /\.md$/i.test(rel);
+  if (isMarkdown) {
+    return inferAwnTypeFromRelPath(relPath, { contentMode: mode });
+  }
+  if (isMediaLibrarySlotMemoryKind(mode) || isFlatEntryOverviewMemoryKind(mode)) {
+    if (isFlatEntryOverviewMemoryKind(mode) && isPlainTextFlatStorageRecordPath(rel)) {
+      return inferAwnTypeFromRelPath(relPath, { contentMode: mode });
+    }
+    return "awn.media.asset";
+  }
+  const slotFromPath = resolveFlatStorageMemoryKindFromPaths(relPath, rel);
+  if (slotFromPath && !isMarkdown && !isPlainTextFlatStorageRecordPath(rel)) {
+    return "awn.media.asset";
+  }
+  return inferAwnTypeFromRelPath(relPath, { contentMode: mode });
+}
+
 function buildMediaLibraryApiParams(extra = {}, mode = activeContentMode, nodePath = activePath) {
   const params = { ...(extra || {}) };
   const folder = getMediaLibraryStorageSubfolder(mode, nodePath);
@@ -27576,6 +27624,8 @@ function isTopicSharedSlotActive(nodePath = activePath) {
 function normalizeEntryOverviewMemoryKindForTopic(memoryKind, topicPath = activePath) {
   const kind = String(memoryKind || "").trim() || "external";
   if (!isTopicSharedSlotActive(topicPath)) return kind;
+  const hubPolicy = resolveHubWorkspaceSlotPolicy(topicPath);
+  if (hubPolicy && hubPolicyIncludesMemoryKind(hubPolicy, kind)) return kind;
   if (kind === "media" || kind === "assets") return "external";
   if (isFlatEntryOverviewMemoryKind(kind)) return "external";
   return kind;
@@ -28511,15 +28561,12 @@ function buildEntryOverviewContextFromExternalPath(filePath) {
 function buildEntryOverviewContextFromMediaPath(filePath) {
   const rel = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const relPath = getMediaItemContextPath(rel);
-  const isMarkdown = /\.md$/i.test(rel);
-  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: "media" });
-  if (!isMarkdown) entryKind = "awn.media.asset";
   return {
     relPath,
     memoryKind: "media",
     relativePath: rel,
     title: rel.split("/").pop() || rel,
-    entryKind,
+    entryKind: resolveEntryOverviewEntryKindForStoragePath(relPath, rel, "media"),
     status: ""
   };
 }
@@ -28532,7 +28579,7 @@ function buildEntryOverviewContextFromFlatPath(filePath, memoryKind) {
     memoryKind,
     relativePath: rel,
     title: rel.split("/").pop() || rel,
-    entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind }),
+    entryKind: resolveEntryOverviewEntryKindForStoragePath(relPath, rel, memoryKind),
     status: ""
   };
 }
@@ -37807,13 +37854,23 @@ function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
       : activeContentMode === "assets"
         ? "assets"
         : resolveMediaLibraryBrowseMode(activeContentMode, nodePath));
+  const flatMemoryKind = resolveEntryOverviewStorageMemoryKind(
+    {
+      memoryKind,
+      relPath: activeEntryOverviewContext?.relPath,
+      relativePath: String(filePath || "")
+    },
+    nodePath
+  );
   const params = {
     path: resolveManifestPathForNodeApi(manifestBase),
     contextPath: resolveMediaAssetContextPath(nodePath),
     file: normalizeMarkdownImageFileRef(filePath)
   };
-  const libraryFolder = getMediaLibraryStorageSubfolder(memoryKind);
-  if (libraryFolder !== STORAGE_SUBFOLDER_MEDIA) params.folder = libraryFolder;
+  const libraryFolder = isFlatEntryOverviewMemoryKind(flatMemoryKind)
+    ? getFlatStorageSectionFolderName(flatMemoryKind)
+    : getMediaLibraryStorageSubfolder(memoryKind);
+  if (libraryFolder && libraryFolder !== STORAGE_SUBFOLDER_MEDIA) params.folder = libraryFolder;
   if (options.thumb) {
     params.thumb = "1";
     params.max = String(options.max ?? MEDIA_THUMB_MAX_DEFAULT);
@@ -55314,6 +55371,9 @@ function inferContentTypeFromStoragePath(normalized, fileNameLower = "") {
   const lower = fileNameLower || String(normalized || "").split("/").filter(Boolean).pop()?.toLowerCase() || "";
   if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.annotation.sidecar");
   if (lower === "manifest.md") return normalizeAwnTypeName("awn.content.category");
+  if (!/\.md$/i.test(lower) && !isPlainTextFlatStorageRecordPath(normalized)) {
+    return normalizeAwnTypeName("awn.media.asset");
+  }
   return normalizeAwnTypeName("awn.content.record");
 }
 
@@ -55469,7 +55529,9 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
   if (isFlatStorageContentFile && !isNodeManifestPath(normalized)) {
     if (isSectionReadmePath(normalized)) return normalizeAwnTypeName("awn.content.category");
-    return normalizeAwnTypeName("awn.content.record");
+    if (/\.md$/i.test(lower)) return normalizeAwnTypeName("awn.content.record");
+    if (isPlainTextFlatStorageRecordPath(normalized)) return normalizeAwnTypeName("awn.content.record");
+    return normalizeAwnTypeName("awn.media.asset");
   }
 
   const isStorageContentFile =
@@ -72095,15 +72157,13 @@ function openStorageSlotIndexOverview(topicPath, spec, slot = null) {
     return;
   }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    const flatRelPath = getFlatStorageItemContextPath(relativePath, memoryKind, topicPath);
     void openEntryOverviewFromNavigation({
-      relPath: getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
+      relPath: flatRelPath,
       memoryKind,
       relativePath,
       title,
-      entryKind: inferAwnTypeFromRelPath(
-        getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
-        { contentMode: memoryKind }
-      )
+      entryKind: resolveEntryOverviewEntryKindForStoragePath(flatRelPath, relativePath, memoryKind)
     });
     return;
   }
@@ -72150,7 +72210,18 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["notes", "references", "artefacts", "task-queue", "agent-task-queue", "scripts", "templates", "base", "notebooklm"];
+  const flatCounterModes = [
+    "outbox",
+    "notes",
+    "references",
+    "artefacts",
+    "task-queue",
+    "agent-task-queue",
+    "scripts",
+    "templates",
+    "base",
+    "notebooklm"
+  ];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
@@ -75945,17 +76016,19 @@ function resolveNavigationPreparedItemCount(prepared) {
 function resolveNavigationSlotFileCount(spec, { storageScan, prepared } = {}) {
   if (!spec) return 0;
 
+  const preparedCount = countMultiFileStorageSlotItems(prepared);
   const folder = findScanFolderForSlotKey(spec.key, storageScan?.folders || []);
   if (folder) {
     if (spec.key === "repository") {
-      return getRepositoryStorageSlotScanCount(folder);
+      return Math.max(getRepositoryStorageSlotScanCount(folder), preparedCount);
     }
     const scanCount = getDataStorageSlotCountForScan(spec, folder);
-    if (scanCount !== null) return scanCount;
-    return Number(folder.entryCount) || 0;
+    const resolvedScan =
+      scanCount !== null ? scanCount : Number(folder.entryCount) || 0;
+    return Math.max(resolvedScan, preparedCount);
   }
 
-  return countMultiFileStorageSlotItems(prepared);
+  return preparedCount;
 }
 
 function buildNavigationSlotCounterTitle(spec, count, { intake = null } = {}) {
@@ -76282,7 +76355,7 @@ async function openFlatStorageRecordOverviewFromNavigation(item, memoryKind) {
     memoryKind,
     relativePath: rel,
     title: item.title || rel.split("/").pop()?.replace(/\.md$/i, "") || rel,
-    entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind }),
+    entryKind: resolveEntryOverviewEntryKindForStoragePath(relPath, rel, memoryKind),
     status: item.status || "",
     ...(props.length ? { props } : {}),
     ...(item.awnId ? { awnId: item.awnId } : {})
@@ -76645,14 +76718,24 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
   const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
   const storageManifestPath = getWorkspaceStorageManifestApiPath(topicPath);
   const memoryKind = normalizeEntryOverviewMemoryKindForTopic(context.memoryKind || "external", topicPath);
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/");
+  const relPathForContext = String(
+    isMemoryTocRoot ? context?.relPath || storageManifestPath : context.relPath
+  ).replace(/\\/g, "/");
+  const storageMemoryKind = resolveEntryOverviewStorageMemoryKind(
+    { memoryKind, relPath: relPathForContext, relativePath },
+    topicPath
+  );
+  const entryKind =
+    isMemoryTocRoot || !relativePath
+      ? String(context.entryKind || "awn.record")
+      : resolveEntryOverviewEntryKindForStoragePath(relPathForContext, relativePath, storageMemoryKind);
   activeEntryOverviewContext = {
-    relPath: String(
-      isMemoryTocRoot ? context?.relPath || storageManifestPath : context.relPath
-    ).replace(/\\/g, "/"),
-    memoryKind,
-    relativePath: String(context.relativePath || "").replace(/\\/g, "/"),
+    relPath: relPathForContext,
+    memoryKind: storageMemoryKind,
+    relativePath,
     title: String(context.title || "").trim(),
-    entryKind: String(context.entryKind || "awn.record"),
+    entryKind,
     status: String(context.status || "").trim(),
     ...(Array.isArray(context.props) && context.props.length ? { props: context.props } : {}),
     ...(context.awnId ? { awnId: context.awnId } : {})
@@ -76691,7 +76774,7 @@ function openExternalRecordOverviewFromNavigation(item) {
     memoryKind: "external",
     relativePath: rel,
     title: item.title || rel.split("/").pop() || rel,
-    entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: "external" }),
+    entryKind: resolveEntryOverviewEntryKindForStoragePath(relPath, rel, "external"),
     status: item.status || "",
     ...(props.length ? { props } : {}),
     ...(item.awnId ? { awnId: item.awnId } : {})
@@ -76805,9 +76888,7 @@ function openMediaLibraryEntryOverviewFromNavigation(item, memoryKind = "media")
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
   const relPath = getMediaLibraryItemContextPath(rel, memoryKind);
-  const isMarkdown = /\.md$/i.test(rel);
-  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind });
-  if (!isMarkdown) entryKind = "awn.media.asset";
+  const entryKind = resolveEntryOverviewEntryKindForStoragePath(relPath, rel, memoryKind);
   void openEntryOverviewFromNavigation({
     relPath,
     memoryKind,
@@ -76889,7 +76970,14 @@ function openMediaCategoryOverviewFromNavigation(folderPath) {
 async function fetchEntryOverviewProperties(relPath, context = null) {
   try {
     const topicApiPath = getEntryOverviewTopicApiPath();
-    if (context?.memoryKind === "external" && context.relativePath) {
+    const storageMemoryKind = context
+      ? resolveEntryOverviewStorageMemoryKind(context, getResolvedNodePath(activePath))
+      : null;
+    if (
+      context?.memoryKind === "external" &&
+      context.relativePath &&
+      !isFlatEntryOverviewMemoryKind(storageMemoryKind)
+    ) {
       const response = await fetch(
         buildApiUrl("/api/external/file", {
           path: topicApiPath,
@@ -76928,11 +77016,30 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
         }
       }
     }
-    if (isFlatEntryOverviewMemoryKind(context?.memoryKind) && context.relativePath) {
+    if (isFlatEntryOverviewMemoryKind(storageMemoryKind) && context.relativePath) {
+      if (
+        context.entryKind === "awn.media.asset" &&
+        !/\.md$/i.test(String(context.relativePath || ""))
+      ) {
+        const folder = getFlatStorageSectionFolderName(storageMemoryKind);
+        const response = await fetch(
+          buildApiUrl("/api/storage/sidecar", {
+            path: topicApiPath,
+            slot: folder,
+            file: context.relativePath
+          })
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.exists || String(data.content || "").trim()) {
+            return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
+          }
+        }
+      }
       const response = await fetch(
         buildApiUrl("/api/storage/markdown", {
           path: topicApiPath,
-          folder: getFlatStorageSectionFolderName(context.memoryKind),
+          folder: getFlatStorageSectionFolderName(storageMemoryKind),
           file: resolveFlatStorageMarkdownFetchPath(context.relativePath)
         })
       );
@@ -77053,11 +77160,12 @@ async function fetchEntryOverviewBodyResult(context) {
       const data = await response.json();
       return { content: String(data.content || ""), ok: true };
     }
-    if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
+    const bodyStorageKind = resolveEntryOverviewStorageMemoryKind(context, getResolvedNodePath(activePath));
+    if (isFlatEntryOverviewMemoryKind(bodyStorageKind)) {
       const response = await fetch(
         buildApiUrl("/api/storage/markdown", {
           path: getActiveNodeApiPath(),
-          folder: getFlatStorageSectionFolderName(context.memoryKind),
+          folder: getFlatStorageSectionFolderName(bodyStorageKind),
           file: resolveFlatStorageMarkdownFetchPath(context.relativePath)
         })
       );
@@ -78713,6 +78821,19 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
 }
 
 function resolveEntryOverviewHeroTypeLabel(entries, context, navigationIndex = null) {
+  if (context?.entryKind === "awn.media.asset") {
+    return normalizeAwnTypeName("awn.media.asset") || "awn.media.asset";
+  }
+  const storageKind = context
+    ? resolveEntryOverviewStorageMemoryKind(context, getResolvedNodePath(activePath))
+    : null;
+  if (
+    context?.relativePath &&
+    resolveEntryOverviewEntryKindForStoragePath(context.relPath, context.relativePath, storageKind) ===
+      "awn.media.asset"
+  ) {
+    return normalizeAwnTypeName("awn.media.asset") || "awn.media.asset";
+  }
   const fromProps = String(getPropsEntryValueByKey(entries, "awn-type") || "").trim();
   if (fromProps) return fromProps;
   if (!context || isEntryOverviewMemoryTocRoot(context)) return "";
@@ -78727,7 +78848,8 @@ function resolveEntryOverviewHeroTypeLabel(entries, context, navigationIndex = n
   }
   const rel = String(context.relativePath || context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return "";
-  return String(inferAwnTypeFromRelPath(rel, { contentMode: context.memoryKind }) || "").trim();
+  const mode = resolveEntryOverviewStorageMemoryKind(context, getResolvedNodePath(activePath));
+  return String(inferAwnTypeFromRelPath(rel, { contentMode: mode }) || "").trim();
 }
 
 function formatEntryOverviewHeroPathLabel(entries, relativePath) {
@@ -83421,6 +83543,18 @@ async function renderEntryOverview() {
   const renderSeq = ++nodeOverviewRenderSeq;
   const topicPathForHub = getResolvedNodePath(activePath);
   let context = applyHubWorkspaceDefaultOverviewMemoryKind(activeEntryOverviewContext, topicPathForHub);
+  if (!isEntryOverviewMemoryTocRoot(context) && context.relativePath) {
+    const storageMemoryKind = resolveEntryOverviewStorageMemoryKind(context, topicPathForHub);
+    const entryKind = resolveEntryOverviewEntryKindForStoragePath(
+      context.relPath,
+      context.relativePath,
+      storageMemoryKind
+    );
+    if (storageMemoryKind !== context.memoryKind || entryKind !== context.entryKind) {
+      context = { ...context, memoryKind: storageMemoryKind, entryKind };
+      activeEntryOverviewContext = context;
+    }
+  }
   const hubPolicyForRender = resolveHubWorkspaceSlotPolicy(topicPathForHub);
   if (
     isEntryOverviewMemoryTocRoot(context) &&
