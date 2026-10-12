@@ -21357,7 +21357,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     templates: ["templates"],
     base: ["base"],
     notebooklm: ["notebooklm"],
-    "task-queue": ["task-queue"],
+    "task-queue": ["task-queue", "agent-task-queue", "agent-queue"],
     discussion: ["discussion"],
     temp: ["temp"],
     volume: ["volume"],
@@ -34718,6 +34718,10 @@ function syncPropsAttachmentsHeadUi(head) {
 const STORAGE_SUBFOLDER_SCRIPTS = "scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
 const STORAGE_SUBFOLDER_REPOSITORY = "repository";
+const STORAGE_SUBFOLDER_TEMPLATES = "templates";
+const STORAGE_SUBFOLDER_BASE = "base";
+const STORAGE_SUBFOLDER_NOTEBOOKLM = "notebooklm";
+const STORAGE_SUBFOLDER_TASK_QUEUE = "task-queue";
 const STORAGE_SUBFOLDER_PREVIEW = "preview";
 const STORAGE_SUBFOLDER_TEMP = "temp";
 
@@ -34808,6 +34812,12 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
   assets: STORAGE_SUBFOLDER_ASSETS,
   repository: STORAGE_SUBFOLDER_REPOSITORY,
+  templates: STORAGE_SUBFOLDER_TEMPLATES,
+  base: STORAGE_SUBFOLDER_BASE,
+  notebooklm: STORAGE_SUBFOLDER_NOTEBOOKLM,
+  "task-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
+  "agent-task-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
+  "agent-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
   temp: STORAGE_SUBFOLDER_TEMP
 };
 
