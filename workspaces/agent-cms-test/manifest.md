@@ -20,7 +20,7 @@ awn-create: "2026-06-11T00:27"
 awn-update: 2026-08-09T22:47:43.406Z
 awn-version: 31
 awn-description: Описчание
-awn-name: "[Agent CMS] Песочница и тесты"
+awn-name: "[Memory CMS] Песочница и тесты"
 awn-preview: awn-storage/assets/preview/20260729221421.png
 awn-web-url: ""
 ws-1: few
