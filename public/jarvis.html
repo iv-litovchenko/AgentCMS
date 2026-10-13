@@ -1,0 +1,2538 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="agent-cms-voice-app" content="1" />
+  <meta name="theme-color" content="#030712" />
+  <title>JARVIS · Agent CMS Voice</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #030712;
+      --panel: rgba(8, 20, 40, 0.72);
+      --border: rgba(56, 189, 248, 0.35);
+      --glow: #22d3ee;
+      --glow-soft: rgba(34, 211, 238, 0.25);
+      --accent: #7c6cff;
+      --text: #e2f4ff;
+      --muted: #64748b;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --phase-listen: #22d3ee;
+      --phase-think: #a78bfa;
+      --phase-speak: #58c4ff;
+      --ring-size: min(58vmin, 360px);
+      font-family: "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100dvh;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(124, 108, 255, 0.08), transparent),
+        linear-gradient(180deg, #020617 0%, #0a1628 50%, #030712 100%);
+    }
+
+    body.fullscreen .app { max-width: none; padding: 16px 24px 24px; }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.35;
+      background-image:
+        linear-gradient(rgba(34, 211, 238, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, black, transparent);
+    }
+
+    .hud-corner {
+      position: fixed;
+      width: 48px;
+      height: 48px;
+      pointer-events: none;
+      border-color: rgba(34, 211, 238, 0.4);
+      border-style: solid;
+      opacity: 0.6;
+      z-index: 2;
+    }
+    .hud-corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+    .hud-corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+    .hud-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+    .hud-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 16px;
+      padding: 8px 14px;
+      margin-bottom: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      background: rgba(2, 6, 23, 0.55);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-bar .clock {
+      font-size: 1.5rem;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      color: var(--glow);
+      text-shadow: 0 0 20px var(--glow-soft);
+    }
+
+    .status-bar .date {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: capitalize;
+    }
+
+    .status-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .pill {
+      font-size: 0.6875rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .pill.ok { border-color: rgba(52, 211, 153, 0.4); color: var(--ok); }
+    .pill.warn { border-color: rgba(251, 191, 36, 0.4); color: var(--warn); }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 16px 20px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(124, 108, 255, 0.15));
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--glow);
+      box-shadow: 0 0 24px var(--glow-soft);
+    }
+
+    h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: 0.04em; }
+    .subtitle { margin: 4px 0 0; font-size: 0.8125rem; color: var(--muted); }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .links a, .links button.linkish {
+      font: inherit;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--glow);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+
+    .links a:hover, .links button.linkish:hover {
+      background: rgba(34, 211, 238, 0.12);
+      box-shadow: 0 0 16px var(--glow-soft);
+    }
+
+    .core {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+      padding: 20px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+    }
+
+    .core-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: var(--ring-size);
+      height: var(--ring-size);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .ring-viz {
+      position: absolute;
+      inset: 22%;
+      border-radius: 50%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid transparent;
+    }
+
+    .ring-outer {
+      border-color: rgba(34, 211, 238, 0.15);
+      animation: spin 24s linear infinite;
+    }
+
+    .ring-mid {
+      inset: 8%;
+      border-top-color: var(--glow);
+      border-right-color: rgba(34, 211, 238, 0.4);
+      animation: spin 8s linear infinite reverse;
+    }
+
+    .ring-inner {
+      inset: 18%;
+      border: 1px dashed rgba(34, 211, 238, 0.35);
+      animation: spin 40s linear infinite;
+    }
+
+    .ring-core {
+      inset: 28%;
+      background: radial-gradient(circle, rgba(34, 211, 238, 0.35) 0%, rgba(3, 7, 18, 0.9) 55%, transparent 70%);
+      border: 1px solid rgba(34, 211, 238, 0.5);
+      box-shadow: 0 0 40px var(--glow-soft), inset 0 0 30px rgba(34, 211, 238, 0.15);
+    }
+
+    .ring-wrap[data-phase="listen"] .ring-core {
+      box-shadow: 0 0 60px rgba(34, 211, 238, 0.5), inset 0 0 40px rgba(34, 211, 238, 0.25);
+      animation: breathe 1.2s ease-in-out infinite;
+    }
+
+    .ring-wrap[data-phase="think"] .ring-mid { border-top-color: var(--phase-think); animation-duration: 2s; }
+    .ring-wrap[data-phase="speak"] .ring-core { animation: speak-pulse 0.45s ease-in-out infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+    @keyframes speak-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.06); opacity: 0.92; }
+    }
+
+    .phase-label {
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6875rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .ring-wrap[data-phase="listen"] .phase-label { color: var(--phase-listen); }
+    .ring-wrap[data-phase="think"] .phase-label { color: var(--phase-think); }
+    .ring-wrap[data-phase="speak"] .phase-label { color: var(--phase-speak); }
+
+    .mic-level {
+      width: 100%;
+      max-width: 280px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(15, 23, 42, 0.8);
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    .mic-level i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--glow), var(--phase-speak));
+      transition: width 0.05s linear;
+      box-shadow: 0 0 8px var(--glow);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .chip {
+      font: inherit;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(2, 6, 23, 0.6);
+      color: #94a3b8;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .chip:hover {
+      border-color: var(--glow);
+      color: var(--glow);
+    }
+
+    .live-line {
+      min-height: 1.5em;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .live-line.active { color: var(--phase-listen); font-style: normal; }
+
+    .history {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 4px 2px;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      max-width: 92%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      line-height: 1.45;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: rgba(124, 108, 255, 0.2);
+      border: 1px solid rgba(124, 108, 255, 0.35);
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg time {
+      display: block;
+      font-size: 0.625rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .history-empty {
+      text-align: center;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      padding: 16px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
+      font: inherit;
+      font-size: 0.8125rem;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.25), rgba(124, 108, 255, 0.2));
+      color: var(--text);
+      box-shadow: 0 0 20px var(--glow-soft);
+    }
+
+    .btn-primary[aria-pressed="true"] {
+      border-color: var(--ok);
+      box-shadow: 0 0 24px rgba(52, 211, 153, 0.35);
+    }
+
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-ghost:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+    }
+
+    aside.panel { display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 0.6875rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field {
+      margin-bottom: 10px;
+      font-size: 0.8125rem;
+    }
+
+    .field label {
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .field input[type="range"] { width: 100%; accent-color: var(--glow); }
+
+    .field select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: #0f172a;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8125rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.8125rem;
+      color: #94a3b8;
+      padding: 6px 0;
+    }
+
+    .toggle-row input { accent-color: var(--glow); width: 18px; height: 18px; }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.8125rem;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row dd { margin: 0; color: var(--glow); text-align: right; }
+
+    .log {
+      max-height: 100px;
+      overflow-y: auto;
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .log time { color: #475569; margin-right: 4px; }
+
+    .help-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      line-height: 1.55;
+    }
+
+    kbd {
+      font: inherit;
+      font-size: 0.6875rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--glow);
+    }
+
+    dialog {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #0f172a;
+      color: var(--text);
+      padding: 20px 24px;
+      max-width: min(420px, 92vw);
+      box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    }
+
+    dialog::backdrop { background: rgba(3, 7, 18, 0.75); }
+    dialog h3 { margin: 0 0 12px; font-size: 1rem; }
+    dialog form { margin-top: 16px; text-align: right; }
+
+    footer {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    header,
+    .status-bar {
+      flex-shrink: 0;
+    }
+
+    footer a { color: var(--glow); }
+    footer code { color: #94a3b8; font-size: 0.7rem; }
+
+    .compose {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .compose input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(2, 6, 23, 0.65);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.875rem;
+    }
+
+    .compose input:focus {
+      outline: none;
+      border-color: var(--glow);
+      box-shadow: 0 0 0 2px var(--glow-soft);
+    }
+
+    .reminder-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: 0.8125rem;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .reminder-list li {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+    }
+
+    .reminder-list li.done { opacity: 0.45; text-decoration: line-through; }
+
+    .reminder-list button {
+      font: inherit;
+      font-size: 0.6875rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .memo-box {
+      font-size: 0.8125rem;
+      color: #94a3b8;
+      line-height: 1.45;
+      max-height: 72px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .toast-stack {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      width: min(420px, 92vw);
+    }
+
+    .toast {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      font-size: 0.8125rem;
+      animation: toast-in 0.25s ease;
+      pointer-events: auto;
+    }
+
+    .toast strong { color: var(--glow); display: block; margin-bottom: 4px; }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    body.ambient .app > header,
+    body.ambient .app > main.hud-layout,
+    body.ambient .app > footer,
+    body.ambient .status-bar .status-pills { visibility: hidden; pointer-events: none; }
+
+    body.ambient .status-bar {
+      justify-content: center;
+      border: none;
+      background: transparent;
+    }
+
+    body.ambient .status-bar .clock { font-size: clamp(2rem, 10vw, 4rem); }
+
+    .ambient-hint {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.75rem;
+      color: var(--muted);
+      z-index: 50;
+    }
+
+    body.ambient .ambient-hint { display: block; }
+
+    .pill.dnd { border-color: rgba(248, 113, 113, 0.5); color: var(--danger); }
+    .pill.net-off { border-color: rgba(251, 191, 36, 0.5); color: var(--warn); }
+
+    body.dnd .ring-wrap { filter: saturate(0.5); }
+
+    main.hud-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .voice-dock {
+      flex-shrink: 0;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .voice-dock.core {
+      align-items: stretch;
+      padding: 12px 14px;
+    }
+
+    .voice-dock .core-top {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px 16px;
+      align-items: center;
+      width: 100%;
+    }
+
+    @media (max-width: 640px) {
+      .voice-dock .core-top {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+      }
+      .voice-dock .live-line { text-align: center !important; }
+      .voice-dock .controls { justify-content: center !important; }
+      .voice-dock .chips { justify-content: center; }
+    }
+
+    .voice-dock-panel .live-line {
+      text-align: left;
+      margin: 8px 0;
+    }
+
+    .voice-dock-controls {
+      justify-content: flex-start;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voice-dock .ring-wrap { --ring-size: min(140px, 36vw); }
+    .voice-dock .history,
+    .voice-dock .compose { display: none; }
+
+    .hud-workspace {
+      position: relative;
+      flex: 1;
+      min-height: 180px;
+      border-radius: 16px;
+      border: 1px dashed rgba(34, 211, 238, 0.25);
+      background: rgba(2, 6, 23, 0.35);
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .hud-workspace-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      gap: 12px;
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 0.875rem;
+      pointer-events: none;
+    }
+
+    .hud-workspace.has-windows .hud-workspace-empty { display: none; }
+
+    .hud-window {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      min-width: min(280px, calc(100% - 24px));
+      min-height: 160px;
+      max-width: calc(100% - 16px);
+      max-height: calc(100% - 16px);
+      width: min(360px, calc(100% - 24px));
+      height: min(340px, 70vh);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(8, 20, 40, 0.92);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      resize: both;
+      overflow: hidden;
+      z-index: 1;
+      box-sizing: border-box;
+    }
+
+    .hud-window.is-focused {
+      border-color: var(--glow);
+      box-shadow: 0 0 0 1px var(--glow-soft), 0 16px 48px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+
+    .hud-window.is-minimized {
+      height: auto !important;
+      min-height: 0;
+      resize: none;
+      width: 220px !important;
+    }
+
+    .hud-window.is-minimized .hud-window-body { display: none; }
+
+    .hud-window-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hud-window-head:active { cursor: grabbing; }
+
+    .hud-window-title {
+      flex: 1;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--glow);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hud-window-actions { display: flex; gap: 4px; }
+
+    .hud-window-actions button {
+      font: inherit;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .hud-window-actions button:hover { color: var(--text); border-color: var(--glow); }
+
+    .hud-window-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      font-size: 0.8125rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hud-window-body.is-chat .history {
+      flex: 1;
+      min-height: 100px;
+      max-height: none;
+      overflow-y: auto;
+    }
+
+    .hud-window-body.is-chat .compose {
+      flex-shrink: 0;
+      margin-top: 0;
+    }
+
+    .hud-window-body.is-iframe {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .hud-window-body.is-iframe .lazy-frame-wrap {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 200px;
+      padding: 8px;
+      gap: 8px;
+      box-sizing: border-box;
+    }
+
+    .hud-window-body.is-iframe iframe {
+      flex: 1;
+      min-height: 160px;
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: #020617;
+    }
+
+    .hud-window-body textarea.memo-edit {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(2, 6, 23, 0.65);
+      color: var(--text);
+      font: inherit;
+      line-height: 1.45;
+    }
+
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .dash-widget {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(2, 6, 23, 0.5);
+      min-height: 72px;
+    }
+
+    .dash-widget h3 {
+      margin: 0 0 6px;
+      font-size: 0.625rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .dash-widget p { margin: 0; font-size: 0.8125rem; color: #94a3b8; }
+
+    .dash-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .launcher-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .launcher-card {
+      font: inherit;
+      text-align: left;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .launcher-card:hover {
+      border-color: var(--glow);
+      box-shadow: 0 0 20px var(--glow-soft);
+    }
+
+    .launcher-card strong { display: block; font-size: 0.875rem; margin-bottom: 4px; color: var(--glow); }
+    .launcher-card span { font-size: 0.75rem; color: var(--muted); }
+
+    dialog.wide { max-width: min(640px, 94vw); }
+
+    .form-stack label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 10px 0 4px;
+    }
+
+    .form-stack input,
+    .form-stack textarea,
+    .form-stack select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: #0f172a;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8125rem;
+    }
+
+    .voice-dock-panel {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .fab-windows {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right, 0px));
+      bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      z-index: 50;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.35), rgba(124, 108, 255, 0.3));
+      color: var(--text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    .fab-windows:hover { box-shadow: 0 0 24px var(--glow-soft); }
+
+    body.ambient .hud-workspace,
+    body.ambient .voice-dock,
+    body.ambient .fab-windows { visibility: hidden; pointer-events: none; }
+
+    .tpl-mount { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hud-corner tl" aria-hidden="true"></div>
+  <div class="hud-corner tr" aria-hidden="true"></div>
+  <div class="hud-corner bl" aria-hidden="true"></div>
+  <div class="hud-corner br" aria-hidden="true"></div>
+
+  <div class="app">
+    <div class="status-bar" aria-label="Статус">
+      <div>
+        <div class="clock" id="clock">--:--</div>
+        <div class="date" id="date">—</div>
+      </div>
+      <div class="status-pills">
+        <span class="pill" id="pill-phase">ожидаю</span>
+        <span class="pill" id="pill-cms">CMS …</span>
+        <span class="pill" id="pill-mic" hidden>микрофон</span>
+        <span class="pill" id="pill-net">online</span>
+        <span class="pill dnd" id="pill-dnd" hidden>DND</span>
+      </div>
+    </div>
+
+    <header>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">J</div>
+        <div>
+          <h1>JARVIS · HUD</h1>
+          <p class="subtitle">Окна и дашборды — собирайте HUD сами. Голос + формы + виджеты.</p>
+        </div>
+      </div>
+      <nav class="links">
+        <button type="button" class="linkish" id="btn-windows">Окна</button>
+        <a href="shell/index.html">Shell</a>
+        <a href="http://localhost:3088/" target="_blank" rel="noopener">Voice</a>
+        <button type="button" class="linkish" id="btn-probe">CMS</button>
+        <button type="button" class="linkish" id="btn-fullscreen" title="Полный экран">⛶</button>
+        <button type="button" class="linkish" id="btn-ambient" title="Ambient — только часы">◐</button>
+        <button type="button" class="linkish" id="btn-dnd" title="Не беспокоить">DND</button>
+        <button type="button" class="linkish" id="btn-help" title="Горячие клавиши">?</button>
+      </nav>
+    </header>
+
+    <main class="hud-layout">
+      <section class="voice-dock core" aria-label="Голос">
+        <div class="core-top">
+          <div class="ring-wrap" id="ring" data-phase="idle">
+            <div class="ring ring-outer"></div>
+            <div class="ring ring-mid"></div>
+            <div class="ring ring-inner"></div>
+            <div class="ring ring-core"></div>
+            <canvas class="ring-viz" id="viz" width="200" height="200" aria-hidden="true"></canvas>
+            <span class="phase-label" id="phase-text">ожидаю</span>
+          </div>
+          <div class="voice-dock-panel">
+            <div class="chips" id="chips"></div>
+            <p class="live-line" id="live-line">Пробел — говорить · <strong>Окна</strong> — диалоги и дашборды</p>
+            <div class="mic-level" aria-hidden="true"><i id="mic-bar"></i></div>
+            <div class="controls voice-dock-controls">
+              <button type="button" class="btn btn-primary" id="btn-listen" aria-pressed="false">Слушать</button>
+              <button type="button" class="btn btn-ghost" id="btn-stop">Стоп</button>
+              <button type="button" class="btn btn-ghost" id="btn-repeat">Ещё раз</button>
+              <button type="button" class="btn btn-ghost" id="btn-speak">Озвучить</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="hud-workspace" id="hud-workspace">
+        <div class="hud-workspace-empty">
+          <p>Рабочая область пуста</p>
+          <p style="font-size:0.8125rem">Нажмите <strong>Окна</strong> или «+» — откройте диалог, форму или дашборд</p>
+        </div>
+      </div>
+    </main>
+
+    <div class="tpl-mount" aria-hidden="true">
+      <div id="tpl-chat">
+        <div class="history" id="history" aria-live="polite">
+          <p class="history-empty" id="history-empty">Напишите сообщение ниже или говорите в микрофон.</p>
+        </div>
+        <form class="compose" id="compose-form">
+          <input type="text" id="compose-input" placeholder="Сообщение ассистенту…" autocomplete="off" />
+          <button type="submit" class="btn btn-primary">→</button>
+        </form>
+        <div class="controls" style="margin-top:8px">
+          <button type="button" class="btn btn-ghost" id="btn-copy">Копировать</button>
+          <button type="button" class="btn btn-ghost" id="btn-export">Экспорт</button>
+          <button type="button" class="btn btn-ghost" id="btn-clear">Очистить чат</button>
+        </div>
+      </div>
+      <div id="tpl-settings">
+        <div class="toggle-row"><span>Озвучивать ответы</span><input type="checkbox" id="opt-tts" checked /></div>
+        <div class="toggle-row"><span>Звуки фаз</span><input type="checkbox" id="opt-beeps" checked /></div>
+        <div class="toggle-row"><span>Wake «Джарвис»</span><input type="checkbox" id="opt-wake" /></div>
+        <div class="toggle-row"><span>Непрерывное слушание</span><input type="checkbox" id="opt-continuous" /></div>
+        <div class="field"><label><span>Голос TTS</span></label><select id="opt-voice"></select></div>
+        <div class="field"><label><span>Скорость</span> <span id="rate-val">1.0</span></label><input type="range" id="opt-rate" min="0.6" max="1.4" step="0.05" value="1" /></div>
+        <div class="field"><label><span>Тон</span> <span id="pitch-val">1.0</span></label><input type="range" id="opt-pitch" min="0.7" max="1.3" step="0.05" value="1" /></div>
+      </div>
+      <div id="tpl-reminders">
+        <form id="reminder-form" class="form-stack" style="margin-bottom:12px">
+          <label>Текст</label>
+          <input type="text" id="reminder-text" placeholder="Проверить cms" />
+          <label>Через (минут)</label>
+          <input type="number" id="reminder-mins" min="1" max="720" value="5" />
+          <button type="submit" class="btn btn-primary" style="margin-top:10px;width:100%">Добавить</button>
+        </form>
+        <ul class="reminder-list" id="reminder-list"></ul>
+        <p class="memo-box" id="memo-empty" style="margin:8px 0 0;font-size:0.75rem;color:var(--muted)">Или голосом: «напомни через 10 минут …»</p>
+      </div>
+      <div id="tpl-note">
+        <textarea class="memo-edit" id="memo-editor" placeholder="Заметки workspace…"></textarea>
+        <p style="margin:8px 0 0;font-size:0.7rem;color:var(--muted)">Сохраняется автоматически</p>
+      </div>
+      <div id="tpl-system">
+        <dl style="margin:0">
+          <div class="stat-row"><dt>STT</dt><dd id="stat-stt">—</dd></div>
+          <div class="stat-row"><dt>TTS</dt><dd id="stat-tts">—</dd></div>
+          <div class="stat-row"><dt>CMS</dt><dd id="stat-cms">—</dd></div>
+          <div class="stat-row"><dt>Сессия</dt><dd id="stat-session">0 запросов</dd></div>
+        </dl>
+        <div class="log" id="log" style="margin-top:12px;max-height:160px"></div>
+      </div>
+    </div>
+
+    <footer id="footer-hint">
+      <code>npm start</code> → <code>/jarvis.html</code>
+    </footer>
+  </div>
+
+  <button type="button" class="fab-windows" id="fab-windows" title="Открыть окно">+</button>
+
+  <p class="ambient-hint">Ambient · клик или Esc — вернуть HUD</p>
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+  <dialog id="launcher-dialog" class="wide">
+    <h3>Окна HUD</h3>
+    <p style="margin:0;font-size:0.8125rem;color:var(--muted)">Выберите, что открыть на рабочей области. Окна можно перетаскивать и менять размер.</p>
+    <div class="launcher-grid" id="launcher-grid"></div>
+    <form method="dialog" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button type="button" class="btn btn-ghost" id="launcher-reset-layout">Сбросить layout</button>
+      <button type="button" class="btn btn-ghost" id="launcher-safe-mode">Safe mode</button>
+      <button type="submit" class="btn btn-primary">Закрыть</button>
+    </form>
+  </dialog>
+
+  <dialog id="widget-dialog">
+    <h3>Виджет дашборда</h3>
+    <form id="widget-form" class="form-stack">
+      <label>Заголовок</label>
+      <input type="text" id="widget-title" required placeholder="Мой виджет" />
+      <label>Тип</label>
+      <select id="widget-type">
+        <option value="text">Текст / markdown</option>
+        <option value="iframe">Страница (URL)</option>
+        <option value="stat">Статус CMS</option>
+      </select>
+      <label>Содержимое или URL</label>
+      <textarea id="widget-body" rows="4" placeholder="Текст или https://…"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('widget-dialog').close()">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="help-dialog">
+    <h3>Горячие клавиши</h3>
+    <ul class="help-list">
+      <li><kbd>Space</kbd> удерживать — говорить (PTT)</li>
+      <li><kbd>Space</kbd> коротко — вкл/выкл микрофон (если не PTT)</li>
+      <li><kbd>M</kbd> — mute озвучки</li>
+      <li><kbd>C</kbd> — копировать последний ответ</li>
+      <li><kbd>F</kbd> — полный экран</li>
+      <li><kbd>Esc</kbd> — стоп речи / выйти из ambient</li>
+      <li><kbd>R</kbd> — повторить последний ответ</li>
+      <li><kbd>/</kbd> — фокус в диалоге «Чат»</li>
+      <li><kbd>K</kbd> с Ctrl/Cmd — лаунчер окон</li>
+      <li>Окна: перетаскивание за заголовок, ресайз за угол</li>
+      <li>Голос: «напомни через N минут …», «таймер N минут», «запиши …», «погода»</li>
+    </ul>
+    <form method="dialog"><button type="submit" class="btn btn-primary">Понятно</button></form>
+  </dialog>
+
+  <script>
+    (function () {
+      const STORAGE_SETTINGS = "jarvis-hud-settings-v1";
+      const STORAGE_HISTORY = "jarvis-hud-history-v1";
+      const STORAGE_REMINDERS = "jarvis-hud-reminders-v1";
+      const STORAGE_MEMO = "jarvis-hud-memo-v1";
+      const STORAGE_WINDOWS = "jarvis-hud-windows-v2";
+      const STORAGE_DASHBOARD = "jarvis-hud-dashboard-v1";
+
+      const PHASES = {
+        idle: "ожидаю",
+        listen: "слушаю",
+        think: "думаю",
+        speak: "говорю"
+      };
+
+      const QUICK_COMMANDS = [
+        { label: "Статус", text: "как дела" },
+        { label: "Время", text: "который час" },
+        { label: "Shell", text: "открой shell" },
+        { label: "Voice", text: "открой voice" },
+        { label: "CMS", text: "проверь cms" },
+        { label: "Помощь", text: "помощь" },
+        { label: "Погода", text: "какая погода" },
+        { label: "Таймер 3м", text: "таймер 3 минуты" },
+        { label: "Окна", text: "открой окна" }
+      ];
+
+      const $ = (id) => document.getElementById(id);
+
+      const ring = $("ring");
+      const phaseText = $("phase-text");
+      const pillPhase = $("pill-phase");
+      const pillCms = $("pill-cms");
+      const pillMic = $("pill-mic");
+      const liveLine = $("live-line");
+      const historyEl = $("history");
+      const historyEmpty = $("history-empty");
+      const logEl = $("log");
+      const micBar = $("mic-bar");
+      const viz = $("viz");
+      const vizCtx = viz.getContext("2d");
+
+      const btnListen = $("btn-listen");
+      const btnSpeak = $("btn-speak");
+      const btnCopy = $("btn-copy");
+      const btnClear = $("btn-clear");
+      const btnProbe = $("btn-probe");
+      const btnFullscreen = $("btn-fullscreen");
+      const btnHelp = $("btn-help");
+      const btnStop = $("btn-stop");
+      const btnRepeat = $("btn-repeat");
+      const btnExport = $("btn-export");
+      const btnAmbient = $("btn-ambient");
+      const btnDnd = $("btn-dnd");
+      const composeForm = $("compose-form");
+      const composeInput = $("compose-input");
+      const helpDialog = $("help-dialog");
+      const toastStack = $("toasts");
+      const reminderListEl = $("reminder-list");
+      const memoEmpty = $("memo-empty");
+      const memoEditor = $("memo-editor");
+      const btnWindows = $("btn-windows");
+      const fabWindows = $("fab-windows");
+      const workspace = $("hud-workspace");
+      const launcherDialog = $("launcher-dialog");
+      const launcherGrid = $("launcher-grid");
+      const widgetDialog = $("widget-dialog");
+      const widgetForm = $("widget-form");
+      const reminderForm = $("reminder-form");
+      const statSession = $("stat-session");
+      const pillNet = $("pill-net");
+      const pillDnd = $("pill-dnd");
+
+      const optTts = $("opt-tts");
+      const optBeeps = $("opt-beeps");
+      const optWake = $("opt-wake");
+      const optContinuous = $("opt-continuous");
+      const optVoice = $("opt-voice");
+      const optRate = $("opt-rate");
+      const optPitch = $("opt-pitch");
+      const rateVal = $("rate-val");
+      const pitchVal = $("pitch-val");
+
+      const statStt = $("stat-stt");
+      const statTts = $("stat-tts");
+      const statCms = $("stat-cms");
+      const clockEl = $("clock");
+      const dateEl = $("date");
+      const footerHint = $("footer-hint");
+      const chipsEl = $("chips");
+
+      let phase = "idle";
+      let recognition = null;
+      let listening = false;
+      let pttHeld = false;
+      let lastBotReply = "";
+      let animFrame = 0;
+      let audioCtx = null;
+      let micStream = null;
+      let analyser = null;
+      let micAnim = 0;
+      let micMeterActive = false;
+      let chatHistory = [];
+      let reminders = [];
+      let reminderTimers = new Map();
+      let sessionRequests = 0;
+      let dnd = false;
+      let memo = "";
+      let dashboardWidgets = [];
+      let openWindows = new Map();
+      let zCounter = 20;
+      let dragState = null;
+
+      const WINDOW_CATALOG = {
+        chat: { title: "Диалог", desc: "Чат и ввод текста", w: 380, h: 420, tpl: "tpl-chat" },
+        dashboard: { title: "Дашборд", desc: "Виджеты и статус", w: 420, h: 360, tpl: null, kind: "dashboard" },
+        note: { title: "Заметка", desc: "Редактор текста", w: 320, h: 280, tpl: "tpl-note" },
+        reminders: { title: "Напоминания", desc: "Форма + список", w: 340, h: 340, tpl: "tpl-reminders" },
+        settings: { title: "Настройки", desc: "Голос и поведение", w: 300, h: 380, tpl: "tpl-settings" },
+        system: { title: "Система", desc: "STT/TTS/CMS, журнал", w: 300, h: 320, tpl: "tpl-system" },
+        shell: { title: "Shell", desc: "Встроенный iframe", w: 480, h: 400, tpl: null, kind: "iframe", url: "shell/index.html" },
+        custom: { title: "Страница", desc: "Свой URL", w: 440, h: 360, tpl: null, kind: "iframe-prompt" }
+      };
+
+      const isFileProtocol = location.protocol === "file:";
+
+      function loadDashboardWidgets() {
+        try {
+          dashboardWidgets = JSON.parse(localStorage.getItem(STORAGE_DASHBOARD) || "[]");
+        } catch {
+          dashboardWidgets = [];
+        }
+        if (!dashboardWidgets.length) {
+          dashboardWidgets = [
+            { id: "w1", type: "stat", title: "CMS", body: "" },
+            { id: "w2", type: "text", title: "Подсказка", body: "Добавьте виджеты: + на дашборде или голосом «открой дашборд»." }
+          ];
+        }
+      }
+
+      function saveDashboardWidgets() {
+        localStorage.setItem(STORAGE_DASHBOARD, JSON.stringify(dashboardWidgets));
+      }
+
+      let persistLayoutTimer = 0;
+
+      function persistWindowLayout() {
+        window.clearTimeout(persistLayoutTimer);
+        persistLayoutTimer = window.setTimeout(() => {
+          const layout = [];
+          openWindows.forEach((win, id) => {
+            const el = win.el;
+            layout.push({
+              id,
+              type: win.type,
+              x: el.offsetLeft,
+              y: el.offsetTop,
+              w: el.offsetWidth,
+              h: el.offsetHeight,
+              minimized: el.classList.contains("is-minimized"),
+              url: win.url || null
+            });
+          });
+          try {
+            localStorage.setItem(STORAGE_WINDOWS, JSON.stringify(layout.slice(0, 12)));
+          } catch { /* quota */ }
+        }, 120);
+      }
+
+      const SINGLETON_WINDOWS = new Set(["chat", "dashboard", "note", "reminders", "settings", "system"]);
+
+      function setupLazyIframe(iframe, url, loadBtn) {
+        const safe = String(url || "").trim();
+        if (!safe) return;
+        iframe.src = "about:blank";
+        iframe.dataset.lazySrc = safe;
+        iframe.title = iframe.title || "Встроенная страница";
+        const load = () => {
+          if (iframe.dataset.loaded === "1") return;
+          iframe.dataset.loaded = "1";
+          iframe.src = iframe.dataset.lazySrc;
+          if (loadBtn) loadBtn.hidden = true;
+        };
+        if (loadBtn) loadBtn.addEventListener("click", load);
+        iframe.closest(".hud-window")?.addEventListener("mousedown", load, { once: true });
+      }
+
+      function clampWindowPosition(el) {
+        if (!workspace || !el) return;
+        const pad = 4;
+        const maxX = Math.max(pad, workspace.clientWidth - el.offsetWidth - pad);
+        const maxY = Math.max(pad, workspace.clientHeight - el.offsetHeight - pad);
+        const x = Math.min(maxX, Math.max(pad, el.offsetLeft));
+        const y = Math.min(maxY, Math.max(pad, el.offsetTop));
+        el.style.left = x + "px";
+        el.style.top = y + "px";
+      }
+
+      function renderDashboardBody(body) {
+        body.innerHTML = "";
+        const bar = document.createElement("div");
+        bar.className = "dash-toolbar";
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "btn btn-ghost";
+        addBtn.textContent = "+ Виджет";
+        addBtn.addEventListener("click", () => {
+          widgetDialog.dataset.targetDash = body.closest(".hud-window")?.dataset.winId || "";
+          widgetDialog.showModal();
+        });
+        bar.appendChild(addBtn);
+        body.appendChild(bar);
+        const grid = document.createElement("div");
+        grid.className = "dash-grid";
+        for (const w of dashboardWidgets) {
+          const card = document.createElement("div");
+          card.className = "dash-widget";
+          const h = document.createElement("h3");
+          h.textContent = w.title;
+          card.appendChild(h);
+          if (w.type === "stat") {
+            const p = document.createElement("p");
+            p.id = "dash-stat-" + w.id;
+            p.textContent = "CMS: " + (statCms.textContent || "…");
+            card.appendChild(p);
+          } else if (w.type === "iframe" && w.body) {
+            const fr = document.createElement("iframe");
+            fr.title = w.title;
+            fr.style.cssText = "width:100%;height:100px;border:0;border-radius:8px;background:#020617";
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "btn btn-ghost";
+            b.textContent = "Загрузить";
+            b.style.marginTop = "6px";
+            card.appendChild(fr);
+            card.appendChild(b);
+            setupLazyIframe(fr, w.body, b);
+          } else {
+            const p = document.createElement("p");
+            p.textContent = w.body || "";
+            card.appendChild(p);
+          }
+          grid.appendChild(card);
+        }
+        body.appendChild(grid);
+      }
+
+      const tplBackup = {};
+      document.querySelectorAll("[id^='tpl-']").forEach((node) => {
+        tplBackup[node.id] = node.innerHTML;
+      });
+
+      function mountTemplate(tplId, body) {
+        const tpl = document.getElementById(tplId);
+        if (tpl?.childNodes.length) {
+          while (tpl.firstChild) body.appendChild(tpl.firstChild);
+        } else if (tplBackup[tplId]) {
+          body.innerHTML = tplBackup[tplId];
+        }
+      }
+
+      function focusWindow(el) {
+        openWindows.forEach((w) => w.el.classList.remove("is-focused"));
+        el.classList.add("is-focused");
+        el.style.zIndex = String(++zCounter);
+      }
+
+      function closeWindow(id) {
+        const win = openWindows.get(id);
+        if (!win) return;
+        win.el.remove();
+        openWindows.delete(id);
+        workspace.classList.toggle("has-windows", openWindows.size > 0);
+        persistWindowLayout();
+      }
+
+      function openWindow(type, opts = {}) {
+        const meta = WINDOW_CATALOG[type];
+        if (!meta) return null;
+
+        if (meta.kind === "iframe-prompt") {
+          const url = window.prompt("URL страницы для окна:", opts.url || "https://");
+          if (!url) return null;
+          return openWindow("shell", { url, title: opts.title || "Страница" });
+        }
+
+        const existing = [...openWindows.values()].find((w) => w.type === type && type !== "custom");
+        if (existing && !opts.force) {
+          focusWindow(existing.el);
+          if (existing.el.classList.contains("is-minimized")) existing.el.classList.remove("is-minimized");
+          return existing;
+        }
+
+        const id = "win-" + type + "-" + Date.now();
+        const el = document.createElement("div");
+        el.className = "hud-window is-focused";
+        el.dataset.winId = id;
+        el.style.left = (opts.x ?? 12 + openWindows.size * 24) + "px";
+        el.style.top = (opts.y ?? 12 + openWindows.size * 18) + "px";
+        el.style.width = (opts.w ?? meta.w) + "px";
+        el.style.height = (opts.h ?? meta.h) + "px";
+        el.style.zIndex = String(++zCounter);
+
+        const head = document.createElement("div");
+        head.className = "hud-window-head";
+        const title = document.createElement("div");
+        title.className = "hud-window-title";
+        title.textContent = opts.title || meta.title;
+        const actions = document.createElement("div");
+        actions.className = "hud-window-actions";
+        const btnMin = document.createElement("button");
+        btnMin.type = "button";
+        btnMin.textContent = "−";
+        btnMin.title = "Свернуть";
+        btnMin.addEventListener("click", (e) => {
+          e.stopPropagation();
+          el.classList.toggle("is-minimized");
+          persistWindowLayout();
+        });
+        const btnClose = document.createElement("button");
+        btnClose.type = "button";
+        btnClose.textContent = "×";
+        btnClose.title = "Закрыть";
+        btnClose.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeWindow(id);
+        });
+        actions.append(btnMin, btnClose);
+        head.append(title, actions);
+
+        const body = document.createElement("div");
+        body.className = "hud-window-body";
+
+        if (meta.kind === "dashboard") {
+          renderDashboardBody(body);
+        } else if (meta.kind === "iframe" || opts.url) {
+          const url = opts.url || meta.url;
+          body.classList.add("is-iframe");
+          const wrap = document.createElement("div");
+          wrap.className = "lazy-frame-wrap";
+          const fr = document.createElement("iframe");
+          fr.title = title.textContent;
+          const loadBtn = document.createElement("button");
+          loadBtn.type = "button";
+          loadBtn.className = "btn btn-ghost";
+          loadBtn.textContent = "Загрузить страницу";
+          wrap.append(fr, loadBtn);
+          body.appendChild(wrap);
+          setupLazyIframe(fr, url, loadBtn);
+        } else if (meta.tpl) {
+          mountTemplate(meta.tpl, body);
+          if (type === "chat") body.classList.add("is-chat");
+        }
+
+        el.append(head, body);
+        window.requestAnimationFrame(() => clampWindowPosition(el));
+        el.addEventListener("mousedown", () => focusWindow(el));
+        head.addEventListener("mousedown", (e) => {
+          if (e.target.closest("button")) return;
+          focusWindow(el);
+          dragState = { el, ox: e.clientX - el.offsetLeft, oy: e.clientY - el.offsetTop };
+        });
+
+        workspace.appendChild(el);
+        workspace.classList.add("has-windows");
+        const record = { id, type, el, url: opts.url || null };
+        openWindows.set(id, record);
+        persistWindowLayout();
+
+        if (type === "note") {
+          const ed = body.querySelector("#memo-editor");
+          if (ed) ed.value = memo;
+        }
+        if (type === "chat" && composeInput) {
+          window.setTimeout(() => composeInput.focus(), 100);
+        }
+        return record;
+      }
+
+      function restoreWindowLayout() {
+        let layout = [];
+        try {
+          layout = JSON.parse(localStorage.getItem(STORAGE_WINDOWS) || "[]");
+        } catch {
+          layout = [];
+        }
+        if (!layout.length) {
+          openWindow("chat");
+          openWindow("dashboard");
+          return;
+        }
+        const seen = new Set();
+        for (const item of layout.slice(0, 8)) {
+          if (!item?.type || !WINDOW_CATALOG[item.type]) continue;
+          if (SINGLETON_WINDOWS.has(item.type)) {
+            if (seen.has(item.type)) continue;
+            seen.add(item.type);
+          }
+          const opened = openWindow(item.type, {
+            x: item.x,
+            y: item.y,
+            w: item.w,
+            h: item.h,
+            url: item.url,
+            force: true
+          });
+          if (opened?.el && item.minimized) opened.el.classList.add("is-minimized");
+        }
+        if (!openWindows.size) {
+          openWindow("chat");
+          openWindow("dashboard");
+        }
+      }
+
+      function resetLayout() {
+        openWindows.forEach((_, id) => closeWindow(id));
+        localStorage.removeItem(STORAGE_WINDOWS);
+        openWindow("chat");
+        openWindow("dashboard");
+        toast("Layout", "Окна сброшены к умолчанию.");
+      }
+
+      function showLauncher() {
+        launcherGrid.innerHTML = "";
+        for (const [key, meta] of Object.entries(WINDOW_CATALOG)) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "launcher-card";
+          b.innerHTML = "<strong>" + meta.title + "</strong><span>" + meta.desc + "</span>";
+          b.addEventListener("click", () => {
+            openWindow(key);
+            launcherDialog.close();
+          });
+          launcherGrid.appendChild(b);
+        }
+        launcherDialog.showModal();
+      }
+
+      function refreshDashboardStats() {
+        document.querySelectorAll("[id^='dash-stat-']").forEach((p) => {
+          p.textContent = "CMS: " + statCms.textContent;
+        });
+      }
+
+      function loadSettings() {
+        try {
+          return { ...defaultSettings(), ...JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || "{}") };
+        } catch {
+          return defaultSettings();
+        }
+      }
+
+      function defaultSettings() {
+        return {
+          tts: true,
+          beeps: true,
+          wake: false,
+          continuous: false,
+          rate: 1,
+          pitch: 1,
+          voiceURI: ""
+        };
+      }
+
+      let settings = loadSettings();
+
+      function saveSettings() {
+        localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
+      }
+
+      function applySettingsToUi() {
+        const q = (id) => document.getElementById(id);
+        const tts = q("opt-tts");
+        const beeps = q("opt-beeps");
+        const wake = q("opt-wake");
+        const cont = q("opt-continuous");
+        const rate = q("opt-rate");
+        const pitch = q("opt-pitch");
+        const rateLabel = q("rate-val");
+        const pitchLabel = q("pitch-val");
+        if (tts) tts.checked = settings.tts;
+        if (beeps) beeps.checked = settings.beeps;
+        if (wake) wake.checked = settings.wake;
+        if (cont) cont.checked = settings.continuous;
+        if (rate) rate.value = settings.rate;
+        if (pitch) pitch.value = settings.pitch;
+        if (rateLabel) rateLabel.textContent = Number(settings.rate).toFixed(2);
+        if (pitchLabel) pitchLabel.textContent = Number(settings.pitch).toFixed(2);
+        if (recognition) recognition.continuous = settings.continuous;
+      }
+
+      function setPhase(next) {
+        const prev = phase;
+        phase = next in PHASES ? next : "idle";
+        ring.dataset.phase = phase;
+        phaseText.textContent = PHASES[phase];
+        pillPhase.textContent = PHASES[phase];
+        pillPhase.classList.toggle("ok", phase === "listen" || phase === "speak");
+        pillPhase.classList.toggle("warn", phase === "think");
+        if (prev !== phase && settings.beeps && !dnd) phaseBeep(phase);
+      }
+
+      function toast(title, body, ms = 4500) {
+        const el = document.createElement("div");
+        el.className = "toast";
+        el.innerHTML = "<strong>" + title + "</strong>" + (body ? body : "");
+        toastStack.appendChild(el);
+        if (navigator.vibrate) navigator.vibrate(40);
+        window.setTimeout(() => el.remove(), ms);
+      }
+
+      function notifyUser(title, body) {
+        toast(title, body);
+        if (dnd) return;
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          try {
+            new Notification(title, { body, silent: false });
+          } catch { /* */ }
+        }
+      }
+
+      function requestNotifyPermission() {
+        if (typeof Notification === "undefined" || Notification.permission !== "default") return;
+        Notification.requestPermission().catch(() => {});
+      }
+
+      function bumpSession() {
+        sessionRequests += 1;
+        statSession.textContent = sessionRequests + " запрос" + (sessionRequests === 1 ? "" : sessionRequests < 5 ? "а" : "ов");
+      }
+
+      function setDnd(on) {
+        dnd = on;
+        document.body.classList.toggle("dnd", dnd);
+        pillDnd.hidden = !dnd;
+        btnDnd.setAttribute("aria-pressed", dnd ? "true" : "false");
+        if (dnd) stopSpeaking();
+        toast(dnd ? "Не беспокоить" : "DND выкл", dnd ? "Без озвучки и звуков фаз." : "");
+      }
+
+      function toggleAmbient() {
+        const on = !document.body.classList.contains("ambient");
+        document.body.classList.toggle("ambient", on);
+        if (on) stopSpeaking();
+      }
+
+      function stopSpeaking() {
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        if (phase === "speak") setPhase("idle");
+      }
+
+      function repeatLast() {
+        if (!lastBotReply) {
+          toast("Повтор", "Нет последнего ответа.");
+          return;
+        }
+        if (!dnd && settings.tts) speak(lastBotReply);
+        else toast("Повтор", lastBotReply.slice(0, 120));
+      }
+
+      function loadMemo() {
+        memo = localStorage.getItem(STORAGE_MEMO) || "";
+        if (memoEditor) memoEditor.value = memo;
+      }
+
+      function saveMemo(text) {
+        memo = String(text || "");
+        localStorage.setItem(STORAGE_MEMO, memo.trim());
+      }
+
+      function loadReminders() {
+        try {
+          reminders = JSON.parse(localStorage.getItem(STORAGE_REMINDERS) || "[]");
+        } catch {
+          reminders = [];
+        }
+        const now = Date.now();
+        reminders = reminders.filter((r) => !r.done && r.at > now);
+        reminders.forEach((r) => scheduleReminder(r, false));
+        persistReminders();
+        renderReminders();
+      }
+
+      function persistReminders() {
+        localStorage.setItem(STORAGE_REMINDERS, JSON.stringify(reminders.filter((r) => !r.done)));
+      }
+
+      function renderReminders() {
+        reminderListEl.innerHTML = "";
+        const active = reminders.filter((r) => !r.done);
+        memoEmpty.hidden = active.length > 0;
+        for (const r of active.slice(0, 8)) {
+          const li = document.createElement("li");
+          const when = new Date(r.at).toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+          li.appendChild(document.createTextNode(when + " · " + r.text));
+          const rm = document.createElement("button");
+          rm.type = "button";
+          rm.textContent = "×";
+          rm.addEventListener("click", () => cancelReminder(r.id));
+          li.appendChild(rm);
+          reminderListEl.appendChild(li);
+        }
+      }
+
+      function cancelReminder(id) {
+        const t = reminderTimers.get(id);
+        if (t) clearTimeout(t);
+        reminderTimers.delete(id);
+        reminders = reminders.filter((r) => r.id !== id);
+        persistReminders();
+        renderReminders();
+      }
+
+      function scheduleReminder(r, isNew = false) {
+        const delay = r.at - Date.now();
+        if (delay <= 0) {
+          if (isNew) notifyUser("Напоминание", r.text);
+          return;
+        }
+        const t = window.setTimeout(() => {
+          notifyUser("Напоминание", r.text);
+          log("⏰ " + r.text);
+          if (!dnd && settings.tts) speak("Напоминание: " + r.text);
+          cancelReminder(r.id);
+        }, delay);
+        reminderTimers.set(r.id, t);
+        if (isNew) {
+          reminders.push(r);
+          persistReminders();
+          renderReminders();
+        }
+      }
+
+      function addReminder(text, minutes) {
+        const r = {
+          id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
+          text: text.trim(),
+          at: Date.now() + minutes * 60 * 1000,
+          done: false
+        };
+        scheduleReminder(r, true);
+        requestNotifyPermission();
+        return "Напомню через " + minutes + " мин.: " + r.text;
+      }
+
+      function parseMinutes(t) {
+        const m = t.match(/(\d+)\s*(минут|минуты|мин|minute|minutes|м\b)/i);
+        if (m) return Math.min(720, Math.max(1, parseInt(m[1], 10)));
+        const h = t.match(/(\d+)\s*(час|часа|ч\b|hour)/i);
+        if (h) return Math.min(720, parseInt(h[1], 10) * 60);
+        return 5;
+      }
+
+      function exportHistory() {
+        const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), chatHistory, memo, reminders }, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "jarvis-export-" + new Date().toISOString().slice(0, 10) + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast("Экспорт", "Файл JSON сохранён.");
+      }
+
+      function updateNetPill() {
+        const on = navigator.onLine;
+        pillNet.textContent = on ? "online" : "offline";
+        pillNet.classList.toggle("net-off", !on);
+      }
+
+      function phaseBeep(p) {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          const freq = { idle: 220, listen: 440, think: 330, speak: 392 }[p] || 220;
+          o.frequency.value = freq;
+          g.gain.value = 0.04;
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start();
+          o.stop(audioCtx.currentTime + 0.08);
+        } catch { /* ignore */ }
+      }
+
+      function log(msg) {
+        const target = document.getElementById("log") || logEl;
+        if (!target) return;
+        const line = document.createElement("div");
+        const t = document.createElement("time");
+        t.textContent = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        line.append(t, document.createTextNode(msg));
+        target.prepend(line);
+        while (target.children.length > 30) target.lastChild.remove();
+      }
+
+      function loadHistory() {
+        try {
+          chatHistory = JSON.parse(localStorage.getItem(STORAGE_HISTORY) || "[]");
+        } catch {
+          chatHistory = [];
+        }
+        renderHistory();
+      }
+
+      function persistHistory() {
+        const trimmed = chatHistory.slice(-80);
+        localStorage.setItem(STORAGE_HISTORY, JSON.stringify(trimmed));
+      }
+
+      function addMessage(role, text) {
+        if (!text.trim()) return;
+        const entry = { role, text: text.trim(), at: Date.now() };
+        chatHistory.push(entry);
+        if (role === "bot") lastBotReply = entry.text;
+        persistHistory();
+        renderHistory();
+      }
+
+      function renderHistory() {
+        historyEl.querySelectorAll(".msg").forEach((n) => n.remove());
+        if (!chatHistory.length) {
+          historyEmpty.hidden = false;
+          return;
+        }
+        historyEmpty.hidden = true;
+        for (const m of chatHistory.slice(-12)) {
+          const div = document.createElement("div");
+          div.className = "msg " + (m.role === "user" ? "user" : "bot");
+          const tm = document.createElement("time");
+          tm.textContent = new Date(m.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+          div.append(tm, document.createTextNode(m.text));
+          historyEl.appendChild(div);
+        }
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+
+      function stripWake(text) {
+        if (!settings.wake) return text;
+        return text.replace(/^\s*(джарvis|jarvis|джарвис)[,\s]+/i, "").trim() || text;
+      }
+
+      function runCommand(userText) {
+        const t = userText.trim().toLowerCase();
+        const clean = stripWake(userText);
+
+        if (/^(который час|сколько времени|время)/.test(t)) {
+          const now = new Date();
+          return "Сейчас " + now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) + ".";
+        }
+        if (/^(какая дата|какое число|дата)/.test(t)) {
+          return "Сегодня " + new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }) + ".";
+        }
+        if (/статус|как дела|привет|здравств/.test(t)) {
+          return "Системы в норме. Agent CMS Voice на связи. CMS: " + (statCms.textContent || "неизвестно") + ".";
+        }
+        if (/открой shell|открой шелл|shell/.test(t) && !/voice/.test(t)) {
+          if (!isFileProtocol) window.open("/shell/index.html", "_blank");
+          else window.open("shell/index.html", "_blank");
+          return "Открываю Shell в новой вкладке.";
+        }
+        if (/voice|войс|3088/.test(t)) {
+          window.open("http://localhost:3088/", "_blank");
+          return "Открываю Voice на порту 3088.";
+        }
+        if (/cms|проверь cms|здоровье/.test(t)) {
+          probeCms();
+          return "Проверяю CMS… смотрите индикатор в шапке.";
+        }
+        if (/помощь|help|команды/.test(t)) {
+          helpDialog.showModal();
+          return "Краткая справка на экране. Пробел — говорить, M — без звука, быстрые кнопки сверху.";
+        }
+        if (/очисти|сброс|clear/.test(t)) {
+          clearAll();
+          return "История очищена.";
+        }
+        if (/полный экран|fullscreen/.test(t)) {
+          toggleFullscreen();
+          return "Переключаю полноэкранный режим.";
+        }
+        if (/ambient|амбient|ночной режим|экран часов/.test(t)) {
+          toggleAmbient();
+          return document.body.classList.contains("ambient") ? "Ambient включён." : "Ambient выключен.";
+        }
+        if (/не беспокоить|dnd|тихий режим/.test(t)) {
+          setDnd(!dnd);
+          return dnd ? "Режим не беспокоить включён." : "DND выключен.";
+        }
+        if (/ещё раз|повтори|repeat/.test(t)) {
+          repeatLast();
+          return lastBotReply ? "Повторяю." : "Нечего повторять.";
+        }
+        if (/стоп|замолчи|stop/.test(t)) {
+          stopSpeaking();
+          stopListen();
+          return "Остановлено.";
+        }
+        if (/погод|weather/.test(t)) {
+          return mockWeather();
+        }
+        if (/напомни|remind/.test(t)) {
+          const mins = parseMinutes(t);
+          const msg = t.replace(/.*напомни(\s+мне)?\s*(через\s+\d+\s+\S+\s*)?/i, "").replace(/.*remind\s*(me\s*)?(in\s+\d+\s+\S+\s*)?/i, "").trim();
+          if (!msg) return "Скажите, о чём напомнить.";
+          return addReminder(msg, mins);
+        }
+        if (/таймер|timer/.test(t)) {
+          const mins = parseMinutes(t);
+          return addReminder("Таймер на " + mins + " минут", mins);
+        }
+        if (/^запиши\s+|^запомни\s+|^note\s+/i.test(userText.trim())) {
+          const note = userText.replace(/^запиши\s+|^запомни\s+|^note\s+/i, "").trim();
+          saveMemo(memo ? memo + "\n• " + note : "• " + note);
+          return "Записал в заметку.";
+        }
+        if (/прочитай заметку|что в заметке/.test(t)) {
+          return memo.trim() ? "Заметка: " + memo.trim().replace(/\n/g, ". ") : "Заметка пуста.";
+        }
+        if (/открой (окно |)(чат|диалог)/.test(t)) {
+          openWindow("chat");
+          return "Открыл окно диалога.";
+        }
+        if (/открой (окно |)дашборд|dashboard/.test(t)) {
+          openWindow("dashboard");
+          return "Открыл дашборд.";
+        }
+        if (/открой (окно |)заметк|note/.test(t)) {
+          openWindow("note");
+          return "Открыл заметку.";
+        }
+        if (/открой (окно |)напоминан/.test(t)) {
+          openWindow("reminders");
+          return "Открыл напоминания.";
+        }
+        if (/открой (окно |)настрой/.test(t)) {
+          openWindow("settings");
+          return "Открыл настройки.";
+        }
+        if (/открой окна|лаунчер|меню окон/.test(t)) {
+          showLauncher();
+          return "Выберите окно на экране.";
+        }
+        if (settings.wake && /^(джарvis|jarvis|джарвис)\s*$/i.test(userText.trim())) {
+          return "Слушаю вас.";
+        }
+
+        const say = clean || userText;
+        return "Понял: «" + say.trim().slice(0, 100) + "». В проде запрос ушёл бы агенту Agent CMS через MCP.";
+      }
+
+      function processUserInput(text, { fromVoice = false } = {}) {
+        const raw = text.trim();
+        if (!raw) return;
+        if (fromVoice && settings.wake && !/^(джарvis|jarvis|джарвис)/i.test(raw)) {
+          liveLine.textContent = "Скажите «Джарвис» или выключите wake в настройках.";
+          return;
+        }
+        bumpSession();
+        addMessage("user", stripWake(raw) || raw);
+        setPhase("think");
+        liveLine.textContent = "";
+        window.setTimeout(() => {
+          const reply = runCommand(raw);
+          addMessage("bot", reply);
+          if (settings.tts && !dnd) speak(reply);
+          else setPhase("idle");
+        }, settings.beeps && !dnd ? 400 : 150);
+      }
+
+      function mockWeather() {
+        const cond = ["ясно", "облачно", "лёгкий дождь", "ветрено"][Math.floor(Math.random() * 4)];
+        const temp = 8 + Math.floor(Math.random() * 18);
+        return "Демо-погода для HUD: сейчас " + cond + ", около " + temp + "°C. В проде — API Open-Meteo или виджет workspace.";
+      }
+
+      function drawViz(level) {
+        const w = viz.width;
+        const h = viz.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        vizCtx.clearRect(0, 0, w, h);
+        const bars = 32;
+        for (let i = 0; i < bars; i++) {
+          const a = (i / bars) * Math.PI * 2 - Math.PI / 2;
+          const len = 20 + level * 55 * (0.4 + Math.abs(Math.sin(a * 3 + Date.now() / 200)) * 0.6);
+          vizCtx.strokeStyle = "rgba(34, 211, 238, " + (0.25 + level * 0.6) + ")";
+          vizCtx.lineWidth = 2;
+          vizCtx.beginPath();
+          vizCtx.moveTo(cx + Math.cos(a) * 28, cy + Math.sin(a) * 28);
+          vizCtx.lineTo(cx + Math.cos(a) * (28 + len), cy + Math.sin(a) * (28 + len));
+          vizCtx.stroke();
+        }
+      }
+
+      async function startMicMeter() {
+        if (analyser || micMeterActive) return;
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          const src = audioCtx.createMediaStreamSource(micStream);
+          src.connect(analyser);
+          pillMic.hidden = false;
+          pillMic.classList.add("ok");
+          micMeterActive = true;
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          const tick = () => {
+            if (!micMeterActive || !analyser) return;
+            analyser.getByteFrequencyData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) sum += data[i];
+            const level = sum / data.length / 255;
+            if (micBar) micBar.style.width = Math.min(100, level * 180) + "%";
+            if (phase === "listen" || listening) drawViz(level);
+            micAnim = requestAnimationFrame(tick);
+          };
+          tick();
+        } catch {
+          log("Микрофон для индикатора недоступен");
+        }
+      }
+
+      function stopMicMeter() {
+        micMeterActive = false;
+        cancelAnimationFrame(micAnim);
+        micAnim = 0;
+        if (micStream) {
+          micStream.getTracks().forEach((t) => t.stop());
+          micStream = null;
+        }
+        analyser = null;
+        if (micBar) micBar.style.width = "0%";
+        pillMic.hidden = true;
+        drawViz(0.05);
+      }
+
+      function populateVoices() {
+        const voiceSelect = document.getElementById("opt-voice");
+        if (!voiceSelect || !window.speechSynthesis) return;
+        const voices = speechSynthesis.getVoices().filter((v) => /ru|russian/i.test(v.lang + v.name));
+        const list = voices.length ? voices : speechSynthesis.getVoices();
+        voiceSelect.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "По умолчанию";
+        voiceSelect.appendChild(opt);
+        for (const v of list) {
+          const o = document.createElement("option");
+          o.value = v.voiceURI;
+          o.textContent = v.name + " (" + v.lang + ")";
+          voiceSelect.appendChild(o);
+        }
+        voiceSelect.value = settings.voiceURI || "";
+      }
+
+      function speak(text) {
+        if (!window.speechSynthesis) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "ru-RU";
+        u.rate = settings.rate;
+        u.pitch = settings.pitch;
+        if (settings.voiceURI) {
+          const v = speechSynthesis.getVoices().find((x) => x.voiceURI === settings.voiceURI);
+          if (v) u.voice = v;
+        }
+        u.onstart = () => setPhase("speak");
+        u.onend = () => {
+          setPhase("idle");
+          if (settings.continuous && recognition && !listening) {
+            try { recognition.start(); } catch { /* */ }
+          }
+        };
+        speechSynthesis.speak(u);
+      }
+
+      function startListen() {
+        if (!recognition || listening) return;
+        liveLine.classList.add("active");
+        liveLine.textContent = "Говорите…";
+        startMicMeter();
+        try {
+          recognition.start();
+        } catch {
+          log("Не удалось запустить STT");
+        }
+      }
+
+      function stopListen() {
+        if (!recognition) return;
+        liveLine.classList.remove("active");
+        if (listening) recognition.stop();
+        else stopMicMeter();
+      }
+
+      function toggleListen() {
+        if (listening) stopListen();
+        else startListen();
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        statStt.textContent = "браузер";
+        recognition = new SpeechRecognition();
+        recognition.lang = "ru-RU";
+        recognition.interimResults = true;
+        recognition.continuous = settings.continuous;
+
+        recognition.onstart = () => {
+          listening = true;
+          btnListen.setAttribute("aria-pressed", "true");
+          setPhase("listen");
+          log("Слушаю");
+        };
+
+        recognition.onend = () => {
+          listening = false;
+          btnListen.setAttribute("aria-pressed", "false");
+          liveLine.classList.remove("active");
+          stopMicMeter();
+          if (!settings.continuous && phase === "listen") setPhase("idle");
+        };
+
+        recognition.onerror = (e) => {
+          if (e.error !== "aborted") log("STT: " + e.error);
+          stopMicMeter();
+          setPhase("idle");
+        };
+
+        recognition.onresult = (e) => {
+          let interim = "";
+          let final = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const r = e.results[i];
+            if (r.isFinal) final += r[0].transcript;
+            else interim += r[0].transcript;
+          }
+          const show = (final || interim).trim();
+          if (show) liveLine.textContent = show;
+          if (final) processUserInput(final, { fromVoice: true });
+        };
+      } else {
+        statStt.textContent = "нет API";
+        btnListen.disabled = true;
+      }
+
+      if ("speechSynthesis" in window) {
+        statTts.textContent = "браузер";
+        speechSynthesis.onvoiceschanged = populateVoices;
+        populateVoices();
+      } else {
+        statTts.textContent = "нет";
+        btnSpeak.disabled = true;
+      }
+
+      function clearAll() {
+        chatHistory = [];
+        persistHistory();
+        renderHistory();
+        lastBotReply = "";
+        liveLine.textContent = "Удерживайте пробел — говорите.";
+        setPhase("idle");
+      }
+
+      async function probeCms() {
+        if (isFileProtocol) {
+          statCms.textContent = "file";
+          pillCms.textContent = "file://";
+          pillCms.className = "pill warn";
+          return;
+        }
+        statCms.textContent = "…";
+        pillCms.textContent = "CMS …";
+        try {
+          const r = await fetch("/api/health", { credentials: "same-origin" });
+          const ok = r.ok;
+          statCms.textContent = ok ? "online" : "err " + r.status;
+          pillCms.textContent = ok ? "CMS online" : "CMS offline";
+          pillCms.className = "pill " + (ok ? "ok" : "warn");
+          log("CMS: " + statCms.textContent);
+          refreshDashboardStats();
+        } catch {
+          statCms.textContent = "offline";
+          pillCms.textContent = "CMS offline";
+          pillCms.className = "pill warn";
+        }
+      }
+
+      function tickClock() {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        dateEl.textContent = now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+          document.body.classList.add("fullscreen");
+        } else {
+          document.exitFullscreen?.();
+          document.body.classList.remove("fullscreen");
+        }
+      }
+
+      QUICK_COMMANDS.forEach((c) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        b.textContent = c.label;
+        b.addEventListener("click", () => processUserInput(c.text, { fromVoice: false }));
+        chipsEl.appendChild(b);
+      });
+
+      ring.addEventListener("click", () => toggleListen());
+      btnListen.addEventListener("click", toggleListen);
+      btnSpeak.addEventListener("click", () => {
+        if (lastBotReply) speak(lastBotReply);
+        else speak("Я готов. Скажите команду или нажмите быструю кнопку.");
+      });
+
+      btnClear?.addEventListener("click", clearAll);
+      btnProbe.addEventListener("click", () => probeCms());
+      btnFullscreen.addEventListener("click", toggleFullscreen);
+      btnHelp.addEventListener("click", () => helpDialog.showModal());
+      btnStop.addEventListener("click", () => {
+        stopSpeaking();
+        stopListen();
+      });
+      btnRepeat.addEventListener("click", repeatLast);
+      btnAmbient.addEventListener("click", toggleAmbient);
+      btnDnd.addEventListener("click", () => setDnd(!dnd));
+      btnWindows.addEventListener("click", showLauncher);
+      fabWindows.addEventListener("click", showLauncher);
+      $("launcher-reset-layout").addEventListener("click", resetLayout);
+      $("launcher-safe-mode").addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_WINDOWS);
+        localStorage.removeItem(STORAGE_DASHBOARD);
+        location.reload();
+      });
+
+      widgetForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const title = $("widget-title").value.trim() || "Виджет";
+        const type = $("widget-type").value;
+        const body = $("widget-body").value.trim();
+        dashboardWidgets.push({
+          id: "w" + Date.now(),
+          type,
+          title,
+          body: type === "stat" ? "" : body
+        });
+        saveDashboardWidgets();
+        openWindows.forEach((w) => {
+          if (w.type === "dashboard") renderDashboardBody(w.el.querySelector(".hud-window-body"));
+        });
+        widgetDialog.close();
+        widgetForm.reset();
+        toast("Дашборд", "Виджет добавлен.");
+      });
+
+      if (reminderForm) {
+        reminderForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const text = $("reminder-text").value.trim();
+          const mins = Math.min(720, Math.max(1, parseInt($("reminder-mins").value, 10) || 5));
+          if (!text) return;
+          toast("Напоминание", addReminder(text, mins));
+          $("reminder-text").value = "";
+        });
+      }
+
+      document.addEventListener("mousemove", (e) => {
+        if (!dragState) return;
+        const ws = workspace.getBoundingClientRect();
+        let x = e.clientX - dragState.ox - ws.left + workspace.scrollLeft;
+        let y = e.clientY - dragState.oy - ws.top + workspace.scrollTop;
+        x = Math.max(0, Math.min(x, workspace.clientWidth - 80));
+        y = Math.max(0, Math.min(y, workspace.clientHeight - 40));
+        dragState.el.style.left = x + "px";
+        dragState.el.style.top = y + "px";
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (dragState) {
+          clampWindowPosition(dragState.el);
+          dragState = null;
+          persistWindowLayout();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        openWindows.forEach((w) => clampWindowPosition(w.el));
+      });
+
+      const composeFormEl = () => document.getElementById("compose-form");
+      document.addEventListener("submit", (e) => {
+        if (e.target === composeFormEl()) {
+          e.preventDefault();
+          const input = document.getElementById("compose-input");
+          const v = input?.value.trim();
+          if (!v) return;
+          input.value = "";
+          processUserInput(v, { fromVoice: false });
+        }
+      });
+
+      document.body.addEventListener("click", (e) => {
+        if (e.target.id === "btn-copy") {
+          e.preventDefault();
+          if (!lastBotReply) return;
+          navigator.clipboard?.writeText(lastBotReply).then(() => log("Скопировано")).catch(() => log("Clipboard недоступен"));
+        }
+        if (e.target.id === "btn-clear") clearAll();
+        if (e.target.id === "btn-export") exportHistory();
+      });
+
+      document.body.addEventListener("click", (e) => {
+        if (document.body.classList.contains("ambient") && !e.target.closest("dialog")) {
+          document.body.classList.remove("ambient");
+        }
+      });
+
+      document.addEventListener("change", (e) => {
+        const id = e.target.id;
+        if (id === "opt-tts") { settings.tts = e.target.checked; saveSettings(); }
+        if (id === "opt-beeps") { settings.beeps = e.target.checked; saveSettings(); }
+        if (id === "opt-wake") { settings.wake = e.target.checked; saveSettings(); }
+        if (id === "opt-continuous") {
+          settings.continuous = e.target.checked;
+          if (recognition) recognition.continuous = settings.continuous;
+          saveSettings();
+        }
+        if (id === "opt-voice") { settings.voiceURI = e.target.value; saveSettings(); }
+      });
+
+      document.addEventListener("input", (e) => {
+        const id = e.target.id;
+        if (id === "memo-editor") saveMemo(e.target.value);
+        if (id === "opt-rate") {
+          settings.rate = Number(e.target.value);
+          document.getElementById("rate-val").textContent = settings.rate.toFixed(2);
+          saveSettings();
+        }
+        if (id === "opt-pitch") {
+          settings.pitch = Number(e.target.value);
+          document.getElementById("pitch-val").textContent = settings.pitch.toFixed(2);
+          saveSettings();
+        }
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.target.closest("dialog")) return;
+        if (e.code === "Space" && !e.repeat && e.target === document.body) {
+          e.preventDefault();
+          pttHeld = true;
+          startListen();
+        }
+        if (e.key === "m" || e.key === "M") {
+          settings.tts = !settings.tts;
+          optTts.checked = settings.tts;
+          saveSettings();
+          log(settings.tts ? "TTS вкл" : "TTS mute");
+        }
+        if (e.key === "c" && (e.metaKey || e.ctrlKey)) return;
+        if (e.key === "c" || e.key === "C") {
+          if (lastBotReply) navigator.clipboard?.writeText(lastBotReply);
+        }
+        if (e.key === "f" || e.key === "F") toggleFullscreen();
+        if (e.key === "r" || e.key === "R") repeatLast();
+        if (e.key === "/") {
+          e.preventDefault();
+          openWindow("chat");
+          document.getElementById("compose-input")?.focus();
+        }
+        if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          showLauncher();
+        }
+        if (e.key === "?") helpDialog.showModal();
+        if (e.key === "Escape") {
+          if (document.body.classList.contains("ambient")) {
+            document.body.classList.remove("ambient");
+            e.preventDefault();
+          }
+          stopSpeaking();
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "Space" && pttHeld) {
+          pttHeld = false;
+          if (!settings.continuous) stopListen();
+        }
+      });
+
+      if (isFileProtocol) {
+        footerHint.innerHTML =
+          'Файл локально · для CMS: <code>npm start</code> → <a href="http://localhost:3000/jarvis.html">localhost:3000/jarvis.html</a>';
+      }
+
+      loadDashboardWidgets();
+      applySettingsToUi();
+      loadHistory();
+      loadMemo();
+      loadReminders();
+      try {
+        restoreWindowLayout();
+      } catch (err) {
+        console.error(err);
+        localStorage.removeItem(STORAGE_WINDOWS);
+        openWindow("chat");
+        openWindow("dashboard");
+        toast("HUD", "Layout сброшен из‑за ошибки. Нажмите «Окна».");
+      }
+      toast("HUD", "Кнопка «Окна» или + — добавить диалоги и дашборды.");
+      updateNetPill();
+      window.addEventListener("online", updateNetPill);
+      window.addEventListener("offline", () => {
+        updateNetPill();
+        toast("Сеть", "Offline — команды работают локально.");
+      });
+      requestNotifyPermission();
+      tickClock();
+      setInterval(tickClock, 1000);
+      drawViz(0.05);
+      log("HUD готов");
+      if (!isFileProtocol) probeCms();
+      else pillCms.textContent = "file://";
+
+      document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement) document.body.classList.remove("fullscreen");
+      });
+    })();
+  </script>
+</body>
+</html>
