@@ -81,22 +81,22 @@
       items: [
         {
           phrases: ["открой …", "перейди к …"],
-          tools: ["search_workspace_hybrid", "get_page_url"],
+          tools: ["search_workspace_hybrid", "get_topic_url"],
           status: "mcp"
         },
         {
           phrases: ["открой inbox", "что во входящих"],
-          tools: ["list_inbox", "get_page_url"],
+          tools: ["list_inbox", "get_topic_url"],
           status: "mcp"
         },
         {
           phrases: ["открой todo", "мои задачи"],
-          tools: ["read_workspace_todo", "get_page_url"],
+          tools: ["read_workspace_todo", "get_topic_url"],
           status: "mcp"
         },
         {
           phrases: ["открой журнал"],
-          tools: ["list_journal_entries", "get_page_url"],
+          tools: ["list_journal_entries", "get_topic_url"],
           status: "mcp"
         },
         {
@@ -107,7 +107,7 @@
         { phrases: ["назад", "к списку", "домой"], tools: ["history.back / CHPU hub"], status: "planned" },
         {
           phrases: ["режим редактирования", "просмотр", "навигация", "todo-вид"],
-          tools: ["get_page_url(view=edit|preview|nav|todo|…)"],
+          tools: ["get_topic_url(view=edit|preview|nav|todo|…)"],
           status: "mcp"
         },
         {
@@ -131,8 +131,8 @@
       id: "read",
       title: "Прочитать",
       items: [
-        { phrases: ["прочитай страницу …"], tools: ["read_page_body"], status: "mcp" },
-        { phrases: ["свойства страницы"], tools: ["read_page_properties"], status: "mcp" },
+        { phrases: ["прочитай страницу …"], tools: ["read_topic_body"], status: "mcp" },
+        { phrases: ["свойства страницы"], tools: ["read_topic_properties"], status: "mcp" },
         { phrases: ["напомни факты про …"], tools: ["search_workspace_facts", "list_workspace_facts"], status: "mcp" }
       ]
     },
@@ -141,11 +141,11 @@
       title: "Записать (с подтверждением)",
       note: "«да / подтверждаю» перед delete и move.",
       items: [
-        { phrases: ["запиши в заметку …"], tools: ["write_page_body", "append_journal_entry"], status: "mcp" },
+        { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "append_journal_entry"], status: "mcp" },
         { phrases: ["добавь задачу …"], tools: ["write_workspace_todo"], status: "mcp" },
         { phrases: ["зафиксируй факт …"], tools: ["retain_workspace_fact"], status: "mcp" },
-        { phrases: ["создай страницу … в теме …"], tools: ["create_page"], status: "mcp" },
-        { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_page", "move_page", "delete_page"], status: "mcp" },
+        { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },
+        { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_topic", "move_topic", "delete_topic"], status: "mcp" },
         { phrases: ["разбери inbox …"], tools: ["triage_inbox_item"], status: "mcp" },
         { phrases: ["уведомь …"], tools: ["notify_user"], status: "mcp" }
       ]

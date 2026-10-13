@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 109 tools",
+  versionLabel: "Per-chat agentId · 87 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -14,7 +14,7 @@ module.exports = {
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
-    "Индексы и поиск — НЕ placement: get_topic_map, get/refresh_*_index_toc, search_workspace_*, rebuild_workspace_* (get_page_* — legacy alias).",
+    "Индексы и поиск — НЕ placement: get_topic_map, get/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: только database_frame_* / database_element_* (iblock_* сняты).",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
@@ -144,7 +144,7 @@ module.exports = {
       tools: [
         {
           name: "get_topic_map",
-          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body. (get_page_map — legacy)",
+          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body.",
           parameters: "includeSlots?: boolean",
           http: "GET /api/agent/page-map"
         },

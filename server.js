@@ -6487,7 +6487,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   }
 
   if (/\/manifest\.md$/i.test(normalized)) {
-    return { error: "Use write_page_body / write_page_properties for manifest.md", status: 400 };
+    return { error: "Use write_topic_body / write_topic_properties for manifest.md", status: 400 };
   }
 
   const bundleMatch = normalized.match(/^(.*)\/awn-storage\/(main|todo|roadmap|log|content)\.(md|csv)$/i);
@@ -11840,7 +11840,7 @@ async function buildAgentTopicRegistry() {
   return {
     version: 1,
     model: "topic-registry",
-    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_page_body или list_workspace_always_context.",
+    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или list_workspace_always_context.",
     topics,
     topicCount: topics.length
   };
@@ -12699,7 +12699,7 @@ async function buildAgentPageMap(options = {}) {
     model: "page-map",
     hint:
       "Карта workspace: manifest-узлы (hasManifest:true) + папки без manifest (kind:folder, hasManifest:false). " +
-      "Страницы: read/write_page_*; папки: list_folder/read_file/upload_file; усыновить → create_page.",
+      "Темы: read/write_topic_*; папки: list_folder/read_file/upload_file; усыновить → create_topic.",
     pages,
     nodeCount: pages.length,
     pageCount: manifestCount,
@@ -12958,11 +12958,11 @@ async function buildAgentWorkspacePageIndex() {
     model: "workspace-page-index",
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
-      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_topic_map.",
     whenToUse: {
-      get_workspace_page_index_toc:
+      get_workspace_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
-      refresh_workspace_page_index_toc:
+      refresh_workspace_topic_index_toc:
         "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
     },
     path: manifestPath,
@@ -14509,7 +14509,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP.md",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: list_repositories",
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
@@ -14534,7 +14534,7 @@ const SESSION_CONTEXT_API_MAP = {
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
-  siteMap: "GET /api/agent/site-map — legacy; MCP: get_page_map",
+  siteMap: "GET /api/agent/site-map — legacy; MCP: get_topic_map",
   pageMap:
     "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
   contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",

@@ -58,7 +58,7 @@ batch_invoke:
 
   read_tools:
     - topic_exists
-    - page_exists
+    - topic_exists
     - content_exists
     - list_settings
     - read_setting

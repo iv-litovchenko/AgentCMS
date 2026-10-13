@@ -349,7 +349,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
-    legacy: "get_page_map",
     description:
       "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; topics → read_topic_* / get_content_map.",
     schema: getTopicMapSchema,
@@ -436,7 +435,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "get_workspace_topic_index_toc",
-    legacy: "get_workspace_page_index_toc",
     description: workspaceTopicIndexTocDescription,
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-page-index")
@@ -454,7 +452,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "refresh_workspace_topic_index_toc",
-    legacy: "refresh_workspace_page_index_toc",
     description: refreshWorkspaceTopicIndexDescription,
     schema: refreshWorkspacePageIndexSchema,
     handler: ({ overwrite }) =>
@@ -517,7 +514,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_url",
-    legacy: "get_page_url",
     description:
       "Build a browser URL to open a topic or file in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
     schema: getTopicUrlSchema,

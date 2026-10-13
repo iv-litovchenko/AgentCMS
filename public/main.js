@@ -1534,7 +1534,7 @@ description: Работа с Agent CMS через MCP. Используй при
 | Задача | Tool |
 | ------ | ---- |
 | Меню | \`get_menu\` |
-| Страница | \`read_page_properties\` / \`write_page_properties\` |
+| Страница | \`read_topic_properties\` / \`write_topic_properties\` |
 | Память/контент | \`create_slot_record\` / \`read_slot_record\` |
 | Уведомление | \`notify_user\` |
 

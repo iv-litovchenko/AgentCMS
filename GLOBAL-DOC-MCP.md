@@ -26,7 +26,7 @@
 
 **Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
 
-**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `page_*` / `get_page_*` → `topic_*` / `get_topic_*`; `*_zzz` — заглушки.
+**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.)
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_topic_map`, `get_content_index_toc` по активной теме.
 
@@ -111,7 +111,7 @@
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
-**MCP (канон):** `create_topic`, `read_topic_*`, `get_topic_map`, … — **`page_*` / `get_page_*` — deprecated aliases** (тот же handler). `placement.kind: page` в content-tools не меняется.
+**MCP (канон):** `create_topic`, `read_topic_*`, `get_topic_map`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
 
 **Параметры без схемы в MCP** (передавай так):
 
