@@ -90,7 +90,7 @@ export function formatReadFileToolResult(data, jsonText) {
 
 export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {}) {
   const readFileDescription =
-    "[Legacy] Prefer read_content with placement.kind=root. Read workspace file by path (text; binary: format=base64). Partial: startLine+limitLines. Slot .md → read_content page/channel/media; manifest → read_page_body.";
+    "[Legacy] Prefer read_content with placement.kind=root. Read workspace file by path (text; binary: format=base64). Partial: startLine+limitLines. Slot .md → read_content page/channel/media; manifest → read_topic_body.";
   const readFileCall = (args) => readFileHandler(client, args);
 
   if (isLegacyMcpToolsEnabled()) {

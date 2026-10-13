@@ -57,6 +57,7 @@ batch_invoke:
     - "^refresh_"
 
   read_tools:
+    - topic_exists
     - page_exists
     - content_exists
     - list_settings

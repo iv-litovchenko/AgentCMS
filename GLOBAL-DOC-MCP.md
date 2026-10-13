@@ -26,9 +26,9 @@
 
 **Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
 
-**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки.
+**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `page_*` / `get_page_*` → `topic_*` / `get_topic_*`; `*_zzz` — заглушки.
 
-**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_page_map`, `get_content_index_toc` по активной теме.
+**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_topic_map`, `get_content_index_toc` по активной теме.
 
 ---
 
@@ -59,9 +59,9 @@
 - `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; текст — `content`, бинарь — `data` (base64) + `mimeType`; для root — `mode: append | replace`.
 - `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.
 
-Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_page_map`, `get_content_index_toc`, `list_content`, `resolve_workspace_path`.
+Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_topic_map`, `get_content_index_toc`, `list_content`, `resolve_workspace_path`.
 
-### Разделы дерева (для `parentPath` в `create_page`)
+### Разделы дерева (для `parentPath` в `create_topic`)
 
 - `awn-container/` — пользовательские области и темы (по умолчанию);
 - `awn-agent-kit/` — служебные темы агента (persona, rules, voice…);
@@ -86,11 +86,11 @@
 
 ## 3. Навигация и поиск
 
-**Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: карты workspace (`get_page_map`, `get_content_map`), markdown-оглавления (`get_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
+**Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: карты workspace (`get_topic_map`, `get_content_map`), markdown-оглавления (`get_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
 
 - Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
-- Обзор — сначала реестры (`get_page_map`, `get_workspace_page_index_toc`, `get_content_index_toc`), потом точечно `read_*`.
+- Обзор — сначала реестры (`get_topic_map`, `get_workspace_topic_index_toc`, `get_content_index_toc`), потом точечно `read_*`.
 - `get_content_index_toc` — лёгкий (без properties), `get_content_map` — тяжелее, для планирования правок.
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты, термины и справочник — `search_workspace_facts` / `search_glossary_terms` / `search_reference_entries`.
@@ -105,19 +105,21 @@
 
 ---
 
-## 4. Страницы
+## 4. Темы
 
 Типы: `awn.page.ws` (корень), `awn.page.area` (область), `awn.page.topic` (тема со слотами), `awn.page.section.*` (служебные разделы).
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
+**MCP (канон):** `create_topic`, `read_topic_*`, `get_topic_map`, … — **`page_*` / `get_page_*` — deprecated aliases** (тот же handler). `placement.kind: page` в content-tools не меняется.
+
 **Параметры без схемы в MCP** (передавай так):
 
-- `create_page`: `type`* (`area` / `topic` или полный `awn.page.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
-- `rename_page`: `path`*, `displayName` или `title`* → `awn-name`, `slug` → папка.
-- `generate_workspace_slug`: `text` (или `title` / `displayName` / `name`), `preset` (`page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
+- `create_topic`: `type`* (`area` / `topic` или полный `awn.page.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
+- `rename_topic`: `path`*, `displayName` или `title`* → `awn-name`, `slug` → папка.
+- `generate_workspace_slug`: `text` (или `title` / `displayName` / `name`), `preset` (`topic` · `page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
 
-**Схемы:** свойства (`*_properties`) — значения frontmatter; схема (`schema.yml`) — описание полей формы; `config.yml` — UI, не поля; тип (`get_type`) — база, `schema.yml` — локальный override. `read_page_schema` — без `mode=full` без нужды.
+**Схемы:** свойства (`*_properties`) — значения frontmatter; схема (`schema.yml`) — описание полей формы; `config.yml` — UI, не поля; тип (`get_type`) — база, `schema.yml` — локальный override. `read_topic_schema` — без `mode=full` без нужды.
 
 ---
 
@@ -150,7 +152,7 @@
 
 ### Гибкий слот
 
-Признак: `slotsFlexible: true` в `get_page_map` / `get_content_index_toc` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
+Признак: `slotsFlexible: true` в `get_topic_map` / `get_content_index_toc` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
 
 ### Доп. материалы записи — `assets/materials/{awn-id}/`
 
@@ -161,7 +163,7 @@
 ### Sidecar и свободная память
 
 - **Sidecar** — мета к одному файлу: `photo.png` → `photo.sidecar.md` рядом. Не создаётся автоматически; только `create_sidecar`.
-- **Свободная память** — папки без `manifest.md` (`kind: "folder"` в `get_page_map`). Работа через `list_folder` и `read_content` / `write_content` с `kind: root`, не `read_page_*`. Описание папки — `{folder}/sidecar.md` так же через `kind: root`. Превратить в тему — `create_page`.
+- **Свободная память** — папки без `manifest.md` (`kind: "folder"` в `get_topic_map`). Работа через `list_folder` и `read_content` / `write_content` с `kind: root`, не `read_topic_*`. Описание папки — `{folder}/sidecar.md` так же через `kind: root`. Превратить в тему — `create_topic`.
 
 ---
 

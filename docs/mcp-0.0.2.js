@@ -14,7 +14,7 @@ module.exports = {
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
-    "Индексы и поиск — НЕ placement: get_page_map, get/refresh_*_index_toc, search_workspace_*, rebuild_workspace_* (см. GLOBAL-DOC-MCP §3).",
+    "Индексы и поиск — НЕ placement: get_topic_map, get/refresh_*_index_toc, search_workspace_*, rebuild_workspace_* (get_page_* — legacy alias).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: только database_frame_* / database_element_* (iblock_* сняты).",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
@@ -143,8 +143,8 @@ module.exports = {
       title: "Навигация",
       tools: [
         {
-          name: "get_page_map",
-          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body.",
+          name: "get_topic_map",
+          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body. (get_page_map — legacy)",
           parameters: "includeSlots?: boolean",
           http: "GET /api/agent/page-map"
         },
@@ -167,13 +167,13 @@ module.exports = {
           http: "POST /api/agent/content-index"
         },
         {
-          name: "get_workspace_page_index_toc",
-          description: "Оглавление INDEX.md в корне workspace: path, type, title, description (страницы).",
+          name: "get_workspace_topic_index_toc",
+          description: "Оглавление INDEX.md в корне workspace: path, type, title, description (темы и области).",
           parameters: "—",
           http: "GET /api/agent/workspace-page-index"
         },
         {
-          name: "refresh_workspace_page_index_toc",
+          name: "refresh_workspace_topic_index_toc",
           description: "Обновить INDEX.md в корне workspace (таблица path/type/title/description).",
           parameters: "overwrite?",
           http: "POST /api/agent/workspace-page-index"
@@ -185,8 +185,8 @@ module.exports = {
           http: "GET /api/agent/resolve-path"
         },
         {
-          name: "get_page_url",
-          description: "Web-адрес страницы Agent CMS для открытия в браузере (CHPU). path — manifest, файл, слот; view — edit/todo/nav/…",
+          name: "get_topic_url",
+          description: "Web-адрес темы/файла Agent CMS для открытия в браузере (CHPU). path — manifest, файл, слот; view — edit/todo/nav/…",
           parameters: "path?, view?, forceView?",
           http: "GET /api/agent/page-url"
         },
@@ -253,42 +253,42 @@ module.exports = {
       ]
     },
     {
-      id: "page",
-      title: "Страница (manifest.md)",
+      id: "topic",
+      title: "Тема (manifest.md)",
       tools: [
-        { name: "read_page_body", description: "Тело manifest.md.", parameters: "path", http: "GET /api/file" },
-        { name: "write_page_body", description: "Сохранить тело.", parameters: "path, content", http: "POST /api/file/content" },
-        { name: "read_page_properties", description: "Frontmatter manifest.md (full YAML).", parameters: "path", http: "GET /api/file/properties" },
-        { name: "write_page_properties", description: "Patch frontmatter.", parameters: "path, content", http: "POST /api/file/properties" },
-        { name: "read_page_property", description: "One manifest property.", parameters: "path, key", http: "GET /api/file/properties?key=" },
-        { name: "write_page_property", description: "Set one manifest property.", parameters: "path, key, value", http: "POST /api/file/properties" },
+        { name: "read_topic_body", description: "Тело manifest.md.", parameters: "path", http: "GET /api/file" },
+        { name: "write_topic_body", description: "Сохранить тело.", parameters: "path, content", http: "POST /api/file/content" },
+        { name: "read_topic_properties", description: "Frontmatter manifest.md (full YAML).", parameters: "path", http: "GET /api/file/properties" },
+        { name: "write_topic_properties", description: "Patch frontmatter.", parameters: "path, content", http: "POST /api/file/properties" },
+        { name: "read_topic_property", description: "One manifest property.", parameters: "path, key", http: "GET /api/file/properties?key=" },
+        { name: "write_topic_property", description: "Set one manifest property.", parameters: "path, key, value", http: "POST /api/file/properties" },
         {
-          name: "read_page_schema",
+          name: "read_topic_schema",
           description: "schema.yml layers (mode=layers default). База типа: get_type.",
           parameters: "path, mode?, target?",
           http: "GET /api/file/page-schema"
         },
-        { name: "write_page_schema", description: "Записать schema override.", parameters: "path, content", http: "POST /api/file/page-schema" },
+        { name: "write_topic_schema", description: "Записать schema override.", parameters: "path, content", http: "POST /api/file/page-schema" },
         {
-          name: "read_page_config",
+          name: "read_topic_config",
           description: "config.yml: awn_settings, awn_ui (не schema.yml).",
           parameters: "path",
           http: "GET /api/file/page-config"
         },
         {
-          name: "write_page_config",
+          name: "write_topic_config",
           description: "Сохранить config.yml.",
           parameters: "path, content",
           http: "POST /api/file/page-config"
         },
-        { name: "page_exists", description: "Есть ли manifest.md.", parameters: "path", http: "GET /api/page/exists" },
-        { name: "get_page_meta", description: "Мета страницы без body.", parameters: "path", http: "GET /api/page/meta" },
-        { name: "read_page_env", description: "Прочитать .env страницы.", parameters: "path", http: "GET /api/page/env" },
-        { name: "write_page_env", description: "Записать .env страницы.", parameters: "path, content", http: "POST /api/page/env" },
-        { name: "create_page", description: "Создать area или topic.", parameters: "parentPath?, type: area|topic|awn.page.area|awn.page.topic|folder|file, displayName?, slug?", http: "POST /api/page/create" },
-        { name: "delete_page", description: "Удалить страницу.", parameters: "path", http: "DELETE /api/file" },
-        { name: "rename_page", description: "Переименовать.", parameters: "path, displayName?, slug?", http: "POST /api/file/title" },
-        { name: "move_page", description: "Переместить.", parameters: "path, parentPath", http: "POST /api/page/move" }
+        { name: "topic_exists", description: "Есть ли manifest.md.", parameters: "path", http: "GET /api/page/exists" },
+        { name: "get_topic_meta", description: "Мета темы без body.", parameters: "path", http: "GET /api/page/meta" },
+        { name: "read_topic_env", description: "Прочитать .env темы.", parameters: "path", http: "GET /api/page/env" },
+        { name: "write_topic_env", description: "Записать .env темы.", parameters: "path, content", http: "POST /api/page/env" },
+        { name: "create_topic", description: "Создать area или topic.", parameters: "parentPath?, type: area|topic|awn.page.area|awn.page.topic|folder|file, displayName?, slug?", http: "POST /api/page/create" },
+        { name: "delete_topic", description: "Удалить тему/область.", parameters: "path", http: "DELETE /api/file" },
+        { name: "rename_topic", description: "Переименовать.", parameters: "path, displayName?, slug?", http: "POST /api/file/title" },
+        { name: "move_topic", description: "Переместить.", parameters: "path, parentPath", http: "POST /api/page/move" }
       ]
     },
     {

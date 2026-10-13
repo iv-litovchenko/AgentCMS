@@ -47,7 +47,7 @@ const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
+    "Path to topic manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
   );
 
 function textResult(data) {
