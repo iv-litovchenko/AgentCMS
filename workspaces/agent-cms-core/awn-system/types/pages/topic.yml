@@ -22,6 +22,6 @@ storage-slots:
   - templates
   - base
   - notebooklm
-  - agent-queue
+  - task-queue
   - todo-single
   - roadmap-single

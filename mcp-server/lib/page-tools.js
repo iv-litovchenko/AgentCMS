@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 /** folder|area|awn.page.area → folder; file|topic|awn.page.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
@@ -32,29 +33,41 @@ export function normalizeCreatePageArgs(input = {}) {
   );
 }
 
+function regTopic(reg, canonical, legacy, description, schema, handler) {
+  registerCanonicalWithLegacyAlias(reg, { canonical, legacy, description, schema, handler });
+}
+
 export function registerPageTools({ reg, client, pagePath }) {
-  reg(
+  regTopic(
+    reg,
+    "read_topic_body",
     "read_page_body",
-    "Read manifest.md body (markdown below frontmatter).",
+    "Read topic manifest.md body (markdown below frontmatter).",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_body",
     "write_page_body",
-    "Save manifest.md body. Frontmatter on disk is preserved.",
+    "Save topic manifest.md body. Frontmatter on disk is preserved.",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "read_topic_properties",
     "read_page_properties",
-    "Read full YAML frontmatter from manifest.md.",
+    "Read full YAML frontmatter from topic manifest.md.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/properties", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_properties",
     "write_page_properties",
     "Patch YAML frontmatter on manifest.md. Send only keys to change — existing keys on disk are preserved (awn-create/update/version auto-stamped by server).",
     z.object({
@@ -64,7 +77,9 @@ export function registerPageTools({ reg, client, pagePath }) {
     ({ path, content }) => client.post("/api/file/properties", { path, content })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "read_topic_property",
     "read_page_property",
     "Read one frontmatter property from manifest.md (e.g. awn-name, awn-status).",
     z.object({
@@ -74,7 +89,9 @@ export function registerPageTools({ reg, client, pagePath }) {
     ({ path, key }) => client.get("/api/file/properties", { path, key })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_property",
     "write_page_property",
     "Set one frontmatter property on manifest.md. Other keys preserved; awn-update/version auto-stamped.",
     z.object({
@@ -85,7 +102,9 @@ export function registerPageTools({ reg, client, pagePath }) {
     ({ path, key, value }) => client.post("/api/file/properties", { path, key, value })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "read_topic_schema",
     "read_page_schema",
     "Read schema.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
     z.object({
@@ -107,108 +126,137 @@ export function registerPageTools({ reg, client, pagePath }) {
       })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_schema",
     "write_page_schema",
     "Save schema.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "read_topic_config",
     "read_page_config",
-    "Read page config.yml (awn_settings, awn_ui). Field definitions live in schema.yml — use read_page_schema.",
+    "Read topic config.yml (awn_settings, awn_ui). Field definitions live in schema.yml — use read_topic_schema.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/page-config", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_config",
     "write_page_config",
-    "Save page config.yml (awn_settings, awn_ui). Empty content deletes the file. Never put awn_schema here.",
+    "Save topic config.yml (awn_settings, awn_ui). Empty content deletes the file. Never put awn_schema here.",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/page-config", { path, content })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "topic_exists",
     "page_exists",
-    "Check whether manifest.md exists. Accepts folder path — appends manifest.md automatically.",
+    "Check whether topic manifest.md exists. Accepts folder path — appends manifest.md automatically.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/page/exists", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "get_topic_meta",
     "get_page_meta",
-    "Lightweight page metadata: manifest stat, folder stat, props hint — no body.",
+    "Lightweight topic metadata: manifest stat, folder stat, props hint — no body.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/page/meta", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "read_topic_env",
     "read_page_env",
-    "Read page .env (secrets, API keys). Path = manifest.md of the page.",
+    "Read topic .env (secrets, API keys). Path = manifest.md of the topic.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/page/env", { path })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "write_topic_env",
     "write_page_env",
-    "Write page .env file.",
+    "Write topic .env file.",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/page/env", { path, content })
   );
 
-  reg(
+  const createTopicSchema = z
+    .object({
+      parentPath: z.string().optional(),
+      type: z
+        .string()
+        .min(1)
+        .describe("folder | area | awn.page.area | file | topic | awn.page.topic"),
+      name: z.string().min(1).optional(),
+      displayName: z.string().min(1).optional(),
+      title: z.string().optional(),
+      slug: z.string().optional(),
+      awnType: z.string().optional().describe("Optional awn-type override; usually inferred from type")
+    })
+    .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
+      message: "Provide displayName, title, name, or slug"
+    });
+
+  const createTopicHandler = (args) => {
+    const payload = normalizeCreatePageArgs(args);
+    return client.post("/api/page/create", {
+      parentPath: payload.parentPath || ".",
+      type: payload.type,
+      name: payload.name,
+      displayName: payload.displayName,
+      title: payload.title,
+      slug: payload.slug,
+      awnType: payload.awnType
+    });
+  };
+
+  regTopic(
+    reg,
+    "create_topic",
     "create_page",
-    "Create page. type: area → folder+manifest (awn.page.area); topic → file+manifest (awn.page.topic). Aliases: folder|area|file|topic or full awn-type id.",
-    z
-      .object({
-        parentPath: z.string().optional(),
-        type: z
-          .string()
-          .min(1)
-          .describe("folder | area | awn.page.area | file | topic | awn.page.topic"),
-        name: z.string().min(1).optional(),
-        displayName: z.string().min(1).optional(),
-        title: z.string().optional(),
-        slug: z.string().optional(),
-        awnType: z.string().optional().describe("Optional awn-type override; usually inferred from type")
-      })
-      .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
-        message: "Provide displayName, title, name, or slug"
-      }),
-    (args) => {
-      const payload = normalizeCreatePageArgs(args);
-      return client.post("/api/page/create", {
-        parentPath: payload.parentPath || ".",
-        type: payload.type,
-        name: payload.name,
-        displayName: payload.displayName,
-        title: payload.title,
-        slug: payload.slug,
-        awnType: payload.awnType
-      });
-    }
+    "Create area or topic. type: area → folder+manifest (awn.page.area); topic → file+manifest (awn.page.topic). Aliases: folder|area|file|topic or full awn-type id.",
+    createTopicSchema,
+    createTopicHandler
   );
 
-  reg(
+  regTopic(
+    reg,
+    "delete_topic",
     "delete_page",
     "Delete area, topic, or part folder. When platform confirm-delete is enabled, pass confirm=true.",
-    z.object({ path: pagePath, confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled") }),
+    z.object({
+      path: pagePath,
+      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
+    }),
     ({ path }) => client.delete("/api/file", { path })
   );
 
-  reg(
+  const renameTopicSchema = z
+    .object({
+      path: pagePath,
+      displayName: z.string().min(1).optional(),
+      slug: z.string().optional(),
+      title: z.string().min(1).optional()
+    })
+    .refine((value) => Boolean(value.displayName || value.title), {
+      message: "displayName or title is required"
+    });
+
+  regTopic(
+    reg,
+    "rename_topic",
     "rename_page",
-    "Rename page. displayName → awn-name; slug → folder/filename on disk.",
-    z
-      .object({
-        path: pagePath,
-        displayName: z.string().min(1).optional(),
-        slug: z.string().optional(),
-        title: z.string().min(1).optional()
-      })
-      .refine((value) => Boolean(value.displayName || value.title), {
-        message: "displayName or title is required"
-      }),
+    "Rename topic or area. displayName → awn-name; slug → folder/filename on disk.",
+    renameTopicSchema,
     ({ path, displayName, slug, title }) =>
       client.post("/api/file/title", {
         path,
@@ -218,9 +266,11 @@ export function registerPageTools({ reg, client, pagePath }) {
       })
   );
 
-  reg(
+  regTopic(
+    reg,
+    "move_topic",
     "move_page",
-    "Move area/topic page to another parent folder.",
+    "Move area/topic to another parent folder.",
     z.object({
       path: pagePath,
       parentPath: z.string().describe("Target parent folder path, e.g. awn-container/kollektsii or .")

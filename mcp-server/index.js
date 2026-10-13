@@ -20,6 +20,7 @@ import {
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
 import { registerMediaLibraryTools } from "./lib/media-library-tools.js";
+import { registerChannelTools } from "./lib/channel-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
@@ -32,10 +33,12 @@ import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
+import { registerReferenceTools } from "./lib/reference-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
+import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
@@ -44,7 +47,7 @@ const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
+    "Path to topic manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
   );
 
 function textResult(data) {
@@ -197,14 +200,21 @@ function createServer() {
         formatResult: (data) => formatReadFileToolResult(data, jsonText)
       })
   });
+  registerChannelTools(reg, client, {
+    registerBinaryReadFile: (name, description, schema, fn) =>
+      reg(name, description, schema, fn, {
+        formatResult: (data) => formatReadFileToolResult(data, jsonText)
+      })
+  });
 
   registerBrainTools(reg, client);
 
   registerFactsTools(reg, client);
   registerGlossaryTools(reg, client);
+  registerReferenceTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── awn-databases: database_frame_* + database_element_* (iblock_* deprecated) ─
+  // ── awn-databases: database_frame_* + database_element_* ─
 
   registerDatabaseTools(reg, client);
 
@@ -377,24 +387,13 @@ function createServer() {
 
   registerWorkspacePadTools(reg, client);
   registerFileHubQueueTools(reg, client);
-  registerWorkspaceFsTools(reg, client, {
-    registerReadFile: (description, schema, fn) =>
-      reg("read_file", description, schema, fn, {
-        formatResult: (data) => formatReadFileToolResult(data, jsonText)
-      })
-  });
+  registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
   registerAgentUtilsTools(reg, client);
   registerMediaCloudTools(reg, client, { pagePath });
   registerSidecarTools(reg, client);
-
-  reg(
-    "list_system_files",
-    "List agent system files (AGENTS.md, SKILL.md, …). For shared NOTE/TODO pads use read_workspace_note / read_workspace_todo.",
-    z.object({}),
-    () => client.get("/api/system-files")
-  );
+  registerWorkspaceRootTools(reg, client, { jsonText });
 
   // ── Уведомление (1) ────────────────────────────────────────────────────────
 

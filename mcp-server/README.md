@@ -23,6 +23,7 @@ npm install
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
+| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 
 ## Термины (синонимы `agentId`)
 
@@ -43,23 +44,33 @@ get_session_context({ agentId: "<выбранный-id>" })
 
 **Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
 
+### Два слоя API
+
+| Слой | Вопрос агента | Tools |
+|------|----------------|-------|
+| **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
+| **Индексы и поиск** | Карта, оглавление, hub-каталог, найти по workspace, пересобрать кэш | `get_topic_map`, `get_*_index_toc`, `refresh_*_index_toc`, `search_workspace_*`, `rebuild_workspace_*`, … (`get_page_*` — legacy) |
+
+Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-DOC-MCP.md` §3).
+
 ### Канон (PAGE · SLOT · CONTENT)
 
 | Группа | Tools |
 |--------|-------|
 | Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `agentId`; остальное **с `agentId`** |
 | Platform | `get_platform_info`, `get_platform_health` (нужен `agentId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
-| Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `get_page_url`, `list_repositories`, `get_repository`, `refresh_repository_index`, `register_repository`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
-| Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
-| Слот | `list_page_slots` |
-| Контент | `content_exists`, `get_content_meta`, `read/write_content_*`, `read/write_content_property`, `create_content`, `import_content_from_url`, `rename/move/delete_content` |
+| Навигация и поиск | `get_topic_map`, `get_content_map`, `get_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `get_workspace_wsmap`, `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content` |
+| Тема (manifest) | `read/write_topic_*`, `read/write_topic_property`, `read/write_topic_config`, `topic_exists`, `get_topic_meta`, `read/write_topic_env`, `create_topic`, `delete_topic`, `rename_topic`, `move_topic` — `page_*` deprecated aliases |
+| Слот | `list_slots` |
+| Контент | `read_content` / `write_content` / `list_content` (`placement.kind`: page \| channel \| media \| root), `content_exists`, `get_content_meta`, properties/schema/lifecycle; legacy имена — только при `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
-| awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы); `iblock_*` deprecated |
+| awn-databases | `database_frame_*` (каркас), `database_element_*` (элементы) |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
 | File hub queue | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub` |
-| Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` (`retain_*` / `recall_*` deprecated) |
+| Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` |
 | Glossary | `create_glossary_term`, `update_glossary_term`, `list_glossary_terms`, `search_glossary_terms` → `awn-databases/contents/glossary` |
-| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
+| Reference | `create_reference_entry`, `update_reference_entry`, `list_reference_entries`, `search_reference_entries` → `awn-databases/contents/reference` |
+| FS | `list_root_files`, `read_root_file`, `write_root_file` (aliases: `list_system_files`, `read_system_file`, `write_system_file`), `read_file`, `write_file`, `patch_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
 | Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |
 

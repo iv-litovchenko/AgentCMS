@@ -17,7 +17,7 @@ export function registerAgentUtilsTools(reg, client) {
 
   reg(
     "generate_workspace_slug",
-    "Derive disk slug from title/text (same rules as create_page/create_content). preset: page|content|store|database|repository|catalog|filename. Pass slug to sanitize only.",
+    "Derive disk slug from title/text (same rules as create_topic/create_content). preset: topic|page|content|store|database|repository|catalog|filename (page = legacy alias for topic). Pass slug to sanitize only.",
     z
       .object({
         text: z.string().optional().describe("Display name or arbitrary text"),
@@ -26,9 +26,9 @@ export function registerAgentUtilsTools(reg, client) {
         name: z.string().optional(),
         slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
         preset: z
-          .enum(["page", "content", "store", "database", "repository", "catalog", "filename"])
+          .enum(["topic", "page", "content", "store", "database", "repository", "catalog", "filename"])
           .optional()
-          .describe("Default page"),
+          .describe("Default topic (page = legacy)"),
         stripExtension: z
           .boolean()
           .optional()

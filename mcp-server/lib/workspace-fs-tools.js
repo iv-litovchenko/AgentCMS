@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const workspacePath = z
   .string()
@@ -89,26 +90,28 @@ export function formatReadFileToolResult(data, jsonText) {
 
 export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {}) {
   const readFileDescription =
-    "Read a workspace file by path (text returns content; binary returns previewUrl, or format=base64 for bytes). Partial read: startLine+limitLines (lines) or offsetBytes+maxBytes (bytes). For typed .md in slots use read_content_body; for manifest use read_page_body.";
+    "[Legacy] Prefer read_content with placement.kind=root. Read workspace file by path (text; binary: format=base64). Partial: startLine+limitLines. Slot .md → read_content page/channel/media; manifest → read_topic_body.";
   const readFileCall = (args) => readFileHandler(client, args);
 
-  if (registerReadFile) {
-    registerReadFile(readFileDescription, readFileInputSchema, readFileCall);
-  } else {
-    reg("read_file", readFileDescription, readFileInputSchema, readFileCall);
-  }
+  if (isLegacyMcpToolsEnabled()) {
+    if (registerReadFile) {
+      registerReadFile(readFileDescription, readFileInputSchema, readFileCall);
+    } else {
+      reg("read_file", readFileDescription, readFileInputSchema, readFileCall);
+    }
 
-  reg(
-    "write_file",
-    "Write a plain-text workspace file. mode=replace (default) overwrites; mode=append adds to end. Prefer patch_file for edits. Root system files (AGENTS.md, SKILL.md, …) are saved with history. For shared NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
-    z.object({
-      path: workspacePath,
-      content: z.string(),
-      mode: writeMode
-    }),
-    ({ path, content, mode }) =>
-      client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
-  );
+    reg(
+      "write_file",
+      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Special roots: write_root_file, write_workspace_note, write_workspace_todo.",
+      z.object({
+        path: workspacePath,
+        content: z.string(),
+        mode: writeMode
+      }),
+      ({ path, content, mode }) =>
+        client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
+    );
+  }
 
   reg(
     "patch_file",

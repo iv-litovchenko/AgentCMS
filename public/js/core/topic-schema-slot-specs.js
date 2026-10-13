@@ -216,7 +216,7 @@
         }
       },
       {
-        slotKey: "agent-queue",
+        slotKey: "task-queue",
         label: "Чекпоинты и очередь задач для агента",
         tabGroup: "workspace",
         defaultKind: "record",
@@ -239,7 +239,7 @@
       },
       {
         slotKey: "roadmap-single",
-        label: "Дорожная карта",
+        label: "Карты",
         tabGroup: "planning",
         defaultKind: "record",
         targets: {

@@ -42,6 +42,16 @@ fields:
       field: awn-runtime-cron
       equals: true
 
+  awn-runtime-reminder:
+    type: awn.field.boolean
+    title: В напоминание
+    description: >
+      Включить запись в реестр «Напоминания» (флаг не связан с «Дата события» и расписанием).
+    default: false
+    placement: aside-body
+    group: runtime
+    sort: 4.5
+
   awn-runtime-commands:
     type: awn.field.boolean
     title: Выполнение команд

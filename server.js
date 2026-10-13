@@ -46,6 +46,10 @@ const {
   matchesSearchExtensions,
   formatSearchExtensionsForResponse
 } = require("./lib/search/search-extensions");
+const {
+  buildSearchSnippet: buildSearchSnippetFromLib,
+  buildSearchMatchLines: buildSearchMatchLinesFromLib
+} = require("./lib/search/text-match-position");
 const { createSemanticSearchService } = require("./lib/indexes/semantic-search/service");
 const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
@@ -120,6 +124,17 @@ const {
   writeMediaLibraryStoreSchema
 } = require("./lib/services/awn-media-service");
 const {
+  listAwnChannels,
+  getAwnChannel,
+  registerAwnChannel,
+  updateAwnChannel,
+  assertChannelManifestRel,
+  readChannelsIndex,
+  writeChannelsIndex,
+  readChannelStoreSchemaPayload,
+  writeChannelStoreSchema
+} = require("./lib/services/awn-channels-service");
+const {
   readDependencies,
   writeDependencies
 } = require("./lib/services/dependencies-service");
@@ -152,6 +167,7 @@ const {
   LEGACY_FACTS_DIR
 } = require("./lib/services/workspace-facts-service");
 const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
+const { createWorkspaceReferenceService } = require("./lib/services/workspace-reference-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
@@ -270,7 +286,8 @@ const {
   STORAGE_SUBFOLDER_TEMPLATES,
   STORAGE_SUBFOLDER_BASE,
   STORAGE_SUBFOLDER_NOTEBOOKLM,
-  STORAGE_SUBFOLDER_AGENT_QUEUE,
+  STORAGE_SUBFOLDER_TASK_QUEUE,
+  STORAGE_SUBFOLDER_AGENT_TASK_QUEUE,
   STORAGE_SUBFOLDER_CONFIGURATION,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
@@ -322,7 +339,9 @@ const {
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
   normalizeDeclaredManifestTreeType,
-  resolveMediaStorageSubfolderForManifest
+  resolveMediaStorageSubfolderForManifest,
+  isWorkspaceAwnMediaLibraryManifestRel,
+  isWorkspaceAwnChannelManifestRel
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -411,10 +430,14 @@ const {
   getContainerTypesPayload,
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
+  ensureAgentTaskQueueStoreScaffold,
+  TASK_QUEUE_STORE_REL,
+  AGENT_TASK_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
-  GLOSSARY_STORE_REL
+  GLOSSARY_STORE_REL,
+  REFERENCE_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -430,6 +453,10 @@ const { parseYamlScalar, mergeFrontmatterOverrides } = require("./lib/awn/awn-ya
 const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-service");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
 const { createExistsApi } = require("./lib/api/exists-api");
+const {
+  validateContentSlotAccess,
+  slotKeyFromStorageFolder
+} = require("./lib/api/slot-placement-guard");
 const { createContentSchemaApi } = require("./lib/api/content-schema-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./lib/api/ui-context-api");
 const {
@@ -1873,7 +1900,8 @@ function getFulltextSearchService() {
       resolvePathAbsolute: normalizeWorkspacePath,
       isTextSearchableFileName,
       getIndexPolicy: getActiveIndexPolicy,
-      isEntityIndexExcluded
+      isEntityIndexExcluded,
+      parseSearchQuery
     });
   }
   return fulltextSearchService;
@@ -2277,6 +2305,7 @@ function getSidecarService() {
 let workspaceBrainService = null;
 let workspaceFactsService = null;
 let workspaceGlossaryService = null;
+let workspaceReferenceService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
@@ -2300,6 +2329,18 @@ function getWorkspaceGlossaryService() {
     });
   }
   return workspaceGlossaryService;
+}
+
+function getWorkspaceReferenceService() {
+  if (!workspaceReferenceService) {
+    workspaceReferenceService = createWorkspaceReferenceService({
+      getAgentRoot,
+      getProjectRoot,
+      searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
+      onReferenceWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceReferenceService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -5337,8 +5378,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "notebooklm") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_NOTEBOOKLM);
   }
-  if (mode === "agent-queue") {
-    return path.join(storageRoot, STORAGE_SUBFOLDER_AGENT_QUEUE);
+  if (mode === "task-queue" || mode === "agent-task-queue" || mode === "agent-queue") {
+    const folder = getStorageSubfolderForMode(mode) || STORAGE_SUBFOLDER_TASK_QUEUE;
+    return path.join(storageRoot, folder);
   }
   return nodeAbsolute;
 }
@@ -6377,7 +6419,18 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
 }
 
 const WORKSPACE_FS_BLOCKED_WRITE_PREFIXES = ["awn-system/"];
-const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "templates", "base", "agent-queue", "quick-notes"]);
+const WORKSPACE_FS_TYPED_MD_LAYERS = new Set([
+  "main",
+  "inbox",
+  "notes",
+  "references",
+  "templates",
+  "base",
+  "task-queue",
+  "agent-task-queue",
+  "agent-queue",
+  "quick-notes"
+]);
 const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["discussion", "thread", "comments", "history", "temp", "volume"]);
 const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".md",
@@ -6427,7 +6480,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   for (const prefix of WORKSPACE_FS_BLOCKED_WRITE_PREFIXES) {
     if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
       return {
-        error: `Writes to ${prefix} are not allowed via filesystem tools; use write_agent_system_file`,
+        error: `Writes to ${prefix} are not allowed via filesystem tools; use POST /api/agent-system/file or the agent-system UI`,
         status: 403
       };
     }
@@ -9020,6 +9073,12 @@ async function resolveExistingWorkspaceRelPath(relPath) {
   };
 
   pushCandidate(normalized);
+  if (/^awn-media\/[^/]+$/i.test(normalized)) {
+    pushCandidate(`${normalized}/manifest.md`);
+  }
+  if (/^awn-channels\/[^/]+$/i.test(normalized)) {
+    pushCandidate(`${normalized}/manifest.md`);
+  }
   await appendGitRepoContainerRelCandidates(candidates, normalized, seen);
   await appendPrefixedWorkspaceManifestCandidates(candidates, normalized, seen);
 
@@ -9762,7 +9821,11 @@ function stripPlatformDataFromMenuTree(menu) {
   const stripNode = (node) => {
     if (!node || typeof node !== "object") return node;
     const sections = (node.sections || [])
-      .filter((section) => !isPlatformDataMenuFolderPath(section?.folderPath))
+      .filter(
+        (section) =>
+          !isPlatformDataMenuFolderPath(section?.folderPath) &&
+          !isPlatformDataRootFolderName(section?.title)
+      )
       .map((section) => stripNode(section));
     const items = (node.items || []).filter((item) => !isPlatformDataMenuFolderPath(item?.path));
     const repoItems = (node.repoItems || node.repoServiceItems || []).filter(
@@ -10037,32 +10100,53 @@ async function moveExternalMemoryFile(manifestRelPath, relFile, options = {}) {
   };
 }
 
-async function resolveMediaFileOpContext(manifestRelPath, relFile) {
+async function resolveMediaFileOpContext(manifestRelPath, relFile, options = {}) {
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
   if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
 
   const normalizedRelFile = normalizeRelativeFilePath(relFile);
   if (!normalizedRelFile) return { error: "Invalid media file path", status: 400 };
 
-  const mediaAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRelFile);
+  const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRelPath, options.folder);
+  const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, libraryFolder);
+  let mediaAbsolute = null;
+  if (libraryFolderAbsolute) {
+    const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+    if (
+      isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+      (await fileExists(directAbsolute))
+    ) {
+      mediaAbsolute = directAbsolute;
+    }
+  }
+  if (!mediaAbsolute) {
+    mediaAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRelFile);
+  }
   if (!mediaAbsolute) return { error: "Media file not found", status: 404 };
 
-  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-  if (!folderAbsolute || !isPathInsideDirectory(folderAbsolute, mediaAbsolute)) {
+  const allowedRoots = [];
+  if (libraryFolderAbsolute) allowedRoots.push(libraryFolderAbsolute);
+  const legacyMediaFolder = await getMediaFolderAbsolute(nodeAbsolute);
+  if (legacyMediaFolder) allowedRoots.push(legacyMediaFolder);
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute);
+  if (assetsFolder) allowedRoots.push(assetsFolder);
+
+  const insideAllowed = allowedRoots.some((root) => isPathInsideDirectory(root, mediaAbsolute));
+  if (!insideAllowed) {
     return { error: "Invalid media file path", status: 400 };
   }
 
   return {
     manifestRelPath,
     nodeAbsolute,
-    folderAbsolute,
+    folderAbsolute: libraryFolderAbsolute || legacyMediaFolder,
     normalizedRelFile,
     mediaAbsolute
   };
 }
 
-async function deleteMediaStorageFile(manifestRelPath, relFile) {
-  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
+async function deleteMediaStorageFile(manifestRelPath, relFile, options = {}) {
+  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile, options);
   if (ctx.error) return ctx;
 
   const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
@@ -11565,7 +11649,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_TEMPLATES, slot: "templates" },
   { folder: STORAGE_SUBFOLDER_BASE, slot: "base" },
   { folder: STORAGE_SUBFOLDER_NOTEBOOKLM, slot: "notebooklm" },
-  { folder: STORAGE_SUBFOLDER_AGENT_QUEUE, slot: "agent-queue" },
+  { folder: STORAGE_SUBFOLDER_TASK_QUEUE, slot: "task-queue" },
   { folder: STORAGE_SUBFOLDER_REPOSITORY, slot: "repository" }
 ];
 
@@ -12632,7 +12716,7 @@ const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
   "todo-single": "TODO",
-  "roadmap-single": "Дорожная карта"
+  "roadmap-single": "Карты"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {
@@ -12876,9 +12960,9 @@ async function buildAgentWorkspacePageIndex() {
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
       "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
     whenToUse: {
-      get_workspace_page_index:
+      get_workspace_page_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
-      refresh_workspace_page_index:
+      refresh_workspace_page_index_toc:
         "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
     },
     path: manifestPath,
@@ -13202,7 +13286,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → database_frame_read_index / database_frame_list."
+      hint: "Краткий каталог awn-databases. Полный → database_frame_read_index_toc / database_frame_list."
     };
   }
 
@@ -13219,7 +13303,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → database_frame_read_index; детали store → database_frame_get / database_frame_list.",
+      "Полный оглавление → database_frame_read_index_toc; детали store → database_frame_get / database_frame_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -13266,12 +13350,12 @@ async function buildAgentAwnDataIndex() {
       "Оглавление накопителей awn-databases (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-databases.",
     whenToUse: {
-      database_frame_read_index:
+      database_frame_read_index_toc:
         "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
-      database_frame_refresh_index:
+      database_frame_refresh_index_toc:
         "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов).",
-      iblock_read_index: "Deprecated alias → database_frame_read_index.",
-      iblock_refresh_index: "Deprecated alias → database_frame_refresh_index."
+      iblock_read_index: "Deprecated alias → database_frame_read_index_toc.",
+      iblock_refresh_index: "Deprecated alias → database_frame_refresh_index_toc."
     },
     path: manifestPath,
     indexFile: {
@@ -13336,7 +13420,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   return {
     version: 1,
     model: "awn-databases-index-write",
-    hint: "index.md обновлён в awn-databases/. Просмотр без записи → database_frame_read_index / GET /api/agent/awn-databases-index.",
+    hint: "index.md обновлён в awn-databases/. Просмотр без записи → database_frame_read_index_toc / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
     path: indexPath,
     overwrite,
@@ -13697,7 +13781,9 @@ const CONTENT_INDEX_SLOT_LABELS = {
   main: "Память (многофайловая)",
   external: "Память (многофайловая)",
   assets: "Активы",
-  "agent-queue": "Чекпоинты и очередь задач для агента",
+  "task-queue": "Очередь задач",
+  "agent-task-queue": "Очередь задач",
+  "agent-queue": "Очередь задач",
   templates: "Шаблоны",
   base: "База",
   notebooklm: "NotebookLM",
@@ -13937,10 +14023,10 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
       "Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
-      get_content_index:
+      get_content_index_toc:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
-      refresh_content_index:
-        "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала get_content_index для preview.",
+      refresh_content_index_toc:
+        "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала get_content_index_toc для preview.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
       read_content_body: "Когда нужен полный текст одной записи."
@@ -14037,7 +14123,7 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index-write",
     hint:
-      "index.md обновлён на диске. Просмотр без записи → get_content_index. Ручная правка текста → read/write_content_body с ref=index.md.",
+      "index.md обновлён на диске. Просмотр без записи → get_content_index_toc. Ручная правка текста → read_content с ref=index.md.",
     whenToUse: indexPayload.whenToUse,
     path: manifestPath,
     scope,
@@ -14367,8 +14453,8 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     version: 1,
     model: "content-map",
     hint: slotsFlexible
-      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content_body. Оглавление: get_content_index."
-      : "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
+      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content. Оглавление: get_content_index_toc."
+      : "Карта контента страницы: title, description, properties без body. Тело: read_content. Быстрое оглавление: get_content_index_toc. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
     path: canonicalRelPath,
     awnType,
     slotsFlexible,
@@ -14428,7 +14514,7 @@ const SESSION_CONTEXT_API_MAP = {
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
   repositoryIndex:
-    "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index",
+    "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index_toc",
   repositoryRegister:
     "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
   dependencies:
@@ -14498,6 +14584,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
   workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
   workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
+  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — create_reference_entry MCP",
+  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — update_reference_entry MCP",
+  workspaceReferenceList: "GET /api/agent/workspace-reference/list — list_reference_entries MCP",
+  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — search_reference_entries MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -19026,12 +19116,30 @@ function classifyMarkdownLinkGroup(relPath, meta) {
   return "other";
 }
 
+function formatSearchLineLocationHint(startLine, endLine) {
+  if (startLine == null || !Number.isFinite(Number(startLine))) return null;
+  const start = Number(startLine);
+  const end = endLine != null && Number.isFinite(Number(endLine)) ? Number(endLine) : start;
+  if (end <= start) return `L${start}`;
+  return `L${start}-${end}`;
+}
+
+function buildSearchMatchPayload(content, query, parsed) {
+  const lines = buildSearchMatchLinesFromLib(content, query, parsed, parseSearchQuery);
+  return {
+    snippet: buildSearchSnippetFromLib(content, query, 64, parsed, parseSearchQuery),
+    startLine: lines.startLine,
+    endLine: lines.endLine
+  };
+}
+
 function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all", extensionSet = null) {
   if (!meta) return null;
   if (!matchesSearchExtensions(relPath, extensionSet)) return null;
   const fileType = classifySearchFileFormat(relPath);
   if (fileTypeFilter !== "all" && fileType !== fileTypeFilter) return null;
   const display = resolveSearchResultDisplay(relPath, meta);
+  const lineHint = formatSearchLineLocationHint(payload.startLine, payload.endLine);
   return {
     ...meta,
     ...payload,
@@ -19039,7 +19147,7 @@ function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all", 
     fileType,
     fileTypeLabel: SEARCH_FILE_FORMAT_LABELS[fileType] || SEARCH_FILE_FORMAT_LABELS.other,
     displayName: display.displayName,
-    locationHint: display.locationHint
+    locationHint: lineHint || payload.locationHint || display.locationHint
   };
 }
 
@@ -19313,45 +19421,7 @@ function matchesSearchHaystack(haystack, parsed) {
 
 function buildSearchSnippet(content, query, radius = 64, parsed = null) {
   const p = parsed || parseSearchQuery(query);
-  const text = String(content || "");
-  const lower = text.toLowerCase();
-  let idx = -1;
-  let highlightLen = 0;
-
-  if (p.mode === "strict") {
-    idx = lower.indexOf(p.literal.toLowerCase());
-    highlightLen = p.literal.length;
-  } else if (p.mode === "wildcard" && p.regex) {
-    const match = text.match(p.regex);
-    if (match && match.index != null) {
-      idx = match.index;
-      highlightLen = match[0].length;
-    }
-  } else {
-    for (const term of p.terms) {
-      const token = term.toLowerCase();
-      idx = lower.indexOf(token);
-      if (idx !== -1) {
-        highlightLen = term.length;
-        break;
-      }
-      const compactIdx = normalizeSearchCompact(text).indexOf(normalizeSearchCompact(term));
-      if (compactIdx !== -1 && normalizeSearchCompact(term).length >= 2) {
-        idx = 0;
-        highlightLen = Math.min(term.length, text.length);
-        break;
-      }
-    }
-  }
-
-  if (idx === -1) return "";
-
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(text.length, idx + highlightLen + radius);
-  let snippet = text.slice(start, end).replace(/\s+/g, " ").trim();
-  if (start > 0) snippet = `…${snippet}`;
-  if (end < text.length) snippet = `${snippet}…`;
-  return snippet;
+  return buildSearchSnippetFromLib(content, query, radius, p, parseSearchQuery);
 }
 
 function normalizeSearchScope(scope) {
@@ -19976,7 +20046,7 @@ async function searchByContent(
           relPath,
           meta,
           {
-            snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+            ...buildSearchMatchPayload(content, trimmed, parsed),
             matchCount: countTextMatches(content, trimmed, parsed)
           },
           normalizedFileType,
@@ -20036,7 +20106,7 @@ async function searchByContent(
       relPath,
       meta,
       {
-        snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+        ...buildSearchMatchPayload(content, trimmed, parsed),
         matchCount: countTextMatches(content, trimmed, parsed)
       },
       normalizedFileType,
@@ -20456,6 +20526,67 @@ function applyApiPathAliases(url) {
 
 let existsApi = null;
 
+async function readManifestAwnTypeId(manifestRelPath) {
+  const canonical = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (isWorkspaceAwnMediaLibraryManifestRel(canonical)) return "awn.hub.media";
+  if (isWorkspaceAwnChannelManifestRel(canonical)) return "awn.hub.channel";
+  const { frontmatter } = await readNodeFrontmatterContent(manifestRelPath);
+  const props = parseFrontmatterProps(frontmatter);
+  return String(props["awn-type"] || props.awnType || "awn.page.topic").trim();
+}
+
+async function enforceContentSlotPolicy(res, manifestRel, slotKey) {
+  try {
+    const verdict = await validateContentSlotAccess({
+      projectRoot: getProjectRoot(),
+      agentRoot: getAgentRoot(),
+      manifestRelPath: manifestRel,
+      slotKey,
+      getAwnType: readManifestAwnTypeId
+    });
+    if (!verdict.ok) {
+      sendJson(res, 403, { error: verdict.error });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    sendJson(res, 500, {
+      error: "Slot policy check failed",
+      details: String(error.message || error)
+    });
+    return false;
+  }
+}
+
+async function manifestRelFromApiPath(res, relPath) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+  if (!nodeAbsolute) {
+    sendJson(res, 400, { error: "Invalid file path" });
+    return null;
+  }
+  return path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+}
+
+async function enforceSlotPolicyForStorageFolder(res, relPath, storageFolder) {
+  const manifestRel = await manifestRelFromApiPath(res, relPath);
+  if (!manifestRel) return false;
+  const slotKey = slotKeyFromStorageFolder(storageFolder);
+  return enforceContentSlotPolicy(res, manifestRel, slotKey);
+}
+
+async function enforceSlotPolicyForMemoryMain(res, relPath) {
+  const manifestRel = await manifestRelFromApiPath(res, relPath);
+  if (!manifestRel) return false;
+  return enforceContentSlotPolicy(res, manifestRel, "memory");
+}
+
+async function enforceSlotPolicyForManifestFolder(res, manifestRel, libraryFolder) {
+  const manifest = String(manifestRel || "").replace(/\\/g, "/").trim();
+  if (!manifest) return true;
+  const slotKey = slotKeyFromStorageFolder(libraryFolder);
+  return enforceContentSlotPolicy(res, manifest, slotKey);
+}
+
 function getExistsApi() {
   if (!existsApi) {
     existsApi = createExistsApi({
@@ -20473,7 +20604,10 @@ function getExistsApi() {
       resolveUploadedMediaFileAbsolute,
       statNodeFileMeta,
       manifestRelFromAbsolute: (absolute) =>
-        path.relative(getAgentRoot(), absolute).replace(/\\/g, "/")
+        path.relative(getAgentRoot(), absolute).replace(/\\/g, "/"),
+      projectRoot: getProjectRoot,
+      agentRoot: getAgentRoot,
+      readManifestAwnType: readManifestAwnTypeId
     });
   }
   return existsApi;
@@ -21805,6 +21939,7 @@ async function handleApiForAgent(req, res, url) {
 
     try {
       const payload = await getExistsApi().checkContentExists(relPath, slot, ref || undefined);
+      if (payload.policyDenied) return sendJson(res, 403, { error: payload.error });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -21823,6 +21958,7 @@ async function handleApiForAgent(req, res, url) {
 
     try {
       const payload = await getExistsApi().getContentMeta(relPath, slot, ref || undefined);
+      if (payload.policyDenied) return sendJson(res, 403, { error: payload.error });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -21843,6 +21979,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const manifestCtx = await resolveApiManifestContext(relPath);
       if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceContentSlotPolicy(res, manifestCtx.rel, slot))) return;
       const payload = await getContentSchemaApi().readContentSchema(manifestCtx.rel, slot, ref, { mode });
       if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error, ...(payload.hint ? { hint: payload.hint } : {}) });
       return sendJson(res, 200, payload);
@@ -21866,6 +22003,7 @@ async function handleApiForAgent(req, res, url) {
 
       const manifestCtx = await resolveApiManifestContext(relPath);
       if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceContentSlotPolicy(res, manifestCtx.rel, slot))) return;
 
       let schemaInput;
       if (payload.awnSchema && typeof payload.awnSchema === "object") {
@@ -22328,6 +22466,245 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to save media library store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listAwnChannels(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list channels",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await registerAwnChannel(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 201, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to register channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channel") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await getAwnChannel(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/channels") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const result = await updateAwnChannel(agentRoot, relPath, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels/items") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    const manifestRel = assertChannelManifestRel(relPath);
+    if (!manifestRel) {
+      return sendJson(res, 400, { error: "path must be awn-channels/{slug}/manifest.md" });
+    }
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(manifestRel);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid channel manifest path" });
+
+    const folderName = resolveMediaStorageSubfolderForManifest(manifestRel, url.searchParams.get("folder"));
+    if (!(await enforceSlotPolicyForManifestFolder(res, manifestRel, folderName))) return;
+
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
+    if (!folderAbsolute) {
+      return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+    }
+
+    try {
+      const stat = await fs.stat(folderAbsolute);
+      if (!stat.isDirectory()) {
+        return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+      }
+
+      const sectionManifests = [];
+      const items = await collectMediaFilesStructured(folderAbsolute, "", [], sectionManifests);
+      const groups = groupMediaFiles(items);
+      const { content, files } = buildMediaListContent(groups);
+
+      const sectionRelPaths = [];
+      for (const manifest of sectionManifests) {
+        const manifestPath = String(manifest.path || "").replace(/\\/g, "/");
+        if (!manifestPath) continue;
+        const folderKey = manifestPath.slice(0, manifestPath.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+        if (folderKey) sectionRelPaths.push(folderKey);
+      }
+      for (const item of items) {
+        const itemPath = String(item.path || "").replace(/\\/g, "/");
+        if (!itemPath) continue;
+        const parentParts = itemPath.split("/").filter(Boolean);
+        parentParts.pop();
+        if (parentParts.length) sectionRelPaths.push(parentParts.join("/"));
+      }
+      const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+
+      return sendJson(res, 200, {
+        exists: true,
+        files,
+        groups,
+        sectionManifests,
+        sectionSortOrders,
+        path: manifestRel,
+        folder: folderName
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
+      }
+      return sendJson(res, 500, { error: "Failed to read channel storage", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/file") {
+    try {
+      const payload = await readJsonBody(req, 12_000_000);
+      const relPath = payload.path;
+      const contextRel = payload.contextPath || relPath;
+      const manifestRel = assertChannelManifestRel(contextRel || relPath);
+      if (!manifestRel) {
+        return sendJson(res, 400, { error: "path must be awn-channels/{slug}/manifest.md" });
+      }
+      const data = payload.data;
+      const fileName = payload.fileName;
+      const mimeType = payload.mimeType;
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
+
+      const slotFolder = payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_FILES;
+      if (!(await enforceSlotPolicyForManifestFolder(res, manifestRel, slotFolder))) return;
+
+      const storageContext = await resolveApiStorageContext(manifestRel);
+      if (!storageContext) return sendJson(res, 400, { error: "Invalid channel storage context" });
+
+      const buffer = decodeBase64UploadData(data, { label: "file data" });
+      const slot = slotFolder;
+      const result = await persistMediaUploadBuffer({
+        relPath: manifestRel,
+        storageContext,
+        buffer,
+        fileName,
+        mimeType,
+        libraryFolder: slot,
+        subdir: payload.subdir || "",
+        createSubdir: Boolean(payload.createSubdir)
+      });
+      return sendJson(res, 200, { ...result, path: manifestRel, folder: slot });
+    } catch (error) {
+      if (error?.status) {
+        return sendJson(res, error.status, {
+          error: String(error.message || error),
+          ...(error.details ? { details: error.details } : {})
+        });
+      }
+      return sendJson(res, 500, { error: "Failed to upload channel file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const slug = String(url.searchParams.get("slug") || url.searchParams.get("channel") || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug query parameter" });
+      const payload = readChannelStoreSchemaPayload(agentRoot, getProjectRoot(), slug);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read channel store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const slug = String(payload?.slug || payload?.channel || "").trim();
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = writeChannelStoreSchema(agentRoot, getProjectRoot(), slug, {
+        content: payload?.content,
+        awnSchema: payload?.awnSchema,
+        fields: payload?.fields,
+        tabs: payload?.tabs,
+        elementSchemaTabs: payload?.elementSchemaTabs
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save channel store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/channels-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await readChannelsIndex(agentRoot);
+      if (result.error) return sendJson(res, result.status || 404, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read channels index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeChannelsIndex(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 409, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to refresh channels index",
         details: String(error.message || error)
       });
     }
@@ -23425,6 +23802,74 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to search glossary terms",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceReferenceService().createReferenceEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create reference entry",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceReferenceService().updateReferenceEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update reference entry",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-reference/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceReferenceService().listReferenceEntries({
+        prefix: url.searchParams.get("prefix") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list reference entries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-reference/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceReferenceService().searchReferenceEntries({
+        query,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search reference entries",
         details: String(error.message || error)
       });
     }
@@ -25155,11 +25600,35 @@ async function handleApiForAgent(req, res, url) {
         groupRel: CONTENTS_GROUP_REL,
         factsStoreRel: FACTS_STORE_REL,
         glossaryStoreRel: GLOSSARY_STORE_REL,
+        referenceStoreRel: REFERENCE_STORE_REL,
         ...result
       });
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold contents group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (
+    req.method === "POST" &&
+    (url.pathname === "/api/awn-databases/scaffold-task-queue" ||
+      url.pathname === "/api/awn-databases/scaffold-agent-task-queue" ||
+      url.pathname === "/api/awn-databases/scaffold-agent-queue")
+  ) {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = ensureAgentTaskQueueStoreScaffold(agentRoot, getProjectRoot());
+      return sendJson(res, 201, {
+        ok: true,
+        storeRel: result.storeRel || TASK_QUEUE_STORE_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold agent task queue store",
         details: String(error.message || error)
       });
     }
@@ -26637,6 +27106,8 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 400, { error: "Invalid folder name" });
     }
 
+    if (!(await enforceSlotPolicyForStorageFolder(res, relPath, safeFolderName))) return;
+
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, safeFolderName);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: [], folders: [] });
     if (!folderAbsolute.startsWith(getAgentRoot())) {
@@ -26693,6 +27164,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
+    if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
+
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
@@ -26727,6 +27200,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
@@ -26792,6 +27267,8 @@ async function handleApiForAgent(req, res, url) {
       const title = display || String(payload.title || "").trim();
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
 
+      if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
+
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
@@ -26843,6 +27320,9 @@ async function handleApiForAgent(req, res, url) {
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      const manifestRel = await manifestRelFromApiPath(res, relPath);
+      if (!manifestRel) return;
+      if (!(await enforceContentSlotPolicy(res, manifestRel, "memory"))) return;
 
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
@@ -26926,6 +27406,8 @@ async function handleApiForAgent(req, res, url) {
           : folderName === STORAGE_SUBFOLDER_FILES
             ? "files"
             : "media";
+      const manifestRel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+      if (!(await enforceSlotPolicyForManifestFolder(res, manifestRel, folderName))) return;
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
@@ -27002,6 +27484,7 @@ async function handleApiForAgent(req, res, url) {
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
 
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
@@ -27100,9 +27583,17 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/storage/file/move") {
     try {
       const payload = await readJsonBody(req);
+      const storageFolder = String(payload.folder || "").trim();
+      if (
+        payload.path &&
+        storageFolder &&
+        !(await enforceSlotPolicyForStorageFolder(res, payload.path, storageFolder))
+      ) {
+        return;
+      }
       const result = await moveStorageFlatFile(
         payload.path,
-        String(payload.folder || "").trim(),
+        storageFolder,
         payload.file,
         {
           targetFolder: String(payload.targetFolder || payload.folder || "").trim(),
@@ -27120,6 +27611,18 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       if (!payload.path) return sendJson(res, 400, { error: "Missing file path" });
+      const manifestRel = await manifestRelFromApiPath(res, payload.path);
+      if (!manifestRel) return;
+      const rawItems = Array.isArray(payload.items) ? payload.items : payload.item ? [payload.item] : [];
+      for (const item of rawItems) {
+        const sourceScope = resolveSlotTransferScope(item.sourceSlot);
+        const targetScope = resolveSlotTransferScope(item.targetSlot);
+        if (!sourceScope || !targetScope) {
+          return sendJson(res, 400, { error: "Invalid slot in transfer item" });
+        }
+        if (!(await enforceContentSlotPolicy(res, manifestRel, sourceScope.slotKey))) return;
+        if (!(await enforceContentSlotPolicy(res, manifestRel, targetScope.slotKey))) return;
+      }
       const result = await transferStorageItemsRecord(payload.path, payload);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
@@ -27353,6 +27856,8 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
+    if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
+
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
       return sendJson(res, 400, { error: "Only .md files are allowed" });
@@ -27390,6 +27895,8 @@ async function handleApiForAgent(req, res, url) {
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
+
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
         return sendJson(res, 400, { error: "Only .md files are allowed" });
@@ -27425,6 +27932,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
     if (!storageFolder) return sendJson(res, 400, { error: "Missing folder query parameter" });
 
+    if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
+
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
@@ -27458,6 +27967,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing file path" });
       if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
@@ -27514,6 +28025,8 @@ async function handleApiForAgent(req, res, url) {
       if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
       if (!title && !payload.fileMask) return sendJson(res, 400, { error: "Title cannot be empty" });
 
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
+
       const result = await createStorageRecordFile({
         manifestRelPath: relPath,
         storageFolder,
@@ -27551,6 +28064,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing file path" });
       if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
@@ -27625,6 +28140,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
     if (!storageFolder) return sendJson(res, 400, { error: "Missing folder query parameter" });
+
+    if (!(await enforceSlotPolicyForStorageFolder(res, relPath, storageFolder))) return;
 
     try {
       const result = await deleteStorageFlatFile(relPath, storageFolder, relFile);
@@ -27709,6 +28226,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
+      if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
+
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
@@ -27772,6 +28291,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
+    if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
+
     try {
       const result = await deleteExternalMemoryFile(relPath, relFile);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
@@ -27788,6 +28309,8 @@ async function handleApiForAgent(req, res, url) {
       const relFile = payload.file;
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
+
+      if (!(await enforceSlotPolicyForMemoryMain(res, relPath))) return;
 
       const result = await moveExternalMemoryFile(relPath, relFile, {
         targetPath: payload.targetPath,
@@ -27808,6 +28331,8 @@ async function handleApiForAgent(req, res, url) {
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
     const folderName = resolveMediaStorageSubfolderForManifest(relPath, url.searchParams.get("folder"));
+    if (!(await enforceSlotPolicyForManifestFolder(res, relPath, folderName))) return;
+
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
 
@@ -27865,6 +28390,10 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
 
+      const libraryFolder = payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_MEDIA;
+      const policyManifest = String(contextRel || relPath || "").replace(/\\/g, "/");
+      if (!(await enforceSlotPolicyForManifestFolder(res, policyManifest, libraryFolder))) return;
+
       const storageContext = await resolveApiStorageContext(contextRel);
       if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
@@ -27875,7 +28404,7 @@ async function handleApiForAgent(req, res, url) {
         buffer,
         fileName,
         mimeType,
-        libraryFolder: payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_MEDIA,
+        libraryFolder,
         subdir: payload.subdir || "",
         createSubdir: Boolean(payload.createSubdir)
       });
@@ -27900,6 +28429,11 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!sourceUrl) return sendJson(res, 400, { error: "Missing url" });
 
+      const libraryFolder =
+        payload.libraryFolder || payload.folder || payload.slot || STORAGE_SUBFOLDER_MEDIA;
+      const policyManifest = String(contextRel || relPath || "").replace(/\\/g, "/");
+      if (!(await enforceSlotPolicyForManifestFolder(res, policyManifest, libraryFolder))) return;
+
       const storageContext = await resolveApiStorageContext(contextRel);
       if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
@@ -27919,7 +28453,7 @@ async function handleApiForAgent(req, res, url) {
         buffer: remote.buffer,
         fileName: resolvedFileName,
         mimeType,
-        libraryFolder: payload.libraryFolder || payload.folder || payload.slot || STORAGE_SUBFOLDER_MEDIA,
+        libraryFolder,
         subdir: payload.subdir || payload.parent || "",
         createSubdir: Boolean(payload.createSubdir)
       });
@@ -28632,11 +29166,14 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
 
-      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
+
+      const mediaFolderKey = /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, mediaFolderKey))) return;
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
       const nextName = toMediaRenamedFileName(normalizedRelFile, payload.title ?? payload.name);
       if (!nextName) return sendJson(res, 400, { error: "Invalid file name" });
@@ -28740,8 +29277,17 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
+    const libraryFolder = resolveMediaStorageSubfolderForManifest(relPath, url.searchParams.get("folder"));
+    const mediaFolderKey =
+      libraryFolder === STORAGE_SUBFOLDER_ASSETS
+        ? "assets"
+        : libraryFolder === STORAGE_SUBFOLDER_FILES
+          ? "files"
+          : "media";
+    if (!(await enforceSlotPolicyForStorageFolder(res, relPath, mediaFolderKey))) return;
+
     try {
-      const result = await deleteMediaStorageFile(relPath, relFile);
+      const result = await deleteMediaStorageFile(relPath, relFile, { folder: libraryFolder });
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -28756,6 +29302,10 @@ async function handleApiForAgent(req, res, url) {
       const relFile = payload.file;
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
+
+      const normalizedRelFile = normalizeRelativeFilePath(relFile);
+      const mediaFolderKey = normalizedRelFile && /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
+      if (!(await enforceSlotPolicyForStorageFolder(res, relPath, mediaFolderKey))) return;
 
       const result = await moveMediaStorageFile(relPath, relFile, {
         targetPath: payload.targetPath,

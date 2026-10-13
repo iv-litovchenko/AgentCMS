@@ -100,6 +100,16 @@ fields:
     group: system
     sort: 3.5
 
+  awn-event-at:
+    type: awn.field.date.datetime
+    title: "{A2!} Дата события"
+    description: >
+      Дата и время встречи, мероприятия и других событий по записи.
+    locked: true
+    placement: aside-body
+    group: system
+    sort: 3.55
+
   awn-deadline:
     type: awn.field.date.datetime
     title: "{A2!} Дедлайн"

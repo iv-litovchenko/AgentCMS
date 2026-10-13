@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { registerTocTool } from "./register-toc-tool.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
   .string()
@@ -336,21 +338,27 @@ function registerSearchWorkspaceTools(reg, client) {
 }
 
 export function registerMapTools(reg, client, pagePath) {
-  reg(
-    "get_page_map",
-    "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; pages → read_page_* / get_content_map.",
-    z.object({
-      includeSlots: z.boolean().optional().describe("Include slot summaries for topics (default true)")
-    }),
-    ({ includeSlots }) =>
-      client.get("/api/agent/page-map", {
-        ...(includeSlots === false ? { includeSlots: "false" } : {})
-      })
-  );
+  const getTopicMapSchema = z.object({
+    includeSlots: z.boolean().optional().describe("Include slot summaries for topics (default true)")
+  });
+
+  const getTopicMapHandler = ({ includeSlots }) =>
+    client.get("/api/agent/page-map", {
+      ...(includeSlots === false ? { includeSlots: "false" } : {})
+    });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_topic_map",
+    legacy: "get_page_map",
+    description:
+      "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; topics → read_topic_* / get_content_map.",
+    schema: getTopicMapSchema,
+    handler: getTopicMapHandler
+  });
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index.",
+    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index_toc.",
     z.object({
       path: pagePath,
       slot: z
@@ -366,25 +374,32 @@ export function registerMapTools(reg, client, pagePath) {
       })
   );
 
-  reg(
-    "get_content_index",
-    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
-    z.object({
-      path: pagePath,
-      slot: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
-        )
-    }),
-    ({ path, slot }) =>
-      client.get("/api/agent/content-index", {
-        path,
-        ...(slot ? { slot } : {})
-      })
-  );
+  const getContentIndexTocSchema = z.object({
+    path: pagePath,
+    slot: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
+      )
+  });
+
+  const getContentIndexTocHandler = ({ path, slot }) =>
+    client.get("/api/agent/content-index", {
+      path,
+      ...(slot ? { slot } : {})
+    });
+
+  const getContentIndexTocDescription =
+    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.";
+
+  registerTocTool(reg, {
+    canonical: "get_content_index_toc",
+    description: getContentIndexTocDescription,
+    schema: getContentIndexTocSchema,
+    handler: getContentIndexTocHandler
+  });
 
   const refreshContentIndexSchema = z.object({
     path: pagePath,
@@ -406,34 +421,47 @@ export function registerMapTools(reg, client, pagePath) {
       ...(overwrite === false ? { overwrite: false } : {})
     });
 
-  reg(
-    "refresh_content_index",
-    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
-    refreshContentIndexSchema,
-    runRefreshContentIndex
-  );
+  const refreshContentIndexDescription =
+    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.";
 
-  reg(
-    "get_workspace_page_index",
-    "Quick TOC for all workspace pages: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.",
-    z.object({}),
-    () => client.get("/api/agent/workspace-page-index")
-  );
+  registerTocTool(reg, {
+    canonical: "refresh_content_index_toc",
+    description: refreshContentIndexDescription,
+    schema: refreshContentIndexSchema,
+    handler: runRefreshContentIndex
+  });
 
-  reg(
-    "refresh_workspace_page_index",
-    "Refresh (rebuild and save) INDEX.md at workspace root from get_page_map (path, type, title, description table). overwrite=false skips if file exists.",
-    z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
-    }),
-    ({ overwrite }) =>
+  const workspaceTopicIndexTocDescription =
+    "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
+
+  registerTocTool(reg, {
+    canonical: "get_workspace_topic_index_toc",
+    legacy: "get_workspace_page_index_toc",
+    description: workspaceTopicIndexTocDescription,
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/workspace-page-index")
+  });
+
+  const refreshWorkspacePageIndexSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+  });
+
+  const refreshWorkspaceTopicIndexDescription =
+    "Refresh (rebuild and save) INDEX.md at workspace root from get_topic_map (path, type, title, description table). overwrite=false skips if file exists.";
+
+  registerTocTool(reg, {
+    canonical: "refresh_workspace_topic_index_toc",
+    legacy: "refresh_workspace_page_index_toc",
+    description: refreshWorkspaceTopicIndexDescription,
+    schema: refreshWorkspacePageIndexSchema,
+    handler: ({ overwrite }) =>
       client.post("/api/agent/workspace-page-index", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
-  );
+  });
 
   reg(
     "get_workspace_wsmap",
@@ -466,29 +494,35 @@ export function registerMapTools(reg, client, pagePath) {
     ({ path }) => client.get("/api/agent/resolve-path", { path })
   );
 
-  reg(
-    "get_page_url",
-    "Build a browser URL to open a workspace page in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
-    z.object({
-      path: workspaceRelPath
-        .optional()
-        .describe("Workspace-relative path; empty = workspace home"),
-      view: z
-        .string()
-        .optional()
-        .describe("Optional CHPU UI view, e.g. edit, todo, nav, list, preview, hub"),
-      forceView: z
-        .boolean()
-        .optional()
-        .describe("Append view even for default-omitted views like nav/preview")
-    }),
-    ({ path, view, forceView }) =>
-      client.get("/api/agent/page-url", {
-        path: path || "",
-        view: view || undefined,
-        forceView: forceView ? true : undefined
-      })
-  );
+  const getTopicUrlSchema = z.object({
+    path: workspaceRelPath
+      .optional()
+      .describe("Workspace-relative path; empty = workspace home"),
+    view: z
+      .string()
+      .optional()
+      .describe("Optional CHPU UI view, e.g. edit, todo, nav, list, preview, hub"),
+    forceView: z
+      .boolean()
+      .optional()
+      .describe("Append view even for default-omitted views like nav/preview")
+  });
+
+  const getTopicUrlHandler = ({ path, view, forceView }) =>
+    client.get("/api/agent/page-url", {
+      path: path || "",
+      view: view || undefined,
+      forceView: forceView ? true : undefined
+    });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_topic_url",
+    legacy: "get_page_url",
+    description:
+      "Build a browser URL to open a topic or file in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
+    schema: getTopicUrlSchema,
+    handler: getTopicUrlHandler
+  });
 }
 
 export { registerSearchWorkspaceTools };

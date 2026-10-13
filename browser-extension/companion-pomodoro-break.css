@@ -1,7 +1,9 @@
+#asc-pomodoro-break,
 .asc-pomodoro-break {
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  /* Выше #agent-shell-companion-toolbar (2147483646 !important) */
+  z-index: 2147483647 !important;
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -18,6 +20,12 @@ html.asc-pomodoro-break-active,
 html.asc-pomodoro-break-active body,
 body.asc-pomodoro-break-active {
   overflow: hidden !important;
+}
+
+html.asc-pomodoro-break-active #agent-shell-companion-toolbar {
+  z-index: 2147483640 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .asc-pomodoro-break-bg {

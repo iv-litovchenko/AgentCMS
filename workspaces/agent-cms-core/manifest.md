@@ -1,5 +1,5 @@
 ---
-awn-name: "[Agent CMS] Ядро платформы"
+awn-name: "[Memory CMS] Ядро платформы"
 awn-emoji: ""
 awn-status: 🟢 Открыта
 awn-description: "Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS"

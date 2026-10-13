@@ -1,268 +1,186 @@
-import { createRequire } from "node:module";
 import { z } from "zod";
-import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } from "./yaml-frontmatter.js";
-
-const require = createRequire(import.meta.url);
-const {
-  slotKeyToStorageFolder,
-  isExternalMemorySlot,
-  isMediaSlotKey,
-  isInternalBundleSlot,
-  buildSectionCreateRequest,
+import {
+  contentExists,
+  getContentMeta,
+  readContentBody,
+  readContentMeta,
+  readContentAll,
+  writeContentBody,
+  readContentProperties,
+  writeContentProperties,
+  readContentProperty,
+  writeContentProperty,
+  readContentSchema,
+  writeContentSchema,
+  createContent,
+  importContentFromUrl,
+  renameContent,
+  moveContent,
+  deleteContent,
+  listContentItems,
   listSectionCapableSlotKeys
-} = require("../../lib/config/storage-slot-routing.js");
+} from "./content-core.js";
+import {
+  buildContentSlotSchema,
+  withContentAddress,
+  placementSchema,
+  placementKindSchema
+} from "./content-placement-zod.js";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
-const contentSlot = z
-  .string()
-  .min(1)
-  .describe(
-    `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, repository, main-single, main-single-csv, todo-single, roadmap-single`
-  );
-
-const contentRef = z
-  .string()
-  .min(1)
+const contentPartSchema = z
+  .enum(["body", "properties", "schema", "meta", "all"])
   .optional()
+  .default("body")
   .describe(
-    "Relative path inside the slot (required for external/collection slots). For memory/main use section/file.md when nested in a section. Omit for internal single-file slots."
+    "body — markdown below frontmatter; properties — YAML block; schema — section schema.yml; meta — exists/driver/stat (no body); all — meta + body + properties (+ schema when ref set)"
   );
-
-function slotToFolder(slot) {
-  return slotKeyToStorageFolder(slot);
-}
-
-async function readMarkdownFull(client, pagePath, slot, ref) {
-  const folder = slotToFolder(slot);
-  if (isExternalMemorySlot(slot)) {
-    return client.get("/api/external/file", { path: pagePath, file: ref });
-  }
-  return client.get("/api/storage/markdown", { path: pagePath, folder, file: ref });
-}
-
-async function writeMarkdownFull(client, pagePath, slot, ref, content) {
-  const folder = slotToFolder(slot);
-  if (isExternalMemorySlot(slot)) {
-    return client.post("/api/external/file", { path: pagePath, file: ref, content });
-  }
-  return client.post("/api/storage/markdown", { path: pagePath, folder, file: ref, content });
-}
-
-function splitMarkdownFrontmatter(content) {
-  const text = String(content || "");
-  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/);
-  if (!match) return { properties: "", description: text };
-  return {
-    properties: match[1] || "",
-    description: match[2] || ""
-  };
-}
-
-function mergeMarkdownFrontmatter(properties, description) {
-  const props = String(properties || "").trim();
-  const body = String(description || "");
-  if (!props) return body;
-  return `---\n${props}\n---\n${body}`;
-}
-
-async function readInternalContent(client, pagePath, slot, file) {
-  if (slot === "main-single-csv") return client.get("/api/memory/tabular", { path: pagePath, file });
-  if (slot === "todo-single" || slot === "todo") return client.get("/api/todo", { path: pagePath });
-  if (slot === "roadmap-single" || slot === "roadmap") return client.get("/api/roadmap", { path: pagePath });
-  return client.get("/api/memory/internal", { path: pagePath });
-}
-
-async function writeInternalContent(client, pagePath, slot, content, file) {
-  if (slot === "main-single-csv") return client.post("/api/memory/tabular", { path: pagePath, content, file });
-  if (slot === "todo-single" || slot === "todo") return client.post("/api/todo", { path: pagePath, content });
-  if (slot === "roadmap-single" || slot === "roadmap") return client.post("/api/roadmap", { path: pagePath, content });
-  return client.post("/api/memory/internal", { path: pagePath, content });
-}
 
 export function registerContentTools({ reg, client, pagePath }) {
+  const contentSlot = buildContentSlotSchema(listSectionCapableSlotKeys);
+  const address = (extra = {}) => withContentAddress(extra, contentSlot);
+
   reg(
     "content_exists",
-    "Check whether content exists in a slot (internal single-file bundle or external ref).",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    ({ path, slot, ref }) =>
-      client.get("/api/content/exists", { path, slot, ...(ref ? { ref } : {}) })
+    "Check whether content exists in a slot (page, channel, or media placement).",
+    address({}),
+    (args) => contentExists(client, args)
   );
 
   reg(
     "get_content_meta",
-    "Lightweight content metadata: exists, driver, file stat — no body.",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    ({ path, slot, ref }) =>
-      client.get("/api/content/meta", { path, slot, ...(ref ? { ref } : {}) })
+    "Lightweight content metadata: exists, driver, file stat — no body. Prefer read_content with part=meta.",
+    address({}),
+    (args) => getContentMeta(client, args)
   );
 
   reg(
-    "read_content_body",
-    "Read content body. For .md: markdown below frontmatter. For internal slots: full file content.",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    async ({ path, slot, ref }) => {
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        return { slot, content: payload?.content ?? "" };
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, path, slot, ref);
-      if (!ref.toLowerCase().endsWith(".md")) return payload;
-      const { description } = splitMarkdownFrontmatter(payload.content);
-      return { file: payload.file, content: description };
-    }
-  );
-
-  reg(
-    "write_content_body",
-    "Save content body. Frontmatter on disk is preserved for .md files.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef,
-      content: z.string()
+    "read_content",
+    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. Slot main-single-csv: part=body returns entire main.csv. root: optional format=base64, startLine/limitLines.",
+    address({
+      part: contentPartSchema,
+      format: z.enum(["base64"]).optional(),
+      maxBytes: z.number().int().optional(),
+      startLine: z.number().int().min(1).optional(),
+      limitLines: z.number().int().min(1).max(500).optional(),
+      offsetBytes: z.number().int().min(0).optional()
     }),
-    async ({ path, slot, ref, content }) => {
-      if (isInternalBundleSlot(slot)) {
-        return writeInternalContent(client, path, slot, content);
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, path, slot, ref);
-      if (!ref.toLowerCase().endsWith(".md")) {
-        return writeMarkdownFull(client, path, slot, ref, content);
-      }
-      const { properties } = splitMarkdownFrontmatter(existing.content);
-      const merged = mergeMarkdownFrontmatter(properties, content);
-      return writeMarkdownFull(client, path, slot, ref, merged);
+    async (args) => {
+      if (args.part === "meta") return readContentMeta(client, args);
+      if (args.part === "all") return readContentAll(client, args);
+      if (args.part === "properties") return readContentProperties(client, args);
+      if (args.part === "schema") return readContentSchema(client, args);
+      return readContentBody(client, args);
     }
   );
 
   reg(
-    "read_content_properties",
-    "Read full YAML frontmatter of a .md content item.",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    async ({ path, slot, ref }) => {
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        const { properties } = splitMarkdownFrontmatter(payload?.content || "");
-        return { slot, content: properties };
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, path, slot, ref);
-      const { properties } = splitMarkdownFrontmatter(payload.content || "");
-      return { file: payload.file, content: properties };
-    }
+    "list_content",
+    "List items: placement.kind page|channel|media + slot, or root + path (folder inferred from file path).",
+    z
+      .object({
+        placement: z
+          .object({
+            kind: placementKindSchema,
+            path: z.string().min(1),
+            slot: z.string().min(1).optional()
+          })
+          .optional(),
+        path: z.string().min(1).optional(),
+        slot: z.string().min(1).optional(),
+        depth: z.union([z.number(), z.string()]).optional()
+      })
+      .superRefine((val, ctx) => {
+        if (val.placement?.path || val.path) return;
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement.path is required" });
+      }),
+    (args) => listContentItems(client, args)
   );
 
   reg(
-    "write_content_properties",
-    "Patch YAML frontmatter of a .md content item. Send only keys to change — existing keys merged from disk; body preserved.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef,
-      content: z.string()
+    "write_content",
+    "Write content by placement. part=body|properties|schema. Slot main-single-csv: part=body replaces entire main.csv. Binary: data (base64); root uses placement.path as file path.",
+    address({
+      part: contentPartSchema,
+      content: z.string().optional(),
+      data: z.string().optional().describe("Base64 file bytes (upload); use instead of content"),
+      mimeType: z.string().optional(),
+      createSubdir: z.boolean().optional(),
+      mode: z.enum(["append", "replace"]).optional().describe("root workspace write mode (default replace)")
     }),
-    async ({ path, slot, ref, content }) => {
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
-        const mergedProps = mergeFrontmatterBlocks(properties, content);
-        const merged = mergeMarkdownFrontmatter(mergedProps, description);
-        return writeInternalContent(client, path, slot, merged);
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, path, slot, ref);
-      const { properties, description } = splitMarkdownFrontmatter(existing.content || "");
-      const mergedProps = mergeFrontmatterBlocks(properties, content);
-      const merged = mergeMarkdownFrontmatter(mergedProps, description);
-      return writeMarkdownFull(client, path, slot, ref, merged);
+    async (args) => {
+      if (args.part === "properties") return writeContentProperties(client, args);
+      if (args.part === "schema") return writeContentSchema(client, args);
+      return writeContentBody(client, args);
     }
   );
 
   reg(
     "read_content_property",
     "Read one frontmatter property of a .md content item.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef,
-      key: z.string().min(1)
-    }),
-    async ({ path, slot, ref, key }) => {
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        const { properties } = splitMarkdownFrontmatter(payload?.content || "");
-        const { value, exists } = getFrontmatterScalar(properties, key);
-        return { slot, key, value, exists };
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, path, slot, ref);
-      const { properties } = splitMarkdownFrontmatter(payload.content || "");
-      const { value, exists } = getFrontmatterScalar(properties, key);
-      return { file: payload.file, key, value, exists };
-    }
+    address({ key: z.string().min(1) }),
+    (args) => readContentProperty(client, args)
   );
 
   reg(
     "write_content_property",
-    "Set one frontmatter property on a .md content item. Body and other keys preserved.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef,
+    "Set one frontmatter property on a .md content item.",
+    address({
       key: z.string().min(1),
       value: z.string()
     }),
-    async ({ path, slot, ref, key, value }) => {
-      const patchOne = (properties, description) =>
-        mergeMarkdownFrontmatter(upsertYamlScalarLine(properties, key, value), description);
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
-        return writeInternalContent(client, path, slot, patchOne(properties, description));
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, path, slot, ref);
-      const { properties, description } = splitMarkdownFrontmatter(existing.content || "");
-      return writeMarkdownFull(client, path, slot, ref, patchOne(properties, description));
-    }
+    (args) => writeContentProperty(client, args)
   );
 
-  reg(
-    "read_content_schema",
-    "Read slot content field schema (schema.yml for sections): inherits topic slot_* fields + parent section chain. Use ref inside a category (e.g. razdel-1/manifest.md). mode=effective|layers|local.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef.describe("Required. Content ref inside slot, e.g. razdel-1/manifest.md or razdel-1/note.md"),
-      mode: z
-        .enum(["effective", "layers", "local"])
-        .optional()
-        .describe("effective (default) = merged slot_* fields; layers = topic+section; local = section file only")
-    }),
-    ({ path, slot, ref, mode }) =>
-      client.get("/api/content/schema", { path, slot, ref, ...(mode ? { mode } : {}) })
-  );
-
-  reg(
-    "write_content_schema",
-    "Save section schema.yml override for slot content (category/record/sidecar x-field-*). Pass YAML with awn_schema slot_* blocks only. Inherits topic schema at runtime; writes local section layer only.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: contentRef.describe("Required. Ref inside target section folder, e.g. razdel-1/manifest.md"),
-      content: z.string().describe("YAML with awn_schema: { slot_memory_category|slot_memory|slot_memory_sidecar: { fields: … } }")
-    }),
-    ({ path, slot, ref, content }) =>
-      client.post("/api/content/schema", { path, slot, ref, content })
-  );
+  if (isLegacyMcpToolsEnabled()) {
+    reg(
+      "read_content_body",
+      "[Legacy] Use read_content with part=body.",
+      address({}),
+      (args) => readContentBody(client, args)
+    );
+    reg(
+      "write_content_body",
+      "[Legacy] Use write_content with part=body.",
+      address({ content: z.string() }),
+      (args) => writeContentBody(client, args)
+    );
+    reg(
+      "read_content_properties",
+      "[Legacy] Use read_content with part=properties.",
+      address({}),
+      (args) => readContentProperties(client, args)
+    );
+    reg(
+      "write_content_properties",
+      "[Legacy] Use write_content with part=properties.",
+      address({ content: z.string() }),
+      (args) => writeContentProperties(client, args)
+    );
+    reg(
+      "read_content_schema",
+      "[Legacy] Use read_content with part=schema.",
+      address({
+        mode: z.enum(["effective", "layers", "local"]).optional(),
+        ref: z.string().min(1).optional()
+      }),
+      (args) => readContentSchema(client, args)
+    );
+    reg(
+      "write_content_schema",
+      "[Legacy] Use write_content with part=schema.",
+      address({
+        ref: z.string().min(1).optional(),
+        content: z.string().describe("YAML with awn_schema slot_* blocks")
+      }),
+      (args) => writeContentSchema(client, args)
+    );
+  }
 
   reg(
     "create_content",
-    "Create typed content: awn.content.record or awn.content.category. For plain-text in artefacts/scripts use fileExtension + body (.html, .py). For inbox intake: slot=inbox, status=new.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
+    "Create typed content in a slot (placement or path+slot).",
+    address({
       awnType: z
         .enum(["awn.content.record", "awn.content.category"])
         .optional()
@@ -272,179 +190,61 @@ export function registerContentTools({ reg, client, pagePath }) {
       slug: z.string().optional(),
       parent: z.string().optional(),
       body: z.string().optional(),
-      fileExtension: z
-        .string()
-        .optional()
-        .describe("For flat slots (artefacts, scripts, …): .html, .py, .json, …"),
+      fileExtension: z.string().optional(),
       fileMask: z.string().optional(),
       fields: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
       source: z.string().optional(),
       author: z.string().optional(),
-      status: z
-        .string()
-        .optional()
-        .describe("Maps to awn-status in frontmatter (e.g. new, open, closed).")
+      status: z.string().optional()
     }),
-    async ({
-      path,
-      slot,
-      awnType,
-      title,
-      displayName,
-      slug,
-      parent,
-      body,
-      fileExtension,
-      fileMask,
-      fields,
-      source,
-      author,
-      status
-    }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content_body.`);
-      }
-      const folder = slotToFolder(slot);
-      const isCategory = awnType === "awn.content.category" || awnType === "awn.content.record.category";
-      if (isCategory) {
-        const { endpoint, body: requestBody } = buildSectionCreateRequest(slot, {
-          path,
-          title: title || displayName,
-          displayName: displayName || title,
-          slug,
-          parent
-        });
-        return client.post(endpoint, requestBody);
-      }
-      return client.post("/api/storage/file/create", {
-        path,
-        folder,
-        title: title || displayName,
-        displayName: displayName || title,
-        slug,
-        parent,
-        body,
-        fileExtension,
-        extension: fileExtension,
-        fileMask,
-        mask: fileMask,
-        fields,
-        source,
-        author,
-        status
-      });
-    }
+    (args) => createContent(client, args)
   );
 
   reg(
     "import_content_from_url",
-    "Download a file from http(s) URL into an external slot (media/, repository/, …). Prefer over curl + base64.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      url: z.string().url().describe("Public http(s) URL to download"),
-      fileName: z.string().min(1).optional().describe("Target file name; inferred from URL/headers when omitted"),
+    "Download a file from http(s) URL into an external slot.",
+    address({
+      url: z.string().url(),
+      fileName: z.string().min(1).optional(),
       mimeType: z.string().optional(),
-      parent: z.string().optional().describe("Subfolder inside slot, e.g. section path in media/"),
+      parent: z.string().optional(),
       createSubdir: z.boolean().optional()
     }),
-    async ({ path, slot, url, fileName, mimeType, parent, createSubdir }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(
-          `Cannot import_content_from_url to internal slot "${slot}". Use write_content_body for text slots.`
-        );
-      }
-      return client.post("/api/media/file/import", {
-        path,
-        url,
-        fileName,
-        mimeType,
-        slot: slotToFolder(slot),
-        libraryFolder: slotToFolder(slot),
-        folder: slotToFolder(slot),
-        parent: parent || "",
-        subdir: parent || "",
-        createSubdir: Boolean(createSubdir)
-      });
-    }
+    (args) => importContentFromUrl(client, args)
   );
 
   reg(
     "rename_content",
     "Rename content item in an external slot.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
+    address({
       ref: z.string().min(1),
       displayName: z.string().min(1).optional(),
       title: z.string().min(1).optional()
     }),
-    async ({ path, slot, ref, displayName, title }) => {
-      if (isInternalBundleSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
-      const name = displayName || title;
-      if (!name) throw new Error("displayName or title is required");
-      if (isExternalMemorySlot(slot)) {
-        return client.post("/api/external/file/rename", { path, file: ref, title: name });
-      }
-      if (isMediaSlotKey(slot)) {
-        return client.post("/api/media/file/rename", { path, file: ref, title: name });
-      }
-      return client.post("/api/storage/file/rename", {
-        path,
-        folder: slotToFolder(slot),
-        file: ref,
-        title: name
-      });
-    }
+    (args) => renameContent(client, args)
   );
 
   reg(
     "move_content",
     "Move content within or across topics (external slots).",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
+    address({
       ref: z.string().min(1),
       targetPath: pagePath.optional(),
       targetRef: z.string().optional(),
       targetParent: z.string().optional()
     }),
-    async ({ path, slot, ref, targetPath, targetRef, targetParent }) => {
-      if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
-      if (isExternalMemorySlot(slot)) {
-        return client.post("/api/external/file/move", {
-          path,
-          file: ref,
-          targetPath,
-          targetFile: targetRef || targetParent
-        });
-      }
-      if (isMediaSlotKey(slot)) {
-        return client.post("/api/media/file/move", {
-          path,
-          file: ref,
-          targetPath,
-          targetFile: targetRef
-        });
-      }
-      throw new Error(`move_content for slot "${slot}" is not supported yet. Supported: memory/main, media, assets.`);
-    }
+    (args) => moveContent(client, args)
   );
 
   reg(
     "delete_content",
-    "Delete content from an external slot (main, inbox, media, repository, scripts, …). Internal single-file slots are not supported. When platform confirm-delete is enabled, pass confirm=true.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
+    "Delete content from an external slot.",
+    address({
       ref: z.string().min(1),
-      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
+      confirm: z.boolean().optional()
     }),
-    async ({ path, slot, ref }) => {
-      if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
-      if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path, file: ref });
-      if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path, file: ref });
-      return client.delete("/api/storage/file", { path, folder: slotToFolder(slot), file: ref });
-    }
+    (args) => deleteContent(client, args)
   );
 }
+
+export { placementSchema };
