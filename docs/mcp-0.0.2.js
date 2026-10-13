@@ -16,7 +16,7 @@ module.exports = {
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
     "Индексы и поиск — НЕ placement: get_topic_map, read/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc (legacy database_frame_*_index_toc, iblock_*).",
+    "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",

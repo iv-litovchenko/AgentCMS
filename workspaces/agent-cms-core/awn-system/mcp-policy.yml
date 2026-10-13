@@ -65,7 +65,6 @@ batch_invoke:
     - database_frame_list
     - database_frame_get
     - read_database_frame_index_toc
-    - database_frame_read_index_toc
     - database_frame_read_schema
     - database_frame_read_properties
     - database_frame_read_property
@@ -77,7 +76,6 @@ batch_invoke:
     - iblock_frame_list
     - iblock_get
     - iblock_frame_get
-    - iblock_read_index
     - iblock_frame_read_index
     - iblock_read_schema
     - iblock_frame_read_schema

@@ -395,7 +395,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "read_content_index_toc",
-    legacy: "get_content_index_toc",
     description: getContentIndexTocDescription,
     schema: getContentIndexTocSchema,
     handler: getContentIndexTocHandler
@@ -436,18 +435,10 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "read_topic_index_toc",
-    legacy: "get_workspace_topic_index_toc",
     description: workspaceTopicIndexTocDescription,
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-page-index")
   });
-
-  reg(
-    "get_workspace_page_index_toc",
-    "Deprecated alias for read_topic_index_toc.",
-    z.object({}),
-    () => client.get("/api/agent/workspace-page-index")
-  );
 
   const refreshWorkspacePageIndexSchema = z.object({
     overwrite: z
@@ -461,7 +452,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerTocTool(reg, {
     canonical: "refresh_topic_index_toc",
-    legacy: "refresh_workspace_topic_index_toc",
     description: refreshWorkspaceTopicIndexDescription,
     schema: refreshWorkspacePageIndexSchema,
     handler: ({ overwrite }) =>
@@ -469,16 +459,6 @@ export function registerMapTools(reg, client, pagePath) {
         ...(overwrite === false ? { overwrite: false } : {})
       })
   });
-
-  reg(
-    "refresh_workspace_page_index_toc",
-    "Deprecated alias for refresh_topic_index_toc.",
-    refreshWorkspacePageIndexSchema,
-    ({ overwrite }) =>
-      client.post("/api/agent/workspace-page-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
-  );
 
   reg(
     "get_workspace_wsmap",

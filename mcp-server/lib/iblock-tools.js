@@ -81,18 +81,10 @@ export function registerDatabaseTools(reg, client) {
 
   registerTocTool(reg, {
     canonical: "read_database_frame_index_toc",
-    legacy: "database_frame_read_index_toc",
     description: readDatabasesIndexTocDescription,
     schema: readDatabasesIndexTocSchema,
     handler: readDatabasesIndexTocHandler
   });
-
-  reg(
-    "iblock_read_index",
-    "Deprecated alias for read_database_frame_index_toc.",
-    readDatabasesIndexTocSchema,
-    readDatabasesIndexTocHandler
-  );
 
   const refreshDatabasesIndexTocSchema = z.object({
     overwrite: z
@@ -109,18 +101,10 @@ export function registerDatabaseTools(reg, client) {
 
   registerTocTool(reg, {
     canonical: "refresh_database_frame_index_toc",
-    legacy: "database_frame_refresh_index_toc",
     description: refreshDatabasesIndexTocDescription,
     schema: refreshDatabasesIndexTocSchema,
     handler: refreshDatabasesIndexTocHandler
   });
-
-  reg(
-    "iblock_refresh_index",
-    "Deprecated alias for refresh_database_frame_index_toc.",
-    refreshDatabasesIndexTocSchema,
-    refreshDatabasesIndexTocHandler
-  );
 
   registerFrameTool(reg, {
     name: "read_schema",

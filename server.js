@@ -12963,9 +12963,7 @@ async function buildAgentWorkspacePageIndex() {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
       refresh_topic_index_toc:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации).",
-      get_workspace_topic_index_toc: "Deprecated alias → read_topic_index_toc.",
-      refresh_workspace_topic_index_toc: "Deprecated alias → refresh_topic_index_toc."
+        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
     },
     path: manifestPath,
     indexFile: {
@@ -13355,11 +13353,7 @@ async function buildAgentAwnDataIndex() {
       read_database_frame_index_toc:
         "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
       refresh_database_frame_index_toc:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов).",
-      database_frame_read_index_toc: "Deprecated alias → read_database_frame_index_toc.",
-      database_frame_refresh_index_toc: "Deprecated alias → refresh_database_frame_index_toc.",
-      iblock_read_index: "Deprecated alias → read_database_frame_index_toc.",
-      iblock_refresh_index: "Deprecated alias → refresh_database_frame_index_toc."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов)."
     },
     path: manifestPath,
     indexFile: {
@@ -14031,7 +14025,6 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
       refresh_content_index_toc:
         "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала read_content_index_toc для preview.",
-      get_content_index_toc: "Deprecated alias → read_content_index_toc.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
       read_content_body: "Когда нужен полный текст одной записи."
