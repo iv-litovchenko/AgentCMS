@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerTocTool } from "./register-toc-tool.js";
 
 const storePath = z
   .string()
@@ -78,12 +79,20 @@ export function registerDatabaseTools(reg, client) {
   const readDatabasesIndexTocDescription =
     "Quick TOC for all database frames: kind, group, path, title, description, recordCount (awn-databases/index.md).";
 
-  registerFrameTool(reg, {
-    name: "read_index_toc",
+  registerTocTool(reg, {
+    canonical: "read_database_frame_index_toc",
+    legacy: "database_frame_read_index_toc",
     description: readDatabasesIndexTocDescription,
     schema: readDatabasesIndexTocSchema,
     handler: readDatabasesIndexTocHandler
   });
+
+  reg(
+    "iblock_read_index",
+    "Deprecated alias for read_database_frame_index_toc.",
+    readDatabasesIndexTocSchema,
+    readDatabasesIndexTocHandler
+  );
 
   const refreshDatabasesIndexTocSchema = z.object({
     overwrite: z
@@ -98,12 +107,20 @@ export function registerDatabaseTools(reg, client) {
       ...(overwrite === false ? { overwrite: false } : {})
     });
 
-  registerFrameTool(reg, {
-    name: "refresh_index_toc",
+  registerTocTool(reg, {
+    canonical: "refresh_database_frame_index_toc",
+    legacy: "database_frame_refresh_index_toc",
     description: refreshDatabasesIndexTocDescription,
     schema: refreshDatabasesIndexTocSchema,
     handler: refreshDatabasesIndexTocHandler
   });
+
+  reg(
+    "iblock_refresh_index",
+    "Deprecated alias for refresh_database_frame_index_toc.",
+    refreshDatabasesIndexTocSchema,
+    refreshDatabasesIndexTocHandler
+  );
 
   registerFrameTool(reg, {
     name: "read_schema",

@@ -12960,10 +12960,12 @@ async function buildAgentWorkspacePageIndex() {
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
       "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_topic_map.",
     whenToUse: {
-      get_workspace_topic_index_toc:
+      read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
-      refresh_workspace_topic_index_toc:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
+      refresh_topic_index_toc:
+        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации).",
+      get_workspace_topic_index_toc: "Deprecated alias → read_topic_index_toc.",
+      refresh_workspace_topic_index_toc: "Deprecated alias → refresh_topic_index_toc."
     },
     path: manifestPath,
     indexFile: {
@@ -13286,7 +13288,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → database_frame_read_index_toc / database_frame_list."
+      hint: "Краткий каталог awn-databases. Полный → read_database_frame_index_toc / database_frame_list."
     };
   }
 
@@ -13303,7 +13305,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → database_frame_read_index_toc; детали store → database_frame_get / database_frame_list.",
+      "Полный оглавление → read_database_frame_index_toc; детали store → database_frame_get / database_frame_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -13350,12 +13352,14 @@ async function buildAgentAwnDataIndex() {
       "Оглавление накопителей awn-databases (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-databases.",
     whenToUse: {
-      database_frame_read_index_toc:
+      read_database_frame_index_toc:
         "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
-      database_frame_refresh_index_toc:
+      refresh_database_frame_index_toc:
         "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов).",
-      iblock_read_index: "Deprecated alias → database_frame_read_index_toc.",
-      iblock_refresh_index: "Deprecated alias → database_frame_refresh_index_toc."
+      database_frame_read_index_toc: "Deprecated alias → read_database_frame_index_toc.",
+      database_frame_refresh_index_toc: "Deprecated alias → refresh_database_frame_index_toc.",
+      iblock_read_index: "Deprecated alias → read_database_frame_index_toc.",
+      iblock_refresh_index: "Deprecated alias → refresh_database_frame_index_toc."
     },
     path: manifestPath,
     indexFile: {
@@ -13420,7 +13424,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   return {
     version: 1,
     model: "awn-databases-index-write",
-    hint: "index.md обновлён в awn-databases/. Просмотр без записи → database_frame_read_index_toc / GET /api/agent/awn-databases-index.",
+    hint: "index.md обновлён в awn-databases/. Просмотр без записи → read_database_frame_index_toc / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
     path: indexPath,
     overwrite,
@@ -14023,10 +14027,11 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
       "Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
-      get_content_index_toc:
+      read_content_index_toc:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
       refresh_content_index_toc:
-        "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала get_content_index_toc для preview.",
+        "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала read_content_index_toc для preview.",
+      get_content_index_toc: "Deprecated alias → read_content_index_toc.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
       read_content_body: "Когда нужен полный текст одной записи."
@@ -14123,7 +14128,7 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index-write",
     hint:
-      "index.md обновлён на диске. Просмотр без записи → get_content_index_toc. Ручная правка текста → read_content с ref=index.md.",
+      "index.md обновлён на диске. Просмотр без записи → read_content_index_toc. Ручная правка текста → read_content с ref=index.md.",
     whenToUse: indexPayload.whenToUse,
     path: manifestPath,
     scope,
@@ -14453,8 +14458,8 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     version: 1,
     model: "content-map",
     hint: slotsFlexible
-      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content. Оглавление: get_content_index_toc."
-      : "Карта контента страницы: title, description, properties без body. Тело: read_content. Быстрое оглавление: get_content_index_toc. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
+      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content. Оглавление: read_content_index_toc."
+      : "Карта контента страницы: title, description, properties без body. Тело: read_content. Быстрое оглавление: read_content_index_toc. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
     path: canonicalRelPath,
     awnType,
     slotsFlexible,

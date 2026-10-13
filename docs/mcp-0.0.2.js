@@ -14,9 +14,9 @@ module.exports = {
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
-    "Индексы и поиск — НЕ placement: get_topic_map, get/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
+    "Индексы и поиск — НЕ placement: get_topic_map, read/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: только database_frame_* / database_element_* (iblock_* сняты).",
+    "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc (legacy database_frame_*_index_toc, iblock_*).",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
@@ -155,7 +155,7 @@ module.exports = {
           http: "GET /api/agent/content-map"
         },
         {
-          name: "get_content_index_toc",
+          name: "read_content_index_toc",
           description: "Оглавление index.md: path, type, title, description (без body/properties). Быстрый обзор темы/слота.",
           parameters: "path, slot?",
           http: "GET /api/agent/content-index"
@@ -167,13 +167,13 @@ module.exports = {
           http: "POST /api/agent/content-index"
         },
         {
-          name: "get_workspace_topic_index_toc",
+          name: "read_topic_index_toc",
           description: "Оглавление INDEX.md в корне workspace: path, type, title, description (темы и области).",
           parameters: "—",
           http: "GET /api/agent/workspace-page-index"
         },
         {
-          name: "refresh_workspace_topic_index_toc",
+          name: "refresh_topic_index_toc",
           description: "Обновить INDEX.md в корне workspace (таблица path/type/title/description).",
           parameters: "overwrite?",
           http: "POST /api/agent/workspace-page-index"
@@ -366,13 +366,13 @@ module.exports = {
         { name: "database_frame_list", description: "Список frames (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
         { name: "database_frame_get", description: "Один frame: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
-          name: "database_frame_read_index_toc",
+          name: "read_database_frame_index_toc",
           description: "Оглавление frames (awn-databases/index.md).",
           parameters: "—",
           http: "GET /api/agent/awn-databases-index"
         },
         {
-          name: "database_frame_refresh_index_toc",
+          name: "refresh_database_frame_index_toc",
           description: "Обновить awn-databases/index.md из database_frame_list.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"

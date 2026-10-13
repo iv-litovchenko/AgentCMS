@@ -357,7 +357,7 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index_toc.",
+    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than read_content_index_toc.",
     z.object({
       path: pagePath,
       slot: z
@@ -394,7 +394,8 @@ export function registerMapTools(reg, client, pagePath) {
     "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.";
 
   registerTocTool(reg, {
-    canonical: "get_content_index_toc",
+    canonical: "read_content_index_toc",
+    legacy: "get_content_index_toc",
     description: getContentIndexTocDescription,
     schema: getContentIndexTocSchema,
     handler: getContentIndexTocHandler
@@ -434,11 +435,19 @@ export function registerMapTools(reg, client, pagePath) {
     "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
 
   registerTocTool(reg, {
-    canonical: "get_workspace_topic_index_toc",
+    canonical: "read_topic_index_toc",
+    legacy: "get_workspace_topic_index_toc",
     description: workspaceTopicIndexTocDescription,
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-page-index")
   });
+
+  reg(
+    "get_workspace_page_index_toc",
+    "Deprecated alias for read_topic_index_toc.",
+    z.object({}),
+    () => client.get("/api/agent/workspace-page-index")
+  );
 
   const refreshWorkspacePageIndexSchema = z.object({
     overwrite: z
@@ -451,7 +460,8 @@ export function registerMapTools(reg, client, pagePath) {
     "Refresh (rebuild and save) INDEX.md at workspace root from get_topic_map (path, type, title, description table). overwrite=false skips if file exists.";
 
   registerTocTool(reg, {
-    canonical: "refresh_workspace_topic_index_toc",
+    canonical: "refresh_topic_index_toc",
+    legacy: "refresh_workspace_topic_index_toc",
     description: refreshWorkspaceTopicIndexDescription,
     schema: refreshWorkspacePageIndexSchema,
     handler: ({ overwrite }) =>
@@ -459,6 +469,16 @@ export function registerMapTools(reg, client, pagePath) {
         ...(overwrite === false ? { overwrite: false } : {})
       })
   });
+
+  reg(
+    "refresh_workspace_page_index_toc",
+    "Deprecated alias for refresh_topic_index_toc.",
+    refreshWorkspacePageIndexSchema,
+    ({ overwrite }) =>
+      client.post("/api/agent/workspace-page-index", {
+        ...(overwrite === false ? { overwrite: false } : {})
+      })
+  );
 
   reg(
     "get_workspace_wsmap",
