@@ -461,7 +461,7 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   reg(
-    "get_workspace_wsmap",
+    "read_workspace_wsmap",
     "Metadata for WS-MAP.md: all index.md/INDEX.md paths in workspace (no file body).",
     z.object({}),
     () => client.get("/api/agent/workspace-wsmap")

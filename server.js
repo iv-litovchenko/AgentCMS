@@ -13035,7 +13035,7 @@ async function buildAgentWorkspaceWsmap() {
     hint:
       "Сводка всех index.md / INDEX.md в workspace в одном WS-MAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
     whenToUse: {
-      get_workspace_wsmap: "Список источников и метаданные WS-MAP без записи на диск.",
+      read_workspace_wsmap: "Список источников и метаданные WS-MAP без записи на диск.",
       refresh_workspace_wsmap: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
