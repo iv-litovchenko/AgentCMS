@@ -80941,7 +80941,7 @@ function ensureSidebarWorkspacePageIndexRow() {
   const syncWorkspacePageIndexRowState = () => {
     const hasIndex = row.dataset.workspaceHasIndex === "1";
     const indexRelPath = getWorkspacePageIndexRelPath();
-    footer.textContent = "Индекс (оглавление) страниц";
+    footer.textContent = "Индекс (оглавление) тем";
     footer.classList.toggle("is-available", hasIndex);
     footer.classList.toggle("is-generated", !hasIndex);
     footer.title = hasIndex
