@@ -18527,7 +18527,8 @@ function shouldSkipSearchEntry(name, isDirectory) {
   return isHiddenMenuEntry(name);
 }
 
-async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
+async function collectSearchableFiles(dirAbsolute, prefix = "", files = [], agentRoot = "") {
+  const resolvedAgentRoot = String(agentRoot || (!prefix ? dirAbsolute : "")).trim();
   let entries = [];
   try {
     entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
@@ -18537,7 +18538,11 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
 
   for (const entry of entries) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (shouldSkipAwnRepositoriesSearch(prefix, entry.name, entry.isDirectory())) continue;
+    if (
+      shouldSkipAwnRepositoriesSearch(prefix, entry.name, entry.isDirectory(), resolvedAgentRoot)
+    ) {
+      continue;
+    }
     if (shouldSkipAwnMediaSearch(prefix, entry.name, entry.isDirectory())) continue;
     if (shouldSkipSearchEntry(entry.name, entry.isDirectory())) continue;
     const absolute = path.join(dirAbsolute, entry.name);
@@ -18546,13 +18551,13 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
       const rel = relative.replace(/\\/g, "/");
       if (rel === ".agent-cms") {
         const journalAbsolute = path.join(absolute, "journal");
-        await collectSearchableFiles(journalAbsolute, `${rel}/journal`, files);
+        await collectSearchableFiles(journalAbsolute, `${rel}/journal`, files, resolvedAgentRoot);
         continue;
       }
       if (rel.startsWith(".agent-cms/") && rel !== ".agent-cms/journal") {
         continue;
       }
-      await collectSearchableFiles(absolute, rel, files);
+      await collectSearchableFiles(absolute, rel, files, resolvedAgentRoot);
       continue;
     }
 

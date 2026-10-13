@@ -16,7 +16,7 @@ export function registerRepositoryTools(reg, client) {
 
   reg(
     "get_repository",
-    "One repository card: manifest frontmatter + body from awn-repositories/{slug}/manifest.md.",
+    "One repository card: manifest frontmatter + body from awn-repositories/{slug}/manifest.md (slug = repo folder or group/repo).",
     z.object({
       path: workspaceRelPath
     }),
@@ -52,7 +52,12 @@ export function registerRepositoryTools(reg, client) {
     "register_repository",
     "Create awn-repositories/{slug}/manifest.md — new folder or adopt existing clone (adopted: true when folder already exists).",
     z.object({
-      slug: z.string().min(1).describe("Folder name under awn-repositories/, e.g. my-voice-fork"),
+      slug: z
+        .string()
+        .min(1)
+        .describe(
+          "Path under awn-repositories/: repo folder or group/repo (group = optional parent folder), e.g. my-fork or clients/acme-site"
+        ),
       name: z.string().optional(),
       description: z.string().optional(),
       origin: z.string().url().optional().describe("Git remote URL if known"),

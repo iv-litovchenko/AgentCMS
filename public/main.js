@@ -4984,7 +4984,14 @@ function isTopicManifestFileName(fileName, options = {}) {
 function isTopicManifestPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   if (!isNodeManifestPath(normalized)) return false;
-  if (/^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized.replace(/^\/+/, ""))) return false;
+  if (
+    new RegExp(
+      `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+      "i"
+    ).test(normalized.replace(/^\/+/, ""))
+  ) {
+    return false;
+  }
   if (isAgentRootIndexPath(normalized)) return false;
   if (isAgentContainerRootIndexPath(normalized)) return false;
   if (isAgentSystemRootIndexPath(normalized)) return false;
@@ -5730,6 +5737,38 @@ function buildAdoptFolderMarkdownLink(folderPath, displayLabel) {
   return buildMarkdownLinkFromWorkspaceRel(targetRel, label);
 }
 
+const REPOSITORY_CATALOG_SLUG_PATTERN = "[^/]+(?:/[^/]+)?";
+
+function repositorySlugFromFolderPath(folderPath) {
+  const normalized = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+  const prefix = "awn-repositories/";
+  if (normalized.toLowerCase().startsWith(prefix)) {
+    return normalized.slice(prefix.length);
+  }
+  return normalized.split("/").filter(Boolean).pop() || "";
+}
+
+function parseRepositoryCatalogWorkspaceRel(workspaceRel) {
+  const normalized = String(workspaceRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (isRepositoryIndexRel(normalized)) return null;
+  const match = normalized.match(
+    new RegExp(`^awn-repositories/(${REPOSITORY_CATALOG_SLUG_PATTERN})(?:/manifest\\.md)?$`, "i")
+  );
+  if (!match) return null;
+  const slug = match[1];
+  return {
+    slug,
+    folderPath: `awn-repositories/${slug}`,
+    manifestPath: `awn-repositories/${slug}/manifest.md`
+  };
+}
+
 function isRepositoryWorkspaceRel(workspaceRel) {
   return /^awn-repositories(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
@@ -5747,7 +5786,10 @@ function isRepositoryManifestPath(path = getResolvedNodePath(activePath)) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  return /^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized);
+  return new RegExp(
+    `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+    "i"
+  ).test(normalized);
 }
 
 function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
@@ -5756,7 +5798,10 @@ function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
     .replace(/^\/+/, "")
     .trim();
   if (isRepositoryIndexRel(normalized)) return false;
-  return /^awn-repositories\/[^/]+$/i.test(normalized) && !/\.md$/i.test(normalized);
+  return (
+    new RegExp(`^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}$`, "i").test(normalized) &&
+    !/\.md$/i.test(normalized)
+  );
 }
 
 function isRepositoryTypeLabel(typeLabel) {
@@ -6458,12 +6503,9 @@ function getRepositoryFolderPathFromWorkspacePath(path = getResolvedNodePath(act
 
 function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
   const normalized = normalizeLinkFilePath(workspaceRel);
-  if (isRepositoryIndexRel(normalized)) return null;
-  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)(?:\/manifest\.md)?$/i);
-  if (!slugMatch) return null;
-  const slug = slugMatch[1];
-  const folderPath = `awn-repositories/${slug}`;
-  const manifestPath = `${folderPath}/manifest.md`;
+  const parsed = parseRepositoryCatalogWorkspaceRel(normalized);
+  if (!parsed) return null;
+  const { slug, folderPath, manifestPath } = parsed;
   const payload = menuRepositoriesLastPayload;
   const registeredRepo = payload?.repositories?.find(
     (repo) => String(repo.slug || "").toLowerCase() === slug.toLowerCase()
@@ -127801,8 +127843,8 @@ function resolveRepositoryEntryForManifestPath(manifestPath) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)\/manifest\.md$/i);
-  const slug = slugMatch?.[1] || "";
+  const parsed = parseRepositoryCatalogWorkspaceRel(normalized);
+  const slug = parsed?.slug || "";
   const cached = menuRepositoriesLastPayload?.repositories?.find(
     (repo) =>
       String(repo.slug || "").toLowerCase() === slug.toLowerCase() ||
@@ -127991,8 +128033,9 @@ function resolveMenuRepositoryAwnId(entry) {
 }
 
 function createMenuRepositoryRowBody(entry) {
-  const name = String(entry.name || entry.slug || "Репозиторий").trim();
   const slug = String(entry.slug || "").trim();
+  const pathKey = slug || repositorySlugFromFolderPath(entry.folderPath);
+  const name = String(entry.name || pathKey || "Репозиторий").trim();
   const body = document.createElement("span");
   body.className = "menu-repository-body";
 
