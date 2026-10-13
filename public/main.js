@@ -1211,6 +1211,7 @@ const menuViewTreeBtn = document.getElementById("menu-view-tree-btn");
 const menuViewFlatBtn = document.getElementById("menu-view-flat-btn");
 const menuViewBookmarksBtn = document.getElementById("menu-view-bookmarks-btn");
 const menuViewCardsBtn = document.getElementById("menu-view-cards-btn");
+const menuTreeBandHelpBtn = document.getElementById("menu-tree-band-help-btn");
 const menuRefreshBtn = document.getElementById("menu-refresh-btn");
 const menuCollapseAllBtn = document.getElementById("menu-collapse-all-btn");
 const menuPinBranchBtn = document.getElementById("menu-pin-branch-btn");
@@ -118590,6 +118591,7 @@ function setupMenuTreeBandGroup() {
   menuTreeBandToggleBtn?.addEventListener("click", () => {
     toggleMenuTreeBandExpanded();
   });
+  wireMenuBandHelpButton(menuTreeBandHelpBtn);
   menuRefreshBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     void refreshMenuTree();

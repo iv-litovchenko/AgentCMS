@@ -32592,6 +32592,7 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn,
 .sidebar-tree-band-head-actions .menu-settings-btn,
+.sidebar-tree-band-head-actions .menu-band-help-btn,
 .sidebar-tree-band-head-actions .menu-refresh-btn,
 .sidebar-tree-band-head-actions .menu-band-search-btn {
   width: 22px;
@@ -32617,6 +32618,7 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-settings-btn:hover:not(:disabled),
+.sidebar-tree-band-head-actions .menu-band-help-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-refresh-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-band-search-btn:hover:not(:disabled),
 .sidebar-tree-band-head-actions .menu-settings-btn[aria-expanded="true"] {
@@ -32628,6 +32630,7 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn:focus,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:focus,
 .sidebar-tree-band-head-actions .menu-settings-btn:focus,
+.sidebar-tree-band-head-actions .menu-band-help-btn:focus,
 .sidebar-tree-band-head-actions .menu-refresh-btn:focus,
 .sidebar-tree-band-head-actions .menu-band-search-btn:focus {
   outline: none;
@@ -32636,6 +32639,7 @@ body.workspace-pomodoro-break-active {
 .sidebar-tree-band-head-actions .menu-pin-branch-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-collapse-all-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-settings-btn:focus-visible,
+.sidebar-tree-band-head-actions .menu-band-help-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-refresh-btn:focus-visible,
 .sidebar-tree-band-head-actions .menu-band-search-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.32);
@@ -32647,6 +32651,11 @@ body.workspace-pomodoro-break-active {
   background: rgba(255, 255, 255, 0.88);
   color: #166534;
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.28);
+}
+
+.sidebar-tree-band-head-actions .menu-band-help-btn {
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .sidebar-tree-band-head-actions .menu-settings-icon {
