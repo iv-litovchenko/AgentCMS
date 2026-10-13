@@ -18541,6 +18541,7 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
+const AWN_CONTENTS_REFERENCE_STORE = `${AWN_CONTENTS_GROUP}/reference`;
 const AWN_TASK_QUEUE_STORE = "task-queue";
 const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
 const LEGACY_AWN_AGENT_QUEUE_STORE = "agent-queue";
@@ -94927,7 +94928,9 @@ async function renderNodeNavigation() {
     if (slotsDisabled) {
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
-      appendTopicLiteIndexControlsRow(topicNavCluster, nodePath);
+      if (!topicSlotCounters.length) {
+        appendTopicLiteIndexControlsRow(topicNavCluster, nodePath);
+      }
       if (elementsNavAccordion) topicNavCluster.appendChild(elementsNavAccordion);
       else if (!useSplitLayout) {
         const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
@@ -120110,6 +120113,19 @@ function syncAwnDataCreateGroupPresetsUi() {
       : "Группа contents/ и коллекция glossary (md-lite, MCP глоссарий)";
   }
 
+  const referenceBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="contents-reference"]'
+  );
+  if (referenceBtn) {
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_REFERENCE_STORE, activeAgentId);
+    referenceBtn.disabled = exists;
+    referenceBtn.classList.toggle("is-disabled", exists);
+    referenceBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+    referenceBtn.title = exists
+      ? "Коллекция awn-databases/contents/reference уже создана"
+      : "Группа contents/ и коллекция reference (md-lite, иерархия, MCP справочник)";
+  }
+
   const taskQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
     '[data-awn-data-group-preset="task-queue"]'
   );
@@ -129382,7 +129398,12 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
     showToast("Выберите агента", "error");
     return;
   }
-  const presetKey = preset === "glossary" ? "contents-glossary" : "contents-facts";
+  const presetKey =
+    preset === "glossary"
+      ? "contents-glossary"
+      : preset === "reference"
+        ? "contents-reference"
+        : "contents-facts";
   const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
     `[data-awn-data-group-preset="${presetKey}"]`
   );
@@ -129405,7 +129426,12 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
       showToast("Коллекция contents уже существует", "success");
     }
     await refreshMenuAwnDataStores(agentId);
-    const openRel = preset === "glossary" ? AWN_CONTENTS_GLOSSARY_STORE : AWN_CONTENTS_FACTS_STORE;
+    const openRel =
+      preset === "glossary"
+        ? AWN_CONTENTS_GLOSSARY_STORE
+        : preset === "reference"
+          ? AWN_CONTENTS_REFERENCE_STORE
+          : AWN_CONTENTS_FACTS_STORE;
     void openAwnDataViewPage(openRel, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
@@ -129499,6 +129525,7 @@ function setupAwnDataStoresUi() {
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
     if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
+    if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeAgentId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));

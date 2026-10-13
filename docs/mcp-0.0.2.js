@@ -21,7 +21,8 @@ module.exports = {
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
     "contents/facts: create_workspace_fact, update_workspace_fact, list_workspace_facts, search_workspace_facts.",
-    "contents/glossary: create_glossary_term, update_glossary_term, list_glossary_terms, search_glossary_terms."
+    "contents/glossary: create_glossary_term, update_glossary_term, list_glossary_terms, search_glossary_terms.",
+    "contents/reference: create_reference_entry, update_reference_entry, list_reference_entries, search_reference_entries."
   ],
   cursorConfig: {
     command: "node",
@@ -499,6 +500,36 @@ module.exports = {
           description: "Поиск по contents/facts (semantic + fulltext).",
           parameters: "query, kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/search"
+        }
+      ]
+    },
+    {
+      id: "reference",
+      title: "Справочник (contents/reference)",
+      tools: [
+        {
+          name: "create_reference_entry",
+          description: "Создать запись в awn-databases/contents/reference/.",
+          parameters: "title, body, parent?, tags?, sourceRef?",
+          http: "POST /api/agent/workspace-reference/create"
+        },
+        {
+          name: "update_reference_entry",
+          description: "Обновить запись по record id/path.",
+          parameters: "record, title?, body?, tags?, sourceRef?",
+          http: "POST /api/agent/workspace-reference/update"
+        },
+        {
+          name: "list_reference_entries",
+          description: "Список записей справочника.",
+          parameters: "prefix?, tags?, limit?",
+          http: "GET /api/agent/workspace-reference/list"
+        },
+        {
+          name: "search_reference_entries",
+          description: "Поиск по contents/reference (semantic + fulltext).",
+          parameters: "query, limit?",
+          http: "GET /api/agent/workspace-reference/search"
         }
       ]
     },

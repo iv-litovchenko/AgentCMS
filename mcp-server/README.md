@@ -69,6 +69,7 @@ get_session_context({ agentId: "<выбранный-id>" })
 | File hub queue | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub` |
 | Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` |
 | Glossary | `create_glossary_term`, `update_glossary_term`, `list_glossary_terms`, `search_glossary_terms` → `awn-databases/contents/glossary` |
+| Reference | `create_reference_entry`, `update_reference_entry`, `list_reference_entries`, `search_reference_entries` → `awn-databases/contents/reference` |
 | FS | `list_root_files`, `read_root_file`, `write_root_file` (aliases: `list_system_files`, `read_system_file`, `write_system_file`), `read_file`, `write_file`, `patch_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
 | Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |

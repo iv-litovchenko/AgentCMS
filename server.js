@@ -167,6 +167,7 @@ const {
   LEGACY_FACTS_DIR
 } = require("./lib/services/workspace-facts-service");
 const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
+const { createWorkspaceReferenceService } = require("./lib/services/workspace-reference-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
@@ -435,7 +436,8 @@ const {
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
-  GLOSSARY_STORE_REL
+  GLOSSARY_STORE_REL,
+  REFERENCE_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -2303,6 +2305,7 @@ function getSidecarService() {
 let workspaceBrainService = null;
 let workspaceFactsService = null;
 let workspaceGlossaryService = null;
+let workspaceReferenceService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
@@ -2326,6 +2329,18 @@ function getWorkspaceGlossaryService() {
     });
   }
   return workspaceGlossaryService;
+}
+
+function getWorkspaceReferenceService() {
+  if (!workspaceReferenceService) {
+    workspaceReferenceService = createWorkspaceReferenceService({
+      getAgentRoot,
+      getProjectRoot,
+      searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
+      onReferenceWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceReferenceService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -14569,6 +14584,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
   workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
   workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
+  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — create_reference_entry MCP",
+  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — update_reference_entry MCP",
+  workspaceReferenceList: "GET /api/agent/workspace-reference/list — list_reference_entries MCP",
+  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — search_reference_entries MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -23788,6 +23807,74 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/create") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceReferenceService().createReferenceEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to create reference entry",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/update") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceReferenceService().updateReferenceEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|not found/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to update reference entry",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-reference/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceReferenceService().listReferenceEntries({
+        prefix: url.searchParams.get("prefix") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list reference entries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-reference/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceReferenceService().searchReferenceEntries({
+        query,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search reference entries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/workspace-journal/append") {
     try {
       const body = await readJsonBody(req);
@@ -25513,6 +25600,7 @@ async function handleApiForAgent(req, res, url) {
         groupRel: CONTENTS_GROUP_REL,
         factsStoreRel: FACTS_STORE_REL,
         glossaryStoreRel: GLOSSARY_STORE_REL,
+        referenceStoreRel: REFERENCE_STORE_REL,
         ...result
       });
     } catch (error) {

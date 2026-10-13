@@ -93,7 +93,7 @@
 - Обзор — сначала реестры (`get_page_map`, `get_workspace_page_index_toc`, `get_content_index_toc`), потом точечно `read_*`.
 - `get_content_index_toc` — лёгкий (без properties), `get_content_map` — тяжелее, для планирования правок.
 
-**Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты и термины — `search_workspace_facts` / `search_glossary_terms`.
+**Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты, термины и справочник — `search_workspace_facts` / `search_glossary_terms` / `search_reference_entries`.
 
 **Строки в результатах:** у semantic / fulltext / hybrid hits — `startLine`, `endLine`, `locationHint` (`L12` или `L12-18`); открой фрагмент через `read_content({ placement: { kind: "root", path }, startLine, limitLines })`. У `search_workspace_links` в каждом item — `line` (номер строки ссылки в исходном файле). Каталог файлов: `query_workspace_storage` — `lineCountTotal`, `lineCountBody` на записи.
 
@@ -195,6 +195,7 @@
 |-----|------|
 | Решение, предпочтение, сущность (1–2 фразы) | `create_workspace_fact` |
 | Термин и определение | `create_glossary_term` |
+| Справочная статья (разделы) | `create_reference_entry` |
 | Событие (жизнь, действие, UI, система) | `append_journal_entry` |
 | Обсуждение одной темы | `append_discussion` |
 | Комментарий к manifest / записи | `append_comment` |

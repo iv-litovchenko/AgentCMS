@@ -33,6 +33,7 @@ import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
+import { registerReferenceTools } from "./lib/reference-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
@@ -210,6 +211,7 @@ function createServer() {
 
   registerFactsTools(reg, client);
   registerGlossaryTools(reg, client);
+  registerReferenceTools(reg, client);
   registerJournalTools(reg, client);
 
   // ── awn-databases: database_frame_* + database_element_* ─
