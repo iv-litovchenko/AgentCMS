@@ -670,11 +670,18 @@ async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId 
   return { ok: true };
 }
 
-const CAPTURE_JPEG_QUALITIES = [80, 62, 44];
+const CAPTURE_JPEG_QUALITIES = [80, 62, 44, 30, 18];
 const CAPTURE_UPLOAD_MAX_CHARS = 900_000;
 
 function isCaptureTooLarge(error) {
-  return /too large/i.test(String(error?.message || error));
+  const msg = String(error?.message || error);
+  return /too large|maximum|max(?:imum)?\s+(?:image\s+)?size|слишком больш/i.test(msg);
+}
+
+function formatCaptureTooLargeError(lastError) {
+  const raw = String(lastError?.message || lastError || "").trim();
+  if (raw && !isCaptureTooLarge({ message: raw })) return raw;
+  return "Кадр слишком большой для Chrome — Ctrl+0, затем Ctrl−";
 }
 
 async function blobToJpegDataUrl(blob) {
@@ -705,24 +712,27 @@ async function shrinkJpegDataUrl(dataUrl, quality, maxEdge) {
   return blobToJpegDataUrl(out);
 }
 
-async function maybeShrinkCapture(dataUrl) {
+async function maybeShrinkCapture(dataUrl, options = {}) {
+  const preferSmall = options.preferSmall === true;
+  const maxChars = preferSmall ? 280_000 : CAPTURE_UPLOAD_MAX_CHARS;
   let current = String(dataUrl || "");
-  if (current.length <= CAPTURE_UPLOAD_MAX_CHARS) return current;
+  if (current.length <= maxChars) return current;
   if (typeof OffscreenCanvas !== "function" || typeof createImageBitmap !== "function") {
     return current;
   }
 
-  let quality = 0.72;
-  let maxEdge = 1600;
-  for (let i = 0; i < 3 && current.length > CAPTURE_UPLOAD_MAX_CHARS; i += 1) {
+  let quality = preferSmall ? 0.68 : 0.72;
+  let maxEdge = preferSmall ? 1200 : 1600;
+  const passes = preferSmall ? 4 : 3;
+  for (let i = 0; i < passes && current.length > maxChars; i += 1) {
     current = await shrinkJpegDataUrl(current, quality, maxEdge);
-    quality = Math.max(0.4, quality - 0.14);
-    maxEdge = Math.max(1024, Math.round(maxEdge * 0.82));
+    quality = Math.max(0.35, quality - 0.14);
+    maxEdge = Math.max(960, Math.round(maxEdge * 0.82));
   }
   return current;
 }
 
-async function captureTabImage(tab) {
+async function captureTabImage(tab, options = {}) {
   const windowId = Number(tab?.windowId);
   if (!Number.isFinite(windowId) || windowId <= 0) {
     throw new Error("Нет окна для скриншота видимой области");
@@ -738,30 +748,68 @@ async function captureTabImage(tab) {
         format: "jpeg",
         quality
       });
-      return await maybeShrinkCapture(dataUrl);
+      return await maybeShrinkCapture(dataUrl, options);
     } catch (error) {
       lastError = error;
       if (!isCaptureTooLarge(error)) throw error;
     }
   }
 
-  throw new Error(String(lastError?.message || lastError || "Скриншот слишком большой"));
+  const tabId = Number(tab?.id);
+  if (tabId > 0) {
+    let originalZoom = 1;
+    try {
+      originalZoom = await chrome.tabs.getZoom(tabId);
+    } catch {
+      originalZoom = 1;
+    }
+    const zoomSteps = [0.85, 0.7, 0.55, 0.45];
+    try {
+      for (const zoom of zoomSteps) {
+        if (zoom >= originalZoom - 0.02) continue;
+        await chrome.tabs.setZoom(tabId, zoom);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        for (const quality of [36, 24, 16]) {
+          try {
+            const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+              format: "jpeg",
+              quality
+            });
+            return await maybeShrinkCapture(dataUrl, options);
+          } catch (error) {
+            lastError = error;
+            if (!isCaptureTooLarge(error)) throw error;
+          }
+        }
+      }
+    } finally {
+      await chrome.tabs.setZoom(tabId, originalZoom).catch(() => {});
+    }
+  }
+
+  throw new Error(formatCaptureTooLargeError(lastError));
 }
 
-async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 } = {}) {
+async function captureTabScreenshot({
+  tabId = 0,
+  windowId = 0,
+  senderTabId = 0,
+  preferSmall = false
+} = {}) {
+  const captureOpts = { preferSmall: preferSmall === true };
   let targetTabId = Number(senderTabId) || Number(tabId) || 0;
   if (targetTabId) {
     try {
       const tab = await chrome.tabs.get(targetTabId);
       if (!isAllowedSnapshotTab(tab)) targetTabId = 0;
       else {
-        const dataUrl = await captureTabImage(tab);
+        const dataUrl = await captureTabImage(tab, captureOpts);
         return { tab, dataUrl };
       }
     } catch (error) {
-      const message = String(error?.message || error);
+      const errText = String(error?.message || error);
       if (isCaptureTooLarge(error)) throw error;
-      if (/permission|Cannot access|<all_urls>|activeTab/i.test(message)) {
+      if (/permission|Cannot access|<all_urls>|activeTab/i.test(errText)) {
         throw new Error(
           "Нет доступа к вкладке для скриншота. Перезагрузите расширение на chrome://extensions и подтвердите доступ ко всем сайтам."
         );
@@ -775,7 +823,7 @@ async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 }
 
   const tab = await chrome.tabs.get(targetTabId);
   try {
-    const dataUrl = await captureTabImage(tab);
+    const dataUrl = await captureTabImage(tab, captureOpts);
     return { tab, dataUrl };
   } catch (error) {
     const message = String(error?.message || error);
@@ -1252,7 +1300,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     captureTabScreenshot({
       tabId: message.tabId,
       windowId: message.windowId,
-      senderTabId: sender.tab?.id
+      senderTabId: sender.tab?.id,
+      preferSmall: message.preferSmall === true
     })
       .then(({ tab, dataUrl }) => sendResponse({ ok: true, dataUrl, tabUrl: tab?.url || "" }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
