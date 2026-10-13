@@ -50365,6 +50365,16 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 5.5px;
 }
 
+.breadcrumb-crumb-kind .menu-awn-databases-store-hierarchy-badge {
+  width: 10px;
+  height: 10px;
+}
+
+.breadcrumb-crumb-kind .menu-awn-databases-store-hierarchy-badge svg {
+  width: 7px;
+  height: 7px;
+}
+
 .doc-slab-path .breadcrumb.is-pill.is-awn-databases-root {
   border-color: #ddd6fe;
   background: #f5f3ff;
@@ -73650,6 +73660,31 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #047857;
   background: #ecfdf5;
   border-color: #a7f3d0;
+}
+
+.menu-awn-databases-store-hierarchy-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  border-radius: 3px;
+  color: #0f766e;
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+  box-sizing: border-box;
+}
+
+.menu-awn-databases-store-hierarchy-badge svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.menu-awn-databases-store.is-active .menu-awn-databases-store-hierarchy-badge {
+  color: #115e59;
+  background: #ccfbf1;
+  border-color: #5eead4;
 }
 
 .menu-awn-databases-store-kind--single {

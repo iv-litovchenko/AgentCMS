@@ -27530,6 +27530,21 @@ const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
   "Структура содержимого задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
 const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
+const TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS = new Set([
+  "main-single",
+  "main-single-csv",
+  "todo-single",
+  "roadmap-single"
+]);
+
+function isTopicFlexibleSingleFileSlotKey(slotKey) {
+  return TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS.has(String(slotKey || "").trim());
+}
+
+function filterTopicFlexibleSingleFileSlotSpecs(specs, topicPath = getResolvedNodePath(activePath)) {
+  if (!isTopicSharedSlotActive(topicPath)) return specs;
+  return (specs || []).filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
+}
 
 function isTopicFlexibleSlotBrowseContext(context = activeEntryOverviewContext) {
   return context?.memoryKind === "external" && isTopicSharedSlotActive();
@@ -72409,7 +72424,6 @@ async function appendTopicSlotCounterStrip(
   if (!container || usesNavigationHubInlineSubsections(topicPath)) return null;
   if (resolveHubWorkspaceSlotPolicy(topicPath, propsEntries)) return null;
   if (isMediaLibraryPageNodePath(topicPath)) return null;
-  if (await shouldHideTopicStorageSlots(topicPath)) return null;
   let topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath, { propsEntries }));
   topicSlotCounters = filterHubWorkspaceSlotCounters(topicPath, topicSlotCounters, propsEntries);
   if (isStale()) return null;
@@ -79758,7 +79772,10 @@ async function resolveNavigationPrefetchValue(prefetched, key, fetcher) {
 async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
-  if (await shouldHideTopicStorageSlots(topicPath)) return [];
+  const topicUsesFlexibleSlots = await shouldHideTopicStorageSlots(
+    topicPath,
+    prefetched.propsEntries || null
+  );
 
   let intake = topicIntakeCacheByPath.get(manifestPath) || null;
   if (!intake) {
@@ -79770,9 +79787,13 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     }
   }
 
-  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
+  let overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
+  if (topicUsesFlexibleSlots) {
+    overviewSpecs = overviewSpecs.filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
+    if (!overviewSpecs.length) return [];
+  }
 
   const hubFilesSlotPage = isHubWorkspaceFilesSlotPage(topicPath);
 
@@ -81428,9 +81449,10 @@ function buildEntryOverviewBrowseTocNavOptions(context, topicPath = activePath) 
 function buildEntryOverviewSlotTocNavOptions(context, topicPath = activePath) {
   if (!context || !isEntryOverviewMemoryTocRoot(context)) return null;
 
-  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
+  let overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
+  overviewSpecs = filterTopicFlexibleSingleFileSlotSpecs(overviewSpecs, topicPath);
   const currentKind = String(context.memoryKind || "").trim();
   const currentIndex = overviewSpecs.findIndex((spec) => {
     const kind = getEntryOverviewMemoryKindForSlot(spec);
@@ -93791,7 +93813,7 @@ function renderNavigationHubRailSharedSlotNotice() {
   const notice = document.createElement("p");
   notice.className = "node-navigation-hub-rail-shared-slot-notice";
   notice.textContent =
-    "Включён гибкий слот: многофайловая память — произвольная структура в awn-storage/. Типовые слоты (main, inbox, media…) в интерфейсе скрыты.";
+    "Включён гибкий слот: многофайловая память — произвольная структура в awn-storage/. Типовые многофайловые слоты (main, inbox, media…) скрыты; однофайловые (main.md, main.csv, TODO, карты) — в полосе слотов над содержимым.";
 
   block.appendChild(notice);
   return block;
@@ -94859,19 +94881,21 @@ async function renderNodeNavigation() {
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
-  let topicSlotCounters =
-    isInlineNavHub || slotsDisabled
-      ? []
-      : await buildEntryOverviewDataSlotCounters(nodePath, navigationPrefetch);
+  let topicSlotCounters = isInlineNavHub
+    ? []
+    : await buildEntryOverviewDataSlotCounters(nodePath, {
+        ...navigationPrefetch,
+        propsEntries: entries
+      });
   topicSlotCounters = filterHubWorkspaceSlotCounters(nodePath, topicSlotCounters, entries);
-  if (isInlineNavHub || slotsDisabled) {
+  if (isInlineNavHub) {
     navigationPrefetch.topicSlotCounters = [];
   } else {
     navigationPrefetch.topicSlotCounters = topicSlotCounters;
   }
   if (isStale()) return;
 
-  if (!isInlineNavHub && !slotsDisabled && !hubFilesSlotWorkspace) {
+  if (!isInlineNavHub && !hubFilesSlotWorkspace) {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters, propsEntries: entries });
     if (isStale()) return;
   }
@@ -129540,11 +129564,34 @@ function resolveAwnDataStoreKindTitle(store) {
   if (kind === "group") return awnDataStoreKindLabel("group");
   if (kind === "single") return awnDataStoreKindLabel("single");
   const format = resolveAwnDataCollectionStorageLabel(store);
-  if (format === "files") return "Коллекция файлов";
-  if (format === "csv-files") return "Коллекция CSV-файлов";
-  if (format === "csv") return "Коллекция CSV";
-  if (format === "md-lite") return "Коллекция md-lite записей";
-  return "Коллекция md-записей";
+  let title = "Коллекция md-записей";
+  if (format === "files") title = "Коллекция файлов";
+  else if (format === "csv-files") title = "Коллекция CSV-файлов";
+  else if (format === "csv") title = "Коллекция CSV";
+  else if (format === "md-lite") title = "Коллекция md-lite записей";
+  if (shouldShowAwnDataStoreHierarchyBadge(store)) {
+    title = `${title} · ${AWN_DATA_SECTIONS_SUPPORT_LABEL.toLowerCase()}`;
+  }
+  return title;
+}
+
+function shouldShowAwnDataStoreHierarchyBadge(store) {
+  if (store?.kind !== "collection") return false;
+  if (isAwnDataSingleCsvStore(store)) return false;
+  return resolveAwnDataRecordHierarchy(store);
+}
+
+const AWN_DATA_STORE_HIERARCHY_BADGE_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="5" r="2.25" fill="currentColor" stroke="none"/><circle cx="6" cy="19" r="2.25" fill="currentColor" stroke="none"/><circle cx="18" cy="19" r="2.25" fill="currentColor" stroke="none"/><path d="M12 7.25v3.5M12 10.75H6v5.25M12 10.75h6v5.25" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function createAwnDataHierarchyBadgeElement(store) {
+  if (!shouldShowAwnDataStoreHierarchyBadge(store)) return null;
+  const badge = document.createElement("span");
+  badge.className = "menu-awn-databases-store-hierarchy-badge";
+  badge.setAttribute("aria-hidden", "true");
+  badge.title = `${AWN_DATA_SECTIONS_SUPPORT_LABEL}: иерархия записей (родитель и разделы)`;
+  badge.innerHTML = AWN_DATA_STORE_HIERARCHY_BADGE_SVG;
+  return badge;
 }
 
 function createAwnDataCollectionStorageBadgeElement(store) {
@@ -129569,6 +129616,8 @@ function createAwnDataStoreKindNode(store, { extraClass = "", showStorageBadge =
   wrap.appendChild(icon);
 
   if (kind === "collection" && showStorageBadge) {
+    const hierarchyBadge = createAwnDataHierarchyBadgeElement(store);
+    if (hierarchyBadge) wrap.appendChild(hierarchyBadge);
     const badge = createAwnDataCollectionStorageBadgeElement(store);
     if (badge) wrap.appendChild(badge);
   }
@@ -129747,6 +129796,8 @@ function createAwnDataStoreMetaNode(store) {
   }
 
   if (store?.kind === "collection") {
+    const hierarchyBadge = createAwnDataHierarchyBadgeElement(store);
+    if (hierarchyBadge) metaNode.appendChild(hierarchyBadge);
     const typeBadge = createAwnDataCollectionStorageBadgeElement(store);
     if (typeBadge) metaNode.appendChild(typeBadge);
   }
