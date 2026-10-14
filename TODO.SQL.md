@@ -154,6 +154,10 @@ LIMIT 50
 
 - [x] **6a MVP** — `FROM csv:…/file.csv`, `FROM collection:…` (on-demand fallback) — `dql/csv-source.js`
 - [x] **6b** — CSV-строки в общем `index.json` + `catalog.sqlite` (`source_kind`, `csv_source_path`); `source_kind` / `file.type`; `FROM awn-databases/…` находит md **и** csv; пересборка storage-index
+- [x] **6c-lite** — `FROM a, b` (префиксы через запятую → OR)
+- [x] **csv-files** — индекс всех `{id}.csv` в csv-files коллекциях
+- [x] **Экспорт** — `POST query` + `format: csv|json`; кнопка **CSV ↓** в модалке DQL
+- [x] **Конструктор** — фильтр `source_kind` (md / csv-row)
 
 ---
 

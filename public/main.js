@@ -30327,6 +30327,7 @@ const contentSearchDqlBuilderWithText = document.getElementById("content-search-
 const contentSearchDqlBuilderLimit = document.getElementById("content-search-dql-builder-limit");
 const contentSearchDqlBuilderAddBtn = document.getElementById("content-search-dql-builder-add");
 const contentSearchDqlBuilderApplyBtn = document.getElementById("content-search-dql-builder-apply");
+const contentSearchDqlBuilderSourceKind = document.getElementById("content-search-dql-builder-source-kind");
 const contentSearchDqlViewsSelect = document.getElementById("content-search-dql-views-select");
 const contentSearchDqlViewNameInput = document.getElementById("content-search-dql-view-name");
 const contentSearchDqlViewSaveBtn = document.getElementById("content-search-dql-view-save");
@@ -30379,6 +30380,7 @@ async function buildDqlFromBuilderUi() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       from: contentSearchDqlBuilderFrom?.value?.trim() || "",
+      sourceKind: contentSearchDqlBuilderSourceKind?.value?.trim() || "",
       conditions,
       withText: contentSearchDqlBuilderWithText?.value?.trim() || "",
       limit: Number(contentSearchDqlBuilderLimit?.value) || 50
@@ -135450,6 +135452,30 @@ function openDqlDashboardFromSearchModal() {
   setAgentWorkspaceView("dashboard3", { persistWorkspaceConfig: false });
 }
 
+async function exportContentSearchDqlCsv() {
+  const dql = String(contentSearchDqlInputNode?.value || "").trim();
+  if (!dql) {
+    showToast("Введите DQL в вкладке «Текст»", "error");
+    return;
+  }
+  const response = await fetch(buildApiUrl("/api/storage-index/query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dql, format: "csv" })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  const content = data.export?.content || "";
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `dql-export-${Date.now()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("CSV скачан", "success");
+}
+
 contentSearchDqlRunBtnNode?.addEventListener("click", () => {
   if (contentSearchDqlInputNode) saveContentSearchDqlDraft(contentSearchDqlInputNode.value);
   closeContentSearchDqlModal();
@@ -135457,6 +135483,9 @@ contentSearchDqlRunBtnNode?.addEventListener("click", () => {
 });
 document.getElementById("content-search-dql-open-dashboard-btn")?.addEventListener("click", () => {
   openDqlDashboardFromSearchModal();
+});
+document.getElementById("content-search-dql-export-csv-btn")?.addEventListener("click", () => {
+  void exportContentSearchDqlCsv().catch((err) => showToast(String(err.message || err), "error"));
 });
 contentSearchDqlCancelBtnNode?.addEventListener("click", closeContentSearchDqlModal);
 contentSearchDqlCloseBtnNode?.addEventListener("click", closeContentSearchDqlModal);

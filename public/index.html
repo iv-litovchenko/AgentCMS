@@ -8072,8 +8072,15 @@ awn-type: awn.page.ws
           ></textarea>
         </div>
         <div id="content-search-dql-panel-builder" class="content-search-dql-panel hidden">
-          <label class="content-search-dql-label">FROM (префикс пути)
+          <label class="content-search-dql-label">FROM (префикс; несколько через запятую в тексте)
             <input id="content-search-dql-builder-from" type="text" class="content-search-dql-field-input" list="content-search-dql-field-list" />
+          </label>
+          <label class="content-search-dql-label">Тип записи (source_kind)
+            <select id="content-search-dql-builder-source-kind" class="content-search-dql-field-input">
+              <option value="">любой</option>
+              <option value="md">md</option>
+              <option value="csv-row">csv-row</option>
+            </select>
           </label>
           <div id="content-search-dql-builder-rows" class="content-search-dql-builder-rows"></div>
           <button type="button" id="content-search-dql-builder-add" class="content-search-advanced-btn content-search-advanced-btn--add">+ Условие</button>
@@ -8099,6 +8106,7 @@ awn-type: awn.page.ws
           <button id="content-search-dql-open-dashboard-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Полноэкранный дашборд awn-dashboards">На дашборд</button>
           <div class="content-search-advanced-modal-footer-actions">
             <button id="content-search-dql-cancel-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Отмена</button>
+            <button id="content-search-dql-export-csv-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат последнего DQL как CSV">CSV ↓</button>
             <button id="content-search-dql-run-btn" class="content-search-advanced-btn content-search-advanced-btn--primary" type="button">Выполнить</button>
           </div>
         </div>
