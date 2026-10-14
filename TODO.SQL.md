@@ -64,20 +64,22 @@ LIMIT 50
 ### Фаза 3 — связи и гибрид
 
 - [x] **link-index:** `file.inlinks` / `file.outlinks` (eq/contains) — `dql/link-stats.js` (memory)
-- [ ] **`WITH TEXT "..."`** + hybrid search — не сделано
+- [x] **`WITH TEXT "..."`** + hybrid search (`dql-hybrid`, `allowedPaths` в hybrid API)
 - [x] **registry-queries:** `source: dql` + `dql:` / `query.dql`
 
 ### Фаза 4 — UI и markdown (опционально)
 
 - [x] Fence `` ```awn-query `` `` / `` ```dataview `` `` → `awn-system/renderers/dql-table.js`
-- [ ] Панель дашборда: редактор DQL + saved views
-- [ ] Autocomplete полей в shell
+- [x] Редактор DQL в шапке (модалка: **Текст / Конструктор / Views**)
+- [x] Saved views → `.agent-cms/settings/dql-views.yml` + API `/api/storage-index/dql-views`
+- [x] Full-page dashboard widget — `awn-dashboard-present: dql` в `awn-dashboards/widgets/*.md`, экран «Мой дашборд»
 
 ### Фаза 5 — безопасность и perf
 
 - [x] Только compiled SQL из AST (клиент не шлёт raw SQL)
 - [x] Лимиты: длина DQL, depth AST, `limit` ≤ 500 — `dql/limits.js`
-- [ ] Query timeout; инкрементальный sync SQLite
+- [x] Timeout hybrid + **in-memory DQL** (deadline 15s, check every 500 records)
+- [x] **Batch incremental SQLite** `updateFilesBatch` + queue drain; `saveIndex` skip full sqlite when incremental
 
 ---
 
@@ -104,11 +106,11 @@ LIMIT 50
 - `mcp-server/lib/map-tools.js` — `query_workspace_storage`
 - `workspaces/*/.agent-cms/settings/registry-queries.yml` — пресеты
 
-**Новые модули (предложение):**
+**Модули:**
 
-- `lib/indexes/storage-index/dql/parse.js`
-- `lib/indexes/storage-index/dql/compile-sqlite.js`
-- `lib/indexes/storage-index/dql/execute.js`
+- `lib/indexes/storage-index/dql/*` — parse, execute, compile-sqlite, build-query, GRAMMAR.md
+- `lib/workspace/dql-views.js` — saved views catalog
+- Tests: `node --test lib/indexes/storage-index/dql/*.test.js`
 
 ---
 

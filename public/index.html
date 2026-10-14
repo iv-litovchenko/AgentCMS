@@ -449,11 +449,20 @@
                     <path d="M15 10h4M15 14h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
                   </svg>
                 </button>
+                <button
+                  type="button"
+                  id="content-search-mode-dql-btn"
+                  class="content-search-mode-btn content-search-mode-btn--dql"
+                  data-mode="dql"
+                  title="DQL (storage-index)"
+                  aria-pressed="false"
+                >DQL</button>
               </div>
               <select id="content-search-mode" class="content-search-mode visually-hidden" aria-label="Режим поиска" tabindex="-1">
                 <option value="text" selected>Текст</option>
                 <option value="semantic">Смысл</option>
                 <option value="id">ID</option>
+                <option value="dql">DQL</option>
               </select>
               <div class="content-search-input-zone">
                 <span class="content-search-input-icon" aria-hidden="true">
@@ -8025,6 +8034,72 @@ awn-type: awn.page.ws
       </div>
     </div>
 
+    <div
+      id="content-search-dql-modal"
+      class="modal-overlay hidden content-search-dql-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="content-search-dql-title"
+    >
+      <div class="modal-card content-search-dql-modal-card">
+        <div class="content-search-advanced-modal-header">
+          <div>
+            <div class="modal-message" id="content-search-dql-title">DQL-lite</div>
+            <p class="content-search-advanced-modal-subtitle">
+              FROM / WHERE / WITH TEXT … · подсказки полей из field catalog
+            </p>
+          </div>
+          <button id="content-search-dql-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="content-search-dql-tabs" role="tablist" aria-label="Режим DQL">
+          <button type="button" id="content-search-dql-tab-text" class="content-search-dql-tab is-active" data-tab="text">Текст</button>
+          <button type="button" id="content-search-dql-tab-builder" class="content-search-dql-tab" data-tab="builder">Конструктор</button>
+          <button type="button" id="content-search-dql-tab-views" class="content-search-dql-tab" data-tab="views">Views</button>
+        </div>
+        <datalist id="content-search-dql-field-list"></datalist>
+        <div id="content-search-dql-panel-text" class="content-search-dql-panel">
+          <textarea
+            id="content-search-dql-input"
+            class="content-search-dql-input"
+            rows="10"
+            spellcheck="false"
+            placeholder='FROM awn-container/finansy&#10;WHERE awn-type = "awn.content.record"&#10;WITH TEXT "аренда"'
+          ></textarea>
+        </div>
+        <div id="content-search-dql-panel-builder" class="content-search-dql-panel hidden">
+          <label class="content-search-dql-label">FROM (префикс пути)
+            <input id="content-search-dql-builder-from" type="text" class="content-search-dql-field-input" list="content-search-dql-field-list" />
+          </label>
+          <div id="content-search-dql-builder-rows" class="content-search-dql-builder-rows"></div>
+          <button type="button" id="content-search-dql-builder-add" class="content-search-advanced-btn content-search-advanced-btn--add">+ Условие</button>
+          <label class="content-search-dql-label">WITH TEXT
+            <input id="content-search-dql-builder-with-text" type="text" class="content-search-dql-field-input" placeholder="необязательно" />
+          </label>
+          <label class="content-search-dql-label">LIMIT
+            <input id="content-search-dql-builder-limit" type="number" min="1" max="500" value="50" class="content-search-dql-field-input" />
+          </label>
+          <button type="button" id="content-search-dql-builder-apply" class="content-search-advanced-btn">Собрать DQL →</button>
+        </div>
+        <div id="content-search-dql-panel-views" class="content-search-dql-panel hidden">
+          <select id="content-search-dql-views-select" class="content-search-dql-field-input" aria-label="Сохранённые views"></select>
+          <div class="content-search-dql-views-actions">
+            <input id="content-search-dql-view-name" type="text" class="content-search-dql-field-input" placeholder="Имя view" />
+            <button type="button" id="content-search-dql-view-save" class="content-search-advanced-btn">Сохранить</button>
+            <button type="button" id="content-search-dql-view-load" class="content-search-advanced-btn">Загрузить</button>
+            <button type="button" id="content-search-dql-view-delete" class="content-search-advanced-btn content-search-advanced-btn--ghost">Удалить</button>
+          </div>
+        </div>
+        <div class="content-search-advanced-modal-footer">
+          <button id="content-search-dql-reset-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Сбросить</button>
+          <button id="content-search-dql-open-dashboard-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Полноэкранный дашборд awn-dashboards">На дашборд</button>
+          <div class="content-search-advanced-modal-footer-actions">
+            <button id="content-search-dql-cancel-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Отмена</button>
+            <button id="content-search-dql-run-btn" class="content-search-advanced-btn content-search-advanced-btn--primary" type="button">Выполнить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="file-history-modal" class="modal-overlay hidden">
       <div class="modal-card file-history-card">
         <div class="md-showcase-header">
@@ -8574,7 +8649,7 @@ awn-type: awn.page.ws
     <script src="/js/core/node-config-bundle.js?v=1"></script>
     <script src="/js/core/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/js/cms/awn-dashboards.js?v=6"></script>
+    <script src="/js/cms/awn-dashboards.js?v=7"></script>
     <script src="/js/core/platform-status.js"></script>
     <script src="/js/editor/marker-blocks-preview.js?v=11"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>

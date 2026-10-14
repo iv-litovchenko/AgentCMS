@@ -76,8 +76,117 @@
       y: getEntryNumber(entries, "awn-dashboard-y", 0),
       w: Math.max(1, getEntryNumber(entries, "awn-dashboard-w", 4)),
       h: Math.max(1, getEntryNumber(entries, "awn-dashboard-h", 1)),
+      dql: getEntry(entries, "awn-dashboard-dql") || "",
       body: String(body || "").trim()
     };
+  }
+
+  function parseDqlWidgetSource(meta) {
+    const raw = String(meta.dql || meta.body || "").trim();
+    const lines = raw.split(/\r?\n/);
+    let transform = null;
+    const dqlLines = [];
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.startsWith("@transform")) {
+        const json = t.slice("@transform".length).trim();
+        try {
+          transform = JSON.parse(json);
+        } catch {
+          // ignore invalid transform
+        }
+        continue;
+      }
+      dqlLines.push(line);
+    }
+    return { dql: dqlLines.join("\n").trim(), transform };
+  }
+
+  function applyClientTransform(rows, spec) {
+    if (!spec || typeof spec !== "object") return rows;
+    let out = rows.slice();
+    if (Array.isArray(spec.pick) && spec.pick.length) {
+      const keys = spec.pick.map((k) => String(k));
+      out = out.map((row) => {
+        const next = { path: row.path, fields: {} };
+        for (const key of keys) {
+          if (key === "path") continue;
+          if (row.fields?.[key] != null) next.fields[key] = row.fields[key];
+        }
+        return next;
+      });
+    }
+    if (spec.sort?.field) {
+      const field = String(spec.sort.field);
+      const dir = spec.sort.dir === "desc" ? -1 : 1;
+      out.sort((a, b) => {
+        const av = field === "path" ? a.path : a.fields?.[field]?.value ?? a.fields?.[field];
+        const bv = field === "path" ? b.path : b.fields?.[field]?.value ?? b.fields?.[field];
+        return dir * String(av || "").localeCompare(String(bv || ""), "ru");
+      });
+    }
+    if (Number.isFinite(spec.limit) && spec.limit > 0) {
+      out = out.slice(0, spec.limit);
+    }
+    return out;
+  }
+
+  function renderDqlResultHtml(data, transform) {
+    if (data.mode === "dql-hybrid" && Array.isArray(data.hybrid?.hits)) {
+      const hits = data.hybrid.hits;
+      const rows = hits
+        .map(
+          (h) =>
+            `<tr><td>${ctx.escapeHtml(h.path)}</td><td>${ctx.escapeHtml(h.snippet || "")}</td><td>${ctx.escapeHtml(
+              (h.sources || []).join("+")
+            )}</td></tr>`
+        )
+        .join("");
+      return `<div class="awn-dashboard-dql-scroll"><table class="awn-dashboard-dql-table"><thead><tr><th>path</th><th>snippet</th><th>src</th></tr></thead><tbody>${rows}</tbody></table></div><p class="awn-dashboard-dql-meta">dql-hybrid · filters ${data.total} · hits ${hits.length}</p>`;
+    }
+
+    let rows = Array.isArray(data.results) ? data.results : [];
+    rows = applyClientTransform(rows, transform);
+
+    if (!rows.length) {
+      return `<p class="awn-dashboard-dql-empty">Нет строк (total ${data.total ?? 0})</p>`;
+    }
+
+    if (data.mode === "dql-group") {
+      const body = rows
+        .map(
+          (r) =>
+            `<tr><td>${ctx.escapeHtml(r.groupKey)}</td><td>${ctx.escapeHtml(r.value)}</td><td>${ctx.escapeHtml(
+              r.count
+            )}</td></tr>`
+        )
+        .join("");
+      return `<div class="awn-dashboard-dql-scroll"><table class="awn-dashboard-dql-table"><thead><tr><th>group</th><th>value</th><th>count</th></tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    const keys = new Set(["path"]);
+    for (const row of rows) {
+      if (row.fields && typeof row.fields === "object") {
+        Object.keys(row.fields).forEach((k) => keys.add(k));
+      }
+    }
+    const columns = [...keys];
+    const thead = columns.map((c) => `<th>${ctx.escapeHtml(c)}</th>`).join("");
+    const tbody = rows
+      .map((row) => {
+        const cells = columns.map((col) => {
+          if (col === "path") return `<td>${ctx.escapeHtml(row.path)}</td>`;
+          const entry = row.fields?.[col];
+          const val = entry != null && typeof entry === "object" && "value" in entry ? entry.value : entry;
+          return `<td>${ctx.escapeHtml(val)}</td>`;
+        });
+        return `<tr>${cells.join("")}</tr>`;
+      })
+      .join("");
+
+    return `<div class="awn-dashboard-dql-scroll"><table class="awn-dashboard-dql-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div><p class="awn-dashboard-dql-meta">${ctx.escapeHtml(
+      data.engine || "dql"
+    )} · total ${data.total ?? rows.length}</p>`;
   }
 
   function parseLayoutMeta(raw) {
@@ -410,6 +519,61 @@
     `;
   });
 
+  registerPresenter("dql", async (shell, meta, agentId) => {
+    const wrap = document.createElement("div");
+    wrap.className = "awn-dashboard-dql-host";
+    shell.body.replaceChildren(wrap);
+
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "awn-dashboard-dql-refresh-btn";
+    refreshBtn.textContent = "↻";
+    refreshBtn.title = "Обновить DQL";
+    shell.foot.prepend(refreshBtn);
+
+    const { dql, transform } = parseDqlWidgetSource(meta);
+    if (!dql) {
+      wrap.innerHTML = `<p class="awn-dashboard-dql-empty">Задайте DQL в теле виджета или <code>awn-dashboard-dql</code></p>`;
+      refreshBtn.disabled = true;
+      return;
+    }
+
+    let loadSeq = 0;
+    const run = async () => {
+      const seq = ++loadSeq;
+      wrap.innerHTML = `<p class="awn-dashboard-loading">DQL…</p>`;
+      refreshBtn.disabled = true;
+      try {
+        const response = await fetch(ctx.buildApiUrl("/api/storage-index/query", {}, agentId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dql, limit: meta.limit || 50 })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (seq !== loadSeq) return;
+        if (!response.ok) {
+          wrap.innerHTML = `<p class="awn-dashboard-dql-empty is-error">${ctx.escapeHtml(
+            data.error || data.details || `HTTP ${response.status}`
+          )}</p>`;
+          return;
+        }
+        wrap.innerHTML = renderDqlResultHtml(data, transform);
+      } catch (error) {
+        if (seq !== loadSeq) return;
+        wrap.innerHTML = `<p class="awn-dashboard-dql-empty is-error">${ctx.escapeHtml(error.message || "Ошибка запроса")}</p>`;
+      } finally {
+        if (seq === loadSeq) refreshBtn.disabled = false;
+      }
+    };
+
+    refreshBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void run();
+    });
+    await run();
+  });
+
   registerPresenter("activity", async (shell, meta, agentId) => {
     const list = document.createElement("ul");
     list.className = "awn-dashboard-list";
@@ -528,7 +692,7 @@
         <div class="awn-dashboard-todo-plaque-block">
           <h4>Presenters (MVP)</h4>
           <ul>
-            <li>Готово: clock, calendar, stat, list, markdown, chart, activity.</li>
+            <li>Готово: clock, calendar, stat, list, markdown, chart, activity, <strong>dql</strong>.</li>
             <li>Заглушки: kanban.</li>
             <li>Расширение: <code>AwnDashboards.registerPresenter(id, fn)</code>.</li>
           </ul>

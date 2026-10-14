@@ -1915,7 +1915,8 @@ function getStorageIndexService() {
       getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      searchHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options)
     });
   }
   return storageIndexService;
@@ -2111,14 +2112,34 @@ function kickWorkspaceIndexFileSyncWorker() {
 async function drainWorkspaceIndexFileSyncQueue() {
   const paths = [...workspaceIndexFileSyncPending];
   workspaceIndexFileSyncPending.clear();
+  if (!paths.length) return;
+
+  const platformSettings = await getPlatformSettings(getProjectRoot());
+  if (isPlatformIndexEnabled(platformSettings, "storage") && paths.length > 1) {
+    await getStorageIndexService()
+      .updateFilesBatch(paths)
+      .catch(() => {});
+  }
+
   for (const relPath of paths) {
-    await syncWorkspaceIndexFile(
-      getSemanticSearchService(),
-      getStorageIndexService(),
-      getFulltextSearchService(),
-      relPath,
-      getLinkIndexService()
-    ).catch(() => {});
+    const storageAlreadyBatched = isPlatformIndexEnabled(platformSettings, "storage") && paths.length > 1;
+    if (storageAlreadyBatched) {
+      await syncWorkspaceIndexFile(
+        getSemanticSearchService(),
+        null,
+        getFulltextSearchService(),
+        relPath,
+        getLinkIndexService()
+      ).catch(() => {});
+    } else {
+      await syncWorkspaceIndexFile(
+        getSemanticSearchService(),
+        getStorageIndexService(),
+        getFulltextSearchService(),
+        relPath,
+        getLinkIndexService()
+      ).catch(() => {});
+    }
   }
 }
 
@@ -21070,6 +21091,65 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const { listDqlViews } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await listDqlViews(agentRoot));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list DQL views",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const { upsertDqlView } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await upsertDqlView(agentRoot, payload));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save DQL view",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const { deleteDqlView } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await deleteDqlView(agentRoot, payload?.id));
+    } catch (error) {
+      const status = /Unknown dql view/i.test(String(error.message || error)) ? 404 : 500;
+      return sendJson(res, status, {
+        error: "Failed to delete DQL view",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/dql-build") {
+    try {
+      const payload = await readJsonBody(req);
+      const { buildDqlFromBuilder } = require("./lib/indexes/storage-index/dql/build-query");
+      const dql = buildDqlFromBuilder(payload || {});
+      return sendJson(res, 200, { ok: true, dql });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build DQL",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/storage-index/catalog") {
     const limitRaw = Number(url.searchParams.get("limit") || 40);
     const offsetRaw = Number(url.searchParams.get("offset") || 0);
@@ -24037,6 +24117,7 @@ async function handleApiForAgent(req, res, url) {
         query,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         where: payload?.where,
+        allowedPaths: payload?.allowedPaths,
         extensions: payload?.extensions,
         scopes: payload?.scopes,
         limit: payload?.limit,

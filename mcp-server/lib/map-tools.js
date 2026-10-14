@@ -167,8 +167,13 @@ function registerSearchWorkspaceTools(reg, client) {
         .string()
         .optional()
         .describe(
-          'DQL-lite string, e.g. FROM "awn-container/finansy" WHERE awn-type = "awn.page.topic" SORT path ASC LIMIT 50'
+          'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.page.topic" WITH TEXT "аренда" LIMIT 50'
         ),
+      withText: z
+        .string()
+        .optional()
+        .describe("Hybrid text search within DQL result paths (overrides WITH TEXT in dql string)"),
+      hybridLimit: z.number().int().min(1).max(50).optional(),
       pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
       where: z
         .array(

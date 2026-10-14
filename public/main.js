@@ -1467,6 +1467,15 @@ const contentSearchHelpPopoverNode = document.getElementById("content-search-hel
 const contentSearchModeTextBtn = document.getElementById("content-search-mode-text-btn");
 const contentSearchModeSemanticBtn = document.getElementById("content-search-mode-semantic-btn");
 const contentSearchModeIdBtn = document.getElementById("content-search-mode-id-btn");
+const contentSearchModeDqlBtn = document.getElementById("content-search-mode-dql-btn");
+const contentSearchDqlModalNode = document.getElementById("content-search-dql-modal");
+const contentSearchDqlInputNode = document.getElementById("content-search-dql-input");
+const contentSearchDqlFieldListNode = document.getElementById("content-search-dql-field-list");
+const contentSearchDqlRunBtnNode = document.getElementById("content-search-dql-run-btn");
+const contentSearchDqlCancelBtnNode = document.getElementById("content-search-dql-cancel-btn");
+const contentSearchDqlCloseBtnNode = document.getElementById("content-search-dql-close-btn");
+const contentSearchDqlResetBtnNode = document.getElementById("content-search-dql-reset-btn");
+const CONTENT_SEARCH_DQL_STORAGE_KEY = "content-search-dql-draft-v1";
 const contentSearchFiltersBtnNode = document.getElementById("content-search-filters-btn");
 const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
 const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
@@ -30231,7 +30240,7 @@ function setLoading(message) {
 
 function getContentSearchMode() {
   const mode = String(contentSearchModeNode?.value || "text");
-  if (mode === "semantic" || mode === "id") return mode;
+  if (mode === "semantic" || mode === "id" || mode === "dql") return mode;
   return "text";
 }
 
@@ -30243,8 +30252,202 @@ function isContentSearchIdMode() {
   return getContentSearchMode() === "id";
 }
 
+function isContentSearchDqlMode() {
+  return getContentSearchMode() === "dql";
+}
+
 function isContentSearchAlternateMode() {
-  return isContentSearchSemantic() || isContentSearchIdMode();
+  return isContentSearchSemantic() || isContentSearchIdMode() || isContentSearchDqlMode();
+}
+
+function loadContentSearchDqlDraft() {
+  try {
+    return localStorage.getItem(CONTENT_SEARCH_DQL_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveContentSearchDqlDraft(text) {
+  try {
+    localStorage.setItem(CONTENT_SEARCH_DQL_STORAGE_KEY, String(text || ""));
+  } catch {
+    // ignore
+  }
+}
+
+function getContentSearchDqlText() {
+  const fromModal = String(contentSearchDqlInputNode?.value || "").trim();
+  if (fromModal) return fromModal;
+  return loadContentSearchDqlDraft().trim();
+}
+
+function syncContentSearchDqlFieldList(catalog = contentSearchFieldCatalogCache) {
+  if (!contentSearchDqlFieldListNode) return;
+  contentSearchDqlFieldListNode.replaceChildren();
+  for (const key of catalog?.fieldCatalog || []) {
+    const opt = document.createElement("option");
+    opt.value = key;
+    contentSearchDqlFieldListNode.appendChild(opt);
+  }
+}
+
+function openContentSearchDqlModal() {
+  if (!contentSearchDqlModalNode) return;
+  void ensureContentSearchFieldCatalog().then((catalog) => {
+    syncContentSearchDqlFieldList(catalog);
+  });
+  if (contentSearchDqlInputNode && !contentSearchDqlInputNode.value) {
+    contentSearchDqlInputNode.value = loadContentSearchDqlDraft();
+  }
+  if (contentSearchDqlBuilderRows && !contentSearchDqlBuilderRows.childElementCount) {
+    addContentSearchDqlBuilderRow("awn-type", "eq", "awn.content.record");
+  }
+  const scopePath = getContentSearchPathPrefix();
+  if (contentSearchDqlBuilderFrom && !contentSearchDqlBuilderFrom.value && scopePath) {
+    contentSearchDqlBuilderFrom.value = scopePath;
+  }
+  setContentSearchDqlTab("text");
+  contentSearchDqlModalNode.classList.remove("hidden");
+}
+
+function closeContentSearchDqlModal() {
+  contentSearchDqlModalNode?.classList.add("hidden");
+}
+
+const contentSearchDqlTabTextBtn = document.getElementById("content-search-dql-tab-text");
+const contentSearchDqlTabBuilderBtn = document.getElementById("content-search-dql-tab-builder");
+const contentSearchDqlTabViewsBtn = document.getElementById("content-search-dql-tab-views");
+const contentSearchDqlPanelText = document.getElementById("content-search-dql-panel-text");
+const contentSearchDqlPanelBuilder = document.getElementById("content-search-dql-panel-builder");
+const contentSearchDqlPanelViews = document.getElementById("content-search-dql-panel-views");
+const contentSearchDqlBuilderRows = document.getElementById("content-search-dql-builder-rows");
+const contentSearchDqlBuilderFrom = document.getElementById("content-search-dql-builder-from");
+const contentSearchDqlBuilderWithText = document.getElementById("content-search-dql-builder-with-text");
+const contentSearchDqlBuilderLimit = document.getElementById("content-search-dql-builder-limit");
+const contentSearchDqlBuilderAddBtn = document.getElementById("content-search-dql-builder-add");
+const contentSearchDqlBuilderApplyBtn = document.getElementById("content-search-dql-builder-apply");
+const contentSearchDqlViewsSelect = document.getElementById("content-search-dql-views-select");
+const contentSearchDqlViewNameInput = document.getElementById("content-search-dql-view-name");
+const contentSearchDqlViewSaveBtn = document.getElementById("content-search-dql-view-save");
+const contentSearchDqlViewLoadBtn = document.getElementById("content-search-dql-view-load");
+const contentSearchDqlViewDeleteBtn = document.getElementById("content-search-dql-view-delete");
+
+function setContentSearchDqlTab(tab) {
+  const name = tab === "builder" || tab === "views" ? tab : "text";
+  contentSearchDqlTabTextBtn?.classList.toggle("is-active", name === "text");
+  contentSearchDqlTabBuilderBtn?.classList.toggle("is-active", name === "builder");
+  contentSearchDqlTabViewsBtn?.classList.toggle("is-active", name === "views");
+  contentSearchDqlPanelText?.classList.toggle("hidden", name !== "text");
+  contentSearchDqlPanelBuilder?.classList.toggle("hidden", name !== "builder");
+  contentSearchDqlPanelViews?.classList.toggle("hidden", name !== "views");
+  if (name === "views") void refreshContentSearchDqlViewsSelect();
+}
+
+function addContentSearchDqlBuilderRow(field = "", op = "eq", value = "") {
+  if (!contentSearchDqlBuilderRows) return;
+  const row = document.createElement("div");
+  row.className = "content-search-dql-builder-row";
+  row.innerHTML = `
+    <input type="text" class="content-search-dql-field-input dql-b-field" list="content-search-dql-field-list" value="${escapeHtml(field)}" placeholder="поле" />
+    <select class="content-search-dql-field-input dql-b-op">
+      <option value="eq">=</option>
+      <option value="contains">contains</option>
+      <option value="gte">≥</option>
+      <option value="lte">≤</option>
+      <option value="lastDays">last N days</option>
+    </select>
+    <input type="text" class="content-search-dql-field-input dql-b-value" value="${escapeHtml(String(value))}" placeholder="значение" />
+    <button type="button" class="content-search-advanced-btn content-search-advanced-btn--ghost dql-b-remove">×</button>
+  `;
+  row.querySelector(".dql-b-op").value = op;
+  row.querySelector(".dql-b-remove")?.addEventListener("click", () => row.remove());
+  contentSearchDqlBuilderRows.appendChild(row);
+}
+
+async function buildDqlFromBuilderUi() {
+  const conditions = [];
+  contentSearchDqlBuilderRows?.querySelectorAll(".content-search-dql-builder-row").forEach((row) => {
+    const field = row.querySelector(".dql-b-field")?.value?.trim();
+    const op = row.querySelector(".dql-b-op")?.value || "eq";
+    const value = row.querySelector(".dql-b-value")?.value ?? "";
+    if (!field) return;
+    conditions.push({ field, op, value });
+  });
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-build"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: contentSearchDqlBuilderFrom?.value?.trim() || "",
+      conditions,
+      withText: contentSearchDqlBuilderWithText?.value?.trim() || "",
+      limit: Number(contentSearchDqlBuilderLimit?.value) || 50
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || "build failed");
+  if (contentSearchDqlInputNode) contentSearchDqlInputNode.value = data.dql || "";
+  saveContentSearchDqlDraft(data.dql || "");
+  setContentSearchDqlTab("text");
+}
+
+async function refreshContentSearchDqlViewsSelect() {
+  if (!contentSearchDqlViewsSelect) return;
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return;
+  const views = Array.isArray(data.views) ? data.views : [];
+  contentSearchDqlViewsSelect.replaceChildren();
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = views.length ? "— выберите view —" : "нет сохранённых views";
+  contentSearchDqlViewsSelect.appendChild(empty);
+  for (const view of views) {
+    const opt = document.createElement("option");
+    opt.value = view.id;
+    opt.textContent = view.name || view.id;
+    opt.dataset.dql = view.dql || "";
+    contentSearchDqlViewsSelect.appendChild(opt);
+  }
+}
+
+async function saveContentSearchDqlView() {
+  const dql = String(contentSearchDqlInputNode?.value || getContentSearchDqlText()).trim();
+  if (!dql) return;
+  const name = String(contentSearchDqlViewNameInput?.value || "").trim() || "DQL view";
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, dql })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || "save failed");
+  await refreshContentSearchDqlViewsSelect();
+  if (contentSearchDqlViewNameInput) contentSearchDqlViewNameInput.value = data.view?.name || name;
+}
+
+function loadSelectedContentSearchDqlView() {
+  const opt = contentSearchDqlViewsSelect?.selectedOptions?.[0];
+  const dql = opt?.dataset?.dql || "";
+  if (!dql || !contentSearchDqlInputNode) return;
+  contentSearchDqlInputNode.value = dql;
+  saveContentSearchDqlDraft(dql);
+  setContentSearchDqlTab("text");
+}
+
+async function deleteSelectedContentSearchDqlView() {
+  const id = contentSearchDqlViewsSelect?.value;
+  if (!id) return;
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"), {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || data.details || "delete failed");
+  }
+  await refreshContentSearchDqlViewsSelect();
 }
 
 const CONTENT_SEARCH_DEFAULT_SCOPE = "all";
@@ -30301,9 +30504,11 @@ function syncContentSearchModeToggleUi() {
   contentSearchModeTextBtn?.classList.toggle("is-active", mode === "text");
   contentSearchModeSemanticBtn?.classList.toggle("is-active", mode === "semantic");
   contentSearchModeIdBtn?.classList.toggle("is-active", mode === "id");
+  contentSearchModeDqlBtn?.classList.toggle("is-active", mode === "dql");
   contentSearchModeTextBtn?.setAttribute("aria-pressed", mode === "text" ? "true" : "false");
   contentSearchModeSemanticBtn?.setAttribute("aria-pressed", mode === "semantic" ? "true" : "false");
   contentSearchModeIdBtn?.setAttribute("aria-pressed", mode === "id" ? "true" : "false");
+  contentSearchModeDqlBtn?.setAttribute("aria-pressed", mode === "dql" ? "true" : "false");
 }
 
 function isContentSearchSemanticLayerEnabled() {
@@ -31306,6 +31511,7 @@ function toggleContentSearchHelp() {
 }
 
 function getContentSearchMinLength(scope = getContentSearchScope()) {
+  if (isContentSearchDqlMode()) return 0;
   if (isContentSearchSemantic()) return 2;
   if (isContentSearchIdMode()) return 1;
   return scope === "filename" || scope === "all" ? 1 : 2;
@@ -31330,6 +31536,12 @@ function updateContentSearchPlaceholder() {
       : "awn-id записи: 1847 или #1847…";
     return;
   }
+  if (isContentSearchDqlMode()) {
+    contentSearchInputNode.placeholder = "DQL — кнопка DQL или Enter открывает редактор…";
+    contentSearchInputNode.readOnly = true;
+    return;
+  }
+  contentSearchInputNode.readOnly = false;
   if (isContentSearchSemantic()) {
     contentSearchInputNode.placeholder = pathPrefix
       ? `Поиск по смыслу в «${scopeLabel}»…`
@@ -31764,6 +31976,69 @@ async function fetchContentSearchHybrid(
   return mapHybridSearchResults(data, query);
 }
 
+function mapDqlSearchResults(data, dql) {
+  const mode = String(data?.mode || "dql-query");
+  if (mode === "dql-hybrid" && Array.isArray(data?.hybrid?.hits)) {
+    return {
+      query: dql,
+      mode: "dql-hybrid",
+      scope: "dql",
+      results: data.hybrid.hits.map((hit) => ({
+        filePath: hit.path,
+        canonicalPath: hit.path,
+        displayName: hit.title || hit.path,
+        snippet: hit.snippet || "",
+        matchKindLabel: (hit.sources || []).join("+") || "hybrid",
+        kindLabel: "DQL+TEXT"
+      })),
+      total: data.hybrid.hitCount ?? data.hybrid.hits.length,
+      dqlMeta: { engine: data.engine, filterTotal: data.total }
+    };
+  }
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  return {
+    query: dql,
+    mode: mode === "dql-group" ? "dql-group" : "dql",
+    scope: "dql",
+    results: rows.map((row) => {
+      if (row.groupKey != null) {
+        return {
+          filePath: row.samplePath || "",
+          displayName: `${row.groupField}=${row.groupKey}`,
+          snippet: `${row.aggregate || "count"}: ${row.value} (${row.count})`,
+          matchKindLabel: "group",
+          kindLabel: "DQL"
+        };
+      }
+      const name = row.fields?.["awn-name"]?.value ?? row.fields?.["awn-name"] ?? row.path;
+      return {
+        filePath: row.path,
+        canonicalPath: row.path,
+        displayName: String(name || row.path || ""),
+        snippet: row.path || "",
+        matchKindLabel: data.engine || "dql",
+        kindLabel: "DQL"
+      };
+    }),
+    total: data?.total ?? rows.length
+  };
+}
+
+async function fetchContentSearchDql(dql, pathPrefix = getContentSearchPathPrefix()) {
+  const response = await fetch(buildApiUrl("/api/storage-index/query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dql,
+      pathPrefix: pathPrefix || undefined,
+      limit: 100
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+  return mapDqlSearchResults(data, dql);
+}
+
 async function fetchContentSearchByFields(
   where,
   pathPrefix = getContentSearchPathPrefix(),
@@ -31843,7 +32118,8 @@ function scheduleContentSearch() {
   clearTimeout(contentSearchTimer);
   const requestId = ++contentSearchRequestId;
 
-  if (!query && !hasFieldFilter) {
+  const dqlText = isContentSearchDqlMode() ? getContentSearchDqlText() : "";
+  if (!query && !hasFieldFilter && !dqlText) {
     setContentSearchLoading(false);
     hideContentSearchResults();
     return;
@@ -31851,6 +32127,26 @@ function scheduleContentSearch() {
 
   setContentSearchLoading(false);
   contentSearchTimer = setTimeout(async () => {
+    if (isContentSearchDqlMode()) {
+      if (!dqlText) {
+        hideContentSearchResults();
+        return;
+      }
+      setContentSearchLoading(true);
+      renderContentSearchLoading();
+      try {
+        const data = await fetchContentSearchDql(dqlText);
+        if (requestId !== contentSearchRequestId) return;
+        renderContentSearchResults(data);
+      } catch (error) {
+        if (requestId !== contentSearchRequestId) return;
+        setContentSearchLoading(false);
+        contentSearchResultsNode.innerHTML = `<div class="content-search-empty">${escapeHtml(formatContentSearchPolicyError(error))}</div>`;
+        contentSearchResultsNode.classList.remove("hidden");
+      }
+      return;
+    }
+
     if (!hasFieldFilter && query.length < minLength) {
       renderContentSearchResults({ query, scope, fileType, match, results: [] });
       return;
@@ -135137,6 +135433,53 @@ contentSearchModeSemanticBtn?.addEventListener("click", (event) => {
 contentSearchModeIdBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   setContentSearchMode("id");
+});
+contentSearchModeDqlBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setContentSearchMode("dql");
+  openContentSearchDqlModal();
+});
+function openDqlDashboardFromSearchModal() {
+  closeContentSearchDqlModal();
+  showAgentHomeView("DQL · виджеты на awn-dashboards/home");
+  window.AwnDashboards?.setActiveSlug?.("home");
+  setAgentWorkspaceView("dashboard3", { persistWorkspaceConfig: false });
+}
+
+contentSearchDqlRunBtnNode?.addEventListener("click", () => {
+  if (contentSearchDqlInputNode) saveContentSearchDqlDraft(contentSearchDqlInputNode.value);
+  closeContentSearchDqlModal();
+  scheduleContentSearch();
+});
+document.getElementById("content-search-dql-open-dashboard-btn")?.addEventListener("click", () => {
+  openDqlDashboardFromSearchModal();
+});
+contentSearchDqlCancelBtnNode?.addEventListener("click", closeContentSearchDqlModal);
+contentSearchDqlCloseBtnNode?.addEventListener("click", closeContentSearchDqlModal);
+contentSearchDqlResetBtnNode?.addEventListener("click", () => {
+  if (contentSearchDqlInputNode) contentSearchDqlInputNode.value = "";
+  saveContentSearchDqlDraft("");
+});
+contentSearchDqlModalNode?.addEventListener("click", (event) => {
+  if (event.target === contentSearchDqlModalNode) closeContentSearchDqlModal();
+});
+contentSearchDqlTabTextBtn?.addEventListener("click", () => setContentSearchDqlTab("text"));
+contentSearchDqlTabBuilderBtn?.addEventListener("click", () => setContentSearchDqlTab("builder"));
+contentSearchDqlTabViewsBtn?.addEventListener("click", () => setContentSearchDqlTab("views"));
+contentSearchDqlBuilderAddBtn?.addEventListener("click", () => addContentSearchDqlBuilderRow());
+contentSearchDqlBuilderApplyBtn?.addEventListener("click", () => {
+  void buildDqlFromBuilderUi().catch((err) => showToast(String(err.message || err), "error"));
+});
+contentSearchDqlViewSaveBtn?.addEventListener("click", () => {
+  void saveContentSearchDqlView()
+    .then(() => showToast("DQL view сохранён", "success"))
+    .catch((err) => showToast(String(err.message || err), "error"));
+});
+contentSearchDqlViewLoadBtn?.addEventListener("click", loadSelectedContentSearchDqlView);
+contentSearchDqlViewDeleteBtn?.addEventListener("click", () => {
+  void deleteSelectedContentSearchDqlView()
+    .then(() => showToast("View удалён", "success"))
+    .catch((err) => showToast(String(err.message || err), "error"));
 });
 contentSearchScopeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();

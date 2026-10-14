@@ -261,9 +261,11 @@
 | Пресет | `registry-queries.yml` → `source: dql`, поле `dql:` → `run_workspace_registry_query` |
 | Preview | fenced `` ```awn-query `` `` / `` ```dataview `` `` → `dql-table.js` |
 
-**Синтаксис (v1):** `FROM path/prefix` · `WHERE` (AND/OR/скобки, `=`, `!=`, `CONTAINS`, сравнения, `field LAST N DAYS`) · `FLATTEN field` · `GROUP BY field COUNT|SUM|MIN|MAX` · `SORT f DESC, g ASC` · `LIMIT n` · `SELECT a, b`.
+**Синтаксис (v1):** `FROM path/prefix` · `WHERE` (AND/OR/скобки, `=`, `!=`, `CONTAINS`, сравнения, `field LAST N DAYS`) · `FLATTEN field` · `GROUP BY field COUNT|SUM|MIN|MAX` · `SORT f DESC, g ASC` · `LIMIT n` · `SELECT a, b` · **`WITH TEXT "…"`** (hybrid semantic+fulltext только по path из DQL).
 
-**Поля:** frontmatter + виртуальные `file.name`, `file.folder`, `file.mtime`, `file.size`, `file.inlink-count`, `file.outlinks` / `file.inlinks` (link-index, memory). Ответ: `mode: dql-query` или `dql-group`, `engine: sqlite|memory`.
+**Поля:** frontmatter + виртуальные `file.name`, `file.folder`, `file.mtime`, `file.size`, `file.inlink-count`, `file.outlinks` / `file.inlinks` (link-index, memory). Ответ: `dql-query` | `dql-group` | **`dql-hybrid`**, `engine: sqlite|memory`. **Raw SQL запрещён** (`sql` / `rawSql` → 500).
+
+**UI:** кнопка **DQL** → модалка **Текст / Конструктор / Views**; views в `.agent-cms/settings/dql-views.yml` (`GET|POST|DELETE /api/storage-index/dql-views`). Конструктор → `POST /api/storage-index/dql-build`. Preview: `@transform {"pick":["path","awn-name"]}` (без JS eval). Грамматика: `lib/indexes/storage-index/dql/GRAMMAR.md`.
 
 Пересборка: `rebuild_workspace_storage_index`. SQLite: `index-storage-sqlite-enabled` (default on).
 

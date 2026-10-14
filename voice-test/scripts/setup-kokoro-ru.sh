@@ -9,7 +9,7 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 
 .venv/bin/pip install -q onnxruntime soundfile numpy huggingface_hub \
-  ruaccent misaki phonemizer espeakng-loader
+  misaki phonemizer espeakng-loader
 
 echo "Скачивание zaakirio/kokoro-ru (ONNX + espeak-data + ru_g2p)…"
 .venv/bin/python -c "

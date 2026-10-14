@@ -8,6 +8,46 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RU_DIR = Path(os.environ.get("KOKORO_RU_DIR", ROOT / "models" / "kokoro-ru"))
 
+NORMALIZE = {
+    'u"': "u",
+    "ɭ": "l",
+    "ɵ": "o",
+    "ʑ": "ʒ",
+    "ʐ": "ʒ",
+    "ʧʲ": "ʧ",
+}
+
+
+def configure_espeak():
+    try:
+        import espeakng_loader
+
+        os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = espeakng_loader.get_library_path()
+        if hasattr(espeakng_loader, "get_data_path"):
+            os.environ.setdefault("PHONEMIZER_ESPEAK_PATH", espeakng_loader.get_data_path())
+    except ImportError:
+        pass
+
+
+def g2p_misaki_fallback(text: str, ru_root: Path, config_path: Path):
+    import json as json_mod
+    from phonemizer.backend.espeak.wrapper import EspeakWrapper
+    from misaki import espeak as misaki_espeak
+
+    espeak_data = ru_root / "espeak-data"
+    EspeakWrapper.set_data_path(str(espeak_data))
+    backend = misaki_espeak.EspeakG2P(language="ru")
+    ipa = backend(text)
+    if isinstance(ipa, tuple):
+        ipa = ipa[0]
+    ipa = str(ipa).replace(" ", "")
+    for old, new in NORMALIZE.items():
+        ipa = ipa.replace(old, new)
+    cfg = json_mod.loads(config_path.read_text(encoding="utf-8"))
+    vocab = set(cfg["vocab"])
+    oov = {c for c in ipa if c not in vocab}
+    return ipa, oov
+
 
 def main():
     try:
@@ -43,12 +83,7 @@ def main():
         print(json.dumps({"error": "Kokoro RU: npm run voice:test:kokoro-ru"}), file=sys.stderr)
         sys.exit(4)
 
-    sys.path.insert(0, str(ru_root))
-    try:
-        from ru_g2p import RuG2P
-    except ImportError as exc:
-        print(json.dumps({"error": f"ru_g2p: {exc}. Запустите voice:test:kokoro-ru"}), file=sys.stderr)
-        sys.exit(4)
+    configure_espeak()
 
     onnx_name = "model_dima.onnx" if voice == "dima" else "model.onnx"
     onnx_path = ru_root / "onnx" / onnx_name
@@ -64,8 +99,17 @@ def main():
             sys.exit(4)
 
     try:
-        g2p = RuG2P(espeak_data=espeak_data, vocab_path=config_path)
-        ipa, oov = g2p(text)
+        ipa = None
+        oov = set()
+        sys.path.insert(0, str(ru_root))
+        try:
+            from ru_g2p import RuG2P
+
+            g2p = RuG2P(espeak_data=espeak_data, vocab_path=config_path)
+            ipa, oov = g2p(text)
+        except Exception:
+            ipa, oov = g2p_misaki_fallback(text, ru_root, config_path)
+
         if oov:
             print(json.dumps({"error": f"Kokoro RU OOV symbols: {''.join(sorted(oov))}"}), file=sys.stderr)
             sys.exit(5)
