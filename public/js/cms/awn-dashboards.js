@@ -574,6 +574,61 @@
     await run();
   });
 
+  registerPresenter("dql-chart", async (shell, meta, agentId) => {
+    const wrap = document.createElement("div");
+    wrap.className = "awn-dashboard-dql-host";
+    shell.body.replaceChildren(wrap);
+
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "awn-dashboard-dql-refresh-btn";
+    refreshBtn.textContent = "↻";
+    refreshBtn.title = "Обновить DQL chart";
+    shell.foot.prepend(refreshBtn);
+
+    const { dql } = parseDqlWidgetSource(meta);
+    const chartType = String(meta.chartType || "bar").trim().toLowerCase() === "line" ? "line" : "bar";
+
+    let loadSeq = 0;
+    const run = async () => {
+      const seq = ++loadSeq;
+      wrap.innerHTML = `<p class="awn-dashboard-loading">DQL chart…</p>`;
+      refreshBtn.disabled = true;
+      try {
+        const response = await fetch(ctx.buildApiUrl("/api/storage-index/query", {}, agentId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dql, limit: meta.limit || 50 })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (seq !== loadSeq) return;
+        if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+        const rows = Array.isArray(data.results) ? data.results : [];
+        if (data.mode !== "dql-group" && !rows.some((r) => r.groupKey != null)) {
+          wrap.innerHTML = `<p class="awn-dashboard-dql-empty">Нужен DQL с GROUP BY … COUNT</p>`;
+          return;
+        }
+        const labels = rows.map((r) => String(r.groupKey ?? r.value ?? "—"));
+        const values = rows.map((r) => Number(r.count ?? r.value) || 0);
+        wrap.replaceChildren();
+        if (chartType === "line") renderLineChart(wrap, { labels, values });
+        else renderBarChart(wrap, { labels, values });
+      } catch (error) {
+        if (seq !== loadSeq) return;
+        wrap.innerHTML = `<p class="awn-dashboard-dql-empty is-error">${ctx.escapeHtml(error.message || "Ошибка")}</p>`;
+      } finally {
+        if (seq === loadSeq) refreshBtn.disabled = false;
+      }
+    };
+
+    refreshBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void run();
+    });
+    await run();
+  });
+
   registerPresenter("activity", async (shell, meta, agentId) => {
     const list = document.createElement("ul");
     list.className = "awn-dashboard-list";
@@ -692,7 +747,7 @@
         <div class="awn-dashboard-todo-plaque-block">
           <h4>Presenters (MVP)</h4>
           <ul>
-            <li>Готово: clock, calendar, stat, list, markdown, chart, activity, <strong>dql</strong>.</li>
+            <li>Готово: clock, calendar, stat, list, markdown, chart, activity, <strong>dql</strong>, <strong>dql-chart</strong>.</li>
             <li>Заглушки: kanban.</li>
             <li>Расширение: <code>AwnDashboards.registerPresenter(id, fn)</code>.</li>
           </ul>

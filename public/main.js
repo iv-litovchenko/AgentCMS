@@ -30332,6 +30332,7 @@ const contentSearchDqlViewsSelect = document.getElementById("content-search-dql-
 const contentSearchDqlViewNameInput = document.getElementById("content-search-dql-view-name");
 const contentSearchDqlViewSaveBtn = document.getElementById("content-search-dql-view-save");
 const contentSearchDqlViewLoadBtn = document.getElementById("content-search-dql-view-load");
+const contentSearchDqlViewParamFrom = document.getElementById("content-search-dql-view-param-from");
 const contentSearchDqlViewDeleteBtn = document.getElementById("content-search-dql-view-delete");
 
 function setContentSearchDqlTab(tab) {
@@ -30428,9 +30429,23 @@ async function saveContentSearchDqlView() {
   if (contentSearchDqlViewNameInput) contentSearchDqlViewNameInput.value = data.view?.name || name;
 }
 
+function applyDqlViewParamsClient(dql, params = {}) {
+  let out = String(dql || "");
+  for (const [key, rawValue] of Object.entries(params)) {
+    if (rawValue == null || rawValue === "") continue;
+    const value = String(rawValue);
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\$${escaped}\\b`, "g"), value);
+    out = out.replace(new RegExp(`\\{\\{\\s*${escaped}\\s*\\}\\}`, "g"), value);
+  }
+  return out.trim();
+}
+
 function loadSelectedContentSearchDqlView() {
   const opt = contentSearchDqlViewsSelect?.selectedOptions?.[0];
-  const dql = opt?.dataset?.dql || "";
+  let dql = opt?.dataset?.dql || "";
+  const fromParam = contentSearchDqlViewParamFrom?.value?.trim() || "";
+  if (fromParam) dql = applyDqlViewParamsClient(dql, { from: fromParam });
   if (!dql || !contentSearchDqlInputNode) return;
   contentSearchDqlInputNode.value = dql;
   saveContentSearchDqlDraft(dql);

@@ -8094,6 +8094,9 @@ awn-type: awn.page.ws
         </div>
         <div id="content-search-dql-panel-views" class="content-search-dql-panel hidden">
           <select id="content-search-dql-views-select" class="content-search-dql-field-input" aria-label="Сохранённые views"></select>
+          <label class="content-search-dql-label">Параметр $from (для view)
+            <input id="content-search-dql-view-param-from" type="text" class="content-search-dql-field-input" placeholder="awn-databases/…" />
+          </label>
           <div class="content-search-dql-views-actions">
             <input id="content-search-dql-view-name" type="text" class="content-search-dql-field-input" placeholder="Имя view" />
             <button type="button" id="content-search-dql-view-save" class="content-search-advanced-btn">Сохранить</button>
@@ -8662,7 +8665,7 @@ awn-type: awn.page.ws
     <script src="/js/core/node-config-bundle.js?v=1"></script>
     <script src="/js/core/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/js/cms/awn-dashboards.js?v=7"></script>
+    <script src="/js/cms/awn-dashboards.js?v=8"></script>
     <script src="/js/core/platform-status.js"></script>
     <script src="/js/editor/marker-blocks-preview.js?v=11"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>

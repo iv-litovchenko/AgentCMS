@@ -158,6 +158,10 @@ LIMIT 50
 - [x] **csv-files** — индекс всех `{id}.csv` в csv-files коллекциях
 - [x] **Экспорт** — `POST query` + `format: csv|json`; кнопка **CSV ↓** в модалке DQL
 - [x] **Конструктор** — фильтр `source_kind` (md / csv-row)
+- [x] **Link counts в SQLite** — `inlink_count` / `outlink_count`; WHERE/SORT по `file.inlink-count` без full memory
+- [x] **Views `$from`** — `applyDqlParams` + поле в UI Views
+- [x] **Hybrid CSV** — `WITH TEXT` ищет по ячейкам csv-row (`csv-cell`)
+- [x] **dql-chart** — виджет `awn-dashboard-present: dql-chart` + GROUP BY
 
 ---
 
