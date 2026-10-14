@@ -4,7 +4,7 @@ kind: block
 group: misc
 sort: 41
 icon: "📊"
-description: Алиас fence-tag dataview → тот же DQL-lite рендер
+description: Алиас Obsidian — ```dataview (не awn-dataview), тот же рендер что awn-query
 render: fence
 fence-tag: dataview
 renderer: awn-system/renderers/dql-table.js

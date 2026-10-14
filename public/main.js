@@ -96776,13 +96776,14 @@ function getMarkdownIt() {
     }
     const fenceBlock = getAwnFenceRenderer(language);
     if (fenceBlock) {
+      const isDqlFence = String(fenceBlock.renderer || "").includes("dql-table");
       // Экранируем в <template> — читаем обратно через .content.textContent.
       const escaped = String(token.content)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
       return (
-        `<div class="awn-fence-block" data-awn-fence="${language}"` +
+        `<div class="awn-fence-block${isDqlFence ? " awn-fence-block--dql" : ""}" data-awn-fence="${language}"` +
         (fenceBlock.renderer ? ` data-awn-renderer="${fenceBlock.renderer}"` : "") +
         (fenceBlock.id ? ` data-awn-block="${fenceBlock.id}"` : "") +
         `><template class="awn-fence-src">${escaped}</template>` +

@@ -1,10 +1,14 @@
 /**
- * Fence ```awn-query / ```dataview — DQL-lite + optional @transform JSON (no eval).
+ * Fence ```awn-query / ```dataview / ```awn-dataview — DQL-lite + optional @transform JSON (no eval).
  */
 export async function render(target, source, ctx) {
+  const fenceTag = String(ctx?.fenceTag || "dql").trim() || "dql";
+  const root = target.closest(".awn-fence-block");
+  root?.classList.add("awn-fence-block--dql");
+
   const { dql, transform } = parseDqlBlockSource(source);
   if (!dql) {
-    target.innerHTML = '<p class="awn-dql-empty">Пустой DQL-запрос</p>';
+    mountDqlBlock(target, fenceTag, dql, `<p class="awn-dql-empty">Пустой DQL-запрос</p>`);
     return;
   }
 
@@ -21,7 +25,7 @@ export async function render(target, source, ctx) {
 
   if (data.mode === "dql-hybrid" && Array.isArray(data.hybrid?.hits)) {
     const hits = data.hybrid.hits;
-    target.innerHTML = `<table class="awn-dql-table"><thead><tr><th>path</th><th>snippet</th><th>src</th></tr></thead><tbody>${hits
+    const table = `<table class="awn-dql-table"><thead><tr><th>path</th><th>snippet</th><th>src</th></tr></thead><tbody>${hits
       .map(
         (h) =>
           `<tr><td>${esc(h.path)}</td><td>${esc(h.snippet || "")}</td><td>${esc(
@@ -29,6 +33,7 @@ export async function render(target, source, ctx) {
           )}</td></tr>`
       )
       .join("")}</tbody></table><p class="awn-dql-meta">dql-hybrid · filters ${data.total} · hits ${hits.length}</p>`;
+    mountDqlBlock(target, fenceTag, dql, table);
     return;
   }
 
@@ -36,17 +41,27 @@ export async function render(target, source, ctx) {
   rows = applyClientTransform(rows, transform);
 
   if (!rows.length) {
-    target.innerHTML = `<p class="awn-dql-empty">Нет строк (total ${data.total ?? 0})</p>`;
+    mountDqlBlock(
+      target,
+      fenceTag,
+      dql,
+      `<p class="awn-dql-empty">Нет строк (total ${data.total ?? 0})</p>
+       <p class="awn-dql-empty-hint">Проверьте FROM/WHERE, пересоберите storage-index в меню workspace или ослабьте фильтры.</p>`
+    );
     return;
   }
 
   if (data.mode === "dql-group") {
-    const head = ["group", "value", "count"];
     const body = rows.map(
       (r) =>
         `<tr><td>${esc(r.groupKey)}</td><td>${esc(r.value)}</td><td>${esc(r.count)}</td></tr>`
     );
-    target.innerHTML = `<table class="awn-dql-table"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body.join("")}</tbody></table>`;
+    mountDqlBlock(
+      target,
+      fenceTag,
+      dql,
+      `<table class="awn-dql-table"><thead><tr><th>group</th><th>value</th><th>count</th></tr></thead><tbody>${body.join("")}</tbody></table>`
+    );
     return;
   }
 
@@ -70,12 +85,54 @@ export async function render(target, source, ctx) {
     })
     .join("");
 
-  target.innerHTML = `<table class="awn-dql-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table><p class="awn-dql-meta">${esc(
-    data.engine || ""
-  )} · total ${data.total ?? rows.length}</p>`;
+  mountDqlBlock(
+    target,
+    fenceTag,
+    dql,
+    `<table class="awn-dql-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table><p class="awn-dql-meta">${esc(
+      data.engine || ""
+    )} · total ${data.total ?? rows.length}</p>`
+  );
 }
 
 export default render;
+
+function mountDqlBlock(target, fenceTag, dql, bodyHtml) {
+  const tagLabel = fenceTagLabel(fenceTag);
+  const query = String(dql || "").trim();
+  const queryPreview = query
+    ? query
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("@transform"))
+        .slice(0, 3)
+        .join(" · ")
+    : "—";
+
+  target.innerHTML = `
+    <div class="awn-dql-block" role="region" aria-label="DQL ${esc(fenceTag)}">
+      <header class="awn-dql-block-head">
+        <span class="awn-dql-block-badge">DQL-lite</span>
+        <code class="awn-dql-block-tag">\`\`\`${esc(fenceTag)}</code>
+        <span class="awn-dql-block-kind">${esc(tagLabel)}</span>
+      </header>
+      ${
+        query
+          ? `<details class="awn-dql-block-query"><summary class="awn-dql-block-query-summary">${esc(
+              queryPreview
+            )}</summary><pre class="awn-dql-block-query-pre">${esc(query)}</pre></details>`
+          : ""
+      }
+      <div class="awn-dql-block-body">${bodyHtml}</div>
+    </div>`;
+}
+
+function fenceTagLabel(fenceTag) {
+  if (fenceTag === "dataview") return "алиас Obsidian Dataview";
+  if (fenceTag === "awn-dataview") return "алиас CMS (Obsidian-совместимый)";
+  if (fenceTag === "awn-query") return "нативный блок CMS";
+  return "запрос к storage-index";
+}
 
 function parseDqlBlockSource(source) {
   const lines = String(source || "").split(/\r?\n/);

@@ -38,8 +38,8 @@ awn-note-todo-sticker: ""
 awn-preview: ""
 awn-priority: ""
 awn-web-url: ""
-awn-update: 2026-10-14T20:06:57.568Z
-awn-version: 3
+awn-update: 2026-10-14T20:12:48.192Z
+awn-version: 5
 ---
 
 ```awn-query
@@ -55,3 +55,10 @@ FROM awn-container/finansy
 WHERE awn-type = "awn.content.record"
 LIMIT 30
 ```
+
+```awn-dataview
+FROM .
+WHERE awn-type = "awn.content.page"
+LIMIT 20
+```
+

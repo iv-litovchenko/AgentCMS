@@ -73087,6 +73087,131 @@ body.is-cms-page-picker-active #discuss-aside * {
   cursor: wait;
 }
 
+/* DQL fence blocks in markdown preview */
+.awn-fence-block--dql {
+  margin: 12px 0;
+  border-radius: 12px;
+  border: 1px solid #c7d2fe;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.08);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.awn-fence-block--dql > .awn-fence-target {
+  padding: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.awn-dql-block {
+  overflow: hidden;
+  border-radius: 11px;
+}
+
+.awn-dql-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #c7d2fe;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 11px 11px 0 0;
+}
+
+.awn-dql-block-body:last-child {
+  border-radius: 0 0 11px 11px;
+}
+
+.awn-dql-block-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #3730a3;
+  background: #e0e7ff;
+}
+
+.awn-dql-block-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4338ca;
+  background: transparent;
+}
+
+.awn-dql-block-kind {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.awn-dql-block-query {
+  margin: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.awn-dql-block-query-summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #475569;
+  list-style: none;
+}
+
+.awn-dql-block-query-summary::-webkit-details-marker {
+  display: none;
+}
+
+.awn-dql-block-query-pre {
+  margin: 0;
+  padding: 8px 12px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px dashed #cbd5e1;
+}
+
+.awn-dql-block-body {
+  padding: 10px 12px 12px;
+}
+
+.awn-dql-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.awn-dql-table th,
+.awn-dql-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.awn-dql-meta {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.awn-dql-empty {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.awn-dql-empty-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
 .awn-dashboard-widget-foot {
   display: flex;
   align-items: center;
