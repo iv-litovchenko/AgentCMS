@@ -129,3 +129,47 @@ LIMIT 50
 - Полный клон DataviewJS.
 - Замена `read_content` / CRUD placement.
 - PostgreSQL / внешняя БД вместо файлов workspace.
+
+---
+
+## CSV в тот же «SQL-слой» — мнение (фаза 6, черновик)
+
+**Сейчас:** DQL-lite видит только **storage-index** = каталог **frontmatter `.md`** (path + поля YAML). CSV-коллекции (`csv`, `csv-files`) живут в **awn-databases**, UI и CRUD знают их отдельно; в `catalog.sqlite` строк CSV **нет**.
+
+**Зачем тащить CSV в слой:** один язык запросов для дашбордов, MCP и блоков — «расходы из finansy» и «строки main.csv» в одном DQL; GROUP BY / SORT без ручного парсинга в виджетах.
+
+**Не делать:** не превращать DQL в «SELECT по произвольному CSV на диске» без схемы; не дублировать Excel в SQLite целиком без инвалидации.
+
+**Рекомендуемая модель (по шагам):**
+
+| Шаг | Что | Смысл |
+|-----|-----|--------|
+| **6a** | **Виртуальный источник в DQL** | `FROM csv:awn-databases/finansy/rashody/main.csv` или `FROM collection:finansy/rashody` — строки = pseudo-records `path` вида `csv:…#row:12`, поля = колонки schema + системные (`awn-id`, …) |
+| **6b** | **Индексатор CSV → storage-index** (опционально) | При sync workspace: N строк → те же `records` + EAV в `catalog.sqlite`; инвалидация по mtime файла + hash |
+| **6c** | **UNION в одном запросе** | `FROM md:awn-container/…` + `FROM csv:…` или один `FROM` с auto-discover коллекций по manifest — позже |
+
+**Мнение:** начать с **6a (on-demand или lazy cache на запрос)** — меньше риска рассинхрона с редактором CSV; **6b** — когда нужны быстрые GROUP BY на больших таблицах и hybrid с `WITH TEXT` по ячейкам (отдельно). Парсер AST уже есть; добавить **источник (source)** в `FROM`, не ломая legacy `pathPrefix`.
+
+**Критерий готовности 6a:** DQL `FROM csv:…` возвращает те же shape `{ path, fields }`, что md; fence/дашборд без изменений рендера.
+
+- [x] **6a MVP** — `FROM csv:…/file.csv`, `FROM collection:…` (on-demand fallback) — `dql/csv-source.js`
+- [x] **6b** — CSV-строки в общем `index.json` + `catalog.sqlite` (`source_kind`, `csv_source_path`); `source_kind` / `file.type`; `FROM awn-databases/…` находит md **и** csv; пересборка storage-index
+
+---
+
+## Ещё идеи (кратко, backlog)
+
+| Идея | Зачем |
+|------|--------|
+| **`@transform` в DQL API** (server-side pick/limit) | Меньше трафика; сейчас только в fence/дашборде |
+| **Экспорт результата DQL → CSV/JSON** | Отчёты, выгрузка в каналы |
+| **Виджет chart из DQL GROUP BY** | `present: dql` + `awn-dashboard-present: chart` с `source: dql:` |
+| **Inline DQL** в preview (`= this.file`) | Как Dataview inline — отдельный парсер, не приоритет |
+| **Параметры view** `{ $from }` в saved views | Переиспользование views на разных папках |
+| **Link-index в SQLite** | `file.inlinks` без memory-only |
+| **Materialized view** | Cron пересчитывает тяжёлый DQL → `.agent-cms/cache/dql-views/…json` |
+| **Sandbox JS-блок** | Не DataviewJS; отдельный `awn-query-js` с whitelist API |
+| **Obsidian import** | Маппинг ```` ```dataview ```` → наш DQL + подсказки несовместимого синтаксиса |
+| **ACL / scope** | DQL только внутри `allowedPaths` workspace (как hybrid) |
+
+Приоритет после CSV-источника: **chart из GROUP BY**, **экспорт**, **link stats в SQLite**.

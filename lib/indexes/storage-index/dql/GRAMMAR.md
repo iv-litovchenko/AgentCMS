@@ -9,6 +9,7 @@ query     ::= clause*
 clause    ::= fromClause | whereClause | flattenClause | groupClause | sortClause
             | limitClause | selectClause | withTextClause
 fromClause    ::= "FROM" pathLiteral
+pathLiteral   ::= "csv:" workspacePath | "collection:" storeRel | mdPathPrefix
 whereClause   ::= "WHERE" orExpr
 flattenClause ::= "FLATTEN" field
 groupClause   ::= "GROUP" "BY" field agg?
