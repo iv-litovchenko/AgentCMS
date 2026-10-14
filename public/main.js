@@ -354,6 +354,12 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Входящий поток из WhatsApp"
   },
   {
+    slug: "instagram",
+    icon: "📷",
+    name: "Instagram",
+    hintTitle: "Посты, stories и DM из Instagram. Входящий поток из Instagram до triage"
+  },
+  {
     slug: "web",
     icon: "🌐",
     name: "Интернет",
@@ -372,10 +378,52 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Файлы из загрузок браузера"
   },
   {
+    slug: "rss",
+    icon: "📡",
+    name: "RSS / ленты",
+    hintTitle: "RSS и Atom-ленты, подписки и новые элементы фидов до triage"
+  },
+  {
+    slug: "mailbox",
+    icon: "📧",
+    name: "Почта",
+    hintTitle: "Входящая почта: письма, вложения и уведомления до triage"
+  },
+  {
+    slug: "webhook",
+    icon: "🔗",
+    name: "Webhook",
+    hintTitle: "HTTP webhook и автоматизации (n8n, Zapier, CI, API callbacks) — события в ingress"
+  },
+  {
+    slug: "cloud-inbox",
+    icon: "☁️",
+    name: "Облачный inbox",
+    hintTitle: "Файлы и события из облака: Google Drive, Dropbox, OneDrive и аналоги"
+  },
+  {
     slug: "notebooks",
     icon: "📓",
-    name: "Печатные тетради",
-    hintTitle: "Скан и фото тетрадей, рукописные заметки"
+    name: "Печатные тетради и рукописи",
+    hintTitle: "Скан и фото тетрадей, блокнотов и рукописных записей до triage"
+  },
+  {
+    slug: "ocr",
+    icon: "🔍",
+    name: "OCR",
+    hintTitle: "Сканы и фото документов, распознавание текста до triage"
+  },
+  {
+    slug: "voice",
+    icon: "🎙️",
+    name: "Голос",
+    hintTitle: "STT, аудиозаписи и расшифровки до разбора"
+  },
+  {
+    slug: "clipboard",
+    icon: "📋",
+    name: "Буфер обмена",
+    hintTitle: "Содержимое буфера обмена и быстрые вставки до triage"
   },
   {
     slug: "photo-archive",
@@ -390,6 +438,12 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Фото с телефона до разбора"
   },
   {
+    slug: "news",
+    icon: "📰",
+    name: "Новости",
+    hintTitle: "Новостные ленты, статьи и публикации СМИ до triage"
+  },
+  {
     slug: "analytics",
     icon: "📊",
     name: "Аналитика",
@@ -402,6 +456,13 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Объекты и факты из офлайн-мира"
   },
   {
+    slug: "capabilities",
+    icon: "💡",
+    name: "Поиск фишек для ИИ",
+    hintTitle:
+      "Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage"
+  },
+  {
     slug: "market",
     icon: "🛒",
     name: "Барахолка",
@@ -412,6 +473,42 @@ const CHANNEL_BUILTIN_PRESETS = [
     icon: "📢",
     name: "Объявления",
     hintTitle: "Объявления и информационные публикации"
+  },
+  {
+    slug: "github",
+    icon: "🐙",
+    name: "GitHub",
+    hintTitle: "Issues, pull requests, discussions, Actions и прочие события репозитория"
+  },
+  {
+    slug: "gitlab",
+    icon: "🦊",
+    name: "GitLab",
+    hintTitle: "Merge requests, issues, pipelines и активность проекта в GitLab"
+  },
+  {
+    slug: "bitbucket",
+    icon: "🪣",
+    name: "Bitbucket",
+    hintTitle: "Pull requests, issues и события репозиториев Atlassian Bitbucket"
+  },
+  {
+    slug: "gitea",
+    icon: "🍵",
+    name: "Gitea / Forgejo",
+    hintTitle: "Self-hosted Git: issues и PR из Gitea, Forgejo и совместимых forge"
+  },
+  {
+    slug: "jira",
+    icon: "📋",
+    name: "Jira",
+    hintTitle: "Задачи, спринты, комментарии и изменения статусов из Jira"
+  },
+  {
+    slug: "sentry",
+    icon: "🐛",
+    name: "Sentry",
+    hintTitle: "Ошибки, алерты и события мониторинга из Sentry"
   },
   {
     slug: "notes",
@@ -435,6 +532,11 @@ const CHANNEL_BUILTIN_PRESETS = [
 /** Базовые группы каталога — синхронны с lib/config/channel-presets.js (CHANNEL_BUILTIN_PRESET_GROUPS) */
 const CHANNEL_BUILTIN_PRESET_GROUPS = [
   {
+    id: "agent-capabilities",
+    title: "Агент",
+    slugs: ["capabilities"]
+  },
+  {
     id: "content-modes",
     title: "Режимы контента",
     slugs: ["forum", "blog", "digest"]
@@ -442,27 +544,37 @@ const CHANNEL_BUILTIN_PRESET_GROUPS = [
   {
     id: "messengers-video",
     title: "Мессенджеры и видео",
-    slugs: ["telegram", "whatsapp", "youtube"]
+    slugs: ["youtube", "telegram", "whatsapp", "instagram"]
   },
   {
     id: "web-links-files",
     title: "Веб, ссылки, файлы",
-    slugs: ["web", "bookmarks", "downloads"]
+    slugs: ["web", "bookmarks", "downloads", "rss"]
+  },
+  {
+    id: "mail-automation",
+    title: "Почта и автоматизация",
+    slugs: ["mailbox", "webhook", "cloud-inbox"]
   },
   {
     id: "media-digitization",
     title: "Медиа и оцифровка",
-    slugs: ["screenshots", "photo-archive", "photo-phone", "notebooks"]
+    slugs: ["screenshots", "photo-archive", "photo-phone", "notebooks", "ocr", "voice", "clipboard"]
   },
   {
     id: "news-context",
     title: "Новости и контекст",
-    slugs: ["analytics", "real-world"]
+    slugs: ["news", "analytics", "real-world"]
   },
   {
     id: "publications",
     title: "Публикации и рынок",
     slugs: ["announcements", "market"]
+  },
+  {
+    id: "development",
+    title: "Разработка",
+    slugs: ["github", "gitlab", "bitbucket", "gitea", "jira", "sentry"]
   },
   {
     id: "drafts",
@@ -471,6 +583,7 @@ const CHANNEL_BUILTIN_PRESET_GROUPS = [
   }
 ];
 const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
+const CHANNEL_CUSTOM_ICON_KEY = "_custom";
 
 function groupChannelBuiltinPresets(presets) {
   const list = Array.isArray(presets) ? presets : CHANNEL_BUILTIN_PRESETS;
@@ -493,26 +606,73 @@ function groupChannelBuiltinPresets(presets) {
 }
 
 function getChannelPresetIconSvgMarkup(slug) {
-  const key = String(slug || "").trim();
-  if (!key) return "";
   const map = typeof CHANNEL_PRESET_ICON_SVG !== "undefined" ? CHANNEL_PRESET_ICON_SVG : null;
-  return String(map?.[key] || "").trim();
+  if (!map) return "";
+  const key = String(slug || "").trim();
+  if (key && map[key]) return String(map[key]).trim();
+  return String(map[CHANNEL_CUSTOM_ICON_KEY] || "").trim();
 }
 
-function populateChannelPresetIcon(container, slug, emojiFallback = "📡") {
-  const markup = getChannelPresetIconSvgMarkup(slug);
+function resolveChannelBuiltinPreset(slug) {
+  const key = String(slug || "").trim();
+  if (!key) return null;
+  return CHANNEL_BUILTIN_PRESETS.find((entry) => entry.slug === key) || null;
+}
+
+function populateChannelPresetIcon(container, slug, emojiFallback = "📡", { size = 14 } = {}) {
+  const key = String(slug || "").trim();
+  const markup = getChannelPresetIconSvgMarkup(key || CHANNEL_CUSTOM_ICON_KEY);
   if (!markup) return false;
   container.replaceChildren();
   container.insertAdjacentHTML("beforeend", markup);
   const svg = container.querySelector("svg");
+  const px = Math.max(10, Number(size) || 14);
   if (svg) {
-    svg.setAttribute("width", "14");
-    svg.setAttribute("height", "14");
+    svg.setAttribute("width", String(px));
+    svg.setAttribute("height", String(px));
     svg.setAttribute("aria-hidden", "true");
     svg.classList.add("awn-channel-preset-icon-svg");
   }
   container.classList.add("awn-channel-preset-icon", "awn-channel-preset-icon--svg");
+  container.classList.remove("awn-channel-preset-icon--emoji");
   return true;
+}
+
+function syncAwnChannelWorkspaceHeroIcon(block, { manifestPath, hubWorkspaceKind = "media" } = {}) {
+  if (!block) return;
+  const cardHead = block.querySelector(".awn-databases-view-iblock-card-head");
+  if (!cardHead) return;
+  const isChannelHub =
+    hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(manifestPath);
+  let iconWrap = cardHead.querySelector(".awn-channel-workspace-hero-icon-wrap");
+  if (!isChannelHub) {
+    iconWrap?.remove();
+    block.classList.remove("has-awn-channel-hero-icon");
+    return;
+  }
+  const slug = getAwnChannelSlugFromWorkspacePath(manifestPath);
+  const preset = resolveChannelBuiltinPreset(slug);
+  const emoji = preset?.icon || "📡";
+  if (!iconWrap) {
+    iconWrap = document.createElement("div");
+    iconWrap.className = "awn-channel-workspace-hero-icon-wrap";
+    iconWrap.setAttribute("aria-hidden", "true");
+    const iconInner = document.createElement("span");
+    iconInner.className = "awn-channel-workspace-hero-icon";
+    iconWrap.appendChild(iconInner);
+    cardHead.insertBefore(iconWrap, cardHead.firstChild);
+  }
+  const iconInner = iconWrap.querySelector(".awn-channel-workspace-hero-icon");
+  if (!iconInner) return;
+  iconInner.classList.remove("awn-channel-preset-icon--emoji");
+  if (!populateChannelPresetIcon(iconInner, slug, emoji, { size: 28 })) {
+    populateChannelPresetIcon(iconInner, CHANNEL_CUSTOM_ICON_KEY, emoji, { size: 28 });
+  }
+  iconInner.classList.remove("awn-channel-preset-icon--emoji");
+  if (preset?.name || slug) {
+    iconWrap.title = preset?.name || slug;
+  }
+  block.classList.add("has-awn-channel-hero-icon");
 }
 
 function createMenuAwnChannelsGroupDivider(title, { first = false } = {}) {
@@ -6392,6 +6552,7 @@ function populateMediaLibraryWorkspaceIblockCard(block, {
   if (!block) return;
 
   const isChannelHub = hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(manifestPath);
+  syncAwnChannelWorkspaceHeroIcon(block, { manifestPath, hubWorkspaceKind });
   const displayTitle = String(title || (isChannelHub ? "Канал" : "Медиатека")).trim();
   const titleNode = block.querySelector(".awn-databases-view-title");
   if (titleNode) titleNode.textContent = displayTitle;
@@ -118065,6 +118226,13 @@ function getAwnChannelPresetHint(entry) {
   return String(entry?.hintTitle || entry?.description || "").trim();
 }
 
+function formatChannelPresetHintForList(hint, maxLen = 100) {
+  const text = String(hint || "").trim();
+  if (!text) return "";
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, Math.max(0, maxLen - 1)).trim()}…`;
+}
+
 function resolveMenuAwnChannelAwnId(entry) {
   const raw = entry?.awnId || entry?.["awn-id"] || "";
   return normalizeAwnIdDisplayValue(raw);
@@ -118085,27 +118253,47 @@ function menuAwnChannelEntrySearchHaystack(entry) {
 }
 
 function resolveMenuAwnChannelPresets(payload) {
-  const fromApi = Array.isArray(payload?.presets) ? payload.presets : null;
-  if (fromApi?.length) return fromApi;
+  const apiPresets = Array.isArray(payload?.presets) ? payload.presets : [];
+  const apiPresetBySlug = new Map(
+    apiPresets
+      .map((entry) => [String(entry?.slug || "").trim(), entry])
+      .filter(([slug]) => slug)
+  );
   const channels = Array.isArray(payload?.channels) ? payload.channels : [];
   const unregistered = Array.isArray(payload?.unregistered) ? payload.unregistered : [];
   const channelBySlug = new Map(channels.map((entry) => [entry.slug, entry]));
   const unregisteredBySlug = new Map(unregistered.map((entry) => [entry.slug, entry]));
   return CHANNEL_BUILTIN_PRESETS.map((preset) => {
-    const registered = channelBySlug.get(preset.slug);
-    if (registered) return { ...registered, ...preset, builtin: true, preset: true, registered: true };
-    const loose = unregisteredBySlug.get(preset.slug);
-    if (loose) return { ...loose, ...preset, builtin: true, preset: true, registered: false };
-    const folderPath = `awn-channels/${preset.slug}`;
+    const slug = preset.slug;
+    const fromApi = apiPresetBySlug.get(slug);
+    const registeredChannel = channelBySlug.get(slug);
+    if (registeredChannel) {
+      return { ...fromApi, ...registeredChannel, ...preset, builtin: true, preset: true, registered: true };
+    }
+    if (fromApi?.registered === true) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: true, stub: false };
+    }
+    const loose = unregisteredBySlug.get(slug);
+    if (loose) {
+      return { ...fromApi, ...loose, ...preset, builtin: true, preset: true, registered: false };
+    }
+    if (fromApi && fromApi.registered === false && !fromApi.stub) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: false, stub: false };
+    }
+    const folderPath = fromApi?.folderPath || `awn-channels/${slug}`;
     return {
+      ...fromApi,
       ...preset,
       folderPath,
-      manifestPath: `${folderPath}/manifest.md`,
+      manifestPath: fromApi?.manifestPath || `${folderPath}/manifest.md`,
       builtin: true,
       preset: true,
       registered: false,
       stub: true,
-      description: "Заготовка — создайте канал по клику"
+      description:
+        fromApi?.description && !fromApi?.stub
+          ? fromApi.description
+          : "Заготовка — создайте канал по клику"
     };
   });
 }
@@ -118141,7 +118329,14 @@ function createMenuAwnChannelKindNode(channelLike = "📡") {
   wrap.setAttribute("aria-hidden", "true");
   const iconNode = document.createElement("span");
   iconNode.className = "menu-awn-databases-store-kind menu-awn-databases-store-kind--channel";
-  if (!populateChannelPresetIcon(iconNode, slug, emoji)) {
+  const isBuiltinPreset = Boolean(slug && CHANNEL_BUILTIN_SLUGS.has(slug));
+  if (!isBuiltinPreset) {
+    iconNode.classList.add("menu-awn-databases-store-kind--channel-custom");
+  }
+  if (
+    !populateChannelPresetIcon(iconNode, slug, emoji, { size: 15 }) &&
+    !populateChannelPresetIcon(iconNode, CHANNEL_CUSTOM_ICON_KEY, emoji, { size: 15 })
+  ) {
     iconNode.textContent = emoji;
     iconNode.classList.add("awn-channel-preset-icon--emoji");
   }
@@ -118160,6 +118355,9 @@ function createMenuAwnChannelRow(channel) {
   row.className = "menu-awn-databases-store menu-awn-channels-item";
   if (isPreset) row.classList.add("menu-awn-channels-item--preset");
   if (isPendingCreate) row.classList.add("menu-awn-channels-item--pending");
+  if (slug && !CHANNEL_BUILTIN_SLUGS.has(slug)) {
+    row.classList.add("menu-awn-channels-item--custom");
+  }
   row.dataset.awnChannelSlug = slug;
   row.dataset.awnChannelLabel = displayName;
   row.dataset.awnChannelFolderPath = folderPath;
@@ -118554,32 +118752,40 @@ function renderAwnChannelsCreateModalPresets() {
       btn.setAttribute("role", "option");
       btn.setAttribute("aria-selected", "false");
       const hint = getAwnChannelPresetHint(preset);
+      const hintList = formatChannelPresetHintForList(hint, 72);
       btn.title = hint ? `${label} — ${hint}` : label;
+      btn.setAttribute(
+        "aria-label",
+        hint ? `${label}, ${preset.slug}. ${hint}` : `${label}, ${preset.slug}`
+      );
       const iconSpan = document.createElement("span");
       iconSpan.className = "awn-channels-create-preset-btn-icon";
-      if (!populateChannelPresetIcon(iconSpan, preset.slug, preset.icon || "📡")) {
+      if (!populateChannelPresetIcon(iconSpan, preset.slug, preset.icon || "📡", { size: 16 })) {
         iconSpan.textContent = preset.icon || "📡";
         iconSpan.classList.add("awn-channel-preset-icon--emoji");
       }
       iconSpan.setAttribute("aria-hidden", "true");
-      const textWrap = document.createElement("span");
-      textWrap.className = "awn-channels-create-preset-btn-text";
+      const bodyNode = document.createElement("span");
+      bodyNode.className = "awn-channels-create-preset-btn-body";
+      const titleRow = document.createElement("span");
+      titleRow.className = "awn-channels-create-preset-btn-title-row";
       const nameSpan = document.createElement("span");
       nameSpan.className = "awn-channels-create-preset-btn-name";
       nameSpan.textContent = label;
-      textWrap.appendChild(nameSpan);
-      if (hint) {
-        const hintSpan = document.createElement("span");
-        hintSpan.className = "awn-channels-create-preset-btn-hint";
-        hintSpan.textContent = ` (${hint})`;
-        textWrap.appendChild(hintSpan);
-      }
       const slugSpan = document.createElement("span");
       slugSpan.className = "awn-channels-create-preset-btn-slug";
       slugSpan.textContent = preset.slug;
       slugSpan.title = `ключ: ${preset.slug}`;
       slugSpan.setAttribute("aria-hidden", "true");
-      btn.append(iconSpan, textWrap, slugSpan);
+      titleRow.append(nameSpan, slugSpan);
+      bodyNode.appendChild(titleRow);
+      if (hintList) {
+        const hintSpan = document.createElement("span");
+        hintSpan.className = "awn-channels-create-preset-btn-hint";
+        hintSpan.textContent = hintList;
+        bodyNode.appendChild(hintSpan);
+      }
+      btn.append(iconSpan, bodyNode);
       btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
       awnChannelsCreatePresetsNode.appendChild(btn);
     }

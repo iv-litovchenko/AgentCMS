@@ -71231,12 +71231,12 @@ body.is-cms-page-picker-active #discuss-aside * {
 .awn-channels-create-presets {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  max-height: 16rem;
+  gap: 4px;
+  max-height: 18rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: 0;
-  padding: 0.15rem 0.1rem 0.2rem;
+  padding: 0.35rem 0.4rem;
   border: 1px solid rgba(252, 165, 165, 0.35);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.45);
@@ -71254,17 +71254,18 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-channels-create-preset-btn {
   display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 0.3rem 0.4rem;
-  min-height: 1.85rem;
-  height: auto;
+  padding: 0.45rem 0.55rem;
+  min-height: 2.85rem;
+  max-height: 2.85rem;
+  overflow: hidden;
   text-align: left;
-  white-space: normal;
-  line-height: 1.3;
+  line-height: 1.35;
   font: inherit;
   font-size: 0.6875rem;
   border: 1px solid rgba(248, 113, 113, 0.32);
@@ -71280,15 +71281,33 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-channels-create-preset-btn-icon {
-  flex: 0 0 auto;
+  flex: 0 0 18px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-top: 0.1rem;
+  width: 18px;
+  height: 18px;
+  margin-top: 0;
   color: #b91c1c;
+}
+
+.awn-channels-create-preset-btn-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.18rem;
+}
+
+.awn-channels-create-preset-btn-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .awn-channel-preset-icon--svg,
@@ -71316,28 +71335,45 @@ body.is-cms-page-picker-active #discuss-aside * {
   line-height: 1;
 }
 
-.awn-channels-create-preset-btn-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: block;
+.menu-awn-channels-band-body .menu-awn-databases-store-kind.menu-awn-databases-store-kind--channel.awn-channel-preset-icon--svg {
+  color: #b91c1c;
+}
+
+.menu-awn-channels-band-body
+  .menu-awn-databases-store-kind.menu-awn-databases-store-kind--channel-custom.awn-channel-preset-icon--svg {
+  color: #9f1239;
+  opacity: 0.92;
+}
+
+.menu-awn-channels-band-body .menu-awn-databases-store-kind .awn-channel-preset-icon-svg {
+  stroke-width: 2.15;
 }
 
 .awn-channels-create-preset-btn-name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 600;
   color: #7f1d1d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .awn-channels-create-preset-btn-hint {
+  min-width: 0;
   font-weight: 400;
+  font-size: 0.625rem;
+  line-height: 1.35;
   color: #9f1239;
   opacity: 0.88;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .awn-channels-create-preset-btn-slug {
   flex: 0 0 auto;
-  align-self: flex-start;
-  margin-top: 0.05rem;
-  max-width: 6.5rem;
+  max-width: 7rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -75312,6 +75348,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   max-width: 28rem;
 }
 
+.awn-channels-create-modal-card {
+  width: min(36rem, calc(100vw - 2rem));
+  max-width: min(36rem, calc(100vw - 2rem));
+}
+
 .awn-databases-modal-card .slug-field-row {
   margin-bottom: 10px;
 }
@@ -75655,6 +75696,43 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #0e7490;
   background: #ecfeff;
   border: 1px solid #a5f3fc;
+}
+
+.awn-channel-workspace-hero-icon-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #fff5f5 0%, #fee2e2 55%, #fecaca 100%);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  box-shadow:
+    0 1px 2px rgba(185, 28, 28, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  color: #b91c1c;
+}
+
+.awn-channel-workspace-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  line-height: 1;
+}
+
+.awn-channel-workspace-hero-icon.awn-channel-preset-icon--emoji {
+  font-size: 1.5rem;
+}
+
+.awn-channel-workspace-hero-icon .awn-channel-preset-icon-svg {
+  display: block;
+}
+
+.has-awn-channel-hero-icon .awn-databases-view-description-card-head {
+  background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 42%, #f8fafc 100%);
 }
 
 .is-awn-channel-workspace-hub .media-library-workspace-iblock-block .awn-databases-view-kind-badge.is-awn-channel,

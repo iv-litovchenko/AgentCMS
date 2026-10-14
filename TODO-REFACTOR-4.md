@@ -35,44 +35,51 @@
 
 ```
 Заготовки каналов (sidebar menu-awn-channels-list)
+├── Агент
+│   └── ✅ 💡 capabilities — поиск фишек для ИИ (скиллы, MCP…)
 ├── Режимы контента
 │   ├── ✅ 💬 forum — Форум · дискуссии и идеи
 │   ├── ✅ 📝 blog — Блог · посты по запросам, расписание
 │   └── ✅ 📰 digest — Дайджесты · сводки агентом
 ├── Мессенджеры и видео
+│   ├── ✅ ▶️ youtube — YouTube
 │   ├── ✅ ✈️ telegram — Telegram · ingress из Telegram
 │   ├── ✅ 💬 whatsapp — WhatsApp
-│   └── ✅ ▶️ youtube — YouTube
+│   └── ✅ 📷 instagram — Instagram
 ├── Веб, ссылки, файлы
 │   ├── ✅ 🌐 web — Интернет
 │   ├── ✅ 🔖 bookmarks — Закладки · до triage
 │   ├── ✅ 📥 downloads — Загрузки браузера
-│   ├── ❌ 📡 rss — RSS / ленты
+│   ├── ✅ 📡 rss — RSS / ленты
 │   └── ❌ 🧩 companion — расширение / companion-app
 ├── Почта и автоматизация
-│   ├── ❌ 📧 mailbox — входящая почта
-│   ├── ❌ 🔗 webhook — API, n8n
-│   └── ❌ ☁️ cloud-inbox — Drive, Dropbox…
+│   ├── ✅ 📧 mailbox — входящая почта
+│   ├── ✅ 🔗 webhook — API, n8n
+│   └── ✅ ☁️ cloud-inbox — Drive, Dropbox…
 ├── Медиа и оцифровка
 │   ├── ✅ 🖥️ screenshots — Скриншоты
 │   ├── ✅ 🖼️ photo-archive — Фотоархив
 │   ├── ✅ 📱 photo-phone — Фото (телефон)
-│   ├── ✅ 📓 notebooks — Печатные тетради
+│   ├── ✅ 📓 notebooks — Печатные тетради и рукописи
 │   ├── ❌ 📄 notebook-white — белая тетрадь (нумерация)
 │   ├── ❌ 🩷 notebook-pink — розовый блокнот
-│   ├── ❌ 🔍 ocr — сканы, распознавание
-│   ├── ❌ 🎙️ voice — STT, записи
-│   └── ❌ 📋 clipboard — буфер обмена
+│   ├── ✅ 🔍 ocr — сканы, распознавание
+│   ├── ✅ 🎙️ voice — STT, записи
+│   └── ✅ 📋 clipboard — буфер обмена
 ├── Новости и контекст
-│   ├── ❌ 📰 news — ленты, статьи
+│   ├── ✅ 📰 news — ленты, статьи
 │   ├── ✅ 📊 analytics — Аналитика
-│   ├── ✅ 🌍 real-world — Реальный мир
-│   └── ❌ 💡 capabilities — идеи с агентом
+│   └── ✅ 🌍 real-world — Реальный мир
 ├── Публикации и рынок
 │   ├── ✅ 📢 announcements — Объявления
 │   └── ✅ 🛒 market — Барахолка
 ├── Разработка
-│   └── ❌ 🐙 github — issues, PR
+│   ├── ✅ 🐙 github — GitHub · issues, PR, Actions
+│   ├── ✅ 🦊 gitlab — GitLab · MR, pipelines
+│   ├── ✅ 🪣 bitbucket — Bitbucket
+│   ├── ✅ 🍵 gitea — Gitea / Forgejo · self-hosted Git
+│   ├── ✅ 📋 jira — Jira · задачи, спринты
+│   └── ✅ 🐛 sentry — Sentry · ошибки и алерты
 └── Черновики и прочее
     ├── ✅ 📒 notes — Заметки · до разбора
     └── ✅ 📦 other — Другое · временный вход
