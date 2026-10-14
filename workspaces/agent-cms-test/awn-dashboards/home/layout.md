@@ -13,6 +13,8 @@ awn-dashboard-widgets:
   - widgets/chart-line-demo.md
   - widgets/dql-demo.md
   - widgets/dql-chart-demo.md
+  - widgets/dql-chart-preset-file-ext.md
+  - widgets/dql-chart-preset-csv-folders.md
 ---
 
 Рабочий стол workspace. Позиции виджетов — в их frontmatter (`awn-dashboard-x/y/w/h`).

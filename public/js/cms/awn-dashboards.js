@@ -3,6 +3,32 @@
 
   const FOLDER = "awn-dashboards";
   const DEFAULT_SLUG = "home";
+
+  /** @type {Record<string, { title?: string, chartType: string, dql: string }>} */
+  const DQL_CHART_PRESETS = {
+    "source-kind": {
+      title: "По source_kind",
+      chartType: "bar",
+      dql: "FROM awn-databases\nGROUP BY source_kind COUNT\nLIMIT 10"
+    },
+    "file-ext": {
+      title: "Расширения файлов",
+      chartType: "pie",
+      dql:
+        'FROM awn-container\nWHERE source_kind = "md"\nGROUP BY file.ext COUNT\nLIMIT 8'
+    },
+    "csv-folders": {
+      title: "CSV по папкам",
+      chartType: "donut",
+      dql:
+        'FROM awn-databases\nWHERE source_kind = "csv-row"\nGROUP BY file.folder COUNT\nLIMIT 6'
+    },
+    folders: {
+      title: "Записи по папкам",
+      chartType: "hbar",
+      dql: "FROM awn-databases\nGROUP BY file.folder COUNT\nLIMIT 8"
+    }
+  };
   const VISION_CHAT_ID = "2a685a24-b310-4030-8c38-5e5d2faf7f19";
   const VISION_CHAT_TITLE = "awn-dashboards · линзы и виджеты";
   const presenters = new Map();
@@ -72,12 +98,30 @@
       sourceTool: getEntry(entries, "awn-dashboard-source-tool") || "",
       limit: getEntryNumber(entries, "awn-dashboard-filter-limit", 5),
       chartType: getEntry(entries, "awn-dashboard-chart-type") || "bar",
+      chartPreset: getEntry(entries, "awn-dashboard-chart-preset") || "",
       x: getEntryNumber(entries, "awn-dashboard-x", 0),
       y: getEntryNumber(entries, "awn-dashboard-y", 0),
       w: Math.max(1, getEntryNumber(entries, "awn-dashboard-w", 4)),
       h: Math.max(1, getEntryNumber(entries, "awn-dashboard-h", 1)),
       dql: getEntry(entries, "awn-dashboard-dql") || "",
       body: String(body || "").trim()
+    };
+  }
+
+  function resolveDqlChartWidget(meta) {
+    const presetKey = String(meta.chartPreset || "")
+      .trim()
+      .toLowerCase();
+    const preset = presetKey ? DQL_CHART_PRESETS[presetKey] : null;
+    const parsed = parseDqlWidgetSource(meta);
+    const chartTypeRaw = String(meta.chartType || preset?.chartType || "bar")
+      .trim()
+      .toLowerCase();
+    return {
+      dql: parsed.dql || preset?.dql || "",
+      transform: parsed.transform,
+      chartType: chartTypeRaw,
+      presetTitle: preset?.title || ""
     };
   }
 
@@ -461,6 +505,90 @@
     host.replaceChildren(wrap);
   }
 
+  function chartPalette() {
+    return ["#7c6cff", "#5b9dff", "#3ecf8e", "#ffb020", "#ff6b8a", "#9b8cff", "#2dd4bf", "#f472b6"];
+  }
+
+  function renderPieChart(host, series, { donut = false } = {}) {
+    const total = series.values.reduce((sum, v) => sum + (Number(v) || 0), 0) || 1;
+    const colors = chartPalette();
+    let cursor = 0;
+    const stops = [];
+    for (let i = 0; i < series.values.length; i += 1) {
+      const pct = ((Number(series.values[i]) || 0) / total) * 100;
+      const color = colors[i % colors.length];
+      stops.push(`${color} ${cursor}% ${cursor + pct}%`);
+      cursor += pct;
+    }
+    const wrap = document.createElement("div");
+    wrap.className = `awn-dashboard-chart awn-dashboard-chart--pie${donut ? " is-donut" : ""}`;
+    wrap.innerHTML = `
+      <div class="awn-dashboard-chart-pie-ring" style="background: conic-gradient(${stops.join(", ")})" aria-hidden="true"></div>
+      <ul class="awn-dashboard-chart-pie-legend">
+        ${series.labels
+          .map((label, index) => {
+            const value = series.values[index] || 0;
+            const color = colors[index % colors.length];
+            return `<li><span class="awn-dashboard-chart-swatch" style="background:${color}"></span>${ctx.escapeHtml(label)} <strong>${value}</strong></li>`;
+          })
+          .join("")}
+      </ul>
+    `;
+    host.replaceChildren(wrap);
+  }
+
+  function renderHorizontalBarChart(host, series) {
+    const max = Math.max(...series.values, 1);
+    const wrap = document.createElement("div");
+    wrap.className = "awn-dashboard-chart awn-dashboard-chart--hbar";
+    const list = document.createElement("div");
+    list.className = "awn-dashboard-chart-hbars";
+    for (let i = 0; i < series.labels.length; i += 1) {
+      const row = document.createElement("div");
+      row.className = "awn-dashboard-chart-hbar-row";
+      const label = document.createElement("span");
+      label.className = "awn-dashboard-chart-hbar-label";
+      label.textContent = series.labels[i];
+      const track = document.createElement("span");
+      track.className = "awn-dashboard-chart-hbar-track";
+      const fill = document.createElement("span");
+      fill.className = "awn-dashboard-chart-hbar-fill";
+      const value = series.values[i] || 0;
+      fill.style.width = `${Math.max(4, Math.round((value / max) * 100))}%`;
+      fill.title = `${series.labels[i]}: ${value}`;
+      track.appendChild(fill);
+      const num = document.createElement("span");
+      num.className = "awn-dashboard-chart-hbar-value";
+      num.textContent = String(value);
+      row.append(label, track, num);
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+    host.replaceChildren(wrap);
+  }
+
+  function renderDqlChart(host, chartType, labels, values) {
+    const series = { labels, values };
+    const type = String(chartType || "bar").toLowerCase();
+    if (type === "line") {
+      renderLineChart(host, series);
+      return;
+    }
+    if (type === "pie") {
+      renderPieChart(host, series, { donut: false });
+      return;
+    }
+    if (type === "donut") {
+      renderPieChart(host, series, { donut: true });
+      return;
+    }
+    if (type === "hbar" || type === "horizontal" || type === "horizontal-bar") {
+      renderHorizontalBarChart(host, series);
+      return;
+    }
+    renderBarChart(host, series);
+  }
+
   function renderLineChart(host, series) {
     const width = 280;
     const height = 120;
@@ -586,8 +714,7 @@
     refreshBtn.title = "Обновить DQL chart";
     shell.foot.prepend(refreshBtn);
 
-    const { dql } = parseDqlWidgetSource(meta);
-    const chartType = String(meta.chartType || "bar").trim().toLowerCase() === "line" ? "line" : "bar";
+    const { dql, chartType } = resolveDqlChartWidget(meta);
 
     let loadSeq = 0;
     const run = async () => {
@@ -611,8 +738,7 @@
         const labels = rows.map((r) => String(r.groupKey ?? r.value ?? "—"));
         const values = rows.map((r) => Number(r.count ?? r.value) || 0);
         wrap.replaceChildren();
-        if (chartType === "line") renderLineChart(wrap, { labels, values });
-        else renderBarChart(wrap, { labels, values });
+        renderDqlChart(wrap, chartType, labels, values);
       } catch (error) {
         if (seq !== loadSeq) return;
         wrap.innerHTML = `<p class="awn-dashboard-dql-empty is-error">${ctx.escapeHtml(error.message || "Ошибка")}</p>`;
@@ -747,7 +873,7 @@
         <div class="awn-dashboard-todo-plaque-block">
           <h4>Presenters (MVP)</h4>
           <ul>
-            <li>Готово: clock, calendar, stat, list, markdown, chart, activity, <strong>dql</strong>, <strong>dql-chart</strong>.</li>
+            <li>Готово: … <strong>dql</strong>, <strong>dql-chart</strong> (bar/line/pie/donut/hbar, пресеты <code>awn-dashboard-chart-preset</code>).</li>
             <li>Заглушки: kanban.</li>
             <li>Расширение: <code>AwnDashboards.registerPresenter(id, fn)</code>.</li>
           </ul>

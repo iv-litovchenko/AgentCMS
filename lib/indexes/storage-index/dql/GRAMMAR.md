@@ -41,6 +41,7 @@ literal   ::= string | number | boolean | ident
 
 - `pathPrefix` JSON/API merges into `FROM`.
 - `WITH TEXT` triggers hybrid search on DQL result paths (or `FROM` scope if zero rows).
+- CSV rows: indexed in `catalog.sqlite` + **csv-fulltext-index** (tokens + hash-tfidf semantic). Fallback: scan cells (`csv-cell`).
 - Raw SQL from clients is rejected.
 
 See `TODO.SQL.md` and `GLOBAL-DOC-MCP.md` § 8.1.

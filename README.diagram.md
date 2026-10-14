@@ -8,12 +8,12 @@ flowchart TD
     CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)<br/>1+1"]
     ACTORS --> CMS_ENDPOINT["🌐 localhost:<port> · 🔌 MCP-server"]
     CMS_ENDPOINT --> WS
-    WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
+    WS --> TREE["📁 Дерево тем (топиков)<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
     REPOS --> MEDIATHEQUE["🎞️ Медиатека<br/>фото · видео · аудио · файлы · sidecar"]
     MEDIATHEQUE --> SCRIPTS["📜 Скрипты<br/>run_script · утилиты workspace"]
-    WS --> CHANNELS["📡 Каналы и источники<br/>темы · инфоблоки · дискуссии · журнал"]
+    WS --> CHANNELS["📡 Каналы источников информации"]
     CHANNELS --> CHANNEL_VIEWS["📺 Мультиканальная подача<br/>блог · форум · дайджест · лента<br/>дашборд · каталог · библиотека"]
     WS --> EXTRA_DATA["📎 Дополнительные данные"]
     WS --> ANNOT_BRANCH["✍️ Аннотации<br/>(зависимые записи · satellites)"]
@@ -114,7 +114,7 @@ flowchart TD
     click SEARCH href "zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
     click REGISTRY_QUERIES href "zadachi-plany-i-idei/awn-storage/comments/main/sql-mddatabse-md-fayly-kak-bd.md" "Реестр запросов"
     click MODULES href "zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
-    click CHANNELS href "obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы и источники"
+    click CHANNELS href "obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы источников информации"
     click IDEA1 href "zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"
     click IDEA2 href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/voxels-vertecx-elixirr-rasshi-mstpostroi-mstcms.md" "UI на базе движка · VOXELS"
     click IDEA6 href "zadachi-plany-i-idei/awn-storage/ideas.md" "Пайплайн"
