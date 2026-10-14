@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JARVIS — голосовой помощник</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23040a10' stroke='%237ee7ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%237ee7ff'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #05080d;
+      --cyan: #7ee7ff;
+      --cyan-2: #3dffe0;
+      --gold: #d7b56d;
+      --text: #e7f2f8;
+      --muted: #8aa0b0;
+      --line: rgba(126, 231, 255, 0.22);
+      --ok: #3dffc5;
+      --panel: rgba(7, 16, 24, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color-scheme: dark;
+    }
+
+    body {
+      min-height: 100dvh;
+      background-image:
+        radial-gradient(ellipse at 50% 38%, rgba(40, 120, 150, 0.18), transparent 46%),
+        linear-gradient(rgba(126, 231, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126, 231, 255, 0.035) 1px, transparent 1px);
+      background-size: auto, 52px 52px, 52px 52px;
+    }
+
+    body::after {
+      content: "";
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.55) 100%);
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      padding: 22px 28px 18px;
+      gap: 16px;
+    }
+
+    .topbar, .dock, .window, dialog {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 14px 18px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .brand strong {
+      display: block;
+      letter-spacing: 0.42em;
+      font-size: 14px;
+    }
+
+    .brand small, .clock span, .who, .group-label, .win-head span, dialog h2, .item span, .empty {
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+
+    .clock { text-align: center; }
+
+    .clock time {
+      display: block;
+      font-variant-numeric: tabular-nums;
+      font-size: 28px;
+      letter-spacing: 0.14em;
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .status {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.22em;
+      font-size: 12px;
+    }
+
+    .status i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 10px var(--ok);
+    }
+
+    .core-wrap {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .reactor {
+      position: relative;
+      width: min(260px, 40vmin);
+      height: min(260px, 40vmin);
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .reactor:focus-visible, .chip:focus-visible, .send:focus-visible, .text-btn:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 1px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .ticks, .ring, .ring-gold, .scan {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .ticks {
+      background: repeating-conic-gradient(from 0deg, rgba(126, 231, 255, 0.85) 0 1.1deg, transparent 1.1deg 15deg);
+      -webkit-mask: radial-gradient(circle, transparent 66%, #000 67.5% 71%, transparent 72.5%);
+      mask: radial-gradient(circle, transparent 66%, #000 67.5% 71%, transparent 72.5%);
+      animation: spin 36s linear infinite;
+    }
+
+    .ring {
+      inset: 10%;
+      border: 1px solid rgba(126, 231, 255, 0.45);
+      animation: spin 22s linear infinite reverse;
+    }
+
+    .ring-gold { inset: 22%; border: 1px solid rgba(215, 181, 109, 0.75); }
+
+    .nucleus {
+      position: absolute;
+      inset: 34%;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 45%, #e9fbff 0 8%, #7ee7ff 18%, #14627a 58%, #07141c 78%);
+      box-shadow: 0 0 24px rgba(126, 231, 255, 0.45), inset 0 0 18px rgba(255, 255, 255, 0.35);
+      letter-spacing: 0.16em;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .who { margin: 0; }
+
+    #caption {
+      margin: 0;
+      max-width: 46ch;
+      min-height: 2.6em;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    #wave { display: flex; align-items: center; gap: 4px; height: 36px; }
+
+    #wave i {
+      display: block;
+      width: 3px;
+      height: 24px;
+      background: linear-gradient(var(--gold), var(--cyan));
+      transform: scaleY(0.18);
+      transform-origin: center;
+      animation: eq 1.15s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.07s);
+      animation-play-state: paused;
+    }
+
+    .dock {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .groups { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .chip, .send, .text-btn, .icon-btn {
+      font: inherit;
+      cursor: pointer;
+      color: var(--text);
+      background: transparent;
+    }
+
+    .chip, .send {
+      border: 1px solid var(--line);
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .chip.dialog, .send { border-color: rgba(215, 181, 109, 0.75); color: var(--gold); }
+
+    .composer { display: grid; gap: 6px; }
+
+    .composer-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+
+    .composer label {
+      color: var(--gold);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(3, 8, 12, 0.72);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      padding: 12px 14px;
+    }
+
+    textarea { min-height: 96px; resize: vertical; }
+
+    #desk { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+
+    .window {
+      position: absolute;
+      width: min(360px, calc(100vw - 24px));
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    .win-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      cursor: grab;
+      border-bottom: 1px solid rgba(126, 231, 255, 0.14);
+      touch-action: none;
+    }
+
+    .win-head strong { font-size: 14px; letter-spacing: 0.08em; }
+
+    .icon-btn, .text-btn { border: 0; color: var(--muted); padding: 4px 6px; }
+
+    .text-btn { letter-spacing: 0.08em; font-size: 12px; text-transform: uppercase; }
+
+    .body { overflow: auto; padding: 12px 14px 14px; max-height: min(440px, 58dvh); }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .row b { color: var(--cyan); font-weight: 550; }
+
+    .row em {
+      grid-column: 1 / -1;
+      height: 2px;
+      width: var(--p);
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+
+    .temp { margin: 0; font-size: 42px; color: var(--gold); font-weight: 600; }
+    .body p { margin: 8px 0 0; line-height: 1.45; }
+
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      padding: 10px 0;
+      border-top: 1px solid rgba(126, 231, 255, 0.12);
+    }
+
+    .item strong { font-weight: 550; }
+    .item span { grid-column: 1 / -1; letter-spacing: 0.04em; text-transform: none; font-size: 12px; }
+    .empty { margin: 0; letter-spacing: 0.04em; text-transform: none; font-size: 14px; line-height: 1.45; }
+
+    dialog {
+      width: min(440px, calc(100vw - 28px));
+      padding: 0;
+      color: inherit;
+    }
+
+    dialog::backdrop { background: rgba(0, 0, 0, 0.62); }
+
+    dialog form { display: grid; gap: 12px; padding: 16px; }
+
+    dialog h2 { margin: 0; font-size: 13px; }
+
+    .dlg-head, .dlg-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+    dialog label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .dlg-actions { justify-content: flex-end; }
+
+    body[data-state="listening"] #wave i,
+    body[data-state="speaking"] #wave i { animation-play-state: running; }
+
+    body[data-state="listening"] .nucleus,
+    body[data-state="speaking"] .nucleus { animation: pulse 1.05s ease-in-out infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 50% { box-shadow: 0 0 36px rgba(126, 231, 255, 0.85), inset 0 0 18px rgba(255, 255, 255, 0.45); } }
+    @keyframes eq {
+      0%, 100% { transform: scaleY(0.2); }
+      50% { transform: scaleY(1); }
+    }
+
+    @media (max-width: 800px) {
+      .shell { padding: 12px; }
+      .topbar { grid-template-columns: 1fr auto; gap: 8px; }
+      .clock { grid-column: 1 / -1; text-align: left; }
+      .clock time { font-size: 22px; }
+      .brand small { letter-spacing: 0.04em; }
+      #caption { font-size: 17px; }
+      .split { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; }
+    }
+  </style>
+</head>
+<body data-state="idle">
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark">J</span>
+        <div>
+          <strong>JARVIS</strong>
+          <small>голосовое ядро · perez</small>
+        </div>
+      </div>
+      <div class="clock">
+        <time id="clock">--:--:--</time>
+        <span id="date">—</span>
+      </div>
+      <div class="status"><i></i><b id="link">НА СВЯЗИ</b></div>
+    </header>
+
+    <section class="core-wrap">
+      <button class="reactor" id="core" type="button" aria-label="Говорить">
+        <span class="ticks"></span>
+        <span class="ring"></span>
+        <span class="ring-gold"></span>
+        <span class="nucleus" id="core-label">ГОВОРИТЬ</span>
+      </button>
+      <p class="who" id="who">Джарвис</p>
+      <p id="caption">Напишите команду внизу или откройте окно.</p>
+      <div id="wave" aria-hidden="true"></div>
+    </section>
+
+    <footer class="dock">
+      <div class="groups">
+        <span class="group-label">Окна</span>
+        <div class="chips" id="dash-chips"></div>
+        <span class="group-label">Диалоги</span>
+        <div class="chips">
+          <button class="chip dialog" type="button" data-dialog="reminder">Напоминание</button>
+          <button class="chip dialog" type="button" data-dialog="note">Заметка</button>
+          <button class="chip dialog" type="button" data-dialog="board">Новый дашборд</button>
+        </div>
+      </div>
+      <form class="composer" id="form">
+        <label for="say">Ввод команды</label>
+        <div class="composer-row">
+          <input id="say" name="say" type="text" autocomplete="off" placeholder="Например: открой погоду, напомни про стендап, новая заметка">
+          <button class="send" type="submit">Отправить</button>
+        </div>
+      </form>
+    </footer>
+  </main>
+
+  <div id="desk"></div>
+
+  <dialog id="dlg-reminder">
+    <form id="form-reminder">
+      <div class="dlg-head">
+        <h2>Напоминание</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <label>Что сделать
+        <input name="title" required placeholder="Стендап, созвон, покупка">
+      </label>
+      <div class="split">
+        <label>Дата <input name="date" type="date" required></label>
+        <label>Время <input name="time" type="time" required value="10:00"></label>
+      </div>
+      <div class="dlg-actions">
+        <button class="text-btn" type="button" data-close>Отмена</button>
+        <button class="send" type="submit">Записать</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-note">
+    <form id="form-note">
+      <div class="dlg-head">
+        <h2>Заметка</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <label>Заголовок
+        <input name="title" required placeholder="О чём заметка">
+      </label>
+      <label>Текст
+        <textarea name="body" required placeholder="Напишите, что сохранить"></textarea>
+      </label>
+      <div class="dlg-actions">
+        <button class="text-btn" type="button" data-close>Отмена</button>
+        <button class="send" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-board">
+    <form id="form-board">
+      <div class="dlg-head">
+        <h2>Новый дашборд</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Закрыть">✕</button>
+      </div>
+      <label>Название окна
+        <input name="title" required placeholder="Проект, привычки, задачи">
+      </label>
+      <label>Что показать внутри
+        <textarea name="body" required placeholder="Пункты, цифры, заметка для этого окна"></textarea>
+      </label>
+      <div class="dlg-actions">
+        <button class="text-btn" type="button" data-close>Отмена</button>
+        <button class="send" type="submit">Открыть окно</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "jarvis-grok-4.7";
+    const desk = document.getElementById("desk");
+    const dashChips = document.getElementById("dash-chips");
+    const core = document.getElementById("core");
+    const coreLabel = document.getElementById("core-label");
+    const caption = document.getElementById("caption");
+    const whoEl = document.getElementById("who");
+    const form = document.getElementById("form");
+    const input = document.getElementById("say");
+    const link = document.getElementById("link");
+    const wave = document.getElementById("wave");
+    const clock = document.getElementById("clock");
+    const dateEl = document.getElementById("date");
+
+    const builtin = [
+      { id: "systems", title: "Системы" },
+      { id: "weather", title: "Погода" },
+      { id: "calendar", title: "Календарь" },
+      { id: "notes", title: "Заметки" },
+      { id: "session", title: "Сессия" }
+    ];
+
+    const memory = loadMemory();
+    const openWindows = new Map();
+    let zIndex = 10;
+    let spawn = 0;
+    let state = "idle";
+    let runId = 0;
+    let scriptIndex = 0;
+    let latencyMs = 11;
+
+    const script = ["Открой системы", "Покажи погоду", "Напомни про стендап"];
+
+    for (let i = 0; i < 32; i += 1) {
+      const bar = document.createElement("i");
+      bar.style.setProperty("--i", String(i));
+      wave.appendChild(bar);
+    }
+
+    builtin.forEach((item) => dashChips.append(makeChip(item.title, () => openDashboard(item.id))));
+    memory.boards.forEach(addBoardChip);
+
+    function loadMemory() {
+      const blank = {
+        reminders: [],
+        notes: [],
+        boards: [],
+        session: [{ who: "Джарвис", text: "На связи. Откройте окно или введите команду." }]
+      };
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        return {
+          reminders: Array.isArray(saved.reminders) ? saved.reminders : [],
+          notes: Array.isArray(saved.notes) ? saved.notes : [],
+          boards: Array.isArray(saved.boards) ? saved.boards : [],
+          session: Array.isArray(saved.session) && saved.session.length ? saved.session : blank.session
+        };
+      } catch (error) {
+        return blank;
+      }
+    }
+
+    function persist() {
+      const payload = {
+        reminders: memory.reminders,
+        notes: memory.notes,
+        boards: memory.boards,
+        session: memory.session.slice(-24)
+      };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (error) { /* private mode */ }
+    }
+
+    function makeChip(title, onClick) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chip";
+      button.textContent = title;
+      button.addEventListener("click", onClick);
+      return button;
+    }
+
+    function addBoardChip(board) {
+      dashChips.append(makeChip(board.title, () => openDashboard(board.id)));
+    }
+
+    function setState(next) {
+      state = next;
+      document.body.dataset.state = next;
+      const labels = { idle: "ГОВОРИТЬ", listening: "СЛУШАЮ", processing: "РАЗБОР", speaking: "ОТВЕТ" };
+      const links = { idle: "НА СВЯЗИ", listening: "СЛУШАЮ", processing: "ДУМАЮ", speaking: "ГОВОРЮ" };
+      coreLabel.textContent = labels[next];
+      core.setAttribute("aria-label", labels[next]);
+      link.textContent = links[next];
+    }
+
+    function setCaption(who, text) {
+      whoEl.textContent = who;
+      caption.textContent = text;
+    }
+
+    function sleep(ms, id) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => (id === runId ? resolve() : reject(new Error("cancelled"))), ms);
+      });
+    }
+
+    function speak(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "ru-RU";
+      utter.rate = 1;
+      utter.pitch = 0.92;
+      const voice = window.speechSynthesis.getVoices().find((item) => item.lang && item.lang.startsWith("ru"));
+      if (voice) utter.voice = voice;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function remember(who, text) {
+      memory.session.push({ who, text });
+      memory.session = memory.session.slice(-24);
+      persist();
+      paint("session");
+    }
+
+    function raise(win) {
+      zIndex += 1;
+      win.style.zIndex = String(zIndex);
+    }
+
+    function place(win) {
+      const slot = spawn % 4;
+      spawn += 1;
+      const width = Math.min(360, window.innerWidth - 24);
+      const beside = window.innerWidth >= width + 300;
+      const left = beside ? window.innerWidth - width - 24 - slot * 22 : 12;
+      win.style.left = Math.max(12, left) + "px";
+      win.style.top = (beside ? 108 : 78) + slot * 24 + "px";
+    }
+
+    function drag(head, win) {
+      head.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("button")) return;
+        raise(win);
+        const rect = win.getBoundingClientRect();
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        head.setPointerCapture(event.pointerId);
+        function move(ev) {
+          const left = Math.min(Math.max(8, ev.clientX - offsetX), window.innerWidth - 72);
+          const top = Math.min(Math.max(8, ev.clientY - offsetY), window.innerHeight - 48);
+          win.style.left = left + "px";
+          win.style.top = top + "px";
+        }
+        function up() {
+          head.removeEventListener("pointermove", move);
+          head.removeEventListener("pointerup", up);
+        }
+        head.addEventListener("pointermove", move);
+        head.addEventListener("pointerup", up);
+      });
+    }
+
+    function windowTitle(id) {
+      const known = builtin.find((item) => item.id === id);
+      if (known) return known.title;
+      const board = memory.boards.find((item) => item.id === id);
+      return board ? board.title : "Окно";
+    }
+
+    function openDashboard(id) {
+      const existing = openWindows.get(id);
+      if (existing) {
+        raise(existing);
+        paint(id);
+        return existing;
+      }
+      const win = document.createElement("article");
+      win.className = "window";
+      win.dataset.id = id;
+      const head = document.createElement("div");
+      head.className = "win-head";
+      const title = document.createElement("strong");
+      title.textContent = windowTitle(id);
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "icon-btn";
+      close.setAttribute("aria-label", "Закрыть окно");
+      close.textContent = "✕";
+      close.addEventListener("click", () => {
+        win.remove();
+        openWindows.delete(id);
+        if (id !== "systems") paint("systems");
+      });
+      head.append(title, close);
+      const body = document.createElement("div");
+      body.className = "body";
+      win.append(head, body);
+      win.addEventListener("pointerdown", () => raise(win));
+      drag(head, win);
+      place(win);
+      raise(win);
+      desk.append(win);
+      openWindows.set(id, win);
+      paint(id);
+      if (id !== "systems") paint("systems");
+      return win;
+    }
+
+    function paint(id) {
+      const win = openWindows.get(id);
+      if (!win) return;
+      const body = win.querySelector(".body");
+      body.replaceChildren();
+      if (id === "systems") paintSystems(body);
+      else if (id === "weather") paintWeather(body);
+      else if (id === "calendar") paintList(body, memory.reminders, "Напоминаний нет. Откройте диалог «Напоминание» и заполните его.", removeReminder);
+      else if (id === "notes") paintList(body, memory.notes, "Заметок нет. Откройте диалог «Заметка».", removeNote);
+      else if (id === "session") paintSession(body);
+      else paintBoard(body, id);
+    }
+
+    function paintSystems(body) {
+      [
+        ["Ядро", "стабильно", "94%"],
+        ["Распознавание", "ожидание", "70%"],
+        ["Синтез речи", "готов", "88%"],
+        ["Сеть", latencyMs + " мс", "76%"],
+        ["Окна", String(openWindows.size), "48%"]
+      ].forEach(([name, value, size]) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const span = document.createElement("span");
+        span.textContent = name;
+        const strong = document.createElement("b");
+        strong.textContent = value;
+        const bar = document.createElement("em");
+        bar.style.setProperty("--p", size);
+        row.append(span, strong, bar);
+        body.append(row);
+      });
+    }
+
+    function paintWeather(body) {
+      const temp = document.createElement("p");
+      temp.className = "temp";
+      temp.textContent = "18°";
+      const text = document.createElement("p");
+      text.textContent = "Ясно, без осадков. Это окно погоды: его можно закрыть или сдвинуть за шапку.";
+      body.append(temp, text);
+    }
+
+    function paintList(body, items, emptyText, onRemove) {
+      if (!items.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = emptyText;
+        body.append(empty);
+        return;
+      }
+      items.forEach((item, index) => {
+        const row = document.createElement("article");
+        row.className = "item";
+        const title = document.createElement("strong");
+        title.textContent = item.title;
+        const meta = document.createElement("span");
+        meta.textContent = item.when || item.body || "";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "text-btn";
+        button.textContent = "Убрать";
+        button.addEventListener("click", () => onRemove(index));
+        row.append(title, button, meta);
+        body.append(row);
+      });
+    }
+
+    function paintSession(body) {
+      memory.session.forEach((line) => {
+        const row = document.createElement("article");
+        row.className = "item";
+        const who = document.createElement("span");
+        who.textContent = line.who;
+        const text = document.createElement("strong");
+        text.textContent = line.text;
+        row.append(who, text);
+        body.append(row);
+      });
+    }
+
+    function paintBoard(body, id) {
+      const board = memory.boards.find((item) => item.id === id);
+      if (!board) return;
+      const text = document.createElement("p");
+      text.textContent = board.body;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "text-btn";
+      button.textContent = "Удалить дашборд";
+      button.addEventListener("click", () => removeBoard(id));
+      body.append(text, button);
+    }
+
+    function removeReminder(index) {
+      memory.reminders.splice(index, 1);
+      persist();
+      paint("calendar");
+    }
+
+    function removeNote(index) {
+      memory.notes.splice(index, 1);
+      persist();
+      paint("notes");
+    }
+
+    function removeBoard(id) {
+      memory.boards = memory.boards.filter((item) => item.id !== id);
+      const win = openWindows.get(id);
+      if (win) win.remove();
+      openWindows.delete(id);
+      dashChips.replaceChildren();
+      builtin.forEach((item) => dashChips.append(makeChip(item.title, () => openDashboard(item.id))));
+      memory.boards.forEach(addBoardChip);
+      persist();
+    }
+
+    function formatWhen(date, time) {
+      const value = new Date(date + "T" + time);
+      if (Number.isNaN(value.getTime())) return date + " " + time;
+      return value.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function tomorrow() {
+      const date = new Date();
+      date.setDate(date.getDate() + 1);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function openDialog(name, seed) {
+      const dialog = document.getElementById("dlg-" + name);
+      const formEl = dialog.querySelector("form");
+      formEl.reset();
+      if (name === "reminder") {
+        formEl.elements.date.value = tomorrow();
+        formEl.elements.time.value = "10:00";
+        if (seed) formEl.elements.title.value = seed;
+      } else if (seed && formEl.elements.title) {
+        formEl.elements.title.value = seed;
+      }
+      if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
+      const field = formEl.elements.title || formEl.elements.body;
+      if (field) field.focus();
+    }
+
+    document.querySelectorAll("[data-dialog]").forEach((button) => {
+      button.addEventListener("click", () => openDialog(button.dataset.dialog));
+    });
+
+    document.querySelectorAll("dialog").forEach((dialog) => {
+      dialog.querySelectorAll("[data-close]").forEach((button) => {
+        button.addEventListener("click", () => dialog.close());
+      });
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+    });
+
+    document.getElementById("form-reminder").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const title = String(data.get("title") || "").trim();
+      const when = formatWhen(String(data.get("date")), String(data.get("time")));
+      memory.reminders.push({ title, when });
+      persist();
+      event.currentTarget.closest("dialog").close();
+      openDashboard("calendar");
+      const answer = "Записал напоминание: " + title + ", " + when + ".";
+      setCaption("Джарвис", answer);
+      speak(answer);
+      remember("Вы", title);
+      remember("Джарвис", answer);
+    });
+
+    document.getElementById("form-note").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const title = String(data.get("title") || "").trim();
+      const body = String(data.get("body") || "").trim();
+      memory.notes.push({ title, body });
+      persist();
+      event.currentTarget.closest("dialog").close();
+      openDashboard("notes");
+      const answer = "Заметка «" + title + "» сохранена.";
+      setCaption("Джарвис", answer);
+      speak(answer);
+      remember("Вы", title);
+      remember("Джарвис", answer);
+    });
+
+    document.getElementById("form-board").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const title = String(data.get("title") || "").trim();
+      const body = String(data.get("body") || "").trim();
+      const board = { id: "board-" + Date.now(), title, body };
+      memory.boards.push(board);
+      addBoardChip(board);
+      persist();
+      event.currentTarget.closest("dialog").close();
+      openDashboard(board.id);
+      const answer = "Открыл дашборд «" + title + "».";
+      setCaption("Джарвис", answer);
+      speak(answer);
+      remember("Вы", title);
+      remember("Джарвис", answer);
+    });
+
+    function act(text) {
+      const normalized = text.toLowerCase();
+      remember("Вы", text);
+      if (/напомн/.test(normalized)) {
+        const seed = text.replace(/джарвис[,:]?\s*/i, "").replace(/напомни(ть)?\s*/i, "").trim();
+        openDialog("reminder", seed);
+        return "Открыл диалог напоминания. Заполните поля и нажмите «Записать».";
+      }
+      if (/заметк/.test(normalized)) {
+        openDialog("note");
+        return "Открыл диалог заметки. Напишите текст и сохраните.";
+      }
+      if (/дашборд|новое окно|свой окн/.test(normalized)) {
+        openDialog("board");
+        return "Открыл диалог нового дашборда. Задайте название и содержимое.";
+      }
+      if (/погод/.test(normalized)) {
+        openDashboard("weather");
+        return "Окно погоды на экране. Его можно сдвинуть или закрыть.";
+      }
+      if (/систем|статус|долож/.test(normalized)) {
+        openDashboard("systems");
+        return "Окно систем на экране.";
+      }
+      if (/календар/.test(normalized)) {
+        openDashboard("calendar");
+        return "Календарь открыт. Напоминания появляются после диалога.";
+      }
+      if (/сесс/.test(normalized)) {
+        openDashboard("session");
+        return "Сессия открыта.";
+      }
+      if (/привет|здравств|добрый|доброе/.test(normalized)) return "На связи, Perez. Откройте окно или заполните диалог.";
+      return "Могу открыть системы, погоду, календарь, заметки, сессию или диалог для ввода.";
+    }
+
+    async function runTurn(text) {
+      const id = ++runId;
+      try {
+        setState("listening");
+        const words = text.split(/\s+/);
+        let heard = "";
+        for (const word of words) {
+          heard = heard ? heard + " " + word : word;
+          setCaption("Вы", heard);
+          await sleep(180, id);
+        }
+        setState("processing");
+        setCaption("Джарвис", "Открываю…");
+        await sleep(280, id);
+        const answer = act(text);
+        setState("speaking");
+        setCaption("Джарвис", answer);
+        speak(answer);
+        remember("Джарвис", answer);
+        await sleep(360, id);
+        setState("idle");
+      } catch (error) {
+        if (error.message !== "cancelled") throw error;
+      }
+    }
+
+    function stop() {
+      runId += 1;
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      setState("idle");
+      setCaption("Джарвис", "Остановился. Жду команду или окно.");
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) {
+        input.focus();
+        return;
+      }
+      input.value = "";
+      if (state !== "idle") stop();
+      runTurn(text);
+    });
+
+    core.addEventListener("click", () => {
+      if (state !== "idle") {
+        stop();
+        return;
+      }
+      const typed = input.value.trim();
+      if (typed) {
+        input.value = "";
+        runTurn(typed);
+        return;
+      }
+      const line = script[scriptIndex % script.length];
+      scriptIndex += 1;
+      runTurn(line);
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.code !== "Space" || event.repeat) return;
+      const active = document.activeElement;
+      if (active && (active.closest("input, textarea") || active.closest("dialog"))) return;
+      if (document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      if (state !== "idle") stop();
+      else core.click();
+    });
+
+    function tickClock() {
+      const now = new Date();
+      clock.textContent = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      dateEl.textContent = now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+    }
+
+    tickClock();
+    setInterval(tickClock, 1000);
+    setInterval(() => {
+      latencyMs = Math.round(8 + Math.random() * 7);
+      paint("systems");
+    }, 1700);
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener("voiceschanged", () => window.speechSynthesis.getVoices());
+    }
+  </script>
+</body>
+</html>

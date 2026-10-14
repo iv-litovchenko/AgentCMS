@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS · Fable Core — рабочее пространство</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23060a0f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23f5b942' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2370e4ff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #060a0f;
+    --panel: rgba(12, 20, 29, 0.82);
+    --panel-2: rgba(16, 26, 37, 0.95);
+    --line: rgba(112, 228, 255, 0.16);
+    --line-strong: rgba(112, 228, 255, 0.45);
+    --ice: #70e4ff;
+    --ice-dim: #3aa9c4;
+    --amber: #f5b942;
+    --amber-dim: #b9842a;
+    --text: #e6f3f8;
+    --muted: #7c93a3;
+    --ok: #5cf2a5;
+    --warn: #ff7a59;
+    --font: "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font); color: var(--text); overflow: hidden; color-scheme: dark;
+    background:
+      radial-gradient(900px 600px at 50% 45%, rgba(58,169,196,.12), transparent 65%),
+      radial-gradient(700px 500px at 50% 110%, rgba(245,185,66,.08), transparent 60%),
+      var(--bg);
+  }
+  body::after { content:""; position:fixed; inset:0; pointer-events:none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .app { height: 100vh; height: 100dvh; display: grid; grid-template-rows: 56px minmax(0,1fr) 46px; gap: 10px; padding: 10px 12px; }
+
+  /* ───── header ───── */
+  header { display:flex; align-items:center; gap:14px; padding:0 14px 0 16px; border:1px solid var(--line); border-radius:14px; background:var(--panel); backdrop-filter:blur(14px); }
+  .brand { display:flex; align-items:center; gap:10px; margin-right:auto; }
+  .reactor-mini { width:28px;height:28px;border-radius:50%;border:2px solid var(--amber);display:grid;place-items:center;box-shadow:0 0 14px rgba(245,185,66,.45), inset 0 0 8px rgba(112,228,255,.3); }
+  .reactor-mini i { width:7px;height:7px;border-radius:50%;background:var(--ice);box-shadow:0 0 8px var(--ice);animation:pulse 2.4s ease-in-out infinite; }
+  .brand h1 { font-size:14px; letter-spacing:.3em; font-weight:700; }
+  .brand small { display:block; font:10px var(--mono); letter-spacing:.16em; color:var(--amber); margin-top:1px; }
+  .meta { display:flex; align-items:center; gap:16px; font:12px var(--mono); color:var(--muted); }
+  .meta b { color:var(--text); font-weight:500; }
+  .meta .dot { width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);display:inline-block;margin-right:6px;vertical-align:middle; }
+  .hbtns { display:flex; gap:6px; }
+  .hb { height:32px; padding:0 11px; border-radius:9px; border:1px solid var(--line); background:rgba(112,228,255,.06); color:var(--text); font:500 12px var(--font); display:inline-flex; align-items:center; gap:7px; transition:.15s; }
+  .hb:hover { border-color:var(--line-strong); background:rgba(112,228,255,.14); }
+  .hb kbd { font:10px var(--mono); color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:1px 4px; }
+  .hb.icon { width:32px; padding:0; justify-content:center; }
+  .hb svg { width:15px; height:15px; }
+  .clock { text-align:right; line-height:1.15; }
+  #clock { color:var(--ice); font:600 15px var(--mono); letter-spacing:.08em; }
+  #date { color:var(--muted); font-size:11px; }
+
+  /* ───── desktop ───── */
+  .desktop { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:16px; background: rgba(5,9,14,.5); }
+  .desktop::before { content:""; position:absolute; inset:0; pointer-events:none; background-image: radial-gradient(rgba(112,228,255,.14) 1px, transparent 1px); background-size:28px 28px; mask-image: radial-gradient(ellipse at center, #000 20%, transparent 80%); opacity:.5; }
+  #viz { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+  .hero { position:absolute; left:50%; top:50%; transform:translate(-50%,-52%); display:flex; flex-direction:column; align-items:center; gap:16px; z-index:1; }
+  .core { position:relative; width:220px; height:220px; border-radius:50%; display:grid; place-items:center; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .ring { position:absolute; inset:0; border-radius:50%; border:1px solid var(--line-strong); }
+  .ring.r1 { border-style:dashed; animation:spin 24s linear infinite; }
+  .ring.r2 { inset:20px; border-width:2px; border-color:var(--amber); border-top-color:transparent; border-bottom-color:transparent; animation:spin 7s linear infinite reverse; box-shadow:0 0 20px rgba(245,185,66,.25); }
+  .ring.r3 { inset:40px; border-color:rgba(112,228,255,.5); border-left-color:transparent; animation:spin 4s linear infinite; }
+  .orb { position:relative; width:104px; height:104px; border-radius:50%; display:grid; place-items:center; color:#03202b; transition:transform .3s, box-shadow .3s;
+    background: radial-gradient(circle at 40% 35%, #c9f6ff 0%, var(--ice) 25%, #1b7f98 65%, #0b2b38 100%);
+    box-shadow: 0 0 40px rgba(112,228,255,.55), 0 0 100px rgba(112,228,255,.25), inset 0 0 30px rgba(255,255,255,.3); }
+  .orb svg { width:38px; height:38px; }
+  .core[data-state="listening"] .orb { transform:scale(1.08); box-shadow:0 0 60px rgba(112,228,255,.9), 0 0 140px rgba(112,228,255,.35), inset 0 0 30px rgba(255,255,255,.4); }
+  .core[data-state="thinking"] .orb { background: radial-gradient(circle at 40% 35%, #fff2cc 0%, var(--amber) 25%, #9a6a1c 65%, #3a2608 100%); box-shadow:0 0 60px rgba(245,185,66,.7), 0 0 140px rgba(245,185,66,.3); }
+  .core[data-state="thinking"] .ring.r3 { animation-duration:1s; }
+  .core[data-state="speaking"] .orb { animation:breathe 1.1s ease-in-out infinite; }
+  .state-label { font:11px var(--mono); letter-spacing:.22em; text-transform:uppercase; color:var(--ice); padding:7px 14px; border-radius:99px; border:1px solid var(--line); background:rgba(6,10,15,.7); display:flex; align-items:center; gap:10px; white-space:nowrap; }
+  .eq { display:inline-flex; gap:2px; align-items:flex-end; height:10px; }
+  .eq i { width:2px; background:var(--ice); height:30%; animation:eq 1s ease-in-out infinite; }
+  .eq i:nth-child(2){animation-delay:.15s} .eq i:nth-child(3){animation-delay:.3s} .eq i:nth-child(4){animation-delay:.45s} .eq i:nth-child(5){animation-delay:.6s}
+  .core[data-state="idle"] ~ .state-label .eq i { animation-play-state:paused; height:20%; }
+  .hero-hint { font:11px var(--mono); color:var(--muted); letter-spacing:.06em; }
+
+  /* ───── windows ───── */
+  .win { position:absolute; display:flex; flex-direction:column; min-width:220px; min-height:110px; border:1px solid var(--line); border-radius:14px; background:var(--panel); backdrop-filter:blur(16px); box-shadow:0 20px 50px rgba(0,0,0,.45); overflow:hidden; z-index:10; animation:pop .18s ease both; }
+  .win.active { border-color:var(--line-strong); box-shadow:0 24px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(112,228,255,.12); }
+  .win.min { display:none; }
+  .win.max { left:6px !important; top:6px !important; width:calc(100% - 12px) !important; height:calc(100% - 12px) !important; }
+  .win-bar { display:flex; align-items:center; gap:6px; padding:7px 8px 7px 12px; cursor:grab; user-select:none; border-bottom:1px solid var(--line); background:rgba(255,255,255,.015); }
+  .win-bar:active { cursor:grabbing; }
+  .win-bar .ttl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 10.5px var(--mono); letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+  .win.active .win-bar .ttl { color:var(--text); }
+  .win-bar .ttl em { font-style:normal; color:var(--amber); letter-spacing:.08em; margin-left:8px; }
+  .wb { width:22px; height:22px; border-radius:7px; border:1px solid transparent; background:transparent; color:var(--muted); display:grid; place-items:center; font:12px var(--mono); transition:.12s; }
+  .wb:hover { background:rgba(112,228,255,.1); color:var(--text); border-color:var(--line); }
+  .wb.x:hover { color:var(--warn); }
+  .win-body { flex:1; min-height:0; overflow:auto; padding:14px; scrollbar-width:thin; scrollbar-color:rgba(112,228,255,.25) transparent; }
+  .win-body.flush { padding:0; display:flex; flex-direction:column; overflow:hidden; }
+  .rsz { position:absolute; right:0; bottom:0; width:18px; height:18px; cursor:nwse-resize; }
+  .rsz::after { content:""; position:absolute; right:5px; bottom:5px; width:8px; height:8px; border-right:2px solid var(--line-strong); border-bottom:2px solid var(--line-strong); opacity:.7; }
+
+  /* ───── generic bits ───── */
+  .btn { appearance:none; border:1px solid var(--line); background:rgba(112,228,255,.08); color:var(--ice); font:600 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; padding:10px 14px; border-radius:11px; transition:.15s; display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+  .btn:hover { background:rgba(112,228,255,.16); border-color:var(--line-strong); }
+  .btn.primary { background:var(--ice); color:#03202b; border-color:var(--ice); }
+  .btn.primary:hover { background:#9beeff; }
+  .btn.danger { background:var(--warn); color:#2a0d05; border-color:var(--warn); }
+  .btn.ghost { background:transparent; color:var(--muted); }
+  .btn.sm { padding:7px 10px; font-size:11px; border-radius:9px; }
+  .btn.mic { width:42px; height:42px; padding:0; border-radius:50%; }
+  .btn.mic.on { background:var(--amber); color:#2a1a00; border-color:var(--amber); box-shadow:0 0 20px rgba(245,185,66,.5); }
+  .btn svg { width:16px; height:16px; }
+  .sect-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 12px; border-top:1px solid var(--line); background:rgba(6,10,15,.4); }
+  .empty { color:var(--muted); font-size:12.5px; text-align:center; padding:24px 12px; line-height:1.5; }
+  input.inp, textarea.inp, select.inp { width:100%; background:rgba(255,255,255,.035); border:1px solid var(--line); border-radius:10px; padding:10px 12px; outline:none; transition:border-color .15s; font-size:13.5px; }
+  input.inp:focus, textarea.inp:focus, select.inp:focus { border-color:var(--line-strong); }
+  .inp::placeholder { color:var(--muted); }
+  textarea.inp { resize:vertical; min-height:80px; line-height:1.5; }
+
+  /* chat */
+  .transcript { flex:1; min-height:0; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; }
+  .msg { display:flex; gap:10px; align-items:flex-start; animation:rise .3s ease both; }
+  .msg .who { flex-shrink:0; width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font:700 10px var(--mono); }
+  .msg.ai .who { background:rgba(112,228,255,.1); color:var(--ice); border:1px solid var(--line); }
+  .msg.me .who { background:rgba(245,185,66,.1); color:var(--amber); border:1px solid rgba(245,185,66,.3); }
+  .msg .bubble { font-size:13.5px; line-height:1.5; }
+  .msg .bubble .t { display:block; font:10px var(--mono); color:var(--muted); margin-bottom:3px; letter-spacing:.08em; }
+  .msg.me { flex-direction:row-reverse; text-align:right; }
+  .msg.me .bubble { color:#f6ead0; }
+  .cursor { display:inline-block; width:7px; height:13px; background:var(--ice); vertical-align:-2px; margin-left:2px; animation:blink 1s steps(2) infinite; }
+  .composer { display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid var(--line); background:rgba(6,10,15,.45); }
+  .composer input { flex:1; min-width:0; }
+
+  /* commands */
+  .cmd { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 10px; border-radius:11px; border:1px solid transparent; background:rgba(255,255,255,.025); transition:.15s; margin-bottom:6px; position:relative; }
+  .cmd:hover { border-color:var(--line-strong); background:rgba(112,228,255,.06); }
+  .cmd .lbl { font-size:13px; font-weight:500; }
+  .cmd .hint { font:11px var(--mono); color:var(--muted); margin-top:2px; }
+  .cmd .rm { position:absolute; right:8px; top:8px; opacity:0; }
+  .cmd:hover .rm { opacity:1; }
+  .rm { width:20px; height:20px; border-radius:6px; border:1px solid var(--line); background:rgba(6,10,15,.6); color:var(--muted); font:11px var(--mono); display:grid; place-items:center; }
+  .rm:hover { color:var(--warn); border-color:var(--warn); }
+
+  /* system */
+  .stat .row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .stat .row .kv { display:flex; justify-content:space-between; font:11px var(--mono); color:var(--muted); }
+  .stat .row .kv b { color:var(--text); font-weight:500; }
+  .bar { height:5px; border-radius:99px; background:rgba(255,255,255,.06); overflow:hidden; }
+  .bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--ice-dim),var(--ice)); transition:width .8s; }
+  .bar.amber i { background:linear-gradient(90deg,var(--amber-dim),var(--amber)); }
+
+  /* log */
+  .log { font:11.5px var(--mono); line-height:1.7; color:var(--muted); }
+  .log div { display:flex; gap:10px; white-space:nowrap; }
+  .log .ts { color:var(--ice-dim); flex-shrink:0; }
+  .ok { color:var(--ok); } .wr { color:var(--warn); } .am { color:var(--amber); }
+
+  /* weather / schedule / chips */
+  .weather { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .weather .temp { font-size:38px; font-weight:300; letter-spacing:-.03em; line-height:1; }
+  .weather .temp sup { font-size:15px; color:var(--amber); vertical-align:top; margin-left:2px; }
+  .weather .desc { font-size:12px; color:var(--muted); margin-top:6px; }
+  .weather .city { font:11px var(--mono); color:var(--ice); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; }
+  .weather .glyph { width:52px; height:52px; color:var(--amber); }
+  .ev { display:grid; grid-template-columns:48px 1fr auto; gap:10px; align-items:start; padding:8px 0; border-bottom:1px dashed rgba(112,228,255,.1); }
+  .ev:last-child { border-bottom:0; }
+  .ev .tm { font:12px var(--mono); color:var(--ice); padding-top:2px; }
+  .ev .ti { font-size:13px; }
+  .ev .sb { font-size:11px; color:var(--muted); margin-top:2px; }
+  .ev.now .tm { color:var(--amber); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { font:11px var(--mono); padding:6px 10px; border-radius:99px; border:1px solid var(--line); background:rgba(255,255,255,.03); display:inline-flex; align-items:center; gap:6px; transition:.15s; }
+  .chip i { width:6px; height:6px; border-radius:50%; background:var(--ok); box-shadow:0 0 6px var(--ok); }
+  .chip.off { color:var(--muted); } .chip.off i { background:var(--muted); box-shadow:none; }
+  .chip:hover { border-color:var(--line-strong); }
+
+  /* terminal */
+  .term { flex:1; min-height:0; overflow:auto; padding:12px 14px; font:12px var(--mono); line-height:1.65; color:#bfe9f5; white-space:pre-wrap; word-break:break-word; }
+  .term .p { color:var(--amber); }
+  .term-in { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid var(--line); font:12px var(--mono); }
+  .term-in span { color:var(--amber); }
+  .term-in input { flex:1; background:transparent; border:0; outline:none; font:inherit; color:var(--text); }
+
+  /* dashboard */
+  .dash-bar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); font:11px var(--mono); color:var(--muted); }
+  .dash-bar .sp { flex:1; }
+  .dash-grid { flex:1; min-height:0; overflow:auto; padding:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); grid-auto-rows:minmax(120px, auto); gap:10px; align-content:start; }
+  .wg { position:relative; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.025); padding:12px; display:flex; flex-direction:column; min-height:120px; transition:border-color .15s; }
+  .wg:hover { border-color:var(--line-strong); }
+  .wg.c2 { grid-column:span 2; } .wg.r2 { grid-row:span 2; }
+  .wg .wt { font:10px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; padding-right:22px; }
+  .wg .rm { position:absolute; right:8px; top:8px; opacity:0; }
+  .wg:hover .rm { opacity:1; }
+  .kpi { cursor:pointer; flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .kpi .v { font-size:30px; font-weight:300; letter-spacing:-.02em; line-height:1; }
+  .kpi .d { font:11px var(--mono); color:var(--ok); margin-top:6px; }
+  .kpi .d.neg { color:var(--warn); }
+  .wg canvas { width:100%; flex:1; min-height:60px; }
+  .gauge { flex:1; display:grid; place-items:center; }
+  .gauge svg { width:90px; height:90px; transform:rotate(-90deg); }
+  .gauge .val { position:absolute; font:600 18px var(--mono); color:var(--text); }
+  .gauge-wrap { position:relative; display:grid; place-items:center; }
+  .cl { list-style:none; flex:1; overflow:auto; }
+  .cl li { display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 0; border-bottom:1px dashed rgba(112,228,255,.1); }
+  .cl li.done span { text-decoration:line-through; color:var(--muted); }
+  .cl li span { flex:1; }
+  .cl input[type=checkbox] { accent-color:var(--ice); }
+  .cl-add { display:flex; gap:6px; margin-top:8px; }
+  .cl-add input { flex:1; padding:7px 10px; font-size:12.5px; }
+  .wclock { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .wclock .tm { font:600 32px var(--mono); color:var(--ice); letter-spacing:.06em; }
+  .wclock .dt { font-size:12px; color:var(--muted); margin-top:4px; }
+  .wg textarea { flex:1; resize:none; }
+
+  /* ───── dock ───── */
+  .dock { display:flex; align-items:center; gap:8px; padding:0 10px; border:1px solid var(--line); border-radius:14px; background:var(--panel); backdrop-filter:blur(14px); overflow:hidden; }
+  .dock-l { font:10.5px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); padding-right:10px; border-right:1px solid var(--line); flex-shrink:0; }
+  .dock-wins { flex:1; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+  .dchip { flex-shrink:0; height:28px; padding:0 11px; border-radius:8px; border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--muted); font:11px var(--mono); display:inline-flex; align-items:center; gap:7px; transition:.15s; }
+  .dchip i { width:6px; height:6px; border-radius:50%; background:var(--muted); }
+  .dchip.act { color:var(--text); border-color:var(--line-strong); background:rgba(112,228,255,.1); }
+  .dchip.act i { background:var(--ice); box-shadow:0 0 6px var(--ice); }
+  .dchip.min { opacity:.6; border-style:dashed; }
+  .dchip:hover { color:var(--text); }
+  .dock-r { font:10.5px var(--mono); color:var(--muted); white-space:nowrap; flex-shrink:0; }
+  .dock-r kbd { border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:var(--text); }
+
+  /* ───── dialogs ───── */
+  dialog { border:1px solid var(--line-strong); border-radius:16px; background:var(--panel-2); color:var(--text); padding:0; width:min(520px, calc(100vw - 32px)); box-shadow:0 30px 80px rgba(0,0,0,.6); backdrop-filter:blur(20px); }
+  dialog::backdrop { background:rgba(3,6,10,.6); backdrop-filter:blur(4px); }
+  dialog[open] { animation:pop .18s ease both; }
+  .dlg-head { padding:18px 20px 6px; }
+  .dlg-head h2 { font-size:16px; font-weight:600; letter-spacing:.02em; }
+  .dlg-head p { font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .dlg-fields { padding:12px 20px 6px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field.full { grid-column:1 / -1; }
+  .field label { font:10.5px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
+  .field label .range-v { color:var(--ice); letter-spacing:0; }
+  .field input, .field select, .field textarea { background:rgba(255,255,255,.035); border:1px solid var(--line); border-radius:10px; padding:10px 12px; outline:none; font-size:13.5px; transition:border-color .15s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--line-strong); }
+  .field input[type=range] { padding:0; accent-color:var(--ice); height:28px; background:transparent; border:0; }
+  .field textarea { resize:vertical; min-height:72px; }
+  .field.toggle { flex-direction:row; align-items:center; gap:10px; cursor:pointer; padding:6px 0; }
+  .field.toggle input { position:absolute; opacity:0; pointer-events:none; }
+  .field.toggle .sw { width:36px; height:20px; border-radius:99px; background:rgba(255,255,255,.08); border:1px solid var(--line); position:relative; transition:.15s; flex-shrink:0; }
+  .field.toggle .sw::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--muted); transition:.15s; }
+  .field.toggle input:checked + .sw { background:rgba(112,228,255,.25); border-color:var(--line-strong); }
+  .field.toggle input:checked + .sw::after { left:18px; background:var(--ice); box-shadow:0 0 6px var(--ice); }
+  .field.toggle > span:last-child { font-size:13px; }
+  .dlg-actions { display:flex; gap:8px; justify-content:flex-end; padding:14px 20px 18px; }
+  .dlg-text { padding:0 20px 8px; font-size:13.5px; line-height:1.55; color:var(--text); }
+  .pick { padding:12px 20px 18px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .pick button { border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.03); padding:14px 10px; text-align:left; transition:.15s; }
+  .pick button:hover { border-color:var(--line-strong); background:rgba(112,228,255,.08); }
+  .pick b { display:block; font-size:13px; font-weight:600; margin-bottom:4px; }
+  .pick span { font-size:11px; color:var(--muted); line-height:1.4; }
+  .pick .ico { color:var(--ice); font:11px var(--mono); margin-bottom:8px; letter-spacing:.1em; }
+
+  /* palette */
+  #palette { width:min(620px, calc(100vw - 32px)); }
+  .pal-in { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .pal-in input { flex:1; background:transparent; border:0; outline:none; font-size:16px; }
+  .pal-in kbd { font:10px var(--mono); color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:2px 6px; }
+  .pal-list { max-height:min(420px, 60vh); overflow:auto; padding:8px; }
+  .pal-i { width:100%; text-align:left; display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; border:1px solid transparent; background:transparent; font-size:13.5px; }
+  .pal-i:hover, .pal-i.sel { background:rgba(112,228,255,.08); border-color:var(--line); }
+  .pal-i .h { margin-left:auto; font:10px var(--mono); color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
+  .pal-i .k { font:10px var(--mono); color:var(--ice); width:52px; flex-shrink:0; letter-spacing:.1em; text-transform:uppercase; }
+
+  /* context menu + toasts */
+  .ctx { position:fixed; z-index:1000; min-width:220px; padding:6px; border:1px solid var(--line-strong); border-radius:12px; background:var(--panel-2); box-shadow:0 20px 50px rgba(0,0,0,.5); backdrop-filter:blur(16px); }
+  .ctx[hidden] { display:none; }
+  .ctx-i { width:100%; text-align:left; padding:8px 10px; border-radius:8px; border:0; background:transparent; font-size:13px; display:flex; justify-content:space-between; }
+  .ctx-i:hover { background:rgba(112,228,255,.1); }
+  .ctx-i small { font:10px var(--mono); color:var(--muted); }
+  .ctx hr { border:0; border-top:1px solid var(--line); margin:5px 4px; }
+  .toasts { position:fixed; right:22px; bottom:66px; z-index:900; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast { padding:10px 14px; border-radius:10px; border:1px solid var(--line-strong); background:var(--panel-2); font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.4); opacity:0; transform:translateY(8px); transition:.25s; max-width:320px; }
+  .toast.show { opacity:1; transform:none; }
+  .toast.ok { border-color:rgba(92,242,165,.5); } .toast.wr { border-color:rgba(255,122,89,.6); }
+
+  .help-list { padding:4px 20px 14px; font-size:13px; line-height:1.9; color:var(--text); }
+  .help-list kbd { font:11px var(--mono); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--ice); margin-right:6px; }
+
+  /* ═══════════ UI KIT (j-*) — разметка контента, который генерирует агент ═══════════ */
+  .j-view { padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+  .j-stack { display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .j-view > *, .j-stack > * { flex-shrink:0; }
+
+  /* markdown */
+  .j-md { font-size:13.5px; line-height:1.6; min-width:0; }
+  .j-md > :first-child { margin-top:0; }
+  .j-md h1, .j-md h2, .j-md h3 { font-weight:600; margin:14px 0 6px; line-height:1.25; }
+  .j-md h1 { font-size:20px; } .j-md h2 { font-size:16px; color:var(--ice); } .j-md h3 { font-size:14px; }
+  .j-md h4 { font:600 10.5px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:12px 0 6px; }
+  .j-md p { margin:0 0 8px; }
+  .j-md ul, .j-md ol { margin:0 0 8px 20px; } .j-md li { margin:3px 0; }
+  .j-md li.task { list-style:none; margin-left:-20px; } .j-md li.task input { accent-color:var(--ice); margin-right:6px; vertical-align:-1px; }
+  .j-md a { color:var(--ice); text-decoration:none; border-bottom:1px solid rgba(112,228,255,.35); }
+  .j-md strong { color:#fff; } .j-md em { color:var(--amber); font-style:normal; } .j-md s { color:var(--muted); }
+  .j-md code { font:12px var(--mono); background:rgba(112,228,255,.08); border:1px solid var(--line); border-radius:5px; padding:1px 5px; color:var(--ice); }
+  .j-md pre, .j-code { position:relative; background:rgba(3,6,10,.7); border:1px solid var(--line); border-radius:10px; padding:12px 14px; overflow:auto; font:12px/1.55 var(--mono); color:#bfe9f5; margin:0 0 8px; white-space:pre; }
+  .j-md pre code { background:none; border:0; padding:0; color:inherit; font:inherit; }
+  .j-code .lang, .j-md pre .lang { position:absolute; right:10px; top:8px; font:10px var(--mono); color:var(--muted); letter-spacing:.14em; text-transform:uppercase; }
+  .j-md blockquote { margin:0 0 8px; padding:8px 14px; border-left:3px solid var(--amber); background:rgba(245,185,66,.06); border-radius:0 10px 10px 0; color:#f6ead0; }
+  .j-md blockquote p:last-child { margin:0; }
+  .j-md hr { border:0; border-top:1px solid var(--line); margin:12px 0; }
+  .j-md table { width:100%; border-collapse:collapse; margin:0 0 8px; font-size:12.5px; }
+  .j-md th, .j-md td { padding:7px 10px; border-bottom:1px solid var(--line); }
+  .j-md th { font:600 10px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+
+  /* table */
+  .j-table-wrap { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:rgba(255,255,255,.015); }
+  .j-table-bar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); font:600 10.5px var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .j-table-bar input { flex:1; padding:6px 10px; font:13px var(--font); letter-spacing:0; text-transform:none; }
+  .j-table-scroll { overflow:auto; max-height:380px; }
+  .j-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+  .j-table th { position:sticky; top:0; z-index:1; background:rgba(12,20,29,.98); font:600 10px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:9px 12px; text-align:left; border-bottom:1px solid var(--line); cursor:pointer; user-select:none; white-space:nowrap; }
+  .j-table th:hover { color:var(--text); } .j-table th.sorted { color:var(--ice); } .j-table th .arr { margin-left:4px; }
+  .j-table td { padding:8px 12px; border-bottom:1px solid rgba(112,228,255,.07); vertical-align:middle; }
+  .j-table tbody tr:last-child td { border-bottom:0; }
+  .j-table tbody tr:hover td { background:rgba(112,228,255,.04); }
+  .j-table .num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .j-table .pos { color:var(--ok); } .j-table .neg { color:var(--warn); }
+  .j-table-foot { padding:6px 12px; font:10.5px var(--mono); color:var(--muted); border-top:1px solid var(--line); }
+  .j-bar-cell { display:flex; align-items:center; gap:8px; font-family:var(--mono); }
+  .j-bar-cell .trk { width:80px; height:6px; border-radius:3px; background:rgba(255,255,255,.06); overflow:hidden; flex-shrink:0; }
+  .j-bar-cell .trk i { display:block; height:100%; background:linear-gradient(90deg,var(--ice-dim),var(--ice)); }
+
+  /* badges / alerts */
+  .j-badge { display:inline-flex; align-items:center; gap:5px; font:600 10px var(--mono); letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); background:rgba(255,255,255,.03); white-space:nowrap; }
+  .j-badge.ok { color:var(--ok); border-color:rgba(92,242,165,.4); background:rgba(92,242,165,.08); }
+  .j-badge.warn { color:var(--amber); border-color:rgba(245,185,66,.4); background:rgba(245,185,66,.08); }
+  .j-badge.err { color:var(--warn); border-color:rgba(255,122,89,.45); background:rgba(255,122,89,.08); }
+  .j-badge.info { color:var(--ice); border-color:var(--line-strong); background:rgba(112,228,255,.08); }
+  .j-badges { display:flex; flex-wrap:wrap; gap:6px; }
+  .j-alert { display:flex; gap:12px; padding:12px 14px; border-radius:12px; border:1px solid var(--line-strong); background:rgba(112,228,255,.06); }
+  .j-alert .ic { width:22px; height:22px; border-radius:7px; display:grid; place-items:center; font:700 12px var(--mono); flex-shrink:0; background:rgba(112,228,255,.15); color:var(--ice); }
+  .j-alert b { display:block; font-size:13.5px; margin-bottom:2px; } .j-alert p { font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .j-alert.ok { border-color:rgba(92,242,165,.4); background:rgba(92,242,165,.06); } .j-alert.ok .ic { background:rgba(92,242,165,.15); color:var(--ok); }
+  .j-alert.warn { border-color:rgba(245,185,66,.45); background:rgba(245,185,66,.06); } .j-alert.warn .ic { background:rgba(245,185,66,.15); color:var(--amber); }
+  .j-alert.err { border-color:rgba(255,122,89,.5); background:rgba(255,122,89,.06); } .j-alert.err .ic { background:rgba(255,122,89,.15); color:var(--warn); }
+
+  /* kpi / kv / list / timeline / steps / progress */
+  .j-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:10px; }
+  .j-kpi { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,.025); }
+  .j-kpi .l { font:10px var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .j-kpi .v { font-size:26px; font-weight:300; letter-spacing:-.02em; margin:6px 0 2px; line-height:1; }
+  .j-kpi .d { font:11px var(--mono); color:var(--ok); } .j-kpi .d.neg { color:var(--warn); } .j-kpi .d.flat { color:var(--muted); }
+  .j-kv { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:13px; margin:0; }
+  .j-kv dt { font:11px var(--mono); color:var(--muted); letter-spacing:.06em; padding-top:2px; } .j-kv dd { margin:0; }
+  .j-list { display:flex; flex-direction:column; gap:6px; }
+  .j-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:11px; border:1px solid var(--line); background:rgba(255,255,255,.02); }
+  .j-item .ic { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; background:rgba(112,228,255,.08); border:1px solid var(--line); color:var(--ice); font:600 12px var(--mono); flex-shrink:0; }
+  .j-item .t { font-size:13px; font-weight:500; } .j-item .s { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .j-item .r { margin-left:auto; text-align:right; font:12px var(--mono); flex-shrink:0; }
+  .j-tl { position:relative; padding-left:22px; display:flex; flex-direction:column; gap:12px; }
+  .j-tl::before { content:""; position:absolute; left:6px; top:6px; bottom:6px; width:1px; background:var(--line-strong); }
+  .j-tl .e { position:relative; } .j-tl .e::before { content:""; position:absolute; left:-20px; top:4px; width:9px; height:9px; border-radius:50%; background:var(--ice); box-shadow:0 0 8px var(--ice); }
+  .j-tl .e.ok::before { background:var(--ok); box-shadow:0 0 8px var(--ok); } .j-tl .e.warn::before { background:var(--amber); box-shadow:0 0 8px var(--amber); } .j-tl .e.err::before { background:var(--warn); box-shadow:0 0 8px var(--warn); } .j-tl .e.muted::before { background:var(--muted); box-shadow:none; }
+  .j-tl .tm { font:10.5px var(--mono); color:var(--muted); letter-spacing:.08em; } .j-tl .t { font-size:13px; margin-top:2px; } .j-tl .s { font-size:12px; color:var(--muted); margin-top:2px; }
+  .j-steps { display:flex; }
+  .j-step { flex:1; position:relative; padding-right:10px; display:flex; flex-direction:column; gap:6px; }
+  .j-step .n { width:24px; height:24px; border-radius:50%; border:1px solid var(--line-strong); display:grid; place-items:center; font:600 11px var(--mono); color:var(--muted); background:var(--bg); position:relative; z-index:1; }
+  .j-step::before { content:""; position:absolute; left:24px; right:0; top:12px; height:1px; background:var(--line); } .j-step:last-child::before { display:none; }
+  .j-step.done .n { background:var(--ice); color:#03202b; border-color:var(--ice); } .j-step.active .n { border-color:var(--amber); color:var(--amber); box-shadow:0 0 12px rgba(245,185,66,.4); }
+  .j-step .t { font-size:12.5px; font-weight:500; } .j-step .s { font-size:11px; color:var(--muted); }
+  .j-prog { display:flex; flex-direction:column; gap:10px; }
+  .j-prog .r { display:flex; flex-direction:column; gap:5px; } .j-prog .kv { display:flex; justify-content:space-between; font:11px var(--mono); color:var(--muted); } .j-prog .kv b { color:var(--text); font-weight:500; }
+  .j-prog .bar i.ok { background:linear-gradient(90deg,#2e9c6a,var(--ok)); } .j-prog .bar i.warn { background:linear-gradient(90deg,var(--amber-dim),var(--amber)); } .j-prog .bar i.err { background:linear-gradient(90deg,#a3402a,var(--warn)); }
+
+  /* layout */
+  .j-cols { display:grid; gap:12px; }
+  .j-card { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,.02); display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .j-card > .j-h { font:600 10.5px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .j-tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:12px; overflow-x:auto; scrollbar-width:none; }
+  .j-tab { padding:8px 12px; border:0; background:transparent; color:var(--muted); font:500 12.5px var(--font); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .j-tab.on { color:var(--text); border-bottom-color:var(--ice); } .j-tab:hover { color:var(--text); }
+  .j-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  .j-divider { border:0; border-top:1px solid var(--line); }
+  .j-img { border-radius:12px; border:1px solid var(--line); overflow:hidden; margin:0; } .j-img img { display:block; width:100%; } .j-img figcaption { padding:8px 12px; font-size:11.5px; color:var(--muted); }
+
+  /* media */
+  .j-media { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#000; margin:0; }
+  .j-media video, .j-media iframe { display:block; width:100%; aspect-ratio:16/9; border:0; background:#000; }
+  .j-media figcaption { padding:8px 12px; font-size:11.5px; color:var(--muted); background:var(--panel-2); }
+  .j-yt { position:relative; aspect-ratio:16/9; background:#0a1118 center/cover no-repeat; cursor:pointer; display:grid; place-items:center; }
+  .j-yt::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 45%, rgba(0,0,0,.65)); }
+  .j-yt .play { position:relative; z-index:1; width:64px; height:44px; border-radius:12px; background:rgba(255,0,0,.92); display:grid; place-items:center; box-shadow:0 10px 30px rgba(0,0,0,.5); transition:transform .15s; }
+  .j-yt:hover .play { transform:scale(1.08); }
+  .j-yt .play::after { content:""; border-style:solid; border-width:9px 0 9px 16px; border-color:transparent transparent transparent #fff; margin-left:3px; }
+  .j-yt .yt-t { position:absolute; left:12px; right:12px; bottom:10px; z-index:1; font-size:13px; font-weight:500; text-shadow:0 1px 4px #000; }
+  .j-videos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:10px; }
+  .j-vcard { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:rgba(255,255,255,.02); cursor:pointer; transition:border-color .15s; text-align:left; padding:0; color:inherit; display:block; }
+  .j-vcard:hover { border-color:var(--line-strong); }
+  .j-vcard .th { position:relative; aspect-ratio:16/9; background:#0a1118 center/cover no-repeat; }
+  .j-vcard .th i { position:absolute; right:6px; bottom:6px; z-index:1; font:10px var(--mono); font-style:normal; background:rgba(0,0,0,.8); padding:2px 5px; border-radius:4px; }
+  .j-vcard .th::after { content:"▶"; position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:22px; opacity:0; transition:.15s; background:rgba(0,0,0,.35); }
+  .j-vcard:hover .th::after { opacity:1; }
+  .j-vcard .vt { padding:8px 10px 2px; font-size:12.5px; font-weight:500; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .j-vcard .vc { padding:0 10px 9px; font:10.5px var(--mono); color:var(--muted); }
+  .j-gallery { display:grid; gap:8px; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); }
+  .j-gallery button { position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:10px; overflow:hidden; padding:0; background:#0a1118; cursor:zoom-in; }
+  .j-gallery img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s; } .j-gallery button:hover img { transform:scale(1.05); }
+  .j-gallery .gc { position:absolute; left:0; right:0; bottom:0; padding:16px 8px 6px; font-size:11px; color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.8)); text-align:left; }
+  .j-img img { cursor:zoom-in; }
+  .j-audio { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02); }
+  .j-audio .cov { width:52px; height:52px; border-radius:10px; background:linear-gradient(135deg,var(--ice-dim),var(--amber-dim)) center/cover; flex-shrink:0; display:grid; place-items:center; font-size:22px; color:#fff; }
+  .j-audio > div:last-child { flex:1; min-width:0; }
+  .j-audio .at { font-size:13px; font-weight:500; } .j-audio .aa { font:11px var(--mono); color:var(--muted); margin-top:2px; }
+  .j-audio audio { width:100%; height:32px; margin-top:6px; filter:invert(.92) hue-rotate(160deg) saturate(.5); }
+  .j-link { display:flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:rgba(255,255,255,.02); text-decoration:none; color:inherit; transition:border-color .15s; }
+  .j-link:hover { border-color:var(--line-strong); }
+  .j-link .li { width:120px; flex-shrink:0; background:#0a1118 center/cover no-repeat; }
+  .j-link .lb { padding:10px 12px; min-width:0; }
+  .j-link .ls { font:10px var(--mono); color:var(--ice); letter-spacing:.1em; text-transform:uppercase; }
+  .j-link .lt { font-size:13.5px; font-weight:500; margin:3px 0; }
+  .j-link .ld { font-size:12px; color:var(--muted); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .j-md img { max-width:100%; border-radius:10px; display:block; margin:6px 0; border:1px solid var(--line); }
+  dialog.lightbox { width:min(1100px, calc(100vw - 40px)); background:transparent; border:0; box-shadow:none; backdrop-filter:none; padding:0; }
+  dialog.lightbox img { max-width:100%; max-height:82vh; display:block; margin:0 auto; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,.7); }
+  dialog.lightbox iframe { width:100%; aspect-ratio:16/9; border:0; border-radius:12px; background:#000; display:block; }
+  dialog.lightbox .lc { text-align:center; color:var(--text); font-size:13px; margin-top:12px; text-shadow:0 1px 4px #000; }
+
+  /* charts (SVG) */
+  .j-chart { min-width:0; } .j-chart svg { width:100%; height:auto; display:block; overflow:visible; }
+  .j-chart .ttl { font:600 10.5px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; }
+  .j-chart .ttl .sub { color:var(--amber); letter-spacing:0; text-transform:none; }
+  .j-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font:11px var(--mono); color:var(--muted); }
+  .j-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .j-chart text { font-family:var(--mono); font-size:10px; fill:var(--muted); }
+  .j-chart .grid line { stroke:rgba(112,228,255,.1); }
+  .j-chart .jbar, .j-chart .pt, .j-chart .cell, .j-chart .slice { transition:filter .12s; } .j-chart .jbar:hover, .j-chart .pt:hover, .j-chart .cell:hover, .j-chart .slice:hover { filter:brightness(1.35); }
+  .j-tip { position:fixed; z-index:1200; pointer-events:none; background:var(--panel-2); border:1px solid var(--line-strong); border-radius:8px; padding:6px 10px; font:11.5px var(--mono); white-space:nowrap; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  .j-tip[hidden] { display:none; }
+
+  /* forms inside windows */
+  .j-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .j-form .field.full, .j-form .f-actions { grid-column:1 / -1; }
+  .j-form .f-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+  .field .radios { display:flex; flex-wrap:wrap; gap:6px; }
+  .field .radios label { font-size:12.5px; display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; cursor:pointer; }
+  .field .radios input { accent-color:var(--ice); } .field .radios label:has(:checked) { border-color:var(--line-strong); background:rgba(112,228,255,.08); }
+  .field .help { font-size:11px; color:var(--muted); line-height:1.4; }
+
+  /* playground */
+  .pg { display:grid; grid-template-columns:minmax(240px,42%) 1fr; flex:1; min-height:0; }
+  .pg .ed { display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--line); }
+  .pg textarea { flex:1; border:0; border-radius:0; background:rgba(3,6,10,.5); font:12px/1.5 var(--mono); resize:none; padding:12px; min-height:0; outline:none; color:#bfe9f5; white-space:pre; }
+  .pg .prev { overflow:auto; min-height:0; }
+  .pg-err { color:var(--warn); font:11px var(--mono); padding:6px 12px; border-top:1px solid var(--line); min-height:28px; }
+
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity:.55; transform:scale(.9);} 50% { opacity:1; transform:scale(1.1);} }
+  @keyframes breathe { 0%,100% { transform:scale(1);} 50% { transform:scale(1.07);} }
+  @keyframes eq { 0%,100% { height:25%;} 50% { height:100%;} }
+  @keyframes blink { 50% { opacity:0; } }
+  @keyframes rise { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+  @keyframes pop { from { opacity:0; transform:scale(.97);} to { opacity:1; transform:none;} }
+  @media (prefers-reduced-motion: reduce) { .ring, .orb, .reactor-mini i, .eq i { animation:none !important; } }
+  @media (max-width: 760px) { .meta .kv, .hb kbd, .dock-r { display:none; } .brand small { display:none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="reactor-mini" aria-hidden="true"><i></i></div>
+      <div><h1>J.A.R.V.I.S.</h1><small>FABLE CORE · v5.1 · WORKSPACE</small></div>
+    </div>
+    <div class="meta">
+      <div class="kv"><span class="dot"></span>Ядро: <b>Claude Fable 5.1</b></div>
+      <div class="kv">Задержка: <b id="lat">38 мс</b></div>
+      <div class="kv">Wake-word: <b id="wake-v">«Джарвис»</b></div>
+    </div>
+    <div class="hbtns">
+      <button class="hb" id="btn-win" title="Открыть окно">+ Окно</button>
+      <button class="hb" id="btn-pal" title="Командная палитра">Команды <kbd>⌘K</kbd></button>
+      <button class="hb" id="btn-kit" title="Галерея компонентов и примеры">UI Kit</button>
+      <button class="hb icon" id="btn-settings" title="Настройки" aria-label="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <button class="hb icon" id="btn-help" title="Подсказки" aria-label="Подсказки">?</button>
+    </div>
+    <div class="clock"><div id="clock">00:00:00</div><div id="date">—</div></div>
+  </header>
+
+  <div class="desktop" id="desktop">
+    <canvas id="viz"></canvas>
+    <div class="hero">
+      <div class="core" id="core" data-state="idle" role="button" tabindex="0" aria-label="Нажмите, чтобы говорить">
+        <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+        <div class="orb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M8 7v10M16 7v10M4 10v4M20 10v4"/></svg></div>
+      </div>
+      <div class="state-label"><span class="eq"><i></i><i></i><i></i><i></i><i></i></span><span id="state-text">Ожидание</span></div>
+      <div class="hero-hint">ПКМ по столу — меню окон · перетаскивайте заголовки</div>
+    </div>
+  </div>
+
+  <footer class="dock">
+    <div class="dock-l">Окна</div>
+    <div class="dock-wins" id="dock"></div>
+    <div class="dock-r"><kbd>Пробел</kbd> говорить · <kbd>⌘K</kbd> палитра · <kbd>Dbl-click</kbd> заголовок — развернуть</div>
+  </footer>
+</div>
+
+<div class="ctx" id="ctx" hidden></div>
+<div class="toasts" id="toasts"></div>
+<div class="j-tip" id="j-tip" hidden></div>
+
+<script type="text/plain" id="ui-spec">
+# JARVIS UI DSL — как модели рисовать окна
+
+Ответ, который нужно показать визуально, возвращай **JSON-спекой окна**. Интерфейс отрисует её сам (функция `openView(spec)`). Текстовый ответ в чат — отдельно.
+
+```json
+{ "title": "Заголовок окна", "width": 640, "height": 480, "blocks": [ ...блоки... ] }
+```
+
+## Блоки
+
+#### Текст
+- `{ "type": "md", "text": "## Markdown\n**жирный**, *акцент*, `код`, [ссылка](https://…), списки, > цитаты, таблицы `| a | b |`, ```fenced code```, - [x] задачи" }`
+- `{ "type": "code", "lang": "bash", "text": "./serve.sh" }`
+- `{ "type": "alert", "tone": "info|ok|warn|err", "title": "…", "text": "…" }`
+- `{ "type": "badges", "items": [ { "text": "ONLINE", "tone": "ok" } ] }`
+
+#### Числа
+- `{ "type": "kpi", "items": [ { "label": "Запросов", "value": "128", "delta": "+12%", "tone": "neg|flat" } ] }`
+- `{ "type": "kv", "items": [ ["Ключ", "Значение"], ["Статус", "**ok**"] ] }`
+- `{ "type": "progress", "items": [ { "label": "Готовность", "value": 68, "max": 100, "tone": "ok|warn|err", "text": "68 / 100" } ] }`
+
+#### Таблица
+```json
+{ "type": "table", "title": "…", "sortBy": "price", "sortDir": "asc", "search": true, "maxHeight": 320,
+  "columns": [ { "key": "name", "label": "Модель" },
+               { "key": "price", "label": "Цена", "format": "money", "unit": "₽" },
+               { "key": "perf", "label": "Perf", "format": "bar" },
+               { "key": "delta", "label": "Δ", "format": "pct" },
+               { "key": "state", "label": "Статус", "format": "badge", "tones": { "есть": "ok", "нет": "err" } } ],
+  "rows": [ { "name": "RTX 5070", "price": 62990, "perf": 100, "delta": -4.1, "state": "есть" } ] }
+```
+Форматы колонок: `text` (по умолчанию), `num`, `money`, `pct`, `bar`, `badge`, `bool`, `md`. Строки можно передавать массивами в порядке колонок.
+
+#### График
+```json
+{ "type": "chart", "kind": "bar|hbar|line|area|pie|donut|radar|heatmap|scatter",
+  "title": "…", "subtitle": "…", "unit": "%", "height": 240, "stacked": false, "max": 100,
+  "labels": ["Пн","Вт"], "series": [ { "name": "5xx", "data": [3, 7], "color": "#ff7a59" } ] }
+```
+- `heatmap`: `"rows": ["Пн",…]`, `"matrix": [[…],[…]]`, `"labels"` — колонки.
+- `scatter`: `"series": [{ "name": "…", "points": [[x, y, "подпись", r]] }]`, опц. `"xunit"`.
+- `donut`: опц. `"center": "92%"`, `"centerLabel": "SLA"`.
+- Цвета по умолчанию: ice #70e4ff, amber #f5b942, ok #5cf2a5, warn #ff7a59, violet #c084fc.
+
+#### Форма
+```json
+{ "type": "form", "title": "Уведомление", "submit": "Сохранить", "say": "Форма уведомления", "toast": "Сохранено",
+  "fields": [ { "name": "model", "label": "Модель", "type": "select", "options": ["A", ["b", "Подпись B"]], "full": true },
+              { "name": "price", "label": "Порог", "type": "number", "value": 60000, "help": "в рублях" },
+              { "name": "ch", "label": "Канал", "type": "radio", "options": ["Telegram", "Push"], "value": "Push" },
+              { "name": "vol", "label": "Громкость", "type": "range", "min": 0, "max": 100, "unit": "%" },
+              { "name": "daily", "label": "Проверять ежедневно", "type": "checkbox", "value": true, "full": true },
+              { "name": "note", "label": "Комментарий", "type": "textarea", "full": true } ] }
+```
+Типы полей: `text, number, email, url, password, date, time, textarea, select, radio, range, checkbox`. По submit значения отправляются в диалог как сообщение «say: k=v, …».
+
+#### Списки и статусы
+- `{ "type": "list", "items": [ { "title": "…", "sub": "…", "icon": "A", "badge": "P1", "tone": "err", "right": "12 мин" } ] }`
+- `{ "type": "timeline", "items": [ { "time": "03:41", "title": "…", "sub": "…", "tone": "ok|warn|err|muted" } ] }`
+- `{ "type": "steps", "items": [ { "title": "…", "sub": "…", "state": "done|active|todo" } ] }`
+- `{ "type": "actions", "items": [ { "label": "Сохранить", "say": "фраза для JARVIS", "open": "schedule", "tone": "primary|ghost" } ] }`
+
+#### Раскладка
+- `{ "type": "columns", "widths": [2, 1], "cols": [ [блоки], [блоки] ] }`
+- `{ "type": "card", "title": "…", "badge": "LIVE", "tone": "ok", "blocks": [ … ] }`
+- `{ "type": "tabs", "tabs": [ { "label": "Обзор", "blocks": [ … ] }, { "label": "Детали", "blocks": [ … ] } ] }`
+- `{ "type": "divider" }`
+- `{ "type": "html", "html": "<div class='j-card'>…</div>" }` — сырой HTML с классами кита: `j-card j-h j-kpis j-kpi j-badge j-alert j-list j-item j-kv j-tl j-steps j-prog j-table j-md j-code j-actions btn`.
+
+#### Медиа
+- `{ "type": "image", "src": "https://…", "alt": "…", "caption": "…" }` — клик открывает лайтбокс. В `md` тоже работает `![alt](src)`.
+- `{ "type": "gallery", "cols": 3, "items": [ { "src": "…", "thumb": "…", "caption": "…" }, "https://…" ] }`
+- `{ "type": "youtube", "url": "https://youtu.be/ID или ID", "title": "…", "start": 42, "caption": "…" }` — превью, по клику плеер.
+- `{ "type": "videos", "items": [ { "url": "…", "title": "…", "channel": "…", "duration": "12:04", "views": "1,2 млн", "date": "2025" } ] }` — сетка роликов, открываются в лайтбоксе.
+- `{ "type": "video", "src": "https://….mp4", "poster": "…", "caption": "…", "loop": false, "muted": false }` — HTML5-видео.
+- `{ "type": "audio", "src": "https://….mp3", "title": "…", "artist": "…", "cover": "…" }`
+- `{ "type": "embed", "src": "https://www.openstreetmap.org/export/embed.html?bbox=…", "title": "…", "height": 300 }` — любой iframe: карты, Figma, CodePen, документы.
+- `{ "type": "link", "url": "https://…", "title": "…", "desc": "…", "image": "…", "site": "habr.com" }` — карточка-превью ссылки.
+
+## Правила
+1. Один вопрос — одно окно, 3–8 блоков. Сверху вывод (`md`/`alert`/`kpi`), затем данные (`table`/`chart`), внизу действия (`form`/`actions`).
+2. Числа — числами, не строками (кроме `kpi.value`). Даты и единицы — в `label`/`unit`.
+3. Для сравнения — `table` + `hbar`; для динамики — `line`/`area`; для долей — `donut`; для расписаний — `timeline`/`heatmap`.
+4. Если данных нет — `alert` с `tone: "warn"` и объяснением, без пустых таблиц.
+</script>
+<dialog id="dlg"></dialog>
+<dialog id="palette">
+  <div class="pal-in"><span style="color:var(--ice)">›</span><input id="pal-q" placeholder="Что сделать? Окно, настройка, фраза…" autocomplete="off"><kbd>Esc</kbd></div>
+  <div class="pal-list" id="pal-list"></div>
+</dialog>
+
+<script>
+(() => {
+  // ───────────── utils ─────────────
+  const $ = (s, r = document) => r.querySelector(s);
+  const h = (tag, attrs = {}, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'html') e.innerHTML = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (k === 'style') e.style.cssText = v;
+      else e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const k of kids.flat(Infinity)) if (k != null && k !== false) e.append(k);
+    return e;
+  };
+  const uid = () => Math.random().toString(36).slice(2, 8);
+  const pad = n => String(n).padStart(2, '0');
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const stamp = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
+  };
+  const desktop = $('#desktop');
+
+  // ───────────── state ─────────────
+  const DEF_SETTINGS = { wake: 'Джарвис', name: 'Perez', city: 'Москва', lang: 'ru-RU', voice: 'fable-neutral', volume: 70, rate: 1, autoListen: true, tts: true, endpoint: 'ws://127.0.0.1:8765' };
+  let settings = Object.assign({}, DEF_SETTINGS, store.get('fable-settings', {}));
+  let integrations = store.get('fable-integrations', { Calendar: true, Spotify: true, HomeKit: true, Terminal: true, Telegram: false, Weather: true });
+  let events = store.get('fable-events', [
+    { id: uid(), tm: '09:30', ti: 'Стендап команды', sb: 'Meet · 15 мин' },
+    { id: uid(), tm: '14:00', ti: 'Ревью PR #482', sb: 'voice-pipeline → main' },
+    { id: uid(), tm: '23:30', ti: 'Деплой MyJarvis', sb: 'прод · через serve.sh' },
+  ]);
+  let commands = store.get('fable-commands', [
+    { id: uid(), lbl: 'Погода', say: 'Какая сейчас погода?', hint: '«Джарвис, что на улице?»' },
+    { id: uid(), lbl: 'Расписание', say: 'Что у меня по расписанию?', hint: '«Джарвис, план на день»' },
+    { id: uid(), lbl: 'Фокус-музыка', say: 'Включи музыку для работы', hint: '«Джарвис, включи фокус»' },
+    { id: uid(), lbl: 'Таймер 25', say: 'Поставь таймер на 25 минут', hint: '«Джарвис, помидорка»' },
+    { id: uid(), lbl: 'Dev-сервер', say: 'Открой терминал', hint: '«Джарвис, подними сервер»' },
+    { id: uid(), lbl: 'Свет', say: 'Выключи свет в кабинете', hint: '«Джарвис, свет»' },
+  ]);
+  const chatLog = [{ role: 'ai', tag: 'СИСТЕМА · ЗАГРУЗКА', text: `Доброй ночи, ${settings.name}. Рабочее пространство развёрнуто. Окна можно двигать и добавлять через «+ Окно». Попробуйте: «сравни видеокарты», «проанализируй логи», «покажи бюджет» — я соберу окно с таблицами и графиками. Кнопка UI Kit покажет все компоненты.` }];
+  const logs = [];
+  let state = 'idle', busy = false;
+
+  // ───────────── clock / telemetry ─────────────
+  const bootTs = Date.now();
+  setInterval(() => {
+    const d = new Date();
+    $('#clock').textContent = stamp();
+    $('#date').textContent = d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' });
+    document.querySelectorAll('.wclock .tm').forEach(e => e.textContent = stamp());
+    document.querySelectorAll('.wclock .dt').forEach(e => e.textContent = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+    const up = $('#uptime'); if (up) { const s = Math.floor((Date.now() - bootTs) / 1000); up.textContent = `up ${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
+    checkReminders();
+  }, 1000);
+  let cpu = 21, ram = 9.4;
+  setInterval(() => {
+    cpu = Math.max(6, Math.min(92, cpu + (Math.random() - .5) * 10 + (state === 'thinking' ? 8 : 0)));
+    ram = Math.max(6, Math.min(15.2, ram + (Math.random() - .5) * .3));
+    const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+    const w = (id, v) => { const e = $(id); if (e) e.style.width = v; };
+    set('#cpu-v', `${Math.round(cpu)}%`); w('#cpu-b', `${cpu}%`);
+    set('#ram-v', `${ram.toFixed(1)} / 16 ГБ`); w('#ram-b', `${ram / 16 * 100}%`);
+    set('#lat', `${Math.round(30 + Math.random() * 20)} мс`);
+  }, 1400);
+
+  // ───────────── toast / log ─────────────
+  function toast(text, cls = '') {
+    const t = h('div', { class: 'toast ' + cls }, text);
+    $('#toasts').append(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3400);
+  }
+  function log(text, cls = '') {
+    const row = { ts: stamp(), text, cls };
+    logs.push(row); if (logs.length > 200) logs.shift();
+    const el = $('#log-el');
+    if (el) { el.append(logRow(row)); el.scrollTop = el.scrollHeight; }
+    const c = $('#log-count'); if (c) c.textContent = logs.length;
+  }
+  const logRow = r => h('div', {}, h('span', { class: 'ts' }, r.ts), h('span', { class: r.cls }, r.text));
+
+  // ───────────── dialogs ─────────────
+  const dlg = $('#dlg');
+  function openDialog(build, cls = '') {
+    return new Promise(res => {
+      dlg.innerHTML = ''; dlg.className = cls;
+      let done = false;
+      const close = v => { if (done) return; done = true; dlg.close(); dlg.innerHTML = ''; dlg.className = ''; res(v); };
+      build(dlg, close);
+      dlg.oncancel = e => { e.preventDefault(); close(null); };
+      dlg.onclick = e => { if (e.target === dlg) close(null); };
+      dlg.showModal();
+    });
+  }
+  function fieldEl(f) {
+    const id = 'f_' + f.name;
+    let input;
+    if (f.type === 'textarea') { input = h('textarea', { name: f.name, id, rows: f.rows || 3, placeholder: f.placeholder || '' }); input.value = f.value || ''; }
+    else if (f.type === 'select') { input = h('select', { name: f.name, id }, f.options.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; const op = h('option', { value: v }, l); if (v == f.value) op.selected = true; return op; })); }
+    else if (f.type === 'range') {
+      input = h('input', { type: 'range', name: f.name, id, min: f.min ?? 0, max: f.max ?? 100, step: f.step ?? 1 }); input.value = f.value ?? 50;
+      const out = h('span', { class: 'range-v' }, input.value + (f.unit || ''));
+      input.addEventListener('input', () => out.textContent = input.value + (f.unit || ''));
+      return h('div', { class: 'field' + (f.full ? ' full' : '') }, h('label', { for: id }, f.label, out), input);
+    }
+    else if (f.type === 'checkbox') {
+      input = h('input', { type: 'checkbox', name: f.name, id }); input.checked = !!f.value;
+      return h('label', { class: 'field toggle' + (f.full ? ' full' : '') }, input, h('span', { class: 'sw' }), h('span', {}, f.label));
+    }
+    else if (f.type === 'radio') {
+      input = h('div', { class: 'radios' }, (f.options || []).map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; const r = h('input', { type: 'radio', name: f.name, value: v }); if (v == f.value) r.checked = true; return h('label', {}, r, l); }));
+      return h('div', { class: 'field' + (f.full ? ' full' : '') }, h('label', {}, f.label), input, f.help ? h('div', { class: 'help' }, f.help) : null);
+    }
+    else { input = h('input', { type: f.type || 'text', name: f.name, id, placeholder: f.placeholder || '', required: !!f.required, autocomplete: 'off', min: f.min, max: f.max, step: f.step }); if (f.value != null) input.value = f.value; }
+    return h('div', { class: 'field' + (f.full ? ' full' : '') }, h('label', { for: id }, f.label), input, f.help ? h('div', { class: 'help' }, f.help) : null);
+  }
+  function formDialog({ title, desc, fields, submit = 'Сохранить', cancel = 'Отмена', danger = false }) {
+    return openDialog((root, close) => {
+      const form = h('form', { class: 'dlg-form', onsubmit: e => {
+        e.preventDefault();
+        const out = {};
+        fields.forEach(f => { const el = form.elements[f.name]; out[f.name] = f.type === 'checkbox' ? el.checked : (f.type === 'range' ? Number(el.value) : el.value.trim()); });
+        close(out);
+      } });
+      form.append(h('div', { class: 'dlg-head' }, h('h2', {}, title), desc ? h('p', {}, desc) : null));
+      form.append(h('div', { class: 'dlg-fields' }, fields.map(fieldEl)));
+      form.append(h('div', { class: 'dlg-actions' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => close(null) }, cancel), h('button', { type: 'submit', class: 'btn primary' + (danger ? ' danger' : '') }, submit)));
+      root.append(form);
+      setTimeout(() => form.querySelector('input:not([type=checkbox]):not([type=range]),textarea,select')?.focus(), 40);
+    });
+  }
+  function confirmDialog({ title, text, ok = 'Подтвердить', danger = false }) {
+    return openDialog((root, close) => {
+      root.append(
+        h('div', { class: 'dlg-head' }, h('h2', {}, title)),
+        h('div', { class: 'dlg-text' }, text),
+        h('div', { class: 'dlg-actions' }, h('button', { class: 'btn ghost', onclick: () => close(false) }, 'Отмена'), h('button', { class: 'btn ' + (danger ? 'danger' : 'primary'), onclick: () => close(true) }, ok)),
+      );
+    });
+  }
+  function infoDialog(title, node) {
+    return openDialog((root, close) => root.append(h('div', { class: 'dlg-head' }, h('h2', {}, title)), node, h('div', { class: 'dlg-actions' }, h('button', { class: 'btn primary', onclick: () => close(true) }, 'Понятно'))));
+  }
+
+  // ───────────── settings ─────────────
+  function applySettings() { $('#wake-v').textContent = `«${settings.wake}»`; rerenderType('weather'); if (typeof setState === 'function') setState(state); }
+  async function openSettings() {
+    const r = await formDialog({
+      title: 'Настройки JARVIS', desc: 'Параметры голосового ядра и интерфейса. Сохраняются локально в браузере.',
+      fields: [
+        { name: 'name', label: 'Как к вам обращаться', value: settings.name, required: true },
+        { name: 'wake', label: 'Wake-word', value: settings.wake, required: true },
+        { name: 'city', label: 'Город для погоды', value: settings.city },
+        { name: 'lang', label: 'Язык распознавания', type: 'select', value: settings.lang, options: [['ru-RU', 'Русский'], ['en-US', 'English (US)'], ['uk-UA', 'Українська'], ['de-DE', 'Deutsch']] },
+        { name: 'voice', label: 'Голос синтеза', type: 'select', value: settings.voice, options: [['fable-neutral', 'Fable · Neutral'], ['fable-warm', 'Fable · Warm'], ['fable-crisp', 'Fable · Crisp'], ['system', 'Системный']] },
+        { name: 'endpoint', label: 'Endpoint ядра', value: settings.endpoint, placeholder: 'ws://host:port' },
+        { name: 'volume', label: 'Громкость', type: 'range', value: settings.volume, unit: '%' },
+        { name: 'rate', label: 'Скорость речи', type: 'range', min: .6, max: 1.6, step: .05, value: settings.rate, unit: '×' },
+        { name: 'autoListen', label: 'Слушать после wake-word автоматически', type: 'checkbox', value: settings.autoListen, full: true },
+        { name: 'tts', label: 'Озвучивать ответы', type: 'checkbox', value: settings.tts, full: true },
+      ],
+    });
+    if (!r) return;
+    settings = Object.assign({}, settings, r);
+    store.set('fable-settings', settings);
+    applySettings();
+    log(`settings: wake=«${settings.wake}», voice=${settings.voice}`, 'am');
+    toast('Настройки сохранены', 'ok');
+  }
+
+  // ───────────── window manager ─────────────
+  const WM = {
+    list: [], z: 20, active: null,
+    def(type) { return TYPES[type]; },
+    open(type, o = {}) {
+      const def = TYPES[type]; if (!def) return null;
+      if (def.single) { const ex = this.list.find(w => w.type === type); if (ex) { this.minimize(ex, false); this.focus(ex); return ex; } }
+      const dr = desktop.getBoundingClientRect();
+      const n = this.list.length;
+      const w = {
+        id: o.id || uid(), type, title: o.title || def.title,
+        w: o.w ?? def.w ?? 320, h: o.h ?? def.h ?? 240,
+        x: o.x ?? Math.max(10, Math.min(dr.width - (o.w ?? def.w ?? 320) - 10, dr.width / 2 - (o.w ?? def.w ?? 320) / 2 + ((n % 7) - 3) * 34)),
+        y: o.y ?? Math.max(10, Math.min(dr.height - (o.h ?? def.h ?? 240) - 10, 60 + (n % 7) * 30)),
+        min: !!o.min, max: !!o.max, data: o.data || {},
+      };
+      w.w = Math.min(w.w, dr.width - 20); w.h = Math.min(w.h, dr.height - 20);
+      w.x = Math.max(0, Math.min(w.x, dr.width - w.w - 4)); w.y = Math.max(0, Math.min(w.y, dr.height - w.h - 4));
+      // DOM
+      const body = h('div', { class: 'win-body' });
+      const bar = h('div', { class: 'win-bar' },
+        h('div', { class: 'ttl' }, h('span', { class: 'ttl-txt' }, w.title), def.badge ? h('em', {}, def.badge) : null),
+        def.renamable ? h('button', { class: 'wb', title: 'Переименовать', onclick: () => this.rename(w) }, '✎') : null,
+        h('button', { class: 'wb', title: 'Свернуть', onclick: () => this.minimize(w, true) }, '—'),
+        h('button', { class: 'wb', title: 'Развернуть', onclick: () => this.toggleMax(w) }, '◻'),
+        h('button', { class: 'wb x', title: 'Закрыть', onclick: () => this.close(w) }, '✕'),
+      );
+      const dom = h('div', { class: 'win', 'data-id': w.id }, bar, body, h('div', { class: 'rsz' }));
+      w.dom = dom; w.body = body;
+      dom.addEventListener('pointerdown', () => this.focus(w), true);
+      this.drag(bar, w); this.resize(dom.querySelector('.rsz'), w);
+      bar.addEventListener('dblclick', e => { if (!e.target.closest('.wb')) this.toggleMax(w); });
+      desktop.append(dom);
+      def.render(body, w);
+      this.list.push(w);
+      this.place(w); this.focus(w);
+      if (w.min) dom.classList.add('min');
+      if (w.max) dom.classList.add('max');
+      this.save(); this.dock();
+      return w;
+    },
+    place(w) { Object.assign(w.dom.style, { left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px' }); },
+    focus(w) {
+      if (this.active === w) return;
+      this.active = w;
+      this.list.forEach(o => o.dom.classList.toggle('active', o === w));
+      w.dom.style.zIndex = ++this.z;
+      this.dock();
+    },
+    close(w) {
+      w.dom.remove(); this.list = this.list.filter(o => o !== w);
+      if (this.active === w) { this.active = null; const top = this.list.filter(o => !o.min).sort((a, b) => (+b.dom.style.zIndex) - (+a.dom.style.zIndex))[0]; if (top) this.focus(top); }
+      this.save(); this.dock();
+    },
+    minimize(w, on) { w.min = on; w.dom.classList.toggle('min', on); if (on && this.active === w) this.active = null; if (!on) this.focus(w); this.save(); this.dock(); },
+    toggleMax(w) { w.max = !w.max; w.dom.classList.toggle('max', w.max); this.focus(w); this.save(); },
+    async rename(w) {
+      const r = await formDialog({ title: 'Переименовать окно', fields: [{ name: 'title', label: 'Название', value: w.title, required: true, full: true }], submit: 'Переименовать' });
+      if (r) { w.title = r.title; w.dom.querySelector('.ttl-txt').textContent = w.title; this.save(); this.dock(); }
+    },
+    drag(bar, w) {
+      bar.addEventListener('pointerdown', e => {
+        if (e.button !== 0 || e.target.closest('.wb') || w.max) return;
+        const sx = e.clientX, sy = e.clientY, ox = w.x, oy = w.y, dr = desktop.getBoundingClientRect();
+        bar.setPointerCapture(e.pointerId);
+        const move = ev => { w.x = Math.max(-w.w + 90, Math.min(dr.width - 90, ox + ev.clientX - sx)); w.y = Math.max(0, Math.min(dr.height - 36, oy + ev.clientY - sy)); this.place(w); };
+        const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up); this.save(); };
+        bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+      });
+    },
+    resize(handle, w) {
+      handle.addEventListener('pointerdown', e => {
+        if (w.max) return; e.stopPropagation();
+        const sx = e.clientX, sy = e.clientY, ow = w.w, oh = w.h;
+        handle.setPointerCapture(e.pointerId);
+        const move = ev => { w.w = Math.max(220, ow + ev.clientX - sx); w.h = Math.max(110, oh + ev.clientY - sy); this.place(w); w.dom.dispatchEvent(new Event('win-resize')); };
+        const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); this.save(); };
+        handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
+      });
+    },
+    tile() {
+      const vis = this.list.filter(w => !w.min); if (!vis.length) return;
+      const dr = desktop.getBoundingClientRect(), cols = Math.ceil(Math.sqrt(vis.length)), rows = Math.ceil(vis.length / cols);
+      const cw = (dr.width - 10 * (cols + 1)) / cols, ch = (dr.height - 10 * (rows + 1)) / rows;
+      vis.forEach((w, i) => { w.max = false; w.dom.classList.remove('max'); w.x = 10 + (i % cols) * (cw + 10); w.y = 10 + Math.floor(i / cols) * (ch + 10); w.w = cw; w.h = ch; this.place(w); w.dom.dispatchEvent(new Event('win-resize')); });
+      this.save();
+    },
+    save() { store.set('fable-layout', this.list.map(w => ({ id: w.id, type: w.type, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h, min: w.min, max: w.max, data: w.data }))); },
+    load() {
+      const saved = store.get('fable-layout', null);
+      const dr = desktop.getBoundingClientRect();
+      const items = saved && saved.length ? saved : defaultLayout(dr.width, dr.height);
+      items.forEach(o => { if (!TYPES[o.type]) return; o.x = Math.min(o.x, dr.width - 90); o.y = Math.min(o.y, dr.height - 40); this.open(o.type, o); });
+      const chat = this.list.find(w => w.type === 'chat'); if (chat) this.focus(chat);
+    },
+    dock() {
+      const d = $('#dock'); d.innerHTML = '';
+      this.list.forEach(w => d.append(h('button', { class: 'dchip' + (w.min ? ' min' : '') + (this.active === w ? ' act' : ''), title: w.title, onclick: () => { if (w.min) this.minimize(w, false); else if (this.active === w) this.minimize(w, true); else this.focus(w); } }, h('i'), w.title)));
+      if (!this.list.length) d.append(h('span', { style: 'font:11px var(--mono);color:var(--muted)' }, 'Нет окон — откройте через «+ Окно» или ПКМ по столу'));
+    },
+  };
+  function defaultLayout(W, H) {
+    const lh = Math.min(400, Math.round(H * .56));
+    return [
+      { type: 'commands', x: 12, y: 12, w: 270, h: lh },
+      { type: 'system', x: 12, y: lh + 24, w: 270, h: H - lh - 36 },
+      { type: 'chat', x: W - 12 - 440, y: 12, w: 440, h: Math.round(H * .6) },
+      { type: 'log', x: W - 12 - 440, y: Math.round(H * .6) + 24, w: 440, h: H - Math.round(H * .6) - 36 },
+      { type: 'weather', x: 296, y: 12, w: 300, h: 150 },
+    ];
+  }
+  function rerenderType(type) { WM.list.filter(w => w.type === type).forEach(w => { w.body.innerHTML = ''; w.body.className = 'win-body'; TYPES[type].render(w.body, w); }); }
+
+  // ───────────── window types ─────────────
+  const TYPES = {
+    chat: { title: 'Диалог с JARVIS', badge: 'FABLE 5.1', single: true, w: 440, h: 420, render: renderChat },
+    commands: { title: 'Быстрые команды', single: true, w: 270, h: 380, render: renderCommands },
+    system: { title: 'Система', single: true, w: 270, h: 220, render: renderSystem },
+    weather: { title: 'Погода', single: true, w: 300, h: 150, render: renderWeather },
+    schedule: { title: 'Расписание', single: true, w: 340, h: 320, render: renderSchedule },
+    integrations: { title: 'Интеграции', single: true, w: 320, h: 170, render: renderIntegrations },
+    log: { title: 'Журнал событий', single: true, w: 440, h: 240, render: renderLog },
+    terminal: { title: 'Терминал', w: 480, h: 300, render: renderTerminal },
+    notes: { title: 'Заметка', renamable: true, w: 300, h: 240, render: renderNotes },
+    dashboard: { title: 'Дашборд', renamable: true, hidden: true, w: 580, h: 420, render: renderDashboard },
+    kit: { title: 'UI Kit — галерея компонентов', badge: 'j-*', single: true, w: 760, h: 560, render: renderKit },
+    playground: { title: 'Песочница — JSON → окно', single: true, w: 820, h: 520, render: renderPlayground },
+    spec: { title: 'Справочник DSL для модели', single: true, w: 620, h: 560, render: renderSpec },
+    view: { title: 'Результат', renamable: true, hidden: true, w: 640, h: 480, render: renderView },
+  };
+
+  // chat
+  function renderChat(body) {
+    body.classList.add('flush');
+    const tr = h('div', { class: 'transcript', id: 'chat-transcript' });
+    chatLog.forEach(m => tr.append(msgEl(m)));
+    const inp = h('input', { class: 'inp', id: 'chat-in', placeholder: 'Напишите команду или нажмите на ядро, чтобы сказать…', autocomplete: 'off' });
+    const mic = h('button', { type: 'button', class: 'btn mic' + (state === 'listening' ? ' on' : ''), 'aria-label': 'Микрофон', onclick: startListening, html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>' });
+    const form = h('form', { class: 'composer', onsubmit: e => { e.preventDefault(); const q = inp.value; inp.value = ''; handle(q); } }, mic, inp, h('button', { type: 'submit', class: 'btn' }, '➤'));
+    body.append(tr, form);
+    requestAnimationFrame(() => tr.scrollTop = tr.scrollHeight);
+  }
+  function msgEl(m) {
+    const txt = h('span', { class: 'txt' }, m.text);
+    m.node = txt;
+    return h('div', { class: 'msg ' + m.role }, h('div', { class: 'who' }, m.role === 'ai' ? 'JV' : 'ВЫ'), h('div', { class: 'bubble' }, h('span', { class: 't' }, m.tag), txt));
+  }
+  function addMsg(role, text, tag) {
+    const m = { role, text, tag }; chatLog.push(m);
+    const tr = $('#chat-transcript');
+    if (tr) { tr.append(msgEl(m)); tr.scrollTop = tr.scrollHeight; }
+    return m;
+  }
+  function typeInto(m, text, speed) {
+    speed = speed ?? Math.max(5, Math.min(16, Math.round(1800 / Math.max(1, text.length))));
+    return new Promise(res => {
+      let i = 0; const cur = h('span', { class: 'cursor' }); m.node?.after(cur);
+      const t = setInterval(() => {
+        m.text = text.slice(0, ++i);
+        if (m.node) { m.node.textContent = m.text; const tr = $('#chat-transcript'); if (tr) tr.scrollTop = tr.scrollHeight; }
+        if (i >= text.length) { clearInterval(t); cur.remove(); res(); }
+      }, speed);
+    });
+  }
+
+  // commands
+  function renderCommands(body) {
+    body.classList.add('flush');
+    const list = h('div', { style: 'flex:1;min-height:0;overflow:auto;padding:12px 12px 4px' });
+    if (!commands.length) list.append(h('div', { class: 'empty' }, 'Команд пока нет. Добавьте свою ниже.'));
+    commands.forEach(c => list.append(h('button', { class: 'cmd', onclick: () => handle(c.say) },
+      h('span', {}, h('div', { class: 'lbl' }, c.lbl), h('div', { class: 'hint' }, c.hint || c.say)),
+      h('button', { class: 'rm', title: 'Удалить', onclick: e => { e.stopPropagation(); commands = commands.filter(x => x.id !== c.id); store.set('fable-commands', commands); rerenderType('commands'); } }, '✕'))));
+    body.append(list, h('div', { class: 'sect-foot' }, h('button', { class: 'btn sm', onclick: async () => {
+      const r = await formDialog({ title: 'Новая быстрая команда', desc: 'Кнопка появится в списке; нажатие отправит фразу ядру.', fields: [
+        { name: 'lbl', label: 'Название', required: true, placeholder: 'Например: Кофе' },
+        { name: 'hint', label: 'Подсказка', placeholder: '«Джарвис, свари кофе»' },
+        { name: 'say', label: 'Фраза для ядра', required: true, full: true, placeholder: 'Что именно сказать JARVIS' },
+      ], submit: 'Добавить' });
+      if (r) { commands.push({ id: uid(), ...r }); store.set('fable-commands', commands); rerenderType('commands'); toast('Команда добавлена', 'ok'); }
+    } }, '+ Команда')));
+  }
+
+  // system
+  function renderSystem(body) {
+    body.append(h('div', { class: 'stat' },
+      h('div', { class: 'row' }, h('div', { class: 'kv' }, h('span', {}, 'CPU'), h('b', { id: 'cpu-v' }, `${Math.round(cpu)}%`)), h('div', { class: 'bar' }, h('i', { id: 'cpu-b', style: `width:${cpu}%` }))),
+      h('div', { class: 'row' }, h('div', { class: 'kv' }, h('span', {}, 'RAM'), h('b', { id: 'ram-v' }, `${ram.toFixed(1)} / 16 ГБ`)), h('div', { class: 'bar' }, h('i', { id: 'ram-b', style: `width:${ram / 16 * 100}%` }))),
+      h('div', { class: 'row' }, h('div', { class: 'kv' }, h('span', {}, 'Микрофон'), h('b', { id: 'mic-v' }, '−46 дБ')), h('div', { class: 'bar amber' }, h('i', { id: 'mic-b', style: 'width:12%' }))),
+      h('div', { class: 'kv', style: 'display:flex;justify-content:space-between;font:11px var(--mono);color:var(--muted)' }, h('span', {}, 'Аптайм'), h('b', { id: 'uptime', style: 'color:var(--amber);font-weight:500' }, 'up 00:00')),
+    ));
+  }
+
+  // weather
+  function renderWeather(body) {
+    body.classList.add('flush');
+    body.append(h('div', { style: 'padding:14px;flex:1' }, h('div', { class: 'weather' },
+      h('div', {}, h('div', { class: 'city' }, settings.city), h('div', { class: 'temp' }, '+9', h('sup', {}, '°C')), h('div', { class: 'desc' }, 'Ясно, ветер 3 м/с · ощущается как +7°')),
+      h('div', { class: 'glyph', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3a7 7 0 1 0 9 9 9 9 0 1 1-9-9z"/><path d="M19 3l.6 1.4L21 5l-1.4.6L19 7l-.6-1.4L17 5l1.4-.6z" fill="currentColor"/></svg>' }),
+    )));
+  }
+
+  // schedule
+  function renderSchedule(body) {
+    body.classList.add('flush');
+    const list = h('div', { style: 'flex:1;min-height:0;overflow:auto;padding:6px 14px' });
+    const sorted = [...events].sort((a, b) => a.tm.localeCompare(b.tm));
+    const now = nowHM();
+    if (!sorted.length) list.append(h('div', { class: 'empty' }, 'Пусто. Добавьте напоминание или скажите «Джарвис, напомни…»'));
+    sorted.forEach(e => list.append(h('div', { class: 'ev' + (e.tm >= now && !sorted.some(o => o.tm >= now && o.tm < e.tm) ? ' now' : '') },
+      h('div', { class: 'tm' }, e.tm), h('div', {}, h('div', { class: 'ti' }, e.ti), e.sb ? h('div', { class: 'sb' }, e.sb) : null),
+      h('button', { class: 'rm', title: 'Удалить', onclick: () => { events = events.filter(x => x.id !== e.id); store.set('fable-events', events); rerenderType('schedule'); } }, '✕'))));
+    body.append(list, h('div', { class: 'sect-foot' }, h('button', { class: 'btn sm', onclick: () => newReminder() }, '+ Напоминание')));
+  }
+  async function newReminder(prefill = '') {
+    const d = new Date(); d.setMinutes(d.getMinutes() + 30);
+    const r = await formDialog({ title: 'Новое напоминание', desc: 'JARVIS сообщит в указанное время и запишет событие в расписание.', fields: [
+      { name: 'ti', label: 'Что напомнить', required: true, full: true, value: prefill, placeholder: 'Позвонить маме' },
+      { name: 'tm', label: 'Время', type: 'time', value: `${pad(d.getHours())}:${pad(d.getMinutes())}`, required: true },
+      { name: 'sb', label: 'Заметка', placeholder: 'необязательно' },
+    ], submit: 'Создать' });
+    if (!r) return null;
+    const ev = { id: uid(), ...r }; events.push(ev); store.set('fable-events', events);
+    rerenderType('schedule'); WM.open('schedule');
+    log(`reminder: ${r.tm} — ${r.ti}`, 'am'); toast(`Напоминание на ${r.tm}`, 'ok');
+    return ev;
+  }
+  const fired = new Set();
+  function checkReminders() {
+    const now = nowHM();
+    events.forEach(e => { if (e.tm === now && !fired.has(e.id)) { fired.add(e.id); toast(`⏰ ${e.ti}`, 'ok'); log(`reminder fired: ${e.ti}`, 'ok'); if (!busy) respond(`Напоминаю: ${e.ti}.`); } });
+  }
+
+  // integrations
+  function renderIntegrations(body) {
+    body.append(h('p', { style: 'font-size:11.5px;color:var(--muted);margin-bottom:10px' }, 'Клик по чипу — включить/выключить.'),
+      h('div', { class: 'chips' }, Object.entries(integrations).map(([k, on]) => h('button', { class: 'chip' + (on ? '' : ' off'), onclick: () => { integrations[k] = !integrations[k]; store.set('fable-integrations', integrations); rerenderType('integrations'); log(`integration: ${k} ${integrations[k] ? 'on' : 'off'}`, integrations[k] ? 'ok' : 'wr'); } }, h('i'), k))));
+  }
+
+  // log
+  function renderLog(body) {
+    body.classList.add('flush');
+    const el = h('div', { class: 'log', id: 'log-el', style: 'flex:1;min-height:0;overflow:auto;padding:10px 14px' });
+    logs.forEach(r => el.append(logRow(r)));
+    body.append(el, h('div', { class: 'sect-foot', style: 'justify-content:space-between;align-items:center' }, h('span', { style: 'font:11px var(--mono);color:var(--muted)' }, 'записей: ', h('b', { id: 'log-count' }, logs.length)), h('button', { class: 'btn sm ghost', onclick: () => { logs.length = 0; rerenderType('log'); } }, 'Очистить')));
+    requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
+  }
+
+  // terminal
+  function renderTerminal(body, w) {
+    body.classList.add('flush');
+    const out = h('div', { class: 'term' });
+    const print = (s, cls) => { out.append(h('div', { class: cls || '' }, s)); out.scrollTop = out.scrollHeight; };
+    print('JARVIS shell · Fable 5.1 — введите help');
+    const inp = h('input', { placeholder: 'команда…', autocomplete: 'off', spellcheck: 'false' });
+    inp.addEventListener('keydown', async e => {
+      if (e.key !== 'Enter') return;
+      const line = inp.value.trim(); inp.value = ''; if (!line) return;
+      out.append(h('div', {}, h('span', { class: 'p' }, 'jarvis ❯ '), line));
+      const [cmd, ...rest] = line.split(/\s+/); const arg = rest.join(' ');
+      switch (cmd) {
+        case 'help': print('help · status · ls · open <type> · close <id> · say <текст> · remind <HH:MM> <текст> · settings · clear\ntypes: ' + Object.keys(TYPES).join(', ')); break;
+        case 'status': print(`core=Fable-5.1 state=${state} cpu=${Math.round(cpu)}% ram=${ram.toFixed(1)}GB windows=${WM.list.length} wake=«${settings.wake}»`); break;
+        case 'ls': WM.list.forEach(x => print(`${x.id}  ${x.type.padEnd(12)} ${x.min ? '[min] ' : ''}${x.title}`)); break;
+        case 'open': if (arg === 'dashboard') newDashboard(); else if (TYPES[arg]) { WM.open(arg); print(`opened ${arg}`); } else print(`unknown type: ${arg}`, 'wr'); break;
+        case 'close': { const x = WM.list.find(o => o.id === arg); if (x) { WM.close(x); print('closed'); } else print('not found', 'wr'); break; }
+        case 'say': handle(arg); print('→ sent to core'); break;
+        case 'remind': { const m = arg.match(/^(\d{1,2}:\d{2})\s+(.+)$/); if (!m) { print('usage: remind HH:MM текст', 'wr'); break; } events.push({ id: uid(), tm: m[1].padStart(5, '0'), ti: m[2], sb: 'из терминала' }); store.set('fable-events', events); rerenderType('schedule'); print('ok'); break; }
+        case 'settings': openSettings(); break;
+        case 'clear': out.innerHTML = ''; break;
+        default: print(`command not found: ${cmd}`, 'wr');
+      }
+    });
+    body.append(out, h('div', { class: 'term-in', onclick: () => inp.focus() }, h('span', {}, 'jarvis ❯'), inp));
+  }
+
+  // notes
+  function renderNotes(body, w) {
+    body.classList.add('flush');
+    const ta = h('textarea', { class: 'inp', style: 'flex:1;border:0;border-radius:0;background:transparent;padding:14px;resize:none;min-height:0', placeholder: 'Текст заметки… сохраняется автоматически' });
+    ta.value = w.data.text || '';
+    let t; ta.addEventListener('input', () => { w.data.text = ta.value; clearTimeout(t); t = setTimeout(() => WM.save(), 300); });
+    body.append(ta);
+  }
+
+  // dashboard
+  const WIDGETS = {
+    kpi: { title: 'Показатель', desc: 'Крупное число с динамикой. Клик — редактировать.', make: () => ({ title: 'Запросов сегодня', value: '128', delta: '+12% к вчера' }),
+      render(box, wd, save) {
+        box.append(h('div', { class: 'kpi', onclick: async () => {
+          const r = await formDialog({ title: 'Показатель', fields: [{ name: 'title', label: 'Название', value: wd.title, full: true }, { name: 'value', label: 'Значение', value: wd.value }, { name: 'delta', label: 'Изменение', value: wd.delta }] });
+          if (r) { Object.assign(wd, r); save(); }
+        } }, h('div', { class: 'v' }, wd.value), h('div', { class: 'd' + (String(wd.delta).trim().startsWith('-') || String(wd.delta).trim().startsWith('−') ? ' neg' : '') }, wd.delta)));
+      } },
+    spark: { title: 'График', desc: 'Живой временной ряд (демо-данные).', span: 'c2', make: () => ({ title: 'Нагрузка ядра', series: Array.from({ length: 40 }, () => 20 + Math.random() * 60) }),
+      render(box, wd) {
+        const cv = h('canvas'); box.append(cv);
+        const draw = () => {
+          const r = cv.getBoundingClientRect(); if (!r.width) return;
+          const dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr;
+          const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, r.width, r.height);
+          const s = wd.series, n = s.length, W = r.width, H = r.height;
+          const pt = i => [i / (n - 1) * W, H - (s[i] / 100) * (H - 8) - 4];
+          c.beginPath(); s.forEach((_, i) => { const [x, y] = pt(i); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+          c.strokeStyle = '#70e4ff'; c.lineWidth = 1.8; c.stroke();
+          c.lineTo(W, H); c.lineTo(0, H); c.closePath();
+          const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(112,228,255,.3)'); g.addColorStop(1, 'rgba(112,228,255,0)'); c.fillStyle = g; c.fill();
+          const [lx, ly] = pt(n - 1); c.fillStyle = '#f5b942'; c.beginPath(); c.arc(lx, ly, 3, 0, 7); c.fill();
+        };
+        const t = setInterval(() => { if (!cv.isConnected) return clearInterval(t); wd.series.push(Math.max(5, Math.min(98, wd.series[wd.series.length - 1] + (Math.random() - .5) * 18))); wd.series.shift(); draw(); }, 1200);
+        new ResizeObserver(draw).observe(cv); requestAnimationFrame(draw);
+      } },
+    gauge: { title: 'Индикатор', desc: 'Круговой процент. Клик — изменить.', make: () => ({ title: 'Батарея ноутбука', value: 82 }),
+      render(box, wd, save) {
+        const R = 36, C = 2 * Math.PI * R;
+        const arc = h('circle', { cx: 45, cy: 45, r: R, fill: 'none', stroke: '#70e4ff', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-dasharray': `${C * wd.value / 100} ${C}` });
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 90 90');
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); ['cx', 45, 'cy', 45, 'r', R, 'fill', 'none', 'stroke', 'rgba(255,255,255,.07)', 'stroke-width', 7].forEach((v, i, a) => i % 2 === 0 && bg.setAttribute(v, a[i + 1]));
+        const fg = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); for (const a of arc.attributes) fg.setAttribute(a.name, a.value);
+        svg.append(bg, fg);
+        const val = h('div', { class: 'val' }, wd.value + '%');
+        box.append(h('div', { class: 'gauge', style: 'cursor:pointer', onclick: async () => { const r = await formDialog({ title: 'Индикатор', fields: [{ name: 'title', label: 'Название', value: wd.title, full: true }, { name: 'value', label: 'Значение', type: 'range', value: wd.value, unit: '%', full: true }] }); if (r) { Object.assign(wd, r); save(); } } }, h('div', { class: 'gauge-wrap' }, svg, val)));
+      } },
+    list: { title: 'Чеклист', desc: 'Список задач с галочками.', span: 'r2', make: () => ({ title: 'Задачи', items: [{ t: 'Проверить деплой', d: false }, { t: 'Ответить в Telegram', d: true }] }),
+      render(box, wd, save) {
+        const ul = h('ul', { class: 'cl' });
+        wd.items.forEach((it, i) => {
+          const cb = h('input', { type: 'checkbox' }); cb.checked = it.d; cb.addEventListener('change', () => { it.d = cb.checked; save(); });
+          ul.append(h('li', { class: it.d ? 'done' : '' }, cb, h('span', {}, it.t), h('button', { class: 'rm', style: 'opacity:1;position:static', onclick: () => { wd.items.splice(i, 1); save(); } }, '✕')));
+        });
+        const inp = h('input', { class: 'inp', placeholder: 'Новая задача…' });
+        const add = () => { const v = inp.value.trim(); if (!v) return; wd.items.push({ t: v, d: false }); inp.value = ''; save(); };
+        inp.addEventListener('keydown', e => e.key === 'Enter' && add());
+        box.append(ul, h('div', { class: 'cl-add' }, inp, h('button', { class: 'btn sm', onclick: add }, '+')));
+      } },
+    clock: { title: 'Часы', desc: 'Крупные часы и дата.', make: () => ({ title: 'Локальное время' }),
+      render(box) { box.append(h('div', { class: 'wclock' }, h('div', { class: 'tm' }, stamp()), h('div', { class: 'dt' }, new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })))); } },
+    note: { title: 'Заметка', desc: 'Текстовое поле внутри дашборда.', make: () => ({ title: 'Заметка', text: '' }),
+      render(box, wd, save) { const ta = h('textarea', { class: 'inp', placeholder: 'Текст…' }); ta.value = wd.text || ''; let t; ta.addEventListener('input', () => { wd.text = ta.value; clearTimeout(t); t = setTimeout(() => WM.save(), 300); }); box.append(ta); } },
+  };
+  function widgetPicker() {
+    return openDialog((root, close) => root.append(
+      h('div', { class: 'dlg-head' }, h('h2', {}, 'Добавить виджет'), h('p', {}, 'Выберите тип. Виджеты можно удалять наведением на карточку.')),
+      h('div', { class: 'pick' }, Object.entries(WIDGETS).map(([k, w]) => h('button', { onclick: () => close(k) }, h('div', { class: 'ico' }, k.toUpperCase()), h('b', {}, w.title), h('span', {}, w.desc)))),
+      h('div', { class: 'dlg-actions' }, h('button', { class: 'btn ghost', onclick: () => close(null) }, 'Отмена')),
+    ));
+  }
+  function renderDashboard(body, w) {
+    body.classList.add('flush');
+    w.data.widgets ||= [];
+    const grid = h('div', { class: 'dash-grid' });
+    const count = h('span', {}, '');
+    const save = () => { WM.save(); draw(); };
+    const draw = () => {
+      grid.innerHTML = ''; count.textContent = `${w.data.widgets.length} виджет(ов)`;
+      if (!w.data.widgets.length) grid.append(h('div', { class: 'empty', style: 'grid-column:1/-1' }, 'Пустой дашборд. Нажмите «+ Виджет», чтобы добавить показатель, график, чеклист…'));
+      w.data.widgets.forEach((wd, i) => {
+        const def = WIDGETS[wd.kind]; if (!def) return;
+        const box = h('div', { class: 'wg ' + (def.span || '') }, h('div', { class: 'wt' }, wd.title || def.title), h('button', { class: 'rm', title: 'Удалить виджет', onclick: () => { w.data.widgets.splice(i, 1); save(); } }, '✕'));
+        def.render(box, wd, save); grid.append(box);
+      });
+    };
+    body.append(h('div', { class: 'dash-bar' }, count, h('span', { class: 'sp' }),
+      h('button', { class: 'btn sm ghost', onclick: () => WM.rename(w) }, 'Переименовать'),
+      h('button', { class: 'btn sm', onclick: async () => { const kind = await widgetPicker(); if (!kind) return; w.data.widgets.push({ id: uid(), kind, ...(WIDGETS[kind].make?.() || {}) }); save(); } }, '+ Виджет')), grid);
+    draw();
+  }
+  async function newDashboard(name) {
+    if (!name) { const r = await formDialog({ title: 'Новый дашборд', desc: 'Пустое окно-сетка; виджеты добавляются внутри.', fields: [{ name: 'title', label: 'Название', value: `Дашборд ${WM.list.filter(x => x.type === 'dashboard').length + 1}`, required: true, full: true }, { name: 'preset', label: 'Заполнить', type: 'select', value: 'demo', options: [['demo', 'Демо-набор виджетов'], ['empty', 'Пустой']], full: true }], submit: 'Создать' }); if (!r) return null; name = r.title; var preset = r.preset; }
+    const widgets = preset === 'empty' ? [] : ['kpi', 'gauge', 'spark', 'list', 'clock'].map(k => ({ id: uid(), kind: k, ...WIDGETS[k].make() }));
+    const w = WM.open('dashboard', { title: name, data: { widgets } });
+    log(`dashboard: «${name}» создан`, 'am');
+    return w;
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  UI KIT: markdown → html, SVG charts, JSON blocks → DOM
+  // ═════════════════════════════════════════════════════════════════════
+  const PAL = ['#70e4ff', '#f5b942', '#5cf2a5', '#ff7a59', '#c084fc', '#60a5fa', '#f472b6', '#a3e635'];
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const niceMax = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; };
+  const fmtNum = v => { v = Number(v) || 0; const a = Math.abs(v); if (a >= 1e6) return +(v / 1e6).toFixed(1) + 'M'; if (a >= 1e3) return +(v / 1e3).toFixed(1) + 'k'; return Number.isInteger(v) ? String(v) : String(+v.toFixed(1)); };
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const rndArr = (n, a, b, int = true) => Array.from({ length: n }, () => int ? Math.round(rnd(a, b)) : +rnd(a, b).toFixed(1));
+
+  // ── markdown ──
+  function inlineMd(s) {
+    const codes = [];
+    return esc(s)
+      .replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; })
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*\w])\*([^*]+)\*/g, '$1<em>$2</em>')
+      .replace(/~~([^~]+)~~/g, '<s>$1</s>')
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1" loading="lazy">')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
+  }
+  function md(src) {
+    const L = String(src || '').replace(/\r/g, '').split('\n'); let out = '', i = 0, p = [];
+    const flush = () => { if (p.length) { out += `<p>${inlineMd(p.join(' '))}</p>`; p = []; } };
+    const cells = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    while (i < L.length) {
+      const l = L[i]; let m;
+      if (/^```/.test(l)) { flush(); const lang = l.slice(3).trim(), buf = []; i++; while (i < L.length && !/^```/.test(L[i])) buf.push(L[i++]); i++; out += `<pre>${lang ? `<span class="lang">${esc(lang)}</span>` : ''}<code>${esc(buf.join('\n'))}</code></pre>`; continue; }
+      if ((m = l.match(/^(#{1,4})\s+(.*)/))) { flush(); out += `<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`; i++; continue; }
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { flush(); out += '<hr>'; i++; continue; }
+      if (/^>\s?/.test(l)) { flush(); const buf = []; while (i < L.length && /^>\s?/.test(L[i])) buf.push(L[i++].replace(/^>\s?/, '')); out += `<blockquote>${md(buf.join('\n'))}</blockquote>`; continue; }
+      if (/^\|/.test(l) && /^\|?\s*:?-{2,}/.test(L[i + 1] || '')) {
+        flush(); const head = cells(l), al = cells(L[i + 1]).map(a => /^:.*:$/.test(a) ? 'center' : /:$/.test(a) ? 'right' : 'left'); i += 2; let rows = '';
+        while (i < L.length && /^\|/.test(L[i])) rows += '<tr>' + cells(L[i++]).map((c, k) => `<td style="text-align:${al[k] || 'left'}">${inlineMd(c)}</td>`).join('') + '</tr>';
+        out += `<table><thead><tr>${head.map((c, k) => `<th style="text-align:${al[k] || 'left'}">${inlineMd(c)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`; continue;
+      }
+      if ((m = l.match(/^\s*([-*+]|\d+\.)\s+(.*)/))) {
+        flush(); const ordered = /\d/.test(m[1]), items = [];
+        while (i < L.length && (m = L[i].match(/^\s*([-*+]|\d+\.)\s+(.*)/))) { const task = m[2].match(/^\[([ xX])\]\s+(.*)/); items.push(task ? `<li class="task"><input type="checkbox" disabled${task[1] !== ' ' ? ' checked' : ''}>${inlineMd(task[2])}</li>` : `<li>${inlineMd(m[2])}</li>`); i++; }
+        out += `<${ordered ? 'ol' : 'ul'}>${items.join('')}</${ordered ? 'ol' : 'ul'}>`; continue;
+      }
+      if (!l.trim()) { flush(); i++; continue; }
+      p.push(l); i++;
+    }
+    flush(); return out;
+  }
+
+  // ── charts ──
+  function arcPath(cx, cy, R, r0, a0, a1) {
+    const p = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)], large = a1 - a0 > Math.PI ? 1 : 0;
+    const [x0, y0] = p(R, a0), [x1, y1] = p(R, a1);
+    if (!r0) return `M${cx} ${cy} L${x0} ${y0} A${R} ${R} 0 ${large} 1 ${x1} ${y1}Z`;
+    const [x2, y2] = p(r0, a1), [x3, y3] = p(r0, a0);
+    return `M${x0} ${y0} A${R} ${R} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${r0} ${r0} 0 ${large} 0 ${x3} ${y3}Z`;
+  }
+  function chartSVG(b) {
+    const W = 600, pad = { l: 46, r: 14, t: 14, b: 30 };
+    let H = b.height || 240, legend = false, inner = '';
+    const series = (b.series || []).map((s, i) => ({ ...s, data: s.data || [], color: s.color || PAL[i % PAL.length] }));
+    const labels = b.labels || [], unit = b.unit || '', kind = b.kind || 'bar';
+    const fmt = v => fmtNum(v) + unit, tip = t => ` data-tip="${esc(t)}"`;
+    const all = series.flatMap(s => s.data), iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const col = i => (b.colors || [])[i] || PAL[i % PAL.length];
+    if (['bar', 'line', 'area', 'scatter'].includes(kind)) {
+      legend = series.length > 1;
+      const ys = kind === 'scatter' ? series.flatMap(s => (s.points || []).map(p => p[1])) : all;
+      let max = Math.max(...ys, 0), min = Math.min(0, ...ys);
+      if (kind === 'bar' && b.stacked) max = Math.max(...labels.map((_, i) => series.reduce((a, s) => a + (s.data[i] || 0), 0)), 0);
+      max = b.max ?? niceMax(max); if (min < 0) min = -niceMax(-min);
+      const y = v => pad.t + ih - (v - min) / (max - min || 1) * ih;
+      inner += '<g class="grid">';
+      for (let k = 0; k <= 4; k++) { const v = min + (max - min) * k / 4, yy = y(v); inner += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yy}" y2="${yy}"/><text x="${pad.l - 6}" y="${yy + 3}" text-anchor="end">${fmt(v)}</text>`; }
+      inner += '</g>';
+      if (kind === 'scatter') {
+        const xs = series.flatMap(s => (s.points || []).map(p => p[0])), xmax = b.xmax ?? niceMax(Math.max(...xs, 0)), X = v => pad.l + v / (xmax || 1) * iw;
+        for (let k = 0; k <= 4; k++) { const v = xmax * k / 4; inner += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle">${fmtNum(v)}${b.xunit || ''}</text>`; }
+        series.forEach(s => (s.points || []).forEach(([px, py, lab, r]) => inner += `<circle class="pt" cx="${X(px)}" cy="${y(py)}" r="${r || 6}" fill="${s.color}" fill-opacity=".7" stroke="${s.color}"${tip(`${lab || s.name || ''}: ${fmtNum(px)}${b.xunit || ''} · ${fmt(py)}`)}/>`));
+      } else {
+        const n = Math.max(labels.length, ...series.map(s => s.data.length), 1), xc = i => pad.l + (i + .5) * iw / n, step = Math.ceil(n / 12);
+        labels.forEach((l, i) => { if (i % step === 0) inner += `<text x="${xc(i)}" y="${H - 8}" text-anchor="middle">${esc(l)}</text>`; });
+        if (kind === 'bar') {
+          const gw = iw / n * .72, bw = b.stacked ? gw : gw / series.length;
+          for (let i = 0; i < n; i++) { let acc = 0; series.forEach((s, si) => { const v = s.data[i] || 0, x = b.stacked ? xc(i) - gw / 2 : xc(i) - gw / 2 + si * bw; const top = b.stacked ? y(acc + v) : y(Math.max(v, 0)), hgt = b.stacked ? y(acc) - y(acc + v) : Math.abs(y(v) - y(0)); acc += v; inner += `<rect class="jbar" x="${x + 1}" y="${top}" width="${Math.max(1, bw - 2)}" height="${Math.max(0, hgt)}" rx="3" fill="${series.length === 1 && b.colors ? col(i) : s.color}"${tip(`${s.name ? s.name + ' · ' : ''}${labels[i] ?? i}: ${fmt(v)}`)}/>`; }); }
+        } else {
+          series.forEach(s => {
+            const pts = s.data.map((v, i) => [xc(i), y(v)]); if (!pts.length) return;
+            const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), y0 = y(Math.max(min, 0));
+            if (kind === 'area') inner += `<path d="${d} L${pts[pts.length - 1][0]} ${y0} L${pts[0][0]} ${y0}Z" fill="${s.color}" fill-opacity=".15"/>`;
+            inner += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+            pts.forEach((p, i) => inner += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${s.color}"${tip(`${s.name ? s.name + ' · ' : ''}${labels[i] ?? i}: ${fmt(s.data[i])}`)}/>`);
+          });
+        }
+      }
+    } else if (kind === 'hbar') {
+      const s = series[0] || { data: [], color: PAL[0] }, max = b.max ?? niceMax(Math.max(...s.data, 0)), rowH = 26, lw = 150;
+      H = pad.t + (s.data.length || 1) * rowH + 10;
+      s.data.forEach((v, i) => { const yy = pad.t + i * rowH, w = v / (max || 1) * (W - lw - 70); inner += `<text x="${lw - 10}" y="${yy + rowH / 2 + 3}" text-anchor="end">${esc(labels[i] ?? '')}</text><rect class="jbar" x="${lw}" y="${yy + 4}" width="${Math.max(1, w)}" height="${rowH - 8}" rx="4" fill="${b.colors ? col(i) : s.color}"${tip(`${labels[i]}: ${fmt(v)}`)}/><text x="${lw + w + 8}" y="${yy + rowH / 2 + 3}" style="fill:var(--text)">${fmt(v)}</text>`; });
+    } else if (kind === 'pie' || kind === 'donut') {
+      const s = series[0] || { data: [] }, total = s.data.reduce((a, v) => a + v, 0) || 1, cx = H / 2, cy = H / 2, R = H / 2 - 10, r0 = kind === 'donut' ? R * .62 : 0; let a0 = -Math.PI / 2;
+      s.data.forEach((v, i) => { const a1 = Math.min(a0 + v / total * 2 * Math.PI, a0 + 2 * Math.PI - .0001); inner += `<path class="slice" d="${arcPath(cx, cy, R, r0, a0, a1)}" fill="${col(i)}" stroke="#060a0f" stroke-width="2"${tip(`${labels[i] ?? ''}: ${fmt(v)} (${Math.round(v / total * 100)}%)`)}/>`; a0 = a1; });
+      if (kind === 'donut') inner += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" style="font-size:22px;fill:var(--text)">${esc(b.center ?? fmt(total))}</text><text x="${cx}" y="${cy + 16}" text-anchor="middle">${esc(b.centerLabel || 'всего')}</text>`;
+      labels.forEach((l, i) => { const yy = pad.t + 4 + i * 20; inner += `<rect x="${H + 24}" y="${yy}" width="10" height="10" rx="3" fill="${col(i)}"/><text x="${H + 40}" y="${yy + 9}">${esc(l)} — ${fmt(s.data[i])} · ${Math.round((s.data[i] || 0) / total * 100)}%</text>`; });
+    } else if (kind === 'radar') {
+      legend = series.length > 1;
+      const n = labels.length || 1, cx = W / 2, cy = H / 2, R = H / 2 - 30, max = b.max ?? niceMax(Math.max(...all, 0));
+      const P = (r, i) => [cx + r * Math.cos(-Math.PI / 2 + i * 2 * Math.PI / n), cy + r * Math.sin(-Math.PI / 2 + i * 2 * Math.PI / n)];
+      for (let k = 1; k <= 4; k++) inner += `<polygon points="${labels.map((_, i) => P(R * k / 4, i).join(',')).join(' ')}" fill="none" stroke="rgba(112,228,255,.12)"/>`;
+      labels.forEach((l, i) => { const [x1, y1] = P(R, i), [tx, ty] = P(R + 18, i); inner += `<line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" stroke="rgba(112,228,255,.12)"/><text x="${tx}" y="${ty + 3}" text-anchor="middle">${esc(l)}</text>`; });
+      series.forEach(s => { inner += `<polygon points="${s.data.map((v, i) => P(R * v / max, i).join(',')).join(' ')}" fill="${s.color}" fill-opacity=".18" stroke="${s.color}" stroke-width="2"/>`; s.data.forEach((v, i) => { const [x, yv] = P(R * v / max, i); inner += `<circle class="pt" cx="${x}" cy="${yv}" r="3.5" fill="${s.color}"${tip(`${s.name ? s.name + ' · ' : ''}${labels[i]}: ${fmt(v)}`)}/>`; }); });
+    } else if (kind === 'heatmap') {
+      const rows = b.rows || [], M = b.matrix || [], lw = 56, cw = (W - lw - pad.r) / (labels.length || 1), ch = b.cell || 22, max = Math.max(...M.flat(), 1), step = Math.ceil(labels.length / 12);
+      H = pad.t + rows.length * ch + pad.b;
+      labels.forEach((c, j) => { if (j % step === 0) inner += `<text x="${lw + (j + .5) * cw}" y="${H - 8}" text-anchor="middle">${esc(c)}</text>`; });
+      rows.forEach((r, i) => { inner += `<text x="${lw - 8}" y="${pad.t + (i + .5) * ch + 3}" text-anchor="end">${esc(r)}</text>`; labels.forEach((c, j) => { const v = (M[i] || [])[j] || 0; inner += `<rect class="cell" x="${lw + j * cw + 1}" y="${pad.t + i * ch + 1}" width="${Math.max(1, cw - 2)}" height="${ch - 2}" rx="3" fill="${b.color || PAL[0]}" fill-opacity="${(.06 + .94 * v / max).toFixed(2)}"${tip(`${r} · ${c}: ${fmt(v)}`)}/>`; }); });
+    }
+    return { svg: `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`, legend: legend ? series : null };
+  }
+  function chartEl(b) {
+    const r = chartSVG(b);
+    const el = h('div', { class: 'j-chart' }, b.title ? h('div', { class: 'ttl' }, h('span', {}, b.title), b.subtitle ? h('span', { class: 'sub' }, b.subtitle) : null) : null, h('div', { html: r.svg }));
+    if (r.legend) el.append(h('div', { class: 'j-legend' }, r.legend.map(s => h('span', {}, h('i', { style: `background:${s.color}` }), s.name || ''))));
+    return el;
+  }
+  const tipEl = $('#j-tip');
+  document.addEventListener('mouseover', e => { const t = e.target.closest?.('[data-tip]'); if (!t) { tipEl.hidden = true; return; } tipEl.textContent = t.dataset.tip; tipEl.hidden = false; });
+  document.addEventListener('mousemove', e => { if (!tipEl.hidden) { tipEl.style.left = Math.min(e.clientX + 12, innerWidth - tipEl.offsetWidth - 8) + 'px'; tipEl.style.top = (e.clientY + 14) + 'px'; } });
+
+  // ── media helpers ──
+  const ytId = s => { if (!s) return ''; s = String(s); const m = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(s) ? s : ''); };
+  const ytThumb = id => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  const ytEmbed = (id, start) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${start ? '&start=' + Number(start) : ''}`;
+  const ph = (w, hh, label, c1 = '#1b7f98', c2 = '#b9842a') => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${hh}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="${w}" height="${hh}" fill="url(#g)"/><circle cx="${w * .78}" cy="${hh * .3}" r="${hh * .12}" fill="rgba(255,255,255,.18)"/><text x="50%" y="54%" text-anchor="middle" font-family="monospace" font-size="${Math.round(hh / 10)}" fill="#e6f3f8">${esc(label)}</text></svg>`);
+  const lightbox = (node, caption) => openDialog(root => root.append(node, caption ? h('div', { class: 'lc' }, caption) : null), 'lightbox');
+  document.addEventListener('error', e => { const t = e.target; if (t?.tagName === 'IMG' && !t.dataset.fb) { t.dataset.fb = '1'; t.src = ph(600, 400, t.alt || 'изображение недоступно', '#223', '#445'); } }, true);
+
+  // ── table ──
+  function tableEl(b) {
+    const cols = (b.columns || []).map(c => typeof c === 'string' ? { key: c, label: c } : c);
+    const rows = (b.rows || []).map(r => Array.isArray(r) ? Object.fromEntries(cols.map((c, i) => [c.key, r[i]])) : r);
+    let sortKey = b.sortBy || null, dir = b.sortDir === 'desc' ? -1 : 1, filter = '';
+    const maxBy = {}; cols.filter(c => c.format === 'bar').forEach(c => maxBy[c.key] = Math.max(...rows.map(r => +r[c.key] || 0), 1));
+    const isNum = c => ['num', 'money', 'pct', 'bar'].includes(c.format) || c.align === 'right';
+    const cell = (c, v) => {
+      if (v == null || v === '') return h('td', { class: isNum(c) ? 'num' : '' }, '—');
+      switch (c.format) {
+        case 'num': return h('td', { class: 'num' }, Number(v).toLocaleString('ru-RU'));
+        case 'money': return h('td', { class: 'num' }, Number(v).toLocaleString('ru-RU') + ' ' + (c.unit || '₽'));
+        case 'pct': return h('td', { class: 'num ' + (v > 0 ? 'pos' : v < 0 ? 'neg' : '') }, (v > 0 ? '+' : '') + Number(v).toFixed(c.digits ?? 1) + '%');
+        case 'badge': return h('td', {}, h('span', { class: 'j-badge ' + ((c.tones || {})[v] || '') }, String(v)));
+        case 'bar': return h('td', {}, h('div', { class: 'j-bar-cell' }, h('div', { class: 'trk' }, h('i', { style: `width:${Math.round(v / maxBy[c.key] * 100)}%` })), h('span', {}, fmtNum(v) + (c.unit || ''))));
+        case 'md': return h('td', { html: inlineMd(String(v)) });
+        case 'bool': return h('td', { style: v ? 'color:var(--ok)' : 'color:var(--muted)' }, v ? '✓' : '—');
+        default: return h('td', { class: isNum(c) ? 'num' : '' }, String(v));
+      }
+    };
+    const wrap = h('div', { class: 'j-table-wrap' }), tbl = h('table', { class: 'j-table' }), foot = h('div', { class: 'j-table-foot' });
+    const draw = () => {
+      let data = rows;
+      if (filter) { const f = filter.toLowerCase(); data = data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(f))); }
+      if (sortKey) data = [...data].sort((a, c) => { const x = a[sortKey], y = c[sortKey]; return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ru')) * dir; });
+      tbl.innerHTML = '';
+      tbl.append(h('thead', {}, h('tr', {}, cols.map(c => h('th', { class: (isNum(c) ? 'num ' : '') + (sortKey === c.key ? 'sorted' : ''), onclick: () => { if (b.sortable === false) return; if (sortKey === c.key) dir = -dir; else { sortKey = c.key; dir = 1; } draw(); } }, c.label || c.key, sortKey === c.key ? h('span', { class: 'arr' }, dir > 0 ? '↑' : '↓') : null)))));
+      tbl.append(h('tbody', {}, data.map(r => h('tr', {}, cols.map(c => cell(c, r[c.key]))))));
+      foot.textContent = `${data.length} из ${rows.length}` + (b.footer ? ` · ${b.footer}` : '');
+    };
+    if (b.search !== false && rows.length > 5) { const inp = h('input', { class: 'inp', placeholder: 'Фильтр…' }); inp.addEventListener('input', () => { filter = inp.value; draw(); }); wrap.append(h('div', { class: 'j-table-bar' }, b.title ? h('span', {}, b.title) : null, inp)); }
+    else if (b.title) wrap.append(h('div', { class: 'j-table-bar' }, b.title));
+    wrap.append(h('div', { class: 'j-table-scroll', style: b.maxHeight ? `max-height:${b.maxHeight}px` : '' }, tbl), foot);
+    draw(); return wrap;
+  }
+
+  // ── form (inside a window) ──
+  function formEl(b, ctx) {
+    const form = h('form', { class: 'j-form', onsubmit: e => {
+      e.preventDefault(); const out = {};
+      (b.fields || []).forEach(f => { const el = form.elements[f.name]; if (!el) return; if (f.type === 'checkbox') out[f.name] = el.checked; else if (f.type === 'range' || f.type === 'number') out[f.name] = Number(el.value); else out[f.name] = el.value; });
+      log(`form: «${b.title || 'форма'}» → ${JSON.stringify(out).slice(0, 90)}`, 'am'); toast(b.toast || 'Форма отправлена', 'ok');
+      if (b.say !== false) handle(`${b.say || `Форма «${b.title || 'без названия'}»`}: ${Object.entries(out).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+      ctx?.onSubmit?.(out);
+    } });
+    (b.fields || []).forEach(f => form.append(fieldEl(f)));
+    form.append(h('div', { class: 'f-actions' }, b.cancel ? h('button', { type: 'reset', class: 'btn sm ghost' }, b.cancel) : null, h('button', { type: 'submit', class: 'btn sm primary' }, b.submit || 'Отправить')));
+    return b.title ? h('div', { class: 'j-card' }, h('div', { class: 'j-h' }, b.title), form) : form;
+  }
+
+  // ── blocks → DOM ──
+  function renderBlocks(blocks, ctx = {}) { const f = document.createDocumentFragment(); (blocks || []).forEach(b => f.append(renderBlock(b, ctx))); return f; }
+  function renderBlock(b, ctx) {
+    try {
+      switch (b.type) {
+        case 'md': return h('div', { class: 'j-md', html: md(b.text) });
+        case 'html': return h('div', { class: 'j-md', html: b.html || '' });
+        case 'code': return h('pre', { class: 'j-code' }, b.lang ? h('span', { class: 'lang' }, b.lang) : null, h('code', {}, b.text || ''));
+        case 'alert': return h('div', { class: 'j-alert ' + (b.tone || '') }, h('div', { class: 'ic' }, { ok: '✓', warn: '!', err: '×' }[b.tone] || 'i'), h('div', {}, b.title ? h('b', {}, b.title) : null, h('p', { html: inlineMd(b.text || '') })));
+        case 'badges': return h('div', { class: 'j-badges' }, (b.items || []).map(it => h('span', { class: 'j-badge ' + (it.tone || '') }, it.text)));
+        case 'kpi': return h('div', { class: 'j-kpis' }, (b.items || []).map(it => h('div', { class: 'j-kpi' }, h('div', { class: 'l' }, it.label), h('div', { class: 'v' }, String(it.value)), it.delta != null ? h('div', { class: 'd ' + (it.tone || (/^[-−]/.test(String(it.delta)) ? 'neg' : '')) }, it.delta) : null)));
+        case 'kv': return h('dl', { class: 'j-kv' }, (b.items || []).map(([k, v]) => [h('dt', {}, k), h('dd', { html: inlineMd(String(v)) })]));
+        case 'progress': return h('div', { class: 'j-prog' }, (b.items || []).map(it => { const pct = Math.max(0, Math.min(100, Math.round(it.value / (it.max || 100) * 100))); return h('div', { class: 'r' }, h('div', { class: 'kv' }, h('span', {}, it.label), h('b', {}, it.text ?? `${pct}%`)), h('div', { class: 'bar' }, h('i', { class: it.tone || '', style: `width:${pct}%` }))); }));
+        case 'table': return tableEl(b);
+        case 'chart': return chartEl(b);
+        case 'form': return formEl(b, ctx);
+        case 'list': return h('div', { class: 'j-list' }, (b.items || []).map(it => h('div', { class: 'j-item' }, it.icon !== false ? h('div', { class: 'ic' }, it.icon || String(it.title || '?')[0].toUpperCase()) : null, h('div', { style: 'min-width:0' }, h('div', { class: 't' }, it.title), it.sub ? h('div', { class: 's' }, it.sub) : null), it.badge || it.right != null ? h('div', { class: 'r' }, it.badge ? h('span', { class: 'j-badge ' + (it.tone || '') }, it.badge) : it.right) : null)));
+        case 'timeline': return h('div', { class: 'j-tl' }, (b.items || []).map(it => h('div', { class: 'e ' + (it.tone || '') }, h('div', { class: 'tm' }, it.time), h('div', { class: 't' }, it.title), it.sub ? h('div', { class: 's' }, it.sub) : null)));
+        case 'steps': return h('div', { class: 'j-steps' }, (b.items || []).map((it, i) => h('div', { class: 'j-step ' + (it.state || '') }, h('div', { class: 'n' }, it.state === 'done' ? '✓' : String(i + 1)), h('div', { class: 't' }, it.title), it.sub ? h('div', { class: 's' }, it.sub) : null)));
+        case 'actions': return h('div', { class: 'j-actions' }, (b.items || []).map(it => h('button', { class: 'btn sm ' + (it.tone === 'primary' ? 'primary' : it.tone === 'ghost' ? 'ghost' : ''), onclick: () => { if (it.say) handle(it.say); if (it.open) it.open === 'dashboard' ? newDashboard() : WM.open(it.open); if (it.toast) toast(it.toast, 'ok'); } }, it.label)));
+        case 'tabs': { const bar = h('div', { class: 'j-tabs' }), body = h('div', { class: 'j-stack' }); let cur = 0; const draw = () => { bar.innerHTML = ''; (b.tabs || []).forEach((t, i) => bar.append(h('button', { class: 'j-tab' + (i === cur ? ' on' : ''), onclick: () => { cur = i; draw(); } }, t.label))); body.innerHTML = ''; body.append(renderBlocks((b.tabs[cur] || {}).blocks, ctx)); }; draw(); return h('div', {}, bar, body); }
+        case 'columns': return h('div', { class: 'j-cols', style: `grid-template-columns:${b.widths ? b.widths.map(w => w + 'fr').join(' ') : `repeat(${(b.cols || []).length || 1},minmax(0,1fr))`}` }, (b.cols || []).map(c => h('div', { class: 'j-stack' }, renderBlocks(c, ctx))));
+        case 'card': return h('div', { class: 'j-card' }, b.title ? h('div', { class: 'j-h' }, h('span', {}, b.title), b.badge ? h('span', { class: 'j-badge ' + (b.tone || '') }, b.badge) : null) : null, renderBlocks(b.blocks, ctx));
+        case 'divider': return h('hr', { class: 'j-divider' });
+        case 'image': return h('figure', { class: 'j-img' }, h('img', { src: b.src, alt: b.alt || '', loading: 'lazy', onclick: () => lightbox(h('img', { src: b.src, alt: b.alt || '' }), b.caption || b.alt) }), b.caption ? h('figcaption', {}, b.caption) : null);
+        case 'gallery': return h('div', { class: 'j-gallery', style: b.cols ? `grid-template-columns:repeat(${b.cols},1fr)` : '' }, (b.items || []).map(raw => { const it = typeof raw === 'string' ? { src: raw } : raw; return h('button', { type: 'button', title: it.caption || '', onclick: () => lightbox(h('img', { src: it.src, alt: it.alt || '' }), it.caption) }, h('img', { src: it.thumb || it.src, alt: it.alt || '', loading: 'lazy' }), it.caption ? h('div', { class: 'gc' }, it.caption) : null); }));
+        case 'video': return h('figure', { class: 'j-media' }, h('video', { src: b.src, poster: b.poster, controls: true, preload: 'metadata', loop: !!b.loop, muted: !!b.muted, playsinline: true }), b.caption ? h('figcaption', {}, b.caption) : null);
+        case 'youtube': {
+          const id = ytId(b.id || b.url); if (!id) return h('div', { class: 'j-alert warn' }, h('div', { class: 'ic' }, '!'), h('div', {}, h('b', {}, 'youtube: не распознан id'), h('p', {}, String(b.url || b.id || ''))));
+          const box = h('div', { class: 'j-yt', style: `background-image:url(${b.thumb || ytThumb(id)})`, onclick: () => box.replaceWith(h('iframe', { src: ytEmbed(id, b.start), allow: 'autoplay; encrypted-media; picture-in-picture', allowfullscreen: true, title: b.title || 'YouTube' })) }, h('div', { class: 'play' }), b.title ? h('div', { class: 'yt-t' }, b.title) : null);
+          return h('figure', { class: 'j-media' }, box, b.caption ? h('figcaption', {}, b.caption) : null);
+        }
+        case 'videos': return h('div', { class: 'j-videos' }, (b.items || []).map(it => { const id = ytId(it.id || it.url); return h('button', { type: 'button', class: 'j-vcard', onclick: () => lightbox(h('iframe', { src: ytEmbed(id, it.start), allow: 'autoplay; encrypted-media; picture-in-picture', allowfullscreen: true, title: it.title || '' }), it.title) }, h('div', { class: 'th', style: `background-image:url(${it.thumb || ytThumb(id)})` }, it.duration ? h('i', {}, it.duration) : null), h('div', { class: 'vt' }, it.title || id), h('div', { class: 'vc' }, [it.channel, it.views, it.date].filter(Boolean).join(' · '))); }));
+        case 'audio': return h('div', { class: 'j-audio' }, h('div', { class: 'cov', style: b.cover ? `background-image:url(${b.cover})` : '' }, b.cover ? null : '♪'), h('div', {}, h('div', { class: 'at' }, b.title || 'Аудио'), b.artist ? h('div', { class: 'aa' }, b.artist) : null, h('audio', { src: b.src, controls: true, preload: 'none' })));
+        case 'embed': return h('figure', { class: 'j-media' }, h('iframe', { src: b.src, title: b.title || 'embed', loading: 'lazy', style: b.height ? `aspect-ratio:auto;height:${b.height}px` : '', allow: b.allow || 'fullscreen', allowfullscreen: true, referrerpolicy: 'no-referrer-when-downgrade' }), b.caption || b.title ? h('figcaption', {}, b.caption || b.title) : null);
+        case 'link': { let host = ''; try { host = new URL(b.url).hostname.replace(/^www\./, ''); } catch {} return h('a', { class: 'j-link', href: b.url, target: '_blank', rel: 'noopener' }, b.image ? h('div', { class: 'li', style: `background-image:url(${b.image})` }) : null, h('div', { class: 'lb' }, h('div', { class: 'ls' }, b.site || host), h('div', { class: 'lt' }, b.title || b.url), b.desc ? h('div', { class: 'ld' }, b.desc) : null)); }
+        default: return h('div', { class: 'j-alert warn' }, h('div', { class: 'ic' }, '?'), h('div', {}, h('b', {}, `Неизвестный блок: ${b.type}`), h('p', {}, JSON.stringify(b).slice(0, 140))));
+      }
+    } catch (e) { return h('div', { class: 'j-alert err' }, h('div', { class: 'ic' }, '×'), h('div', {}, h('b', {}, `Ошибка рендера блока «${b?.type}»`), h('p', {}, e.message))); }
+  }
+
+  // ── windows: view / kit / playground / spec ──
+  function renderView(body, w) {
+    body.classList.add('flush');
+    const spec = w.data.spec || { blocks: [] };
+    const scroll = h('div', { class: 'j-view', style: 'flex:1;min-height:0;overflow:auto' });
+    scroll.append(renderBlocks(spec.blocks, { win: w }));
+    body.append(h('div', { class: 'dash-bar' }, h('span', {}, spec.subtitle || `${(spec.blocks || []).length} блоков · сгенерировано агентом`), h('span', { class: 'sp' }),
+      h('button', { class: 'btn sm ghost', onclick: () => { const pg = WM.open('playground'); pg.data.text = JSON.stringify(spec, null, 2); rerenderType('playground'); } }, 'JSON →')), scroll);
+  }
+  function openView(spec, o = {}) { const w = WM.open('view', { title: spec.title || 'Результат', data: { spec }, w: spec.width || 640, h: spec.height || 480, ...o }); log(`view: «${w.title}» (${(spec.blocks || []).length} блоков)`, 'am'); return w; }
+
+  function renderSpec(body) {
+    body.classList.add('flush');
+    const text = $('#ui-spec').textContent.trim();
+    const scroll = h('div', { class: 'j-view', style: 'flex:1;min-height:0;overflow:auto' }, h('div', { class: 'j-md', html: md(text) }));
+    body.append(h('div', { class: 'dash-bar' }, h('span', {}, 'Вставьте в системный промпт модели — она будет отвечать JSON-спеками'), h('span', { class: 'sp' }),
+      h('button', { class: 'btn sm', onclick: () => navigator.clipboard?.writeText(text).then(() => toast('Справочник скопирован', 'ok'), () => toast('Буфер недоступен', 'wr')) }, 'Копировать')), scroll);
+  }
+
+  function renderPlayground(body, w) {
+    body.classList.add('flush');
+    w.data.text ||= JSON.stringify(PG_DEFAULT, null, 2);
+    const ta = h('textarea', { spellcheck: 'false' }); ta.value = w.data.text;
+    const prev = h('div', { class: 'prev' }), err = h('div', { class: 'pg-err' });
+    const sel = h('select', { class: 'inp', style: 'width:auto;padding:5px 8px;font-size:11.5px' }, h('option', { value: '' }, 'Загрузить пример…'), Object.entries(DEMOS).map(([k, d]) => h('option', { value: k }, d.label)), h('option', { value: '__kit' }, 'UI Kit — все компоненты'));
+    let t;
+    const draw = () => {
+      w.data.text = ta.value; clearTimeout(t); t = setTimeout(() => WM.save(), 400);
+      prev.innerHTML = ''; err.textContent = '';
+      try { const spec = JSON.parse(ta.value); prev.append(h('div', { class: 'j-view' }, renderBlocks(spec.blocks, {}))); } catch (e) { err.textContent = 'JSON: ' + e.message; }
+    };
+    sel.addEventListener('change', () => { if (!sel.value) return; ta.value = JSON.stringify(sel.value === '__kit' ? kitSpec() : DEMOS[sel.value].spec(), null, 2); sel.value = ''; draw(); });
+    ta.addEventListener('input', draw);
+    ta.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); draw(); } });
+    body.append(h('div', { class: 'dash-bar' }, h('span', {}, 'JSON-спека → живой рендер'), h('span', { class: 'sp' }), sel,
+      h('button', { class: 'btn sm', onclick: () => { try { openView(JSON.parse(ta.value)); } catch { toast('Невалидный JSON', 'wr'); } } }, 'Открыть окном')),
+      h('div', { class: 'pg' }, h('div', { class: 'ed' }, ta, err), prev));
+    draw();
+  }
+  const PG_DEFAULT = { title: 'Моё окно', blocks: [
+    { type: 'md', text: '## Привет из песочницы\nМеняйте JSON слева — справа **живой** рендер. Загрузите пример из списка сверху.' },
+    { type: 'kpi', items: [{ label: 'Блоков', value: '4' }, { label: 'Графиков', value: '1', delta: '+1' }] },
+    { type: 'chart', kind: 'bar', title: 'Пример', labels: ['A', 'B', 'C', 'D'], series: [{ name: 'серия', data: [4, 7, 3, 9] }] },
+    { type: 'form', title: 'Пример формы', submit: 'Отправить', fields: [{ name: 'q', label: 'Запрос', full: true, placeholder: 'что найти?' }, { name: 'n', label: 'Сколько', type: 'number', value: 5 }, { name: 'fast', label: 'Быстро', type: 'checkbox', value: true }] },
+  ] };
+
+  function renderKit(body) {
+    body.classList.add('flush');
+    const scroll = h('div', { class: 'j-view', style: 'flex:1;min-height:0;overflow:auto' });
+    scroll.append(renderBlocks(kitSpec().blocks, {}));
+    body.append(h('div', { class: 'dash-bar' }, h('span', {}, 'Все компоненты кита · наведите на графики'), h('span', { class: 'sp' }),
+      h('button', { class: 'btn sm ghost', onclick: () => WM.open('spec') }, 'Справочник DSL'),
+      h('button', { class: 'btn sm ghost', onclick: () => WM.open('playground') }, 'Песочница'),
+      h('button', { class: 'btn sm', onclick: () => { const r = Object.keys(DEMOS); openView(DEMOS[r[Math.floor(Math.random() * r.length)]].spec()); } }, 'Случайный пример')), scroll);
+  }
+  const HOURS = Array.from({ length: 24 }, (_, i) => pad(i));
+  const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  function kitSpec() {
+    return { title: 'UI Kit', blocks: [{ type: 'tabs', tabs: [
+      { label: 'Markdown', blocks: [{ type: 'md', text: '# Заголовок H1\n## Заголовок H2\n### Заголовок H3\n#### Подпись H4\nАбзац с **жирным**, *акцентом*, ~~зачёркнутым~~, `inline code` и [ссылкой](https://example.com).\n\n> Цитата — агент может подсвечивать важное **вот так**.\n\n- Маркированный список\n- Второй пункт\n  1. Нумерованный\n  2. Вложенный\n- [x] Задача выполнена\n- [ ] Задача в работе\n\n| Колонка | Число | Статус |\n|---|---:|:---:|\n| Строка 1 | 1 024 | ok |\n| Строка 2 | 87 | warn |\n\n```python\ndef jarvis(q: str) -> dict:\n    return {"type": "md", "text": f"## {q}"}\n```\n\n---\nГоризонтальная линия выше.' }] },
+      { label: 'Таблицы', blocks: [
+        { type: 'table', title: 'Все форматы колонок', sortBy: 'price', columns: [{ key: 'name', label: 'Текст' }, { key: 'n', label: 'num', format: 'num' }, { key: 'price', label: 'money', format: 'money' }, { key: 'pct', label: 'pct', format: 'pct' }, { key: 'bar', label: 'bar', format: 'bar', unit: '%' }, { key: 'st', label: 'badge', format: 'badge', tones: { ok: 'ok', warn: 'warn', err: 'err', info: 'info' } }, { key: 'b', label: 'bool', format: 'bool' }, { key: 'm', label: 'md', format: 'md' }],
+          rows: [['Alpha', 12840, 62990, 4.2, 100, 'ok', true, '**жирный**'], ['Beta', 980, 84990, -1.3, 72, 'warn', false, '`код`'], ['Gamma', 44, 119990, 0, 35, 'err', true, '*акцент*'], ['Delta', 7, 9990, 12.5, 88, 'info', false, '[ссылка](#)'], ['Epsilon', 310, 45500, -8.8, 51, 'ok', true, 'обычный'], ['Zeta', 2200, 70000, 2.1, 64, 'warn', true, 'текст']] },
+        { type: 'md', text: 'Заголовки кликабельны — сортировка. При >5 строк появляется фильтр. Markdown-таблицы тоже поддерживаются внутри блока `md`.' }] },
+      { label: 'Графики', blocks: [
+        { type: 'columns', cols: [
+          [{ type: 'chart', kind: 'bar', title: 'bar · группы', labels: ['Q1', 'Q2', 'Q3', 'Q4'], series: [{ name: '2025', data: [12, 18, 15, 22] }, { name: '2026', data: [15, 21, 19, 27] }] }],
+          [{ type: 'chart', kind: 'bar', title: 'bar · stacked', stacked: true, labels: DAYS, series: [{ name: 'stt', data: rndArr(7, 10, 30) }, { name: 'llm', data: rndArr(7, 20, 50) }, { name: 'tts', data: rndArr(7, 5, 20) }] }]] },
+        { type: 'columns', cols: [
+          [{ type: 'chart', kind: 'line', title: 'line', unit: 'мс', labels: HOURS.filter((_, i) => i % 2 === 0), series: [{ name: 'p50', data: rndArr(12, 30, 60) }, { name: 'p95', data: rndArr(12, 80, 160) }] }],
+          [{ type: 'chart', kind: 'area', title: 'area', labels: DAYS, series: [{ name: 'запросы', data: rndArr(7, 100, 400), color: '#c084fc' }] }]] },
+        { type: 'columns', cols: [
+          [{ type: 'chart', kind: 'donut', title: 'donut', center: '92%', centerLabel: 'SLA', labels: ['Успех', 'Повтор', 'Ошибка'], series: [{ data: [92, 5, 3] }], colors: ['#5cf2a5', '#f5b942', '#ff7a59'] }],
+          [{ type: 'chart', kind: 'pie', title: 'pie', labels: ['Голос', 'Текст', 'Кнопки', 'API'], series: [{ data: [48, 27, 15, 10] }] }]] },
+        { type: 'columns', cols: [
+          [{ type: 'chart', kind: 'radar', title: 'radar', max: 10, labels: ['Скорость', 'Точность', 'Память', 'Голос', 'UI', 'API'], series: [{ name: 'Fable 5.1', data: [9, 8, 7, 9, 8, 7] }, { name: 'Прошлая', data: [6, 7, 5, 6, 4, 6] }] }],
+          [{ type: 'chart', kind: 'scatter', title: 'scatter', xunit: 'k₽', unit: '%', series: [{ name: 'карты', points: [[63, 100, '5070'], [85, 128, '5070 Ti'], [115, 165, '5080'], [190, 210, '5090', 9]] }] }]] },
+        { type: 'chart', kind: 'hbar', title: 'hbar', unit: ' шт', labels: ['Погода', 'Расписание', 'Музыка', 'Таймер', 'Свет'], series: [{ data: [412, 380, 215, 198, 90] }], colors: PAL },
+        { type: 'chart', kind: 'heatmap', title: 'heatmap · активность по часам', rows: DAYS, labels: HOURS, matrix: DAYS.map((_, d) => HOURS.map((_, hh) => Math.round(Math.max(0, 40 * Math.exp(-Math.pow((hh - 14) / 5, 2)) * (d < 5 ? 1 : .4) + rnd(0, 8))))) }] },
+      { label: 'Формы', blocks: [
+        { type: 'form', title: 'Все типы полей', submit: 'Отправить', cancel: 'Сбросить', toast: 'Форма из UI Kit отправлена', fields: [
+          { name: 'text', label: 'Текст', placeholder: 'обычный ввод', required: true }, { name: 'email', label: 'Email', type: 'email', placeholder: 'you@host' },
+          { name: 'number', label: 'Число', type: 'number', value: 42, help: 'подсказка под полем' }, { name: 'date', label: 'Дата', type: 'date' }, { name: 'time', label: 'Время', type: 'time', value: '09:30' },
+          { name: 'select', label: 'Выбор', type: 'select', options: ['Вариант A', ['b', 'Вариант B (значение b)'], 'Вариант C'] },
+          { name: 'radio', label: 'Переключатель', type: 'radio', options: ['Telegram', 'Push', 'Email'], value: 'Push', full: true },
+          { name: 'range', label: 'Слайдер', type: 'range', min: 0, max: 100, value: 65, unit: '%', full: true },
+          { name: 'cb1', label: 'Тумблер включён', type: 'checkbox', value: true }, { name: 'cb2', label: 'Тумблер выключен', type: 'checkbox' },
+          { name: 'textarea', label: 'Многострочный', type: 'textarea', full: true, placeholder: 'заметка…' }] },
+        { type: 'md', text: 'По submit JARVIS получает в диалог строку `say: поле=значение, …` и отвечает. Для модальных форм используется тот же `fieldEl` (см. «Настройки», «Напоминание»).' }] },
+      { label: 'Карточки', blocks: [
+        { type: 'kpi', items: [{ label: 'Запросов', value: '1 284', delta: '+12% к вчера' }, { label: 'Ошибок', value: '3', delta: '−2', tone: 'neg' }, { label: 'Latency p95', value: '142 мс', delta: 'без изменений', tone: 'flat' }, { label: 'SLA', value: '99.6%' }] },
+        { type: 'columns', widths: [1, 1], cols: [
+          [{ type: 'card', title: 'kv', blocks: [{ type: 'kv', items: [['Ядро', 'Claude **Fable 5.1**'], ['Endpoint', '`ws://127.0.0.1:8765`'], ['Wake-word', '«Джарвис»'], ['Аптайм', '4 ч 12 мин']] }] }],
+          [{ type: 'card', title: 'badges', badge: 'LIVE', tone: 'ok', blocks: [{ type: 'badges', items: [{ text: 'default' }, { text: 'ok', tone: 'ok' }, { text: 'warn', tone: 'warn' }, { text: 'err', tone: 'err' }, { text: 'info', tone: 'info' }] }, { type: 'divider' }, { type: 'actions', items: [{ label: 'primary', tone: 'primary', toast: 'primary' }, { label: 'default', toast: 'default' }, { label: 'ghost', tone: 'ghost', toast: 'ghost' }] }] }]] },
+        { type: 'list', items: [{ title: 'Элемент списка', sub: 'подзаголовок · иконка из первой буквы', badge: 'P1', tone: 'err' }, { title: 'С правым текстом', sub: 'right вместо badge', icon: '⚡', right: '12 мин' }, { title: 'Без иконки', icon: false, badge: 'ok', tone: 'ok' }] },
+        { type: 'alert', tone: 'info', title: 'alert · info', text: 'Нейтральное сообщение с *markdown* внутри.' }, { type: 'alert', tone: 'ok', title: 'alert · ok', text: 'Операция завершена успешно.' },
+        { type: 'alert', tone: 'warn', title: 'alert · warn', text: 'Что-то требует внимания.' }, { type: 'alert', tone: 'err', title: 'alert · err', text: 'Ошибка. Подробности в журнале.' }] },
+      { label: 'Статусы', blocks: [
+        { type: 'card', title: 'steps', blocks: [{ type: 'steps', items: [{ title: 'Распознано', sub: 'stt · 38 мс', state: 'done' }, { title: 'Поиск', sub: '4 источника', state: 'done' }, { title: 'Анализ', sub: 'Fable 5.1', state: 'active' }, { title: 'Визуализация', sub: 'openView()', state: 'todo' }] }] },
+        { type: 'columns', cols: [
+          [{ type: 'card', title: 'timeline', blocks: [{ type: 'timeline', items: [{ time: '03:38', title: 'Рост латентности /api/stt', sub: 'p95 → 410 мс', tone: 'warn' }, { time: '03:41', title: '502 от tts-worker-2', tone: 'err' }, { time: '03:52', title: 'Автоперезапуск воркера', tone: 'ok' }, { time: '04:10', title: 'Метрики в норме', tone: 'muted' }] }] }],
+          [{ type: 'card', title: 'progress', blocks: [{ type: 'progress', items: [{ label: 'Готовность релиза', value: 68 }, { label: 'Покрытие тестами', value: 54, tone: 'warn' }, { label: 'Документация', value: 30, tone: 'err' }, { label: 'Бюджет', value: 41200, max: 60000, tone: 'ok', text: '41 200 / 60 000 ₽' }] }] }]] },
+        { type: 'code', lang: 'json', text: '{ "type": "steps", "items": [ { "title": "…", "state": "done|active|todo" } ] }' }] },
+      { label: 'Раскладка', blocks: [
+        { type: 'md', text: '`columns` с `widths: [2,1]`, вложенные `card`, `tabs` и `divider`. Любой блок можно класть в любой контейнер.' },
+        { type: 'columns', widths: [2, 1], cols: [
+          [{ type: 'card', title: 'Широкая колонка (2fr)', blocks: [{ type: 'chart', kind: 'area', labels: DAYS, series: [{ name: 'a', data: rndArr(7, 10, 60) }] }] }],
+          [{ type: 'card', title: 'Узкая (1fr)', blocks: [{ type: 'kv', items: [['Σ', '1 284'], ['μ', '183'], ['σ', '42']] }, { type: 'divider' }, { type: 'badges', items: [{ text: 'nested', tone: 'info' }] }] }]] },
+        { type: 'card', title: 'html · сырой HTML с классами j-*', blocks: [{ type: 'html', html: '<div class="j-kpis"><div class="j-kpi"><div class="l">Ручной KPI</div><div class="v">7</div><div class="d">из html-блока</div></div><div class="j-kpi"><div class="l">Badge</div><div class="v"><span class="j-badge ok">ok</span></div></div></div>' }] },
+        { type: 'image', src: ph(600, 160, 'image · 600×160'), caption: 'Блок image — скриншот, диаграмма из внешнего сервиса, превью. Клик — лайтбокс.' }] },
+      { label: 'Медиа', blocks: [
+        { type: 'md', text: 'Видео, YouTube, галереи, аудио, карты и превью ссылок. Превью YouTube подгружаются из сети; если сети нет — останется тёмный фон с кнопкой play.' },
+        { type: 'columns', widths: [3, 2], cols: [
+          [{ type: 'youtube', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'youtube · Big Buck Bunny (Blender Foundation)', caption: 'Клик по превью заменяет его на плеер youtube-nocookie.' }],
+          [{ type: 'card', title: 'link', blocks: [{ type: 'link', url: 'https://developer.mozilla.org/ru/docs/Web/API/Web_Speech_API', title: 'Web Speech API — MDN', desc: 'Распознавание и синтез речи в браузере: SpeechRecognition и SpeechSynthesis.', image: ph(240, 240, 'MDN', '#1b2a44', '#0d1726') }, { type: 'link', url: 'https://github.com', title: 'Ссылка без картинки', desc: 'Домен подставляется автоматически из url.' }] }]] },
+        { type: 'videos', items: [
+          { url: 'https://youtu.be/jNQXAC9IVRw', title: 'Me at the zoo — первое видео на YouTube', channel: 'jawed', duration: '0:19', views: '340 млн' },
+          { url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Big Buck Bunny 60fps 4K', channel: 'Blender', duration: '10:35' },
+          { id: 'dQw4w9WgXcQ', title: 'Rick Astley — Never Gonna Give You Up', channel: 'Rick Astley', duration: '3:33', views: '1,6 млрд' },
+          { url: 'https://www.youtube.com/shorts/kJQP7kiw5Fk', title: 'Luis Fonsi — Despacito', channel: 'LuisFonsiVEVO', duration: '4:42' }] },
+        { type: 'gallery', items: [{ src: ph(800, 600, 'gallery · 1'), caption: 'Подпись к первому кадру' }, { src: ph(800, 600, 'gallery · 2', '#2a4d69', '#4b86b4') }, { src: ph(800, 600, 'gallery · 3', '#5c3d7a', '#a26bd1'), caption: 'Клик — лайтбокс' }, { src: ph(800, 600, 'gallery · 4', '#7a4a1e', '#d1a26b') }, ph(800, 600, 'gallery · 5 (строкой)', '#1e4d3a', '#5cf2a5'), { src: ph(800, 600, 'gallery · 6', '#4a1e2a', '#f472b6') }] },
+        { type: 'columns', cols: [
+          [{ type: 'video', src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', poster: ph(640, 360, 'video · poster'), caption: 'video · HTML5 с controls, poster, loop/muted' }],
+          [{ type: 'audio', src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3', title: 'audio · T-Rex roar', artist: 'MDN cc0 · 0:02' }, { type: 'audio', src: '', title: 'С обложкой', artist: 'cover: url(...)', cover: ph(120, 120, '♪', '#3aa9c4', '#c084fc') }]] },
+        { type: 'embed', src: 'https://www.openstreetmap.org/export/embed.html?bbox=37.59%2C55.74%2C37.64%2C55.77&layer=mapnik&marker=55.753%2C37.62', title: 'embed · OpenStreetMap, центр Москвы', height: 260 },
+        { type: 'md', text: 'Картинка внутри markdown: `![alt](src)`\n\n![demo](' + ph(600, 120, 'md · ![alt](src)') + ')' }] },
+    ] }] };
+  }
+
+  // ── сценарии: «агент нашёл данные → построил окно» ──
+  const DEMOS = {
+    gpu: { label: 'Сравнение видеокарт', re: /видеокарт|gpu|rtx|сравни цен/i, say: 'Нашёл 6 актуальных предложений по RTX 5070–5080 в четырёх магазинах. Открыл сводку: таблица сортируется по заголовкам, снизу — форма, чтобы следить за ценой.',
+      spec: () => ({ title: 'Сравнение видеокарт · DNS, Ситилинк, М.Видео, Ozon', width: 740, height: 580, blocks: [
+        { type: 'md', text: '## RTX 5070 / 5070 Ti / 5080 — где выгоднее\nЛучший баланс цена/производительность — **5070 Ti в DNS** (84 990 ₽, −5.6% за неделю). 5080 в Ozon дешевле всех, но *нет в наличии*.' },
+        { type: 'kpi', items: [{ label: 'Предложений', value: '6' }, { label: 'Мин. цена', value: '62 990 ₽', delta: '−4.1% за неделю' }, { label: 'Лучший perf/₽', value: '5070 Ti' }, { label: 'В наличии', value: '4 / 6', tone: 'flat' }] },
+        { type: 'table', sortBy: 'price', columns: [{ key: 'model', label: 'Модель' }, { key: 'shop', label: 'Магазин' }, { key: 'price', label: 'Цена', format: 'money' }, { key: 'perf', label: 'Perf', format: 'bar', unit: '%' }, { key: 'delta', label: 'Δ нед.', format: 'pct' }, { key: 'stock', label: 'Наличие', format: 'badge', tones: { 'есть': 'ok', 'под заказ': 'warn', 'нет': 'err' } }],
+          rows: [['RTX 5070', 'DNS', 62990, 100, -4.1, 'есть'], ['RTX 5070', 'Ситилинк', 64490, 100, -2.3, 'есть'], ['RTX 5070 Ti', 'DNS', 84990, 128, -5.6, 'есть'], ['RTX 5070 Ti', 'М.Видео', 89990, 128, 0, 'под заказ'], ['RTX 5080', 'DNS', 119990, 165, 1.2, 'есть'], ['RTX 5080', 'Ozon', 114900, 165, -3.8, 'нет']] },
+        { type: 'columns', widths: [3, 2], cols: [
+          [{ type: 'chart', kind: 'scatter', title: 'Цена vs производительность', xunit: 'k₽', unit: '%', series: [{ name: 'карты', points: [[63, 100, '5070 · DNS'], [64.5, 100, '5070 · Ситилинк'], [85, 128, '5070 Ti · DNS'], [90, 128, '5070 Ti · М.Видео'], [120, 165, '5080 · DNS'], [114.9, 165, '5080 · Ozon']] }] }],
+          [{ type: 'form', title: 'Следить за ценой', submit: 'Включить', toast: 'Слежу за ценой', say: 'Уведомление о цене', fields: [{ name: 'model', label: 'Модель', type: 'select', options: ['RTX 5070', 'RTX 5070 Ti', 'RTX 5080'], value: 'RTX 5070 Ti', full: true }, { name: 'price', label: 'Порог, ₽', type: 'number', value: 80000, full: true }, { name: 'channel', label: 'Канал', type: 'radio', options: ['Telegram', 'Push'], value: 'Telegram', full: true }, { name: 'daily', label: 'Проверять ежедневно', type: 'checkbox', value: true, full: true }] }]] },
+        { type: 'actions', items: [{ label: 'Сохранить в заметки', say: 'Сохрани сравнение видеокарт в заметки', tone: 'primary' }, { label: 'Добавить 5090', say: 'Сравни видеокарты с 5090', tone: 'ghost' }] },
+      ] }) },
+    logs: { label: 'Анализ логов за ночь', re: /(^|\s)лог|инцидент|ошибк|5xx|ночью/i, say: 'Проанализировал 48 тысяч строк логов за ночь. Был один инцидент в 03:41 — упал tts-worker-2, автоперезапуск сработал за 11 минут. Открыл разбор.',
+      spec: () => { const spike = HOURS.map((_, hh) => hh === 3 ? 42 : hh === 4 ? 11 : Math.round(rnd(0, 3))); return { title: 'Логи сервера · ночь 13→14 окт', width: 760, height: 600, blocks: [
+        { type: 'alert', tone: 'err', title: 'Инцидент 03:41 — 502 от tts-worker-2', text: 'Длительность **11 мин**, затронуто ~340 запросов. Причина: OOM в воркере после утечки в кэше голосов. Воркер перезапущен автоматически.' },
+        { type: 'kpi', items: [{ label: 'Строк', value: '48 210' }, { label: '5xx', value: '61', delta: '+58 к норме', tone: 'neg' }, { label: '4xx', value: '212', delta: '−8%', tone: '' }, { label: 'p95 latency', value: '142 мс', delta: 'пик 410 мс в 03:38', tone: 'neg' }] },
+        { type: 'chart', kind: 'line', title: 'Ошибки по часам', labels: HOURS, series: [{ name: '5xx', data: spike, color: '#ff7a59' }, { name: '4xx', data: rndArr(24, 3, 14), color: '#f5b942' }] },
+        { type: 'chart', kind: 'heatmap', title: 'Запросы · день × час', subtitle: 'неделя', rows: DAYS, labels: HOURS, matrix: DAYS.map((_, d) => HOURS.map((_, hh) => Math.round(Math.max(0, 60 * Math.exp(-Math.pow((hh - 15) / 5, 2)) * (d < 5 ? 1 : .45) + rnd(0, 10))))) },
+        { type: 'columns', widths: [3, 2], cols: [
+          [{ type: 'table', title: 'Топ эндпоинтов по ошибкам', columns: [{ key: 'ep', label: 'Endpoint' }, { key: 'req', label: 'Запросы', format: 'num' }, { key: 'err', label: 'Ошибки', format: 'num' }, { key: 'p95', label: 'p95, мс', format: 'num' }, { key: 'st', label: '', format: 'badge', tones: { crit: 'err', warn: 'warn', ok: 'ok' } }],
+            rows: [['/api/tts', 9120, 44, 380, 'crit'], ['/api/stt', 12400, 9, 142, 'warn'], ['/api/llm', 8800, 5, 910, 'ok'], ['/ws/stream', 15200, 3, 48, 'ok'], ['/api/calendar', 2690, 0, 66, 'ok']] }],
+          [{ type: 'timeline', items: [{ time: '03:38', title: 'Рост латентности /api/tts', sub: 'p95 → 410 мс', tone: 'warn' }, { time: '03:41', title: '502 Bad Gateway', sub: 'tts-worker-2 · OOM', tone: 'err' }, { time: '03:52', title: 'Автоперезапуск', sub: 'systemd · 3-я попытка', tone: 'ok' }, { time: '04:10', title: 'Метрики в норме', tone: 'muted' }] }]] },
+        { type: 'code', lang: 'log', text: '03:41:07 tts-worker-2  ERROR  OutOfMemory: voice-cache 1.9 GiB > limit 1.5 GiB\n03:41:07 gateway        WARN   upstream tts-worker-2 unavailable → 502\n03:52:14 systemd        INFO   tts-worker-2 restarted (attempt 3)' },
+        { type: 'actions', items: [{ label: 'Создать задачу «лимит кэша»', say: 'Напомни поправить лимит voice-cache', tone: 'primary' }, { label: 'Открыть терминал', open: 'terminal' }] },
+      ] }; } },
+    budget: { label: 'Бюджет за октябрь', re: /бюджет|расход|трат|финанс|деньг/i, say: 'Свёл расходы за октябрь по 6 категориям. Перерасход только по «Еда вне дома» — на 18% выше плана. Открыл отчёт с донатом и таблицей.',
+      spec: () => ({ title: 'Бюджет · октябрь 2026', width: 700, height: 560, blocks: [
+        { type: 'kpi', items: [{ label: 'Доход', value: '248 000 ₽' }, { label: 'Расход', value: '171 400 ₽', delta: '+6% к сентябрю', tone: 'neg' }, { label: 'Остаток', value: '76 600 ₽', delta: '31% дохода' }, { label: 'Сбережения', value: '40 000 ₽', delta: 'цель выполнена' }] },
+        { type: 'alert', tone: 'warn', title: 'Еда вне дома: +18% к плану', text: 'План 20 000 ₽, факт **23 600 ₽**. Основной вклад — доставка по вечерам (14 заказов).' },
+        { type: 'columns', widths: [1, 1], cols: [
+          [{ type: 'chart', kind: 'donut', title: 'Структура расходов', center: '171k', centerLabel: '₽ за месяц', labels: ['Жильё', 'Продукты', 'Еда вне дома', 'Транспорт', 'Подписки', 'Прочее'], series: [{ data: [65000, 38200, 23600, 14800, 6900, 22900] }] }],
+          [{ type: 'progress', items: [{ label: 'Жильё', value: 65000, max: 65000, text: '65 000 / 65 000', tone: 'ok' }, { label: 'Продукты', value: 38200, max: 40000, text: '38 200 / 40 000', tone: 'ok' }, { label: 'Еда вне дома', value: 23600, max: 20000, text: '23 600 / 20 000', tone: 'err' }, { label: 'Транспорт', value: 14800, max: 15000, text: '14 800 / 15 000', tone: 'warn' }, { label: 'Подписки', value: 6900, max: 8000, text: '6 900 / 8 000', tone: 'ok' }] }]] },
+        { type: 'table', columns: [{ key: 'cat', label: 'Категория' }, { key: 'plan', label: 'План', format: 'money' }, { key: 'fact', label: 'Факт', format: 'money' }, { key: 'dev', label: 'Отклонение', format: 'pct' }, { key: 'n', label: 'Операций', format: 'num' }],
+          rows: [['Жильё', 65000, 65000, 0, 2], ['Продукты', 40000, 38200, -4.5, 31], ['Еда вне дома', 20000, 23600, 18, 22], ['Транспорт', 15000, 14800, -1.3, 48], ['Подписки', 8000, 6900, -13.8, 9], ['Прочее', 20000, 22900, 14.5, 17]] },
+        { type: 'chart', kind: 'bar', title: 'Расходы по неделям', unit: 'k', labels: ['1–7', '8–14', '15–21', '22–28', '29–31'], series: [{ name: 'тыс. ₽', data: [52, 38, 41, 33, 7] }] },
+        { type: 'form', title: 'Лимит на ноябрь', submit: 'Установить', say: 'Лимит бюджета', fields: [{ name: 'cat', label: 'Категория', type: 'select', options: ['Еда вне дома', 'Прочее', 'Продукты'] }, { name: 'limit', label: 'Лимит, ₽', type: 'number', value: 18000 }, { name: 'alert', label: 'Предупреждать при 80%', type: 'checkbox', value: true, full: true }] },
+      ] }) },
+    weather: { label: 'Погода на неделю', re: /на неделю|прогноз/i, say: 'Прогноз на неделю готов: похолодание со среды, дождь в четверг. Открыл окно с графиком и таблицей.',
+      spec: () => ({ title: `Погода на неделю · ${settings.city}`, width: 640, height: 520, blocks: [
+        { type: 'badges', items: [{ text: 'Куртка со среды', tone: 'warn' }, { text: 'Зонт в четверг', tone: 'info' }, { text: 'Выходные ясно', tone: 'ok' }] },
+        { type: 'chart', kind: 'line', title: 'Температура', unit: '°', labels: DAYS, series: [{ name: 'день', data: [9, 8, 5, 4, 6, 8, 10], color: '#f5b942' }, { name: 'ночь', data: [4, 3, 0, -1, 1, 3, 4], color: '#70e4ff' }] },
+        { type: 'chart', kind: 'area', title: 'Осадки', unit: ' мм', height: 160, labels: DAYS, series: [{ name: 'мм', data: [0, 0.4, 2.1, 7.8, 1.2, 0, 0], color: '#60a5fa' }] },
+        { type: 'table', search: false, columns: [{ key: 'd', label: 'День' }, { key: 't', label: 'Днём', format: 'num' }, { key: 'n', label: 'Ночью', format: 'num' }, { key: 'w', label: 'Ветер, м/с', format: 'num' }, { key: 'p', label: '', format: 'badge', tones: { 'ясно': 'ok', 'облачно': 'info', 'дождь': 'warn' } }],
+          rows: [['Пн', 9, 4, 3, 'ясно'], ['Вт', 8, 3, 4, 'облачно'], ['Ср', 5, 0, 6, 'облачно'], ['Чт', 4, -1, 7, 'дождь'], ['Пт', 6, 1, 4, 'облачно'], ['Сб', 8, 3, 2, 'ясно'], ['Вс', 10, 4, 2, 'ясно']] },
+        { type: 'kv', items: [['Восход / закат', '07:12 / 17:48'], ['Давление', '748 мм рт. ст.'], ['Влажность', '71%'], ['Источник', '[Open-Meteo](https://open-meteo.com)']] },
+      ] }) },
+    project: { label: 'Статус проекта MyJarvis', re: /статус проекта|проект|релиз|спринт/i, say: 'Статус проекта: готовность 68%, в работе оконный UI, риск — покрытие тестами. Открыл сводку с этапами, задачами и рисками.',
+      spec: () => ({ title: 'MyJarvis · статус релиза 1.0', width: 720, height: 580, blocks: [
+        { type: 'steps', items: [{ title: 'Голосовой пайплайн', sub: 'stt → llm → tts', state: 'done' }, { title: 'Оконный UI', sub: 'WM + UI kit', state: 'active' }, { title: 'Интеграции', sub: 'Calendar, HomeKit', state: 'todo' }, { title: 'Релиз 1.0', sub: '31 окт', state: 'todo' }] },
+        { type: 'progress', items: [{ label: 'Готовность', value: 68 }, { label: 'Покрытие тестами', value: 54, tone: 'warn' }, { label: 'Документация', value: 30, tone: 'err' }] },
+        { type: 'tabs', tabs: [
+          { label: 'Задачи', blocks: [{ type: 'list', items: [{ title: 'Подключить Web Speech API', sub: 'заменить имитацию прослушивания', badge: 'P1', tone: 'err', icon: '🎙' }, { title: 'WebSocket к ядру', sub: 'ws://127.0.0.1:8765', badge: 'P1', tone: 'err', icon: '⇄' }, { title: 'Сохранять окна в облако', sub: 'сейчас localStorage', badge: 'P2', tone: 'warn', icon: '☁' }, { title: 'Тёмная/светлая тема', sub: 'CSS-переменные готовы', badge: 'P3', tone: 'info', icon: '◐' }] }] },
+          { label: 'Риски', blocks: [{ type: 'alert', tone: 'warn', title: 'Покрытие тестами 54%', text: 'Оконный менеджер и рендер блоков без автотестов.' }, { type: 'table', search: false, columns: [{ key: 'r', label: 'Риск' }, { key: 'p', label: 'Вероятность', format: 'bar', unit: '%' }, { key: 'i', label: 'Влияние', format: 'badge', tones: { high: 'err', mid: 'warn', low: 'ok' } }], rows: [['Срыв срока релиза', 40, 'high'], ['Регрессии в WM', 60, 'mid'], ['Нет ключа API у ядра', 20, 'high']] }] },
+          { label: 'Команда', blocks: [{ type: 'chart', kind: 'radar', title: 'Компетенции', max: 10, labels: ['Frontend', 'Backend', 'ML', 'Голос', 'DevOps', 'Дизайн'], series: [{ name: 'Perez', data: [9, 7, 5, 6, 6, 7] }, { name: 'JARVIS', data: [8, 8, 9, 9, 7, 6] }] }] },
+          { label: 'Коммиты', blocks: [{ type: 'code', lang: 'git', text: 'a81f3c2  feat(ui-kit): блоки table/chart/form, md-парсер\n5d2e9b0  feat(wm): плавающие окна, dock, сохранение раскладки\nc07a114  feat: диалоги настроек и напоминаний\n9e4b7d8  init: hero + визуализация' }] }] },
+        { type: 'timeline', items: [{ time: '13 окт', title: 'UI kit и DSL для модели', tone: 'ok' }, { time: '20 окт', title: 'Подключение ядра по WebSocket', tone: 'warn' }, { time: '27 окт', title: 'Code freeze', tone: 'muted' }, { time: '31 окт', title: 'Релиз 1.0', tone: 'muted' }] },
+      ] }) },
+    survey: { label: 'Анкета обратной связи', re: /анкет|опрос|заполни/i, say: 'Открыл анкету. Заполните — ответы придут мне в диалог, и я сведу их в отчёт.',
+      spec: () => ({ title: 'Анкета · впечатления от JARVIS', width: 600, height: 560, blocks: [
+        { type: 'md', text: '## Пара минут на обратную связь\nЭто пример **формы, которую собрал агент**: разные типы полей, валидация обязательных, подсказки.' },
+        { type: 'form', submit: 'Отправить анкету', cancel: 'Очистить', toast: 'Спасибо! Ответы получены', say: 'Анкета', fields: [
+          { name: 'name', label: 'Имя', value: settings.name, required: true }, { name: 'email', label: 'Email', type: 'email', placeholder: 'для ответа' },
+          { name: 'role', label: 'Роль', type: 'select', options: ['Инженер', 'Дизайнер', 'Менеджер', 'Другое'] }, { name: 'since', label: 'Пользуюсь с', type: 'date' },
+          { name: 'usage', label: 'Как чаще обращаетесь', type: 'radio', options: ['Голосом', 'Текстом', 'Кнопками'], value: 'Голосом', full: true },
+          { name: 'score', label: 'Общая оценка', type: 'range', min: 1, max: 10, value: 8, unit: ' / 10', full: true },
+          { name: 'speed', label: 'Скорость ответа устраивает', type: 'checkbox', value: true }, { name: 'voice', label: 'Голос звучит естественно', type: 'checkbox' },
+          { name: 'wish', label: 'Чего не хватает', type: 'textarea', full: true, placeholder: 'свободный ответ…', help: 'Можно markdown' }] },
+        { type: 'alert', tone: 'info', text: 'После отправки данные уйдут в диалог строкой `Анкета: name=…, score=…` — так модель видит ввод пользователя.' },
+      ] }) },
+    report: { label: 'Markdown-отчёт', re: /отч[её]т|резюме|саммари|summary/i, say: 'Собрал отчёт в markdown — заголовки, списки, таблица, код. Открыл.',
+      spec: () => ({ title: 'Отчёт · неделя 41', width: 620, height: 560, blocks: [{ type: 'md', text: `# Еженедельный отчёт · 7–13 октября
+> **Главное:** оконный интерфейс JARVIS собран, добавлен UI-кит и DSL для модели. Релиз 1.0 — в графике.
+
+## Сделано
+1. Оконный менеджер: drag, resize, dock, сохранение раскладки.
+2. Диалоги ввода: настройки, напоминания, подтверждения.
+3. UI-кит \`j-*\`: таблицы, графики (9 видов), формы, markdown.
+4. Сценарии «агент → визуализация»: видеокарты, логи, бюджет, погода, проект.
+
+## Метрики
+| Метрика | Было | Стало | Δ |
+|---|---:|---:|---:|
+| Типы окон | 3 | 14 | +11 |
+| Блоки DSL | 0 | 20 | +20 |
+| Задержка stt | 52 мс | 38 мс | −27% |
+
+## Открытые вопросы
+- [x] Как модель узнаёт вёрстку → справочник DSL в системном промпте
+- [ ] Подключение ядра по WebSocket
+- [ ] Хранение раскладки вне браузера
+
+## Пример ответа модели
+\`\`\`json
+{ "title": "Погода", "blocks": [ { "type": "kpi", "items": [ { "label": "Сейчас", "value": "+9°" } ] } ] }
+\`\`\`
+
+---
+*Подготовлено JARVIS · Fable 5.1.* Подробности — в [журнале](#log).` }] }) },
+    team: { label: 'Нагрузка команды', re: /команд[аыу]|нагрузк|загрузк|кто свободен/i, say: 'Посмотрел загрузку команды на спринт: двое перегружены, один свободен на 40%. Открыл радар компетенций и диаграмму нагрузки.',
+      spec: () => ({ title: 'Команда · спринт 42', width: 700, height: 540, blocks: [
+        { type: 'kpi', items: [{ label: 'Человек', value: '5' }, { label: 'Средняя загрузка', value: '92%', delta: '+7% к прошлому', tone: 'neg' }, { label: 'Свободно', value: '0.4 FTE' }, { label: 'Задач в спринте', value: '31' }] },
+        { type: 'columns', cols: [
+          [{ type: 'chart', kind: 'hbar', title: 'Загрузка, %', unit: '%', max: 140, labels: ['Аня', 'Борис', 'Вера', 'Глеб', 'Perez'], series: [{ data: [118, 105, 96, 60, 82] }], colors: ['#ff7a59', '#f5b942', '#5cf2a5', '#70e4ff', '#5cf2a5'] }],
+          [{ type: 'chart', kind: 'scatter', title: 'Загрузка vs качество', xunit: '%', unit: ' балл', series: [{ name: 'люди', points: [[118, 6.1, 'Аня', 7], [105, 7.4, 'Борис', 7], [96, 8.8, 'Вера', 7], [60, 9.1, 'Глеб', 7], [82, 8.4, 'Perez', 7]] }] }]] },
+        { type: 'chart', kind: 'radar', title: 'Компетенции', max: 10, labels: ['Frontend', 'Backend', 'ML', 'Голос', 'DevOps', 'Дизайн'], series: [{ name: 'Аня', data: [9, 4, 3, 5, 4, 8] }, { name: 'Глеб', data: [3, 9, 6, 4, 9, 2] }, { name: 'Вера', data: [6, 7, 9, 8, 5, 5] }] },
+        { type: 'table', search: false, columns: [{ key: 'n', label: 'Имя' }, { key: 'role', label: 'Роль' }, { key: 'load', label: 'Загрузка', format: 'bar', unit: '%' }, { key: 'tasks', label: 'Задач', format: 'num' }, { key: 'st', label: '', format: 'badge', tones: { 'перегруз': 'err', 'норма': 'ok', 'свободен': 'info' } }],
+          rows: [['Аня', 'Frontend', 118, 9, 'перегруз'], ['Борис', 'Backend', 105, 8, 'перегруз'], ['Вера', 'ML', 96, 6, 'норма'], ['Глеб', 'DevOps', 60, 3, 'свободен'], ['Perez', 'Lead', 82, 5, 'норма']] },
+        { type: 'actions', items: [{ label: 'Передать 2 задачи Глебу', say: 'Передай две задачи Ани Глебу', tone: 'primary' }, { label: 'Напомнить о ретро', say: 'Напомни про ретро' }] },
+      ] }) },
+    media: { label: 'Видео и медиа', re: /ютуб|youtube|видео|ролик|галере|картинк|медиа|покажи (фото|клип)/i, say: 'Нашёл подборку: YouTube-ролик, сетка видео, галерея и карта. Открыл медиа-окно — клик по превью запускает плеер.',
+      spec: () => ({ title: 'Медиа · подборка агента', width: 760, height: 620, blocks: [
+        { type: 'md', text: '## Что нашёл\nКороткий обзор по теме **голосовых ассистентов**: ролик, плейлист, галерея кадров и карта офиса. Клик по YouTube — плеер; по фото — лайтбокс.' },
+        { type: 'youtube', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Big Buck Bunny — демо HTML5/YouTube', caption: 'Превью → клик → youtube-nocookie embed' },
+        { type: 'videos', items: [
+          { url: 'https://youtu.be/jNQXAC9IVRw', title: 'Me at the zoo', channel: 'jawed', duration: '0:19', views: '340 млн' },
+          { url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Big Buck Bunny 4K', channel: 'Blender', duration: '10:35' },
+          { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up', channel: 'Rick Astley', duration: '3:33' },
+          { url: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk', title: 'Despacito', channel: 'LuisFonsiVEVO', duration: '4:42' }] },
+        { type: 'gallery', cols: 4, items: [
+          { src: ph(800, 600, 'кадр 1'), caption: 'Скриншот UI' },
+          { src: ph(800, 600, 'кадр 2', '#2a4d69', '#4b86b4'), caption: 'Диаграмма' },
+          { src: ph(800, 600, 'кадр 3', '#5c3d7a', '#a26bd1') },
+          { src: ph(800, 600, 'кадр 4', '#7a4a1e', '#d1a26b'), caption: 'Лайтбокс' }] },
+        { type: 'columns', cols: [
+          [{ type: 'video', src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', poster: ph(640, 360, 'mp4'), caption: 'HTML5 video' }],
+          [{ type: 'audio', src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3', title: 'T-Rex roar', artist: 'MDN cc0' },
+           { type: 'link', url: 'https://developer.mozilla.org/ru/docs/Web/API/Web_Speech_API', title: 'Web Speech API', desc: 'STT/TTS в браузере', image: ph(240, 240, 'MDN', '#1b2a44', '#0d1726') }]] },
+        { type: 'embed', src: 'https://www.openstreetmap.org/export/embed.html?bbox=37.59%2C55.74%2C37.64%2C55.77&layer=mapnik&marker=55.753%2C37.62', title: 'Карта · центр Москвы', height: 220 },
+      ] }) },
+  };
+
+  // ───────────── voice state ─────────────
+  const core = $('#core'), stateText = $('#state-text');
+  const LABELS = () => ({ idle: `Ожидание · скажите «${settings.wake}»`, listening: 'Слушаю…', thinking: 'Обрабатываю запрос', speaking: 'Отвечаю' });
+  function setState(s) { state = s; core.dataset.state = s; stateText.textContent = LABELS()[s]; document.querySelectorAll('.btn.mic').forEach(b => b.classList.toggle('on', s === 'listening')); }
+
+  const OPEN_MAP = [[/галере|компонент|ui kit|кит(\s|$)/i, 'kit'], [/песочниц|playground/i, 'playground'], [/справочник|dsl|спецификац/i, 'spec'], [/погод/i, 'weather'], [/расписан|календар|план на день/i, 'schedule'], [/журнал|(^|\s)лог/i, 'log'], [/терминал|консол|сервер/i, 'terminal'], [/заметк/i, 'notes'], [/систем|телеметр/i, 'system'], [/команд/i, 'commands'], [/интеграц/i, 'integrations'], [/диалог|чат/i, 'chat']];
+  const ANSWERS = [
+    [/погод|улиц|холодно|тепло/i, () => `Сейчас в городе ${settings.city} +9°, ясно. К утру похолодает до +4°, возьмите куртку.`],
+    [/расписан|план|дела|встреч/i, () => { const n = nowHM(); const next = [...events].sort((a, b) => a.tm.localeCompare(b.tm)).find(e => e.tm >= n); WM.open('schedule'); return next ? `Ближайшее событие: ${next.ti} в ${next.tm}. Всего в расписании ${events.length}.` : 'На сегодня событий больше нет.'; }],
+    [/музык|фокус/i, () => 'Включаю плейлист «Deep Focus» в Spotify, громкость 35%.'],
+    [/таймер|помидор/i, () => 'Таймер на 25 минут запущен. Сообщу, когда истечёт.'],
+    [/привет|здравств|как дела/i, () => `Привет, ${settings.name}. Работаю штатно, задержка 38 миллисекунд.`],
+    [/кто ты|что ты|ядро|модель/i, () => 'Я JARVIS на ядре Claude Fable 5.1 — голосовой ассистент с оконным рабочим пространством.'],
+    [/спасибо/i, () => 'Всегда пожалуйста.'],
+  ];
+  const FALLBACK = ['Принято. Записал в задачи и вернусь с результатом.', 'Понял. Уточните — это срочно или можно отложить до утра?', 'Сделано. Что-нибудь ещё?'];
+
+  async function answer(q) {
+    // данные формы из окна: «Название: k=v, k=v»
+    if (/^[^:]{1,60}: [\w]+=/.test(q)) { const [name, rest] = q.split(/:\s(.+)/); const n = rest.split(', ').length; return `Принял «${name}» — ${n} ${n === 1 ? 'поле' : n < 5 ? 'поля' : 'полей'}. Записал в журнал и учту в следующих ответах.`; }
+    if (/^(открой|покажи|запусти|выведи)(\s|$)/i.test(q)) {
+      if (/дашборд|панел/i.test(q)) { const w = await newDashboard(); return w ? `Создал дашборд «${w.title}». Добавляйте виджеты кнопкой внутри.` : 'Отменил создание дашборда.'; }
+      if (/настройк/i.test(q)) { openSettings(); return 'Открыл настройки.'; }
+      for (const [re, t] of OPEN_MAP) if (re.test(q)) { WM.open(t); return `Открыл окно «${TYPES[t].title}».`; }
+    }
+    if (/галере|компонент|ui kit/i.test(q)) { WM.open('kit'); return 'Открыл галерею компонентов: markdown, таблицы, 9 видов графиков, формы, карточки, статусы, раскладка.'; }
+    if (/песочниц|playground/i.test(q)) { WM.open('playground'); return 'Открыл песочницу: слева JSON-спека, справа живой рендер.'; }
+    if (/справочник|dsl|спецификац|как.*(рисовать|верстать)/i.test(q)) { WM.open('spec'); return 'Открыл справочник DSL — его можно вставить в системный промпт модели.'; }
+    if (/сохрани/i.test(q) && /заметк/i.test(q)) { const last = [...chatLog].reverse().find(m => m.role === 'ai'); WM.open('notes', { title: 'Из диалога · ' + nowHM(), data: { text: (last?.text || q) } }); return 'Сохранил в новую заметку.'; }
+    if (/^закрой (всё|все)/i.test(q)) { [...WM.list].filter(w => w.type !== 'chat').forEach(w => WM.close(w)); return 'Закрыл все окна, кроме диалога.'; }
+    if (/^сверни/i.test(q)) { WM.list.forEach(w => WM.minimize(w, true)); return 'Свернул окна.'; }
+    if (/разлож|упоряд/i.test(q)) { WM.tile(); return 'Разложил окна плиткой.'; }
+    if (/напомни|напоминан/i.test(q)) { const text = q.replace(/^.*?напомни(ть)?\s*(мне)?\s*/i, '').trim(); const ev = await newReminder(text); return ev ? `Напомню в ${ev.tm}: ${ev.ti}.` : 'Напоминание отменено.'; }
+    if (/свет/i.test(q)) { const ok = await confirmDialog({ title: 'Умный дом', text: 'Выключить свет в кабинете? Подсветку стола оставлю на 20%.', ok: 'Выключить' }); return ok ? 'Свет в кабинете выключен. Подсветка стола — 20%.' : 'Хорошо, свет оставляю.'; }
+    if (/настройк/i.test(q)) { openSettings(); return 'Открыл настройки.'; }
+    // сценарии «агент нашёл данные → построил окно»
+    for (const d of Object.values(DEMOS)) if (d.re.test(q)) { await sleep(400); openView(d.spec()); return d.say; }
+    for (const [re, a] of ANSWERS) if (re.test(q)) return a();
+    return FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
+  }
+  async function respond(text) {
+    setState('speaking'); log('tts: синтез ответа', 'ok');
+    const m = addMsg('ai', '', 'JARVIS · FABLE 5.1'); await typeInto(m, text);
+    await sleep(200); setState('idle');
+  }
+  async function handle(q) {
+    q = (q || '').trim(); if (busy || !q) return;
+    busy = true; WM.open('chat');
+    addMsg('me', q, 'ВЫ · ' + nowHM());
+    log(`stt: «${q.slice(0, 32)}${q.length > 32 ? '…' : ''}»`);
+    setState('thinking'); log('llm: запрос → Fable 5.1', 'am');
+    const [a] = await Promise.all([answer(q), sleep(500 + Math.random() * 500)]);
+    await respond(a); log('session: готов', 'ok');
+    busy = false;
+  }
+  const PHRASES = ['Какая сейчас погода?', 'Сравни видеокарты', 'Проанализируй логи за ночь', 'Покажи бюджет за октябрь', 'Статус проекта', 'Прогноз на неделю', 'Покажи видео', 'Открой терминал', 'Покажи дашборд', 'Напомни позвонить маме', 'Выключи свет в кабинете'];
+  let listenTimer = null;
+  function startListening() {
+    if (busy) return;
+    if (state === 'listening') { clearTimeout(listenTimer); setState('idle'); log('vad: тишина'); return; }
+    setState('listening'); log('vad: речь обнаружена', 'am');
+    listenTimer = setTimeout(() => handle(PHRASES[Math.floor(Math.random() * PHRASES.length)]), 2200);
+  }
+  core.addEventListener('click', startListening);
+  core.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startListening(); } });
+
+  // ───────────── palette / menu / help ─────────────
+  const palette = $('#palette'), palQ = $('#pal-q'), palList = $('#pal-list');
+  const actions = () => [
+    ...Object.entries(TYPES).filter(([, t]) => !t.hidden).map(([k, t]) => ({ k: 'окно', label: t.title, run: () => WM.open(k) })),
+    { k: 'окно', label: 'Новый дашборд', run: newDashboard },
+    ...Object.values(DEMOS).map(d => ({ k: 'пример', label: `Пример: ${d.label}`, run: () => openView(d.spec()) })),
+    { k: 'диалог', label: 'Настройки JARVIS', run: openSettings },
+    { k: 'диалог', label: 'Новое напоминание', run: () => newReminder() },
+    { k: 'окна', label: 'Разложить окна плиткой', run: () => WM.tile() },
+    { k: 'окна', label: 'Свернуть все окна', run: () => WM.list.forEach(w => WM.minimize(w, true)) },
+    { k: 'окна', label: 'Показать все окна', run: () => WM.list.forEach(w => WM.minimize(w, false)) },
+    { k: 'опасно', label: 'Сбросить раскладку и данные', run: resetLayout },
+    ...PHRASES.map(p => ({ k: 'голос', label: `Сказать: «${p}»`, run: () => handle(p) })),
+  ];
+  let palSel = 0;
+  function renderPal() {
+    const q = palQ.value.toLowerCase().trim();
+    const items = actions().filter(a => !q || a.label.toLowerCase().includes(q) || a.k.includes(q));
+    if (q && !items.some(a => a.k === 'голос' && a.label.toLowerCase().includes(q))) items.push({ k: 'голос', label: `Сказать JARVIS: «${palQ.value.trim()}»`, run: () => handle(palQ.value.trim()) });
+    palSel = Math.min(palSel, items.length - 1);
+    palList.innerHTML = '';
+    items.forEach((a, i) => palList.append(h('button', { class: 'pal-i' + (i === palSel ? ' sel' : ''), onclick: () => { palette.close(); a.run(); } }, h('span', { class: 'k' }, a.k), a.label)));
+    palList.querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
+    return items;
+  }
+  function openPalette() { palQ.value = ''; palSel = 0; renderPal(); palette.showModal(); palQ.focus(); }
+  palQ.addEventListener('input', () => { palSel = 0; renderPal(); });
+  palQ.addEventListener('keydown', e => {
+    const items = renderPal();
+    if (e.key === 'ArrowDown') { e.preventDefault(); palSel = (palSel + 1) % items.length; renderPal(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); palSel = (palSel - 1 + items.length) % items.length; renderPal(); }
+    else if (e.key === 'Enter') { e.preventDefault(); palette.close(); items[palSel]?.run(); }
+  });
+  palette.addEventListener('click', e => { if (e.target === palette) palette.close(); });
+
+  const ctx = $('#ctx');
+  function showMenu(x, y) {
+    ctx.innerHTML = '';
+    const items = [
+      ...Object.entries(TYPES).filter(([, t]) => !t.hidden).map(([k, t]) => ({ l: t.title, s: t.single ? 'одно' : 'новое', run: () => WM.open(k) })),
+      { sep: true }, { l: 'Новый дашборд…', s: 'сетка', run: newDashboard }, { l: 'Новое напоминание…', s: 'диалог', run: () => newReminder() },
+      { sep: true }, ...Object.values(DEMOS).map(d => ({ l: d.label, s: 'пример', run: () => openView(d.spec()) })),
+      { sep: true }, { l: 'Разложить окна', run: () => WM.tile() }, { l: 'Свернуть все', run: () => WM.list.forEach(w => WM.minimize(w, true)) },
+    ];
+    items.forEach(it => ctx.append(it.sep ? h('hr') : h('button', { class: 'ctx-i', onclick: () => { hideMenu(); it.run(); } }, it.l, it.s ? h('small', {}, it.s) : null)));
+    ctx.hidden = false;
+    ctx.style.left = Math.min(x, innerWidth - ctx.offsetWidth - 8) + 'px';
+    ctx.style.top = Math.min(y, innerHeight - ctx.offsetHeight - 8) + 'px';
+  }
+  const hideMenu = () => ctx.hidden = true;
+  desktop.addEventListener('contextmenu', e => { if (e.target.closest('.win')) return; e.preventDefault(); showMenu(e.clientX, e.clientY); });
+  desktop.addEventListener('pointerdown', e => { if (!e.target.closest('.win')) { WM.active = null; WM.list.forEach(w => w.dom.classList.remove('active')); WM.dock(); } });
+  window.addEventListener('pointerdown', e => { if (!e.target.closest('#ctx')) hideMenu(); }, true);
+  $('#btn-win').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(); ctx.hidden ? showMenu(r.left, r.bottom + 6) : hideMenu(); });
+  $('#btn-pal').addEventListener('click', openPalette);
+  $('#btn-kit').addEventListener('click', () => WM.open('kit'));
+  $('#btn-settings').addEventListener('click', openSettings);
+  $('#btn-help').addEventListener('click', () => infoDialog('Как пользоваться', h('div', { class: 'help-list' },
+    h('div', {}, h('kbd', {}, 'ПКМ'), 'по рабочему столу — меню окон; то же в кнопке «+ Окно»'),
+    h('div', {}, h('kbd', {}, 'Drag'), 'заголовок — переместить; уголок справа внизу — размер'),
+    h('div', {}, h('kbd', {}, 'Dbl-click'), 'заголовок — развернуть/вернуть'),
+    h('div', {}, h('kbd', {}, '⌘K'), 'командная палитра: окна, настройки, фразы для ядра'),
+    h('div', {}, h('kbd', {}, 'Пробел'), 'или клик по ядру — начать слушать'),
+    h('div', {}, h('kbd', {}, 'Голос'), '«открой погоду», «покажи дашборд», «напомни…», «разложи окна»'),
+    h('div', {}, h('kbd', {}, 'Агент'), '«сравни видеокарты», «проанализируй логи», «бюджет», «статус проекта» — окно с таблицами/графиками'),
+    h('div', {}, h('kbd', {}, 'UI Kit'), 'галерея компонентов · Песочница (JSON → окно) · Справочник DSL для системного промпта'),
+    h('div', {}, h('kbd', {}, 'Dock'), 'внизу — список окон; клик сворачивает/возвращает'),
+    h('div', { style: 'color:var(--muted);font-size:12px;margin-top:8px' }, 'Раскладка, заметки, дашборды, команды и напоминания сохраняются в localStorage.'),
+  )));
+  async function resetLayout() {
+    if (!await confirmDialog({ title: 'Сбросить всё?', text: 'Будут удалены раскладка окон, дашборды, заметки, пользовательские команды и напоминания.', ok: 'Сбросить', danger: true })) return;
+    ['fable-layout', 'fable-settings', 'fable-events', 'fable-commands', 'fable-integrations'].forEach(store.del);
+    location.reload();
+  }
+  window.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); palette.open ? palette.close() : openPalette(); }
+    if (e.code === 'Space' && document.activeElement === document.body && !dlg.open && !palette.open) { e.preventDefault(); startListening(); }
+    if (e.key === 'Escape') hideMenu();
+  });
+
+  // ───────────── viz canvas ─────────────
+  const cv = $('#viz'), cx2 = cv.getContext('2d');
+  let W = 0, H = 0, t = 0;
+  function resize() { const r = desktop.getBoundingClientRect(); const dpr = Math.min(2, devicePixelRatio || 1); cv.width = r.width * dpr; cv.height = r.height * dpr; W = r.width; H = r.height; cx2.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  resize(); addEventListener('resize', resize);
+  const ENERGY = { idle: .18, listening: .75, thinking: .45, speaking: 1 };
+  let energy = .18, frame = 0;
+  (function draw() {
+    requestAnimationFrame(draw); t += .016; energy += (ENERGY[state] - energy) * .06;
+    cx2.clearRect(0, 0, W, H);
+    const hr = $('.hero .core').getBoundingClientRect(), dr = desktop.getBoundingClientRect();
+    const cx = hr.left - dr.left + hr.width / 2, cy = hr.top - dr.top + hr.height / 2, base = hr.width / 2 + 14;
+    const col = state === 'thinking' ? '245,185,66' : '112,228,255';
+    for (let i = 0; i < 96; i++) {
+      const a = i / 96 * Math.PI * 2, n = Math.sin(t * 3 + i * .5) * .5 + Math.sin(t * 7 + i * 1.3) * .3 + Math.sin(t * 1.3 + i * .2) * .2;
+      const len = 6 + Math.abs(n) * 40 * energy;
+      cx2.strokeStyle = `rgba(${col},${.2 + .5 * energy})`; cx2.lineWidth = 2; cx2.beginPath();
+      cx2.moveTo(cx + Math.cos(a) * base, cy + Math.sin(a) * base); cx2.lineTo(cx + Math.cos(a) * (base + len), cy + Math.sin(a) * (base + len)); cx2.stroke();
+    }
+    cx2.beginPath();
+    for (let x = 0; x <= W; x += 3) { const k = (x - cx) / W, env = Math.exp(-Math.pow(k * 3.2, 2)); const y = cy + Math.sin(x * .045 + t * 6) * 22 * env * energy + Math.sin(x * .11 - t * 9) * 8 * env * energy; x === 0 ? cx2.moveTo(x, y) : cx2.lineTo(x, y); }
+    cx2.strokeStyle = `rgba(112,228,255,${.08 + .25 * energy})`; cx2.lineWidth = 1.5; cx2.stroke();
+    if (++frame % 6 === 0) { const lvl = Math.round(8 + energy * 70 + Math.random() * 6); const b = $('#mic-b'), v = $('#mic-v'); if (b) b.style.width = lvl + '%'; if (v) v.textContent = `${Math.round(-60 + lvl * .6)} дБ`; }
+  })();
+
+  // ───────────── boot ─────────────
+  log('core: Fable 5.1 загружено', 'ok'); log('audio: вход 48 kHz / 16 bit', 'ok'); log(`wake-word: «${settings.wake}» активно`, 'am'); log('wm: оконный менеджер готов');
+  applySettings(); setState('idle'); WM.load();
+})();
+</script>
+</body>
+</html>

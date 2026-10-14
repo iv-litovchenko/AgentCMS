@@ -1,0 +1,52 @@
+[
+  {
+    "id": "composer",
+    "file": "composer-2.5.html",
+    "label": "Composer 2.5"
+  },
+  {
+    "id": "grok",
+    "file": "grok-4.7.html",
+    "label": "Grok 4.7"
+  },
+  {
+    "id": "sonnet",
+    "file": "claude-sonnet-5.5.html",
+    "label": "Claude Sonnet 5.5"
+  },
+  {
+    "id": "opus",
+    "file": "claude-opus-5.5.html",
+    "label": "Claude Opus 5.5"
+  },
+  {
+    "id": "fable",
+    "file": "claude-fable-5.1.html",
+    "label": "Claude Fable 5.1"
+  },
+  {
+    "id": "gemini",
+    "file": "gemini-4-argon.html",
+    "label": "Gemini 4 Argon"
+  },
+  {
+    "id": "gpt",
+    "file": "gpt-5.6-sol.html",
+    "label": "GPT 5.6 Sol"
+  },
+  {
+    "id": "muse",
+    "file": "muse-spark.html",
+    "label": "Muse Spark"
+  },
+  {
+    "id": "glm",
+    "file": "glm-5p3-flash.html",
+    "label": "GLM 5p3 Flash"
+  },
+  {
+    "id": "kimi",
+    "file": "kimi-k3.html",
+    "label": "Kimi K3 Max"
+  }
+]

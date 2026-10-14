@@ -10,7 +10,7 @@
 </div>
 ```
 
-Подключение стилей (уже на `jarvis.html`): `/jarvis-ui-kit.css`
+Подключение стилей: `jarvis-ui-kit.css` (рядом с `index.html` в `jarvis-v1/`)
 
 ## Правила
 

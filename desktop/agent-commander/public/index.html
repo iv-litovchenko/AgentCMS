@@ -1,75 +1,469 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Agent CMS Commander</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0f1117;
-        --panel: #171b26;
-        --text: #e8ecf4;
-        --muted: #94a3b8;
-        --accent: #f43f5e;
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyJarvis — выбор ядра</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0c10'/%3E%3Cpath d='M8 16h6l2-4 4 8 2-4h2' stroke='%23a78bfa' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #07080c;
+      --surface: rgba(14, 16, 24, 0.92);
+      --surface-2: rgba(22, 24, 36, 0.75);
+      --border: rgba(167, 139, 250, 0.22);
+      --border-bright: rgba(167, 139, 250, 0.5);
+      --violet: #a78bfa;
+      --mint: #5eead4;
+      --text: #eef0f6;
+      --muted: #8b92a8;
+      --font: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --mono: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+      --sidebar-w: 252px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      color-scheme: dark;
+    }
+
+    body {
+      min-height: 100dvh;
+      background-image:
+        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(167, 139, 250, 0.1), transparent 50%),
+        linear-gradient(rgba(167, 139, 250, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(167, 139, 250, 0.02) 1px, transparent 1px);
+      background-size: auto, 40px 40px, 40px 40px;
+    }
+
+    .app {
+      display: flex;
+      min-height: 100dvh;
+    }
+
+    .sidebar {
+      flex-shrink: 0;
+      width: var(--sidebar-w);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 14px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border-bright);
+      background: rgba(167, 139, 250, 0.12);
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--violet);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+    }
+
+    .brand span {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .sidebar-head {
+      padding: 10px 14px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .core-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 4px 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(167, 139, 250, 0.35) transparent;
+    }
+
+    .core-list::-webkit-scrollbar { width: 5px; }
+    .core-list::-webkit-scrollbar-thumb {
+      background: rgba(167, 139, 250, 0.35);
+      border-radius: 4px;
+    }
+
+    .jarvis-item {
+      appearance: none;
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font);
+      padding: 10px 10px 9px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .jarvis-item:hover {
+      color: var(--text);
+      background: var(--surface-2);
+      border-color: rgba(167, 139, 250, 0.15);
+    }
+
+    .jarvis-item[aria-selected="true"] {
+      color: var(--text);
+      border-color: var(--border-bright);
+      background: rgba(167, 139, 250, 0.16);
+      box-shadow: inset 3px 0 0 var(--violet);
+    }
+
+    .jarvis-item:focus-visible {
+      outline: 2px solid var(--mint);
+      outline-offset: 1px;
+    }
+
+    .jarvis-item .label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .jarvis-item .file {
+      display: block;
+      margin-top: 3px;
+      font-family: var(--mono);
+      font-size: 10px;
+      opacity: 0.75;
+      word-break: break-all;
+    }
+
+    .jarvis-item.is-struck {
+      border-color: rgba(248, 113, 113, 0.2);
+      background: rgba(248, 113, 113, 0.04);
+    }
+
+    .jarvis-item.is-struck .label,
+    .jarvis-item.is-struck .file {
+      color: #f87171;
+      text-decoration: line-through;
+      text-decoration-color: rgba(248, 113, 113, 0.95);
+      text-decoration-thickness: 1.5px;
+    }
+
+    .jarvis-item.is-struck:hover {
+      color: #fca5a5;
+      background: rgba(248, 113, 113, 0.1);
+      border-color: rgba(248, 113, 113, 0.35);
+    }
+
+    .jarvis-item.is-struck[aria-selected="true"] {
+      color: #fca5a5;
+      border-color: rgba(248, 113, 113, 0.5);
+      background: rgba(248, 113, 113, 0.14);
+      box-shadow: inset 3px 0 0 #f87171;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px 12px;
+    }
+
+    .main-head {
+      flex-shrink: 0;
+      padding: 4px 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .main-head strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .frame-shell {
+      position: relative;
+      flex: 1;
+      min-height: 280px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #050608;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    #jarvis-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: var(--bg);
+    }
+
+    .file-hint {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      gap: 14px;
+      padding: 28px 24px;
+      text-align: center;
+      background: rgba(7, 8, 12, 0.96);
+    }
+
+    .file-hint[hidden] { display: none !important; }
+
+    .file-hint h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .file-hint p {
+      margin: 0;
+      max-width: 36em;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .file-hint code {
+      display: block;
+      margin: 8px auto 0;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(22, 24, 36, 0.9);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mint);
+      text-align: left;
+      max-width: 28em;
+    }
+
+    .file-hint a {
+      color: var(--violet);
+      font-weight: 500;
+    }
+
+    @media (max-width: 720px) {
+      .app { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        max-height: 42dvh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
       }
-      * {
-        box-sizing: border-box;
+      .main { min-height: 50dvh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">MJ</div>
+        <div>
+          <strong>MyJarvis</strong>
+          <span id="core-count">multi-core hub</span>
+        </div>
+      </div>
+      <div class="sidebar-head">Ядра JARVIS</div>
+      <nav class="core-list" role="tablist" aria-label="Список ядер JARVIS" id="core-list"></nav>
+    </aside>
+    <div class="main">
+      <div class="main-head">Активно: <strong id="active-label">—</strong></div>
+      <div class="frame-shell">
+        <div class="file-hint" id="file-hint" hidden>
+          <h2>iframe пустой при открытии файла с диска</h2>
+          <p>
+            Браузер блокирует локальные страницы внутри iframe по протоколу
+            <code style="display:inline;padding:0;border:0;background:none;color:var(--violet)">file://</code>.
+            Запустите мини-сервер в папке проекта и откройте hub по HTTP:
+          </p>
+          <code>cd MyJarvis && ./serve.sh</code>
+          <p>Затем: <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a></p>
+          <p>Или откройте ядро напрямую: <a id="direct-link" href="composer-2.5.html">composer-2.5.html</a></p>
+        </div>
+        <iframe
+          id="jarvis-frame"
+          title="Интерфейс JARVIS"
+          src="about:blank"
+          allow="microphone"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+  <script>
+    const JARVIS_FALLBACK = [
+      { id: 'composer', file: 'composer-2.5.html', label: 'Composer 2.5' },
+      { id: 'grok', file: 'grok-4.7.html', label: 'Grok 4.7' },
+      { id: 'sonnet', file: 'claude-sonnet-5.5.html', label: 'Claude Sonnet 5.5' },
+      { id: 'opus', file: 'claude-opus-5.5.html', label: 'Claude Opus 5.5' },
+      { id: 'fable', file: 'claude-fable-5.1.html', label: 'Claude Fable 5.1' },
+      { id: 'gemini', file: 'gemini-4-argon.html', label: 'Gemini 4 Argon' },
+      { id: 'gpt', file: 'gpt-5.6-sol.html', label: 'GPT 5.6 Sol' },
+      { id: 'muse', file: 'muse-spark.html', label: 'Muse Spark' },
+      { id: 'glm', file: 'glm-5p3-flash.html', label: 'GLM 5p3 Flash' },
+      { id: 'kimi', file: 'kimi-k3.html', label: 'Kimi K3 Max' },
+    ];
+
+    const coreList = document.getElementById('core-list');
+    const coreCount = document.getElementById('core-count');
+    const activeLabel = document.getElementById('active-label');
+    const frame = document.getElementById('jarvis-frame');
+    const fileHint = document.getElementById('file-hint');
+    const directLink = document.getElementById('direct-link');
+    const storageKey = 'myjarvis-active-core';
+    const isFileProtocol = location.protocol === 'file:';
+
+    let JARVIS = [];
+
+    const STRUCK_IDS = new Set(['composer', 'grok', 'kimi', 'glm', 'gpt']);
+
+    function mergeCores(remote, fallback) {
+      const byFile = new Map();
+      fallback.forEach((c) => byFile.set(c.file, c));
+      remote.forEach((c) => byFile.set(c.file, c));
+      const order = remote.map((c) => c.file).concat(fallback.map((c) => c.file));
+      const seen = new Set();
+      const out = [];
+      order.forEach((file) => {
+        if (seen.has(file) || !byFile.has(file)) return;
+        seen.add(file);
+        out.push(byFile.get(file));
+      });
+      byFile.forEach((c, file) => {
+        if (!seen.has(file)) out.push(c);
+      });
+      return out;
+    }
+
+    async function loadCores() {
+      if (isFileProtocol) return JARVIS_FALLBACK.slice();
+      try {
+        const res = await fetch('cores.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        if (!Array.isArray(data) || !data.length) throw new Error('empty');
+        return mergeCores(data, JARVIS_FALLBACK);
+      } catch (_) {
+        return JARVIS_FALLBACK.slice();
       }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        background: radial-gradient(circle at 20% 0%, #1f2937 0%, var(--bg) 55%);
-        color: var(--text);
-        display: grid;
-        place-items: center;
-        padding: 24px;
+    }
+
+    function findById(id) {
+      return JARVIS.find((j) => j.id === id) || JARVIS[0];
+    }
+
+    function setActive(entry, { updateHash = true } = {}) {
+      if (!entry) return;
+      JARVIS.forEach((j) => {
+        const btn = coreList.querySelector('[data-id="' + j.id + '"]');
+        if (btn) btn.setAttribute('aria-selected', j.id === entry.id ? 'true' : 'false');
+      });
+      if (activeLabel) activeLabel.textContent = entry.label;
+      if (directLink) {
+        directLink.href = entry.file;
+        directLink.textContent = entry.file;
       }
-      main {
-        width: min(520px, 100%);
-        background: var(--panel);
-        border: 1px solid rgba(244, 63, 94, 0.35);
-        border-radius: 16px;
-        padding: 28px 24px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      if (!isFileProtocol && frame.getAttribute('src') !== entry.file) {
+        frame.src = entry.file;
       }
-      h1 {
-        margin: 0 0 8px;
-        font-size: 1.5rem;
+      try {
+        localStorage.setItem(storageKey, entry.id);
+      } catch (_) {}
+      if (updateHash) {
+        const next = '#' + entry.id;
+        if (location.hash !== next) history.replaceState(null, '', next);
       }
-      p {
-        margin: 0 0 12px;
-        color: var(--muted);
-        line-height: 1.5;
+    }
+
+    function renderList() {
+      coreList.replaceChildren();
+      coreCount.textContent = JARVIS.length + ' ядер';
+      JARVIS.forEach((j) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jarvis-item' + (STRUCK_IDS.has(j.id) ? ' is-struck' : '');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('data-id', j.id);
+        btn.setAttribute('aria-selected', 'false');
+        btn.innerHTML =
+          '<span class="label">' + j.label + '</span>' +
+          '<span class="file">' + j.file + '</span>';
+        btn.addEventListener('click', () => setActive(j));
+        coreList.appendChild(btn);
+      });
+    }
+
+    async function boot() {
+      JARVIS = await loadCores();
+      renderList();
+
+      const fromHash = location.hash.replace(/^#/, '');
+      let initial = findById(fromHash);
+      if (!fromHash) {
+        try {
+          const saved = localStorage.getItem(storageKey);
+          if (saved) initial = findById(saved);
+        } catch (_) {}
       }
-      code {
-        color: var(--accent);
-        font-size: 0.95em;
+      if (isFileProtocol) {
+        fileHint.hidden = false;
+        frame.hidden = true;
+      } else {
+        fileHint.hidden = true;
+        frame.hidden = false;
       }
-      .badge {
-        display: inline-block;
-        margin-bottom: 14px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: rgba(244, 63, 94, 0.15);
-        color: var(--accent);
-        font-size: 0.75rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+      setActive(initial, { updateHash: Boolean(fromHash) });
+      if (!fromHash && initial && initial.id) {
+        history.replaceState(null, '', '#' + initial.id);
       }
-    </style>
-  </head>
-  <body>
-    <main>
-      <div class="badge">Commander</div>
-      <h1>Agent CMS Commander</h1>
-      <p>
-        Локальный HTTP-сервер Commander. Порт задаётся через
-        <code>AGENT_CMS_COMMANDER_HTTP_PORT</code> (по умолчанию <code>3188</code>) в
-        <code>.env</code> в корне репозитория.
-      </p>
-      <p>Дальше здесь появится управление компьютером (раскладка, мышь, горячие клавиши).</p>
-    </main>
-  </body>
+
+      window.addEventListener('hashchange', () => {
+        const id = location.hash.replace(/^#/, '');
+        if (id) setActive(findById(id), { updateHash: false });
+      });
+    }
+
+    boot();
+  </script>
+</body>
 </html>

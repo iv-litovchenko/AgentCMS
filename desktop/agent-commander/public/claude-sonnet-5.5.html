@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Рабочее пространство</title>
+<link rel="stylesheet" href="jarvis-ui.css">
+<script src="jarvis-ui.js"></script>
+<script src="jarvis-examples.js"></script>
+<style>
+  :root {
+    --bg: #04070d;
+    --panel: rgba(9, 22, 38, 0.88);
+    --line: rgba(0, 200, 255, 0.28);
+    --cyan: #00d4ff;
+    --cyan-soft: #6be7ff;
+    --accent: #ff8a1f;
+    --text: #cfeeff;
+    --muted: #6b8aa0;
+    --ok: #3dffa8;
+    --danger: #ff5470;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    background: radial-gradient(1200px 700px at 50% 45%, rgba(0, 90, 140, 0.25), transparent 60%), var(--bg);
+    color: var(--text);
+    display: flex; flex-direction: column; overflow: hidden;
+    font-size: 13px;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: var(--text); outline: none; }
+
+  /* ───────── top bar ───────── */
+  header {
+    height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 14px;
+    padding: 0 14px; border-bottom: 1px solid var(--line);
+    background: rgba(6, 16, 28, .9); backdrop-filter: blur(8px); z-index: 5000; position: relative;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; letter-spacing: 5px; font-weight: 700; color: var(--cyan); white-space: nowrap; }
+  .logo i { width: 11px; height: 11px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); animation: blink 2s infinite; }
+  .tabs { display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; overflow-x: auto; }
+  .tabs::-webkit-scrollbar { height: 0; }
+  .tab {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+    color: var(--muted); white-space: nowrap; transition: .15s;
+  }
+  .tab:hover { color: var(--text); background: rgba(0,200,255,.08); }
+  .tab.active { color: var(--cyan-soft); border-color: var(--line); background: rgba(0,200,255,.14); }
+  .tab.add { color: var(--cyan); padding: 7px 11px; }
+  .hbtn {
+    padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,200,255,.07);
+    color: var(--text); white-space: nowrap; transition: .15s;
+  }
+  .hbtn:hover { border-color: var(--cyan); background: rgba(0,200,255,.2); }
+  .hbtn.primary { border-color: var(--cyan); color: var(--cyan-soft); }
+  .hbtn.on { background: rgba(61,255,168,.15); border-color: var(--ok); color: var(--ok); }
+  .hstat { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .hstat b { color: var(--ok); font-weight: 600; }
+  .hstat b.live { color: var(--accent); }
+
+  /* ───────── desktop ───────── */
+  #desktop {
+    flex: 1; position: relative; overflow: hidden; min-height: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.045) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .empty-hint {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    color: var(--muted); line-height: 2; pointer-events: none;
+  }
+  .empty-hint b { color: var(--cyan-soft); }
+
+  /* ───────── windows ───────── */
+  .win {
+    position: absolute; display: flex; flex-direction: column;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+    backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    min-width: 220px; min-height: 140px; overflow: hidden;
+    animation: pop .18s ease;
+  }
+  .win.active { border-color: rgba(0, 212, 255, .7); box-shadow: 0 10px 40px rgba(0,0,0,.55), 0 0 24px rgba(0,212,255,.18); }
+  .win.max { border-radius: 0; }
+  .tb {
+    height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 6px 0 14px; cursor: grab; user-select: none; touch-action: none;
+    background: linear-gradient(180deg, rgba(0,200,255,.14), rgba(0,200,255,.04));
+    border-bottom: 1px solid var(--line);
+  }
+  .tb:active { cursor: grabbing; }
+  .ttl { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btns { display: flex; gap: 2px; }
+  .btns button {
+    width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px;
+  }
+  .btns button:hover { background: rgba(0,200,255,.18); color: var(--text); }
+  .btns button[data-a="close"]:hover { background: var(--danger); color: #fff; }
+  .body { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  .rs { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; z-index: 3; }
+  .rs::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--cyan); border-bottom: 2px solid var(--cyan); opacity: .7; }
+  .win.max .rs { display: none; }
+  body.dragging, body.dragging * { user-select: none !important; }
+  body.dragging iframe { pointer-events: none; }
+
+  /* generic widget helpers */
+  .pad { padding: 14px; height: 100%; overflow: auto; }
+  .pad::-webkit-scrollbar, .msgs::-webkit-scrollbar, .scroll::-webkit-scrollbar { width: 5px; }
+  .pad::-webkit-scrollbar-thumb, .msgs::-webkit-scrollbar-thumb, .scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  .scroll { overflow-y: auto; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .field {
+    flex: 1; min-width: 0; height: 38px; padding: 0 12px; border-radius: 8px;
+    background: rgba(0,0,0,.35); border: 1px solid var(--line);
+  }
+  .field:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,212,255,.25); }
+  .btn {
+    height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--cyan);
+    background: rgba(0,212,255,.15); color: var(--cyan-soft); transition: .15s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--cyan); color: #03121c; }
+  .btn.ghost { border-color: var(--line); color: var(--muted); background: transparent; }
+  .btn.ghost:hover { color: var(--text); background: rgba(0,200,255,.12); }
+  .btn.danger { border-color: var(--danger); color: var(--danger); background: rgba(255,84,112,.1); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .muted { color: var(--muted); }
+
+  /* core */
+  .corebox { height: 100%; container-type: size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2cqh; }
+  .reactor { position: relative; width: min(72cqw, 56cqh); aspect-ratio: 1; display: grid; place-items: center; cursor: pointer; }
+  .ring { position: absolute; border-radius: 50%; border: 2px solid transparent; }
+  .r1 { inset: 0; border-top-color: var(--cyan); border-bottom-color: var(--cyan); animation: spin 8s linear infinite; }
+  .r2 { inset: 6.5%; border: 1px dashed rgba(0,212,255,.5); animation: spin 20s linear infinite reverse; }
+  .r3 { inset: 13.5%; border-left-color: var(--accent); border-right-color: var(--accent); animation: spin 5s linear infinite; opacity: .8; }
+  .r4 { inset: 22%; border: 1px solid rgba(0,212,255,.35); }
+  .core {
+    width: 44%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle, #fff 0%, var(--cyan-soft) 20%, var(--cyan) 50%, rgba(0,100,160,.4) 75%, transparent 78%);
+    box-shadow: 0 0 50px var(--cyan), 0 0 110px rgba(0,212,255,.4), inset 0 0 30px rgba(255,255,255,.5);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .core svg { width: 36%; fill: #03233a; opacity: .85; }
+  .reactor.listening .core {
+    animation: pulse .7s ease-in-out infinite;
+    background: radial-gradient(circle, #fff 0%, #ffd9a8 20%, var(--accent) 50%, rgba(160,70,0,.4) 75%, transparent 78%);
+    box-shadow: 0 0 50px var(--accent), 0 0 110px rgba(255,138,31,.4);
+  }
+  .reactor.listening .r1 { animation-duration: 2s; border-top-color: var(--accent); border-bottom-color: var(--accent); }
+  .wave { display: flex; align-items: center; gap: 3px; height: 34px; }
+  .wave span { width: 3px; height: 5px; border-radius: 2px; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+  .wave.active span { animation: bar .9s ease-in-out infinite; }
+  .cstate { text-align: center; max-width: 92%; }
+  .cstate .label { font-size: 11px; letter-spacing: 5px; color: var(--muted); text-transform: uppercase; }
+  .cstate .phrase { margin-top: 6px; font-size: 15px; color: var(--cyan-soft); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  @container (max-height: 300px) { .wave { display: none; } .cstate .phrase { display: none; } }
+
+  /* chat */
+  .chatbox { height: 100%; display: flex; flex-direction: column; }
+  .chat-tools { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px dashed var(--line); font-size: 11px; color: var(--muted); }
+  .chat-tools button { background: none; border: 0; color: var(--muted); font-size: 11px; }
+  .chat-tools button:hover { color: var(--danger); }
+  .msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+  .msg { max-width: 88%; padding: 9px 12px; border-radius: 10px; line-height: 1.45; animation: in .25s ease; word-wrap: break-word; }
+  .msg small { display: block; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-bottom: 3px; }
+  .msg.user { align-self: flex-end; background: rgba(255,138,31,.12); border: 1px solid rgba(255,138,31,.4); }
+  .msg.bot { align-self: flex-start; background: rgba(0,212,255,.08); border: 1px solid var(--line); }
+  .msg.has-ui { max-width: 100%; width: 100%; }
+  .msg .jv-md { font-size: 13px; line-height: 1.5; }
+  .msg .jv-md p { margin: .3em 0; }
+  .msg .ui-slot { margin-top: 8px; }
+  .msg .ui-tools { display: flex; gap: 6px; margin-top: 6px; }
+  .msg .ui-tools button { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; font-size: 11px; padding: 2px 8px; }
+  .msg .ui-tools button:hover { color: var(--text); border-color: var(--cyan); }
+
+  /* canvas / gallery / editor / docs */
+  .cv-item { margin: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.18); }
+  .cv-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); }
+  .cv-head span.t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cv-head time { color: var(--muted); letter-spacing: 0; }
+  .cv-head button { background: none; border: 0; color: var(--muted); font-size: 14px; padding: 2px 6px; border-radius: 5px; }
+  .cv-head button:hover { color: var(--text); background: rgba(0,200,255,.15); }
+  .cv-body { padding: 12px; }
+  .cv-empty { height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); line-height: 1.9; padding: 20px; }
+  .cv-empty b { color: var(--cyan-soft); }
+  .gal { height: 100%; display: flex; flex-direction: column; }
+  .gal-top { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line); }
+  .gal-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .gal-cats button { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 12px; }
+  .gal-cats button.on, .gal-cats button:hover { color: var(--cyan-soft); border-color: var(--cyan); background: rgba(0,212,255,.12); }
+  .gal-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: grid; gap: 8px; align-content: start; }
+  .gal-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: rgba(0,200,255,.05); }
+  .gal-card:hover { border-color: rgba(0,212,255,.6); }
+  .gal-card b { color: var(--cyan-soft); font-weight: 600; }
+  .gal-card small { display: inline-block; margin-left: 8px; color: var(--accent); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .gal-card p { color: var(--muted); font-size: 12px; margin: 3px 0 8px; }
+  .gal-btns { display: flex; gap: 6px; }
+  .gal-btns button { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: rgba(0,200,255,.07); color: var(--text); font-size: 12px; }
+  .gal-btns button:hover { background: var(--cyan); color: #03121c; }
+  .ed { height: 100%; display: flex; flex-direction: column; container-type: size; }
+  .ed-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); align-items: center; }
+  .ed-bar select, .ed-bar button { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: rgba(0,0,0,.35); color: var(--text); font-size: 12px; }
+  .ed-bar button:hover { border-color: var(--cyan); background: rgba(0,212,255,.15); }
+  .ed-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .ed-split textarea { resize: none; border: 0; border-right: 1px solid var(--line); background: rgba(0,0,0,.3); padding: 12px; font-size: 12px; line-height: 1.55; color: var(--text); tab-size: 2; }
+  .ed-prev { overflow: auto; padding: 12px; }
+  @container (max-width: 640px) { .ed-split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } .ed-split textarea { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .doc-sec { margin-bottom: 18px; }
+  .doc-sec h4 { color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; }
+  .doc-prompt { width: 100%; height: 220px; resize: vertical; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,.4); color: #d4f1ff; font-size: 11.5px; line-height: 1.55; }
+  .inrow { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: rgba(0,0,0,.2); }
+  .mic {
+    width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--cyan);
+    background: rgba(0,212,255,.1); color: var(--cyan); display: grid; place-items: center; transition: .15s;
+  }
+  .mic svg { width: 18px; height: 18px; fill: currentColor; }
+  .mic:hover { box-shadow: 0 0 14px var(--cyan); }
+  .mic.on { border-color: var(--accent); color: var(--accent); background: rgba(255,138,31,.15); box-shadow: 0 0 18px var(--accent); }
+
+  /* diag */
+  .metric { margin-bottom: 14px; }
+  .metric .mrow { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+  .metric .mrow span:last-child { color: var(--cyan-soft); }
+  .bar { height: 6px; border-radius: 3px; background: rgba(0,200,255,0.1); overflow: hidden; }
+  .bar div { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--cyan-soft)); box-shadow: 0 0 8px var(--cyan); transition: width 1s; }
+
+  /* commands */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(0,200,255,.06); transition: .15s;
+  }
+  .chip:hover { border-color: var(--cyan); background: rgba(0,200,255,.18); }
+  .chip em { font-style: normal; color: var(--muted); font-size: 14px; line-height: 1; }
+  .chip em:hover { color: var(--danger); }
+
+  /* weather */
+  .wtop { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .wtemp { font-size: 42px; color: var(--cyan-soft); }
+  .wdesc { color: var(--muted); line-height: 1.7; font-size: 12px; }
+  .wdays { display: flex; gap: 8px; }
+  .wday { flex: 1; text-align: center; padding: 8px 4px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; background: rgba(0,200,255,.05); }
+  .wday b { display: block; color: var(--cyan-soft); margin-top: 4px; }
+
+  /* tasks */
+  .task { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--line); }
+  .task input { accent-color: var(--cyan); width: 16px; height: 16px; }
+  .task span { flex: 1; }
+  .task.done span { text-decoration: line-through; color: var(--muted); }
+  .task button { background: none; border: 0; color: var(--muted); font-size: 16px; }
+  .task button:hover { color: var(--danger); }
+
+  /* notes */
+  .notes { width: 100%; height: 100%; resize: none; border: 0; background: transparent; padding: 14px; line-height: 1.6; }
+
+  /* clock */
+  .clockbox { height: 100%; container-type: size; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .clockbox .t { font-size: min(22cqw, 40cqh); color: var(--cyan-soft); text-shadow: 0 0 20px rgba(0,212,255,.5); letter-spacing: 2px; }
+  .clockbox .d { color: var(--muted); letter-spacing: 3px; text-transform: uppercase; font-size: 12px; margin-top: 4px; }
+
+  /* home */
+  .tog { display: flex; align-items: center; justify-content: space-between; padding: 10px 2px; border-bottom: 1px dashed var(--line); }
+  .sw { width: 42px; height: 22px; border-radius: 11px; border: 1px solid var(--line); background: rgba(0,0,0,.4); position: relative; transition: .2s; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: .2s; }
+  .sw.on { border-color: var(--cyan); background: rgba(0,212,255,.25); }
+  .sw.on::after { left: 22px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+
+  /* log */
+  .logline { padding: 5px 0; border-bottom: 1px dashed rgba(0,200,255,.12); font-size: 12px; }
+  .logline time { color: var(--muted); margin-right: 8px; }
+
+  /* ───────── dock ───────── */
+  footer {
+    height: 62px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    padding: 0 14px; border-top: 1px solid var(--line);
+    background: rgba(6, 16, 28, .92); backdrop-filter: blur(8px); z-index: 5000;
+  }
+  footer .field { height: 40px; max-width: 640px; }
+  .dock { display: flex; gap: 6px; margin-left: auto; overflow-x: auto; }
+  .dock .dchip { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,200,255,.08); white-space: nowrap; font-size: 12px; }
+  .dock .dchip:hover { border-color: var(--cyan); background: rgba(0,200,255,.2); }
+  .kbd { font-size: 10px; border: 1px solid var(--line); padding: 2px 6px; border-radius: 4px; color: var(--muted); }
+
+  /* ───────── modal ───────── */
+  .overlay { position: fixed; inset: 0; z-index: 9000; background: rgba(2, 6, 12, .7); backdrop-filter: blur(4px); display: grid; place-items: center; animation: fade .15s; }
+  .dialog { width: min(560px, 92vw); max-height: 86vh; display: flex; flex-direction: column; border: 1px solid var(--cyan); border-radius: 14px; background: #08121f; box-shadow: 0 0 50px rgba(0,212,255,.25); overflow: hidden; }
+  .dh { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--cyan); letter-spacing: 3px; text-transform: uppercase; font-size: 12px; }
+  .dh .x { background: none; border: 0; font-size: 20px; color: var(--muted); }
+  .dh .x:hover { color: var(--danger); }
+  .db { padding: 18px; overflow-y: auto; }
+  .fl { display: block; margin-bottom: 14px; }
+  .fl span { display: block; font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+  .fl .field { width: 100%; }
+  .dfoot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+  .catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .card { text-align: left; padding: 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,200,255,.05); transition: .15s; }
+  .card:hover { border-color: var(--cyan); background: rgba(0,200,255,.16); transform: translateY(-2px); }
+  .card .ic { font-size: 22px; color: var(--cyan); }
+  .card b { display: block; margin: 8px 0 4px; color: var(--cyan-soft); font-weight: 600; }
+  .card p { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @keyframes blink { 50% { opacity: .3; } }
+  @keyframes bar { 0%,100% { height: 5px; } 50% { height: 30px; } }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.96); } }
+  @keyframes fade { from { opacity: 0; } }
+
+  @media (max-width: 900px) { .hstat, .logo span { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><i></i><span>J.A.R.V.I.S.</span></div>
+  <nav class="tabs" id="tabs"></nav>
+  <span class="hstat">МИКРОФОН: <b id="micState">ГОТОВ</b></span>
+  <button class="hbtn" id="ttsBtn" title="Озвучивать ответы">🔊 Голос</button>
+  <button class="hbtn" id="tileBtn" title="Расставить окна сеткой">▦ Упорядочить</button>
+  <button class="hbtn primary" id="addWinBtn">＋ Окно</button>
+  <button class="hbtn" id="resetBtn" title="Сбросить всё">⟲</button>
+</header>
+
+<div id="desktop"></div>
+
+<footer>
+  <button class="mic" id="gMic" aria-label="Микрофон">
+    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+  </button>
+  <input class="field" id="gInput" placeholder="Команда для Джарвиса… (например: «открой заметки», «добавь задачу купить хлеб»)">
+  <button class="btn" id="gSend">Отправить</button>
+  <span class="kbd">Ctrl+K</span>
+  <div class="dock" id="dock"></div>
+</footer>
+
+<script>
+/* ═══════════════ helpers ═══════════════ */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const hhmm = () => new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+const MIC_SVG = '<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
+
+/* ═══════════════ state ═══════════════ */
+const LS = 'jarvis.workspace.v3', LS_OLD = 'jarvis.workspace.v2';
+const desktop = $('#desktop');
+
+const mkWin = (type, o = {}) => ({ id: uid(), type, title: null, x: 20, y: 20, w: 340, h: 300, z: 1, min: false, max: false, ...o });
+const vizDash = () => ({ id: uid(), name: 'Визуализации', windows: [
+  mkWin('gallery', { x: 20,  y: 20, w: 420, h: 580 }),
+  mkWin('canvas',  { x: 460, y: 20, w: 520, h: 580 }),
+  mkWin('editor',  { x: 1000, y: 20, w: 420, h: 580 }),
+  mkWin('docs',    { x: 60,  y: 60, w: 520, h: 520, min: true }),
+]});
+
+function defaults() {
+  return {
+    z: 10, active: 0, tts: false, artifacts: [],
+    dashboards: [
+      { id: uid(), name: 'Главная', windows: [
+        mkWin('core',     { x: 20,  y: 20,  w: 380, h: 420 }),
+        mkWin('chat',     { x: 420, y: 20,  w: 440, h: 420 }),
+        mkWin('diag',     { x: 880, y: 20,  w: 300, h: 230 }),
+        mkWin('weather',  { x: 880, y: 270, w: 300, h: 170 }),
+        mkWin('commands', { x: 20,  y: 460, w: 380, h: 170 }),
+        mkWin('tasks',    { x: 420, y: 460, w: 440, h: 170 }),
+      ]},
+      { id: uid(), name: 'Работа', windows: [
+        mkWin('chat',  { x: 20,  y: 20,  w: 460, h: 440 }),
+        mkWin('notes', { x: 500, y: 20,  w: 400, h: 300 }),
+        mkWin('tasks', { x: 920, y: 20,  w: 320, h: 300 }),
+        mkWin('log',   { x: 500, y: 340, w: 400, h: 200 }),
+      ]},
+      vizDash(),
+    ],
+    messages: [{ who: 'bot', text: 'Добрый вечер. Все системы работают в штатном режиме. Чем могу помочь?', t: hhmm() }],
+    tasks: [{ id: uid(), text: 'Проверить почту', done: true }, { id: uid(), text: 'Созвон в 11:00', done: false }, { id: uid(), text: 'Закончить код ассистента', done: false }],
+    commands: [
+      { label: '☁ Погода', phrase: 'Какая сегодня погода?' }, { label: '♪ Музыка', phrase: 'Включи музыку' },
+      { label: '⏱ Таймер', phrase: 'Поставь таймер на 10 минут' }, { label: '📅 Календарь', phrase: 'Что у меня в календаре?' },
+    ],
+    notes: 'Идеи для Джарвиса:\n- wake word «Джарвис»\n- интеграция с календарём\n',
+    home: { 'Свет — гостиная': true, 'Свет — кухня': false, 'Кондиционер': false, 'Замок двери': true, 'Шторы': false },
+    log: [],
+  };
+}
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS) || localStorage.getItem(LS_OLD));
+    if (!s || !s.dashboards || !s.dashboards.length) return null;
+    s.artifacts = s.artifacts || [];                                   // миграция со старой версии
+    if (!s.dashboards.some(d => d.name === 'Визуализации')) s.dashboards.push(vizDash());
+    return s;
+  } catch { return null; }
+}
+let saveT;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { S.messages = S.messages.slice(-60); S.log = S.log.slice(-100); S.artifacts = S.artifacts.slice(0, 12); localStorage.setItem(LS, JSON.stringify(S)); } catch {} }, 150); }
+
+let S = load() || defaults();
+const ui = { listening: false, label: 'Ожидание', phrase: '«Слушаю вас, сэр.»' };
+const metrics = { cpu: 34, ram: 58, stt: 97, bat: 82 };
+const dash = () => S.dashboards[S.active];
+
+/* event bus for live widgets */
+let inst = {};
+const emit = topic => Object.values(inst).forEach(i => i.sub && i.sub.includes(topic) && i.update(topic));
+
+/* ═══════════════ modals ═══════════════ */
+function openModal(title, build) {
+  const ov = el('div', 'overlay');
+  const dlg = el('div', 'dialog', `<div class="dh"><span>${title}</span><button class="x">×</button></div><div class="db"></div>`);
+  ov.appendChild(dlg);
+  const close = () => { ov.remove(); document.removeEventListener('keydown', esc); };
+  const esc = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc);
+  $('.x', dlg).onclick = close;
+  ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+  document.body.appendChild(ov);
+  build($('.db', dlg), close);
+  const f = $('input, select, textarea', dlg); if (f) setTimeout(() => f.focus(), 30);
+}
+function formModal(title, fields, okText, onOk) {
+  openModal(title, (box, close) => {
+    fields.forEach(f => {
+      const lab = el('label', 'fl', `<span>${f.label}</span>`);
+      let inp;
+      if (f.type === 'select') {
+        inp = el('select', 'field'); f.options.forEach(([v, l]) => inp.appendChild(new Option(l, v)));
+      } else { inp = el('input', 'field'); inp.placeholder = f.placeholder || ''; }
+      inp.name = f.name; inp.value = f.value || '';
+      lab.appendChild(inp); box.appendChild(lab);
+    });
+    const foot = el('div', 'dfoot', '<button class="btn ghost" data-c>Отмена</button><button class="btn" data-ok></button>');
+    $('[data-ok]', foot).textContent = okText;
+    box.appendChild(foot);
+    const submit = () => {
+      const v = {}; box.querySelectorAll('[name]').forEach(i => v[i.name] = i.value.trim());
+      if (fields.some(f => f.required && !v[f.name])) return;
+      close(); onOk(v);
+    };
+    $('[data-c]', foot).onclick = close; $('[data-ok]', foot).onclick = submit;
+    box.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  });
+}
+function confirmModal(text, okText, onYes) {
+  openModal('Подтверждение', (box, close) => {
+    box.appendChild(el('p', '', text)); box.firstChild.style.cssText = 'line-height:1.6;margin-bottom:18px';
+    const foot = el('div', 'dfoot', `<button class="btn ghost" data-c>Отмена</button><button class="btn danger" data-ok>${okText}</button>`);
+    box.appendChild(foot);
+    $('[data-c]', foot).onclick = close; $('[data-ok]', foot).onclick = () => { close(); onYes(); };
+  });
+}
+
+/* ═══════════════ widget catalog ═══════════════ */
+const TYPES = {
+  core:     { name: 'Ядро Джарвиса', icon: '◉', desc: 'Реактор, волна голоса и состояние ассистента', w: 380, h: 420, mount: mCore,
+              kw: /ядр|реактор/ },
+  chat:     { name: 'Диалог',        icon: '💬', desc: 'История разговора и ввод текстом или голосом', w: 440, h: 420, mount: mChat, kw: /диалог|чат/ },
+  commands: { name: 'Команды',       icon: '⚡', desc: 'Свои быстрые команды — добавляй любые', w: 380, h: 170, mount: mCommands, kw: /команд/ },
+  tasks:    { name: 'Задачи',        icon: '☑', desc: 'Список дел с добавлением и удалением', w: 340, h: 300, mount: mTasks, kw: /задач|дела/ },
+  notes:    { name: 'Заметки',       icon: '📝', desc: 'Свободный текст, сохраняется автоматически', w: 400, h: 300, mount: mNotes, kw: /заметк/ },
+  diag:     { name: 'Диагностика',   icon: '📊', desc: 'Нагрузка системы и качество распознавания', w: 300, h: 230, mount: mDiag, kw: /диагност|нагрузк/ },
+  weather:  { name: 'Погода',        icon: '☁', desc: 'Текущая погода и прогноз', w: 320, h: 200, mount: mWeather, kw: /погод/ },
+  clock:    { name: 'Часы',          icon: '🕒', desc: 'Время и дата', w: 280, h: 170, mount: mClock, kw: /час|время/ },
+  home:     { name: 'Умный дом',     icon: '🏠', desc: 'Переключатели устройств', w: 300, h: 290, mount: mHome, kw: /дом|устройств/ },
+  log:      { name: 'Журнал',        icon: '📜', desc: 'Все события и команды', w: 400, h: 220, mount: mLog, kw: /журнал|лог/ },
+  canvas:   { name: 'Холст агента',  icon: '🎨', desc: 'Сюда агент выводит графики, таблицы, формы и отчёты', w: 520, h: 520, mount: mCanvas, kw: /холст|канвас/ },
+  gallery:  { name: 'Галерея примеров', icon: '🖼', desc: '30+ готовых примеров: графики, таблицы, формы, markdown', w: 420, h: 560, mount: mGallery, kw: /галере|пример/ },
+  editor:   { name: 'Редактор UI',   icon: '🧪', desc: 'Вставь JSON / Markdown / HTML от модели и смотри результат', w: 520, h: 460, mount: mEditor, kw: /редактор|песочниц/ },
+  docs:     { name: 'Справочник UI', icon: '📚', desc: 'Промпт для модели, список блоков и CSS-классов', w: 520, h: 520, mount: mDocs, kw: /справочник|документац|промпт/ },
+  view:     { name: 'Просмотр',      icon: '▣', desc: '', w: 520, h: 420, mount: mView, kw: /^\b$/, hidden: true },
+};
+
+/* ── core ── */
+function mCore(body) {
+  body.innerHTML = `<div class="corebox"><div class="reactor"><i class="ring r1"></i><i class="ring r2"></i><i class="ring r3"></i><i class="ring r4"></i><div class="core">${MIC_SVG}</div></div><div class="wave"></div><div class="cstate"><div class="label"></div><div class="phrase"></div></div></div>`;
+  const r = $('.reactor', body), w = $('.wave', body), lb = $('.label', body), ph = $('.phrase', body);
+  for (let i = 0; i < 30; i++) { const s = document.createElement('span'); s.style.animationDelay = (i * .04) + 's'; w.appendChild(s); }
+  r.onclick = toggleListen; r.title = 'Нажмите, чтобы говорить';
+  const upd = () => { r.classList.toggle('listening', ui.listening); w.classList.toggle('active', ui.listening); lb.textContent = ui.label; ph.textContent = ui.phrase; };
+  upd(); return { sub: ['state'], update: upd };
+}
+
+/* ── chat ── */
+function mChat(body) {
+  body.innerHTML = `<div class="chatbox"><div class="chat-tools"><span>Диалог с Джарвисом</span><button data-clear>Очистить</button></div><div class="msgs"></div><div class="inrow"><button class="mic" aria-label="Микрофон">${MIC_SVG}</button><input class="field" placeholder="Напишите команду или нажмите микрофон"><button class="btn">➤</button></div></div>`;
+  const list = $('.msgs', body), mic = $('.mic', body), inp = $('.field', body);
+  const cache = new WeakMap();   // уже построенные сообщения (чтобы формы/вкладки не сбрасывались)
+  const buildMsg = m => {
+    const d = el('div', 'msg ' + m.who + (m.ui ? ' has-ui' : '')); const s = el('small'); s.textContent = (m.who === 'user' ? 'ВЫ' : 'JARVIS') + ' · ' + (m.t || '');
+    d.appendChild(s);
+    if (m.who === 'bot') { if (m.text) d.appendChild(JV.mdEl(m.text)); } else d.appendChild(document.createTextNode(m.text));
+    if (m.ui) {
+      const slot = el('div', 'ui-slot'); slot.appendChild(JV.render(m.ui)); d.appendChild(slot);
+      const tools = el('div', 'ui-tools');
+      const bw = el('button', '', '⧉ В окно'), bc = el('button', '', '🎨 На холст');
+      bw.onclick = () => Jarvis.show(m.ui, { where: 'window' }); bc.onclick = () => Jarvis.show(m.ui, { where: 'canvas' });
+      tools.append(bw, bc); d.appendChild(tools);
+    }
+    return d;
+  };
+  const renderMsgs = () => {
+    list.innerHTML = '';
+    S.messages.forEach(m => { let d = cache.get(m); if (!d) { d = buildMsg(m); cache.set(m, d); } list.appendChild(d); });
+    list.scrollTop = list.scrollHeight;
+  };
+  const send = () => { const v = inp.value; inp.value = ''; handle(v); };
+  $('.btn', body).onclick = send;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+  mic.onclick = toggleListen;
+  $('[data-clear]', body).onclick = () => { S.messages = []; save(); emit('messages'); };
+  renderMsgs(); mic.classList.toggle('on', ui.listening);
+  return { sub: ['messages', 'state'], update: t => { if (t === 'messages') renderMsgs(); else mic.classList.toggle('on', ui.listening); } };
+}
+
+/* ── commands ── */
+function mCommands(body) {
+  body.innerHTML = `<div class="pad"><div class="chips"></div></div>`;
+  const box = $('.chips', body);
+  const render = () => {
+    box.innerHTML = '';
+    S.commands.forEach((c, i) => {
+      const ch = el('span', 'chip'); ch.title = c.phrase; ch.appendChild(document.createTextNode(c.label));
+      ch.onclick = () => handle(c.phrase);
+      const x = el('em', '', '×'); x.title = 'Удалить'; x.onclick = e => { e.stopPropagation(); S.commands.splice(i, 1); save(); emit('commands'); };
+      ch.appendChild(x); box.appendChild(ch);
+    });
+    const add = el('span', 'chip', '＋ Добавить'); add.style.borderStyle = 'dashed';
+    add.onclick = () => formModal('Новая команда', [
+      { name: 'label', label: 'Название кнопки', placeholder: '💡 Свет', required: true },
+      { name: 'phrase', label: 'Что сказать Джарвису', placeholder: 'Включи свет в гостиной', required: true },
+    ], 'Добавить', v => { S.commands.push({ label: v.label, phrase: v.phrase }); save(); emit('commands'); });
+    box.appendChild(add);
+  };
+  render(); return { sub: ['commands'], update: render };
+}
+
+/* ── tasks ── */
+function mTasks(body) {
+  body.innerHTML = `<div style="height:100%;display:flex;flex-direction:column"><div class="row" style="padding:10px"><input class="field" placeholder="Новая задача…"><button class="btn">＋</button></div><div class="scroll" style="flex:1;padding:0 14px 10px"></div></div>`;
+  const inp = $('.field', body), list = $('.scroll', body);
+  const render = () => {
+    list.innerHTML = '';
+    if (!S.tasks.length) list.innerHTML = '<div class="muted" style="padding:12px 0">Задач нет</div>';
+    S.tasks.forEach(t => {
+      const row = el('label', 'task' + (t.done ? ' done' : ''));
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = t.done;
+      cb.onchange = () => { t.done = cb.checked; save(); emit('tasks'); };
+      const sp = el('span'); sp.textContent = t.text;
+      const x = el('button', '', '×'); x.onclick = e => { e.preventDefault(); S.tasks = S.tasks.filter(z => z !== t); save(); emit('tasks'); };
+      row.append(cb, sp, x); list.appendChild(row);
+    });
+  };
+  const add = () => { if (inp.value.trim()) { addTask(inp.value.trim()); inp.value = ''; } };
+  $('.btn', body).onclick = add; inp.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  render(); return { sub: ['tasks'], update: render };
+}
+function addTask(text) { S.tasks.push({ id: uid(), text, done: false }); save(); emit('tasks'); addLog('Задача добавлена: ' + text); }
+
+/* ── notes ── */
+function mNotes(body) {
+  const ta = el('textarea', 'notes'); ta.placeholder = 'Пишите что угодно…'; ta.value = S.notes; body.appendChild(ta);
+  ta.addEventListener('input', () => { S.notes = ta.value; save(); emit('notes'); });
+  return { sub: ['notes'], update: () => { if (document.activeElement !== ta) ta.value = S.notes; } };
+}
+
+/* ── diag ── */
+function mDiag(body) {
+  const items = [['CPU', 'cpu'], ['ПАМЯТЬ', 'ram'], ['РАСПОЗНАВАНИЕ РЕЧИ', 'stt'], ['БАТАРЕЯ', 'bat']];
+  body.innerHTML = '<div class="pad">' + items.map(([n, k]) => `<div class="metric"><div class="mrow"><span>${n}</span><span data-v="${k}"></span></div><div class="bar"><div data-b="${k}"></div></div></div>`).join('') + '</div>';
+  const upd = () => items.forEach(([, k]) => { $(`[data-v="${k}"]`, body).textContent = metrics[k] + '%'; $(`[data-b="${k}"]`, body).style.width = metrics[k] + '%'; });
+  upd(); return { sub: ['tick'], update: upd };
+}
+
+/* ── weather ── */
+function mWeather(body) {
+  body.innerHTML = `<div class="pad"><div class="wtop"><div class="wtemp">+12°</div><div class="wdesc">Облачно, лёгкий ветер<br>Влажность 64% · Ветер 4 м/с</div></div><div class="wdays"><div class="wday">Ср<b>+13°</b></div><div class="wday">Чт<b>+10°</b></div><div class="wday">Пт<b>+8°</b></div><div class="wday">Сб<b>+11°</b></div></div></div>`;
+}
+
+/* ── clock ── */
+function mClock(body) {
+  body.innerHTML = '<div class="clockbox"><div class="t"></div><div class="d"></div></div>';
+  const t = $('.t', body), d = $('.d', body);
+  const upd = () => { const n = new Date(); t.textContent = n.toLocaleTimeString('ru-RU'); d.textContent = n.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); };
+  upd(); return { sub: ['tick'], update: upd };
+}
+
+/* ── home ── */
+function mHome(body) {
+  body.innerHTML = '<div class="pad"></div>'; const box = $('.pad', body);
+  const render = () => {
+    box.innerHTML = '';
+    Object.keys(S.home).forEach(k => {
+      const r = el('div', 'tog'); const n = el('span'); n.textContent = k;
+      const sw = el('button', 'sw' + (S.home[k] ? ' on' : '')); sw.setAttribute('aria-label', k);
+      sw.onclick = () => { S.home[k] = !S.home[k]; save(); addLog(k + ': ' + (S.home[k] ? 'вкл' : 'выкл')); emit('home'); };
+      r.append(n, sw); box.appendChild(r);
+    });
+  };
+  render(); return { sub: ['home'], update: render };
+}
+
+/* ── log ── */
+function mLog(body) {
+  body.innerHTML = '<div class="pad scroll"></div>'; const box = $('.pad', body);
+  const render = () => {
+    box.innerHTML = ''; if (!S.log.length) box.innerHTML = '<div class="muted">Событий пока нет</div>';
+    S.log.slice().reverse().forEach(l => { const d = el('div', 'logline'); const t = el('time'); t.textContent = l.t; d.append(t, document.createTextNode(l.text)); box.appendChild(d); });
+  };
+  render(); return { sub: ['log'], update: render };
+}
+function addLog(text) { S.log.push({ t: new Date().toLocaleTimeString('ru-RU'), text }); save(); emit('log'); }
+
+/* ═══════════════ window manager ═══════════════ */
+const dw = () => desktop.clientWidth, dh = () => desktop.clientHeight;
+
+function geom(win, e) {
+  if (win.max) { Object.assign(e.style, { left: 0, top: 0, width: '100%', height: '100%' }); }
+  else Object.assign(e.style, { left: win.x + 'px', top: win.y + 'px', width: win.w + 'px', height: win.h + 'px' });
+  e.classList.toggle('max', !!win.max);
+  e.style.display = win.min ? 'none' : 'flex';
+  e.style.zIndex = win.z;
+}
+function winEl(win) { return desktop.querySelector(`.win[data-id="${win.id}"]`); }
+function focusWin(win) {
+  desktop.querySelectorAll('.win.active').forEach(e => e.classList.remove('active'));
+  win.z = ++S.z; const e = winEl(win); if (e) { e.style.zIndex = win.z; e.classList.add('active'); }
+}
+
+function buildWin(win) {
+  const T = TYPES[win.type];
+  const e = el('div', 'win');
+  e.dataset.id = win.id;
+  e.innerHTML = `<div class="tb"><span class="ttl"></span><div class="btns"><button data-a="ren" title="Переименовать">✎</button><button data-a="min" title="Свернуть">–</button><button data-a="max" title="Развернуть">□</button><button data-a="close" title="Закрыть">×</button></div></div><div class="body"></div><div class="rs"></div>`;
+  $('.ttl', e).textContent = win.title || T.name;
+  desktop.appendChild(e);
+  inst[win.id] = T.mount($('.body', e), win) || {};
+  geom(win, e);
+
+  e.addEventListener('pointerdown', () => focusWin(win), true);
+
+  /* buttons */
+  $('.btns', e).addEventListener('click', ev => {
+    const a = ev.target.dataset.a; if (!a) return;
+    if (a === 'close') removeWin(win);
+    if (a === 'min') { win.min = true; geom(win, e); renderDock(); save(); }
+    if (a === 'max') { win.max = !win.max; geom(win, e); save(); }
+    if (a === 'ren') formModal('Название окна', [{ name: 'title', label: 'Название', value: win.title || T.name, required: true }], 'Сохранить', v => { win.title = v.title; $('.ttl', e).textContent = v.title; save(); renderDock(); });
+  });
+  $('.tb', e).addEventListener('dblclick', ev => { if (ev.target.closest('button')) return; win.max = !win.max; geom(win, e); save(); });
+
+  /* drag */
+  const tb = $('.tb', e);
+  tb.addEventListener('pointerdown', ev => {
+    if (ev.target.closest('button') || win.max) return;
+    const sx = ev.clientX, sy = ev.clientY, ox = win.x, oy = win.y;
+    tb.setPointerCapture(ev.pointerId); document.body.classList.add('dragging');
+    const mv = m => { win.x = Math.round((clamp(ox + m.clientX - sx, 80 - win.w, dw() - 80)) / 10) * 10; win.y = Math.round(clamp(oy + m.clientY - sy, 0, dh() - 36) / 10) * 10; geom(win, e); };
+    const up = () => { tb.removeEventListener('pointermove', mv); tb.removeEventListener('pointerup', up); document.body.classList.remove('dragging'); save(); };
+    tb.addEventListener('pointermove', mv); tb.addEventListener('pointerup', up);
+  });
+
+  /* resize */
+  const rs = $('.rs', e);
+  rs.addEventListener('pointerdown', ev => {
+    ev.stopPropagation(); focusWin(win);
+    const sx = ev.clientX, sy = ev.clientY, ow = win.w, oh = win.h;
+    rs.setPointerCapture(ev.pointerId); document.body.classList.add('dragging');
+    const mv = m => { win.w = Math.round(Math.max(220, ow + m.clientX - sx) / 10) * 10; win.h = Math.round(Math.max(140, oh + m.clientY - sy) / 10) * 10; geom(win, e); };
+    const up = () => { rs.removeEventListener('pointermove', mv); rs.removeEventListener('pointerup', up); document.body.classList.remove('dragging'); save(); };
+    rs.addEventListener('pointermove', mv); rs.addEventListener('pointerup', up);
+  });
+}
+
+function renderDesktop() {
+  desktop.innerHTML = ''; inst = {};
+  const d = dash();
+  d.windows.forEach(w => { w.x = clamp(w.x, 80 - w.w, Math.max(0, dw() - 80)); w.y = clamp(w.y, 0, Math.max(0, dh() - 36)); buildWin(w); });
+  if (!d.windows.length) desktop.innerHTML = '<div class="empty-hint"><div>Этот дашборд пуст<br>Нажмите <b>＋ Окно</b> и соберите его под себя</div></div>';
+  const top = d.windows.slice().sort((a, b) => b.z - a.z)[0]; if (top) { const e = winEl(top); e && e.classList.add('active'); }
+  renderDock(); renderTabs();
+}
+
+function addWin(type, extra = {}) {
+  const T = TYPES[type], d = dash(), n = d.windows.length;
+  const w = mkWin(type, { w: T.w, h: T.h, x: 30 + (n % 8) * 30, y: 30 + (n % 8) * 30, z: ++S.z, ...extra });
+  w.w = Math.min(w.w, Math.max(240, dw() - 20)); w.h = Math.min(w.h, Math.max(160, dh() - 20));
+  w.x = clamp(w.x, 0, Math.max(0, dw() - w.w)); w.y = clamp(w.y, 0, Math.max(0, dh() - w.h));
+  d.windows.push(w);
+  const hint = $('.empty-hint', desktop); if (hint) hint.remove();
+  buildWin(w); focusWin(w); renderDock(); save(); addLog('Открыто окно: ' + T.name);
+  return w;
+}
+function removeWin(win) {
+  const d = dash(); d.windows = d.windows.filter(w => w !== win);
+  delete inst[win.id]; const e = winEl(win); if (e) e.remove();
+  if (!d.windows.length) renderDesktop(); else renderDock();
+  save();
+}
+function renderDock() {
+  const dock = $('#dock'); dock.innerHTML = '';
+  dash().windows.filter(w => w.min).forEach(w => {
+    const b = el('button', 'dchip'); b.textContent = '▫ ' + (w.title || TYPES[w.type].name);
+    b.onclick = () => { w.min = false; geom(w, winEl(w)); focusWin(w); renderDock(); save(); };
+    dock.appendChild(b);
+  });
+}
+function tile() {
+  const ws = dash().windows.filter(w => !w.min); if (!ws.length) return;
+  const gap = 12, cols = Math.ceil(Math.sqrt(ws.length * dw() / dh())), rows = Math.ceil(ws.length / cols);
+  const cw = Math.floor((dw() - gap * (cols + 1)) / cols), ch = Math.floor((dh() - gap * (rows + 1)) / rows);
+  ws.forEach((w, i) => { w.max = false; w.w = cw; w.h = ch; w.x = gap + (i % cols) * (cw + gap); w.y = gap + Math.floor(i / cols) * (ch + gap); geom(w, winEl(w)); });
+  save();
+}
+
+/* ═══════════════ dashboards (tabs) ═══════════════ */
+function renderTabs() {
+  const box = $('#tabs'); box.innerHTML = '';
+  S.dashboards.forEach((d, i) => {
+    const b = el('button', 'tab' + (i === S.active ? ' active' : '')); b.textContent = d.name; b.title = i === S.active ? 'Двойной клик — переименовать' : '';
+    b.onclick = () => { if (S.active !== i) { S.active = i; save(); renderDesktop(); } };
+    b.ondblclick = () => formModal('Переименовать дашборд', [{ name: 'name', label: 'Название', value: d.name, required: true }], 'Сохранить', v => { d.name = v.name; save(); renderTabs(); });
+    box.appendChild(b);
+  });
+  if (S.dashboards.length > 1) {
+    const del = el('button', 'tab add', '🗑'); del.title = 'Удалить текущий дашборд';
+    del.onclick = () => confirmModal(`Удалить дашборд «${dash().name}» вместе со всеми окнами?`, 'Удалить', () => { S.dashboards.splice(S.active, 1); S.active = Math.max(0, S.active - 1); save(); renderDesktop(); });
+    box.appendChild(del);
+  }
+  const add = el('button', 'tab add', '＋'); add.title = 'Новый дашборд';
+  add.onclick = () => formModal('Новый дашборд', [
+    { name: 'name', label: 'Название', placeholder: 'Например: Дом', required: true },
+    { name: 'preset', label: 'Заготовка', type: 'select', options: [['empty', 'Пустой'], ['talk', 'Разговор (ядро + диалог)'], ['work', 'Работа (диалог + заметки + задачи)'], ['home', 'Дом (умный дом + погода + часы)']] },
+  ], 'Создать', v => {
+    const P = { empty: [], talk: ['core', 'chat'], work: ['chat', 'notes', 'tasks'], home: ['home', 'weather', 'clock'] }[v.preset];
+    const wins = []; let x = 20;
+    P.forEach(t => { wins.push(mkWin(t, { x, y: 20, w: TYPES[t].w, h: Math.max(TYPES[t].h, 300), z: ++S.z })); x += TYPES[t].w + 20; });
+    S.dashboards.push({ id: uid(), name: v.name, windows: wins }); S.active = S.dashboards.length - 1; save(); renderDesktop();
+  });
+  box.appendChild(add);
+}
+
+/* ═══════════════ assistant logic ═══════════════ */
+function setUI(label, phrase, listening) {
+  ui.label = label; if (phrase != null) ui.phrase = phrase; ui.listening = listening;
+  const ms = $('#micState'); ms.textContent = listening ? 'СЛУШАЮ' : 'ГОТОВ'; ms.classList.toggle('live', listening);
+  $('#gMic').classList.toggle('on', listening);
+  emit('state');
+}
+function addMsg(who, text, uiSpec) {
+  if (who === 'bot' && !uiSpec) { const x = JV.extract(text); text = x.text; uiSpec = x.ui; }   // ```jv {…}``` из ответа модели
+  S.messages.push({ who, text, t: hhmm(), ...(uiSpec ? { ui: uiSpec } : {}) }); save(); emit('messages');
+}
+function speak(text) {
+  if (!S.tts || !window.speechSynthesis) return;
+  speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; speechSynthesis.speak(u);
+}
+
+const REPLIES = [
+  [/погод/i, 'За окном +12°, облачно. Зонт не понадобится.'],
+  [/музык/i, 'Включаю вашу любимую подборку.'],
+  [/таймер/i, 'Таймер запущен. Сообщу, когда время выйдет.'],
+  [/почт/i, 'У вас 3 новых письма. Прочитать?'],
+  [/календар/i, 'Сегодня в 11:00 созвон, больше встреч нет.'],
+  [/привет|здравств/i, 'Здравствуйте, сэр. Чем могу помочь?'],
+];
+function findType(text) { return Object.keys(TYPES).find(k => TYPES[k].kw.test(text)); }
+
+/* ── визуализации: поиск примера по ключевым словам ── */
+const VIS_VERB = /(покажи|построй|нарисуй|сделай|выведи|пример|демо|визуализ|проанализ|сравни|найди|отч[её]т|график|диаграмм|таблиц|видео|ютуб|youtube|картинк|фото|изображ|аудио|ссылк|маршрут)/i;
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function findExample(text) {
+  const t = text.toLowerCase(); let best = null, score = 0;
+  JV.examples.forEach(ex => {
+    let s = 0; ex.kw.forEach(k => { if (new RegExp('(^|[^а-яёa-z0-9])' + reEsc(k)).test(t)) s += k.length > 4 ? 2 : 1; });
+    if (s > score) { score = s; best = ex; }
+  });
+  if (best) return best;
+  const G = [[/график|диаграмм/, 'bar-sales'], [/таблиц/, 'table-files'], [/форм[ауые]?(\s|$)/, 'form-reminder'], [/markdown|маркдаун/, 'md-report'], [/дашборд|отч[её]т/, 'dash-logs']];
+  const g = G.find(([r]) => r.test(t)); return g ? JV.examples.find(e => e.id === g[1]) : null;
+}
+function visualReply(text) {
+  if (!VIS_VERB.test(text)) return null;
+  const ex = findExample(text); if (!ex) return null;
+  const where = /холст/i.test(text) ? 'canvas' : /в\s+окн|отдельн/i.test(text) ? 'window' : 'chat';
+  if (where === 'chat') return { text: `Показываю: **${ex.title}**. _Это демо-данные._`, ui: ex.spec };
+  Jarvis.show(ex.spec, { where, title: ex.title });
+  return `Вывожу «${ex.title}» ${where === 'canvas' ? 'на холст' : 'в отдельное окно'}.`;
+}
+
+function process(text) {
+  let m;
+  /* ответ формы вернулся ассистенту */
+  if ((m = text.match(/^Форма «([^»]+)»:\s*(\{[\s\S]*\})$/))) {
+    let v = {}; try { v = JSON.parse(m[2]); } catch {}
+    const isRem = m[1] === 'reminder' && v.text; if (isRem) addTask(v.text + (v.date ? ` (${v.date}${v.time ? ' ' + v.time : ''})` : ''));
+    return { text: `Получил данные формы «${m[1]}».` + (isRem ? ' Напоминание добавлено в задачи.' : ''), ui: { blocks: [{ type: 'kv', items: Object.entries(v).map(([k, x]) => [k, Array.isArray(x) ? x.join(', ') : String(x)]) }] } };
+  }
+  const vis = visualReply(text); if (vis) return vis;
+  if ((m = text.match(/добавь задачу\s+(.+)/i))) { addTask(m[1]); return `Задача «${m[1]}» добавлена.`; }
+  if ((m = text.match(/(?:запиши|заметка)[:\s]+(.+)/i))) { S.notes += (S.notes && !S.notes.endsWith('\n') ? '\n' : '') + '- ' + m[1] + '\n'; save(); emit('notes'); return 'Записал в заметки.'; }
+  if ((m = text.match(/(открой|покажи|добавь окно)\s+(.+)/i)) && findType(m[2])) { const t = findType(m[2]); addWin(t); return `Открываю окно «${TYPES[t].name}».`; }
+  if ((m = text.match(/закрой\s+(.+)/i)) && findType(m[1])) {
+    const t = findType(m[1]), w = dash().windows.slice().reverse().find(w => w.type === t);
+    if (w) { removeWin(w); return `Окно «${TYPES[t].name}» закрыто.`; } return 'Такого окна сейчас нет.';
+  }
+  if ((m = text.match(/(включи|выключи)\s+(свет|кондиционер|шторы)/i))) {
+    const on = m[1].toLowerCase() === 'включи', key = Object.keys(S.home).find(k => k.toLowerCase().includes(m[2].toLowerCase().slice(0, 4)));
+    if (key) { S.home[key] = on; save(); emit('home'); addLog(key + ': ' + (on ? 'вкл' : 'выкл')); return `${key}: ${on ? 'включено' : 'выключено'}.`; }
+  }
+  const hit = REPLIES.find(r => r[0].test(text));
+  return hit ? hit[1] : 'Принято, сэр. Команда записана в журнал.';
+}
+function handle(text) {
+  text = (text || '').trim(); if (!text) return;
+  addMsg('user', text); addLog('Команда: ' + text); setUI('Обработка', 'Анализирую запрос…', false);
+  setTimeout(() => {
+    const r = process(text), a = typeof r === 'string' ? r : r.text, plain = a.replace(/[*_`#>]/g, '');
+    addMsg('bot', a, typeof r === 'string' ? undefined : r.ui);
+    setUI('Ожидание', '«' + plain + '»', false); speak(plain);
+  }, 600);
+}
+
+/* ═══════════════ публичный API для агента ═══════════════ */
+function showUI(spec, opts = {}) {
+  if (typeof spec === 'string') { const x = JV.extract(spec.includes('```jv') ? spec : '```jv\n' + spec + '\n```'); spec = x.ui; }
+  if (Array.isArray(spec)) spec = { blocks: spec };
+  if (!spec) return;
+  const where = opts.where || 'canvas', title = opts.title || spec.title || 'Без названия';
+  if (where === 'chat') addMsg('bot', opts.text || '', spec);
+  else if (where === 'window') addWin('view', { title, spec, w: 560, h: 440 });
+  else {
+    S.artifacts.unshift({ id: uid(), title, spec, t: hhmm() }); S.artifacts = S.artifacts.slice(0, 12); save();
+    const cw = dash().windows.find(w => w.type === 'canvas');
+    if (!cw) addWin('canvas'); else { if (cw.min) { cw.min = false; geom(cw, winEl(cw)); renderDock(); } focusWin(cw); }
+    emit('artifacts');
+  }
+  addLog(`Показано: ${title} → ${where}`);
+}
+const Jarvis = window.Jarvis = {
+  ui: JV,
+  show: showUI,                                    // Jarvis.show(spec, {where:'canvas'|'window'|'chat', title})
+  say: text => addMsg('bot', text),                // текст/markdown, внутри можно ```jv {json}```
+  ask: text => handle(text),                       // как будто пользователь сказал
+};
+JV.hooks.submit = p => handle(`Форма «${p.id}»: ${JSON.stringify(p.values)}`);   // отправка формы → ассистенту
+JV.hooks.action = p => handle(p.say);                                            // клик по кнопке/строке с say
+window.addEventListener('message', e => {                                         // внешний агент: postMessage
+  if (e.source !== window && e.source !== window.parent && e.source !== window.opener) return;
+  const d = e.data; if (!d || !d.jarvis) return;
+  if (d.jarvis === 'show') showUI(d.spec, { where: d.where, title: d.title });
+  if (d.jarvis === 'say') Jarvis.say(String(d.text));
+});
+
+/* ═══════════════ окна визуализации ═══════════════ */
+function mView(body, win) {
+  body.innerHTML = '<div class="pad"></div>'; $('.pad', body).appendChild(JV.render(win.spec || { blocks: [] }));
+}
+
+function mCanvas(body) {
+  body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column"><div class="chat-tools"><span class="cnt"></span><button data-clear>Очистить холст</button></div><div class="scroll" style="flex:1;min-height:0"></div></div>';
+  const box = $('.scroll', body), cnt = $('.cnt', body), cache = new WeakMap();
+  const build = a => {
+    const it = el('div', 'cv-item');
+    const head = el('div', 'cv-head', '<span class="t"></span><time></time><button data-w title="Открыть в окне">⧉</button><button data-x title="Убрать">×</button>');
+    $('.t', head).textContent = a.title; $('time', head).textContent = a.t || '';
+    $('[data-w]', head).onclick = () => showUI(a.spec, { where: 'window', title: a.title });
+    $('[data-x]', head).onclick = () => { S.artifacts = S.artifacts.filter(z => z !== a); save(); emit('artifacts'); };
+    const b = el('div', 'cv-body'); b.appendChild(JV.render(a.spec)); it.append(head, b); return it;
+  };
+  const render = () => {
+    box.innerHTML = ''; cnt.textContent = S.artifacts.length ? `Выводов: ${S.artifacts.length}` : 'Холст агента';
+    if (!S.artifacts.length) { box.innerHTML = '<div class="cv-empty"><div>Холст пуст<br>Сюда агент выводит графики, таблицы, формы и отчёты.<br>Откройте <b>Галерею примеров</b> или скажите<br>«<b>построй график продаж</b> на холст»</div></div>'; return; }
+    S.artifacts.forEach(a => { let n = cache.get(a); if (!n) { n = build(a); cache.set(a, n); } box.appendChild(n); });
+  };
+  $('[data-clear]', body).onclick = () => { S.artifacts = []; save(); emit('artifacts'); };
+  render(); return { sub: ['artifacts'], update: render };
+}
+
+function mGallery(body) {
+  body.innerHTML = '<div class="gal"><div class="gal-top"><input class="field" placeholder="Поиск примера…"><div class="gal-cats"></div></div><div class="gal-list"></div></div>';
+  const q = $('.field', body), cats = $('.gal-cats', body), list = $('.gal-list', body);
+  const names = ['Все', ...new Set(JV.examples.map(e => e.cat))]; let cat = 'Все';
+  const draw = () => {
+    cats.innerHTML = ''; names.forEach(n => { const b = el('button', n === cat ? 'on' : ''); b.textContent = n; b.onclick = () => { cat = n; draw(); }; cats.appendChild(b); });
+    list.innerHTML = ''; const s = q.value.toLowerCase();
+    JV.examples.filter(e => (cat === 'Все' || e.cat === cat) && (!s || (e.title + e.desc + e.kw.join(' ')).toLowerCase().includes(s))).forEach(e => {
+      const c = el('div', 'gal-card'); c.innerHTML = '<div><b></b><small></small></div><p></p><div class="gal-btns"><button data-w>⧉ Окно</button><button data-c>🎨 Холст</button><button data-m>💬 Чат</button></div>';
+      $('b', c).textContent = e.title; $('small', c).textContent = e.cat; $('p', c).textContent = e.desc;
+      $('[data-w]', c).onclick = () => showUI(e.spec, { where: 'window', title: e.title });
+      $('[data-c]', c).onclick = () => showUI(e.spec, { where: 'canvas', title: e.title });
+      $('[data-m]', c).onclick = () => showUI(e.spec, { where: 'chat', text: e.title });
+      list.appendChild(c);
+    });
+    if (!list.children.length) list.innerHTML = '<div class="muted" style="padding:10px">Ничего не найдено</div>';
+  };
+  q.oninput = draw; draw();
+}
+
+function mEditor(body, win) {
+  const MODES = { json: 'JSON-спецификация (или ответ модели с ```jv)', md: 'Markdown', html: 'HTML (jv-классы)' };
+  body.innerHTML = '<div class="ed"><div class="ed-bar"><select data-mode></select><select data-ex><option value="">Загрузить пример…</option></select><span style="flex:1"></span><button data-c>🎨 Холст</button><button data-w>⧉ Окно</button><button data-m>💬 Чат</button></div><div class="ed-split"><textarea spellcheck="false" placeholder="Вставьте сюда то, что вернула модель…"></textarea><div class="ed-prev"></div></div></div>';
+  const mode = $('[data-mode]', body), exSel = $('[data-ex]', body), ta = $('textarea', body), prev = $('.ed-prev', body);
+  Object.entries(MODES).forEach(([k, v]) => mode.appendChild(new Option(v, k)));
+  JV.examples.forEach(e => exSel.appendChild(new Option(`${e.cat} · ${e.title}`, e.id)));
+  const DEF = { json: JSON.stringify({ title: 'Мой отчёт', blocks: [{ type: 'stats', items: [{ label: 'Выручка', value: 128000, unit: '₽', delta: '+8%' }, { label: 'Заказы', value: 342 }] }, { type: 'chart', kind: 'bar', labels: ['Пн', 'Вт', 'Ср'], series: [{ name: 'Продажи', data: [12, 19, 8] }] }, { type: 'md', text: '**Готово.** Вставь сюда свой JSON.' }] }, null, 2),
+                md: '# Заголовок\n\nТекст с **жирным**, `кодом` и [ссылкой](https://example.com).\n\n| A | B |\n|--|--:|\n| 1 | 2 |\n', html: '<div class="jv-card"><div class="jv-card-title">Привет</div><p>Свободная <b>вёрстка</b></p><div class="jv-progress"><i style="width:60%"></i></div><button class="jv-btn" data-say="Какая погода?">Спросить</button></div>' };
+  win.mode = win.mode || 'json'; if (win.draft == null) win.draft = DEF[win.mode];
+  mode.value = win.mode; ta.value = win.draft;
+  const spec = () => {
+    const t = ta.value;
+    if (mode.value === 'md') return { spec: { blocks: [{ type: 'md', text: t }] } };
+    if (mode.value === 'html') return { spec: { blocks: [{ type: 'html', html: t }] } };
+    if (t.includes('```jv')) { const x = JV.extract(t); return x.ui ? { spec: x.ui } : { error: 'Блок ```jv не найден' }; }
+    try { const o = JSON.parse(t); return { spec: Array.isArray(o) ? { blocks: o } : o }; } catch (e) { return { error: 'JSON: ' + e.message }; }
+  };
+  let tm; const draw = () => {
+    const r = spec(); prev.innerHTML = '';
+    if (r.error) prev.appendChild(el('div', 'jv')).innerHTML = `<div class="jv-alert jv-err"><b>Не удалось разобрать</b><div>${JV.esc(r.error)}</div></div>`;
+    else prev.appendChild(JV.render(r.spec));
+  };
+  const out = where => { const r = spec(); if (r.spec) showUI(r.spec, { where, title: r.spec.title || 'Из редактора', text: 'Из редактора' }); };
+  ta.addEventListener('input', () => { win.draft = ta.value; save(); clearTimeout(tm); tm = setTimeout(draw, 250); });
+  ta.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); } });
+  mode.onchange = () => { win.mode = mode.value; ta.value = win.draft = DEF[mode.value]; save(); draw(); };
+  exSel.onchange = () => { const e = JV.examples.find(x => x.id === exSel.value); if (!e) return; win.mode = mode.value = 'json'; ta.value = win.draft = JSON.stringify(e.spec, null, 2); exSel.value = ''; save(); draw(); };
+  $('[data-c]', body).onclick = () => out('canvas'); $('[data-w]', body).onclick = () => out('window'); $('[data-m]', body).onclick = () => out('chat');
+  draw();
+}
+
+function mDocs(body) {
+  body.innerHTML = '<div class="pad"><div class="doc-sec"><h4>1 · Промпт для модели</h4><div class="muted" style="margin-bottom:8px">Вставьте в системный промпт вашего агента — он узнает формат вывода.</div><textarea class="doc-prompt" readonly></textarea><div class="row" style="margin-top:8px"><button class="btn" data-copy>Копировать промпт</button></div></div><div class="doc-sec" data-how><h4>2 · Как подключить агента</h4></div><div class="doc-sec" data-blocks><h4>3 · Блоки</h4></div><div class="doc-sec" data-css><h4>4 · CSS-классы (для блока html)</h4></div></div>';
+  const ta = $('.doc-prompt', body); ta.value = JV.prompt();
+  $('[data-copy]', body).onclick = e => { navigator.clipboard && navigator.clipboard.writeText(ta.value); e.target.textContent = 'Скопировано ✓'; setTimeout(() => e.target.textContent = 'Копировать промпт', 1400); };
+  $('[data-how]', body).appendChild(JV.mdEl('1. Модель отвечает текстом и кодовым блоком на языке **jv** с JSON внутри — интерфейс рисуется сам (в чате, на холсте или в окне).\n2. Из кода: `Jarvis.show(spec, { where: "canvas" | "window" | "chat" })`, `Jarvis.say(markdown)`, `Jarvis.ask("фраза")`.\n3. Из другой вкладки / iframe / Electron: `window.postMessage({ jarvis: "show", spec, where: "canvas" }, "*")`.\n4. Форма возвращает ассистенту сообщение `Форма «id»: {json}`, кнопки и строки списков с полем `say` отправляют фразу.\n5. Проверить, что вернула модель, можно в окне **Редактор UI** — просто вставьте ответ целиком.'));
+  $('[data-blocks]', body).appendChild(JV.render({ blocks: [{ type: 'table', compact: true, search: true, columns: [{ key: 'type', label: 'Блок', type: 'code' }, { key: 'group', label: 'Группа' }, { key: 'desc', label: 'Что делает' }, { key: 'props', label: 'Поля' }], rows: JV.schema }] }));
+  $('[data-css]', body).appendChild(JV.render({ blocks: [{ type: 'table', compact: true, search: false, columns: [{ key: 'c', label: 'Класс', type: 'code' }, { key: 'd', label: 'Назначение' }], rows: JV.classes.map(([c, d]) => ({ c, d })) }] }));
+}
+
+/* voice */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null, simT = null;
+function toggleListen() { ui.listening ? stopListen() : startListen(); }
+function startListen() {
+  setUI('Слушаю', 'Говорите…', true);
+  if (SR) {
+    rec = new SR(); rec.lang = 'ru-RU'; rec.interimResults = true;
+    rec.onresult = e => {
+      let t = ''; for (const r of e.results) t += r[0].transcript;
+      ui.phrase = t; emit('state');
+      if (e.results[e.results.length - 1].isFinal) { stopListen(); handle(t); }
+    };
+    rec.onerror = e => { addMsg('bot', 'Микрофон недоступен (' + e.error + '). Можно вводить команды текстом.'); stopListen(); };
+    rec.onend = () => { if (ui.listening) stopListen(); };
+    try { rec.start(); } catch {}
+  } else {
+    addMsg('bot', 'Этот браузер не поддерживает распознавание речи — демо-режим. Откройте в Chrome.');
+    simT = setTimeout(() => { stopListen(); handle('Какая сегодня погода?'); }, 2500);
+  }
+}
+function stopListen() {
+  const r = rec; rec = null; clearTimeout(simT); if (r) { try { r.abort(); } catch {} }
+  setUI('Ожидание', '«Слушаю вас, сэр.»', false);
+}
+
+/* ═══════════════ boot ═══════════════ */
+$('#addWinBtn').onclick = () => openModal('Добавить окно', (box, close) => {
+  const grid = el('div', 'catalog');
+  Object.entries(TYPES).filter(([, T]) => !T.hidden).forEach(([k, T]) => {
+    const c = el('button', 'card', `<div class="ic">${T.icon}</div><b>${T.name}</b><p>${T.desc}</p>`);
+    c.onclick = () => { close(); addWin(k); }; grid.appendChild(c);
+  });
+  box.appendChild(grid);
+});
+$('#tileBtn').onclick = tile;
+$('#resetBtn').onclick = () => confirmModal('Сбросить все дашборды, окна, задачи и заметки к исходным?', 'Сбросить', () => { S = defaults(); save(); renderDesktop(); });
+$('#ttsBtn').onclick = () => { S.tts = !S.tts; $('#ttsBtn').classList.toggle('on', S.tts); save(); };
+$('#ttsBtn').classList.toggle('on', S.tts);
+$('#gMic').onclick = toggleListen;
+const gi = $('#gInput'), gs = () => { const v = gi.value; gi.value = ''; handle(v); };
+$('#gSend').onclick = gs; gi.addEventListener('keydown', e => { if (e.key === 'Enter') gs(); });
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); gi.focus(); } });
+window.addEventListener('resize', () => dash().windows.forEach(w => { if (!w.max) { w.x = clamp(w.x, 80 - w.w, Math.max(0, dw() - 80)); w.y = clamp(w.y, 0, Math.max(0, dh() - 36)); } const e = winEl(w); e && geom(w, e); }));
+
+setInterval(() => {
+  const j = (v, a, b, s) => clamp(Math.round(v + (Math.random() - .5) * s), a, b);
+  metrics.cpu = j(metrics.cpu, 10, 90, 14); metrics.ram = j(metrics.ram, 40, 80, 6); metrics.stt = j(metrics.stt, 92, 99, 2);
+  emit('tick');
+}, 1000);
+
+renderDesktop();
+</script>
+</body>
+</html>

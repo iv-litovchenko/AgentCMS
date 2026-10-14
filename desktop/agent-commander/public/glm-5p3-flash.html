@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — glm-5p3-flash</title>
+<style>
+  :root {
+    --cyan: #00e5ff;
+    --cyan-dim: #0a7a8a;
+    --bg: #050a12;
+    --panel: rgba(0, 229, 255, 0.05);
+    --border: rgba(0, 229, 255, 0.35);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: radial-gradient(ellipse at 50% 120%, #0a2030 0%, var(--bg) 60%);
+    color: var(--cyan);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    padding: 14px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,10,18,0.85);
+    z-index: 5;
+  }
+  .logo { letter-spacing: 5px; font-size: 18px; text-shadow: 0 0 12px var(--cyan); }
+  .logo span { opacity: .5; font-size: 11px; letter-spacing: 2px; display: block; }
+  .toolbar { display: flex; gap: 10px; }
+
+  button, select {
+    background: rgba(0,229,255,0.1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--cyan);
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: .2s;
+  }
+  button:hover, select:hover { background: rgba(0,229,255,0.28); box-shadow: 0 0 12px rgba(0,229,255,0.4); }
+
+  /* ===== ДАШБОРД ===== */
+  #dashboard {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 16px;
+    padding: 20px 24px;
+  }
+
+  .widget {
+    width: calc(50% - 8px);
+    min-width: 300px;
+    min-height: 180px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(4px);
+    overflow: hidden;
+    user-select: none;
+  }
+  .widget.w-full { width: 100%; }
+
+  .widget-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px dashed var(--border);
+    cursor: grab;
+    background: rgba(0,229,255,0.04);
+  }
+  .widget-head:active { cursor: grabbing; }
+  .widget-head h3 {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: .75;
+  }
+  .widget-head .actions { display: flex; gap: 6px; }
+  .widget-head .actions button {
+    padding: 3px 8px; font-size: 11px; border: none; background: transparent;
+  }
+  .widget-body { padding: 14px; flex: 1; overflow-y: auto; font-size: 13px; }
+  .widget-body::-webkit-scrollbar { width: 4px; }
+  .widget-body::-webkit-scrollbar-thumb { background: var(--cyan-dim); }
+
+  .widget.dragging { opacity: .4; border-style: dashed; }
+
+  /* ===== ВИДЖЕТЫ (контент) ===== */
+  .log-line { line-height: 1.9; user-select: text; }
+  .log-line .t { opacity: .45; font-size: 11px; margin-right: 8px; }
+  .log-line.user { color: #b6fbff; }
+  .log-line.jarvis { text-shadow: 0 0 6px rgba(0,229,255,.5); }
+
+  .metric-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; user-select: text; }
+  .metric-row .name { width: 90px; font-size: 11px; letter-spacing: 1px; opacity: .7; }
+  .metric-row .bar { flex: 1; height: 6px; background: rgba(0,229,255,.15); border-radius: 3px; overflow: hidden; }
+  .metric-row .bar i { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); transition: width .8s; }
+  .metric-row .val { width: 52px; text-align: right; }
+
+  .clock-face { font-size: 44px; text-align: center; text-shadow: 0 0 16px var(--cyan); user-select: text; }
+  .clock-date { text-align: center; opacity: .6; margin-top: 6px; letter-spacing: 2px; }
+
+  .note-area {
+    width: 100%; height: 100%; min-height: 110px;
+    background: transparent; border: none; resize: none;
+    color: var(--cyan); font-family: inherit; font-size: 13px; outline: none;
+  }
+
+  .reactor-mini {
+    width: 110px; height: 110px; margin: 0 auto; border-radius: 50%;
+    border: 2px dashed var(--cyan); opacity: .7;
+    display: flex; align-items: center; justify-content: center;
+    animation: spin 12s linear infinite;
+  }
+  .reactor-mini .core {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle, #b6fbff, #006778);
+    box-shadow: 0 0 24px var(--cyan);
+    animation: corePulse 2.4s infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes corePulse { 50% { box-shadow: 0 0 44px var(--cyan); } }
+
+  .cmd-list li { list-style: none; padding: 6px 0; border-bottom: 1px dashed rgba(0,229,255,.15); user-select: text; }
+
+  /* ===== ВВОД ===== */
+  .input-zone {
+    display: flex; gap: 10px;
+    padding: 14px 24px 20px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,10,18,0.85);
+    z-index: 4;
+  }
+  .input-zone input {
+    flex: 1; background: rgba(0,229,255,.05);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--cyan); font-family: inherit; font-size: 15px;
+    padding: 13px 18px; outline: none; letter-spacing: 1px;
+  }
+  .input-zone input:focus { box-shadow: 0 0 16px rgba(0,229,255,.25); }
+  .input-zone input::placeholder { color: rgba(0,229,255,.35); }
+
+  /* ===== МОДАЛЬНЫЕ ОКНА ===== */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,5,10,.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: min(520px, 92vw);
+    max-height: 80vh; overflow-y: auto;
+    background: #071018;
+    border: 1px solid var(--cyan);
+    border-radius: 10px;
+    box-shadow: 0 0 40px rgba(0,229,255,.3);
+  }
+  .modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px dashed var(--border);
+    letter-spacing: 3px; font-size: 12px; text-transform: uppercase;
+  }
+  .modal-body { padding: 18px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; letter-spacing: 2px; opacity: .7; margin-bottom: 6px; }
+  .field input[type=text], .field input[type=range], .field select {
+    width: 100%; background: rgba(0,229,255,.05);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--cyan); font-family: inherit; font-size: 13px;
+    padding: 10px; outline: none;
+  }
+  .field input[type=range] { padding: 0; accent-color: var(--cyan); }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 0 18px 18px; }
+
+  /* Меню добавления виджетов */
+  .add-menu {
+    position: absolute; display: none;
+    flex-direction: column; gap: 4px;
+    background: #071018; border: 1px solid var(--cyan); border-radius: 8px;
+    padding: 8px; z-index: 90; box-shadow: 0 0 24px rgba(0,229,255,.3);
+  }
+  .add-menu.open { display: flex; }
+  .add-menu button { text-align: left; border: none; background: transparent; padding: 8px 12px; }
+  .add-menu button:hover { background: rgba(0,229,255,.15); }
+
+  footer { text-align: center; font-size: 10px; letter-spacing: 2px; opacity: .35; padding: 8px; }
+
+  @media (max-width: 680px) { .widget { width: 100%; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    J.A.R.V.I.S.
+    <span>модульный дашборд · glm-5p3-flash</span>
+  </div>
+  <div class="toolbar">
+    <button id="btnAdd">+ Окно</button>
+    <button id="btnSettings">⚙ Настройки</button>
+    <button id="btnReset">↺ Сброс</button>
+  </div>
+</header>
+
+<div id="dashboard"></div>
+
+<div class="input-zone">
+  <input type="text" id="cmd" placeholder="Введите команду для Джарвиса..." autocomplete="off">
+  <button id="send">▶ Отправить</button>
+  <button id="mic">🎤 Голос</button>
+</div>
+
+<footer>PROTOTYPE UI · ВИДЖЕТЫ СОХРАНЯЮТСЯ В LOCALSTORAGE</footer>
+
+<!-- Модальное окно: добавление виджета -->
+<div class="add-menu" id="addMenu"></div>
+
+<!-- Модальное окно: настройки -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      Настройки интерфейса
+      <button id="settingsClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Имя ассистента</label>
+        <input type="text" id="setName" value="J.A.R.V.I.S.">
+      </div>
+      <div class="field">
+        <label>Обращение к вам</label>
+        <input type="text" id="setUser" value="сэр">
+      </div>
+      <div class="field">
+        <label>Скорость ответа: <span id="setSpeedVal">600</span> мс</label>
+        <input type="range" id="setSpeed" min="0" max="2000" step="100" value="600">
+      </div>
+      <div class="field">
+        <label>Ответ на неизвестную команду</label>
+        <input type="text" id="setFallback" value="Обрабатываю запрос... Демо-режим: бэкенд не подключён.">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="settingsSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   КОНФИГУРАЦИЯ. Ничего не зафиксировано в разметке:
+   весь дашборд строится из этого описания виджетов.
+   Добавить новый тип окна = добавить объект сюда.
+   ============================================================ */
+
+const WIDGET_TYPES = {
+  log: {
+    title: 'Журнал диалога',
+    render(body, w) {
+      const el = document.createElement('div');
+      el.className = 'log';
+      el.style.lineHeight = '1.9';
+      body.appendChild(el);
+      Bus.sub('log', line => {
+        const p = document.createElement('p');
+        p.className = 'log-line ' + line.cls;
+        p.innerHTML = `<span class="t">${line.time}</span>${line.text}`;
+        el.appendChild(p);
+        body.scrollTop = body.scrollHeight;
+      });
+      Bus.log('jarvis', `${Config.get('greeting')}`);
+    }
+  },
+  metrics: {
+    title: 'Телеметрия',
+    render(body) {
+      const rows = [
+        { id: 'cpu', name: 'Процессор', val: 23 },
+        { id: 'ram', name: 'Память',    val: 41 },
+        { id: 'net', name: 'Сеть',      val: 12 },
+        { id: 'pwr', name: 'Реактор',   val: 98 },
+      ];
+      body.innerHTML = rows.map(r => `
+        <div class="metric-row" data-id="${r.id}">
+          <div class="name">${r.name}</div>
+          <div class="bar"><i style="width:${r.val}%"></i></div>
+          <div class="val">${r.val}%</div>
+        </div>`).join('');
+      setInterval(() => {
+        body.querySelectorAll('.metric-row').forEach(row => {
+          const v = 10 + Math.floor(Math.random() * 85);
+          row.querySelector('i').style.width = v + '%';
+          row.querySelector('.val').textContent = v + '%';
+        });
+      }, 2000);
+    }
+  },
+  clock: {
+    title: 'Часы',
+    render(body) {
+      body.innerHTML = `<div class="clock-face"></div><div class="clock-date"></div>`;
+      const f = body.querySelector('.clock-face'), d = body.querySelector('.clock-date');
+      const tick = () => {
+        const n = new Date();
+        f.textContent = n.toLocaleTimeString('ru-RU');
+        d.textContent = n.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      };
+      tick(); setInterval(tick, 1000);
+    }
+  },
+  notes: {
+    title: 'Заметки',
+    render(body, w) {
+      const ta = document.createElement('textarea');
+      ta.className = 'note-area';
+      ta.placeholder = 'Свободные заметки...';
+      ta.value = localStorage.getItem('jarvis_note_' + w.id) || '';
+      ta.addEventListener('input', () => localStorage.setItem('jarvis_note_' + w.id, ta.value));
+      body.appendChild(ta);
+    }
+  },
+  reactor: {
+    title: 'Реактор',
+    render(body) {
+      body.innerHTML = `<div class="reactor-mini"><div class="core"></div></div>`;
+    }
+  },
+  commands: {
+    title: 'Доступные команды',
+    render(body) {
+      body.innerHTML = `<ul class="cmd-list"></ul>`;
+      const ul = body.querySelector('ul');
+      Bus.sub('commands', list => {
+        ul.innerHTML = list.map(c => `<li>${c}</li>`).join('');
+      });
+      Bus.pub('commands', Object.keys(Rules).map(k => '«' + k + '» — ' + Rules[k].desc));
+    }
+  },
+};
+
+/* Правила ответов — редактируются и через настройки, и через код */
+const Rules = {
+  'статус': { desc: 'состояние систем', fn: () => 'Все системы в норме. Угроз не обнаружено.' },
+  'привет': { desc: 'приветствие',      fn: c => `Приветствую вас, ${Config.get('user')}! Чем могу быть полезен?` },
+  'время':  { desc: 'текущее время',    fn: () => 'Сейчас ' + new Date().toLocaleTimeString('ru-RU') + '.' },
+  'заметка':{ desc: 'записать заметку', fn: c => { localStorage.setItem('jarvis_note_auto', c); return 'Записал в заметки.'; } },
+};
+
+/* ===== Шина событий ===== */
+const Bus = {
+  subs: {},
+  sub(topic, fn) { (this.subs[topic] ||= []).push(fn); },
+  pub(topic, data) { (this.subs[topic] || []).forEach(fn => fn(data)); },
+  log(cls, text) { this.pub('log', { cls, text, time: new Date().toLocaleTimeString('ru-RU') }); }
+};
+
+/* ===== Настройки (localStorage) ===== */
+const Config = {
+  defaults: {
+    name: 'J.A.R.V.I.S.',
+    user: 'сэр',
+    speed: 600,
+    fallback: 'Обрабатываю запрос... Демо-режим: бэкенд не подключён.',
+    greeting: 'Добрый день! Все системы функционируют в штатном режиме.',
+    widgets: null, // раскладка
+  },
+  get(k) { return JSON.parse(localStorage.getItem('jarvis_cfg'))?.[k] ?? this.defaults[k]; },
+  set(k, v) {
+    const cfg = JSON.parse(localStorage.getItem('jarvis_cfg') || '{}');
+    cfg[k] = v;
+    localStorage.setItem('jarvis_cfg', JSON.stringify(cfg));
+  }
+};
+
+/* ===== Дашборд ===== */
+const dashboard = document.getElementById('dashboard');
+let widgetSeq = Date.now();
+
+function layout() { return Config.get('widgets') || [
+  { id: 1, type: 'log',      full: true },
+  { id: 2, type: 'reactor'  },
+  { id: 3, type: 'clock'    },
+  { id: 4, type: 'metrics'  },
+  { id: 5, type: 'notes'    },
+  { id: 6, type: 'commands' },
+];}
+
+function saveLayout() {
+  Config.set('widgets', [...dashboard.querySelectorAll('.widget')].map(w => ({
+    id: +w.dataset.id, type: w.dataset.type, full: w.classList.contains('w-full')
+  })));
+}
+
+function buildWidget({ id, type, full }) {
+  const def = WIDGET_TYPES[type];
+  if (!def) return;
+
+  const w = document.createElement('div');
+  w.className = 'widget' + (full ? ' w-full' : '');
+  w.dataset.id = id; w.dataset.type = type;
+  w.innerHTML = `
+    <div class="widget-head">
+      <h3>${def.title}</h3>
+      <div class="actions">
+        <button title="Во всю ширину">▭</button>
+        <button title="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="widget-body"></div>`;
+
+  const [btnFull, btnClose] = w.querySelectorAll('.actions button');
+  btnFull.onclick = () => { w.classList.toggle('w-full'); saveLayout(); };
+  btnClose.onclick = () => { w.remove(); saveLayout(); Bus.log('jarvis', `Окно «${def.title}» закрыто.`); };
+
+  // Перетаскивание за заголовок
+  const head = w.querySelector('.widget-head');
+  head.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON') return;
+    w.classList.add('dragging');
+    const after = el => { el.classList.add('drag-over'); };
+    document.querySelectorAll('.widget').forEach(o => o !== w && o.addEventListener('mouseover', () => after(o)));
+    const move = ev => {
+      const target = [...document.querySelectorAll('.widget')].find(o => o !== w && o.matches(':hover'));
+      if (target) dashboard.insertBefore(w, target.nextSibling);
+    };
+    const up = () => {
+      w.classList.remove('dragging');
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      saveLayout();
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+
+  dashboard.appendChild(w);
+  def.render(w.querySelector('.widget-body'), w);
+}
+
+function renderAll() {
+  dashboard.innerHTML = '';
+  layout().forEach(buildWidget);
+}
+
+/* Меню добавления */
+const addMenu = document.getElementById('addMenu');
+document.getElementById('btnAdd').onclick = e => {
+  const r = e.target.getBoundingClientRect();
+  addMenu.style.top = r.bottom + 6 + 'px';
+  addMenu.style.right = (innerWidth - r.right) + 'px';
+  addMenu.classList.toggle('open');
+};
+addMenu.innerHTML = Object.entries(WIDGET_TYPES).map(([k, v]) =>
+  `<button data-type="${k}">+ ${v.title}</button>`).join('');
+addMenu.addEventListener('click', e => {
+  const type = e.target.dataset.type;
+  if (!type) return;
+  buildWidget({ id: ++widgetSeq, type, full: false });
+  saveLayout();
+  addMenu.classList.remove('open');
+  Bus.log('jarvis', `Добавлено окно «${WIDGET_TYPES[type].title}».`);
+});
+document.addEventListener('click', e => {
+  if (!addMenu.contains(e.target) && e.target.id !== 'btnAdd') addMenu.classList.remove('open');
+});
+
+/* Настройки */
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('btnSettings').onclick = () => {
+  setName.value = Config.get('name');
+  setUser.value = Config.get('user');
+  setSpeed.value = Config.get('speed');
+  setSpeedVal.textContent = Config.get('speed');
+  setFallback.value = Config.get('fallback');
+  settingsModal.classList.add('open');
+};
+setSpeed.oninput = () => setSpeedVal.textContent = setSpeed.value;
+document.getElementById('settingsClose').onclick = () => settingsModal.classList.remove('open');
+document.getElementById('settingsSave').onclick = () => {
+  Config.set('name', setName.value.trim() || 'J.A.R.V.I.S.');
+  Config.set('user', setUser.value.trim() || 'сэр');
+  Config.set('speed', +setSpeed.value);
+  Config.set('fallback', setFallback.value.trim());
+  document.querySelector('.logo').firstChild.textContent = Config.get('name');
+  settingsModal.classList.remove('open');
+  Bus.log('jarvis', 'Настройки сохранены.');
+};
+settingsModal.addEventListener('click', e => {
+  if (e.target === settingsModal) settingsModal.classList.remove('open');
+});
+
+/* Сброс */
+document.getElementById('btnReset').onclick = () => {
+  localStorage.removeItem('jarvis_cfg');
+  renderAll();
+  Bus.log('jarvis', 'Раскладка сброшена к стандартной.');
+};
+
+/* Ввод команд */
+const cmd = document.getElementById('cmd');
+function send() {
+  const text = cmd.value.trim();
+  if (!text) return;
+  Bus.log('user', text);
+  cmd.value = '';
+  setTimeout(() => {
+    const lower = text.toLowerCase();
+    const key = Object.keys(Rules).find(k => lower.includes(k));
+    Bus.log('jarvis', key ? Rules[key].fn(text) : Config.get('fallback'));
+  }, +Config.get('speed'));
+}
+document.getElementById('send').onclick = send;
+cmd.addEventListener('keydown', e => e.key === 'Enter' && send());
+document.getElementById('mic').onclick = () =>
+  Bus.log('jarvis', 'Голосовой ввод — заглушка макета. Подключу Web Speech API по вашему запросу.');
+
+/* Старт */
+document.querySelector('.logo').firstChild.textContent = Config.get('name');
+renderAll();
+</script>
+
+</body>
+</html>
