@@ -5,10 +5,10 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow } = electron;
+const { app, BrowserWindow, dialog } = electron;
 const path = require("path");
 const { getAppIcon } = require("./icon");
-const { getProjectRoot, getCommanderBaseUrl } = require("./config");
+const { getProjectRoot, getCommanderBaseUrl, hasCommanderPublic, commanderIndexPath } = require("./config");
 const { startCommanderServer, stopCommanderServer } = require("./server");
 
 let mainWindow = null;
@@ -18,7 +18,15 @@ let shuttingDown = false;
 async function ensureServer() {
   if (serverInfo) return serverInfo;
   const root = getProjectRoot();
+  if (!hasCommanderPublic(root)) {
+    const message =
+      `Не найден UI Commander:\n${commanderIndexPath(root)}\n\n` +
+      "Откройте Commander из клона YamlCMS на диске или задайте AGENT_CMS_ROOT на корень репозитория.";
+    dialog.showErrorBox("Agent CMS Commander", message);
+    throw new Error(message);
+  }
   serverInfo = await startCommanderServer({ root });
+  console.info(`Commander public root: ${serverInfo.publicRoot}`);
   return serverInfo;
 }
 

@@ -35,6 +35,7 @@ dist/
   agent-commander/ → Agent CMS Commander.app
 ```
 
-Порт Commander (HTTP): `AGENT_CMS_COMMANDER_HTTP_PORT` в `.env`, по умолчанию **3188**.
+Порт Commander (HTTP): `AGENT_CMS_COMMANDER_HTTP_PORT` в `.env`, по умолчанию **3188**.  
+UI: [`public/commander/`](../public/commander/) (как Voice → [`public/shell/`](../public/shell/)).
 
 Код: [`agent-cms/`](agent-cms/), [`agent-shell/`](agent-shell/), [`agent-commander/`](agent-commander/), [`agent-control/`](agent-control/).

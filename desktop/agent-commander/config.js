@@ -1,41 +1,51 @@
-const fs = require("fs");
 const path = require("path");
 const { app } = require("electron");
 const { loadAgentCmsPortsModule } = require("./ports-resolve");
 const { getAgentCmsPorts, hydrateProcessEnvFromRoot } = loadAgentCmsPortsModule();
+const {
+  REPO_ROOT,
+  resolveCommanderProjectRoot,
+  hasCommanderPublic,
+  commanderIndexPath
+} = require("./project-root");
 
-const REPO_ROOT = path.join(__dirname, "..", "..");
-
-function findRepoRoot(startDir) {
-  let current = path.resolve(startDir);
-  for (let depth = 0; depth < 8; depth += 1) {
-    const pkgPath = path.join(current, "package.json");
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-        if (pkg.name === "agent-cms") return current;
-      } catch {
-        // ignore
-      }
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
+function getSharedCmsDesktopConfigPaths() {
+  const home = app.getPath("home");
+  if (process.platform === "darwin") {
+    return [
+      path.join(home, "Library", "Application Support", "agent-cms", "desktop-config.json"),
+      path.join(home, "Library", "Application Support", "Agent CMS", "desktop-config.json")
+    ];
   }
-  return null;
+  return [
+    path.join(app.getPath("appData"), "agent-cms", "desktop-config.json"),
+    path.join(app.getPath("appData"), "Agent CMS", "desktop-config.json")
+  ];
 }
 
-function getProjectRoot(fallback = REPO_ROOT) {
-  const envRoot = String(process.env.AGENT_CMS_ROOT || "").trim();
-  if (envRoot && fs.existsSync(envRoot)) return envRoot;
-
-  if (app?.isPackaged) {
-    const fromExec = findRepoRoot(path.dirname(process.execPath));
-    if (fromExec) return fromExec;
-    return path.dirname(process.execPath);
+function loadSharedCmsConfig() {
+  const fs = require("fs");
+  for (const configPath of getSharedCmsDesktopConfigPaths()) {
+    try {
+      if (fs.existsSync(configPath)) {
+        const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch {
+      // try next
+    }
   }
+  return {};
+}
 
-  return fallback;
+function getProjectRoot() {
+  const shared = loadSharedCmsConfig();
+  return resolveCommanderProjectRoot({
+    envRoot: process.env.AGENT_CMS_ROOT,
+    execSearchRoot: app?.isPackaged ? path.dirname(process.execPath) : null,
+    devFallback: REPO_ROOT,
+    sharedProjectRoot: shared.projectRoot
+  });
 }
 
 function getCommanderPort(projectRoot = getProjectRoot()) {
@@ -51,5 +61,8 @@ function getCommanderBaseUrl(projectRoot = getProjectRoot()) {
 module.exports = {
   getProjectRoot,
   getCommanderPort,
-  getCommanderBaseUrl
+  getCommanderBaseUrl,
+  loadSharedCmsConfig,
+  hasCommanderPublic,
+  commanderIndexPath
 };

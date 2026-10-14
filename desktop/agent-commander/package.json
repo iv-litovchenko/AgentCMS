@@ -27,8 +27,8 @@
       "server.js",
       "icon.js",
       "ports-resolve.js",
+      "project-root.js",
       "assets/**/*",
-      "public/**/*",
       "package.json",
       {
         "from": "../../lib/config",

@@ -19,7 +19,8 @@ let activeServer = null;
 
 function resolvePublicRoot(options = {}) {
   if (options.publicRoot) return path.resolve(options.publicRoot);
-  return path.join(__dirname, "public");
+  const root = path.resolve(String(options.root || path.join(__dirname, "..", "..")));
+  return path.join(root, "public", "commander");
 }
 
 function createStaticHandler(publicRoot) {
@@ -68,7 +69,7 @@ function startCommanderServer(options = {}) {
 
   const ports = getAgentCmsPorts();
   const port = Number(options.port ?? ports.commanderHttp);
-  const publicRoot = resolvePublicRoot(options);
+  const publicRoot = resolvePublicRoot({ ...options, root: projectRoot });
   const host = String(options.host || "127.0.0.1").trim() || "127.0.0.1";
 
   return new Promise((resolve, reject) => {
