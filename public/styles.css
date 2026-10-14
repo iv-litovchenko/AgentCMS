@@ -24659,12 +24659,40 @@ a.header-tool-btn {
 
 .sidebar-slab-agent:has(.agents-picker-popover:not(.hidden)) {
   position: relative;
-  z-index: 25;
+  z-index: 100;
+  overflow: visible;
+}
+
+.sidebar:has(.agents-picker-popover:not(.hidden)) .sidebar-slab-menu-channels-band,
+.sidebar:has(.agents-picker-popover:not(.hidden)) .sidebar-slab-menu-tree-band {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-agent-select-block:has(.agents-picker-popover:not(.hidden)) {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+
+.sidebar-agent-select-block:has(.agents-picker-popover:not(.hidden)) .sidebar-agent-toolbar {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
+}
+
+.sidebar-agent-select-block:has(.agents-picker-popover:not(.hidden)) .agent-todo-preview-wrap {
+  z-index: 0;
+}
+
+.sidebar-agent-select-block:has(.agent-preview-wrap:not(.hidden)):has(.agents-picker-popover:not(.hidden))
+  .sidebar-agent-toolbar {
+  z-index: 40;
 }
 
 .agents-picker-popover {
   position: fixed;
-  z-index: 1200;
+  z-index: 5000;
   width: auto;
   max-width: none;
   padding: 6px;

@@ -93,7 +93,7 @@ fields:
           csv
           txt
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Records"
-        maxFileSizeMb: 1
+        maxFileSizeMb: 5
       - id: records-history
         label: Записи (контент) — история
         emoji: "🕓"
@@ -121,7 +121,7 @@ fields:
           tif
           tiff
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Images"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 25
       - id: sources
         label: Исходник (код)
         emoji: "💻"
@@ -155,7 +155,7 @@ fields:
           ppt
           pptx
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Documents"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: media
         label: Медиа
         emoji: "🎬"
@@ -186,7 +186,7 @@ fields:
           indd
           afdesign
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Design 2D"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: design-3d
         label: 3D — моделирование
         emoji: "📐"
@@ -204,7 +204,7 @@ fields:
           mb
           ztl
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Design 3D"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: design-bim
         label: Архитектура / BIM
         emoji: "🏗️"
@@ -219,7 +219,7 @@ fields:
           nwd
           nwc
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Architecture BIM"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: archives
         label: Архивы
         emoji: "📦"
@@ -232,7 +232,7 @@ fields:
           xz
           7z
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Archives"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: other
         label: Прочее
         emoji: "📎"
@@ -241,7 +241,7 @@ fields:
           woff
           woff2
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Other"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 25
       - id: configs
         label: Конфиги, настройки (служебное)
         emoji: "⚙️"
@@ -257,7 +257,7 @@ fields:
           properties
           lock
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Configs"
-        maxFileSizeMb: 1
+        maxFileSizeMb: 5
     properties:
       id:
         type: awn.field.string.slug
@@ -281,8 +281,9 @@ fields:
         type: awn.field.number
         title: Макс. размер файла (МБ)
         description: >
-          Файлы больше лимита не попадают в коммит этой партии. Записи и конфиги — 1 МБ,
-          изображения и прочие файлы — 5 МБ по умолчанию.
+          Файлы больше лимита не попадают в коммит этой партии. История записей (mdback) — 1 МБ;
+          записи, конфиги, код и медиа — 5 МБ; изображения и прочее — 25 МБ; документы, дизайн,
+          BIM и архивы — 45 МБ.
 
   module-git-commit-max-batch-mb:
     type: awn.field.number

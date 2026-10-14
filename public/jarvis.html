@@ -6,6 +6,7 @@
   <meta name="agent-cms-voice-app" content="1" />
   <meta name="theme-color" content="#030712" />
   <title>JARVIS · Agent CMS Voice</title>
+  <link rel="stylesheet" href="jarvis-ui-kit.css" />
   <style>
     :root {
       color-scheme: dark;
@@ -127,14 +128,12 @@
       width: 100%;
       max-width: 1200px;
       margin: 0 auto;
-      padding: 12px 16px 20px;
-      padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      padding: 12px 16px 28px;
+      padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 100dvh;
-      max-height: 100dvh;
-      overflow: hidden;
+      min-height: 100dvh;
       box-sizing: border-box;
     }
 
@@ -655,7 +654,8 @@
     }
 
     body.ambient .app > header,
-    body.ambient .app > main.hud-layout,
+    body.ambient .app > main.hud-main,
+    body.ambient .app > .hud-windows-section,
     body.ambient .app > footer,
     body.ambient .status-bar .status-pills { visibility: hidden; pointer-events: none; }
 
@@ -685,66 +685,55 @@
 
     body.dnd .ring-wrap { filter: saturate(0.5); }
 
-    main.hud-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .voice-dock {
-      flex-shrink: 0;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      background: var(--panel);
-    }
-
-    .voice-dock.core {
-      align-items: stretch;
-      padding: 12px 14px;
-    }
-
-    .voice-dock .core-top {
+    main.hud-main {
       display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 12px 16px;
-      align-items: center;
-      width: 100%;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
     }
 
-    @media (max-width: 640px) {
-      .voice-dock .core-top {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-      }
-      .voice-dock .live-line { text-align: center !important; }
-      .voice-dock .controls { justify-content: center !important; }
-      .voice-dock .chips { justify-content: center; }
+    @media (min-width: 820px) {
+      main.hud-main { grid-template-columns: 1fr 300px; }
     }
 
-    .voice-dock-panel .live-line {
-      text-align: left;
-      margin: 8px 0;
-    }
-
-    .voice-dock-controls {
-      justify-content: flex-start;
+    .hud-windows-section {
       margin-top: 8px;
-      flex-wrap: wrap;
+      padding-top: 16px;
+      border-top: 1px solid rgba(34, 211, 238, 0.2);
     }
 
-    .voice-dock .ring-wrap { --ring-size: min(140px, 36vw); }
-    .voice-dock .history,
-    .voice-dock .compose { display: none; }
+    .windows-section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .windows-section-head h2 {
+      margin: 0;
+      font-size: 0.8125rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .windows-section-head p {
+      margin: 4px 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex: 1 1 100%;
+    }
+
+    @media (min-width: 640px) {
+      .windows-section-head p { flex: 1 1 auto; margin: 0 12px 0 0; }
+    }
 
     .hud-workspace {
       position: relative;
-      flex: 1;
-      min-height: 180px;
+      min-height: 420px;
+      height: min(52vh, 560px);
       border-radius: 16px;
       border: 1px dashed rgba(34, 211, 238, 0.25);
       background: rgba(2, 6, 23, 0.35);
@@ -984,34 +973,100 @@
       font-size: 0.8125rem;
     }
 
-    .voice-dock-panel {
-      min-width: 0;
-      width: 100%;
-    }
-
     .fab-windows {
-      position: fixed;
-      right: max(16px, env(safe-area-inset-right, 0px));
-      bottom: max(20px, env(safe-area-inset-bottom, 0px));
-      z-index: 50;
-      width: 52px;
-      height: 52px;
       border-radius: 50%;
       border: 1px solid var(--border);
       background: linear-gradient(135deg, rgba(34, 211, 238, 0.35), rgba(124, 108, 255, 0.3));
       color: var(--text);
-      font-size: 1.5rem;
       cursor: pointer;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     }
 
-    .fab-windows:hover { box-shadow: 0 0 24px var(--glow-soft); }
+    .fab-windows:hover { box-shadow: 0 0 20px var(--glow-soft); }
 
-    body.ambient .hud-workspace,
-    body.ambient .voice-dock,
-    body.ambient .fab-windows { visibility: hidden; pointer-events: none; }
+    .fab-windows {
+      position: static;
+      width: 44px;
+      height: 44px;
+      font-size: 1.35rem;
+      flex-shrink: 0;
+    }
 
     .tpl-mount { display: none !important; }
+
+    .ui-gallery-layout {
+      display: grid;
+      grid-template-columns: minmax(140px, 200px) 1fr;
+      min-height: 300px;
+      height: 100%;
+      margin: -12px;
+      min-height: calc(100% + 24px);
+    }
+
+    .ui-gallery-nav {
+      overflow-y: auto;
+      border-right: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 8px;
+      background: rgba(2, 6, 23, 0.5);
+    }
+
+    .ui-gallery-nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      font-size: 0.6875rem;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+
+    .ui-gallery-nav button.is-active,
+    .ui-gallery-nav button:hover {
+      border-color: rgba(34, 211, 238, 0.35);
+      color: var(--glow);
+      background: rgba(34, 211, 238, 0.08);
+    }
+
+    .ui-gallery-nav .cat {
+      font-size: 0.5625rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 10px 8px 4px;
+    }
+
+    .ui-gallery-preview {
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .ui-gallery-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .ui-gallery-toolbar a {
+      font-size: 0.6875rem;
+      color: var(--glow);
+    }
+
+    .hud-window-body.ui-gallery-body,
+    .hud-window-body.agent-panel-body {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .agent-panel-body .ui-gallery-preview {
+      height: 100%;
+    }
   </style>
 </head>
 <body>
@@ -1041,7 +1096,7 @@
         <div class="brand-mark" aria-hidden="true">J</div>
         <div>
           <h1>JARVIS · HUD</h1>
-          <p class="subtitle">Окна и дашборды — собирайте HUD сами. Голос + формы + виджеты.</p>
+          <p class="subtitle">Сверху — голос и панели. Ниже — плавающие окна и дашборды.</p>
         </div>
       </div>
       <nav class="links">
@@ -1056,8 +1111,8 @@
       </nav>
     </header>
 
-    <main class="hud-layout">
-      <section class="voice-dock core" aria-label="Голос">
+    <main class="hud-main">
+      <section class="core" aria-label="Голосовое ядро">
         <div class="core-top">
           <div class="ring-wrap" id="ring" data-phase="idle">
             <div class="ring ring-outer"></div>
@@ -1067,76 +1122,107 @@
             <canvas class="ring-viz" id="viz" width="200" height="200" aria-hidden="true"></canvas>
             <span class="phase-label" id="phase-text">ожидаю</span>
           </div>
-          <div class="voice-dock-panel">
-            <div class="chips" id="chips"></div>
-            <p class="live-line" id="live-line">Пробел — говорить · <strong>Окна</strong> — диалоги и дашборды</p>
-            <div class="mic-level" aria-hidden="true"><i id="mic-bar"></i></div>
-            <div class="controls voice-dock-controls">
-              <button type="button" class="btn btn-primary" id="btn-listen" aria-pressed="false">Слушать</button>
-              <button type="button" class="btn btn-ghost" id="btn-stop">Стоп</button>
-              <button type="button" class="btn btn-ghost" id="btn-repeat">Ещё раз</button>
-              <button type="button" class="btn btn-ghost" id="btn-speak">Озвучить</button>
-            </div>
-          </div>
+          <p style="margin:0;font-size:0.6875rem;color:var(--muted)">Клик по кольцу — слушать · пробел — PTT</p>
+          <div class="mic-level" aria-hidden="true"><i id="mic-bar"></i></div>
+        </div>
+
+        <div class="chips" id="chips"></div>
+        <p class="live-line" id="live-line">Удерживайте пробел или введите текст ниже.</p>
+
+        <div class="history" id="history" aria-live="polite">
+          <p class="history-empty" id="history-empty">История пуста — скажите что-нибудь или нажмите быструю команду.</p>
+        </div>
+
+        <form class="compose" id="compose-form">
+          <input type="text" id="compose-input" placeholder="Сообщение ассистенту…" autocomplete="off" enterkeyhint="send" />
+          <button type="submit" class="btn btn-primary">→</button>
+        </form>
+
+        <div class="controls">
+          <button type="button" class="btn btn-primary" id="btn-listen" aria-pressed="false">Слушать</button>
+          <button type="button" class="btn btn-ghost" id="btn-stop">Стоп</button>
+          <button type="button" class="btn btn-ghost" id="btn-repeat">Ещё раз</button>
+          <button type="button" class="btn btn-ghost" id="btn-speak">Озвучить</button>
+          <button type="button" class="btn btn-ghost" id="btn-copy">Копировать</button>
+          <button type="button" class="btn btn-ghost" id="btn-export">Экспорт</button>
+          <button type="button" class="btn btn-ghost" id="btn-clear">Очистить</button>
         </div>
       </section>
 
+      <aside class="panel" id="main-panel">
+        <div class="card">
+          <h2>Настройки</h2>
+          <div class="toggle-row"><span>Озвучивать ответы</span><input type="checkbox" id="opt-tts" checked /></div>
+          <div class="toggle-row"><span>Звуки фаз</span><input type="checkbox" id="opt-beeps" checked /></div>
+          <div class="toggle-row"><span>Wake «Джарвис»</span><input type="checkbox" id="opt-wake" /></div>
+          <div class="toggle-row"><span>Непрерывное слушание</span><input type="checkbox" id="opt-continuous" /></div>
+          <div class="field"><label><span>Голос TTS</span></label><select id="opt-voice"></select></div>
+          <div class="field"><label><span>Скорость</span> <span id="rate-val">1.0</span></label><input type="range" id="opt-rate" min="0.6" max="1.4" step="0.05" value="1" /></div>
+          <div class="field"><label><span>Тон</span> <span id="pitch-val">1.0</span></label><input type="range" id="opt-pitch" min="0.7" max="1.3" step="0.05" value="1" /></div>
+        </div>
+        <div class="card">
+          <h2>Напоминания</h2>
+          <form id="reminder-form" class="form-stack" style="margin-bottom:10px">
+            <label>Текст</label>
+            <input type="text" id="reminder-text" placeholder="Проверить cms" />
+            <label>Через (минут)</label>
+            <input type="number" id="reminder-mins" min="1" max="720" value="5" />
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;width:100%">Добавить</button>
+          </form>
+          <ul class="reminder-list" id="reminder-list"></ul>
+          <p class="memo-box" id="memo-empty" style="margin:8px 0 0;font-size:0.75rem;color:var(--muted)">Или голосом: «напомни через 10 минут …»</p>
+        </div>
+        <div class="card">
+          <h2>Заметка</h2>
+          <textarea class="memo-edit" id="memo-editor" placeholder="Заметки workspace…"></textarea>
+        </div>
+        <div class="card">
+          <h2>Система</h2>
+          <dl style="margin:0">
+            <div class="stat-row"><dt>STT</dt><dd id="stat-stt">—</dd></div>
+            <div class="stat-row"><dt>TTS</dt><dd id="stat-tts">—</dd></div>
+            <div class="stat-row"><dt>CMS</dt><dd id="stat-cms">—</dd></div>
+            <div class="stat-row"><dt>Сессия</dt><dd id="stat-session">0 запросов</dd></div>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>Журнал</h2>
+          <div class="log" id="log"></div>
+        </div>
+      </aside>
+    </main>
+
+    <section class="hud-windows-section" id="hud-windows-section" aria-label="Окна и дашборды">
+      <div class="windows-section-head">
+        <div>
+          <h2>Окна · дашборды</h2>
+          <p>Плавающие окна — отдельно от основного HUD. Перетаскивание, ресайз, виджеты.</p>
+        </div>
+        <button type="button" class="fab-windows" id="fab-windows" title="Добавить окно">+</button>
+      </div>
       <div class="hud-workspace" id="hud-workspace">
         <div class="hud-workspace-empty">
-          <p>Рабочая область пуста</p>
-          <p style="font-size:0.8125rem">Нажмите <strong>Окна</strong> или «+» — откройте диалог, форму или дашборд</p>
+          <p>Нет открытых окон</p>
+          <p style="font-size:0.8125rem">«Окна» в шапке или «+» — дашборд, Shell, своя страница, копия чата</p>
         </div>
       </div>
-    </main>
+    </section>
 
     <div class="tpl-mount" aria-hidden="true">
       <div id="tpl-chat">
-        <div class="history" id="history" aria-live="polite">
-          <p class="history-empty" id="history-empty">Напишите сообщение ниже или говорите в микрофон.</p>
-        </div>
-        <form class="compose" id="compose-form">
-          <input type="text" id="compose-input" placeholder="Сообщение ассистенту…" autocomplete="off" />
+        <p class="memo-box" style="margin:0 0 8px;font-size:0.75rem;color:var(--muted)">Всплывающая копия. Основной чат — выше.</p>
+        <div class="history" id="float-history" aria-live="polite"></div>
+        <form class="compose" id="float-compose-form">
+          <input type="text" id="float-compose-input" placeholder="Дублировать сообщение…" autocomplete="off" />
           <button type="submit" class="btn btn-primary">→</button>
         </form>
-        <div class="controls" style="margin-top:8px">
-          <button type="button" class="btn btn-ghost" id="btn-copy">Копировать</button>
-          <button type="button" class="btn btn-ghost" id="btn-export">Экспорт</button>
-          <button type="button" class="btn btn-ghost" id="btn-clear">Очистить чат</button>
-        </div>
       </div>
       <div id="tpl-settings">
-        <div class="toggle-row"><span>Озвучивать ответы</span><input type="checkbox" id="opt-tts" checked /></div>
-        <div class="toggle-row"><span>Звуки фаз</span><input type="checkbox" id="opt-beeps" checked /></div>
-        <div class="toggle-row"><span>Wake «Джарвис»</span><input type="checkbox" id="opt-wake" /></div>
-        <div class="toggle-row"><span>Непрерывное слушание</span><input type="checkbox" id="opt-continuous" /></div>
-        <div class="field"><label><span>Голос TTS</span></label><select id="opt-voice"></select></div>
-        <div class="field"><label><span>Скорость</span> <span id="rate-val">1.0</span></label><input type="range" id="opt-rate" min="0.6" max="1.4" step="0.05" value="1" /></div>
-        <div class="field"><label><span>Тон</span> <span id="pitch-val">1.0</span></label><input type="range" id="opt-pitch" min="0.7" max="1.3" step="0.05" value="1" /></div>
+        <p class="memo-box" style="margin:0">Настройки — в правой панели выше.</p>
       </div>
-      <div id="tpl-reminders">
-        <form id="reminder-form" class="form-stack" style="margin-bottom:12px">
-          <label>Текст</label>
-          <input type="text" id="reminder-text" placeholder="Проверить cms" />
-          <label>Через (минут)</label>
-          <input type="number" id="reminder-mins" min="1" max="720" value="5" />
-          <button type="submit" class="btn btn-primary" style="margin-top:10px;width:100%">Добавить</button>
-        </form>
-        <ul class="reminder-list" id="reminder-list"></ul>
-        <p class="memo-box" id="memo-empty" style="margin:8px 0 0;font-size:0.75rem;color:var(--muted)">Или голосом: «напомни через 10 минут …»</p>
-      </div>
-      <div id="tpl-note">
-        <textarea class="memo-edit" id="memo-editor" placeholder="Заметки workspace…"></textarea>
-        <p style="margin:8px 0 0;font-size:0.7rem;color:var(--muted)">Сохраняется автоматически</p>
-      </div>
-      <div id="tpl-system">
-        <dl style="margin:0">
-          <div class="stat-row"><dt>STT</dt><dd id="stat-stt">—</dd></div>
-          <div class="stat-row"><dt>TTS</dt><dd id="stat-tts">—</dd></div>
-          <div class="stat-row"><dt>CMS</dt><dd id="stat-cms">—</dd></div>
-          <div class="stat-row"><dt>Сессия</dt><dd id="stat-session">0 запросов</dd></div>
-        </dl>
-        <div class="log" id="log" style="margin-top:12px;max-height:160px"></div>
-      </div>
+      <div id="tpl-reminders"><p class="memo-box" style="margin:0">Напоминания — в панели выше.</p></div>
+      <div id="tpl-note"><p class="memo-box" style="margin:0">Заметка — в панели выше.</p></div>
+      <div id="tpl-system"><p class="memo-box" style="margin:0">Система и журнал — в панели выше.</p></div>
     </div>
 
     <footer id="footer-hint">
@@ -1144,14 +1230,12 @@
     </footer>
   </div>
 
-  <button type="button" class="fab-windows" id="fab-windows" title="Открыть окно">+</button>
-
   <p class="ambient-hint">Ambient · клик или Esc — вернуть HUD</p>
   <div class="toast-stack" id="toasts" aria-live="polite"></div>
 
   <dialog id="launcher-dialog" class="wide">
     <h3>Окна HUD</h3>
-    <p style="margin:0;font-size:0.8125rem;color:var(--muted)">Выберите, что открыть на рабочей области. Окна можно перетаскивать и менять размер.</p>
+    <p style="margin:0;font-size:0.8125rem;color:var(--muted)">Окна открываются в секции ниже. Перетаскивание за заголовок, ресайз за угол.</p>
     <div class="launcher-grid" id="launcher-grid"></div>
     <form method="dialog" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
       <button type="button" class="btn btn-ghost" id="launcher-reset-layout">Сбросить layout</button>
@@ -1194,10 +1278,14 @@
       <li><kbd>K</kbd> с Ctrl/Cmd — лаунчер окон</li>
       <li>Окна: перетаскивание за заголовок, ресайз за угол</li>
       <li>Голос: «напомни через N минут …», «таймер N минут», «запиши …», «погода»</li>
+      <li>UI Kit: «открой ui kit» · консоль <code>jarvisRenderPanel({…})</code></li>
     </ul>
     <form method="dialog"><button type="submit" class="btn btn-primary">Понятно</button></form>
   </dialog>
 
+  <script src="vendor/markdown-it.min.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="jarvis-ui-samples.js"></script>
   <script>
     (function () {
       const STORAGE_SETTINGS = "jarvis-hud-settings-v1";
@@ -1223,7 +1311,8 @@
         { label: "Помощь", text: "помощь" },
         { label: "Погода", text: "какая погода" },
         { label: "Таймер 3м", text: "таймер 3 минуты" },
-        { label: "Окна", text: "открой окна" }
+        { label: "Окна", text: "открой окна" },
+        { label: "UI Kit", text: "открой ui kit" }
       ];
 
       const $ = (id) => document.getElementById(id);
@@ -1313,14 +1402,165 @@
       let dragState = null;
 
       const WINDOW_CATALOG = {
-        chat: { title: "Диалог", desc: "Чат и ввод текста", w: 380, h: 420, tpl: "tpl-chat" },
+        chat: { title: "Диалог (окно)", desc: "Копия чата внизу", w: 380, h: 420, tpl: "tpl-chat" },
         dashboard: { title: "Дашборд", desc: "Виджеты и статус", w: 420, h: 360, tpl: null, kind: "dashboard" },
         note: { title: "Заметка", desc: "Редактор текста", w: 320, h: 280, tpl: "tpl-note" },
         reminders: { title: "Напоминания", desc: "Форма + список", w: 340, h: 340, tpl: "tpl-reminders" },
         settings: { title: "Настройки", desc: "Голос и поведение", w: 300, h: 380, tpl: "tpl-settings" },
         system: { title: "Система", desc: "STT/TTS/CMS, журнал", w: 300, h: 320, tpl: "tpl-system" },
         shell: { title: "Shell", desc: "Встроенный iframe", w: 480, h: 400, tpl: null, kind: "iframe", url: "shell/index.html" },
-        custom: { title: "Страница", desc: "Свой URL", w: 440, h: 360, tpl: null, kind: "iframe-prompt" }
+        custom: { title: "Страница", desc: "Свой URL", w: 440, h: 360, tpl: null, kind: "iframe-prompt" },
+        "ui-gallery": { title: "UI Kit · галерея", desc: "Формы, графики, MD", w: 720, h: 480, kind: "ui-gallery" },
+        "agent-panel": { title: "Панель агента", desc: "HTML / MD от модели", w: 540, h: 420, kind: "agent-panel" }
+      };
+
+      let agentPanelPayload = null;
+      let mdRenderer = null;
+
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function getMarkdownRenderer() {
+        if (mdRenderer) return mdRenderer;
+        if (typeof window.markdownit === "function") {
+          mdRenderer = window.markdownit({ html: false, linkify: true, breaks: true });
+          return mdRenderer;
+        }
+        return null;
+      }
+
+      function renderPanelContent(target, spec) {
+        if (!target || !spec) return;
+        const kind = spec.kind || "html";
+        const content = spec.content || "";
+        if (kind === "html") {
+          target.innerHTML = content.includes("jui-root") ? content : `<div class="jui-root jui-stack">${content}</div>`;
+          return;
+        }
+        if (kind === "markdown") {
+          const md = getMarkdownRenderer();
+          target.innerHTML = md
+            ? `<div class="jui-root jui-md">${md.render(content)}</div>`
+            : `<div class="jui-root jui-md"><pre>${escapeHtml(content)}</pre></div>`;
+          return;
+        }
+        if (kind === "mermaid") {
+          target.innerHTML = `<div class="jui-root jui-mermaid" id="jui-mmd-host">…</div>`;
+          const host = target.querySelector("#jui-mmd-host");
+          if (window.mermaid && host) {
+            try {
+              window.mermaid.initialize({ theme: "dark", startOnLoad: false, securityLevel: "loose" });
+              const id = "mmd-" + Date.now();
+              window.mermaid.render(id, content).then(({ svg }) => {
+                host.innerHTML = svg;
+              }).catch(() => {
+                host.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
+              });
+            } catch {
+              host.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
+            }
+          } else if (host) host.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
+        }
+      }
+
+      function renderUiGallery(body) {
+        body.innerHTML = "";
+        body.classList.add("ui-gallery-body");
+        const samples = window.JARVIS_UI_SAMPLES || [];
+        const layout = document.createElement("div");
+        layout.className = "ui-gallery-layout";
+        const nav = document.createElement("nav");
+        nav.className = "ui-gallery-nav";
+        const preview = document.createElement("div");
+        preview.className = "ui-gallery-preview";
+        const toolbar = document.createElement("div");
+        toolbar.className = "ui-gallery-toolbar";
+        toolbar.innerHTML =
+          '<span class="jui-badge">jui-*</span>' +
+          '<a href="jarvis-ui-contract.md" target="_blank" rel="noopener">Контракт для агента</a>' +
+          '<button type="button" class="jui-btn ghost" id="gallery-to-panel">В панель агента</button>';
+        preview.appendChild(toolbar);
+        const mount = document.createElement("div");
+        mount.id = "ui-gallery-mount";
+        preview.appendChild(mount);
+
+        let lastSample = samples[0] || null;
+        const byCat = {};
+        for (const s of samples) {
+          const c = s.category || "other";
+          if (!byCat[c]) byCat[c] = [];
+          byCat[c].push(s);
+        }
+        for (const [cat, list] of Object.entries(byCat)) {
+          const h = document.createElement("div");
+          h.className = "cat";
+          h.textContent = cat;
+          nav.appendChild(h);
+          for (const s of list) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = s.title;
+            b.dataset.id = s.id;
+            b.addEventListener("click", () => {
+              nav.querySelectorAll("button").forEach((x) => x.classList.remove("is-active"));
+              b.classList.add("is-active");
+              lastSample = s;
+              renderPanelContent(mount, s);
+            });
+            nav.appendChild(b);
+          }
+        }
+        layout.append(nav, preview);
+        body.appendChild(layout);
+        if (lastSample) {
+          nav.querySelector(`button[data-id="${lastSample.id}"]`)?.classList.add("is-active");
+          renderPanelContent(mount, lastSample);
+        }
+        toolbar.querySelector("#gallery-to-panel")?.addEventListener("click", () => {
+          if (!lastSample) return;
+          window.jarvisRenderPanel({ title: lastSample.title, kind: lastSample.kind, content: lastSample.content });
+        });
+      }
+
+      function renderAgentPanelBody(body, spec) {
+        body.innerHTML = "";
+        body.classList.add("agent-panel-body");
+        const preview = document.createElement("div");
+        preview.className = "ui-gallery-preview";
+        preview.id = "agent-panel-mount";
+        body.appendChild(preview);
+        if (spec) renderPanelContent(preview, spec);
+        else {
+          preview.innerHTML =
+            '<div class="jui-root jui-stack"><div class="jui-alert">Ожидаю данные от агента.</div>' +
+            "<p class=\"jui-hint\">Консоль: <code>jarvisRenderPanel({ title, kind, content })</code> · " +
+            '<a href="jarvis-ui-contract.md" target="_blank" rel="noopener">контракт</a></p></div>';
+        }
+      }
+
+      window.jarvisRenderPanel = function jarvisRenderPanel(opts) {
+        const spec = {
+          title: opts?.title || "Панель агента",
+          kind: opts?.kind || "html",
+          content: opts?.content || ""
+        };
+        agentPanelPayload = spec;
+        const existing = [...openWindows.values()].find((w) => w.type === "agent-panel");
+        if (existing) {
+          existing.el.querySelector(".hud-window-title").textContent = spec.title;
+          renderAgentPanelBody(existing.el.querySelector(".hud-window-body"), spec);
+          focusWindow(existing.el);
+          scrollToWindowsSection();
+          return existing;
+        }
+        const win = openWindow("agent-panel", { force: true, title: spec.title });
+        if (win) renderAgentPanelBody(win.el.querySelector(".hud-window-body"), spec);
+        scrollToWindowsSection();
+        return win;
       };
 
       const isFileProtocol = location.protocol === "file:";
@@ -1368,7 +1608,9 @@
         }, 120);
       }
 
-      const SINGLETON_WINDOWS = new Set(["chat", "dashboard", "note", "reminders", "settings", "system"]);
+      const SINGLETON_WINDOWS = new Set([
+        "chat", "dashboard", "note", "reminders", "settings", "system", "ui-gallery", "agent-panel"
+      ]);
 
       function setupLazyIframe(iframe, url, loadBtn) {
         const safe = String(url || "").trim();
@@ -1534,6 +1776,10 @@
 
         if (meta.kind === "dashboard") {
           renderDashboardBody(body);
+        } else if (meta.kind === "ui-gallery") {
+          renderUiGallery(body);
+        } else if (meta.kind === "agent-panel") {
+          renderAgentPanelBody(body, agentPanelPayload);
         } else if (meta.kind === "iframe" || opts.url) {
           const url = opts.url || meta.url;
           body.classList.add("is-iframe");
@@ -1572,9 +1818,11 @@
           const ed = body.querySelector("#memo-editor");
           if (ed) ed.value = memo;
         }
-        if (type === "chat" && composeInput) {
-          window.setTimeout(() => composeInput.focus(), 100);
+        if (type === "chat") {
+          renderHistory();
+          window.setTimeout(() => body.querySelector("#float-compose-input")?.focus(), 100);
         }
+        if (type === "dashboard") scrollToWindowsSection();
         return record;
       }
 
@@ -1586,8 +1834,6 @@
           layout = [];
         }
         if (!layout.length) {
-          openWindow("chat");
-          openWindow("dashboard");
           return;
         }
         const seen = new Set();
@@ -1607,21 +1853,21 @@
           });
           if (opened?.el && item.minimized) opened.el.classList.add("is-minimized");
         }
-        if (!openWindows.size) {
-          openWindow("chat");
-          openWindow("dashboard");
-        }
+      }
+
+      function scrollToWindowsSection() {
+        document.getElementById("hud-windows-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
       function resetLayout() {
         openWindows.forEach((_, id) => closeWindow(id));
         localStorage.removeItem(STORAGE_WINDOWS);
-        openWindow("chat");
-        openWindow("dashboard");
-        toast("Layout", "Окна сброшены к умолчанию.");
+        scrollToWindowsSection();
+        toast("Layout", "Плавающие окна закрыты.");
       }
 
       function showLauncher() {
+        scrollToWindowsSection();
         launcherGrid.innerHTML = "";
         for (const [key, meta] of Object.entries(WINDOW_CATALOG)) {
           const b = document.createElement("button");
@@ -1629,6 +1875,12 @@
           b.className = "launcher-card";
           b.innerHTML = "<strong>" + meta.title + "</strong><span>" + meta.desc + "</span>";
           b.addEventListener("click", () => {
+            if (key === "settings" || key === "note" || key === "reminders" || key === "system") {
+              document.getElementById("main-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              launcherDialog.close();
+              toast(meta.title, "Смотрите правую панель в основном HUD.");
+              return;
+            }
             openWindow(key);
             launcherDialog.close();
           });
@@ -1917,22 +2169,28 @@
         renderHistory();
       }
 
-      function renderHistory() {
-        historyEl.querySelectorAll(".msg").forEach((n) => n.remove());
+      function fillHistoryContainer(container, emptyEl) {
+        if (!container) return;
+        container.querySelectorAll(".msg").forEach((n) => n.remove());
         if (!chatHistory.length) {
-          historyEmpty.hidden = false;
+          if (emptyEl) emptyEl.hidden = false;
           return;
         }
-        historyEmpty.hidden = true;
+        if (emptyEl) emptyEl.hidden = true;
         for (const m of chatHistory.slice(-12)) {
           const div = document.createElement("div");
           div.className = "msg " + (m.role === "user" ? "user" : "bot");
           const tm = document.createElement("time");
           tm.textContent = new Date(m.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
           div.append(tm, document.createTextNode(m.text));
-          historyEl.appendChild(div);
+          container.appendChild(div);
         }
-        historyEl.scrollTop = historyEl.scrollHeight;
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function renderHistory() {
+        fillHistoryContainer(historyEl, historyEmpty);
+        fillHistoryContainer(document.getElementById("float-history"), null);
       }
 
       function stripWake(text) {
@@ -2018,28 +2276,37 @@
           return memo.trim() ? "Заметка: " + memo.trim().replace(/\n/g, ". ") : "Заметка пуста.";
         }
         if (/открой (окно |)(чат|диалог)/.test(t)) {
-          openWindow("chat");
-          return "Открыл окно диалога.";
+          document.getElementById("compose-input")?.focus();
+          document.querySelector(".core")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return "Основной диалог — вверху страницы.";
         }
         if (/открой (окно |)дашборд|dashboard/.test(t)) {
           openWindow("dashboard");
-          return "Открыл дашборд.";
+          scrollToWindowsSection();
+          return "Открыл дашборд в секции ниже.";
         }
         if (/открой (окно |)заметк|note/.test(t)) {
-          openWindow("note");
-          return "Открыл заметку.";
+          document.getElementById("memo-editor")?.focus();
+          document.getElementById("main-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return "Заметка — в правой панели.";
         }
         if (/открой (окно |)напоминан/.test(t)) {
-          openWindow("reminders");
-          return "Открыл напоминания.";
+          document.getElementById("reminder-text")?.focus();
+          document.getElementById("main-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return "Напоминания — в правой панели.";
         }
         if (/открой (окно |)настрой/.test(t)) {
-          openWindow("settings");
-          return "Открыл настройки.";
+          document.getElementById("main-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return "Настройки — в правой панели.";
         }
         if (/открой окна|лаунчер|меню окон/.test(t)) {
           showLauncher();
           return "Выберите окно на экране.";
+        }
+        if (/ui kit|ui-kit|галерея|формы|график/.test(t)) {
+          openWindow("ui-gallery");
+          scrollToWindowsSection();
+          return "Открыл галерею UI Kit внизу.";
         }
         if (settings.wake && /^(джарvis|jarvis|джарвис)\s*$/i.test(userText.trim())) {
           return "Слушаю вас.";
@@ -2394,11 +2661,10 @@
         openWindows.forEach((w) => clampWindowPosition(w.el));
       });
 
-      const composeFormEl = () => document.getElementById("compose-form");
       document.addEventListener("submit", (e) => {
-        if (e.target === composeFormEl()) {
+        if (e.target.id === "compose-form" || e.target.id === "float-compose-form") {
           e.preventDefault();
-          const input = document.getElementById("compose-input");
+          const input = e.target.querySelector("input[type=text]");
           const v = input?.value.trim();
           if (!v) return;
           input.value = "";
@@ -2459,7 +2725,8 @@
         }
         if (e.key === "m" || e.key === "M") {
           settings.tts = !settings.tts;
-          optTts.checked = settings.tts;
+          const ttsEl = document.getElementById("opt-tts");
+          if (ttsEl) ttsEl.checked = settings.tts;
           saveSettings();
           log(settings.tts ? "TTS вкл" : "TTS mute");
         }
@@ -2471,7 +2738,7 @@
         if (e.key === "r" || e.key === "R") repeatLast();
         if (e.key === "/") {
           e.preventDefault();
-          openWindow("chat");
+          document.querySelector(".core")?.scrollIntoView({ behavior: "smooth", block: "start" });
           document.getElementById("compose-input")?.focus();
         }
         if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
@@ -2510,11 +2777,8 @@
       } catch (err) {
         console.error(err);
         localStorage.removeItem(STORAGE_WINDOWS);
-        openWindow("chat");
-        openWindow("dashboard");
-        toast("HUD", "Layout сброшен из‑за ошибки. Нажмите «Окна».");
+        toast("HUD", "Layout окон сброшен. Секция ниже — плавающие окна.");
       }
-      toast("HUD", "Кнопка «Окна» или + — добавить диалоги и дашборды.");
       updateNetPill();
       window.addEventListener("online", updateNetPill);
       window.addEventListener("offline", () => {

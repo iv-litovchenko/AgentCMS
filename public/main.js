@@ -673,6 +673,9 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   return `${text} МБ`;
 }
 
+const AGENT_GIT_OUT_OF_BATCH_BATCH_ID = "out-of-batch";
+const AGENT_GIT_COMMIT_TEMPLATE_OUT_OF_BATCH_FALLBACK =
+  "[{branch}] Сохранение workspace ({date} {time}) - Unlisted";
 const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
   records: "📝",
   "records-history": "🕓",
@@ -685,7 +688,8 @@ const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
   "design-bim": "🏗️",
   archives: "📦",
   other: "📎",
-  configs: "⚙️"
+  configs: "⚙️",
+  [AGENT_GIT_OUT_OF_BATCH_BATCH_ID]: "❔"
 };
 
 function formatAgentGitCommitBatchDisplayLabel(batch, options = {}) {
@@ -714,7 +718,7 @@ function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
   typeCell.className = "agent-git-extensions-type";
   typeCell.textContent = "Вне списка";
   typeCell.title =
-    "Нет партии для этих файлов — не попадут в коммит по галочкам. Добавьте расширение в integrations или закоммитьте вручную.";
+    "Расширение не входит ни в одну партию. Коммит: «Сохранить изменения» → партия «Вне списка» (лимит как у «Прочее»).";
 
   const extCell = document.createElement("td");
   extCell.className = "agent-git-extensions-cell";
@@ -740,8 +744,10 @@ function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
 
   const limitCell = document.createElement("td");
   limitCell.className = "agent-git-extensions-limit";
-  limitCell.textContent = "—";
-  limitCell.title = "Не коммитится выбранными партиями";
+  limitCell.textContent = formatAgentGitBatchMaxFileSizeLabel(
+    getAgentGitOutOfBatchCommitBatch().maxFileSizeMb
+  );
+  limitCell.title = "Лимит на файл при коммите партией «Вне списка»";
 
   row.append(typeCell, extCell, countCell, limitCell);
   tbody.appendChild(row);
@@ -109777,11 +109783,48 @@ function resolveAgentGitChangeCommitBatch(change, batches = agentGitModuleConfig
   return null;
 }
 
+function isAgentGitOutOfBatchChange(change, batches = agentGitModuleConfig?.commitBatches) {
+  return !resolveAgentGitChangeCommitBatch(change, batches);
+}
+
+function getAgentGitOutOfBatchCommitBatch() {
+  const other = (agentGitModuleConfig?.commitBatches || []).find(
+    (entry) => String(entry?.id || "") === "other"
+  );
+  const maxFileSizeMb = Number(other?.maxFileSizeMb) > 0 ? Number(other.maxFileSizeMb) : 25;
+  return {
+    id: AGENT_GIT_OUT_OF_BATCH_BATCH_ID,
+    emoji: "❔",
+    label: "Вне списка",
+    extensions: [],
+    messageTemplate: AGENT_GIT_COMMIT_TEMPLATE_OUT_OF_BATCH_FALLBACK,
+    maxFileSizeMb
+  };
+}
+
+function agentGitChangeBelongsToCommitBatch(
+  change,
+  batch,
+  batches = agentGitModuleConfig?.commitBatches
+) {
+  const batchId = String(batch?.id || "");
+  if (batchId === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) {
+    return isAgentGitOutOfBatchChange(change, batches);
+  }
+  return resolveAgentGitChangeCommitBatch(change, batches)?.id === batchId;
+}
+
+function countAgentGitOutOfBatchCommittableChanges(changes = []) {
+  return (Array.isArray(changes) ? changes : []).filter(
+    (change) => isAgentGitOutOfBatchChange(change) && change?.commitAllowed !== false
+  ).length;
+}
+
 function countAgentGitChangesForCommitBatch(batch, changes = []) {
   const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    return resolveAgentGitChangeCommitBatch(change)?.id === batchId;
+    return agentGitChangeBelongsToCommitBatch(change, batch);
   }).length;
 }
 
@@ -109862,11 +109905,10 @@ function formatAgentGitByteSizeLabel(bytes) {
 }
 
 function sumAgentGitCommitBatchByteTotal(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   let total = 0;
   for (const change of Array.isArray(changes) ? changes : []) {
     if (change?.commitAllowed === false) continue;
-    if (resolveAgentGitChangeCommitBatch(change)?.id !== batchId) continue;
+    if (!agentGitChangeBelongsToCommitBatch(change, batch)) continue;
     if (change?.kind === "deleted") continue;
     const size = Number(change?.sizeBytes);
     if (Number.isFinite(size) && size > 0) total += size;
@@ -109886,10 +109928,9 @@ function sumAgentGitCommitChangesByteTotal(changes = []) {
 }
 
 function listAgentGitChangesForCommitBatch(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    return resolveAgentGitChangeCommitBatch(change)?.id === batchId;
+    return agentGitChangeBelongsToCommitBatch(change, batch);
   });
 }
 
@@ -110038,6 +110079,7 @@ function agentGitCommitBatchExceedsMaxSize(batch, changes = []) {
 function getAgentGitCommitBatchById(batchId) {
   const id = parseAgentGitCommitBatchOptionId(batchId).batchId;
   if (!id) return null;
+  if (id === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) return getAgentGitOutOfBatchCommitBatch();
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
     ? agentGitModuleConfig.commitBatches
     : [];
@@ -110047,7 +110089,9 @@ function getAgentGitCommitBatchById(batchId) {
 /** Порядок как в integrations.yml; партии с файлами (count > 0) — выше, с 0 — внизу. */
 function listAgentGitCommitBatchesForDisplay(changes = []) {
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches) ? agentGitModuleConfig.commitBatches : [];
-  return batches
+  const outOfBatch = getAgentGitOutOfBatchCommitBatch();
+  const withOutOfBatch = [...batches, outOfBatch];
+  return withOutOfBatch
     .map((batch, index) => ({
       batch,
       index,
@@ -111201,11 +111245,14 @@ async function renderAgentGitView() {
     }
 
     if (agentGitSaveBtn) {
+      const committableTotal = getAgentGitAllStatusChanges(data).filter(
+        (item) => item.commitAllowed !== false
+      ).length;
       const canSave = Boolean(
         data.isRepo &&
           !data.error &&
           (data.counts?.conflict ?? 0) === 0 &&
-          (data.counts?.total ?? 0) > 0
+          committableTotal > 0
       );
       agentGitSaveBtn.disabled = !canSave;
     }
@@ -111274,8 +111321,8 @@ async function renderAgentGitView() {
         if (outOfBatchItems.length) {
           appendAgentGitChangeGroup(changesMount, "Вне списка партий", outOfBatchItems, {
             tone: "out-of-batch",
-            groupHint: "нет партии для этих файлов — не попадут в batched commit",
-            hideRowBlockedReason: true
+            groupHint: "коммит через «Сохранить изменения» → «Вне списка»",
+            hideRowBlockedReason: false
           });
         }
       }

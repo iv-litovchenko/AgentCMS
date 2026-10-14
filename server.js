@@ -16902,7 +16902,11 @@ const {
   saveModuleGitConfig,
   buildGitAuthorFromModuleConfig
 } = require("./lib/git/module-git-config");
-const { loadModuleGitCommitBatchSettings } = require("./lib/git/module-git-commit-batches");
+const {
+  loadModuleGitCommitBatchSettings,
+  buildOutOfBatchCommitBatchDefinition
+} = require("./lib/git/module-git-commit-batches");
+const { MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID } = require("./lib/git/module-git-commit-limits");
 const {
   appendModuleGitLog,
   readModuleGitLog,
@@ -21486,12 +21490,14 @@ async function handleApiForAgent(req, res, url) {
       const requestedBatchIds = Array.isArray(payload?.batchIds)
         ? payload.batchIds.map((id) => String(id || "").trim()).filter(Boolean)
         : [];
-      let batches = commitBatchSettings.batches;
+      const configuredBatches = commitBatchSettings.batches;
+      let batches = configuredBatches;
       if (requestedBatchIds.length) {
         const allowedBatchIds = new Set(
           requestedBatchIds.map((rawId) => parseCommitBatchChunkId(rawId).batchId).filter(Boolean)
         );
-        batches = batches
+        const wantsOutOfBatch = allowedBatchIds.has(MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID);
+        batches = configuredBatches
           .filter((batch) => allowedBatchIds.has(String(batch.id || "")))
           .map((batch) => {
             const rawId =
@@ -21501,6 +21507,16 @@ async function handleApiForAgent(req, res, url) {
             const { chunkIndex } = parseCommitBatchChunkId(rawId);
             return chunkIndex != null ? { ...batch, chunkIndex } : batch;
           });
+        if (wantsOutOfBatch) {
+          const outOfBatchDef = buildOutOfBatchCommitBatchDefinition(configuredBatches);
+          const rawId =
+            requestedBatchIds.find(
+              (entry) =>
+                parseCommitBatchChunkId(entry).batchId === MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID
+            ) || MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID;
+          const { chunkIndex } = parseCommitBatchChunkId(rawId);
+          batches.push(chunkIndex != null ? { ...outOfBatchDef, chunkIndex } : outOfBatchDef);
+        }
       }
       if (!batches.length) {
         return sendJson(res, 400, {
@@ -21519,6 +21535,7 @@ async function handleApiForAgent(req, res, url) {
         time: timePart,
         messageSuffix,
         maxCommitBatchBytes: commitBatchSettings.maxCommitBatchBytes || 0,
+        allCommitBatches: configuredBatches,
         agentRoot
       });
       const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
