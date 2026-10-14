@@ -36,12 +36,9 @@ Desktop.ini
 .idea/
 .vscode/
 
-# Workspace media cloud blobs + provider hard links (registry + .gitkeep stay in git)
-**/awn-media-cloud/_blobs/**
-**/awn-media-cloud/google-drive/*
-!**/awn-media-cloud/google-drive/.gitkeep
-**/awn-media-cloud/yandex-disk/*
-!**/awn-media-cloud/yandex-disk/.gitkeep
+# Workspace media cloud: only registry.json in git
+**/awn-media-cloud/*
+!**/awn-media-cloud/registry.json
 **/awn-google-drive/gd_*
 
 # Cache & temp

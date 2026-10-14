@@ -172,7 +172,7 @@ fields:
           mkv
           avi
         messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Media"
-        maxFileSizeMb: 5
+        maxFileSizeMb: 45
       - id: design-2d
         label: 2D — дизайн
         emoji: "🎨"
