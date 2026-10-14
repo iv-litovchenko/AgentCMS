@@ -8051,7 +8051,7 @@ awn-type: awn.page.ws
           <div>
             <div class="modal-message" id="content-search-dql-title">DQL-lite</div>
             <p class="content-search-advanced-modal-subtitle">
-              FROM / WHERE / WITH TEXT … · подсказки полей из field catalog
+              FROM / WHERE / WITH TEXT · <code>source_kind</code> · <code>@transform {"pick":[],"limit":10}</code> · Obsidian <code>dataview</code> = DQL-lite (не DataviewJS)
             </p>
           </div>
           <button id="content-search-dql-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
@@ -8097,6 +8097,9 @@ awn-type: awn.page.ws
           <label class="content-search-dql-label">Параметр $from (для view)
             <input id="content-search-dql-view-param-from" type="text" class="content-search-dql-field-input" placeholder="awn-databases/…" />
           </label>
+          <label class="content-search-dql-label">Параметр $limit (для view, LIMIT $limit)
+            <input id="content-search-dql-view-param-limit" type="number" min="1" max="500" class="content-search-dql-field-input" placeholder="20" />
+          </label>
           <div class="content-search-dql-views-actions">
             <input id="content-search-dql-view-name" type="text" class="content-search-dql-field-input" placeholder="Имя view" />
             <button type="button" id="content-search-dql-view-save" class="content-search-advanced-btn">Сохранить</button>
@@ -8109,7 +8112,8 @@ awn-type: awn.page.ws
           <button id="content-search-dql-open-dashboard-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Полноэкранный дашборд awn-dashboards">На дашборд</button>
           <div class="content-search-advanced-modal-footer-actions">
             <button id="content-search-dql-cancel-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Отмена</button>
-            <button id="content-search-dql-export-csv-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат последнего DQL как CSV">CSV ↓</button>
+            <button id="content-search-dql-export-csv-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат DQL как CSV">CSV ↓</button>
+            <button id="content-search-dql-export-json-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат DQL как JSON">JSON ↓</button>
             <button id="content-search-dql-run-btn" class="content-search-advanced-btn content-search-advanced-btn--primary" type="button">Выполнить</button>
           </div>
         </div>

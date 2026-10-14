@@ -162,6 +162,9 @@ LIMIT 50
 - [x] **Views `$from`** — `applyDqlParams` + поле в UI Views
 - [x] **Hybrid CSV** — `WITH TEXT` ищет по ячейкам csv-row (`csv-cell`)
 - [x] **dql-chart** — виджет `awn-dashboard-present: dql-chart` + GROUP BY
+- [x] **@transform** в API (строка `@transform` или `payload.transform`)
+- [x] **Scope поиска** — `scopePrefix` / scope chip в шапке + `enforceScope`
+- [x] **Views `$limit`** + **JSON ↓** в модалке DQL
 
 ---
 

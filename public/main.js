@@ -30333,6 +30333,7 @@ const contentSearchDqlViewNameInput = document.getElementById("content-search-dq
 const contentSearchDqlViewSaveBtn = document.getElementById("content-search-dql-view-save");
 const contentSearchDqlViewLoadBtn = document.getElementById("content-search-dql-view-load");
 const contentSearchDqlViewParamFrom = document.getElementById("content-search-dql-view-param-from");
+const contentSearchDqlViewParamLimit = document.getElementById("content-search-dql-view-param-limit");
 const contentSearchDqlViewDeleteBtn = document.getElementById("content-search-dql-view-delete");
 
 function setContentSearchDqlTab(tab) {
@@ -30431,8 +30432,13 @@ async function saveContentSearchDqlView() {
 
 function applyDqlViewParamsClient(dql, params = {}) {
   let out = String(dql || "");
+  if (params.limit != null && params.limit !== "") {
+    const limitNum = Math.min(500, Math.max(1, Math.floor(Number(params.limit) || 50)));
+    out = out.replace(/\bLIMIT\s+\$limit\b/gi, `LIMIT ${limitNum}`);
+  }
   for (const [key, rawValue] of Object.entries(params)) {
     if (rawValue == null || rawValue === "") continue;
+    if (key === "limit") continue;
     const value = String(rawValue);
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     out = out.replace(new RegExp(`\\$${escaped}\\b`, "g"), value);
@@ -30445,7 +30451,13 @@ function loadSelectedContentSearchDqlView() {
   const opt = contentSearchDqlViewsSelect?.selectedOptions?.[0];
   let dql = opt?.dataset?.dql || "";
   const fromParam = contentSearchDqlViewParamFrom?.value?.trim() || "";
-  if (fromParam) dql = applyDqlViewParamsClient(dql, { from: fromParam });
+  const limitParam = contentSearchDqlViewParamLimit?.value?.trim() || "";
+  if (fromParam || limitParam) {
+    dql = applyDqlViewParamsClient(dql, {
+      ...(fromParam ? { from: fromParam } : {}),
+      ...(limitParam ? { limit: limitParam } : {})
+    });
+  }
   if (!dql || !contentSearchDqlInputNode) return;
   contentSearchDqlInputNode.value = dql;
   saveContentSearchDqlDraft(dql);
@@ -32041,13 +32053,26 @@ function mapDqlSearchResults(data, dql) {
   };
 }
 
+function getContentSearchDqlParams() {
+  const params = {};
+  const from = contentSearchDqlViewParamFrom?.value?.trim();
+  const limit = contentSearchDqlViewParamLimit?.value?.trim();
+  if (from) params.from = from;
+  if (limit) params.limit = limit;
+  return params;
+}
+
 async function fetchContentSearchDql(dql, pathPrefix = getContentSearchPathPrefix()) {
+  const scope = pathPrefix ? String(pathPrefix).replace(/\\/g, "/").replace(/^\/+/, "") : "";
   const response = await fetch(buildApiUrl("/api/storage-index/query"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       dql,
-      pathPrefix: pathPrefix || undefined,
+      pathPrefix: scope || undefined,
+      scopePrefix: scope || undefined,
+      enforceScope: Boolean(scope),
+      dqlParams: getContentSearchDqlParams(),
       limit: 100
     })
   });
@@ -135467,28 +135492,37 @@ function openDqlDashboardFromSearchModal() {
   setAgentWorkspaceView("dashboard3", { persistWorkspaceConfig: false });
 }
 
-async function exportContentSearchDqlCsv() {
+async function exportContentSearchDql(format) {
   const dql = String(contentSearchDqlInputNode?.value || "").trim();
   if (!dql) {
     showToast("Введите DQL в вкладке «Текст»", "error");
     return;
   }
+  const scope = getContentSearchPathPrefix();
   const response = await fetch(buildApiUrl("/api/storage-index/query"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dql, format: "csv" })
+    body: JSON.stringify({
+      dql,
+      format,
+      pathPrefix: scope || undefined,
+      scopePrefix: scope || undefined,
+      enforceScope: Boolean(scope),
+      dqlParams: getContentSearchDqlParams()
+    })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
   const content = data.export?.content || "";
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const mime = format === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8";
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `dql-export-${Date.now()}.csv`;
+  link.download = `dql-export-${Date.now()}.${format}`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast("CSV скачан", "success");
+  showToast(`${format.toUpperCase()} скачан`, "success");
 }
 
 contentSearchDqlRunBtnNode?.addEventListener("click", () => {
@@ -135500,7 +135534,10 @@ document.getElementById("content-search-dql-open-dashboard-btn")?.addEventListen
   openDqlDashboardFromSearchModal();
 });
 document.getElementById("content-search-dql-export-csv-btn")?.addEventListener("click", () => {
-  void exportContentSearchDqlCsv().catch((err) => showToast(String(err.message || err), "error"));
+  void exportContentSearchDql("csv").catch((err) => showToast(String(err.message || err), "error"));
+});
+document.getElementById("content-search-dql-export-json-btn")?.addEventListener("click", () => {
+  void exportContentSearchDql("json").catch((err) => showToast(String(err.message || err), "error"));
 });
 contentSearchDqlCancelBtnNode?.addEventListener("click", closeContentSearchDqlModal);
 contentSearchDqlCloseBtnNode?.addEventListener("click", closeContentSearchDqlModal);
