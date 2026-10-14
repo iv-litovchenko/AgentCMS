@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerTocTool } from "./register-toc-tool.js";
 
 const storePath = z
   .string()
@@ -78,8 +79,8 @@ export function registerDatabaseTools(reg, client) {
   const readDatabasesIndexTocDescription =
     "Quick TOC for all database frames: kind, group, path, title, description, recordCount (awn-databases/index.md).";
 
-  registerFrameTool(reg, {
-    name: "read_index_toc",
+  registerTocTool(reg, {
+    canonical: "read_database_frame_index_toc",
     description: readDatabasesIndexTocDescription,
     schema: readDatabasesIndexTocSchema,
     handler: readDatabasesIndexTocHandler
@@ -98,8 +99,8 @@ export function registerDatabaseTools(reg, client) {
       ...(overwrite === false ? { overwrite: false } : {})
     });
 
-  registerFrameTool(reg, {
-    name: "refresh_index_toc",
+  registerTocTool(reg, {
+    canonical: "refresh_database_frame_index_toc",
     description: refreshDatabasesIndexTocDescription,
     schema: refreshDatabasesIndexTocSchema,
     handler: refreshDatabasesIndexTocHandler

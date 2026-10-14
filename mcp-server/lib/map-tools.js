@@ -349,7 +349,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
-    legacy: "get_page_map",
     description:
       "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; topics → read_topic_* / get_content_map.",
     schema: getTopicMapSchema,
@@ -358,7 +357,7 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than get_content_index_toc.",
+    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than read_content_index_toc.",
     z.object({
       path: pagePath,
       slot: z
@@ -395,7 +394,7 @@ export function registerMapTools(reg, client, pagePath) {
     "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.";
 
   registerTocTool(reg, {
-    canonical: "get_content_index_toc",
+    canonical: "read_content_index_toc",
     description: getContentIndexTocDescription,
     schema: getContentIndexTocSchema,
     handler: getContentIndexTocHandler
@@ -435,8 +434,7 @@ export function registerMapTools(reg, client, pagePath) {
     "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
 
   registerTocTool(reg, {
-    canonical: "get_workspace_topic_index_toc",
-    legacy: "get_workspace_page_index_toc",
+    canonical: "read_topic_index_toc",
     description: workspaceTopicIndexTocDescription,
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-page-index")
@@ -453,8 +451,7 @@ export function registerMapTools(reg, client, pagePath) {
     "Refresh (rebuild and save) INDEX.md at workspace root from get_topic_map (path, type, title, description table). overwrite=false skips if file exists.";
 
   registerTocTool(reg, {
-    canonical: "refresh_workspace_topic_index_toc",
-    legacy: "refresh_workspace_page_index_toc",
+    canonical: "refresh_topic_index_toc",
     description: refreshWorkspaceTopicIndexDescription,
     schema: refreshWorkspacePageIndexSchema,
     handler: ({ overwrite }) =>
@@ -464,7 +461,7 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   reg(
-    "get_workspace_wsmap",
+    "read_workspace_wsmap",
     "Metadata for WS-MAP.md: all index.md/INDEX.md paths in workspace (no file body).",
     z.object({}),
     () => client.get("/api/agent/workspace-wsmap")
@@ -517,7 +514,6 @@ export function registerMapTools(reg, client, pagePath) {
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_url",
-    legacy: "get_page_url",
     description:
       "Build a browser URL to open a topic or file in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
     schema: getTopicUrlSchema,

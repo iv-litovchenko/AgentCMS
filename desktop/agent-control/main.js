@@ -121,6 +121,7 @@ const { isPlatformMaintenanceMode } = requireRepo("lib/workspace/workspace-agent
 const { tickServerRuntime } = requireRepo("lib/runtime/server-runtime-tracker");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
+const LAUNCH_AGENT_LABEL = "com.agentcms.https";
 let mainWindow = null;
 const activeTasks = new Map();
 const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "control-dist"]);
@@ -221,6 +222,42 @@ function parsePsElapsedSec(stdout) {
   return null;
 }
 
+function getLaunchAgentPlistPath() {
+  const os = require("os");
+  return path.join(os.homedir(), "Library", "LaunchAgents", `${LAUNCH_AGENT_LABEL}.plist`);
+}
+
+function getLaunchAgentTarget() {
+  const os = require("os");
+  const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().uid;
+  return `gui/${uid}/${LAUNCH_AGENT_LABEL}`;
+}
+
+async function probeLaunchAgentStatus() {
+  if (process.platform !== "darwin") {
+    return { supported: false, enabled: false, loaded: false, plistExists: false, plistPath: null };
+  }
+
+  const { execFile } = require("child_process");
+  const plistPath = getLaunchAgentPlistPath();
+  const plistExists = fs.existsSync(plistPath);
+  const target = getLaunchAgentTarget();
+
+  const loaded = await new Promise((resolve) => {
+    execFile("launchctl", ["print", target], { timeout: 2500 }, (error) => {
+      resolve(!error);
+    });
+  });
+
+  return {
+    supported: true,
+    enabled: plistExists,
+    loaded,
+    plistExists,
+    plistPath
+  };
+}
+
 async function probeServerStatus() {
   const root = getProjectRoot();
   const { getServerPortsPayload } = loadActionsModule();
@@ -282,10 +319,12 @@ async function probeServerStatus() {
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
   const running = cms || voice;
+  const autoStart = await probeLaunchAgentStatus();
   let mode = "off";
 
   if (running) {
     if (attachedServerProcess) mode = "attached";
+    else if (autoStart.loaded) mode = "autostart";
     else if (supervisorAlive) mode = "background";
     else mode = "running";
   }
@@ -321,14 +360,17 @@ async function probeServerStatus() {
     startedAt,
     probedAt,
     runtimeTodayMinutes,
+    autoStart,
     modeLabel:
       mode === "attached"
         ? "пока Control открыт"
-        : mode === "background"
-          ? "в фоне"
-          : running
-            ? "работает"
-            : "остановлен",
+        : mode === "autostart"
+          ? "автостарт"
+          : mode === "background"
+            ? "в фоне"
+            : running
+              ? "работает"
+              : "остановлен",
     urls: {
       cms: cms ? `https://localhost:${ports.editorHttps}` : null,
       voice: voice ? `https://localhost:${ports.voiceHttps}` : null
@@ -421,6 +463,7 @@ function stopAttachedServer() {
 
 function resolveRestartMode(status) {
   if (attachedServerProcess) return "attached";
+  if (status?.autoStart?.enabled || status?.autoStart?.loaded) return "autostart";
   if (status?.supervisorAlive) return "background";
   if (lastServerStartMode) return lastServerStartMode;
   return "background";
@@ -443,6 +486,10 @@ function runShellCommand(command, args) {
 
 async function stopServerCompletely() {
   stopAttachedServer();
+  const autoStart = await probeLaunchAgentStatus();
+  if (autoStart.loaded) {
+    await runShellCommand("bash", ["scripts/agent-https-launchagent.sh", "stop"]);
+  }
   await runShellCommand("bash", ["scripts/agent-https-service.sh", "stop"]);
 
   let status = await probeServerStatus();
@@ -478,7 +525,8 @@ async function restartServer() {
   }
 
   const mode = resolveRestartMode(status);
-  const modeLabel = mode === "attached" ? "пока Control открыт" : "в фоне";
+  const modeLabel =
+    mode === "attached" ? "пока Control открыт" : mode === "autostart" ? "автостарт" : "в фоне";
   sendLog(`\n↻ Перезапуск (${modeLabel})…\n`);
 
   const afterStop = await stopServerCompletely();
@@ -496,6 +544,19 @@ async function restartServer() {
     const result = await startAttachedServer();
     if (result.ok) lastServerStartMode = "attached";
     return result;
+  }
+
+  if (mode === "autostart") {
+    const result = await runShellCommand("bash", ["scripts/agent-https-launchagent.sh", "start"]);
+    if (!result.ok) {
+      return { ok: false, error: "Не удалось перезапустить через LaunchAgent." };
+    }
+    const ready = await waitForServerReady();
+    if (!ready.running) {
+      return { ok: false, error: "Сервер не запустился. Смотрите журнал ниже." };
+    }
+    lastServerStartMode = "autostart";
+    return { ok: true };
   }
 
   return startBackgroundServer();
@@ -635,6 +696,44 @@ async function runAction(actionId) {
     }
   }
 
+  if (action.serverRole === "autostart-enable") {
+    try {
+      sendLog("\n▶ Автостарт: LaunchAgent в ~/Library/LaunchAgents/\n");
+      await runShellCommand("bash", ["scripts/agent-https-service.sh", "stop"]);
+      await sleep(300);
+      const result = await runShellCommand(action.command, action.args);
+      sendActionState({ actionId, running: false });
+      if (!result.ok) {
+        return { ok: false, error: "Не удалось включить автостарт." };
+      }
+      const ready = await waitForServerReady();
+      if (!ready.running) {
+        return { ok: false, error: "Сервер не запустился. Смотрите журнал ниже." };
+      }
+      lastServerStartMode = "autostart";
+      sendLog("\n■ Автостарт включён — сервер поднимется после входа в macOS\n");
+      return { ok: true };
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
+  if (action.serverRole === "autostart-disable") {
+    try {
+      const result = await runShellCommand(action.command, action.args);
+      sendActionState({ actionId, running: false });
+      if (!result.ok) {
+        return { ok: false, error: "Не удалось выключить автостарт." };
+      }
+      sendLog("\n■ Автостарт выключен\n");
+      return { ok: true };
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   if (action.serverRole === "attached") {
     try {
       const result = await startAttachedServer();
@@ -662,6 +761,10 @@ async function runAction(actionId) {
 
   if (action.serverRole === "stop") {
     stopAttachedServer();
+    const autoStart = await probeLaunchAgentStatus();
+    if (autoStart.loaded) {
+      await runShellCommand("bash", ["scripts/agent-https-launchagent.sh", "stop"]);
+    }
   }
 
   return new Promise((resolve) => {

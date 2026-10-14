@@ -53,7 +53,7 @@ export function registerGitModuleTools(reg, client) {
 Say «закоммить записи» → batchIds: ["records"]. «изображения» → ["images"]; if over max batch MB use ["images#1"], then ["images#2"], …
 Omit batchIds to run all parties in config order (one commit per party, skip empty).
 Optional messageSuffix = note under template. Legacy single commit: pass message (and optional extensions) with batched=false.
-Party ids: records, records-history, images, sources, documents, media, design-2d, design-3d, design-bim, archives, other, configs.
+Party ids: records, records-history, images, sources, documents, media, design-2d, design-3d, design-bim, archives, other, configs, out-of-batch (files with no matching party; per-file limit = other party).
 Blocked in mcp-mode=readonly.`,
     z.object({
       batched: z

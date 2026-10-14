@@ -354,6 +354,12 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Входящий поток из WhatsApp"
   },
   {
+    slug: "instagram",
+    icon: "📷",
+    name: "Instagram",
+    hintTitle: "Посты, stories и DM из Instagram. Входящий поток из Instagram до triage"
+  },
+  {
     slug: "web",
     icon: "🌐",
     name: "Интернет",
@@ -372,10 +378,52 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Файлы из загрузок браузера"
   },
   {
+    slug: "rss",
+    icon: "📡",
+    name: "RSS / ленты",
+    hintTitle: "RSS и Atom-ленты, подписки и новые элементы фидов до triage"
+  },
+  {
+    slug: "mailbox",
+    icon: "📧",
+    name: "Почта",
+    hintTitle: "Входящая почта: письма, вложения и уведомления до triage"
+  },
+  {
+    slug: "webhook",
+    icon: "🔗",
+    name: "Webhook",
+    hintTitle: "HTTP webhook и автоматизации (n8n, Zapier, CI, API callbacks) — события в ingress"
+  },
+  {
+    slug: "cloud-inbox",
+    icon: "☁️",
+    name: "Облачный inbox",
+    hintTitle: "Файлы и события из облака: Google Drive, Dropbox, OneDrive и аналоги"
+  },
+  {
     slug: "notebooks",
     icon: "📓",
-    name: "Печатные тетради",
-    hintTitle: "Скан и фото тетрадей, рукописные заметки"
+    name: "Печатные тетради и рукописи",
+    hintTitle: "Скан и фото тетрадей, блокнотов и рукописных записей до triage"
+  },
+  {
+    slug: "ocr",
+    icon: "🔍",
+    name: "OCR",
+    hintTitle: "Сканы и фото документов, распознавание текста до triage"
+  },
+  {
+    slug: "voice",
+    icon: "🎙️",
+    name: "Голос",
+    hintTitle: "STT, аудиозаписи и расшифровки до разбора"
+  },
+  {
+    slug: "clipboard",
+    icon: "📋",
+    name: "Буфер обмена",
+    hintTitle: "Содержимое буфера обмена и быстрые вставки до triage"
   },
   {
     slug: "photo-archive",
@@ -390,6 +438,12 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Фото с телефона до разбора"
   },
   {
+    slug: "news",
+    icon: "📰",
+    name: "Новости",
+    hintTitle: "Новостные ленты, статьи и публикации СМИ до triage"
+  },
+  {
     slug: "analytics",
     icon: "📊",
     name: "Аналитика",
@@ -402,6 +456,13 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Объекты и факты из офлайн-мира"
   },
   {
+    slug: "capabilities",
+    icon: "💡",
+    name: "Поиск фишек для ИИ",
+    hintTitle:
+      "Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage"
+  },
+  {
     slug: "market",
     icon: "🛒",
     name: "Барахолка",
@@ -412,6 +473,42 @@ const CHANNEL_BUILTIN_PRESETS = [
     icon: "📢",
     name: "Объявления",
     hintTitle: "Объявления и информационные публикации"
+  },
+  {
+    slug: "github",
+    icon: "🐙",
+    name: "GitHub",
+    hintTitle: "Issues, pull requests, discussions, Actions и прочие события репозитория"
+  },
+  {
+    slug: "gitlab",
+    icon: "🦊",
+    name: "GitLab",
+    hintTitle: "Merge requests, issues, pipelines и активность проекта в GitLab"
+  },
+  {
+    slug: "bitbucket",
+    icon: "🪣",
+    name: "Bitbucket",
+    hintTitle: "Pull requests, issues и события репозиториев Atlassian Bitbucket"
+  },
+  {
+    slug: "gitea",
+    icon: "🍵",
+    name: "Gitea / Forgejo",
+    hintTitle: "Self-hosted Git: issues и PR из Gitea, Forgejo и совместимых forge"
+  },
+  {
+    slug: "jira",
+    icon: "📋",
+    name: "Jira",
+    hintTitle: "Задачи, спринты, комментарии и изменения статусов из Jira"
+  },
+  {
+    slug: "sentry",
+    icon: "🐛",
+    name: "Sentry",
+    hintTitle: "Ошибки, алерты и события мониторинга из Sentry"
   },
   {
     slug: "notes",
@@ -432,8 +529,183 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Временный вход — не знаю куда деть"
   }
 ];
+/** Базовые группы каталога — синхронны с lib/config/channel-presets.js (CHANNEL_BUILTIN_PRESET_GROUPS) */
+const CHANNEL_BUILTIN_PRESET_GROUPS = [
+  {
+    id: "agent-capabilities",
+    title: "Агент",
+    slugs: ["capabilities"]
+  },
+  {
+    id: "content-modes",
+    title: "Режимы контента",
+    slugs: ["forum", "blog", "digest"]
+  },
+  {
+    id: "messengers-video",
+    title: "Мессенджеры и видео",
+    slugs: ["youtube", "telegram", "whatsapp", "instagram"]
+  },
+  {
+    id: "web-links-files",
+    title: "Веб, ссылки, файлы",
+    slugs: ["web", "bookmarks", "downloads", "rss"]
+  },
+  {
+    id: "mail-automation",
+    title: "Почта и автоматизация",
+    slugs: ["mailbox", "webhook", "cloud-inbox"]
+  },
+  {
+    id: "media-digitization",
+    title: "Медиа и оцифровка",
+    slugs: ["screenshots", "photo-archive", "photo-phone", "notebooks", "ocr", "voice", "clipboard"]
+  },
+  {
+    id: "news-context",
+    title: "Новости и контекст",
+    slugs: ["news", "analytics", "real-world"]
+  },
+  {
+    id: "publications",
+    title: "Публикации и рынок",
+    slugs: ["announcements", "market"]
+  },
+  {
+    id: "development",
+    title: "Разработка",
+    slugs: ["github", "gitlab", "bitbucket", "gitea", "jira", "sentry"]
+  },
+  {
+    id: "drafts",
+    title: "Черновики и прочее",
+    slugs: ["notes", "other"]
+  }
+];
 const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
+const CHANNEL_CUSTOM_ICON_KEY = "_custom";
+
+function groupChannelBuiltinPresets(presets) {
+  const list = Array.isArray(presets) ? presets : CHANNEL_BUILTIN_PRESETS;
+  const bySlug = new Map(list.map((entry) => [entry.slug, entry]));
+  const grouped = [];
+  for (const group of CHANNEL_BUILTIN_PRESET_GROUPS) {
+    const items = (group.slugs || [])
+      .map((slug) => bySlug.get(slug))
+      .filter(Boolean);
+    if (items.length) grouped.push({ ...group, items });
+  }
+  const groupedSlugs = new Set(
+    grouped.flatMap((group) => group.items.map((entry) => entry.slug))
+  );
+  const rest = list.filter((entry) => !groupedSlugs.has(entry.slug));
+  if (rest.length) {
+    grouped.push({ id: "other-ungrouped", title: "Прочее", items: rest });
+  }
+  return grouped;
+}
+
+function getChannelPresetIconSvgMarkup(slug) {
+  const map = typeof CHANNEL_PRESET_ICON_SVG !== "undefined" ? CHANNEL_PRESET_ICON_SVG : null;
+  if (!map) return "";
+  const key = String(slug || "").trim();
+  if (key && map[key]) return String(map[key]).trim();
+  return String(map[CHANNEL_CUSTOM_ICON_KEY] || "").trim();
+}
+
+function resolveChannelBuiltinPreset(slug) {
+  const key = String(slug || "").trim();
+  if (!key) return null;
+  return CHANNEL_BUILTIN_PRESETS.find((entry) => entry.slug === key) || null;
+}
+
+function populateChannelPresetIcon(container, slug, emojiFallback = "📡", { size = 14 } = {}) {
+  const key = String(slug || "").trim();
+  const markup = getChannelPresetIconSvgMarkup(key || CHANNEL_CUSTOM_ICON_KEY);
+  if (!markup) return false;
+  container.replaceChildren();
+  container.insertAdjacentHTML("beforeend", markup);
+  const svg = container.querySelector("svg");
+  const px = Math.max(10, Number(size) || 14);
+  if (svg) {
+    svg.setAttribute("width", String(px));
+    svg.setAttribute("height", String(px));
+    svg.setAttribute("aria-hidden", "true");
+    svg.classList.add("awn-channel-preset-icon-svg");
+  }
+  container.classList.add("awn-channel-preset-icon", "awn-channel-preset-icon--svg");
+  container.classList.remove("awn-channel-preset-icon--emoji");
+  return true;
+}
+
+function syncAwnChannelWorkspaceHeroIcon(block, { manifestPath, hubWorkspaceKind = "media" } = {}) {
+  if (!block) return;
+  const cardHead = block.querySelector(".awn-databases-view-iblock-card-head");
+  if (!cardHead) return;
+  const isChannelHub =
+    hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(manifestPath);
+  let iconWrap = cardHead.querySelector(".awn-channel-workspace-hero-icon-wrap");
+  if (!isChannelHub) {
+    iconWrap?.remove();
+    block.classList.remove("has-awn-channel-hero-icon");
+    return;
+  }
+  const slug = getAwnChannelSlugFromWorkspacePath(manifestPath);
+  const preset = resolveChannelBuiltinPreset(slug);
+  const emoji = preset?.icon || "📡";
+  if (!iconWrap) {
+    iconWrap = document.createElement("div");
+    iconWrap.className = "awn-channel-workspace-hero-icon-wrap";
+    iconWrap.setAttribute("aria-hidden", "true");
+    const iconInner = document.createElement("span");
+    iconInner.className = "awn-channel-workspace-hero-icon";
+    iconWrap.appendChild(iconInner);
+    cardHead.insertBefore(iconWrap, cardHead.firstChild);
+  }
+  const iconInner = iconWrap.querySelector(".awn-channel-workspace-hero-icon");
+  if (!iconInner) return;
+  iconInner.classList.remove("awn-channel-preset-icon--emoji");
+  if (!populateChannelPresetIcon(iconInner, slug, emoji, { size: 28 })) {
+    populateChannelPresetIcon(iconInner, CHANNEL_CUSTOM_ICON_KEY, emoji, { size: 28 });
+  }
+  iconInner.classList.remove("awn-channel-preset-icon--emoji");
+  if (preset?.name || slug) {
+    iconWrap.title = preset?.name || slug;
+  }
+  block.classList.add("has-awn-channel-hero-icon");
+}
+
+function createMenuAwnChannelsGroupDivider(title, { first = false } = {}) {
+  const divider = document.createElement("li");
+  divider.className = "menu-awn-channels-group-divider";
+  if (first) divider.classList.add("menu-awn-channels-group-divider--first");
+  divider.setAttribute("role", "presentation");
+  divider.textContent = title;
+  return divider;
+}
+
+function appendGroupedMenuAwnChannelPresets(parent, presets) {
+  const groups = groupChannelBuiltinPresets(presets);
+  let firstGroup = true;
+  for (const group of groups) {
+    parent.appendChild(createMenuAwnChannelsGroupDivider(group.title, { first: firstGroup }));
+    firstGroup = false;
+    for (const preset of group.items) {
+      parent.appendChild(createMenuAwnChannelRow(preset));
+    }
+  }
+}
+
+function createAwnChannelsCreatePresetGroupLabel(title, { first = false } = {}) {
+  const label = document.createElement("div");
+  label.className = "awn-channels-create-presets-group-label";
+  if (first) label.classList.add("awn-channels-create-presets-group-label--first");
+  label.setAttribute("role", "presentation");
+  label.textContent = title;
+  return label;
+}
 let menuAwnChannelsSearchQuery = "";
+let menuAwnChannelsSearchExpanded = false;
 const MENU_AWN_CHANNELS_FLOW_KEY = "yamlcms.menuAwnChannelsFlow.v1";
 let menuAwnChannelsFlowMode = "ingress-external";
 const appSplashNode = document.getElementById("app-splash");
@@ -673,6 +945,10 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
   return `${text} МБ`;
 }
 
+const AGENT_GIT_OUT_OF_BATCH_BATCH_ID = "out-of-batch";
+const AGENT_GIT_FULL_COMMIT_BATCH_ID = "full";
+const AGENT_GIT_COMMIT_TEMPLATE_OUT_OF_BATCH_FALLBACK =
+  "[{branch}] Сохранение workspace ({date} {time}) - Unlisted";
 const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
   records: "📝",
   "records-history": "🕓",
@@ -685,7 +961,9 @@ const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
   "design-bim": "🏗️",
   archives: "📦",
   other: "📎",
-  configs: "⚙️"
+  configs: "⚙️",
+  [AGENT_GIT_OUT_OF_BATCH_BATCH_ID]: "❔",
+  [AGENT_GIT_FULL_COMMIT_BATCH_ID]: "🌐"
 };
 
 function formatAgentGitCommitBatchDisplayLabel(batch, options = {}) {
@@ -714,7 +992,7 @@ function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
   typeCell.className = "agent-git-extensions-type";
   typeCell.textContent = "Вне списка";
   typeCell.title =
-    "Нет партии для этих файлов — не попадут в коммит по галочкам. Добавьте расширение в integrations или закоммитьте вручную.";
+    "Расширение не входит ни в одну партию. Коммит: «Сохранить изменения» → партия «Вне списка» (лимит как у «Прочее»).";
 
   const extCell = document.createElement("td");
   extCell.className = "agent-git-extensions-cell";
@@ -740,8 +1018,10 @@ function appendAgentGitExtensionsOutOfBatchRow(tbody, statusData) {
 
   const limitCell = document.createElement("td");
   limitCell.className = "agent-git-extensions-limit";
-  limitCell.textContent = "—";
-  limitCell.title = "Не коммитится выбранными партиями";
+  limitCell.textContent = formatAgentGitBatchMaxFileSizeLabel(
+    getAgentGitOutOfBatchCommitBatch().maxFileSizeMb
+  );
+  limitCell.title = "Лимит на файл при коммите партией «Вне списка»";
 
   row.append(typeCell, extCell, countCell, limitCell);
   tbody.appendChild(row);
@@ -1211,6 +1491,7 @@ const menuViewTreeBtn = document.getElementById("menu-view-tree-btn");
 const menuViewFlatBtn = document.getElementById("menu-view-flat-btn");
 const menuViewBookmarksBtn = document.getElementById("menu-view-bookmarks-btn");
 const menuViewCardsBtn = document.getElementById("menu-view-cards-btn");
+const menuTreeBandHelpBtn = document.getElementById("menu-tree-band-help-btn");
 const menuRefreshBtn = document.getElementById("menu-refresh-btn");
 const menuCollapseAllBtn = document.getElementById("menu-collapse-all-btn");
 const menuPinBranchBtn = document.getElementById("menu-pin-branch-btn");
@@ -1534,7 +1815,7 @@ description: Работа с Agent CMS через MCP. Используй при
 | Задача | Tool |
 | ------ | ---- |
 | Меню | \`get_menu\` |
-| Страница | \`read_page_properties\` / \`write_page_properties\` |
+| Страница | \`read_topic_properties\` / \`write_topic_properties\` |
 | Память/контент | \`create_slot_record\` / \`read_slot_record\` |
 | Уведомление | \`notify_user\` |
 
@@ -4984,7 +5265,14 @@ function isTopicManifestFileName(fileName, options = {}) {
 function isTopicManifestPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   if (!isNodeManifestPath(normalized)) return false;
-  if (/^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized.replace(/^\/+/, ""))) return false;
+  if (
+    new RegExp(
+      `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+      "i"
+    ).test(normalized.replace(/^\/+/, ""))
+  ) {
+    return false;
+  }
   if (isAgentRootIndexPath(normalized)) return false;
   if (isAgentContainerRootIndexPath(normalized)) return false;
   if (isAgentSystemRootIndexPath(normalized)) return false;
@@ -5730,6 +6018,38 @@ function buildAdoptFolderMarkdownLink(folderPath, displayLabel) {
   return buildMarkdownLinkFromWorkspaceRel(targetRel, label);
 }
 
+const REPOSITORY_CATALOG_SLUG_PATTERN = "[^/]+(?:/[^/]+)?";
+
+function repositorySlugFromFolderPath(folderPath) {
+  const normalized = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+  const prefix = "awn-repositories/";
+  if (normalized.toLowerCase().startsWith(prefix)) {
+    return normalized.slice(prefix.length);
+  }
+  return normalized.split("/").filter(Boolean).pop() || "";
+}
+
+function parseRepositoryCatalogWorkspaceRel(workspaceRel) {
+  const normalized = String(workspaceRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (isRepositoryIndexRel(normalized)) return null;
+  const match = normalized.match(
+    new RegExp(`^awn-repositories/(${REPOSITORY_CATALOG_SLUG_PATTERN})(?:/manifest\\.md)?$`, "i")
+  );
+  if (!match) return null;
+  const slug = match[1];
+  return {
+    slug,
+    folderPath: `awn-repositories/${slug}`,
+    manifestPath: `awn-repositories/${slug}/manifest.md`
+  };
+}
+
 function isRepositoryWorkspaceRel(workspaceRel) {
   return /^awn-repositories(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
 }
@@ -5747,7 +6067,10 @@ function isRepositoryManifestPath(path = getResolvedNodePath(activePath)) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  return /^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized);
+  return new RegExp(
+    `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+    "i"
+  ).test(normalized);
 }
 
 function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
@@ -5756,7 +6079,10 @@ function isRepositoryFolderPath(path = getResolvedNodePath(activePath)) {
     .replace(/^\/+/, "")
     .trim();
   if (isRepositoryIndexRel(normalized)) return false;
-  return /^awn-repositories\/[^/]+$/i.test(normalized) && !/\.md$/i.test(normalized);
+  return (
+    new RegExp(`^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}$`, "i").test(normalized) &&
+    !/\.md$/i.test(normalized)
+  );
 }
 
 function isRepositoryTypeLabel(typeLabel) {
@@ -6226,6 +6552,7 @@ function populateMediaLibraryWorkspaceIblockCard(block, {
   if (!block) return;
 
   const isChannelHub = hubWorkspaceKind === "channel" || isAwnChannelHubWorkspacePath(manifestPath);
+  syncAwnChannelWorkspaceHeroIcon(block, { manifestPath, hubWorkspaceKind });
   const displayTitle = String(title || (isChannelHub ? "Канал" : "Медиатека")).trim();
   const titleNode = block.querySelector(".awn-databases-view-title");
   if (titleNode) titleNode.textContent = displayTitle;
@@ -6458,12 +6785,9 @@ function getRepositoryFolderPathFromWorkspacePath(path = getResolvedNodePath(act
 
 function resolveRepositoryEntryFromWorkspaceRel(workspaceRel) {
   const normalized = normalizeLinkFilePath(workspaceRel);
-  if (isRepositoryIndexRel(normalized)) return null;
-  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)(?:\/manifest\.md)?$/i);
-  if (!slugMatch) return null;
-  const slug = slugMatch[1];
-  const folderPath = `awn-repositories/${slug}`;
-  const manifestPath = `${folderPath}/manifest.md`;
+  const parsed = parseRepositoryCatalogWorkspaceRel(normalized);
+  if (!parsed) return null;
+  const { slug, folderPath, manifestPath } = parsed;
   const payload = menuRepositoriesLastPayload;
   const registeredRepo = payload?.repositories?.find(
     (repo) => String(repo.slug || "").toLowerCase() === slug.toLowerCase()
@@ -109734,11 +110058,82 @@ function resolveAgentGitChangeCommitBatch(change, batches = agentGitModuleConfig
   return null;
 }
 
+function isAgentGitOutOfBatchChange(change, batches = agentGitModuleConfig?.commitBatches) {
+  return !resolveAgentGitChangeCommitBatch(change, batches);
+}
+
+function getAgentGitOutOfBatchCommitBatch() {
+  const other = (agentGitModuleConfig?.commitBatches || []).find(
+    (entry) => String(entry?.id || "") === "other"
+  );
+  const maxFileSizeMb = Number(other?.maxFileSizeMb) > 0 ? Number(other.maxFileSizeMb) : 25;
+  return {
+    id: AGENT_GIT_OUT_OF_BATCH_BATCH_ID,
+    emoji: "❔",
+    label: "Вне списка",
+    extensions: [],
+    messageTemplate: AGENT_GIT_COMMIT_TEMPLATE_OUT_OF_BATCH_FALLBACK,
+    maxFileSizeMb
+  };
+}
+
+function getAgentGitFullCommitBatch() {
+  return {
+    id: AGENT_GIT_FULL_COMMIT_BATCH_ID,
+    emoji: "🌐",
+    label: "Full — полный коммит",
+    extensions: [],
+    messageTemplate: "[{branch}] Полный коммит ({date} {time})",
+    maxFileSizeMb: 0
+  };
+}
+
+function listAgentGitFullCommitChanges(changes = []) {
+  return (Array.isArray(changes) ? changes : []).filter((change) => change?.commitAllowed !== false);
+}
+
+function buildAgentGitFullCommitModalOption(changes = []) {
+  const batch = getAgentGitFullCommitBatch();
+  const batchChanges = listAgentGitFullCommitChanges(changes);
+  const count = batchChanges.length;
+  const byteTotal = sumAgentGitCommitChangesByteTotal(batchChanges);
+  return {
+    batch,
+    optionId: AGENT_GIT_FULL_COMMIT_BATCH_ID,
+    chunkIndex: null,
+    chunkTotal: 1,
+    count,
+    byteTotal,
+    overLimit: false
+  };
+}
+
+function agentGitChangeBelongsToCommitBatch(
+  change,
+  batch,
+  batches = agentGitModuleConfig?.commitBatches
+) {
+  const batchId = String(batch?.id || "");
+  if (batchId === AGENT_GIT_FULL_COMMIT_BATCH_ID) {
+    return change?.commitAllowed !== false;
+  }
+  if (batchId === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) {
+    return isAgentGitOutOfBatchChange(change, batches);
+  }
+  return resolveAgentGitChangeCommitBatch(change, batches)?.id === batchId;
+}
+
+function countAgentGitOutOfBatchCommittableChanges(changes = []) {
+  return (Array.isArray(changes) ? changes : []).filter(
+    (change) => isAgentGitOutOfBatchChange(change) && change?.commitAllowed !== false
+  ).length;
+}
+
 function countAgentGitChangesForCommitBatch(batch, changes = []) {
   const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    return resolveAgentGitChangeCommitBatch(change)?.id === batchId;
+    return agentGitChangeBelongsToCommitBatch(change, batch);
   }).length;
 }
 
@@ -109819,11 +110214,10 @@ function formatAgentGitByteSizeLabel(bytes) {
 }
 
 function sumAgentGitCommitBatchByteTotal(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   let total = 0;
   for (const change of Array.isArray(changes) ? changes : []) {
     if (change?.commitAllowed === false) continue;
-    if (resolveAgentGitChangeCommitBatch(change)?.id !== batchId) continue;
+    if (!agentGitChangeBelongsToCommitBatch(change, batch)) continue;
     if (change?.kind === "deleted") continue;
     const size = Number(change?.sizeBytes);
     if (Number.isFinite(size) && size > 0) total += size;
@@ -109843,10 +110237,9 @@ function sumAgentGitCommitChangesByteTotal(changes = []) {
 }
 
 function listAgentGitChangesForCommitBatch(batch, changes = []) {
-  const batchId = String(batch?.id || "");
   return (Array.isArray(changes) ? changes : []).filter((change) => {
     if (change?.commitAllowed === false) return false;
-    return resolveAgentGitChangeCommitBatch(change)?.id === batchId;
+    return agentGitChangeBelongsToCommitBatch(change, batch);
   });
 }
 
@@ -109979,7 +110372,7 @@ function buildAgentGitCommitModalBatchOptions(batch, changes = []) {
 
 function listAgentGitCommitModalOptions(changes = []) {
   const batches = listAgentGitCommitBatchesForDisplay(changes);
-  const options = [];
+  const options = [buildAgentGitFullCommitModalOption(changes)];
   for (const batch of batches) {
     options.push(...buildAgentGitCommitModalBatchOptions(batch, changes));
   }
@@ -109995,6 +110388,8 @@ function agentGitCommitBatchExceedsMaxSize(batch, changes = []) {
 function getAgentGitCommitBatchById(batchId) {
   const id = parseAgentGitCommitBatchOptionId(batchId).batchId;
   if (!id) return null;
+  if (id === AGENT_GIT_FULL_COMMIT_BATCH_ID) return getAgentGitFullCommitBatch();
+  if (id === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) return getAgentGitOutOfBatchCommitBatch();
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
     ? agentGitModuleConfig.commitBatches
     : [];
@@ -110004,7 +110399,9 @@ function getAgentGitCommitBatchById(batchId) {
 /** Порядок как в integrations.yml; партии с файлами (count > 0) — выше, с 0 — внизу. */
 function listAgentGitCommitBatchesForDisplay(changes = []) {
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches) ? agentGitModuleConfig.commitBatches : [];
-  return batches
+  const outOfBatch = getAgentGitOutOfBatchCommitBatch();
+  const withOutOfBatch = [...batches, outOfBatch];
+  return withOutOfBatch
     .map((batch, index) => ({
       batch,
       index,
@@ -110210,7 +110607,9 @@ function openAgentGitCommitModal() {
       } else {
         meta.textContent = countLabel;
       }
-      if (overLimit && Number.isFinite(maxBatchMb) && maxBatchMb > 0) {
+      if (String(batch?.id || "") === AGENT_GIT_FULL_COMMIT_BATCH_ID) {
+        option.title = "Один коммит со всеми изменениями (все партии, без лимита суммы)";
+      } else if (overLimit && Number.isFinite(maxBatchMb) && maxBatchMb > 0) {
         option.title = `Сумма файлов больше лимита одного коммита (${maxBatchMb} МБ)`;
       } else if (chunkTotal > 1 && chunkIndex) {
         option.title = `Часть ${chunkIndex} из ${chunkTotal} (лимит ~${maxBatchMb || 250} МБ на коммит)`;
@@ -111158,11 +111557,14 @@ async function renderAgentGitView() {
     }
 
     if (agentGitSaveBtn) {
+      const committableTotal = getAgentGitAllStatusChanges(data).filter(
+        (item) => item.commitAllowed !== false
+      ).length;
       const canSave = Boolean(
         data.isRepo &&
           !data.error &&
           (data.counts?.conflict ?? 0) === 0 &&
-          (data.counts?.total ?? 0) > 0
+          committableTotal > 0
       );
       agentGitSaveBtn.disabled = !canSave;
     }
@@ -111231,8 +111633,8 @@ async function renderAgentGitView() {
         if (outOfBatchItems.length) {
           appendAgentGitChangeGroup(changesMount, "Вне списка партий", outOfBatchItems, {
             tone: "out-of-batch",
-            groupHint: "нет партии для этих файлов — не попадут в batched commit",
-            hideRowBlockedReason: true
+            groupHint: "коммит через «Сохранить изменения» → «Вне списка»",
+            hideRowBlockedReason: false
           });
         }
       }
@@ -117820,35 +118222,78 @@ function getAwnChannelPresetDisplayName(entry) {
   return String(entry?.name || entry?.label || entry?.slug || "").trim();
 }
 
+function getAwnChannelPresetHint(entry) {
+  return String(entry?.hintTitle || entry?.description || "").trim();
+}
+
+function formatChannelPresetHintForList(hint, maxLen = 100) {
+  const text = String(hint || "").trim();
+  if (!text) return "";
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, Math.max(0, maxLen - 1)).trim()}…`;
+}
+
+function resolveMenuAwnChannelAwnId(entry) {
+  const raw = entry?.awnId || entry?.["awn-id"] || "";
+  return normalizeAwnIdDisplayValue(raw);
+}
+
 function menuAwnChannelEntrySearchHaystack(entry) {
-  return [getAwnChannelPresetDisplayName(entry), entry?.slug, entry?.description, entry?.icon]
+  return [
+    getAwnChannelPresetDisplayName(entry),
+    entry?.slug,
+    getAwnChannelPresetHint(entry),
+    resolveMenuAwnChannelAwnId(entry),
+    entry?.description,
+    entry?.icon
+  ]
     .map((value) => String(value || "").trim().toLowerCase())
     .filter(Boolean)
     .join(" ");
 }
 
 function resolveMenuAwnChannelPresets(payload) {
-  const fromApi = Array.isArray(payload?.presets) ? payload.presets : null;
-  if (fromApi?.length) return fromApi;
+  const apiPresets = Array.isArray(payload?.presets) ? payload.presets : [];
+  const apiPresetBySlug = new Map(
+    apiPresets
+      .map((entry) => [String(entry?.slug || "").trim(), entry])
+      .filter(([slug]) => slug)
+  );
   const channels = Array.isArray(payload?.channels) ? payload.channels : [];
   const unregistered = Array.isArray(payload?.unregistered) ? payload.unregistered : [];
   const channelBySlug = new Map(channels.map((entry) => [entry.slug, entry]));
   const unregisteredBySlug = new Map(unregistered.map((entry) => [entry.slug, entry]));
   return CHANNEL_BUILTIN_PRESETS.map((preset) => {
-    const registered = channelBySlug.get(preset.slug);
-    if (registered) return { ...registered, ...preset, builtin: true, preset: true, registered: true };
-    const loose = unregisteredBySlug.get(preset.slug);
-    if (loose) return { ...loose, ...preset, builtin: true, preset: true, registered: false };
-    const folderPath = `awn-channels/${preset.slug}`;
+    const slug = preset.slug;
+    const fromApi = apiPresetBySlug.get(slug);
+    const registeredChannel = channelBySlug.get(slug);
+    if (registeredChannel) {
+      return { ...fromApi, ...registeredChannel, ...preset, builtin: true, preset: true, registered: true };
+    }
+    if (fromApi?.registered === true) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: true, stub: false };
+    }
+    const loose = unregisteredBySlug.get(slug);
+    if (loose) {
+      return { ...fromApi, ...loose, ...preset, builtin: true, preset: true, registered: false };
+    }
+    if (fromApi && fromApi.registered === false && !fromApi.stub) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: false, stub: false };
+    }
+    const folderPath = fromApi?.folderPath || `awn-channels/${slug}`;
     return {
+      ...fromApi,
       ...preset,
       folderPath,
-      manifestPath: `${folderPath}/manifest.md`,
+      manifestPath: fromApi?.manifestPath || `${folderPath}/manifest.md`,
       builtin: true,
       preset: true,
       registered: false,
       stub: true,
-      description: "Заготовка — создайте канал по клику"
+      description:
+        fromApi?.description && !fromApi?.stub
+          ? fromApi.description
+          : "Заготовка — создайте канал по клику"
     };
   });
 }
@@ -117871,14 +118316,30 @@ function filterMenuAwnChannelsPayload(payload, query = menuAwnChannelsSearchQuer
   };
 }
 
-function createMenuAwnChannelKindNode(icon = "📡") {
+function createMenuAwnChannelKindNode(channelLike = "📡") {
+  const slug =
+    channelLike && typeof channelLike === "object" ? String(channelLike.slug || "").trim() : "";
+  const emoji =
+    channelLike && typeof channelLike === "object"
+      ? String(channelLike.icon || "📡")
+      : String(channelLike || "📡");
   const wrap = document.createElement("span");
   wrap.className = "menu-awn-databases-store-kind-wrap";
   wrap.title = "Канал ingress (awn.hub.channel)";
   wrap.setAttribute("aria-hidden", "true");
   const iconNode = document.createElement("span");
   iconNode.className = "menu-awn-databases-store-kind menu-awn-databases-store-kind--channel";
-  iconNode.textContent = icon;
+  const isBuiltinPreset = Boolean(slug && CHANNEL_BUILTIN_SLUGS.has(slug));
+  if (!isBuiltinPreset) {
+    iconNode.classList.add("menu-awn-databases-store-kind--channel-custom");
+  }
+  if (
+    !populateChannelPresetIcon(iconNode, slug, emoji, { size: 15 }) &&
+    !populateChannelPresetIcon(iconNode, CHANNEL_CUSTOM_ICON_KEY, emoji, { size: 15 })
+  ) {
+    iconNode.textContent = emoji;
+    iconNode.classList.add("awn-channel-preset-icon--emoji");
+  }
   wrap.appendChild(iconNode);
   return wrap;
 }
@@ -117894,6 +118355,9 @@ function createMenuAwnChannelRow(channel) {
   row.className = "menu-awn-databases-store menu-awn-channels-item";
   if (isPreset) row.classList.add("menu-awn-channels-item--preset");
   if (isPendingCreate) row.classList.add("menu-awn-channels-item--pending");
+  if (slug && !CHANNEL_BUILTIN_SLUGS.has(slug)) {
+    row.classList.add("menu-awn-channels-item--custom");
+  }
   row.dataset.awnChannelSlug = slug;
   row.dataset.awnChannelLabel = displayName;
   row.dataset.awnChannelFolderPath = folderPath;
@@ -117906,6 +118370,8 @@ function createMenuAwnChannelRow(channel) {
   const nameNode = document.createElement("span");
   nameNode.className = "menu-awn-databases-store-name menu-awn-channels-item-name";
   nameNode.textContent = displayName;
+  const idBadge = createNavBookTocIdBadge(resolveMenuAwnChannelAwnId(channel));
+  if (idBadge) idBadge.classList.add("menu-awn-databases-store-id-badge");
 
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-databases-store-meta";
@@ -117994,7 +118460,12 @@ function createMenuAwnChannelRow(channel) {
     }
   }
 
-  row.append(createMenuAwnChannelKindNode(channel.icon || "📡"), nameNode, metaNode);
+  row.append(
+    createMenuAwnChannelKindNode({ slug, icon: channel.icon || "📡" }),
+    ...(idBadge ? [idBadge] : []),
+    nameNode,
+    metaNode
+  );
   return row;
 }
 
@@ -118060,9 +118531,7 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
     return;
   }
 
-  for (const preset of presets) {
-    menuAwnChannelsListNode.appendChild(createMenuAwnChannelRow(preset));
-  }
+  appendGroupedMenuAwnChannelPresets(menuAwnChannelsListNode, presets);
 
   if (presets.length && userRows.length) {
     const divider = document.createElement("li");
@@ -118235,7 +118704,7 @@ function applyAwnChannelsCreateModalPreset(preset) {
   awnChannelsCreateModalState.mode = "preset";
   if (awnChannelsCreateNameInputNode) awnChannelsCreateNameInputNode.value = name;
   if (awnChannelsCreateDescriptionInputNode) {
-    awnChannelsCreateDescriptionInputNode.value = String(preset.description || "").trim();
+    awnChannelsCreateDescriptionInputNode.value = getAwnChannelPresetHint(preset);
   }
   if (awnChannelsCreateSlugUnlinkBtn) {
     awnChannelsCreateSlugUnlinkBtn.classList.toggle("hidden", true);
@@ -118268,29 +118737,58 @@ function renderAwnChannelsCreateModalPresets() {
     awnChannelsCreatePresetsNode.appendChild(empty);
     return;
   }
-  for (const preset of items) {
-    const label = getAwnChannelPresetDisplayName(preset);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "awn-channels-create-preset-btn";
-    btn.setAttribute("data-awn-channel-preset-slug", preset.slug);
-    btn.setAttribute("role", "option");
-    btn.setAttribute("aria-selected", "false");
-    btn.title = label;
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "awn-channels-create-preset-btn-icon";
-    iconSpan.textContent = preset.icon || "📡";
-    iconSpan.setAttribute("aria-hidden", "true");
-    const labelSpan = document.createElement("span");
-    labelSpan.className = "awn-channels-create-preset-btn-label";
-    labelSpan.textContent = label;
-    const slugSpan = document.createElement("span");
-    slugSpan.className = "awn-channels-create-preset-btn-slug";
-    slugSpan.textContent = preset.slug;
-    slugSpan.setAttribute("aria-hidden", "true");
-    btn.append(iconSpan, labelSpan, slugSpan);
-    btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
-    awnChannelsCreatePresetsNode.appendChild(btn);
+  let firstGroup = true;
+  for (const group of groupChannelBuiltinPresets(items)) {
+    awnChannelsCreatePresetsNode.appendChild(
+      createAwnChannelsCreatePresetGroupLabel(group.title, { first: firstGroup })
+    );
+    firstGroup = false;
+    for (const preset of group.items) {
+      const label = getAwnChannelPresetDisplayName(preset);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "awn-channels-create-preset-btn";
+      btn.setAttribute("data-awn-channel-preset-slug", preset.slug);
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", "false");
+      const hint = getAwnChannelPresetHint(preset);
+      const hintList = formatChannelPresetHintForList(hint, 72);
+      btn.title = hint ? `${label} — ${hint}` : label;
+      btn.setAttribute(
+        "aria-label",
+        hint ? `${label}, ${preset.slug}. ${hint}` : `${label}, ${preset.slug}`
+      );
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "awn-channels-create-preset-btn-icon";
+      if (!populateChannelPresetIcon(iconSpan, preset.slug, preset.icon || "📡", { size: 16 })) {
+        iconSpan.textContent = preset.icon || "📡";
+        iconSpan.classList.add("awn-channel-preset-icon--emoji");
+      }
+      iconSpan.setAttribute("aria-hidden", "true");
+      const bodyNode = document.createElement("span");
+      bodyNode.className = "awn-channels-create-preset-btn-body";
+      const titleRow = document.createElement("span");
+      titleRow.className = "awn-channels-create-preset-btn-title-row";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "awn-channels-create-preset-btn-name";
+      nameSpan.textContent = label;
+      const slugSpan = document.createElement("span");
+      slugSpan.className = "awn-channels-create-preset-btn-slug";
+      slugSpan.textContent = preset.slug;
+      slugSpan.title = `ключ: ${preset.slug}`;
+      slugSpan.setAttribute("aria-hidden", "true");
+      titleRow.append(nameSpan, slugSpan);
+      bodyNode.appendChild(titleRow);
+      if (hintList) {
+        const hintSpan = document.createElement("span");
+        hintSpan.className = "awn-channels-create-preset-btn-hint";
+        hintSpan.textContent = hintList;
+        bodyNode.appendChild(hintSpan);
+      }
+      btn.append(iconSpan, bodyNode);
+      btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
+      awnChannelsCreatePresetsNode.appendChild(btn);
+    }
   }
   syncAwnChannelsCreateModalPresetUi();
 }
@@ -118421,12 +118919,14 @@ function promptCreateMenuAwnChannel() {
 }
 
 function syncMenuAwnChannelsSearchBtnUi() {
-  if (!menuAwnChannelsSearchBtn) return;
   const hasQuery = Boolean(String(menuAwnChannelsSearchQuery || "").trim());
   const focused = document.activeElement === menuAwnChannelsSearchInputNode;
-  const active = hasQuery || focused;
-  menuAwnChannelsSearchBtn.classList.toggle("is-active", active);
-  menuAwnChannelsSearchBtn.setAttribute("aria-pressed", active ? "true" : "false");
+  const searchOpen = hasQuery || focused || menuAwnChannelsSearchExpanded;
+  const toolbar = menuAwnChannelsBandBodyNode?.querySelector(".menu-awn-channels-toolbar");
+  toolbar?.classList.toggle("is-search-open", searchOpen);
+  if (!menuAwnChannelsSearchBtn) return;
+  menuAwnChannelsSearchBtn.classList.toggle("is-active", searchOpen);
+  menuAwnChannelsSearchBtn.setAttribute("aria-pressed", searchOpen ? "true" : "false");
 }
 
 function focusMenuAwnChannelsSearch() {
@@ -118463,10 +118963,27 @@ function setupMenuAwnChannelsUi() {
   menuAwnChannelsSearchBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
+    const toolbar = menuAwnChannelsBandBodyNode?.querySelector(".menu-awn-channels-toolbar");
+    const isOpen = toolbar?.classList.contains("is-search-open");
+    if (isOpen && !String(menuAwnChannelsSearchQuery || "").trim()) {
+      menuAwnChannelsSearchExpanded = false;
+      menuAwnChannelsSearchInputNode?.blur();
+      syncMenuAwnChannelsSearchBtnUi();
+      return;
+    }
+    menuAwnChannelsSearchExpanded = true;
     focusMenuAwnChannelsSearch();
   });
   menuAwnChannelsSearchInputNode?.addEventListener("focus", syncMenuAwnChannelsSearchBtnUi);
-  menuAwnChannelsSearchInputNode?.addEventListener("blur", syncMenuAwnChannelsSearchBtnUi);
+  menuAwnChannelsSearchInputNode?.addEventListener("blur", () => {
+    window.requestAnimationFrame(() => {
+      if (!String(menuAwnChannelsSearchQuery || "").trim()) {
+        menuAwnChannelsSearchExpanded = false;
+      }
+      syncMenuAwnChannelsSearchBtnUi();
+    });
+  });
+  syncMenuAwnChannelsSearchBtnUi();
   awnChannelsCreatePresetsSearchInputNode?.addEventListener("input", (event) => {
     awnChannelsCreatePresetsSearchQuery = String(event.target.value || "");
     renderAwnChannelsCreateModalPresets();
@@ -118548,6 +119065,7 @@ function setupMenuTreeBandGroup() {
   menuTreeBandToggleBtn?.addEventListener("click", () => {
     toggleMenuTreeBandExpanded();
   });
+  wireMenuBandHelpButton(menuTreeBandHelpBtn);
   menuRefreshBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     void refreshMenuTree();
@@ -127801,8 +128319,8 @@ function resolveRepositoryEntryForManifestPath(manifestPath) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .trim();
-  const slugMatch = normalized.match(/^awn-repositories\/([^/]+)\/manifest\.md$/i);
-  const slug = slugMatch?.[1] || "";
+  const parsed = parseRepositoryCatalogWorkspaceRel(normalized);
+  const slug = parsed?.slug || "";
   const cached = menuRepositoriesLastPayload?.repositories?.find(
     (repo) =>
       String(repo.slug || "").toLowerCase() === slug.toLowerCase() ||
@@ -127991,8 +128509,9 @@ function resolveMenuRepositoryAwnId(entry) {
 }
 
 function createMenuRepositoryRowBody(entry) {
-  const name = String(entry.name || entry.slug || "Репозиторий").trim();
   const slug = String(entry.slug || "").trim();
+  const pathKey = slug || repositorySlugFromFolderPath(entry.folderPath);
+  const name = String(entry.name || pathKey || "Репозиторий").trim();
   const body = document.createElement("span");
   body.className = "menu-repository-body";
 
