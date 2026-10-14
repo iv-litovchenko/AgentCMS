@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, dialog } = electron;
+const { app, BrowserWindow, dialog, screen } = electron;
 const path = require("path");
 const { getAppIcon } = require("./icon");
 const { getProjectRoot, getCommanderBaseUrl, hasCommanderPublic, commanderIndexPath } = require("./config");
@@ -30,16 +30,27 @@ async function ensureServer() {
   return serverInfo;
 }
 
+function showFullWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  if (!win.isMaximized()) win.maximize();
+  win.show();
+  win.focus();
+}
+
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
+    showFullWindow(mainWindow);
     return mainWindow;
   }
 
+  const { workArea } = screen.getPrimaryDisplay();
+
   mainWindow = new BrowserWindow({
-    width: 720,
-    height: 560,
+    x: workArea.x,
+    y: workArea.y,
+    width: workArea.width,
+    height: workArea.height,
+    show: false,
     minWidth: 420,
     minHeight: 360,
     title: "Agent CMS Commander",
@@ -51,6 +62,8 @@ function createWindow() {
       sandbox: true
     }
   });
+
+  mainWindow.once("ready-to-show", () => showFullWindow(mainWindow));
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -92,6 +105,6 @@ app.on("before-quit", () => {
 });
 
 app.on("activate", () => {
-  if (mainWindow) mainWindow.show();
+  if (mainWindow) showFullWindow(mainWindow);
   else loadUi().catch((error) => console.error(error));
 });
