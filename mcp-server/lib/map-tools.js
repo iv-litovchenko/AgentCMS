@@ -163,6 +163,12 @@ function registerSearchWorkspaceTools(reg, client) {
     "query_workspace_storage",
     "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({
+      dql: z
+        .string()
+        .optional()
+        .describe(
+          'DQL-lite string, e.g. FROM "awn-container/finansy" WHERE awn-type = "awn.page.topic" SORT path ASC LIMIT 50'
+        ),
       pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
       where: z
         .array(

@@ -381,9 +381,9 @@ fields:
     type: awn.field.boolean
     title: Каталог полей в SQLite
     description: >
-      Дополнительно писать catalog.sqlite при пересборке (для будущих SQL-запросов).
-      Выключено по умолчанию — быстрее; JSON-индекс всегда сохраняется.
-    default: false
+      Дополнительно писать catalog.sqlite при пересборке (DQL-lite и SQL-подобные запросы).
+      JSON-индекс всегда сохраняется; при DQL возможен on-demand sync.
+    default: true
     group: indexing
     sort: 28
 

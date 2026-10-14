@@ -250,6 +250,25 @@
 
 ---
 
+## 8.1 DQL-lite (storage-index)
+
+Каталог frontmatter workspace (`.agent-cms/cache/indexes/storage/`). Запросы — **не raw SQL**, а строка **DQL** или legacy JSON.
+
+| Канал | Вызов |
+|-------|--------|
+| MCP | `query_workspace_storage({ agentId, dql: "..." })` |
+| REST | `POST /api/storage-index/query` body `{ "dql": "..." }` |
+| Пресет | `registry-queries.yml` → `source: dql`, поле `dql:` → `run_workspace_registry_query` |
+| Preview | fenced `` ```awn-query `` `` / `` ```dataview `` `` → `dql-table.js` |
+
+**Синтаксис (v1):** `FROM path/prefix` · `WHERE` (AND/OR/скобки, `=`, `!=`, `CONTAINS`, сравнения, `field LAST N DAYS`) · `FLATTEN field` · `GROUP BY field COUNT|SUM|MIN|MAX` · `SORT f DESC, g ASC` · `LIMIT n` · `SELECT a, b`.
+
+**Поля:** frontmatter + виртуальные `file.name`, `file.folder`, `file.mtime`, `file.size`, `file.inlink-count`, `file.outlinks` / `file.inlinks` (link-index, memory). Ответ: `mode: dql-query` или `dql-group`, `engine: sqlite|memory`.
+
+Пересборка: `rebuild_workspace_storage_index`. SQLite: `index-storage-sqlite-enabled` (default on).
+
+---
+
 ## 9. Настройки и типы
 
 ### Настройки — 4 независимых scope (не merge)

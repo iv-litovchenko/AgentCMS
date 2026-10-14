@@ -47,4 +47,9 @@ Desktop.ini
 .run/
 tmp/
 temp/
+voice-test/.venv/
+voice-test/.venv-chatterbox/
+voice-test/models/*.onnx
+voice-test/models/*.bin
+voice-test/models/kokoro-ru/
 *.tmp

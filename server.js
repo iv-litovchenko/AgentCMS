@@ -22953,7 +22953,7 @@ async function handleApiForAgent(req, res, url) {
       const platformSettings = await getPlatformSettings(getProjectRoot());
       const catalog = await loadRegistryQueriesCatalog(agentRoot);
       const entry = catalog.queries.find((q) => q.id === registryId);
-      if (entry?.source === "storage-index") {
+      if (entry?.source === "storage-index" || entry?.source === "dql") {
         const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
         if (disabled) return sendJson(res, disabled.status, disabled.body);
       }
@@ -30640,6 +30640,10 @@ async function readPlatformGlobalDocPayload(fileName = "") {
 }
 
 async function handleApi(req, res, url) {
+  if (await require("./lib/voice/voice-test-cms").tryHandleApi(req, res, url, sendJson)) {
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/platform/global-doc") {
     const fileName = url.searchParams.get("file") || "";
     try {
@@ -31953,6 +31957,17 @@ function createRequestHandler() {
         return;
       }
       await serveVoiceShellHtml(res);
+      return;
+    }
+
+    if (url.pathname === "/voice-test") {
+      res.writeHead(302, { Location: "/voice-test/" });
+      res.end();
+      return;
+    }
+    const voiceTestCms = require("./lib/voice/voice-test-cms");
+    if (voiceTestCms.isVoiceTestPagePath(url.pathname)) {
+      await voiceTestCms.serveVoiceTestPage(res, url.pathname);
       return;
     }
 

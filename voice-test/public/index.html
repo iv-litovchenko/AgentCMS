@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>voice-test — Edge · Kokoro · Chatterbox</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>voice-test</h1>
+      <p class="lead">
+        Пробная озвучка: Microsoft Edge TTS (облако), Kokoro и Chatterbox (локально через Python).
+      </p>
+
+      <div class="shared-text">
+        <label for="text">Текст для всех движков</label>
+        <textarea id="text" spellcheck="true">
+Привет! Это тест озвучки Agent CMS. Edge — облачный голос Microsoft, Kokoro и Chatterbox — локальные нейромодели.</textarea
+        >
+        <div class="actions" style="margin-top: 0.75rem">
+          <button type="button" class="secondary" id="btn-all">Озвучить всеми доступными</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article class="card" data-engine="edge">
+          <h2>
+            Microsoft Edge
+            <span class="badge" data-on="0" id="badge-edge">…</span>
+          </h2>
+          <p class="hint" id="hint-edge"></p>
+          <div>
+            <label for="edge-voice">Голос</label>
+            <select id="edge-voice">
+              <option value="ru-RU-SvetlanaNeural">Svetlana (ru-RU)</option>
+              <option value="ru-RU-DmitryNeural">Dmitry (ru-RU)</option>
+              <option value="en-US-JennyNeural">Jenny (en-US)</option>
+              <option value="en-US-GuyNeural">Guy (en-US)</option>
+            </select>
+          </div>
+          <div>
+            <label for="edge-rate">Скорость (1 = норма)</label>
+            <input id="edge-rate" type="text" value="1" inputmode="decimal" />
+          </div>
+          <button type="button" id="btn-edge">Озвучить Edge</button>
+          <p class="status-line" id="status-edge"></p>
+          <audio id="audio-edge" controls preload="none" playsinline></audio>
+        </article>
+
+        <article class="card" data-engine="kokoro">
+          <h2>
+            Kokoro
+            <span class="badge" data-on="0" id="badge-kokoro">…</span>
+          </h2>
+          <p class="hint" id="hint-kokoro"></p>
+          <div>
+            <label for="kokoro-lang-select">Язык</label>
+            <select id="kokoro-lang-select">
+              <option value="en-us">English (US)</option>
+              <option value="en-gb">English (UK)</option>
+              <option value="es">Español</option>
+              <option value="fr-fr">Français</option>
+              <option value="ja">日本語</option>
+              <option value="zh">中文</option>
+              <option value="hi">हिन्दी</option>
+              <option value="it">Italiano</option>
+              <option value="pt-br">Português (BR)</option>
+              <option value="ru">Русский (Sveta / Masha / Dima)</option>
+            </select>
+          </div>
+          <div>
+            <label for="kokoro-voice">Голос</label>
+            <select id="kokoro-voice"></select>
+          </div>
+          <button type="button" class="secondary" id="btn-kokoro-sample" style="align-self: flex-start">
+            Подставить пример текста
+          </button>
+          <button type="button" id="btn-kokoro">Озвучить Kokoro</button>
+          <p class="status-line" id="status-kokoro"></p>
+          <audio id="audio-kokoro" controls preload="none" playsinline></audio>
+        </article>
+
+        <article class="card" data-engine="chatterbox">
+          <h2>
+            Chatterbox
+            <span class="badge" data-on="0" id="badge-chatterbox">…</span>
+          </h2>
+          <p class="hint" id="hint-chatterbox"></p>
+          <p class="hint">Лучше короткие фразы на английском; первый запуск грузит модель.</p>
+          <button type="button" id="btn-chatterbox">Озвучить Chatterbox</button>
+          <p class="status-line" id="status-chatterbox"></p>
+          <audio id="audio-chatterbox" controls preload="none"></audio>
+        </article>
+      </div>
+
+      <footer>
+        <code>npm run voice:test</code> → <code>http://127.0.0.1:3099/</code> · или
+        <code>npm start</code> → <code>/voice-test/</code>
+      </footer>
+    </div>
+    <script type="module" src="app.js?v=2"></script>
+  </body>
+</html>

@@ -151,4 +151,14 @@ queries:
         field: awn-create
         dir: desc
       limit: 100
+  - id: finansy-topics-dql
+    name: Темы finansy (DQL)
+    comment: Пример source dql для дашбордов и MCP.
+    source: dql
+    dql: |
+      FROM awn-container/finansy
+      WHERE awn-type = "awn.page.topic"
+      SORT path ASC
+      LIMIT 50
+      SELECT path, awn-name, awn-description
 
