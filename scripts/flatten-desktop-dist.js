@@ -8,7 +8,9 @@ const path = require("path");
 
 const product = process.argv[2];
 if (!product) {
-  console.error("Usage: node scripts/flatten-desktop-dist.js <agent-cms|agent-shell|agent-control>");
+  console.error(
+    "Usage: node scripts/flatten-desktop-dist.js <agent-cms|agent-shell|agent-control|agent-commander>"
+  );
   process.exit(1);
 }
 

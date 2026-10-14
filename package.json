@@ -29,6 +29,11 @@
     "control:pack": "node scripts/build-desktop-subapp.js agent-control pack && node scripts/flatten-desktop-dist.js agent-control",
     "control:dist": "node scripts/build-desktop-subapp.js agent-control dist && node scripts/flatten-desktop-dist.js agent-control",
     "control:open": "open \"dist/agent-control/Agent CMS Control.app\"",
+    "commander:start": "node commander-server.js",
+    "commander:desktop": "electron ./desktop/agent-commander",
+    "commander:pack": "node scripts/build-desktop-subapp.js agent-commander pack && node scripts/flatten-desktop-dist.js agent-commander",
+    "commander:dist": "node scripts/build-desktop-subapp.js agent-commander dist && node scripts/flatten-desktop-dist.js agent-commander",
+    "commander:open": "open \"dist/agent-commander/Agent CMS Commander.app\"",
     "shell:icons": "node scripts/render-app-icons.js",
     "dist:clean": "rm -rf dist",
     "dist:migrate": "node scripts/migrate-dist-layout.js"

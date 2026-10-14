@@ -124,7 +124,7 @@ const REPO_ROOT = path.join(__dirname, "..", "..");
 const LAUNCH_AGENT_LABEL = "com.agentcms.https";
 let mainWindow = null;
 const activeTasks = new Map();
-const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "control-dist"]);
+const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "commander-rebuild", "control-dist"]);
 let attachedServerProcess = null;
 let lastServerStartMode = null;
 

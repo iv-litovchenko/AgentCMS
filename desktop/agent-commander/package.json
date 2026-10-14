@@ -1,0 +1,53 @@
+{
+  "name": "agent-commander-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent CMS Commander — управление компьютером",
+  "author": "Agent CMS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentcms.commander",
+    "productName": "Agent CMS Commander",
+    "icon": "assets/icon.png",
+    "directories": {
+      "output": "../../dist/agent-commander"
+    },
+    "files": [
+      "main.js",
+      "config.js",
+      "server.js",
+      "icon.js",
+      "ports-resolve.js",
+      "assets/**/*",
+      "public/**/*",
+      "package.json",
+      {
+        "from": "../../lib/config",
+        "to": "lib/config",
+        "filter": ["agent-cms-ports.js"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "assets/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": ["nsis"]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": ["AppImage"]
+    }
+  }
+}

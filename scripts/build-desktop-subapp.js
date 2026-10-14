@@ -8,9 +8,11 @@ const path = require("path");
 
 const subapp = process.argv[2];
 const mode = process.argv[3] === "pack" ? "pack" : "dist";
-const allowed = new Set(["agent-shell", "agent-control"]);
+const allowed = new Set(["agent-shell", "agent-control", "agent-commander"]);
 if (!allowed.has(subapp)) {
-  console.error("Usage: node scripts/build-desktop-subapp.js <agent-shell|agent-control> [pack|dist]");
+  console.error(
+    "Usage: node scripts/build-desktop-subapp.js <agent-shell|agent-control|agent-commander> [pack|dist]"
+  );
   process.exit(1);
 }
 

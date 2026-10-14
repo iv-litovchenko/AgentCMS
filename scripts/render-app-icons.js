@@ -28,6 +28,11 @@ const brands = [
     name: "Agent CMS Control",
     svgPath: path.join(repoRoot, "desktop/agent-control/assets/favicon.svg"),
     targets: [[1024, path.join(repoRoot, "desktop/agent-control/assets/icon.png")]]
+  },
+  {
+    name: "Agent CMS Commander",
+    svgPath: path.join(repoRoot, "desktop/agent-control/assets/commander.svg"),
+    targets: [[1024, path.join(repoRoot, "desktop/agent-commander/assets/icon.png")]]
   }
 ];
 
