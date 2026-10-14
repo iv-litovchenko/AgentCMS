@@ -87,6 +87,22 @@
 
 **Порядок в коде (✅):** как в `channel-presets.js` (не как в дереве); при ❌→✅ — выровнять порядок в JS с продуктом.
 
+**Пока достаточно:** расширять каталог только при отдельном коннекторе или triage; редкое → `other` / `web` / `rss` / `mailbox`. Ниже — памятка «что ещё бывает», не план на сейчас.
+
+```
+Возможные пробелы (❌ = без пресета; не в коде)
+├── 💬 Discord · Slack/Teams · Matrix/Signal · VK/X/LinkedIn/TikTok/Reddit
+├── 🧩 companion · watch-folder (Inbox на диске)
+├── 📓 Notion · Obsidian · Keep · Readwise
+├── 🎙️ Meet/Zoom/Teams — транскрипты (рядом с voice)
+├── 📧 newsletters · support-тикеты (рядом с mailbox)
+├── 🎨 Figma · Miro
+├── 📰 Substack · Patreon (частично rss)
+├── 🤖 export LLM/IDE · cron→ingress (рядом digest/webhook/capabilities)
+├── 🛒 wishlist · отзывы в сторах
+└── 🌍 часы · QR/NFC (рядом real-world / photo-phone)
+```
+
 ---
 
 
