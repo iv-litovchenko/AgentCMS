@@ -36,11 +36,6 @@ Desktop.ini
 .idea/
 .vscode/
 
-# Workspace media cloud: only registry.json in git
-**/awn-media-cloud/*
-!**/awn-media-cloud/registry.json
-**/awn-google-drive/gd_*
-
 # Cache & temp
 .cache/
 # Workspace runtime
