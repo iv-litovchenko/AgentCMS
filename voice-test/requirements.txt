@@ -1,8 +1,0 @@
-# Edge TTS (обязательно для озвучки — npm-пакет сейчас часто получает 403 от Microsoft)
-edge-tts>=7.3.0
-# Опционально — Kokoro и Chatterbox
-kokoro-onnx>=0.4.0
-soundfile>=0.12.0
-numpy>=1.24.0
-# Resemble Chatterbox (тяжёлая модель, нужен torch)
-chatterbox-tts>=0.1.0
