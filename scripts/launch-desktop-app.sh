@@ -13,6 +13,10 @@ SHELL_APP="$ROOT/dist/agent-shell/Agent Shell.app"
 
 launch_check_deps
 
+# electron-builder пересобирает better-sqlite3 через node-gyp (нужен Python ≤3.12 / distutils)
+# shellcheck source=ensure-node-gyp-python.sh
+source "$ROOT/scripts/ensure-node-gyp-python.sh"
+
 case "$APP" in
   cms)
     # pack (--dir): только .app для локального запуска; dist (DMG/ZIP) — npm run cms:dist вручную
@@ -32,6 +36,15 @@ case "$APP" in
     exit 1
     ;;
 esac
+
+if [[ "$MODE" == "rebuild" ]] || [[ ! -d "$APP_PATH" ]]; then
+  if [[ "$APP" == "cms" ]]; then
+    ensure_node_gyp_python || {
+      echo "Python для сборки Editor не найден. В Control: «Установить зависимости»."
+      exit 1
+    }
+  fi
+fi
 
 if [[ "$MODE" == "rebuild" ]]; then
   echo "Сборка $LABEL..."
