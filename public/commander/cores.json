@@ -1,5 +1,10 @@
 [
   {
+    "id": "jarvis-v1",
+    "file": "jarvis-v1/index.html",
+    "label": "JARVIS v1"
+  },
+  {
     "id": "composer",
     "file": "composer-2.5.html",
     "label": "Composer 2.5"

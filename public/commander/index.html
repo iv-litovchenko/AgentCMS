@@ -189,6 +189,14 @@
       border-color: rgba(248, 113, 113, 0.35);
     }
 
+    .jarvis-item[data-id="jarvis-v1"] {
+      border-color: rgba(94, 234, 212, 0.22);
+    }
+
+    .jarvis-item[data-id="jarvis-v1"] .label {
+      color: var(--mint);
+    }
+
     .jarvis-item.is-struck[aria-selected="true"] {
       color: #fca5a5;
       border-color: rgba(248, 113, 113, 0.5);
@@ -332,6 +340,7 @@
   </div>
   <script>
     const JARVIS_FALLBACK = [
+      { id: 'jarvis-v1', file: 'jarvis-v1/index.html', label: 'JARVIS v1' },
       { id: 'composer', file: 'composer-2.5.html', label: 'Composer 2.5' },
       { id: 'grok', file: 'grok-4.7.html', label: 'Grok 4.7' },
       { id: 'sonnet', file: 'claude-sonnet-5.5.html', label: 'Claude Sonnet 5.5' },
@@ -417,8 +426,11 @@
 
     function renderList() {
       coreList.replaceChildren();
+      const pinned = JARVIS.filter((j) => j.id === 'jarvis-v1');
+      const rest = JARVIS.filter((j) => j.id !== 'jarvis-v1');
+      const ordered = pinned.concat(rest);
       coreCount.textContent = JARVIS.length + ' ядер';
-      JARVIS.forEach((j) => {
+      ordered.forEach((j) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'jarvis-item' + (STRUCK_IDS.has(j.id) ? ' is-struck' : '');
