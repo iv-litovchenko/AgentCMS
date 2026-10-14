@@ -139,17 +139,36 @@ stop_agent() {
   echo "Остановлено."
 }
 
+disable_agent() {
+  stop_agent
+  if [[ -f "$PLIST" ]]; then
+    rm -f "$PLIST"
+    echo "Автостарт выключен (LaunchAgent удалён)."
+  else
+    echo "Автостарт уже выключен."
+  fi
+}
+
 status_agent() {
+  local plist_installed=0
+  [[ -f "$PLIST" ]] && plist_installed=1
+
   if is_loaded; then
     if server_listening; then
-      echo "running launchagent listening"
+      echo "running launchagent listening plist=${plist_installed}"
     else
-      echo "running launchagent starting"
+      echo "running launchagent starting plist=${plist_installed}"
+    fi
+  elif [[ "$plist_installed" -eq 1 ]]; then
+    if server_listening; then
+      echo "listening orphan plist=1"
+    else
+      echo "stopped plist=1"
     fi
   elif server_listening; then
-    echo "listening orphan"
+    echo "listening orphan plist=0"
   else
-    echo "stopped"
+    echo "stopped plist=0"
   fi
 }
 
@@ -163,11 +182,14 @@ case "${1:-}" in
   stop)
     stop_agent
     ;;
+  disable)
+    disable_agent
+    ;;
   status)
     status_agent
     ;;
   *)
-    echo "Usage: $0 {install|start|ensure|stop|status}"
+    echo "Usage: $0 {install|start|ensure|stop|disable|status}"
     exit 1
     ;;
 esac

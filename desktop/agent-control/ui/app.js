@@ -63,6 +63,8 @@ const ACTION_LABELS = {
   "voice-open": "Открыть",
   "voice-rebuild": "Собрать",
   "control-dist": "Собрать",
+  "server-autostart-enable": "Автостарт",
+  "server-autostart-disable": "Автостарт",
   "server-start-bg": "В фоне",
   "server-stop": "Остановить сервер",
   "server-restart": "Перезапустить сервер",
@@ -610,6 +612,8 @@ function syncServerUi(server) {
   });
 
   const serverActionBusy =
+    runningActions.has("server-autostart-enable") ||
+    runningActions.has("server-autostart-disable") ||
     runningActions.has("server-start-bg") ||
     runningActions.has("server-start-attached") ||
     runningActions.has("server-stop") ||
@@ -625,6 +629,14 @@ function syncServerUi(server) {
   });
   document.querySelectorAll('[data-action="server-restart"]').forEach((button) => {
     button.disabled = !isRunning || serverActionBusy;
+  });
+
+  const autostartOn = Boolean(server?.autoStart?.enabled);
+  document.querySelectorAll('[data-action="server-autostart-enable"]').forEach((button) => {
+    button.disabled = autostartOn || serverActionBusy || runningActions.has("server-autostart-enable");
+  });
+  document.querySelectorAll('[data-action="server-autostart-disable"]').forEach((button) => {
+    button.disabled = !autostartOn || serverActionBusy || runningActions.has("server-autostart-disable");
   });
 
   syncMcpConfigPreview();
@@ -687,6 +699,8 @@ const SETUP_SHORT_TITLES = {
 };
 
 const SERVER_BTN_TITLES = {
+  "server-autostart-enable": "Автостарт",
+  "server-autostart-disable": "Автостарт",
   "server-start-bg": "Старт в фоне",
   "server-start-attached": "Старт",
   "server-stop": "Стоп",
@@ -700,6 +714,8 @@ const MCP_INSTRUCTIONS_CONTEXT_DRAFT = `Когда контекстное окн
 Не продолжай работу «из памяти»: сначала убедись, что актуальный контекст снова загружен, затем кратко резюмируй, что уже сделано, и только после этого продолжай.`;
 
 const SERVER_BTN_HINTS = {
+  "server-autostart-enable": "После входа в macOS",
+  "server-autostart-disable": "Сейчас включён",
   "server-start-bg": "Останется после закрытия",
   "server-start-attached": "Пока окно открыто",
   "server-stop": "Остановить сервер",
@@ -749,7 +765,14 @@ function serverButton(actionId, tone, disabled = false) {
       : tone === "restart"
         ? "server-deck-icon--restart"
         : "server-deck-icon--play";
-  const badge = tone === "start-bg" ? `<span class="server-deck-badge">фон</span>` : "";
+  const badge =
+    tone === "start-bg"
+      ? `<span class="server-deck-badge">фон</span>`
+      : tone === "autostart-on"
+        ? `<span class="server-deck-badge">вкл</span>`
+        : tone === "autostart"
+          ? `<span class="server-deck-badge">mac</span>`
+          : "";
 
   return `
     <button type="button" class="server-deck-btn" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>
@@ -1033,9 +1056,19 @@ function renderGuideStepServer() {
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
   const maintenanceStateLabel = maintenanceModeEnabled ? "включён" : "выключен";
 
+  const autoStart = server?.autoStart;
+  const autostartSupported = autoStart?.supported !== false;
+  const autostartOn = Boolean(autoStart?.enabled);
+  const autostartActionId = autostartOn ? "server-autostart-disable" : "server-autostart-enable";
+  const autostartTone = autostartOn ? "autostart-on" : "autostart";
+  const autostartButton = autostartSupported
+    ? serverButton(autostartActionId, autostartTone, false)
+    : "";
+
   const controlBlock = `
     <div class="server-controls">
-      <div class="server-deck" role="group" aria-label="Управление сервером">
+      <div class="server-deck${autostartSupported ? " server-deck--5" : ""}" role="group" aria-label="Управление сервером">
+        ${autostartButton}
         ${serverButton("server-start-bg", "start-bg", isRunning)}
         ${serverButton("server-start-attached", "start", isRunning)}
         ${serverButton("server-stop", "stop", !isRunning)}
@@ -1565,6 +1598,8 @@ const ACTION_CARD_BUSY = {
   "cms-rebuild": "Сборка…",
   "voice-rebuild": "Сборка…",
   "control-dist": "Сборка…",
+  "server-autostart-enable": "Автостарт…",
+  "server-autostart-disable": "Выключение…",
   "server-start-bg": "Запуск…",
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",

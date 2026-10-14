@@ -1776,6 +1776,19 @@ body.is-booting {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.server-deck--5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.server-deck-btn[data-tone="autostart-on"] {
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.server-deck-btn[data-tone="autostart-on"] .server-deck-icon--play {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.18);
+}
+
 .server-browser-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

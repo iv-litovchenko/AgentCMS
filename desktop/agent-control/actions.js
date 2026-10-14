@@ -52,6 +52,26 @@ const ACTIONS = [
     tone: "default"
   },
   {
+    id: "server-autostart-enable",
+    category: "server",
+    title: "Автостарт",
+    description: "LaunchAgent в ~/Library/LaunchAgents — CMS поднимется после входа в macOS.",
+    command: "bash",
+    args: ["scripts/agent-https-launchagent.sh", "start"],
+    tone: "default",
+    preflight: "certs",
+    serverRole: "autostart-enable"
+  },
+  {
+    id: "server-autostart-disable",
+    category: "server",
+    title: "Выключить автостарт",
+    command: "bash",
+    args: ["scripts/agent-https-launchagent.sh", "disable"],
+    tone: "default",
+    serverRole: "autostart-disable"
+  },
+  {
     id: "server-start-bg",
     category: "server",
     title: "Запустить",
