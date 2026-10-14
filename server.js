@@ -445,6 +445,7 @@ const {
   agentSystemExists,
   buildAgentSystemMenuTree,
   readAgentSystemFile,
+  readAgentSystemRendererFile,
   writeAgentSystemFile,
   getAgentSystemStatus
 } = require("./lib/agents/agent-system");
@@ -26346,7 +26347,7 @@ async function handleApiForAgent(req, res, url) {
       if (!/^awn-system\/renderers\/[A-Za-z0-9_-]+\.js$/.test(norm)) {
         return sendJson(res, 400, { error: "Invalid renderer path" });
       }
-      const payload = await readAgentSystemFile(agentRoot, relPath);
+      const payload = await readAgentSystemRendererFile(agentRoot, relPath);
       if (!payload.exists) return sendJson(res, 404, { error: "Renderer not found", path: relPath });
       res.writeHead(200, {
         "Content-Type": "application/javascript; charset=utf-8",

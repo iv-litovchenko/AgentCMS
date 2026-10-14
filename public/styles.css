@@ -78509,6 +78509,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-weight: 700;
 }
 
+.menu-static-title-text .menu-static-todo-prefix {
+  margin-right: 0.2em;
+  font-size: 11px;
+}
+
 .menu-static-title,
 .menu-static-title--google-drive,
 .menu-static-title--storage-schemes,

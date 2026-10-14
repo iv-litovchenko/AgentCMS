@@ -1,7 +1,7 @@
 /**
  * Fence ```awn-query / ```dataview — DQL-lite + optional @transform JSON (no eval).
  */
-export default async function renderDqlTable(target, source, ctx) {
+export async function render(target, source, ctx) {
   const { dql, transform } = parseDqlBlockSource(source);
   if (!dql) {
     target.innerHTML = '<p class="awn-dql-empty">Пустой DQL-запрос</p>';
@@ -74,6 +74,8 @@ export default async function renderDqlTable(target, source, ctx) {
     data.engine || ""
   )} · total ${data.total ?? rows.length}</p>`;
 }
+
+export default render;
 
 function parseDqlBlockSource(source) {
   const lines = String(source || "").split(/\r?\n/);

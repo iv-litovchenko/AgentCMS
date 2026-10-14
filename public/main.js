@@ -97614,7 +97614,10 @@ async function hydrateAwnFenceBlocks(rootNode) {
     }
     try {
       const mod = await loadAwnRendererModule(rendererPath);
-      const fn = mod && (mod.default || mod.render);
+      if (!mod) {
+        throw new Error(`Не удалось загрузить рендер ${rendererPath} (404 или сеть)`);
+      }
+      const fn = mod.default || mod.render;
       if (typeof fn !== "function") throw new Error("Рендер не экспортирует функцию (default/render)");
       await fn(target, source, {
         agentId: activeAgentId,
