@@ -290,7 +290,7 @@ fields:
     description: >
       Сумма размеров файлов в одной партии при batched commit (UI и module_git_commit).
       Превышение блокирует коммит этой партии. 0 — отключить проверку.
-    default: 250
+    default: 850
     group: module-git
     locked: true
     readonly: true
