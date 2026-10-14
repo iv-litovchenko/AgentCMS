@@ -674,6 +674,7 @@ function formatAgentGitBatchMaxFileSizeLabel(maxFileSizeMb) {
 }
 
 const AGENT_GIT_OUT_OF_BATCH_BATCH_ID = "out-of-batch";
+const AGENT_GIT_FULL_COMMIT_BATCH_ID = "full";
 const AGENT_GIT_COMMIT_TEMPLATE_OUT_OF_BATCH_FALLBACK =
   "[{branch}] Сохранение workspace ({date} {time}) - Unlisted";
 const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
@@ -689,7 +690,8 @@ const AGENT_GIT_COMMIT_BATCH_EMOJI_FALLBACK = {
   archives: "📦",
   other: "📎",
   configs: "⚙️",
-  [AGENT_GIT_OUT_OF_BATCH_BATCH_ID]: "❔"
+  [AGENT_GIT_OUT_OF_BATCH_BATCH_ID]: "❔",
+  [AGENT_GIT_FULL_COMMIT_BATCH_ID]: "🌐"
 };
 
 function formatAgentGitCommitBatchDisplayLabel(batch, options = {}) {
@@ -109802,12 +109804,46 @@ function getAgentGitOutOfBatchCommitBatch() {
   };
 }
 
+function getAgentGitFullCommitBatch() {
+  return {
+    id: AGENT_GIT_FULL_COMMIT_BATCH_ID,
+    emoji: "🌐",
+    label: "Full — полный коммит",
+    extensions: [],
+    messageTemplate: "[{branch}] Полный коммит ({date} {time})",
+    maxFileSizeMb: 0
+  };
+}
+
+function listAgentGitFullCommitChanges(changes = []) {
+  return (Array.isArray(changes) ? changes : []).filter((change) => change?.commitAllowed !== false);
+}
+
+function buildAgentGitFullCommitModalOption(changes = []) {
+  const batch = getAgentGitFullCommitBatch();
+  const batchChanges = listAgentGitFullCommitChanges(changes);
+  const count = batchChanges.length;
+  const byteTotal = sumAgentGitCommitChangesByteTotal(batchChanges);
+  return {
+    batch,
+    optionId: AGENT_GIT_FULL_COMMIT_BATCH_ID,
+    chunkIndex: null,
+    chunkTotal: 1,
+    count,
+    byteTotal,
+    overLimit: false
+  };
+}
+
 function agentGitChangeBelongsToCommitBatch(
   change,
   batch,
   batches = agentGitModuleConfig?.commitBatches
 ) {
   const batchId = String(batch?.id || "");
+  if (batchId === AGENT_GIT_FULL_COMMIT_BATCH_ID) {
+    return change?.commitAllowed !== false;
+  }
   if (batchId === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) {
     return isAgentGitOutOfBatchChange(change, batches);
   }
@@ -110063,7 +110099,7 @@ function buildAgentGitCommitModalBatchOptions(batch, changes = []) {
 
 function listAgentGitCommitModalOptions(changes = []) {
   const batches = listAgentGitCommitBatchesForDisplay(changes);
-  const options = [];
+  const options = [buildAgentGitFullCommitModalOption(changes)];
   for (const batch of batches) {
     options.push(...buildAgentGitCommitModalBatchOptions(batch, changes));
   }
@@ -110079,6 +110115,7 @@ function agentGitCommitBatchExceedsMaxSize(batch, changes = []) {
 function getAgentGitCommitBatchById(batchId) {
   const id = parseAgentGitCommitBatchOptionId(batchId).batchId;
   if (!id) return null;
+  if (id === AGENT_GIT_FULL_COMMIT_BATCH_ID) return getAgentGitFullCommitBatch();
   if (id === AGENT_GIT_OUT_OF_BATCH_BATCH_ID) return getAgentGitOutOfBatchCommitBatch();
   const batches = Array.isArray(agentGitModuleConfig?.commitBatches)
     ? agentGitModuleConfig.commitBatches
@@ -110297,7 +110334,9 @@ function openAgentGitCommitModal() {
       } else {
         meta.textContent = countLabel;
       }
-      if (overLimit && Number.isFinite(maxBatchMb) && maxBatchMb > 0) {
+      if (String(batch?.id || "") === AGENT_GIT_FULL_COMMIT_BATCH_ID) {
+        option.title = "Один коммит со всеми изменениями (все партии, без лимита суммы)";
+      } else if (overLimit && Number.isFinite(maxBatchMb) && maxBatchMb > 0) {
         option.title = `Сумма файлов больше лимита одного коммита (${maxBatchMb} МБ)`;
       } else if (chunkTotal > 1 && chunkIndex) {
         option.title = `Часть ${chunkIndex} из ${chunkTotal} (лимит ~${maxBatchMb || 250} МБ на коммит)`;

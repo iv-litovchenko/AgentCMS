@@ -16904,9 +16904,13 @@ const {
 } = require("./lib/git/module-git-config");
 const {
   loadModuleGitCommitBatchSettings,
-  buildOutOfBatchCommitBatchDefinition
+  buildOutOfBatchCommitBatchDefinition,
+  buildFullCommitBatchDefinition
 } = require("./lib/git/module-git-commit-batches");
-const { MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID } = require("./lib/git/module-git-commit-limits");
+const {
+  MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID,
+  MODULE_GIT_FULL_COMMIT_BATCH_ID
+} = require("./lib/git/module-git-commit-limits");
 const {
   appendModuleGitLog,
   readModuleGitLog,
@@ -21496,7 +21500,11 @@ async function handleApiForAgent(req, res, url) {
         const allowedBatchIds = new Set(
           requestedBatchIds.map((rawId) => parseCommitBatchChunkId(rawId).batchId).filter(Boolean)
         );
+        const wantsFull = allowedBatchIds.has(MODULE_GIT_FULL_COMMIT_BATCH_ID);
         const wantsOutOfBatch = allowedBatchIds.has(MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID);
+        if (wantsFull) {
+          batches = [buildFullCommitBatchDefinition(configuredBatches)];
+        } else {
         batches = configuredBatches
           .filter((batch) => allowedBatchIds.has(String(batch.id || "")))
           .map((batch) => {
@@ -21516,6 +21524,7 @@ async function handleApiForAgent(req, res, url) {
             ) || MODULE_GIT_OUT_OF_BATCH_COMMIT_BATCH_ID;
           const { chunkIndex } = parseCommitBatchChunkId(rawId);
           batches.push(chunkIndex != null ? { ...outOfBatchDef, chunkIndex } : outOfBatchDef);
+        }
         }
       }
       if (!batches.length) {
