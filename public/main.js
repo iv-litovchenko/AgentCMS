@@ -432,8 +432,120 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: "Временный вход — не знаю куда деть"
   }
 ];
+/** Базовые группы каталога — синхронны с lib/config/channel-presets.js (CHANNEL_BUILTIN_PRESET_GROUPS) */
+const CHANNEL_BUILTIN_PRESET_GROUPS = [
+  {
+    id: "content-modes",
+    title: "Режимы контента",
+    slugs: ["forum", "blog", "digest"]
+  },
+  {
+    id: "messengers-video",
+    title: "Мессенджеры и видео",
+    slugs: ["telegram", "whatsapp", "youtube"]
+  },
+  {
+    id: "web-links-files",
+    title: "Веб, ссылки, файлы",
+    slugs: ["web", "bookmarks", "downloads"]
+  },
+  {
+    id: "media-digitization",
+    title: "Медиа и оцифровка",
+    slugs: ["screenshots", "photo-archive", "photo-phone", "notebooks"]
+  },
+  {
+    id: "news-context",
+    title: "Новости и контекст",
+    slugs: ["analytics", "real-world"]
+  },
+  {
+    id: "publications",
+    title: "Публикации и рынок",
+    slugs: ["announcements", "market"]
+  },
+  {
+    id: "drafts",
+    title: "Черновики и прочее",
+    slugs: ["notes", "other"]
+  }
+];
 const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
+
+function groupChannelBuiltinPresets(presets) {
+  const list = Array.isArray(presets) ? presets : CHANNEL_BUILTIN_PRESETS;
+  const bySlug = new Map(list.map((entry) => [entry.slug, entry]));
+  const grouped = [];
+  for (const group of CHANNEL_BUILTIN_PRESET_GROUPS) {
+    const items = (group.slugs || [])
+      .map((slug) => bySlug.get(slug))
+      .filter(Boolean);
+    if (items.length) grouped.push({ ...group, items });
+  }
+  const groupedSlugs = new Set(
+    grouped.flatMap((group) => group.items.map((entry) => entry.slug))
+  );
+  const rest = list.filter((entry) => !groupedSlugs.has(entry.slug));
+  if (rest.length) {
+    grouped.push({ id: "other-ungrouped", title: "Прочее", items: rest });
+  }
+  return grouped;
+}
+
+function getChannelPresetIconSvgMarkup(slug) {
+  const key = String(slug || "").trim();
+  if (!key) return "";
+  const map = typeof CHANNEL_PRESET_ICON_SVG !== "undefined" ? CHANNEL_PRESET_ICON_SVG : null;
+  return String(map?.[key] || "").trim();
+}
+
+function populateChannelPresetIcon(container, slug, emojiFallback = "📡") {
+  const markup = getChannelPresetIconSvgMarkup(slug);
+  if (!markup) return false;
+  container.replaceChildren();
+  container.insertAdjacentHTML("beforeend", markup);
+  const svg = container.querySelector("svg");
+  if (svg) {
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
+    svg.setAttribute("aria-hidden", "true");
+    svg.classList.add("awn-channel-preset-icon-svg");
+  }
+  container.classList.add("awn-channel-preset-icon", "awn-channel-preset-icon--svg");
+  return true;
+}
+
+function createMenuAwnChannelsGroupDivider(title, { first = false } = {}) {
+  const divider = document.createElement("li");
+  divider.className = "menu-awn-channels-group-divider";
+  if (first) divider.classList.add("menu-awn-channels-group-divider--first");
+  divider.setAttribute("role", "presentation");
+  divider.textContent = title;
+  return divider;
+}
+
+function appendGroupedMenuAwnChannelPresets(parent, presets) {
+  const groups = groupChannelBuiltinPresets(presets);
+  let firstGroup = true;
+  for (const group of groups) {
+    parent.appendChild(createMenuAwnChannelsGroupDivider(group.title, { first: firstGroup }));
+    firstGroup = false;
+    for (const preset of group.items) {
+      parent.appendChild(createMenuAwnChannelRow(preset));
+    }
+  }
+}
+
+function createAwnChannelsCreatePresetGroupLabel(title, { first = false } = {}) {
+  const label = document.createElement("div");
+  label.className = "awn-channels-create-presets-group-label";
+  if (first) label.classList.add("awn-channels-create-presets-group-label--first");
+  label.setAttribute("role", "presentation");
+  label.textContent = title;
+  return label;
+}
 let menuAwnChannelsSearchQuery = "";
+let menuAwnChannelsSearchExpanded = false;
 const MENU_AWN_CHANNELS_FLOW_KEY = "yamlcms.menuAwnChannelsFlow.v1";
 let menuAwnChannelsFlowMode = "ingress-external";
 const appSplashNode = document.getElementById("app-splash");
@@ -117949,8 +118061,24 @@ function getAwnChannelPresetDisplayName(entry) {
   return String(entry?.name || entry?.label || entry?.slug || "").trim();
 }
 
+function getAwnChannelPresetHint(entry) {
+  return String(entry?.hintTitle || entry?.description || "").trim();
+}
+
+function resolveMenuAwnChannelAwnId(entry) {
+  const raw = entry?.awnId || entry?.["awn-id"] || "";
+  return normalizeAwnIdDisplayValue(raw);
+}
+
 function menuAwnChannelEntrySearchHaystack(entry) {
-  return [getAwnChannelPresetDisplayName(entry), entry?.slug, entry?.description, entry?.icon]
+  return [
+    getAwnChannelPresetDisplayName(entry),
+    entry?.slug,
+    getAwnChannelPresetHint(entry),
+    resolveMenuAwnChannelAwnId(entry),
+    entry?.description,
+    entry?.icon
+  ]
     .map((value) => String(value || "").trim().toLowerCase())
     .filter(Boolean)
     .join(" ");
@@ -118000,14 +118128,23 @@ function filterMenuAwnChannelsPayload(payload, query = menuAwnChannelsSearchQuer
   };
 }
 
-function createMenuAwnChannelKindNode(icon = "📡") {
+function createMenuAwnChannelKindNode(channelLike = "📡") {
+  const slug =
+    channelLike && typeof channelLike === "object" ? String(channelLike.slug || "").trim() : "";
+  const emoji =
+    channelLike && typeof channelLike === "object"
+      ? String(channelLike.icon || "📡")
+      : String(channelLike || "📡");
   const wrap = document.createElement("span");
   wrap.className = "menu-awn-databases-store-kind-wrap";
   wrap.title = "Канал ingress (awn.hub.channel)";
   wrap.setAttribute("aria-hidden", "true");
   const iconNode = document.createElement("span");
   iconNode.className = "menu-awn-databases-store-kind menu-awn-databases-store-kind--channel";
-  iconNode.textContent = icon;
+  if (!populateChannelPresetIcon(iconNode, slug, emoji)) {
+    iconNode.textContent = emoji;
+    iconNode.classList.add("awn-channel-preset-icon--emoji");
+  }
   wrap.appendChild(iconNode);
   return wrap;
 }
@@ -118035,6 +118172,8 @@ function createMenuAwnChannelRow(channel) {
   const nameNode = document.createElement("span");
   nameNode.className = "menu-awn-databases-store-name menu-awn-channels-item-name";
   nameNode.textContent = displayName;
+  const idBadge = createNavBookTocIdBadge(resolveMenuAwnChannelAwnId(channel));
+  if (idBadge) idBadge.classList.add("menu-awn-databases-store-id-badge");
 
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-databases-store-meta";
@@ -118123,7 +118262,12 @@ function createMenuAwnChannelRow(channel) {
     }
   }
 
-  row.append(createMenuAwnChannelKindNode(channel.icon || "📡"), nameNode, metaNode);
+  row.append(
+    createMenuAwnChannelKindNode({ slug, icon: channel.icon || "📡" }),
+    ...(idBadge ? [idBadge] : []),
+    nameNode,
+    metaNode
+  );
   return row;
 }
 
@@ -118189,9 +118333,7 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
     return;
   }
 
-  for (const preset of presets) {
-    menuAwnChannelsListNode.appendChild(createMenuAwnChannelRow(preset));
-  }
+  appendGroupedMenuAwnChannelPresets(menuAwnChannelsListNode, presets);
 
   if (presets.length && userRows.length) {
     const divider = document.createElement("li");
@@ -118364,7 +118506,7 @@ function applyAwnChannelsCreateModalPreset(preset) {
   awnChannelsCreateModalState.mode = "preset";
   if (awnChannelsCreateNameInputNode) awnChannelsCreateNameInputNode.value = name;
   if (awnChannelsCreateDescriptionInputNode) {
-    awnChannelsCreateDescriptionInputNode.value = String(preset.description || "").trim();
+    awnChannelsCreateDescriptionInputNode.value = getAwnChannelPresetHint(preset);
   }
   if (awnChannelsCreateSlugUnlinkBtn) {
     awnChannelsCreateSlugUnlinkBtn.classList.toggle("hidden", true);
@@ -118397,29 +118539,50 @@ function renderAwnChannelsCreateModalPresets() {
     awnChannelsCreatePresetsNode.appendChild(empty);
     return;
   }
-  for (const preset of items) {
-    const label = getAwnChannelPresetDisplayName(preset);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "awn-channels-create-preset-btn";
-    btn.setAttribute("data-awn-channel-preset-slug", preset.slug);
-    btn.setAttribute("role", "option");
-    btn.setAttribute("aria-selected", "false");
-    btn.title = label;
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "awn-channels-create-preset-btn-icon";
-    iconSpan.textContent = preset.icon || "📡";
-    iconSpan.setAttribute("aria-hidden", "true");
-    const labelSpan = document.createElement("span");
-    labelSpan.className = "awn-channels-create-preset-btn-label";
-    labelSpan.textContent = label;
-    const slugSpan = document.createElement("span");
-    slugSpan.className = "awn-channels-create-preset-btn-slug";
-    slugSpan.textContent = preset.slug;
-    slugSpan.setAttribute("aria-hidden", "true");
-    btn.append(iconSpan, labelSpan, slugSpan);
-    btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
-    awnChannelsCreatePresetsNode.appendChild(btn);
+  let firstGroup = true;
+  for (const group of groupChannelBuiltinPresets(items)) {
+    awnChannelsCreatePresetsNode.appendChild(
+      createAwnChannelsCreatePresetGroupLabel(group.title, { first: firstGroup })
+    );
+    firstGroup = false;
+    for (const preset of group.items) {
+      const label = getAwnChannelPresetDisplayName(preset);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "awn-channels-create-preset-btn";
+      btn.setAttribute("data-awn-channel-preset-slug", preset.slug);
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", "false");
+      const hint = getAwnChannelPresetHint(preset);
+      btn.title = hint ? `${label} — ${hint}` : label;
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "awn-channels-create-preset-btn-icon";
+      if (!populateChannelPresetIcon(iconSpan, preset.slug, preset.icon || "📡")) {
+        iconSpan.textContent = preset.icon || "📡";
+        iconSpan.classList.add("awn-channel-preset-icon--emoji");
+      }
+      iconSpan.setAttribute("aria-hidden", "true");
+      const textWrap = document.createElement("span");
+      textWrap.className = "awn-channels-create-preset-btn-text";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "awn-channels-create-preset-btn-name";
+      nameSpan.textContent = label;
+      textWrap.appendChild(nameSpan);
+      if (hint) {
+        const hintSpan = document.createElement("span");
+        hintSpan.className = "awn-channels-create-preset-btn-hint";
+        hintSpan.textContent = ` (${hint})`;
+        textWrap.appendChild(hintSpan);
+      }
+      const slugSpan = document.createElement("span");
+      slugSpan.className = "awn-channels-create-preset-btn-slug";
+      slugSpan.textContent = preset.slug;
+      slugSpan.title = `ключ: ${preset.slug}`;
+      slugSpan.setAttribute("aria-hidden", "true");
+      btn.append(iconSpan, textWrap, slugSpan);
+      btn.addEventListener("click", () => applyAwnChannelsCreateModalPreset(preset));
+      awnChannelsCreatePresetsNode.appendChild(btn);
+    }
   }
   syncAwnChannelsCreateModalPresetUi();
 }
@@ -118550,12 +118713,14 @@ function promptCreateMenuAwnChannel() {
 }
 
 function syncMenuAwnChannelsSearchBtnUi() {
-  if (!menuAwnChannelsSearchBtn) return;
   const hasQuery = Boolean(String(menuAwnChannelsSearchQuery || "").trim());
   const focused = document.activeElement === menuAwnChannelsSearchInputNode;
-  const active = hasQuery || focused;
-  menuAwnChannelsSearchBtn.classList.toggle("is-active", active);
-  menuAwnChannelsSearchBtn.setAttribute("aria-pressed", active ? "true" : "false");
+  const searchOpen = hasQuery || focused || menuAwnChannelsSearchExpanded;
+  const toolbar = menuAwnChannelsBandBodyNode?.querySelector(".menu-awn-channels-toolbar");
+  toolbar?.classList.toggle("is-search-open", searchOpen);
+  if (!menuAwnChannelsSearchBtn) return;
+  menuAwnChannelsSearchBtn.classList.toggle("is-active", searchOpen);
+  menuAwnChannelsSearchBtn.setAttribute("aria-pressed", searchOpen ? "true" : "false");
 }
 
 function focusMenuAwnChannelsSearch() {
@@ -118592,10 +118757,27 @@ function setupMenuAwnChannelsUi() {
   menuAwnChannelsSearchBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
+    const toolbar = menuAwnChannelsBandBodyNode?.querySelector(".menu-awn-channels-toolbar");
+    const isOpen = toolbar?.classList.contains("is-search-open");
+    if (isOpen && !String(menuAwnChannelsSearchQuery || "").trim()) {
+      menuAwnChannelsSearchExpanded = false;
+      menuAwnChannelsSearchInputNode?.blur();
+      syncMenuAwnChannelsSearchBtnUi();
+      return;
+    }
+    menuAwnChannelsSearchExpanded = true;
     focusMenuAwnChannelsSearch();
   });
   menuAwnChannelsSearchInputNode?.addEventListener("focus", syncMenuAwnChannelsSearchBtnUi);
-  menuAwnChannelsSearchInputNode?.addEventListener("blur", syncMenuAwnChannelsSearchBtnUi);
+  menuAwnChannelsSearchInputNode?.addEventListener("blur", () => {
+    window.requestAnimationFrame(() => {
+      if (!String(menuAwnChannelsSearchQuery || "").trim()) {
+        menuAwnChannelsSearchExpanded = false;
+      }
+      syncMenuAwnChannelsSearchBtnUi();
+    });
+  });
+  syncMenuAwnChannelsSearchBtnUi();
   awnChannelsCreatePresetsSearchInputNode?.addEventListener("input", (event) => {
     awnChannelsCreatePresetsSearchQuery = String(event.target.value || "");
     renderAwnChannelsCreateModalPresets();
