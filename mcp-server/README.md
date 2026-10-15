@@ -24,6 +24,8 @@ npm install
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 | `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
+| `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
+| `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
 
 ## Термины (синонимы `agentId`)
 

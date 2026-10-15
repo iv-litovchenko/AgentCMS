@@ -42,6 +42,7 @@ import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
+import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
 
 const pagePath = z
   .string()
@@ -77,7 +78,11 @@ function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
 
-  const server = new McpServer({ name: "agent-cms", version: "0.4.0" });
+  const instructions = loadMcpServerInstructions();
+  const server = new McpServer(
+    { name: "agent-cms", version: "0.4.0" },
+    instructions ? { instructions } : {}
+  );
   const toolRegistry = createToolRegistry();
 
   const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
