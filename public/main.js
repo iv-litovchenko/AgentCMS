@@ -110423,9 +110423,9 @@ function getAgentGitFullCommitBatch() {
   return {
     id: AGENT_GIT_FULL_COMMIT_BATCH_ID,
     emoji: "🌐",
-    label: "Full — полный коммит",
+    label: "Full",
     extensions: [],
-    messageTemplate: "[{branch}] Полный коммит ({date} {time})",
+    messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Full",
     maxFileSizeMb: 0
   };
 }

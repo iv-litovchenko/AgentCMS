@@ -7764,6 +7764,21 @@ async function targetPathOccupiedByOther(fromAbsolute, toAbsolute) {
   }
 }
 
+async function renamePathCaseAwareFilesystem(fromAbsolute, toAbsolute) {
+  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) {
+    const tempAbsolute = path.join(
+      path.dirname(fromAbsolute),
+      `.case-rename-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    await fs.rename(fromAbsolute, tempAbsolute);
+    await fs.rename(tempAbsolute, toAbsolute);
+    return toAbsolute;
+  }
+
+  await fs.rename(fromAbsolute, toAbsolute);
+  return toAbsolute;
+}
+
 async function renamePathCaseAware(fromAbsolute, toAbsolute) {
   const fromResolved = path.resolve(fromAbsolute);
   const toResolved = path.resolve(toAbsolute);
@@ -7777,18 +7792,13 @@ async function renamePathCaseAware(fromAbsolute, toAbsolute) {
 
   await fs.mkdir(path.dirname(toAbsolute), { recursive: true });
 
-  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) {
-    const tempAbsolute = path.join(
-      path.dirname(fromAbsolute),
-      `.case-rename-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
-    await fs.rename(fromAbsolute, tempAbsolute);
-    await fs.rename(tempAbsolute, toAbsolute);
-    return toAbsolute;
-  }
-
-  await fs.rename(fromAbsolute, toAbsolute);
-  return toAbsolute;
+  const { renamePathCaseAwareGitOrFs } = require("./lib/git/workspace-git-rename");
+  return renamePathCaseAwareGitOrFs(
+    getAgentRoot(),
+    fromAbsolute,
+    toAbsolute,
+    renamePathCaseAwareFilesystem
+  );
 }
 
 async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options = {}) {
