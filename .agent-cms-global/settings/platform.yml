@@ -24,15 +24,18 @@ awn_settings:
   confirm-delete: true
   read-text-max-bytes: 120000
   read-binary-max-bytes: 1500000
+  mcp-response-max-kb: 512
   indexing-ocr-langs: rus+eng
   index-ocr-enabled: false
   index-fulltext-enabled: true
   index-semantic-enabled: true
   index-storage-enabled: true
-  index-links-enabled: true
+  index-links-enabled: false
   index-workspace-id-enabled: true
   index-wsmap-enabled: true
   index-storage-mode: quick
+  index-storage-sqlite-enabled: true
+  index-storage-batch-size: 30
   index-file-extensions:
     - .md
     - .sidecar.md
@@ -51,10 +54,4 @@ awn_settings:
   search-semantic-chunk-overlap: 100
   search-hybrid-semantic-weight: 60
   search-hybrid-fulltext-weight: 40
-  media-cloud-default-provider: google-drive
-  media-cloud-providers:
-    - key: google-drive
-      title: Google Диск
-    - key: yandex-disk
-      title: Яндекс Диск
   auto-retain-facts: false
