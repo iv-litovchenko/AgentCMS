@@ -1317,6 +1317,9 @@
                     <button type="button" id="menu-entity-index-rebuild-btn" class="menu-static-action-btn">
                       Пересобрать реестр сущностей
                     </button>
+                    <button type="button" id="menu-entity-editor-open-btn" class="menu-static-action-btn">
+                      Редактор сущностей
+                    </button>
                     <button type="button" id="menu-entity-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
                       ~show-entities
                     </button>
@@ -8201,6 +8204,93 @@ awn-type: awn.page.ws
       </div>
     </div>
 
+    <div id="entity-registry-editor-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="entity-registry-editor-title">
+      <div class="modal-card entity-registry-editor-card">
+        <div class="entity-registry-editor-header">
+          <div>
+            <div class="modal-message" id="entity-registry-editor-title">Реестр сущностей</div>
+            <p id="entity-registry-editor-subtitle" class="entity-registry-editor-subtitle">Типы · объекты · поиск по связанным заметкам</p>
+          </div>
+          <button id="entity-registry-editor-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="entity-registry-editor-layout">
+          <aside class="entity-registry-editor-types">
+            <div class="entity-registry-editor-panel-head">
+              <span class="entity-registry-editor-panel-title">Типы</span>
+              <button type="button" id="entity-editor-add-type-btn" class="entity-editor-tool-btn" title="Добавить тип">+ тип</button>
+            </div>
+            <ul id="entity-editor-type-list" class="entity-registry-editor-type-list"></ul>
+            <form id="entity-editor-add-type-form" class="entity-registry-editor-inline-form hidden">
+              <input id="entity-editor-new-type-label" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="Название типа" required />
+              <input id="entity-editor-new-type-tags" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="теги: еда, food" />
+              <div class="entity-registry-editor-inline-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Создать</button>
+                <button type="button" id="entity-editor-add-type-cancel" class="entity-editor-tool-btn">Отмена</button>
+              </div>
+            </form>
+            <p class="entity-registry-editor-hint">Теги (#еда) → тип «Еда». После правок — пересборка.</p>
+          </aside>
+          <section class="entity-registry-editor-list-pane">
+            <div class="entity-registry-editor-panel-head">
+              <span id="entity-editor-list-title" class="entity-registry-editor-panel-title">Объекты</span>
+              <button type="button" id="entity-editor-add-object-btn" class="entity-editor-tool-btn" title="Добавить объект вручную">+ объект</button>
+            </div>
+            <input id="entity-editor-object-q" class="entity-registry-editor-input entity-registry-editor-input--compact" type="search" placeholder="Фильтр по названию…" />
+            <form id="entity-editor-add-object-form" class="entity-registry-editor-inline-form hidden">
+              <input id="entity-editor-new-object-label" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="Название объекта" required />
+              <div class="entity-registry-editor-inline-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Добавить</button>
+                <button type="button" id="entity-editor-add-object-cancel" class="entity-editor-tool-btn">Отмена</button>
+              </div>
+            </form>
+            <div id="entity-editor-list-hint" class="entity-registry-editor-hint hidden"></div>
+            <div id="entity-editor-object-list" class="entity-registry-editor-object-list"></div>
+          </section>
+          <section class="entity-registry-editor-detail">
+            <div class="entity-registry-editor-panel-head"><span class="entity-registry-editor-panel-title">Карточка</span></div>
+            <div id="entity-editor-detail-empty" class="entity-registry-editor-hint">Выберите объект слева</div>
+            <form id="entity-editor-detail-form" class="entity-registry-editor-form hidden">
+              <label class="entity-registry-editor-label">Тип
+                <select id="entity-editor-detail-type" class="entity-registry-editor-input"></select>
+              </label>
+              <label class="entity-registry-editor-label">Название
+                <input id="entity-editor-detail-label" class="entity-registry-editor-input" type="text" />
+              </label>
+              <label class="entity-registry-editor-label">Склеить с (канон)
+                <input id="entity-editor-detail-canonical" class="entity-registry-editor-input" type="text" placeholder="оставьте пустым, если не нужно" />
+              </label>
+              <label class="entity-registry-editor-check">
+                <input id="entity-editor-detail-reject" type="checkbox" /> Скрыть из реестра
+              </label>
+              <div class="entity-registry-editor-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Сохранить</button>
+              </div>
+            </form>
+            <div id="entity-editor-mentions" class="entity-registry-editor-mentions"></div>
+          </section>
+        </div>
+        <div class="entity-registry-editor-search-bar">
+          <label class="entity-registry-editor-search-field">
+            <span class="entity-registry-editor-field-caption">Тип</span>
+            <select id="entity-editor-search-type" class="entity-registry-editor-input"></select>
+          </label>
+          <label class="entity-registry-editor-search-field">
+            <span class="entity-registry-editor-field-caption">Объект</span>
+            <select id="entity-editor-search-object" class="entity-registry-editor-input"></select>
+          </label>
+          <label class="entity-registry-editor-search-field entity-registry-editor-search-field--grow">
+            <span class="entity-registry-editor-field-caption">Текст в заметках</span>
+            <input id="entity-editor-search-q" class="entity-registry-editor-input" type="search" placeholder="опционально…" />
+          </label>
+          <div class="entity-registry-editor-search-actions">
+            <button type="button" id="entity-editor-search-btn" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Найти</button>
+            <button type="button" id="entity-editor-rebuild-btn" class="entity-editor-tool-btn">Пересобрать</button>
+          </div>
+        </div>
+        <div id="entity-editor-search-results" class="entity-registry-editor-search-results"></div>
+      </div>
+    </div>
+
     <div id="workspace-index-catalog-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="workspace-index-catalog-title">
       <div class="modal-card workspace-index-catalog-card">
         <div class="workspace-index-catalog-header">
@@ -8703,7 +8793,8 @@ awn-type: awn.page.ws
     <script type="module" src="/js/pomodoro/pomodoro-state-bootstrap.js?v=1"></script>
     <script src="/js/pomodoro/workspace-pomodoro.js?v=9"></script>
     <script src="/js/app/connection-status.js?v=1"></script>
-    <script src="/js/panels/semantic-index-panel.js?v=23"></script>
+    <script src="/js/panels/semantic-index-panel.js?v=24"></script>
+    <script src="/js/panels/entity-registry-editor.js?v=2"></script>
     <script src="/js/panels/languagetool-panel.js?v=2"></script>
     <script src="/js/panels/file-find-bar.js?v=2"></script>
     <script src="/js/core/slug-translit.js?v=1"></script>

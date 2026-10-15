@@ -1920,6 +1920,12 @@
   window.WorkspaceIndexPanel = {
     init(options = {}) {
       panelCtx = { ...panelCtx, ...options };
+      if (window.EntityRegistryEditor?.init) {
+        window.EntityRegistryEditor.init({
+          buildApiUrl: panelCtx.buildApiUrl,
+          getActiveAgentId: panelCtx.getActiveAgentId
+        });
+      }
       void refreshStatus();
     },
     refreshStatus

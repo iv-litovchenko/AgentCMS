@@ -4,6 +4,7 @@
 # Dependencies
 node_modules/
 node_modules_2/
+.venv-entity/
 
 # Build / packaging
 dist/

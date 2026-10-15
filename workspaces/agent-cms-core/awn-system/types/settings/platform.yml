@@ -359,7 +359,7 @@ fields:
   index-entity-gliner-enabled:
     type: awn.field.boolean
     title: GLiNER для сущностей
-    description: При пересборке entity-index вызывать scripts/entity-gliner-extract.py (pip install gliner)
+    description: Пересборка entity-index через GLiNER (.venv-entity). Control → «Установить зависимости» или pip install gliner
     default: false
     group: indexing
     sort: 242

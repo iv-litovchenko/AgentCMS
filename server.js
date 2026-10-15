@@ -21077,6 +21077,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "PUT" && url.pathname === "/api/entity-index/registry") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().putRegistry(payload?.registry || payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save entity registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/seed") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().seedEntity(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, { error: "Failed to add entity seed", details: message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/type") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().putEntityType(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, { error: "Failed to save entity type", details: message });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/entity-index/catalog") {
     const limitRaw = Number(url.searchParams.get("limit") || 40);
     const offsetRaw = Number(url.searchParams.get("offset") || 0);
