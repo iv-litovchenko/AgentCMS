@@ -257,11 +257,12 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "move_content",
-    "Move content within or across topics (external slots). Source: placement { kind, path, slot, ref } like read_content.",
+    "Move content within or across topics. Source: placement { kind, path, slot, ref } like read_content. external/memory/main and media: targetPath + targetRef. Storage slots: targetFolder (defaults to source slot folder) + targetRef or targetParent.",
     address({
       targetPath: pagePath.optional(),
       targetRef: z.string().optional(),
-      targetParent: z.string().optional()
+      targetParent: z.string().optional(),
+      targetFolder: z.string().optional()
     }),
     (args) => moveContent(client, args)
   );

@@ -10361,7 +10361,7 @@ async function moveNodeManifest(relPath, parentPathRaw) {
       // target does not exist
     }
 
-    await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
+    await renamePathCaseAware(currentFolderAbsolute, targetFolderAbsolute);
 
     const sortSlug = getMenuSortSlugFromFolderRel(folderRelPath);
     await removeMenuSortOrderEntry(path.dirname(currentFolderAbsolute), sortSlug);
@@ -10399,7 +10399,7 @@ async function moveNodeManifest(relPath, parentPathRaw) {
     const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
     const newConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(targetRelPath));
 
-    await fs.rename(absolute, targetAbsolute);
+    await renamePathCaseAware(absolute, targetAbsolute);
     if (oldContentAbsolute && newContentAbsolute) await renameIfExists(oldContentAbsolute, newContentAbsolute);
     if (oldTodoAbsolute && newTodoAbsolute) await renameIfExists(oldTodoAbsolute, newTodoAbsolute);
     if (oldConfigAbsolute && newConfigAbsolute) await renameIfExists(oldConfigAbsolute, newConfigAbsolute);

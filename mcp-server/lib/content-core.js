@@ -642,7 +642,15 @@ export async function moveContent(client, args) {
       targetFile: targetRef
     });
   }
-  throw new Error(`move_content for slot "${slot}" is not supported yet. Supported: memory/main, media, assets.`);
+  const folder = slotToFolder(slot);
+  const targetFolder = String(args.targetFolder || folder).trim() || folder;
+  return client.post("/api/storage/file/move", {
+    path: manifestPath,
+    folder,
+    file: ref,
+    targetFolder,
+    targetFile: targetRef || targetParent
+  });
 }
 
 export async function listContentItems(client, args) {
