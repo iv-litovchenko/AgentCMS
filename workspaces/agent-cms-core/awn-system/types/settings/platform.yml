@@ -375,7 +375,7 @@ fields:
   index-wsmap-enabled:
     type: awn.field.boolean
     title: Карта (WS-MAP)
-    description: Шаг 7 pipeline — собрать WS-MAP.md из всех index.md / INDEX.md в workspace
+    description: Шаг 7 pipeline — собрать WS-MAP.md (реестр manifest.md) в корне workspace
     default: true
     group: indexing
     sort: 26

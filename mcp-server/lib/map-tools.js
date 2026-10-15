@@ -486,7 +486,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md. Same as UI pipeline button.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()
@@ -651,27 +651,37 @@ export function registerMapTools(reg, client, pagePath) {
       })
   });
 
-  reg(
-    "read_workspace_wsmap",
-    "Metadata for WS-MAP.md: all index.md/INDEX.md paths in workspace (no file body).",
-    z.object({}),
-    () => client.get("/api/agent/workspace-wsmap")
-  );
+  const refreshWorkspaceManifestMapSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
+  });
 
-  reg(
-    "refresh_workspace_wsmap",
-    "Rebuild and save WS-MAP.md at workspace root by merging all index.md/INDEX.md files.",
-    z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
-    }),
-    ({ overwrite }) =>
-      client.post("/api/agent/workspace-wsmap", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
-  );
+  const readWorkspaceManifestMapHandler = () => client.get("/api/agent/workspace-wsmap");
+
+  const refreshWorkspaceManifestMapHandler = ({ overwrite }) =>
+    client.post("/api/agent/workspace-wsmap", {
+      ...(overwrite === false ? { overwrite: false } : {})
+    });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "read_workspace_manifest_map",
+    legacy: "read_workspace_wsmap",
+    description:
+      "Light WS-MAP.md metadata: all manifest.md nodes (ID, status, type, path, title, description). No file body. For agent placement routing.",
+    schema: z.object({}),
+    handler: readWorkspaceManifestMapHandler
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "refresh_workspace_manifest_map",
+    legacy: "refresh_workspace_wsmap",
+    description:
+      "Rebuild and save WS-MAP.md at workspace root from all manifest.md nodes (flat table, not index.md merge).",
+    schema: refreshWorkspaceManifestMapSchema,
+    handler: refreshWorkspaceManifestMapHandler
+  });
 
   reg(
     "resolve_workspace_path",

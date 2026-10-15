@@ -82311,7 +82311,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     footer.title = hasIndex
       ? `Открыть ${indexRelPath}`
       : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
-    refreshBtn.title = "Обновить INDEX.md и собрать WS-MAP.md из всех index.md в workspace";
+    refreshBtn.title = "Обновить INDEX.md и собрать WS-MAP.md (реестр manifest.md) в workspace";
   };
 
   const setWorkspacePageIndexRefreshLoading = (loading) => {

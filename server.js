@@ -29,7 +29,7 @@ const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-pa
 const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
-  collectWorkspaceIndexMdPaths,
+  filterPageMapManifestNodes,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
 const {
@@ -13092,26 +13092,45 @@ function getWorkspaceWsmapRelPath() {
   return WORKSPACE_WS_MAP_FILE;
 }
 
-async function readWorkspaceIndexFileContent(relPath) {
-  const data = await readWorkspaceTextFile(relPath);
-  return String(data?.content || "");
+async function buildWorkspaceWsmapMarkdown({ pages }) {
+  const manifestPages = filterPageMapManifestNodes(pages);
+  const entries = await enrichWorkspaceIndexEntries(
+    mapPageMapToWorkspaceIndexEntries(manifestPages),
+    pages
+  );
+  return buildWsmapMarkdown({
+    entries,
+    formatEntriesTable: (rows) =>
+      formatContentIndexEntriesMarkdown(rows, {
+        emptyHint: "_В workspace не найдено manifest-узлов._",
+        tableVariant: "wsmap"
+      })
+  });
 }
 
 async function buildAgentWorkspaceWsmap() {
-  const agentRoot = getAgentRoot();
   const indexPath = getWorkspaceWsmapRelPath();
-  const sources = await collectWorkspaceIndexMdPaths(collectSearchableFiles, agentRoot);
   const indexExists = await workspaceRelFileExists(indexPath);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const manifestPages = filterPageMapManifestNodes(pageMap.pages);
+  const entries = await enrichWorkspaceIndexEntries(
+    mapPageMapToWorkspaceIndexEntries(manifestPages),
+    pageMap.pages
+  );
+  const entryCount = entries.length;
 
   return {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Сводка всех index.md / INDEX.md в workspace в одном WS-MAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
+      "Лёгкий реестр всех manifest.md в WS-MAP.md (ID, статус, тип, путь, название, описание). " +
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_manifest_map / refresh_workspace_manifest_map.",
     whenToUse: {
-      read_workspace_wsmap: "Список источников и метаданные WS-MAP без записи на диск.",
-      refresh_workspace_wsmap: "Пересобрать и сохранить WS-MAP.md в корне workspace."
+      read_workspace_manifest_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      refresh_workspace_manifest_map: "Пересобрать и сохранить WS-MAP.md в корне workspace.",
+      read_workspace_wsmap: "Deprecated alias для read_workspace_manifest_map.",
+      refresh_workspace_wsmap: "Deprecated alias для refresh_workspace_manifest_map."
     },
     path: manifestPath,
     indexFile: {
@@ -13119,8 +13138,9 @@ async function buildAgentWorkspaceWsmap() {
       exists: indexExists,
       source: indexExists ? "file" : "generated"
     },
-    sources,
-    sourceCount: sources.length
+    entries,
+    entryCount,
+    sourceCount: entryCount
   };
 }
 
@@ -13136,10 +13156,8 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       indexFile: { path: indexPath, exists: true }
     };
   }
-  const markdown = await buildWsmapMarkdown({
-    sources: payload.sources,
-    readFileContent: readWorkspaceIndexFileContent
-  });
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const markdown = await buildWorkspaceWsmapMarkdown({ pages: pageMap.pages });
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
   const legacyPath = WORKSPACE_WSMAP_LEGACY_FILE;
@@ -13165,10 +13183,12 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       path: indexPath,
       created: !payload.indexFile.exists,
       overwritten: Boolean(payload.indexFile.exists),
-      sourceCount: payload.sourceCount
+      entryCount: payload.entryCount,
+      sourceCount: payload.entryCount
     },
     indexFile: { path: indexPath, exists: true, source: "file" },
-    sourceCount: payload.sourceCount
+    entryCount: payload.entryCount,
+    sourceCount: payload.entryCount
   };
 }
 
@@ -13883,18 +13903,23 @@ function formatContentIndexEntriesMarkdown(
   { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
 ) {
   if (!entries?.length) return emptyHint;
+  const includeWsmap = tableVariant === "wsmap";
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
-  const header = includeSlotsMode
-    ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
-    : includeSlotLabel
-      ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
-      : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
-  const divider = includeSlotsMode
-    ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
-    : includeSlotLabel
-      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
-      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
+  const header = includeWsmap
+    ? "| ID | Статус | Тип | Путь | Название | Описание |"
+    : includeSlotsMode
+      ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
+      : includeSlotLabel
+        ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+        : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
+  const divider = includeWsmap
+    ? "| ---: | --- | --- | --- | --- | --- |"
+    : includeSlotsMode
+      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
+      : includeSlotLabel
+        ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+        : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
@@ -13908,6 +13933,13 @@ function formatContentIndexEntriesMarkdown(
     const statusCell = formatContentIndexStatusCell(entry);
     const commentsCell = formatContentIndexCommentCountCell(entry.commentCount);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
+
+    if (includeWsmap) {
+      lines.push(
+        `| ${idCell} | ${statusCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} |`
+      );
+      continue;
+    }
 
     if (includeSlotsMode) {
       const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
@@ -14579,7 +14611,7 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
-    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP.md",
+    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
@@ -14620,9 +14652,9 @@ const SESSION_CONTEXT_API_MAP = {
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   workspaceWsmap:
-    "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (список всех index.md / INDEX.md)",
+    "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (реестр manifest-узлов, без body)",
   workspaceWsmapWrite:
-    "POST /api/agent/workspace-wsmap — собрать и сохранить WS-MAP.md в корне workspace (body: overwrite?)",
+    "POST /api/agent/workspace-wsmap — собрать WS-MAP.md из manifest.md в корне workspace (body: overwrite?)",
   awnDataIndex:
     "GET /api/agent/awn-databases-index — оглавление awn-databases/index.md (kind, group, path, title, description; инфоблоки)",
   awnDataIndexWrite: "POST /api/agent/awn-databases-index — обновить awn-databases/index.md (body: overwrite?)",
@@ -24469,7 +24501,7 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR → fulltext → semantic → storage fields → link graph → entities → awn-id counter → WS-MAP.md",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → entities → awn-id counter → WS-MAP (manifest-реестр)",
         steps,
         ocr,
         fulltext,

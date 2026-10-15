@@ -1497,7 +1497,7 @@
       "/api/agent/workspace-wsmap",
       wsmapStatusNode,
       (payload) =>
-        `WS-MAP.md: ${payload.sourceCount ?? payload.written?.sourceCount ?? 0} index-файлов`,
+        `WS-MAP.md: ${payload.entryCount ?? payload.sourceCount ?? payload.written?.entryCount ?? payload.written?.sourceCount ?? 0} manifest-узлов`,
       { loadingLabel: "Сборка WS-MAP.md…" }
     );
     if (data) {
