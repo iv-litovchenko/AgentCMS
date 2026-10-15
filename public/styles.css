@@ -63371,6 +63371,14 @@ button.node-navigation-memory-title:focus-visible {
   fill: rgba(167, 139, 250, 0.34);
 }
 
+.external-graph-glow.media-libraries {
+  fill: rgba(244, 114, 182, 0.32);
+}
+
+.external-graph-glow.channels {
+  fill: rgba(56, 189, 248, 0.32);
+}
+
 .external-graph-glow.active,
 .external-graph-node.hovered .external-graph-glow,
 .external-graph-node.highlighted .external-graph-glow {
@@ -63425,6 +63433,18 @@ button.node-navigation-memory-title:focus-visible {
   stroke-width: 1;
 }
 
+.external-graph-dot.media-libraries {
+  fill: #f472b6;
+  stroke: rgba(244, 114, 182, 0.48);
+  stroke-width: 1;
+}
+
+.external-graph-dot.channels {
+  fill: #38bdf8;
+  stroke: rgba(56, 189, 248, 0.48);
+  stroke-width: 1;
+}
+
 .external-graph-dot.active,
 .external-graph-node.hovered .external-graph-dot,
 .external-graph-node.highlighted .external-graph-dot {
@@ -63451,6 +63471,16 @@ button.node-navigation-memory-title:focus-visible {
   fill: #c4b5fd;
 }
 
+.external-graph-node.hovered .external-graph-dot.media-libraries,
+.external-graph-node.highlighted .external-graph-dot.media-libraries {
+  fill: #f9a8d4;
+}
+
+.external-graph-node.hovered .external-graph-dot.channels,
+.external-graph-node.highlighted .external-graph-dot.channels {
+  fill: #7dd3fc;
+}
+
 .external-graph-preview-halo {
   fill: none;
   stroke-width: 2;
@@ -63473,6 +63503,14 @@ button.node-navigation-memory-title:focus-visible {
 
 .external-graph-preview-halo.iblock {
   stroke: rgba(167, 139, 250, 0.78);
+}
+
+.external-graph-preview-halo.media-libraries {
+  stroke: rgba(244, 114, 182, 0.75);
+}
+
+.external-graph-preview-halo.channels {
+  stroke: rgba(56, 189, 248, 0.75);
 }
 
 .external-graph-preview-halo.active,
@@ -80468,11 +80506,17 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 .external-graph-glow.repositories.is-satellite-root { fill: rgba(34, 197, 94, 0.42); }
 .external-graph-glow.iblock.is-satellite-root { fill: rgba(167, 139, 250, 0.46); }
+.external-graph-glow.media-libraries.is-satellite-root { fill: rgba(244, 114, 182, 0.42); }
+.external-graph-glow.channels.is-satellite-root { fill: rgba(56, 189, 248, 0.42); }
 .external-graph-dot.repositories.is-satellite-root { fill: #15803d; stroke: rgba(187, 247, 208, 0.85); stroke-width: 1.6; }
 .external-graph-dot.iblock.is-satellite-root { fill: #6d28d9; stroke: rgba(221, 214, 254, 0.85); stroke-width: 1.6; }
+.external-graph-dot.media-libraries.is-satellite-root { fill: #be185d; stroke: rgba(251, 207, 232, 0.85); stroke-width: 1.6; }
+.external-graph-dot.channels.is-satellite-root { fill: #0369a1; stroke: rgba(186, 230, 253, 0.85); stroke-width: 1.6; }
 .external-graph-node.has-glyph .external-graph-dot { fill: rgba(15, 23, 42, 0.72); stroke-width: 1.35; }
 .external-graph-node.has-glyph .external-graph-dot.repositories { stroke: rgba(74, 222, 128, 0.72); }
 .external-graph-node.has-glyph .external-graph-dot.iblock { stroke: rgba(196, 181, 253, 0.78); }
+.external-graph-node.has-glyph .external-graph-dot.media-libraries { stroke: rgba(249, 168, 212, 0.78); }
+.external-graph-node.has-glyph .external-graph-dot.channels { stroke: rgba(125, 211, 252, 0.78); }
 .external-graph-glyph { fill: #fff; font-size: 11px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; pointer-events: none; user-select: none; }
 .external-graph-glyph.is-satellite-root { font-size: 15px; }
 .external-graph-label-title { fill: rgba(255, 255, 255, 0.88); font-weight: 650; font-size: 12px; }

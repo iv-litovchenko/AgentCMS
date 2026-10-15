@@ -114385,16 +114385,21 @@ async function renderAgentRoadmapMapLiveView(renderSeq) {
   if (!agentRoadmapMapHostNode) return;
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка карты…");
 
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
 
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
@@ -114873,15 +114878,20 @@ async function renderAgentRoadmapMapMindmapView(renderSeq) {
 
 async function renderAgentRoadmapMapGraphView(renderSeq) {
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка графа…");
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   agentRoadmapMapHostNode.replaceChildren();
@@ -115126,7 +115136,13 @@ function stripGraphContainerFolderPrefix(relPath) {
 }
 
 function isGraphFolderLikeType(type) {
-  return type === "folder" || type === "repositories" || type === "iblock";
+  return (
+    type === "folder" ||
+    type === "repositories" ||
+    type === "iblock" ||
+    type === "media-libraries" ||
+    type === "channels"
+  );
 }
 
 const GRAPH_IBLOCK_KIND_GLYPH = {
@@ -115139,11 +115155,32 @@ function resolveGraphNodeGlyph(node) {
   if (node?.graphGlyph) return node.graphGlyph;
   if (node?.id === "repositories-root") return "📚";
   if (node?.id === "awn-databases-root") return "🧩";
+  if (node?.id === "media-libraries-root") return "🖼";
+  if (node?.id === "channels-root") return "📡";
   if (node?.type === "repositories") return "📚";
+  if (node?.type === "media-libraries") return "🖼";
+  if (node?.type === "channels") return "📡";
   if (node?.type === "iblock") {
     return GRAPH_IBLOCK_KIND_GLYPH[node?.storeKind] || "🗂️";
   }
   return "";
+}
+
+const AGENT_GRAPH_CATALOG_SLICE = 32;
+
+function collectAgentGraphRegisteredCatalogEntries(items, presets) {
+  const seen = new Set();
+  const out = [];
+  const push = (entry) => {
+    if (!entry || entry.registered === false) return;
+    const slug = String(entry.slug || "").trim();
+    if (!slug || seen.has(slug)) return;
+    seen.add(slug);
+    out.push(entry);
+  };
+  for (const entry of items || []) push(entry);
+  for (const entry of presets || []) push(entry);
+  return out.slice(0, AGENT_GRAPH_CATALOG_SLICE);
 }
 
 async function fetchAgentWorkspacePageIndexPayload() {
@@ -115459,6 +115496,90 @@ function appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataP
   appendStores(Array.isArray(awnDataPayload?.stores) ? awnDataPayload.stores : [], awnDataRootId, 2);
 }
 
+function appendAgentGraphMediaLibrariesBranch({ nodes, edges, nodeIds, rootId, mediaLibrariesPayload }) {
+  const mediaRootId = "media-libraries-root";
+  nodes.push({
+    id: mediaRootId,
+    label: "Медиатеки",
+    graphSubLabel: "awn-media",
+    graphGlyph: "🖼",
+    isSatelliteRoot: true,
+    type: "media-libraries",
+    depth: 1,
+    graphTarget: { kind: "media-library-index", path: MEDIA_LIBRARY_INDEX_REL }
+  });
+  edges.push({ from: rootId, to: mediaRootId });
+  nodeIds.add(mediaRootId);
+
+  const libraries = collectAgentGraphRegisteredCatalogEntries(
+    mediaLibrariesPayload?.libraries,
+    mediaLibrariesPayload?.presets
+  );
+  for (const library of libraries) {
+    const slug = String(library?.slug || "").trim();
+    if (!slug) continue;
+    const manifestPath = String(
+      library?.manifestPath || `awn-media/${slug}/manifest.md`
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const nodeId = `media-lib:${slug}`;
+    if (nodeIds.has(nodeId)) continue;
+    nodes.push({
+      id: nodeId,
+      label: String(library?.name || slug).trim(),
+      graphGlyph: String(library?.icon || "🖼").trim() || "🖼",
+      type: "media-libraries",
+      depth: 2,
+      graphTarget: { kind: "media-library", path: manifestPath }
+    });
+    nodeIds.add(nodeId);
+    edges.push({ from: mediaRootId, to: nodeId, weak: true });
+  }
+}
+
+function appendAgentGraphChannelsBranch({ nodes, edges, nodeIds, rootId, channelsPayload }) {
+  const channelsRootId = "channels-root";
+  nodes.push({
+    id: channelsRootId,
+    label: "Каналы",
+    graphSubLabel: "awn-channels",
+    graphGlyph: "📡",
+    isSatelliteRoot: true,
+    type: "channels",
+    depth: 1,
+    graphTarget: { kind: "channel-index", path: AWN_CHANNELS_INDEX_REL_PATH }
+  });
+  edges.push({ from: rootId, to: channelsRootId });
+  nodeIds.add(channelsRootId);
+
+  const channels = collectAgentGraphRegisteredCatalogEntries(
+    channelsPayload?.channels,
+    channelsPayload?.presets
+  );
+  for (const channel of channels) {
+    const slug = String(channel?.slug || "").trim();
+    if (!slug) continue;
+    const manifestPath = String(
+      channel?.manifestPath || `awn-channels/${slug}/manifest.md`
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const nodeId = `channel:${slug}`;
+    if (nodeIds.has(nodeId)) continue;
+    nodes.push({
+      id: nodeId,
+      label: String(channel?.name || slug).trim(),
+      graphGlyph: String(channel?.icon || "📡").trim() || "📡",
+      type: "channels",
+      depth: 2,
+      graphTarget: { kind: "channel", path: manifestPath }
+    });
+    nodeIds.add(nodeId);
+    edges.push({ from: channelsRootId, to: nodeId, weak: true });
+  }
+}
+
 async function loadAgentGraphRepositoriesPayload() {
   if (menuRepositoriesLastPayload) return menuRepositoriesLastPayload;
   const resolvedAgent = String(activeAgentId || "").trim();
@@ -115485,6 +115606,32 @@ async function loadAgentGraphAwnDataPayload() {
   }
 }
 
+async function loadAgentGraphMediaLibrariesPayload() {
+  if (menuMediaLibrariesLastPayload) return menuMediaLibrariesLastPayload;
+  const resolvedAgent = String(activeAgentId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/media-libraries", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadAgentGraphChannelsPayload() {
+  if (menuAwnChannelsLastPayload) return menuAwnChannelsLastPayload;
+  const resolvedAgent = String(activeAgentId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/channels", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function handleAgentGraphNodeClick(node) {
   if (node?.nodePath) {
     openNodeFromMenu(getLabelFromPath(node.nodePath), node.nodePath);
@@ -115492,12 +115639,33 @@ function handleAgentGraphNodeClick(node) {
   }
   const target = node?.graphTarget;
   if (!target) return;
-  if (target.kind === "repository-index" || target.kind === "iblock-index") {
+  if (
+    target.kind === "repository-index" ||
+    target.kind === "iblock-index" ||
+    target.kind === "media-library-index" ||
+    target.kind === "channel-index"
+  ) {
+    if (target.kind === "media-library-index") {
+      void openMediaLibraryIndexOverview();
+      return;
+    }
+    if (target.kind === "channel-index") {
+      void openAwnChannelsIndexOverview();
+      return;
+    }
     void openWorkspaceFilePreviewByRelPath(String(target.path || "").replace(/\\/g, "/"));
     return;
   }
   if (target.kind === "repository") {
     void openRepositoryWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "media-library") {
+    void openMediaLibraryWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "channel") {
+    void openAwnChannelWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
     return;
   }
   if (target.kind === "iblock" && target.storeRel) {
@@ -115571,7 +115739,13 @@ function resolveGraphIntermediateFolderLabel(entries, relPath, fallback, scopePr
 
 function buildGraphDataFromAgentMenu(
   menu,
-  { repositoriesPayload = null, awnDataPayload = null, pageIndexPayload = null } = {}
+  {
+    repositoriesPayload = null,
+    awnDataPayload = null,
+    mediaLibrariesPayload = null,
+    channelsPayload = null,
+    pageIndexPayload = null
+  } = {}
 ) {
   const manifestMetaMap = buildGraphManifestMetaMap(pageIndexPayload);
   const baseTree = getWorkspaceRootMenuTreeNode(menu);
@@ -115758,6 +115932,8 @@ function buildGraphDataFromAgentMenu(
 
   appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, repositoriesPayload });
   appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataPayload });
+  appendAgentGraphMediaLibrariesBranch({ nodes, edges, nodeIds, rootId, mediaLibrariesPayload });
+  appendAgentGraphChannelsBranch({ nodes, edges, nodeIds, rootId, channelsPayload });
 
   return { nodes, edges };
 }
@@ -116820,15 +116996,20 @@ async function renderAgentGraphView() {
 
   renderListEmptyMessage(agentGraphContentNode, "Загрузка графа…");
 
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
 
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   if (graph.nodes.length <= 1) {
