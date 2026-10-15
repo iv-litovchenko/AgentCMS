@@ -10,6 +10,7 @@
     { text: "My Compas", holdMs: 6500 },
     { text: "My Atlas", holdMs: 6500 },
     { text: "My Storage", holdMs: 6500 },
+    { text: "My Progress", holdMs: 6500 },
     { text: "My Memory", holdMs: 6500 },
     { text: "My Knowledge", holdMs: 6500 },
     { text: "My Tree", holdMs: 6500 },
