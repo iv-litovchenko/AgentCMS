@@ -284,6 +284,7 @@ let awnDataUploadInputNode = null;
 let awnDataUploadBtnNode = null;
 let awnDataUploadHintNode = null;
 let awnDataAddRecordBtn = null;
+let awnDataAddGoToEditInputNode = null;
 let awnDataCreateMainCsvFormNode = null;
 let awnDataCreateMainCsvBtn = null;
 let awnDataViewStorePanelNode = null;
@@ -3087,6 +3088,195 @@ function getWorkspaceModuleChpuFromViews(views) {
   return null;
 }
 
+const AWN_DATA_STORAGE_DATA_PREFIX = "awn-storage/data";
+
+function buildAgentWorkspaceChpuUrl(agentId, workspaceChpuPath) {
+  const agent = encodeURIComponent(agentId);
+  const tail = String(workspaceChpuPath || "")
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return tail ? `/${agent}/${tail}` : `/${agent}`;
+}
+
+function encodeAwnDataChpuTail(tail) {
+  return String(tail || "")
+    .replace(/^\/+|\/+$/g, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function findAwnDataSectionIdByDataPath(store, dataPath) {
+  const norm = String(dataPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!norm) return null;
+  const sections = getAwnDataStoreSections(store);
+  for (const section of sections) {
+    const sectionPath = resolveAwnDataSectionDataRelPath(section);
+    if (sectionPath && sectionPath === norm) return String(section.id || "").trim();
+    if (String(section.id || "").trim() === norm) return String(section.id || "").trim();
+  }
+  return null;
+}
+
+function findAwnDataRecordByDataInnerPath(records, innerPath) {
+  const norm = String(innerPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!norm) return null;
+  for (const record of records) {
+    if (isAwnDataSectionRecord(record)) continue;
+    const relPath = String(record?.relPath || "").replace(/\\/g, "/");
+    const marker = `/${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+    const markerIndex = relPath.indexOf(marker);
+    const inner =
+      markerIndex >= 0
+        ? relPath.slice(markerIndex + marker.length).replace(/\.(md|csv)$/i, "")
+        : String(record.id || "").trim();
+    if (inner === norm || String(record.id || "").trim() === norm) return record;
+  }
+  return null;
+}
+
+function normalizeAwnDataSectionFilterId(sectionRef, store) {
+  const ref = String(sectionRef || "").trim();
+  if (!ref || ref === "__all__") return "__all__";
+  if (ref === "__root__" || ref === "~root") return "__root__";
+  if (store) {
+    const byPath = findAwnDataSectionIdByDataPath(store, ref);
+    if (byPath) return byPath;
+    const sections = getAwnDataStoreSections(store);
+    if (sections.some((section) => String(section.id || "").trim() === ref)) return ref;
+  }
+  const parts = ref.split("/").filter(Boolean);
+  return parts[parts.length - 1] || ref;
+}
+
+function buildAwnDataRecordChpuDataTail(recordId, store) {
+  const id = String(recordId || "").trim();
+  if (!id) return "";
+  const viewStore = normalizeAwnDataStoreView(store || awnDataViewStoreCache || {});
+  const record = getAwnDataStoreAllRecords(viewStore).find((item) => String(item.id || "").trim() === id);
+  if (record) {
+    const relPath = String(record?.relPath || "").replace(/\\/g, "/");
+    const marker = `/${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+    const markerIndex = relPath.indexOf(marker);
+    if (markerIndex >= 0) {
+      return relPath
+        .slice(markerIndex + marker.length)
+        .replace(/\.(md|csv)$/i, "")
+        .replace(/^\/+|\/+$/g, "");
+    }
+  }
+  return id;
+}
+
+function buildAwnDataSectionChpuDataTail(sectionId, store) {
+  const sid = String(sectionId || "").trim();
+  if (!sid || sid === "__all__") return "";
+  if (sid === "__root__") return "~root";
+  const viewStore = normalizeAwnDataStoreView(store || awnDataViewStoreCache || {});
+  const section = getAwnDataStoreSections(viewStore).find((item) => String(item.id || "").trim() === sid);
+  const sectionPath = section ? resolveAwnDataSectionDataRelPath(section) : sid;
+  return String(sectionPath || sid).replace(/^\/+|\/+$/g, "");
+}
+
+function buildAwnDataViewStoreChpuPath(storeRel, { recordId = "", sectionId = "", store = null } = {}) {
+  const storePath = String(storeRel || "").replace(/^\/+|\/+$/g, "");
+  let path = `awn-databases/${storePath}`;
+  const viewStore = store || awnDataViewStoreCache;
+  const record = String(recordId || "").trim();
+  if (record) {
+    const dataTail = buildAwnDataRecordChpuDataTail(record, viewStore);
+    path += `/${AWN_DATA_STORAGE_DATA_PREFIX}/${encodeAwnDataChpuTail(dataTail)}`;
+    return path;
+  }
+  const section = String(sectionId || "").trim();
+  if (section && section !== "__all__") {
+    const dataTail = buildAwnDataSectionChpuDataTail(section, viewStore);
+    path += `/${AWN_DATA_STORAGE_DATA_PREFIX}/${encodeAwnDataChpuTail(dataTail)}`;
+  }
+  return path;
+}
+
+function buildAwnDataViewSectionTreeHref(sectionId, agentId = awnDataViewCatalogAgentId || activeAgentId) {
+  const storeRel = awnDataViewStoreRel;
+  if (!storeRel || !agentId) return "#";
+  return buildAgentWorkspaceChpuUrl(
+    agentId,
+    buildAwnDataViewStoreChpuPath(storeRel, { sectionId })
+  );
+}
+
+function decodeAwnDataChpuTailSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function parseAwnDataStoreTailFromWorkspacePath(recordPart) {
+  const part = String(recordPart || "").replace(/^\/+/, "");
+  if (!part) return { kind: "store" };
+  if (/^section\//i.test(part)) {
+    const sectionRef = part
+      .slice("section/".length)
+      .split("/")
+      .map(decodeAwnDataChpuTailSegment)
+      .join("/");
+    return { kind: "section", sectionRef };
+  }
+  const lower = part.toLowerCase();
+  const dataRoot = AWN_DATA_STORAGE_DATA_PREFIX;
+  if (lower === dataRoot || lower === `${dataRoot}/~root` || lower === `${dataRoot}/__root__`) {
+    return { kind: "section", sectionRef: "__root__" };
+  }
+  const dataPrefix = `${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+  if (lower.startsWith(dataPrefix)) {
+    const innerPath = part
+      .slice(dataPrefix.length)
+      .split("/")
+      .map(decodeAwnDataChpuTailSegment)
+      .join("/");
+    if (innerPath === "~root" || innerPath === "__root__") {
+      return { kind: "section", sectionRef: "__root__" };
+    }
+    return { kind: "dataPath", innerPath };
+  }
+  return { kind: "record", recordId: part.replace(/\.md$/i, "") };
+}
+
+function resolveAwnDataRouteTailTarget(store, parsed) {
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  if (parsed.kind === "store") return { view: "store", sectionId: "__all__" };
+  if (parsed.kind === "section") {
+    return {
+      view: "store",
+      sectionId: normalizeAwnDataSectionFilterId(parsed.sectionRef, viewStore)
+    };
+  }
+  if (parsed.kind === "dataPath") {
+    const innerPath = String(parsed.innerPath || "").trim();
+    const sectionId = findAwnDataSectionIdByDataPath(viewStore, innerPath);
+    if (sectionId) return { view: "store", sectionId };
+    const record = findAwnDataRecordByDataInnerPath(getAwnDataStoreAllRecords(viewStore), innerPath);
+    if (record) return { view: "record", recordId: String(record.id || "").trim() };
+    const fallbackId = innerPath.split("/").filter(Boolean).pop() || innerPath;
+    return { view: "store", sectionId: normalizeAwnDataSectionFilterId(fallbackId, viewStore) };
+  }
+  if (parsed.kind === "record") {
+    const recordId = String(parsed.recordId || "").trim();
+    const record = getAwnDataStoreAllRecords(viewStore).find((item) => String(item.id || "").trim() === recordId);
+    if (record && isAwnDataSectionRecord(record)) {
+      return { view: "store", sectionId: normalizeAwnDataSectionFilterId(recordId, viewStore) };
+    }
+    return { view: "record", recordId };
+  }
+  return { view: "store", sectionId: "__all__" };
+}
+
 function buildAgentModuleChpuPath(agentId, moduleChpu) {
   const id = String(agentId || "").trim();
   const module = String(moduleChpu || "").trim();
@@ -4144,19 +4334,19 @@ function getChpuWorkspacePathFromState() {
     return appendChpuViewToWorkspacePath(folderPath, "folder", { force: true });
   }
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
-    let routePath = `awn-databases/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
-    const recordId = String(awnDataViewRecordId || "").trim();
-    if (recordId) routePath += `/${recordId}`;
-    return routePath;
+    return buildAwnDataViewStoreChpuPath(awnDataViewStoreRel, {
+      recordId: awnDataViewRecordId,
+      sectionId: awnDataViewSectionId
+    });
   }
   if (
     activeContentMode === "description" &&
     awnDataManifestEditReturnRel &&
     isAwnDatabaseManifestEditing()
   ) {
-    let routePath = `awn-databases/${String(awnDataManifestEditReturnRel).replace(/^\/+|\/+$/g, "")}`;
-    const recordId = String(awnDataManifestEditReturnRecordId || "").trim();
-    if (recordId) routePath += `/${recordId}`;
+    const routePath = buildAwnDataViewStoreChpuPath(awnDataManifestEditReturnRel, {
+      recordId: awnDataManifestEditReturnRecordId
+    });
     return appendChpuViewToWorkspacePath(routePath, "edit", { force: true });
   }
   if (!activePath) return "";
@@ -122514,6 +122704,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataUploadBtnNode = null;
   awnDataUploadHintNode = null;
   awnDataAddRecordBtn = null;
+  awnDataAddGoToEditInputNode = null;
   awnDataCreateMainCsvFormNode = null;
   awnDataCreateMainCsvBtn = null;
   awnDataViewStorePanelNode = null;
@@ -122588,6 +122779,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataUploadBtnNode = root.querySelector(".awn-databases-upload-btn");
   awnDataUploadHintNode = root.querySelector(".awn-databases-upload-hint");
   awnDataAddRecordBtn = root.querySelector(".awn-databases-add-record-btn");
+  awnDataAddGoToEditInputNode = root.querySelector(".awn-databases-add-go-to-edit-input");
   awnDataCreateMainCsvFormNode = root.querySelector(".awn-databases-view-create-main-csv-form");
   awnDataCreateMainCsvBtn = root.querySelector(".awn-databases-create-main-csv-btn");
   awnDataViewStorePanelNode = root.querySelector(".awn-databases-view-store-panel");
@@ -123144,9 +123336,18 @@ async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = active
     try {
       const response = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, agentId));
       if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
       if (recordPart) {
-        const recordId = recordPart.replace(/\.md$/i, "");
-        await openAwnDataRecordViewPage(storeRel, recordId, agentId, options);
+        const parsedTail = parseAwnDataStoreTailFromWorkspacePath(recordPart);
+        const target = resolveAwnDataRouteTailTarget(data.store, parsedTail);
+        if (target.view === "record" && target.recordId) {
+          await openAwnDataRecordViewPage(storeRel, target.recordId, agentId, options);
+        } else {
+          await openAwnDataViewPage(storeRel, agentId, {
+            ...options,
+            sectionId: target.sectionId || "__all__"
+          });
+        }
       } else {
         await openAwnDataViewPage(storeRel, agentId, options);
       }
@@ -123273,6 +123474,7 @@ function wireAwnDataViewPageEvents(hub) {
     if (event.target.closest(".awn-databases-view-section-tree-actions")) return;
     const item = event.target.closest(".awn-databases-view-section-tree-item");
     if (!item?.dataset.sectionId) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
     awnDataViewSectionId = item.dataset.sectionId;
     syncAwnDataViewSectionTreeActiveStates();
@@ -123281,6 +123483,7 @@ function wireAwnDataViewPageEvents(hub) {
     if (awnDataViewStoreCache) {
       renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
     }
+    syncAppRouteToUrl({ push: true });
   });
 
   hub.addEventListener("click", (event) => {
@@ -123423,7 +123626,11 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   awnDataViewStoreCache = null;
   awnDataViewRecordId = "";
   awnDataViewRecordCache = null;
-  awnDataViewSectionId = "__all__";
+  if (options.sectionId !== undefined) {
+    awnDataViewSectionId = String(options.sectionId || "").trim() || "__all__";
+  } else {
+    awnDataViewSectionId = "__all__";
+  }
   if (awnDataViewSectionSearchInputNode) awnDataViewSectionSearchInputNode.value = "";
   awnDataViewSchemaDraft = "";
   awnDataViewSchemaEditing = false;
@@ -124962,9 +125169,9 @@ function appendAwnDataViewSectionTreeItem(
   const isUnregistered = Boolean(record && awnDataSectionMissingManifest(record));
   if (isUnregistered) row.classList.add("awn-databases-view-section-tree-row--unregistered");
 
-  const btn = document.createElement("button");
-  btn.type = "button";
+  const btn = document.createElement("a");
   btn.className = "awn-databases-view-section-tree-item";
+  btn.href = buildAwnDataViewSectionTreeHref(id);
   btn.dataset.sectionId = id;
   btn.style.setProperty("--tree-depth", String(depth));
   btn.setAttribute("role", "treeitem");
@@ -127221,6 +127428,7 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
     return;
   }
 
+  const goToEditAfterCreate = Boolean(awnDataAddGoToEditInputNode?.checked);
   awnDataAddRecordBtn.disabled = true;
   try {
     const payload = {
@@ -127245,8 +127453,22 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
     if (awnDataAddNameInputNode) awnDataAddNameInputNode.value = "";
     if (awnDataAddDescriptionInputNode) awnDataAddDescriptionInputNode.value = "";
     awnDataAddSlugController?.reset();
+    const createdMeta = data.store?.__awnLastCreatedRecord;
+    let createdRecordId = String(createdMeta?.id || "").trim();
+    if (!createdRecordId && idMode !== "numeric") createdRecordId = slug;
     await refreshMenuAwnDataStores(agentId);
     await loadAwnDataViewStore(agentId);
+    if (goToEditAfterCreate && createdRecordId) {
+      const store = normalizeAwnDataStoreView(awnDataViewStoreCache || data.store);
+      const record = getAwnDataStoreAllRecords(store).find(
+        (item) => String(item.id || "").trim() === createdRecordId
+      );
+      if (record) {
+        await openAwnDataRecordEditor(record, store);
+      } else {
+        showToast("Запись создана, но не найдена в списке для редактирования", "error");
+      }
+    }
   } catch (error) {
     showToast(String(error.message || error), "error");
   } finally {
