@@ -76465,7 +76465,7 @@ function withPreservedMenuTreePreviews(agentId, work) {
 }
 
 const NAV_PREVIEW_HOVER_SELECTOR =
-  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-item:has(.menu-tree-preview-img), .menu-folder:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
+  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-item:has(.menu-tree-preview-img), .menu-folder:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder)), .external-table-cover-cell:has(.external-table-cover-thumb:not(.broken-image-placeholder)), .external-table-cover-thumb:not(.broken-image-placeholder)";
 
 let navPreviewHoverPopoverNode = null;
 let navPreviewHoverPopoverImgNode = null;
@@ -76488,6 +76488,15 @@ function resolveNavPreviewHoverSourceImg(anchorNode) {
   ) {
     return anchorNode.querySelector(".menu-tree-preview-img");
   }
+  if (
+    anchorNode.classList.contains("external-table-cover-cell") ||
+    anchorNode.classList.contains("awn-databases-view-record-field-preview")
+  ) {
+    return anchorNode.querySelector(".external-table-cover-thumb:not(.broken-image-placeholder)");
+  }
+  if (anchorNode.classList.contains("external-table-cover-thumb")) {
+    return anchorNode;
+  }
   return anchorNode.querySelector(".node-overview-thumb");
 }
 
@@ -76502,13 +76511,17 @@ function positionNavPreviewHoverPopover(anchorNode) {
   const isTocPreview =
     anchorNode.classList.contains("nav-book-toc-link") ||
     anchorNode.classList.contains("nav-book-toc-link-preview");
+  const isTableCoverThumb =
+    anchorNode.classList.contains("external-table-cover-cell") ||
+    anchorNode.classList.contains("awn-databases-view-record-field-preview");
   const popSize = isHeroThumb ? 240 : 168;
   navPreviewHoverPopoverNode.classList.toggle("is-large", isHeroThumb);
   navPreviewHoverPopoverNode.style.width = `${popSize}px`;
   navPreviewHoverPopoverNode.style.height = `${popSize}px`;
 
-  // For menu items, pin the popover to the mini preview image, not the whole row.
-  const previewImg = isMenuTreePreview ? resolveNavPreviewHoverSourceImg(anchorNode) : null;
+  // Pin the popover to the mini preview image, not the whole row/cell.
+  const previewImg =
+    isMenuTreePreview || isTableCoverThumb ? resolveNavPreviewHoverSourceImg(anchorNode) : null;
   const previewWrap = previewImg?.closest?.(".menu-tree-preview");
   const rect = (previewWrap || previewImg || anchorNode).getBoundingClientRect();
 
@@ -76521,7 +76534,7 @@ function positionNavPreviewHoverPopover(anchorNode) {
     left = rect.left - 30;
     top = rect.top - popSize - 10;
     anchorSide = "bottom";
-  } else if (isTocPreview) {
+  } else if (isTocPreview || isTableCoverThumb) {
     left = rect.left - popSize - 10;
     if (left < 12) {
       left = rect.right + 10;
@@ -76582,9 +76595,12 @@ function showNavPreviewHoverPopover(anchorNode) {
   const imageUrl = String(sourceImg?.currentSrc || sourceImg?.src || "").trim();
   if (!sourceImg || !imageUrl || sourceImg.classList.contains("broken-image-placeholder")) return;
 
-  const hoverAnchor = anchorNode.classList.contains("nav-book-toc-link-preview")
-    ? anchorNode.closest(".nav-book-toc-link") || anchorNode
-    : anchorNode;
+  let hoverAnchor = anchorNode;
+  if (anchorNode.classList.contains("nav-book-toc-link-preview")) {
+    hoverAnchor = anchorNode.closest(".nav-book-toc-link") || anchorNode;
+  } else if (anchorNode.classList.contains("external-table-cover-thumb")) {
+    hoverAnchor = anchorNode.closest(".external-table-cover-cell") || anchorNode;
+  }
 
   if (!navPreviewHoverPopoverNode) {
     navPreviewHoverPopoverNode = document.createElement("div");

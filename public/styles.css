@@ -62880,6 +62880,12 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 6px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
+  cursor: zoom-in;
+}
+
+.external-table-cover-cell:has(.external-table-cover-thumb:not(.broken-image-placeholder)):hover .external-table-cover-thumb {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.28);
 }
 
 .external-table-cover-thumb.broken-image-placeholder {
