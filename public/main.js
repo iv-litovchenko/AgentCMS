@@ -32148,6 +32148,15 @@ function renderContentSearchResults(data) {
     return;
   }
 
+  if (data?.notFound && isContentSearchIdMode()) {
+    const agentLabel = getActiveAgentMeta()?.name || activeAgentId || "текущем";
+    const idLabel = data?.id != null ? `#${data.id}` : query;
+    contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">Запись с awn-id <code>${escapeHtml(String(idLabel))}</code> не найдена в workspace «${escapeHtml(agentLabel)}». Проверьте выбранное хранилище в шапке: id привязан к файлу с полем <code>awn-id</code> в frontmatter (не к номеру в списке каналов, если он другой).</div>`;
+    contentSearchResultsNode.classList.remove("hidden");
+    contentSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
   if (data?.policyError) {
     contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">${escapeHtml(data.policyError)}</div>`;
     contentSearchResultsNode.classList.remove("hidden");
@@ -32428,7 +32437,7 @@ async function fetchContentSearchByFields(
   return mapStorageFieldSearchResults(data, where);
 }
 
-async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPrefix()) {
+async function fetchContentSearchById(query) {
   const id = parseContentSearchIdQuery(query);
   if (!id) {
     return { query, mode: "id", scope: "id", results: [], total: 0, invalidId: true };
@@ -32438,16 +32447,18 @@ async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPr
   if (!response.ok) {
     throw new Error(data.error || data.details || `Request failed with ${response.status}`);
   }
-  let paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.path ? [data.path] : [];
-  if (pathPrefix) {
-    const norm = String(pathPrefix).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
-    if (norm) {
-      paths = paths.filter((filePath) => {
-        const value = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-        return value === norm || value.startsWith(`${norm}/`);
-      });
-    }
+  if (data.ok === false && !data.path && !(Array.isArray(data.paths) && data.paths.length)) {
+    return {
+      query,
+      mode: "id",
+      scope: "id",
+      id,
+      results: [],
+      total: 0,
+      notFound: true
+    };
   }
+  const paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.path ? [data.path] : [];
   return {
     query,
     mode: "id",

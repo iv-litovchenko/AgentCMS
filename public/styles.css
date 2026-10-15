@@ -26234,20 +26234,6 @@ a.header-tool-btn {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.28);
 }
 
-.content-search-mode-btn--id {
-  min-width: 28px;
-  padding: 0 7px;
-}
-
-.content-search-mode-btn--id .content-search-mode-id-icon {
-  display: block;
-  flex: 0 0 auto;
-}
-
-.content-search-mode-btn--id.is-active {
-  color: #1d4ed8;
-}
-
 .content-search-bar--id .content-search-mode-toggle {
   background: #eff6ff;
   border-color: rgba(59, 130, 246, 0.22);

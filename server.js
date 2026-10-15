@@ -21175,7 +21175,7 @@ async function handleApiForAgent(req, res, url) {
     const idRaw = url.searchParams.get("id");
     try {
       const data = await getWorkspaceIdService().resolveId(idRaw);
-      return sendJson(res, data.ok ? 200 : 404, data);
+      return sendJson(res, 200, data);
     } catch (error) {
       const message = String(error.message || error);
       const status = message.includes("must be a positive integer") ? 400 : 500;
