@@ -1831,14 +1831,25 @@ async function withWorkspaceActivityContext(req, url, fn) {
 
 async function readJsonBody(req, maxSize = 1_000_000) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    // Decode once at the end: a multi-byte UTF-8 char may be split across chunks.
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    const fail = () => {
+      tooLarge = true;
+      reject(new Error("Request body is too large"));
+    };
     req.on("data", (chunk) => {
-      body += chunk.toString("utf-8");
-      if (body.length > maxSize) {
-        reject(new Error("Request body is too large"));
-      }
+      if (tooLarge) return;
+      size += chunk.length;
+      // maxSize counts characters; a UTF-8 char is at most 4 bytes.
+      if (size > maxSize * 4) return fail();
+      chunks.push(chunk);
     });
     req.on("end", () => {
+      if (tooLarge) return;
+      const body = Buffer.concat(chunks).toString("utf-8");
+      if (body.length > maxSize) return fail();
       try {
         resolve(body ? JSON.parse(body) : {});
       } catch {
