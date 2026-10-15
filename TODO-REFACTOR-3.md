@@ -44,6 +44,17 @@
 | ❌      | `context`     | `context`    |
 
 
+## `awn-container`
+
+Корень областей и тем. Имя размыто на фоне `awn-databases` / `awn-media` / `awn-channels`. Slug не выбран.
+
+| Статус | Slug (сейчас)   | Slug (план) |
+| ------ | --------------- | ----------- |
+| ❌      | `awn-container` | TBD         |
+
+**Кандидаты:** `awn-topics`, `awn-spaces`, `awn-areas`, `awn-content` / `awn-core` (сохранить место в алфавитной сортировке корня, как у `container`).
+
+**Объём:** константа в коде — просто; пути в workspace + индексы — миграция. Косметика, не срочно.
 
 
 ## Чат (Cursor)
