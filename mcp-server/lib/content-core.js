@@ -1,6 +1,9 @@
 import { createRequire } from "node:module";
 import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } from "./yaml-frontmatter.js";
 import { readFileHandler } from "./workspace-fs-tools.js";
+import { readTextWindow } from "./content-read-window.js";
+
+const FULL_TEXT_READ_MAX_BYTES = 10_000_000;
 
 const require = createRequire(import.meta.url);
 const {
@@ -135,8 +138,10 @@ export async function readContentAll(client, args) {
   try {
     const bodyPayload = await readContentBody(client, args);
     if (bodyPayload.content !== undefined) {
-      result.body = bodyPayload.content;
-      if (bodyPayload.file) result.file = bodyPayload.file;
+      const { content, file, placement: _placement, ...bodyWindow } = bodyPayload;
+      result.body = content;
+      if (file) result.file = file;
+      if (bodyWindow.totalLines != null) result.bodyWindow = bodyWindow;
     } else {
       result.body = bodyPayload;
     }
@@ -191,26 +196,39 @@ export async function getContentMeta(client, args) {
   return client.get("/api/content/meta", { path: manifestPath, slot, ...(ref ? { ref } : {}) });
 }
 
+function windowArgs(args, fileName) {
+  return {
+    startLine: args.startLine,
+    limitLines: args.limitLines,
+    full: args.full === true,
+    markdownBody: String(fileName || "").toLowerCase().endsWith(".md")
+  };
+}
+
+async function readWorkspaceFileWindow(client, args, workspaceFilePath) {
+  if (args.format === "base64" || args.offsetBytes != null) {
+    return readRootWorkspaceFile(client, args, workspaceFilePath);
+  }
+  const payload = await readFileHandler(client, { path: workspaceFilePath, maxBytes: FULL_TEXT_READ_MAX_BYTES });
+  if (typeof payload?.content !== "string") return payload;
+  if (payload.truncated) return readRootWorkspaceFile(client, args, workspaceFilePath);
+  return {
+    path: workspaceFilePath,
+    size: payload.size,
+    ...readTextWindow(payload.content, windowArgs(args, workspaceFilePath))
+  };
+}
+
 export async function readContentBody(client, args) {
   const address = resolveArgs(args);
   const { manifestPath, slot, ref, workspaceFilePath, placement, kind } = address;
   if (kind === "root") {
-    const path = workspaceFilePath;
-    const payload = await readRootWorkspaceFile(client, args, path);
-    if (!path.toLowerCase().endsWith(".md")) {
-      return { placement, ...payload };
-    }
-    const text = typeof payload?.content === "string" ? payload.content : "";
-    const { description } = splitMarkdownFrontmatter(text);
-    return { placement, path, file: path, content: description };
+    const payload = await readWorkspaceFileWindow(client, args, workspaceFilePath);
+    return { placement, file: workspaceFilePath, ...payload };
   }
   if (workspaceFilePath) {
-    const payload = await readFileHandler(client, {
-      path: workspaceFilePath,
-      format: args.format,
-      maxBytes: args.maxBytes
-    });
-    return { placement, file: ref, content: payload?.content ?? payload?.text ?? "" };
+    const payload = await readWorkspaceFileWindow(client, args, workspaceFilePath);
+    return { placement, file: ref, ...payload };
   }
   if (isInternalBundleSlot(slot)) {
     const payload = await readInternalContent(client, manifestPath, slot);
@@ -218,9 +236,7 @@ export async function readContentBody(client, args) {
   }
   if (!ref) throw new Error("ref is required for external slots");
   const payload = await readMarkdownFull(client, manifestPath, slot, ref);
-  if (!ref.toLowerCase().endsWith(".md")) return { placement, file: payload.file, content: payload.content };
-  const { description } = splitMarkdownFrontmatter(payload.content);
-  return { placement, file: payload.file, content: description };
+  return { placement, file: payload.file, ...readTextWindow(payload.content, windowArgs(args, ref)) };
 }
 
 export async function writeContentBinary(client, args) {

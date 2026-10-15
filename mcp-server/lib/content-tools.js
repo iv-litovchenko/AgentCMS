@@ -27,6 +27,7 @@ import {
   placementKindSchema
 } from "./content-placement-zod.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
+import { READ_WINDOW_DEFAULT_LINES, READ_WINDOW_MAX_LINES } from "./content-read-window.js";
 
 const contentPartSchema = z
   .enum(["body", "properties", "schema", "meta", "all"])
@@ -56,14 +57,29 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content",
-    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. Slot main-single-csv: part=body returns entire main.csv. root: optional format=base64, startLine/limitLines.",
+    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
+      `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
+      "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
+      "full=true — whole body (required before write_content replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64.",
     address({
       part: contentPartSchema,
       format: z.enum(["base64"]).optional(),
       maxBytes: z.number().int().optional(),
-      startLine: z.number().int().min(1).optional(),
-      limitLines: z.number().int().min(1).max(500).optional(),
-      offsetBytes: z.number().int().min(0).optional()
+      startLine: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe("1-based file line (frontmatter counted), e.g. startLine from a search hit"),
+      limitLines: z
+        .number()
+        .int()
+        .min(1)
+        .max(READ_WINDOW_MAX_LINES)
+        .optional()
+        .describe(`Lines to return (default ${READ_WINDOW_DEFAULT_LINES})`),
+      full: z.boolean().optional().describe("Return the whole body, ignore line window"),
+      offsetBytes: z.number().int().min(0).optional().describe("root only: byte-offset read (no line window)")
     }),
     async (args) => {
       if (args.part === "meta") return readContentMeta(client, args);

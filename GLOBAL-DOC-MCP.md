@@ -55,7 +55,7 @@
 
 - `placement.kind`: `page` | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
 - Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: page`.
-- `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`; для root ещё `startLine` + `limitLines` (до 500), `format: "base64"`, `maxBytes`, `offsetBytes`.
+- `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`. Body читается окном: по умолчанию первые 300 строк тела, `startLine` + `limitLines` (до 500) — номера строк **файла с frontmatter**, те же, что `startLine` в результатах поиска. В ответе `startLine`, `endLine`, `totalLines`, `bodyStartLine`, `hasMore`, `nextStartLine`, `hash`; окно расширяется, чтобы не резать блок ``` (`codeFence`). `full: true` — всё тело (обязательно перед `write_content` replace). Internal-слоты и `main-single-csv` — целиком. Для root ещё `format: "base64"`, `offsetBytes`.
 - `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; текст — `content`, бинарь — `data` (base64) + `mimeType`; для root — `mode: append | replace`.
 - `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.
 
