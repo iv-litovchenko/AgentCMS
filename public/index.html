@@ -672,6 +672,40 @@
                 <p class="header-welcome-lead">
                   Здесь вы управляете <strong>хранилищами</strong> — отдельными workspace для проектов и агентов.
                 </p>
+                <div
+                  id="header-welcome-desktop-section"
+                  class="header-welcome-desktop hidden"
+                  hidden
+                  aria-label="Подсказка для настольного приложения Electron"
+                >
+                  <p class="header-welcome-desktop-title">Настольное приложение (Electron)</p>
+                  <p class="header-welcome-desktop-lead">
+                    Корень проекта должен указывать на ваш клон репозитория с
+                    <code>.agent-cms-global</code>, а не на служебную копию в Application Support — иначе
+                    пути к workspace выглядят как <code>../../../../Desktop/…</code>, а
+                    <code>platform.yml</code> может не подгружаться.
+                  </p>
+                  <ol class="header-welcome-desktop-steps">
+                    <li>
+                      <strong>File → Open Workspace…</strong> — выберите папку репозитория (например
+                      <code>~/Desktop/YamlCMS</code>, где есть
+                      <code>.agent-cms-global/ws-list-agents.json</code>).
+                    </li>
+                    <li>
+                      Либо в
+                      <code>~/Library/Application Support/agent-cms/desktop-config.json</code> задайте
+                      <code>"projectRoot": "/Users/…/Desktop/YamlCMS"</code> и перезапустите приложение.
+                    </li>
+                  </ol>
+                  <p
+                    id="header-welcome-desktop-warn"
+                    class="header-welcome-desktop-warn hidden"
+                    role="status"
+                    hidden
+                  >
+                    Похоже, открыт не тот корень проекта — используйте шаги выше, затем перезагрузите окно.
+                  </p>
+                </div>
                 <ol class="header-welcome-steps">
                   <li><strong>Создайте хранилище</strong> — папка с корневым <code>manifest.md</code></li>
                   <li><strong>Откройте его</strong> — карта, список или поток на главной</li>

@@ -17799,6 +17799,14 @@ function isGitRepoRootServiceLooseFile(name) {
   return true;
 }
 
+/** Корень workspace: loose-файлы уже в sidebar как system-file (GET /api/system-files). */
+function isWorkspaceRootRepoServiceDuplicate(menuPrefixRel, looseFileRelPath) {
+  const prefix = String(menuPrefixRel || "").replace(/\\/g, "/").trim();
+  if (prefix && prefix !== ".") return false;
+  const rel = String(looseFileRelPath || "").replace(/\\/g, "/").trim();
+  return Boolean(rel && !rel.includes("/"));
+}
+
 async function isGitRepoLooseFileRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return false;
@@ -18078,6 +18086,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
 
     if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootServiceLooseFile(entry.name)) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
+      if (isWorkspaceRootRepoServiceDuplicate(prefix, nodeRelPath)) continue;
       const menuItem = {
         label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
         path: nodeRelPath,

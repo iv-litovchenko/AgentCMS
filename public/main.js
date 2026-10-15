@@ -1364,6 +1364,8 @@ const headerWelcomeBtn = document.getElementById("header-welcome-btn");
 const headerWelcomePopoverNode = document.getElementById("header-welcome-popover");
 const headerWelcomeCloseBtn = document.getElementById("header-welcome-close-btn");
 const headerWelcomeCreateBtn = document.getElementById("header-welcome-create-btn");
+const headerWelcomeDesktopSection = document.getElementById("header-welcome-desktop-section");
+const headerWelcomeDesktopWarn = document.getElementById("header-welcome-desktop-warn");
 const headerConnectWrapNode = document.getElementById("header-connect-wrap");
 const headerConnectBtn = document.getElementById("header-connect-btn");
 const headerConnectPopoverNode = document.getElementById("header-connect-popover");
@@ -12152,6 +12154,53 @@ if (typeof window !== "undefined") {
   window.agentCmsCloseHeaderWelcomePopover = closeHeaderWelcomePopover;
 }
 
+function setHeaderWelcomeDesktopSectionVisible(visible) {
+  if (!headerWelcomeDesktopSection) return;
+  headerWelcomeDesktopSection.classList.toggle("hidden", !visible);
+  headerWelcomeDesktopSection.hidden = !visible;
+}
+
+function setHeaderWelcomeDesktopWarnVisible(visible) {
+  if (!headerWelcomeDesktopWarn) return;
+  headerWelcomeDesktopWarn.classList.toggle("hidden", !visible);
+  headerWelcomeDesktopWarn.hidden = !visible;
+}
+
+function agentRegistryPathLooksLikeWrongDesktopRoot(agentPath) {
+  const normalized = String(agentPath || "").replace(/\\/g, "/");
+  return normalized.includes("/Desktop/") && normalized.split("/").filter(Boolean).includes("..");
+}
+
+async function syncHeaderWelcomeDesktopHint() {
+  const isDesktop = Boolean(window.desktopApp?.isDesktop);
+  setHeaderWelcomeDesktopSectionVisible(isDesktop);
+  if (!isDesktop || !headerWelcomeDesktopSection) return;
+
+  let showWarn = false;
+  try {
+    const [settingsRes, agentsRes] = await Promise.all([
+      fetch("/api/platform/settings-global"),
+      fetch("/api/agents")
+    ]);
+    if (settingsRes.ok) {
+      const settingsPayload = await settingsRes.json();
+      if (!settingsPayload?.exists) showWarn = true;
+    }
+    if (agentsRes.ok) {
+      const agentsPayload = await agentsRes.json();
+      const agents = Array.isArray(agentsPayload?.agents) ? agentsPayload.agents : [];
+      if (agents.some((agent) => agentRegistryPathLooksLikeWrongDesktopRoot(agent.path))) {
+        showWarn = true;
+      }
+    }
+  } catch {
+    // ignore — static hint still visible
+  }
+
+  headerWelcomeDesktopSection.classList.toggle("is-warning", showWarn);
+  setHeaderWelcomeDesktopWarnVisible(showWarn);
+}
+
 function openHeaderWelcomePopover() {
   if (!headerWelcomePopoverNode || !headerWelcomeBtn) return;
   if (headerWelcomeOpen) {
@@ -12169,6 +12218,7 @@ function openHeaderWelcomePopover() {
   headerWelcomeOpen = true;
   headerWelcomePopoverNode.classList.remove("hidden");
   syncHeaderWelcomeState();
+  void syncHeaderWelcomeDesktopHint();
 }
 
 let headerConnectOpen = false;
@@ -34600,7 +34650,7 @@ function getMenuFolderExpandMeta(
 ) {
   const folderPath = sectionFolderPath ?? resolveSectionFolderPath(node, parentSectionPath, depth);
   const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
-  const repoServiceItems = getMenuRepoServiceItems(node);
+  const repoServiceItems = filterRepoServiceItemsForMenuSection(getMenuRepoServiceItems(node), folderPath);
   const isGitRepoMenuNode = Boolean(node.hasGitSelf && depth > 0);
   const nestedContainerTree =
     !isGitRepoMenuNode && depth > 0 && node.containerTree ? node.containerTree : null;
@@ -101658,8 +101708,25 @@ function menuNodeHasChildren(node) {
   );
 }
 
-function appendRepoServiceMenuItems(container, repoServiceItems, parentMenuNode, agentId = activeAgentId) {
-  const items = (repoServiceItems || []).filter(Boolean);
+function filterRepoServiceItemsForMenuSection(items, sectionFolderPath = ".") {
+  if (normalizeFolderPath(sectionFolderPath || ".") !== ".") {
+    return (items || []).filter(Boolean);
+  }
+  return (items || []).filter((item) => {
+    const path = normalizeMenuNodePath(item?.path);
+    if (!path) return true;
+    return path.includes("/");
+  });
+}
+
+function appendRepoServiceMenuItems(
+  container,
+  repoServiceItems,
+  parentMenuNode,
+  agentId = activeAgentId,
+  sectionFolderPath = "."
+) {
+  const items = filterRepoServiceItemsForMenuSection(repoServiceItems, sectionFolderPath);
   if (!items.length) return;
 
   for (const item of items) {
@@ -103240,7 +103307,10 @@ function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
 }
 
 function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
-  const repoServiceItems = getMenuRepoServiceItems(node);
+  const repoServiceItems = filterRepoServiceItemsForMenuSection(
+    getMenuRepoServiceItems(node),
+    sectionFolderPath || "."
+  );
   const kitFolder = getActiveAgentKitFolder(agentId);
   const containerFolder = getActiveAgentContainerFolder(agentId);
   const servicePrefix = kitFolder ? `${sectionFolderPath}/${kitFolder}`.replace(/\/+/g, "/") : "";
@@ -103411,7 +103481,7 @@ function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth
     if (layout.hasService || layout.hasContainer || layout.hasWorkspace) {
       childrenNode.appendChild(createMenuTreeDivider("system-files"));
     }
-    appendRepoServiceMenuItems(childrenNode, layout.repoServiceItems, node, agentId);
+    appendRepoServiceMenuItems(childrenNode, layout.repoServiceItems, node, agentId, sectionFolderPath);
   }
 
   sectionNode.appendChild(childrenNode);
@@ -104436,7 +104506,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       if (hasNestedContainer || hasNonContainer) {
         childrenNode.appendChild(createMenuTreeDivider("system-files"));
       }
-      appendRepoServiceMenuItems(childrenNode, repoServiceItems, node, agentId);
+      appendRepoServiceMenuItems(childrenNode, repoServiceItems, node, agentId, sectionFolderPath);
     }
 
     sectionNode.appendChild(childrenNode);
@@ -136767,6 +136837,7 @@ initAgentMcpMethodsToolbar();
 bindLandingFocusToolbar();
 bindLandingMainTopicsDock();
 initWorkspaceNotifications();
+void syncHeaderWelcomeDesktopHint();
 void loadContentSearchPolicy();
 window.addEventListener("workspace-index-policy-changed", () => {
   contentSearchPolicyCache = null;

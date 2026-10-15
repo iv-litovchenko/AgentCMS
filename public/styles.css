@@ -22893,6 +22893,60 @@ ol .live-diff-preview-removed {
   line-height: 1.55;
 }
 
+.header-welcome-desktop {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.65) 0%, rgba(241, 245, 249, 0.9) 100%);
+}
+
+.header-welcome-desktop.is-warning {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, rgba(254, 243, 199, 0.75) 0%, rgba(255, 251, 235, 0.95) 100%);
+}
+
+.header-welcome-desktop-title {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.header-welcome-desktop-lead {
+  margin: 0 0 8px;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.header-welcome-desktop-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.header-welcome-desktop-steps li + li {
+  margin-top: 6px;
+}
+
+.header-welcome-desktop-steps code,
+.header-welcome-desktop-lead code {
+  font-size: 10px;
+}
+
+.header-welcome-desktop-warn {
+  margin: 8px 0 0;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 .header-welcome-steps {
   margin: 0 0 12px;
   padding-left: 18px;
