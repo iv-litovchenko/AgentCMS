@@ -77133,6 +77133,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-databases-view-section-tree {
+  --awn-section-tree-gutter-w: 14px;
+  --awn-section-tree-line: #cbd5e1;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -77231,13 +77233,83 @@ body.is-cms-page-picker-active #discuss-aside * {
   height: 0.85rem;
 }
 
+.awn-databases-view-section-tree-gutters {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  align-items: stretch;
+  margin-right: 0.1rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.awn-databases-view-section-tree-gutter {
+  position: relative;
+  flex: 0 0 var(--awn-section-tree-gutter-w);
+  width: var(--awn-section-tree-gutter-w);
+  min-height: 100%;
+}
+
+.awn-databases-view-section-tree-gutter--line::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--awn-section-tree-line);
+}
+
+.awn-databases-view-section-tree-gutter--joint::before,
+.awn-databases-view-section-tree-gutter--joint::after {
+  content: "";
+  position: absolute;
+  background: var(--awn-section-tree-line);
+  pointer-events: none;
+}
+
+.awn-databases-view-section-tree-gutter--joint::before {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+}
+
+.awn-databases-view-section-tree-gutter--joint.is-last::before {
+  bottom: 50%;
+}
+
+.awn-databases-view-section-tree-gutter--joint::after {
+  left: 50%;
+  top: 50%;
+  width: calc(var(--awn-section-tree-gutter-w) * 0.55);
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.awn-databases-view-section-tree-row:hover .awn-databases-view-section-tree-gutter--line::before,
+.awn-databases-view-section-tree-row:hover .awn-databases-view-section-tree-gutter--joint::before,
+.awn-databases-view-section-tree-row:hover .awn-databases-view-section-tree-gutter--joint::after,
+.awn-databases-view-section-tree-row:focus-within .awn-databases-view-section-tree-gutter--line::before,
+.awn-databases-view-section-tree-row:focus-within .awn-databases-view-section-tree-gutter--joint::before,
+.awn-databases-view-section-tree-row:focus-within .awn-databases-view-section-tree-gutter--joint::after {
+  background: #94a3b8;
+}
+
+.awn-databases-view-section-tree-row.is-active .awn-databases-view-section-tree-gutter--line::before,
+.awn-databases-view-section-tree-row.is-active .awn-databases-view-section-tree-gutter--joint::before,
+.awn-databases-view-section-tree-row.is-active .awn-databases-view-section-tree-gutter--joint::after {
+  background: #c4b5fd;
+}
+
 .awn-databases-view-section-tree-item {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   box-sizing: border-box;
   padding: 0.32rem 0.45rem;
-  padding-left: calc(0.45rem + var(--tree-depth, 0) * 0.9rem);
   border: 0;
   border-radius: 0.35rem;
   background: transparent;

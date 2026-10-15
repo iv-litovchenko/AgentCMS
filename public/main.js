@@ -124926,7 +124926,36 @@ function createAwnDataViewSectionTreeActions(record, store) {
   return actions;
 }
 
-function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, record = null, store = null }) {
+function createAwnDataViewSectionTreeGutters(depth, ancLines, isLast) {
+  const levelCount = Number(depth) || 0;
+  if (levelCount <= 0) return null;
+
+  const wrap = document.createElement("span");
+  wrap.className = "awn-databases-view-section-tree-gutters";
+  wrap.setAttribute("aria-hidden", "true");
+
+  for (let level = 0; level < levelCount; level += 1) {
+    const seg = document.createElement("span");
+    seg.className = "awn-databases-view-section-tree-gutter";
+    const isJoint = level === levelCount - 1;
+    if (isJoint) {
+      seg.classList.add("awn-databases-view-section-tree-gutter--joint");
+      if (isLast) seg.classList.add("is-last");
+    } else if (ancLines[level]) {
+      seg.classList.add("awn-databases-view-section-tree-gutter--line");
+    } else {
+      seg.classList.add("awn-databases-view-section-tree-gutter--spacer");
+    }
+    wrap.appendChild(seg);
+  }
+
+  return wrap;
+}
+
+function appendAwnDataViewSectionTreeItem(
+  container,
+  { id, label, depth = 0, record = null, store = null, ancLines = [], isLast = true }
+) {
   const row = document.createElement("div");
   row.className = "awn-databases-view-section-tree-row";
   if (depth > 0) row.classList.add("is-nested");
@@ -124948,6 +124977,9 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
     row.classList.add("is-active");
     btn.classList.add("is-active");
   }
+
+  const gutters = createAwnDataViewSectionTreeGutters(depth, ancLines, isLast);
+  if (gutters) btn.appendChild(gutters);
 
   const icon = document.createElement("span");
   icon.className = "awn-databases-view-section-tree-icon";
@@ -124985,7 +125017,15 @@ function awnDataSectionTreeNodeMatchesQuery(node, query) {
   return children.some((child) => awnDataSectionTreeNodeMatchesQuery(child, q));
 }
 
-function appendAwnDataViewSectionTreeBranchFiltered(container, node, depth, query, store = null) {
+function appendAwnDataViewSectionTreeBranchFiltered(
+  container,
+  node,
+  depth,
+  query,
+  store = null,
+  ancLines = [],
+  isLast = true
+) {
   const q = String(query || "").trim().toLowerCase();
   const children = Array.isArray(node?.children) ? node.children : [];
   const title = String(node?.title || node?.id || "").trim() || "—";
@@ -125000,10 +125040,22 @@ function appendAwnDataViewSectionTreeBranchFiltered(container, node, depth, quer
       label: title,
       depth,
       record: node,
-      store
+      store,
+      ancLines,
+      isLast
     });
-    for (const child of matchingChildren) {
-      appendAwnDataViewSectionTreeBranchFiltered(container, child, depth + 1, query, store);
+    for (let index = 0; index < matchingChildren.length; index += 1) {
+      const child = matchingChildren[index];
+      const childIsLast = index === matchingChildren.length - 1;
+      appendAwnDataViewSectionTreeBranchFiltered(
+        container,
+        child,
+        depth + 1,
+        query,
+        store,
+        [...ancLines, !isLast],
+        childIsLast
+      );
     }
   }
 }
@@ -125052,11 +125104,21 @@ function syncAwnDataViewSectionTree(store) {
   }
 
   const sectionTree = buildAwnDataSectionTree(sections);
-  for (const node of sectionTree) {
-    if (!queryLower || awnDataSectionTreeNodeMatchesQuery(node, queryLower)) {
-      appendAwnDataViewSectionTreeBranchFiltered(awnDataViewSectionTreeNode, node, 0, queryLower, viewStore);
-      visibleCount += 1;
-    }
+  const visibleRoots = sectionTree.filter(
+    (node) => !queryLower || awnDataSectionTreeNodeMatchesQuery(node, queryLower)
+  );
+  for (let index = 0; index < visibleRoots.length; index += 1) {
+    const node = visibleRoots[index];
+    appendAwnDataViewSectionTreeBranchFiltered(
+      awnDataViewSectionTreeNode,
+      node,
+      0,
+      queryLower,
+      viewStore,
+      [],
+      index === visibleRoots.length - 1
+    );
+    visibleCount += 1;
   }
 
   if (queryLower && !visibleCount) {
@@ -125628,6 +125690,9 @@ function syncAwnDataViewAddForm(store) {
   awnDataAddRecordsFormNode
     ?.querySelector(".awn-databases-add-slug-row")
     ?.classList.toggle("hidden", idMode === "numeric");
+  if (idMode === "numeric") {
+    awnDataAddSlugController?.reset();
+  }
 
   if (isFiles) {
     const fileTypes = resolveAwnDataRecordFileTypes(viewStore);
@@ -127158,18 +127223,21 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
 
   awnDataAddRecordBtn.disabled = true;
   try {
+    const payload = {
+      store: awnDataViewStoreRel,
+      name,
+      title: name,
+      parent: parent || undefined,
+      description: readTrimmedDescriptionInput(awnDataAddDescriptionInputNode) || undefined
+    };
+    if (idMode !== "numeric") {
+      payload.id = slug || undefined;
+      payload.slug = slug || undefined;
+    }
     const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        store: awnDataViewStoreRel,
-        name,
-        title: name,
-        id: slug || undefined,
-        slug: slug || undefined,
-        parent: parent || undefined,
-        description: readTrimmedDescriptionInput(awnDataAddDescriptionInputNode) || undefined
-      })
+      body: JSON.stringify(payload)
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
