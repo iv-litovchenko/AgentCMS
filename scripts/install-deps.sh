@@ -173,7 +173,15 @@ install_stt_python() {
   echo "  STT Python готов — движки подключаются через сервер Shell (Web Speech — в браузере)."
 }
 
+# Временно не ставим GLiNER из install-deps (entity-index работает без него).
+INSTALL_ENTITY_GLINER="${INSTALL_ENTITY_GLINER:-0}"
+
 install_entity_gliner_python() {
+  if [ "$INSTALL_ENTITY_GLINER" != "1" ]; then
+    echo ""
+    echo "→ GLiNER (entity-index): пропуск (INSTALL_ENTITY_GLINER=1 чтобы включить)"
+    return 0
+  fi
   echo ""
   echo "→ Python GLiNER (реестр сущностей) — .venv-entity …"
 
@@ -218,7 +226,7 @@ install_certs
 
 install_stt_python || echo "  Python STT не установлен — повторите: bash scripts/install-deps.sh"
 
-install_entity_gliner_python || echo "  GLiNER не установлен — опционально для entity-index"
+install_entity_gliner_python
 
 echo ""
 echo "Готово. Дальше:"

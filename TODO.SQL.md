@@ -57,3 +57,37 @@
 | CSV cell search (indexed) | — | ✓ |
 | Inline / JS | ✓ | ✗ backlog |
 | MCP | — | ✓ |
+
+---
+
+# Реестр сущностей (entity-index) — гибридный поиск по людям, темам, проектам
+
+**О чём:** экспериментальный слой индекса сущностей в заметках (regex, frontmatter, wikilinks, теги, опционально GLiNER) + правила в `entity-registry.yml` + SQLite + UI-редактор и фильтры в `search/hybrid` / MCP.
+
+**Статус чата:** MVP (индекс, API, MCP, модалка редактора, seeds/aliases/reject, установка GLiNER в deps). Ниже — **не довели до конца**.
+
+## Не реализовано (entity-index)
+
+| # | Что | Зачем / как потом |
+|---|-----|-------------------|
+| 1 | **Фильтр шума wikilinks для «Темы»** | Переключатель «скрыть редкие (≤1)» или отдельный подтип, чтобы список из 80+ wikilinks не забивал UI |
+| 2 | **Полный отказ от `prompt()`** | Тип/объект уже inline-формы; остальные сценарии (если появятся) — тоже в модалке |
+| 3 | **GLiNER-метки из типов реестра** | Передавать `types[].label` / id в Python-экстрактор, чтобы NER совпадал с вашими типами («Еда», «Люди»), а не только builtin |
+| 4 | **Документация GLiNER** | Явный блок в platform docs / requirements: venv `.venv-entity`, флаг `index-entity-gliner-enabled`, время пересборки |
+| 5 | **MCP `reject` для сущностей** | Скрытие сущности из реестра через MCP (если API есть, но tool не экспортирован — добавить в `map-tools`) |
+| 6 | **Canvas-мок редактора** | `entity-registry-editor-mock.canvas.tsx` — черновик, не прод-UI |
+| 7 | **Проверка «entity ВЫКЛ» и настройки UI** | Убедиться после рестарта: слой entity в мониторе, поля `index-entities-enabled` / `index-entity-gliner-enabled` в схеме и форме настроек |
+| 8 | **Commit / PR** | Изменения в ветке не зафиксированы в этом чате |
+| 9 | **Полный YAML-редактор реестра** | Aliases, reject, types, seeds в одном экране (сейчас — модалка + открытие `entity-registry.yml` отдельной кнопкой) |
+| 10 | **Тесты UI / e2e редактора** | Только unit-тесты экстракции; браузерные сценарии «+ объект», hybrid search — нет |
+| 11 | **Автонаполнение «пустых» типов без тегов** | Кроме GLiNER и ручных seeds — нет отдельной магии; нужны теги, wikilinks или пересборка после правил |
+
+## Backlog (entity-index)
+
+- [ ] Фильтр / сортировка списка объектов в редакторе (шум topic).
+- [ ] GLiNER ↔ `entity-registry.types`.
+- [ ] MCP reject + документация установки.
+- [ ] E2E или smoke-тест API редактора.
+- [ ] Единый экран правил реестра (aliases/reject).
+
+**Код:** `lib/indexes/entity-index/*`, `public/js/panels/entity-registry-editor.js`, `server.js` (`/api/entity-index/*`), hybrid — `lib/services/workspace-brain-service.js`, MCP — `mcp-server/lib/map-tools.js`.

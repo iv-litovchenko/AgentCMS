@@ -359,7 +359,7 @@ fields:
   index-entity-gliner-enabled:
     type: awn.field.boolean
     title: GLiNER для сущностей
-    description: Пересборка entity-index через GLiNER (.venv-entity). Control → «Установить зависимости» или pip install gliner
+    description: Пересборка entity-index через GLiNER (.venv-entity). Установка вручную pip install gliner (install-deps пока без GLiNER)
     default: false
     group: indexing
     sort: 242

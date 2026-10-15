@@ -28,7 +28,7 @@ const ACTIONS = [
     category: "setup",
     title: "Установить зависимости",
     description:
-      "npm install, Python 3.12, ffmpeg, faster-whisper, GLiNER (.venv-entity). Нужно один раз при первом запуске.",
+      "npm install, Python 3.12, ffmpeg, faster-whisper. GLiNER в install-deps пока отключён. Нужно один раз при первом запуске.",
     command: "bash",
     args: ["scripts/install-deps.sh"],
     tone: "primary"

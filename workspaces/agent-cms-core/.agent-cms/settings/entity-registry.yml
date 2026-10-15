@@ -1,0 +1,26 @@
+# workspace-entity-registry-v2
+version: 2
+types:
+  - id: person
+    label: Люди
+    tags: []
+    builtin: person
+  - id: food
+    label: Еда
+    tags:
+      - еда
+      - food
+  - id: project
+    label: Проекты
+    tags: []
+    builtin: project
+  - id: topic
+    label: Темы
+    tags: []
+    builtin: topic
+  - id: технология
+    label: Технология
+    tags: []
+seeds: []
+aliases: []
+reject: []
