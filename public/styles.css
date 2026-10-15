@@ -77633,6 +77633,13 @@ body.is-cms-page-picker-active #discuss-aside * {
   white-space: nowrap;
 }
 
+.awn-databases-view-record-field.awn-databases-view-record-field-preview,
+.awn-databases-view-record-field.external-table-cover-cell {
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+}
+
 .awn-databases-view-record-actions {
   text-align: center;
   white-space: nowrap;

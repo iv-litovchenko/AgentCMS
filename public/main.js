@@ -296,6 +296,7 @@ let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
 let awnDataViewColumnsWrapNode = null;
+let awnDataViewSortWrapNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_MEDIA_LIBRARY_BAND_OPEN_KEY = "yamlcms.menuMediaLibraryBandOpen.v1";
 const MENU_AWN_SCRIPTS_BAND_OPEN_KEY = "yamlcms.menuAwnScriptsBandOpen.v1";
@@ -43148,8 +43149,7 @@ function resolveNavigationItemPreviewUi(item, nodePath = activePath) {
   return imageUrl ? { imageUrl, previewPath: path } : null;
 }
 
-function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
-  const preview = resolveExternalItemPreviewUi(item);
+function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
   if (!preview) return false;
 
   if (preview.broken) {
@@ -43189,6 +43189,10 @@ function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
   img.src = imageUrl;
   lifecycle.checkAlreadyLoaded();
   return true;
+}
+
+function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
+  return appendPreviewUiThumb(parent, resolveExternalItemPreviewUi(item), { className });
 }
 
 function getExternalMdItems() {
@@ -74666,7 +74670,20 @@ function createNavigationListSortIcon(kind) {
   return icon;
 }
 
-function createNavigationListSortSelect(scope, { onChange } = {}) {
+function syncNavigationListSortSelect(wrap, loadSort) {
+  if (!wrap || typeof loadSort !== "function") return;
+  const current = loadSort();
+  wrap._navigationListSortCurrent = current;
+  const toggle = wrap.querySelector(".node-navigation-list-sort-toggle");
+  if (!toggle) return;
+  for (const btn of toggle.querySelectorAll("[data-sort-value]")) {
+    const active = btn.dataset.sortValue === current;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function createNavigationListSortSelect(scope, { onChange, loadSort = null, saveSort = null } = {}) {
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-list-sort";
 
@@ -74675,9 +74692,15 @@ function createNavigationListSortSelect(scope, { onChange } = {}) {
   toggle.setAttribute("role", "group");
   toggle.setAttribute("aria-label", "Сортировка списка");
 
-  let current = loadNavigationListSort(scope);
+  const loadFn = typeof loadSort === "function" ? loadSort : () => loadNavigationListSort(scope);
+  const saveFn =
+    typeof saveSort === "function" ? saveSort : (mode) => saveNavigationListSort(scope, mode);
+
+  let current = loadFn();
+  wrap._navigationListSortCurrent = current;
 
   const syncActive = () => {
+    current = wrap._navigationListSortCurrent ?? current;
     for (const btn of toggle.querySelectorAll("[data-sort-value]")) {
       const active = btn.dataset.sortValue === current;
       btn.classList.toggle("is-active", active);
@@ -74705,7 +74728,8 @@ function createNavigationListSortSelect(scope, { onChange } = {}) {
       event.stopPropagation();
       if (current === spec.value) return;
       current = spec.value;
-      saveNavigationListSort(scope, current);
+      wrap._navigationListSortCurrent = current;
+      saveFn(current);
       syncActive();
       onChange?.(current);
     });
@@ -120271,10 +120295,11 @@ function applyAwnDataStoreSchemaActiveTarget(cache, preferredTarget = "") {
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout.v2";
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY_LEGACY = "yamlcms.awnDataViewRecordsLayout";
 const AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY = "yamlcms.awnDataViewCardsColumns";
+const AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX = "yamlcms.awnDataViewStoreUi.v1:";
 const AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS = [1, 3, 5];
 const AWN_DATA_VIEW_SORT_SCOPE = "awn-databases-view";
 const AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX = "yamlcms.awnDataViewColumns.v1:";
-const AWN_DATA_VIEW_DEFAULT_COLUMN_KEYS = ["awn-id", "awn-name"];
+const AWN_DATA_VIEW_DEFAULT_COLUMN_KEYS = ["awn-id", "awn-name", "awn-preview"];
 let awnDataViewRecordsLayout = "table";
 let awnDataViewCardsColumns = 3;
 let awnDataViewVisibleColumnKeysCache = null;
@@ -122716,6 +122741,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewRecordCommentsMountNode = null;
   awnDataViewLayoutToggleNode = null;
   awnDataViewColumnsWrapNode = null;
+  awnDataViewSortWrapNode = null;
   return;
 }
 
@@ -122866,6 +122892,8 @@ function setupAwnDataViewToolbarControls(root) {
     sortMount.className = "awn-databases-view-sort-mount";
     sortMount.appendChild(
       createNavigationListSortSelect(AWN_DATA_VIEW_SORT_SCOPE, {
+        loadSort: () => loadAwnDataViewListSort(),
+        saveSort: (mode) => saveAwnDataViewListSort(mode),
         onChange: () => {
           if (awnDataViewStoreCache && !awnDataViewRecordId) {
             renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
@@ -122875,6 +122903,8 @@ function setupAwnDataViewToolbarControls(root) {
     );
     controls.appendChild(sortMount);
   }
+
+  awnDataViewSortWrapNode = controls.querySelector(".awn-databases-view-sort-mount .node-navigation-list-sort");
 
   if (!controls.querySelector(".awn-databases-view-columns-wrap")) {
     const columnsWrap = document.createElement("div");
@@ -122922,9 +122952,91 @@ function setupAwnDataViewToolbarControls(root) {
   awnDataViewLayoutToggleNode = controls.querySelector(".awn-databases-view-layout-control");
   syncAwnDataViewLayoutToggleUi();
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
+  syncNavigationListSortSelect(awnDataViewSortWrapNode, () => loadAwnDataViewListSort());
+}
+
+function getAwnDataViewStoreRelForUiPrefs(storeRel = "") {
+  return normalizeAwnDataViewStoreRel(
+    storeRel || awnDataViewStoreRel || awnDataViewStoreCache?.relPath || ""
+  );
+}
+
+function getAwnDataViewStoreUiStorageKey(storeRel) {
+  const rel = getAwnDataViewStoreRelForUiPrefs(storeRel);
+  if (!rel) return "";
+  return `${AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX}${activeAgentId || "main"}:${rel}`;
+}
+
+function readAwnDataViewStoreUiPrefs(storeRel) {
+  const storageKey = getAwnDataViewStoreUiStorageKey(storeRel);
+  if (!storageKey) return {};
+  try {
+    const raw = readStorageItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+  } catch {
+    // ignore
+  }
+
+  const migrated = {};
+  try {
+    const layout = localStorage.getItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY);
+    if (layout === "table" || layout === "fields" || layout === "cards" || layout === "toc") {
+      migrated.layout = layout;
+    }
+    const cols = Number(localStorage.getItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY));
+    if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) migrated.cardsCols = cols;
+  } catch {
+    // ignore
+  }
+  if (Object.keys(migrated).length) {
+    writeStorageItem(storageKey, JSON.stringify(migrated));
+  }
+  return migrated;
+}
+
+function saveAwnDataViewStoreUiPrefs(storeRel, patch) {
+  const storageKey = getAwnDataViewStoreUiStorageKey(storeRel);
+  if (!storageKey || !patch || typeof patch !== "object") return;
+  const current = readAwnDataViewStoreUiPrefs(storeRel);
+  writeStorageItem(storageKey, JSON.stringify({ ...current, ...patch }));
+}
+
+function loadAwnDataViewListSort(storeRel = "") {
+  const sort = readAwnDataViewStoreUiPrefs(storeRel).sort;
+  return sort === "created" ? "created" : "name";
+}
+
+function saveAwnDataViewListSort(mode, storeRel = "") {
+  saveAwnDataViewStoreUiPrefs(storeRel, { sort: mode === "created" ? "created" : "name" });
+}
+
+function applyAwnDataViewStoreUiPrefs(storeRel) {
+  const rel = getAwnDataViewStoreRelForUiPrefs(storeRel);
+  if (!rel) return;
+  const prefs = readAwnDataViewStoreUiPrefs(rel);
+  if (prefs.layout === "table" || prefs.layout === "fields" || prefs.layout === "cards" || prefs.layout === "toc") {
+    awnDataViewRecordsLayout = prefs.layout;
+  }
+  const cols = Number(prefs.cardsCols);
+  if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) {
+    awnDataViewCardsColumns = cols;
+  }
+  awnDataViewVisibleColumnKeysScope = "";
+  awnDataViewVisibleColumnKeysCache = null;
+  syncAwnDataViewLayoutToggleUi();
+  syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
+  syncNavigationListSortSelect(awnDataViewSortWrapNode, () => loadAwnDataViewListSort(rel));
 }
 
 function loadAwnDataViewCardsColumns() {
+  const cols = Number(readAwnDataViewStoreUiPrefs().cardsCols);
+  if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) {
+    awnDataViewCardsColumns = cols;
+    return;
+  }
   try {
     const stored = Number(localStorage.getItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY));
     if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(stored)) awnDataViewCardsColumns = stored;
@@ -122933,14 +123045,10 @@ function loadAwnDataViewCardsColumns() {
   }
 }
 
-function saveAwnDataViewCardsColumns(columns) {
+function saveAwnDataViewCardsColumns(columns, storeRel = "") {
   if (!AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(columns)) return;
   awnDataViewCardsColumns = columns;
-  try {
-    localStorage.setItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY, String(columns));
-  } catch {
-    // ignore
-  }
+  saveAwnDataViewStoreUiPrefs(storeRel, { cardsCols: columns });
 }
 
 function createAwnDataViewLayoutBtnIcon(svgMarkup) {
@@ -123027,6 +123135,11 @@ function createAwnDataViewRecordsLayoutToggle() {
 
 function loadAwnDataViewRecordsLayout() {
   loadAwnDataViewCardsColumns();
+  const prefs = readAwnDataViewStoreUiPrefs();
+  if (prefs.layout === "table" || prefs.layout === "fields" || prefs.layout === "cards" || prefs.layout === "toc") {
+    awnDataViewRecordsLayout = prefs.layout;
+    return;
+  }
   try {
     const stored = localStorage.getItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY);
     if (stored === "table" || stored === "fields" || stored === "cards" || stored === "toc") {
@@ -123045,11 +123158,7 @@ function saveAwnDataViewRecordsLayout(layout) {
   if (layout !== "table" && layout !== "fields" && layout !== "cards" && layout !== "toc") return;
   if (awnDataViewRecordsLayout === layout) return;
   awnDataViewRecordsLayout = layout;
-  try {
-    localStorage.setItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY, layout);
-  } catch {
-    // ignore
-  }
+  saveAwnDataViewStoreUiPrefs("", { layout });
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
     renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
@@ -123065,11 +123174,7 @@ function saveAwnDataViewCardsLayout(columns) {
   saveAwnDataViewCardsColumns(columns);
   if (layoutChanged) {
     awnDataViewRecordsLayout = "cards";
-    try {
-      localStorage.setItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY, "cards");
-    } catch {
-      // ignore
-    }
+    saveAwnDataViewStoreUiPrefs("", { layout: "cards", cardsCols: columns });
   }
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
@@ -123098,7 +123203,7 @@ function getAwnDataRecordSortCreated(record) {
   return String(fm["awn-created"] || fm["awn-create"] || fm.created || "").trim();
 }
 
-function sortAwnDataViewRecords(records, store, sortMode = loadNavigationListSort(AWN_DATA_VIEW_SORT_SCOPE)) {
+function sortAwnDataViewRecords(records, store, sortMode = loadAwnDataViewListSort(store?.relPath)) {
   const list = Array.isArray(records) ? [...records] : [];
   const sortOrder = Array.isArray(store?.sortOrder) ? store.sortOrder : [];
 
@@ -123799,6 +123904,7 @@ async function loadAwnDataViewStore(agentId = activeAgentId) {
 
     activeLabel = String(store.name || store.relPath || activeLabel).trim();
     awnDataViewStoreCache = store;
+    applyAwnDataViewStoreUiPrefs(store.relPath);
     syncAwnDataViewIblockLayout(store);
     const allRecords = Array.isArray(store?.records) ? store.records : [];
     renderAwnDataViewHeader(store);
@@ -125704,6 +125810,31 @@ function formatAwnDataViewCellValue(record, column, store = awnDataViewStoreCach
   return String(raw).trim();
 }
 
+function isAwnDataViewImagePreviewColumn(column) {
+  if (column.kind !== "field") return false;
+  const fieldType = String(column.fieldType || "");
+  if (fieldTypeIs(fieldType, "file.image.for-preview")) return true;
+  const key = String(column.key || "").trim().toLowerCase();
+  return key === "awn-preview" || key === "preview";
+}
+
+function appendAwnDataViewPreviewFieldCell(cell, record, column, store) {
+  const frontmatter = record?.frontmatter || {};
+  let raw = frontmatter[column.key];
+  raw = raw === undefined || raw === null ? "" : String(raw).trim();
+  if (!raw) {
+    cell.textContent = "—";
+    return;
+  }
+
+  cell.classList.add("external-table-cover-cell", "awn-databases-view-record-field-preview");
+  cell.title = raw;
+  const filePath = resolveAwnDataRecordFilePath(record, store);
+  const preview = buildPreviewUiFromPath(raw, filePath);
+  if (appendPreviewUiThumb(cell, preview, { className: "external-table-cover-thumb" })) return;
+  cell.textContent = raw;
+}
+
 function updateAwnDataViewCount(shown, total) {
   if (!awnDataViewCountNode) return;
   if (!total) {
@@ -126516,10 +126647,12 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
       if (column.kind === "id") {
         cell.classList.add("awn-databases-view-record-id");
         cell.append(createAwnDataViewRecordIdCell(record, viewStore, value));
+      } else if (isAwnDataViewImagePreviewColumn(column)) {
+        appendAwnDataViewPreviewFieldCell(cell, record, column, viewStore);
       } else {
         cell.textContent = value;
+        if (value !== "—") cell.title = value;
       }
-      if (value !== "—") cell.title = value;
       if (isAwnDataSystemRecord(record)) cell.classList.add("is-system");
       wireAwnDataViewRecordOpen(cell, record, viewStore);
       row.appendChild(cell);
@@ -127197,6 +127330,9 @@ function renderAwnDataViewRecords(store) {
       } else if (column.kind === "parent" || column.key === "parent") {
         cell.className = "awn-databases-view-record-parent";
         cell.textContent = value;
+      } else if (isAwnDataViewImagePreviewColumn(column)) {
+        cell.className = "awn-databases-view-record-field";
+        appendAwnDataViewPreviewFieldCell(cell, record, column, viewStore);
       } else {
         cell.className = "awn-databases-view-record-field";
         cell.textContent = value;
