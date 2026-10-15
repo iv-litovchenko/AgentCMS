@@ -247,10 +247,9 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "rename_content",
-    "Rename content item in an external slot.",
+    "Rename content item in an external slot. Address like read_content: placement { kind, path, slot, ref }. Required: displayName or title (new title).",
     address({
-      ref: z.string().min(1),
-      displayName: z.string().min(1).optional(),
+      displayName: z.string().min(1).optional().describe("New display name (or title)"),
       title: z.string().min(1).optional()
     }),
     (args) => renameContent(client, args)
@@ -258,9 +257,8 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "move_content",
-    "Move content within or across topics (external slots).",
+    "Move content within or across topics (external slots). Source: placement { kind, path, slot, ref } like read_content.",
     address({
-      ref: z.string().min(1),
       targetPath: pagePath.optional(),
       targetRef: z.string().optional(),
       targetParent: z.string().optional()
@@ -270,9 +268,8 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "delete_content",
-    "Delete content from an external slot.",
+    "Delete content from an external slot. Address: placement { kind, path, slot, ref } like read_content.",
     address({
-      ref: z.string().min(1),
       confirm: z.boolean().optional()
     }),
     (args) => deleteContent(client, args)

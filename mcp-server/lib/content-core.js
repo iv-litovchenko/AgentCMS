@@ -118,7 +118,13 @@ export async function withMdRefFallback(args, read) {
 
 function rejectRootLifecycle(address, operation) {
   if (address.kind === "root") {
-    throw new Error(`${operation} is not supported for placement.kind=root (use write_content / read_file tools)`);
+    throw new Error(`${operation} is not supported for placement.kind=root (use read_content / write_content)`);
+  }
+}
+
+function requireRef(address, operation) {
+  if (!address.ref) {
+    throw new Error(`${operation}: placement.ref is required (file in slot, e.g. folder/note.md)`);
   }
 }
 
@@ -596,6 +602,7 @@ export async function renameContent(client, args) {
   const { manifestPath, slot, ref } = address;
   const { displayName, title } = args;
   if (isInternalBundleSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
+  requireRef(address, "rename_content");
   const name = displayName || title;
   if (!name) throw new Error("displayName or title is required");
   if (isExternalMemorySlot(slot)) {
@@ -618,6 +625,7 @@ export async function moveContent(client, args) {
   const { manifestPath, slot, ref } = address;
   const { targetPath, targetRef, targetParent } = args;
   if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
+  requireRef(address, "move_content");
   if (isExternalMemorySlot(slot)) {
     return client.post("/api/external/file/move", {
       path: manifestPath,
@@ -684,6 +692,7 @@ export async function deleteContent(client, args) {
   rejectRootLifecycle(address, "delete_content");
   const { manifestPath, slot, ref } = address;
   if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
+  requireRef(address, "delete_content");
   if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path: manifestPath, file: ref });
   if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path: manifestPath, file: ref });
   return client.delete("/api/storage/file", { path: manifestPath, folder: slotToFolder(slot), file: ref });
