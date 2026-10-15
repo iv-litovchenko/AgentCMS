@@ -334,6 +334,131 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "reject_workspace_entity",
+    "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next entity reindex.",
+    z.object({
+      label: z.string().min(1).describe("Entity label to hide, e.g. spam wikilink title"),
+      type: z
+        .string()
+        .optional()
+        .describe("Entity type scope, or * for all types (default *)")
+    }),
+    (payload) => client.post("/api/entity-index/reject", payload)
+  );
+
+  reg(
+    "seed_workspace_entity",
+    "Add a manual entity seed in entity-registry.yml (0 mentions until notes link it). Reindex to materialize in SQLite.",
+    z.object({
+      label: z.string().min(1).describe("Display name, e.g. ACME Corp"),
+      type: z.string().optional().describe("Registry type id: person, food, project, topic, …")
+    }),
+    (payload) => client.post("/api/entity-index/seed", payload)
+  );
+
+  reg(
+    "get_workspace_entity_registry",
+    "Read entity-registry.yml rules: types (with tag maps), seeds, aliases, reject.",
+    z.object({}),
+    () => client.get("/api/entity-index/registry")
+  );
+
+  const entityRegistryBodySchema = z.object({
+    version: z.number().int().optional(),
+    types: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          label: z.string().min(1),
+          tags: z.array(z.string()).optional(),
+          builtin: z.string().optional()
+        })
+      )
+      .optional(),
+    seeds: z
+      .array(z.object({ label: z.string().min(1), type: z.string().optional() }))
+      .optional(),
+    aliases: z
+      .array(
+        z.object({
+          match: z.string().min(1),
+          label: z.string().min(1),
+          type: z.string().optional()
+        })
+      )
+      .optional(),
+    reject: z
+      .array(z.object({ label: z.string().min(1), type: z.string().optional() }))
+      .optional()
+  });
+
+  reg(
+    "put_workspace_entity_registry",
+    "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer merge_workspace_entity_alias / seed / reject for small edits.",
+    z.object({
+      registry: entityRegistryBodySchema.describe("Full registry document (version 2)")
+    }),
+    (payload) => client.put("/api/entity-index/registry", payload)
+  );
+
+  reg(
+    "upsert_workspace_entity_type",
+    "Add or update one entity type in entity-registry.yml (label, hashtag → type mapping). Reindex to apply tag rules.",
+    z.object({
+      id: z.string().min(1).describe("Type id slug, e.g. food"),
+      label: z.string().min(1).describe("UI label, e.g. Еда"),
+      tags: z
+        .array(z.string())
+        .optional()
+        .describe("Hashtags without # that map notes to this type"),
+      builtin: z
+        .string()
+        .optional()
+        .describe("Optional builtin extractor map: person, project, topic, …")
+    }),
+    (payload) => client.post("/api/entity-index/type", payload)
+  );
+
+  reg(
+    "list_workspace_entity_catalog",
+    "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
+    z.object({
+      limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset"),
+      type: z.string().optional().describe("Filter by type id"),
+      q: z.string().optional().describe("Substring on label"),
+      pathPrefix: z.string().optional().describe("Only entities mentioned under this folder")
+    }),
+    ({ limit, offset, type, q, pathPrefix }) =>
+      client.get("/api/entity-index/catalog", {
+        limit,
+        offset,
+        type,
+        q,
+        pathPrefix
+      })
+  );
+
+  reg(
+    "explain_workspace_entity_search",
+    "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
+    z.object({
+      entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
+      entityId: z.string().optional().describe("Single entity id (shorthand)"),
+      entityWhere: z
+        .object({
+          type: z.string().optional(),
+          q: z.string().optional().describe("Label substring")
+        })
+        .optional()
+        .describe("Match entities by type + label, union of their mention paths"),
+      pathPrefix: z.string().optional().describe("Limit paths to subtree"),
+      previewLimit: z.number().int().min(1).max(200).optional().describe("Max paths in preview (default 40)")
+    }),
+    (payload) => client.post("/api/entity-index/explain", payload || {})
+  );
+
+  reg(
     "search_workspace_links",
     "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
     z.object({

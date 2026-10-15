@@ -74,7 +74,7 @@
 | 2 | **Полный отказ от `prompt()`** | Тип/объект уже inline-формы; остальные сценарии (если появятся) — тоже в модалке |
 | 3 | **GLiNER-метки из типов реестра** | Передавать `types[].label` / id в Python-экстрактор, чтобы NER совпадал с вашими типами («Еда», «Люди»), а не только builtin |
 | 4 | **Документация GLiNER** | Явный блок в platform docs / requirements: venv `.venv-entity`, флаг `index-entity-gliner-enabled`, время пересборки |
-| 5 | **MCP `reject` для сущностей** | Скрытие сущности из реестра через MCP (если API есть, но tool не экспортирован — добавить в `map-tools`) |
+| 5 | ~~**MCP reject / seed / registry / catalog / explain**~~ | ✅ `map-tools.js` (reject, seed, get/put registry, upsert type, catalog, explain) |
 | 6 | **Canvas-мок редактора** | `entity-registry-editor-mock.canvas.tsx` — черновик, не прод-UI |
 | 7 | **Проверка «entity ВЫКЛ» и настройки UI** | Убедиться после рестарта: слой entity в мониторе, поля `index-entities-enabled` / `index-entity-gliner-enabled` в схеме и форме настроек |
 | 8 | **Commit / PR** | Изменения в ветке не зафиксированы в этом чате |

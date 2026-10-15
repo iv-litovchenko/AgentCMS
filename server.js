@@ -21114,6 +21114,21 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/entity-index/explain") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().explainEntityFilter(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to explain entity search filter",
+        details: message
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/entity-index/catalog") {
     const limitRaw = Number(url.searchParams.get("limit") || 40);
     const offsetRaw = Number(url.searchParams.get("offset") || 0);
