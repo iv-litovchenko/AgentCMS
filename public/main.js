@@ -9344,7 +9344,6 @@ async function syncAgentTodoPreview() {
   }
 
   const seq = ++agentTodoPreviewSeq;
-  clearAgentNotePreviewBody();
   showAgentNotePreviewShell();
 
   try {
@@ -17400,6 +17399,7 @@ async function switchActiveAgent(nextAgentId) {
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
         }
+        void syncAgentTodoPreview();
         await refreshAgentSliderCatalog(true);
         if (switchedAgentId !== activeAgentId) return;
         syncAgentPreview();
@@ -98704,7 +98704,6 @@ function enhanceMarkdownPreviewImages(root) {
 function renderPreviewFromEditor() {
   const nodePath = resolveMarkdownPreviewNodePath();
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, { nodePath });
-  syncAgentTodoPreviewFromEditor();
   syncAppFooterIdeasFromEditor();
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
@@ -106323,7 +106322,9 @@ async function loadSystemFiles(options = {}) {
     renderSystemFiles(systemFilesCache);
   }
   syncRepositoriesDependenciesButtonState();
-  void syncAgentTodoPreview();
+  if (options.refreshNotePreview) {
+    void syncAgentTodoPreview();
+  }
 }
 
 function isMenuTreeButtonActive(item, { resolvedActive, resolvedFolderBrowse } = {}) {
@@ -106450,8 +106451,6 @@ async function selectSystemFile(name, options = {}) {
       syncAgentTodoPreviewFromEditor();
     } else if (normalizedName === ROOT_SYSTEM_TODO_FILE) {
       syncAppFooterIdeasFromEditor();
-    } else {
-      void syncAgentTodoPreview();
     }
     if (!options.skipRouteSync) {
       syncAppRouteToUrl({ replace: true });
@@ -107196,7 +107195,6 @@ async function selectFile(label, filePath) {
 
   hideHomeView();
   clearActiveSystemFile();
-  void syncAgentTodoPreview();
   if (!isNodeSettingsTargetPath(filePath)) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -107919,7 +107917,9 @@ async function saveContent() {
         const details = errorData.details ? `: ${errorData.details}` : "";
         throw new Error(`${reason}${details}`);
       }
-      await loadSystemFiles();
+      await loadSystemFiles({
+        refreshNotePreview: activeSystemFile === ROOT_SYSTEM_NOTE_FILE
+      });
       saveSucceeded = true;
       showToast("Сохранено", "success");
     } catch (error) {
@@ -133873,7 +133873,7 @@ async function init() {
     applyAgentGraphSettingsUi();
 
     if (activeAgentId) {
-      void loadSystemFiles();
+      void loadSystemFiles({ refreshNotePreview: true });
     }
 
     const bootRoute = parseAppRoute(location.pathname);
@@ -136786,7 +136786,7 @@ window.addEventListener("agentcms-open-agent-cms-settings-file", (event) => {
 });
 
 window.addEventListener("agentcms-system-files-changed", () => {
-  void loadSystemFiles();
+  void loadSystemFiles({ refreshNotePreview: true });
 });
 
 window.AgentCmsLinkDrag = {
