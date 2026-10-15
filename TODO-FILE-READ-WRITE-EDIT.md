@@ -6,12 +6,24 @@
 1.1 Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 
 
 1.2 Сделать запись файла по md5 если изменилось содержимое файла кто то поменял модели нужно заново загрузить и запиьс будет отклонена
+    - ⏳ Частично: `read_content` уже отдаёт `hash` (`md5:…` всего файла). Осталось: `expectedHash` в `write_content` и отказ при конфликте.
 
 1.3 Придумать понятный наобр инструментов
 
-1.4 КОгда мы читаем файл с середены например будет разрыв из за блоков кода или цитат ``` ``` - инетересно можно ли что то сделать придумать что бы это обойти
+1.4 ✅ КОгда мы читаем файл с середены например будет разрыв из за блоков кода или цитат ``` ``` - инетересно можно ли что то сделать придумать что бы это обойти
+    - Сделано для блоков ``` / ~~~: окно чтения расширяется до открытия/закрытия блока (до 100 строк), в ответе `codeFence` (`expandedBefore`, `expandedAfter`, `startsInside`, `endsInside`). Цитаты `>` не обрабатываются.
 
-1.5 По умолчанию всегда читается содержимое файла не более какого-то кол-ва строк
+1.5 ✅ По умолчанию всегда читается содержимое файла не более какого-то кол-ва строк
+    - Сделано: `read_content` part=body — по умолчанию 300 строк тела, `limitLines` до 500, `full: true` — всё тело (обязательно перед `write_content` replace).
+
+## ✅ Реализовано: чтение content (`read_content`)
+
+- Только `read_content` (part=body и body внутри part=all → `bodyWindow`); новых MCP-методов нет.
+- Placement: page / channel / media / root. Internal-слоты и `main-single-csv` — по-прежнему целиком; `format: base64` и `offsetBytes` — как раньше.
+- `startLine` / `limitLines` — номера строк **файла с frontmatter**, совпадают с `startLine` в `search_workspace_*` (fulltext и semantic). Если `startLine` внутри frontmatter — читается с начала тела.
+- Ответ: `startLine`, `endLine`, `totalLines`, `bodyStartLine` (.md), `hasMore`, `truncated`, `nextStartLine`, `hash`, `codeFence`.
+- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md).
+- Не сделано из `read_universal`: чтение по доле файла (percent) и по якорю.
 
 ```
 Запись в файл
