@@ -348,6 +348,22 @@ fields:
     group: indexing
     sort: 24
 
+  index-entities-enabled:
+    type: awn.field.boolean
+    title: Сущности (entities)
+    description: Реестр объектов из текста заметок (regex/frontmatter, опционально GLiNER)
+    default: true
+    group: indexing
+    sort: 241
+
+  index-entity-gliner-enabled:
+    type: awn.field.boolean
+    title: GLiNER для сущностей
+    description: При пересборке entity-index вызывать scripts/entity-gliner-extract.py (pip install gliner)
+    default: false
+    group: indexing
+    sort: 242
+
   index-workspace-id-enabled:
     type: awn.field.boolean
     title: ID (awn-id)

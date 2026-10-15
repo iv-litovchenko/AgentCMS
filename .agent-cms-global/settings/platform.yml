@@ -31,6 +31,8 @@ awn_settings:
   index-semantic-enabled: true
   index-storage-enabled: true
   index-links-enabled: false
+  index-entities-enabled: true
+  index-entity-gliner-enabled: true
   index-workspace-id-enabled: true
   index-wsmap-enabled: true
   index-storage-mode: quick

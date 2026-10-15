@@ -136767,6 +136767,12 @@ window.addEventListener("agentcms-open-root-system-file", (event) => {
   void selectSystemFile(name);
 });
 
+window.addEventListener("agentcms-open-agent-cms-settings-file", (event) => {
+  const relPath = String(event?.detail?.path || "").trim().replace(/^\/+/, "");
+  if (!relPath || !relPath.startsWith(".agent-cms/")) return;
+  void openNodeFromMenu(relPath.split("/").pop(), relPath, { contentMode: "external" });
+});
+
 window.addEventListener("agentcms-system-files-changed", () => {
   void loadSystemFiles();
 });

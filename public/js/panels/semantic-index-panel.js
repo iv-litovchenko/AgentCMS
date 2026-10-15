@@ -25,6 +25,7 @@
   const entityStatusNode = document.getElementById("menu-entity-index-status");
   const entityRebuildBtn = document.getElementById("menu-entity-index-rebuild-btn");
   const entityShowBtn = document.getElementById("menu-entity-index-show-btn");
+  const entityRegistryOpenBtn = document.getElementById("menu-entity-registry-open-btn");
   const entityProbeQInput = document.getElementById("menu-entity-index-probe-q");
   const entityProbeBtn = document.getElementById("menu-entity-index-probe-btn");
   const entityProbeResultNode = document.getElementById("menu-entity-index-probe-result");
@@ -646,6 +647,7 @@
       [storageRebuildQuickBtn, "storage"],
       [storageRebuildFullBtn, "storage"],
       [linkRebuildBtn, "link"],
+      [entityRebuildBtn, "entity"],
       [workspaceIdSyncBtn, "workspaceId"],
       [wsmapRebuildBtn, "wsmap"]
     ]);
@@ -665,7 +667,8 @@
     const layers = policy?.layers || {};
     document.querySelectorAll("[data-index-layer]").forEach((block) => {
       const layerKey = block.dataset.indexLayer;
-      const enabled = Boolean(layers[layerKey]);
+      const hasLayerFlag = Object.prototype.hasOwnProperty.call(layers, layerKey);
+      const enabled = hasLayerFlag ? Boolean(layers[layerKey]) : layerKey === "entity";
       block.classList.toggle("is-feature-disabled", !enabled);
       const title = block.querySelector(".menu-index-block-title");
       if (!title) return;
@@ -693,6 +696,7 @@
     applyLayerButtonState(semanticRebuildBtn, policy.layers?.semantic);
     applyLayerButtonState(storageRebuildQuickBtn, policy.layers?.storage);
     applyLayerButtonState(linkRebuildBtn, policy.layers?.link);
+    applyLayerButtonState(entityRebuildBtn, policy.layers?.entity ?? true);
     applyLayerButtonState(workspaceIdSyncBtn, policy.layers?.workspaceId);
     applyLayerButtonState(wsmapRebuildBtn, policy.layers?.wsmap);
 
@@ -1729,6 +1733,13 @@
   storageShowBtn?.addEventListener("click", () => openCatalog("fields"));
   linkShowBtn?.addEventListener("click", () => openCatalog("links"));
   entityShowBtn?.addEventListener("click", () => openCatalog("entities"));
+  entityRegistryOpenBtn?.addEventListener("click", () => {
+    window.dispatchEvent(
+      new CustomEvent("agentcms-open-agent-cms-settings-file", {
+        detail: { path: ".agent-cms/settings/entity-registry.yml" }
+      })
+    );
+  });
   workspaceIdShowBtn?.addEventListener("click", () => openCatalog("ids"));
 
   catalogCloseBtn?.addEventListener("click", closeCatalog);

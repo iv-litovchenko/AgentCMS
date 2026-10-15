@@ -111,7 +111,18 @@ function registerSearchWorkspaceTools(reg, client) {
         .optional()
         .describe("Search layers (default: semantic + fulltext)"),
       limit: z.number().int().min(1).max(50).optional().describe("Max merged hits (default 20)"),
-      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
+      entityIds: z
+        .array(z.string().min(1))
+        .optional()
+        .describe("Restrict search to files mentioning ALL listed entity ids (AND)"),
+      entityWhere: z
+        .object({
+          type: z.string().optional().describe("Entity type filter before path union"),
+          q: z.string().optional().describe("Substring match on entity label")
+        })
+        .optional()
+        .describe("Resolve entities by type/label, then search only in their mention paths (OR across matches)")
     }),
     (payload) => client.post("/api/search/hybrid", payload)
   );
@@ -154,7 +165,14 @@ function registerSearchWorkspaceTools(reg, client) {
         .max(20)
         .optional()
         .describe("Max merged hits per query (default 8)"),
-      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
+      entityIds: z.array(z.string().min(1)).optional(),
+      entityWhere: z
+        .object({
+          type: z.string().optional(),
+          q: z.string().optional()
+        })
+        .optional()
     }),
     (payload) => client.post("/api/search/batch", payload)
   );
@@ -302,6 +320,17 @@ function registerSearchWorkspaceTools(reg, client) {
       limit: z.number().int().min(1).max(200).optional()
     }),
     (payload) => client.post("/api/entity-index/query", payload || {})
+  );
+
+  reg(
+    "merge_workspace_entity_alias",
+    "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next entity reindex).",
+    z.object({
+      match: z.string().min(1).describe("Alias text as written in notes, e.g. Вася"),
+      label: z.string().min(1).describe("Canonical label, e.g. Василий Петров"),
+      type: z.string().optional().describe("Entity type (default person)")
+    }),
+    (payload) => client.post("/api/entity-index/alias", payload)
   );
 
   reg(

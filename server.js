@@ -1960,7 +1960,11 @@ function getEntityIndexService() {
       resolvePathAbsolute: normalizeWorkspacePath,
       getIndexPolicy: getActiveIndexPolicy,
       isEntityIndexExcluded,
-      getProjectRoot
+      getProjectRoot,
+      isEntityGlinerEnabled: async () => {
+        const settings = await getPlatformSettings(getProjectRoot());
+        return Boolean(normalizePlatformAgentSettings(settings)["index-entity-gliner-enabled"]);
+      }
     });
   }
   return entityIndexService;
@@ -2499,7 +2503,8 @@ function getWorkspaceBrainService() {
       queryStorageIndex: (payload) => getStorageIndexService().query(payload),
       getSearchDefaultScopes,
       getPlatformSearchTuning: async () =>
-        getPlatformSearchTuning(await getPlatformSettings(getProjectRoot()))
+        getPlatformSearchTuning(await getPlatformSettings(getProjectRoot())),
+      resolveEntityFilterPaths: (payload) => getEntityIndexService().resolveFilterPaths(payload)
     });
   }
   return workspaceBrainService;
@@ -21001,6 +21006,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/entity-index/reindex") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "entity");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await getEntityIndexService().rebuildIndex({ agentId: getActiveAgentId() });
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -21023,6 +21031,33 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, status, {
         error: "Failed to query entity index",
         details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/alias") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().mergeEntityAlias(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to save entity alias",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entity-index/registry") {
+    try {
+      const registry = await getEntityIndexService().loadEntityRegistry();
+      return sendJson(res, 200, { ok: true, registry });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity registry",
+        details: String(error.message || error)
       });
     }
   }
@@ -24246,6 +24281,8 @@ async function handleApiForAgent(req, res, url) {
         query,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         where: payload?.where,
+        entityIds: payload?.entityIds,
+        entityWhere: payload?.entityWhere || payload?.entityFilter,
         allowedPaths: payload?.allowedPaths,
         extensions: payload?.extensions,
         scopes: payload?.scopes,
@@ -24322,6 +24359,9 @@ async function handleApiForAgent(req, res, url) {
       const link = steps.link
         ? await getLinkIndexService().rebuildIndex()
         : { ok: false, skipped: true, reason: "step_disabled" };
+      const entity = steps.entity
+        ? await getEntityIndexService().rebuildIndex()
+        : { ok: false, skipped: true, reason: "step_disabled" };
       const workspaceId = steps["workspace-id"]
         ? await getWorkspaceIdService().syncCounterWithAssigned()
         : { ok: false, skipped: true, reason: "step_disabled" };
@@ -24347,19 +24387,20 @@ async function handleApiForAgent(req, res, url) {
         finishedAt: new Date().toISOString(),
         files: indexedFiles,
         enabledSteps: steps,
-        steps: { ocr, fulltext, semantic, storage, link, workspaceId, wsmap }
+        steps: { ocr, fulltext, semantic, storage, link, entity, workspaceId, wsmap }
       });
       finishWorkspaceIndexProgress(agentRoot);
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter → WS-MAP.md",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → entities → awn-id counter → WS-MAP.md",
         steps,
         ocr,
         fulltext,
         semantic,
         storage,
         link,
+        entity,
         workspaceId,
         wsmap,
         runLog
@@ -24380,6 +24421,8 @@ async function handleApiForAgent(req, res, url) {
         queries: payload?.queries || payload?.questions,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         where: payload?.where,
+        entityIds: payload?.entityIds,
+        entityWhere: payload?.entityWhere || payload?.entityFilter,
         extensions: payload?.extensions,
         scopes: payload?.scopes,
         limitPerQuery: payload?.limitPerQuery ?? payload?.limit,
