@@ -11233,6 +11233,11 @@ body.workspace-idle-screensaver-active {
   box-shadow: 0 0 0 1px rgba(240, 122, 46, 0.35);
 }
 
+.agent-rmm-live-brain-legend-chip.is-catalog {
+  font-weight: 650;
+  border-width: 1.5px;
+}
+
 .agent-rmm-live-brain-core {
   position: relative;
   flex: 1;

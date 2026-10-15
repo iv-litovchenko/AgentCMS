@@ -79,6 +79,8 @@
     }
 
     let leafCount = 0;
+    const catalogAreaKeys = new Set();
+    const mountedCatalogHubs = new Set();
 
     function isCatalogSatellite(gn) {
       if (!gn) return false;
@@ -94,7 +96,9 @@
     function attachCatalogHub(hubId, areaName) {
       const gn = byId.get(hubId);
       if (!gn) return;
-      const areaNodeId = `area:${areaName}`;
+      mountedCatalogHubs.add(hubId);
+      catalogAreaKeys.add(areaName);
+      const areaNodeId = `area:catalog:${hubId}`;
       if (!seen.has(areaNodeId)) {
         addNode(
           {
@@ -102,7 +106,9 @@
             kind: "area",
             label: gn.label || areaName,
             area: areaName,
-            layer: gn.type || "catalog"
+            layer: gn.type || "catalog",
+            catalog: true,
+            hubId
           },
           gn
         );
@@ -123,7 +129,8 @@
             kind,
             label: sn.label || subId,
             area: areaName,
-            layer: gn.type || "catalog"
+            layer: gn.type || "catalog",
+            catalog: true
           },
           sn
         );
@@ -143,7 +150,8 @@
                 kind: "note",
                 label: dn.label || deepId,
                 area: areaName,
-                layer: gn.type || "catalog"
+                layer: gn.type || "catalog",
+                catalog: true
               },
               dn
             );
@@ -154,20 +162,23 @@
       }
     }
 
+    for (const gn of rawNodes) {
+      if (!gn?.id) continue;
+      if (!CATALOG_SATELLITE_ROOT_IDS.has(gn.id) && !(gn.isSatelliteRoot && CATALOG_SATELLITE_TYPES.has(gn.type))) {
+        continue;
+      }
+      if (mountedCatalogHubs.has(gn.id)) continue;
+      const areaName = registerArea(gn.label || gn.graphSubLabel || gn.id);
+      attachCatalogHub(gn.id, areaName);
+    }
+
     const allRootKids = children.get(rootId) || [];
-    const catalogRoots = allRootKids.filter((id) => isCatalogSatellite(byId.get(id)));
-    const otherRoots = allRootKids.filter((id) => !catalogRoots.includes(id));
-    const rootKids = [...catalogRoots, ...otherRoots.slice(0, 14)];
+    const rootKids = allRootKids.filter((id) => !mountedCatalogHubs.has(id)).slice(0, 16);
 
     for (const kidId of rootKids) {
       const gn = byId.get(kidId);
       if (!gn) continue;
-
-      if (isCatalogSatellite(gn)) {
-        const areaName = registerArea(gn.label || gn.graphSubLabel || kidId);
-        attachCatalogHub(kidId, areaName);
-        continue;
-      }
+      if (mountedCatalogHubs.has(kidId) || isCatalogSatellite(gn)) continue;
 
       const areaName = registerArea(gn.label || kidId.replace(/^folder:/, ""));
 
@@ -278,7 +289,14 @@
       l.b.nl.push(l);
     });
 
-    return { areas, areaColor, nodes, links, AI: Object.fromEntries(areas.map((a, i) => [a, i])) };
+    return {
+      areas,
+      areaColor,
+      nodes,
+      links,
+      catalogAreas: [...catalogAreaKeys],
+      AI: Object.fromEntries(areas.map((a, i) => [a, i]))
+    };
   }
 
   function baseRadius(n) {
@@ -286,11 +304,11 @@
       case "root":
         return 0;
       case "area":
-        return 7;
+        return n.catalog ? 9.5 : 7;
       case "project":
-        return 3.4 + Math.min(2.2, Math.sqrt(n.deg || 1) * 0.45);
+        return (n.catalog ? 4.2 : 3.4) + Math.min(2.2, Math.sqrt(n.deg || 1) * 0.45);
       default:
-        return 2.3 + Math.min(2, Math.sqrt(n.deg || 1) * 0.4);
+        return (n.catalog ? 3.1 : 2.3) + Math.min(2, Math.sqrt(n.deg || 1) * 0.4);
     }
   }
 
@@ -304,7 +322,9 @@
     const onViewportReady = typeof options.onViewportReady === "function" ? options.onViewportReady : null;
 
     const model = graphToBrainModel(graph);
-    const { areas, areaColor, nodes: N, links: L } = model;
+    const { areas, areaColor, nodes: N, links: L, catalogAreas = [] } = model;
+    const catalogAreaSet = new Set(catalogAreas);
+    const CATALOG_AREA_ORDER = ["Репозитории", "Инфоблоки", "Медиатеки", "Каналы"];
     if (N.length <= 1) {
       container.replaceChildren();
       const empty = document.createElement("p");
@@ -331,10 +351,11 @@
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "agent-rmm-live-brain-legend-chip";
+      if (catalogAreaSet.has(a)) chip.classList.add("is-catalog");
       chip.dataset.areaFilter = a;
       chip.style.setProperty("--area-color", areaColor.get(a) || "#788790");
       chip.textContent = a.length > 18 ? `${a.slice(0, 16)}…` : a;
-      chip.title = a;
+      chip.title = catalogAreaSet.has(a) ? `${a} (каталог workspace)` : a;
       legend.appendChild(chip);
     });
     toolbar.innerHTML =
@@ -390,9 +411,13 @@
     const MONO = "ui-monospace, Menlo, monospace";
     const DISP = "ui-monospace, Menlo, monospace";
 
-    function sectorsFor() {
-      const gap = 0.3;
-      const groups = areas.map((a) => ({ a, nodes: N.filter((n) => n.area === a && n.kind !== "root") }));
+    function sectorsForMemory(memoryAreaNames) {
+      const gap = 0.28;
+      const groups = memoryAreaNames.map((a) => ({
+        a,
+        nodes: N.filter((n) => n.area === a && n.kind !== "root")
+      }));
+      if (!groups.length) return [];
       const ws = groups.map((g) => Math.max(2.6, Math.sqrt(g.nodes.length)));
       const tot = ws.reduce((s, w) => s + w, 0);
       const span = Math.PI * 2 - gap;
@@ -402,8 +427,19 @@
         g.a1 = ang + (span * ws[i]) / tot;
         ang = g.a1;
         g.mid = (g.a0 + g.a1) / 2;
+        g.catalog = false;
       });
       return groups;
+    }
+
+    function sortedCatalogAreaNames() {
+      return areas
+        .filter((a) => catalogAreaSet.has(a))
+        .sort((a, b) => {
+          const ia = CATALOG_AREA_ORDER.indexOf(a);
+          const ib = CATALOG_AREA_ORDER.indexOf(b);
+          return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+        });
     }
 
     function placeBand(list, r0, r1, a0, a1, set) {
@@ -429,16 +465,37 @@
       const T = new Map();
       const set = (n, r, ang) => T.set(n.id, { x: Math.cos(ang) * r, y: Math.sin(ang) * r });
       T.set("root", { x: 0, y: 0 });
-      const groups = sectorsFor();
-      sectors = groups;
-      groups.forEach((g) => {
+      sectors = [];
+
+      const catalogNames = sortedCatalogAreaNames();
+      if (catalogNames.length) {
+        catalogNames.forEach((areaName, i) => {
+          const nCat = catalogNames.length;
+          const slice = (Math.PI * 2) / nCat;
+          const mid = -Math.PI / 2 + slice * (i + 0.5);
+          const a0 = mid - slice * 0.42;
+          const a1 = mid + slice * 0.42;
+          sectors.push({ a: areaName, a0, a1, mid, catalog: true });
+          const hubN = AREA_NODE[areaName];
+          if (hubN) set(hubN, R * 0.82, mid);
+          const leaves = N.filter((n) => n.area === areaName && n.kind !== "area").sort((a, b) =>
+            a.label.localeCompare(b.label, "ru")
+          );
+          placeBand(leaves, R * 0.86, R * 0.97, a0, a1, set);
+        });
+      }
+
+      const memoryNames = areas.filter((a) => !catalogAreaSet.has(a));
+      const memGroups = sectorsForMemory(memoryNames);
+      sectors.push(...memGroups);
+      memGroups.forEach((g) => {
         const pad = Math.min(0.05, (g.a1 - g.a0) * 0.12);
         const a0 = g.a0 + pad;
         const a1 = g.a1 - pad;
         const hubN = AREA_NODE[g.a];
-        if (hubN) set(hubN, R * 0.315, g.mid);
+        if (hubN) set(hubN, R * 0.3, g.mid);
         const leaves = g.nodes.filter((n) => n.kind !== "area").sort((a, b) => a.label.localeCompare(b.label, "ru"));
-        placeBand(leaves, R * 0.42, R * 0.76, a0, a1, set);
+        placeBand(leaves, R * 0.38, R * 0.68, a0, a1, set);
       });
       return T;
     }
@@ -478,11 +535,27 @@
     }
 
     function areaCentres() {
-      const groups = sectorsFor();
+      const catalogNames = sortedCatalogAreaNames();
+      const memoryNames = areas.filter((a) => !catalogAreaSet.has(a));
+      const groups = [
+        ...catalogNames.map((a, i, arr) => {
+          const slice = (Math.PI * 2) / Math.max(arr.length, 1);
+          const mid = -Math.PI / 2 + slice * (i + 0.5);
+          return {
+            a,
+            mid,
+            catalog: true,
+            nodes: N.filter((n) => n.area === a && n.kind !== "root")
+          };
+        }),
+        ...sectorsForMemory(memoryNames)
+      ];
       const c = {};
       groups.forEach((g) => {
         const cnt = g.nodes.length;
-        const rad = R * (0.46 + 0.22 * Math.min(1, Math.sqrt(cnt) / 14));
+        const rad = g.catalog
+          ? R * 0.8
+          : R * (0.46 + 0.22 * Math.min(1, Math.sqrt(cnt) / 14));
         c[g.a] = { x: Math.cos(g.mid) * rad, y: Math.sin(g.mid) * rad };
       });
       return c;
