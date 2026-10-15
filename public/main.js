@@ -82020,10 +82020,10 @@ function renderIblockOutsideStructureWarningPanel(report) {
   const isGroup = String(report?.kind || "") === "group";
   if (hubKind === "channel") {
     hint.textContent =
-      "Файлы и папки вне разрешённой структуры канала. В корне — manifest.md, sort.json, schema mod, awn-storage/; в awn-storage/ — только inbox/, task-queue/, outbox/, files/, assets/.";
+      "Файлы и папки вне разрешённой структуры канала. В корне — manifest.md, config.yml, sort.json, schema mod, awn-storage/; в awn-storage/ — только inbox/, task-queue/, outbox/, files/, assets/.";
   } else if (hubKind === "media") {
     hint.textContent =
-      "Файлы и папки вне разрешённой структуры медиатеки. В корне — manifest.md, sort.json, schema mod, awn-storage/; в awn-storage/ — только files/ и assets/.";
+      "Файлы и папки вне разрешённой структуры медиатеки. В корне — manifest.md, config.yml, sort.json, schema mod, awn-storage/; в awn-storage/ — только files/ и assets/.";
   } else if (isGroup) {
     hint.textContent =
       "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/.";
