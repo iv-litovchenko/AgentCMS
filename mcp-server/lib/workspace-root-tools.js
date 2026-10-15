@@ -15,7 +15,7 @@ const listRootFilesDescription =
   "List workspace root files (AGENTS.md, SKILL.md, README.md, …). Scaffold entries may not exist yet. For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
 
 const readRootFileDescription =
-  "Read a workspace root file by basename. Saved with history on write. For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
+  "Read a workspace root file by basename only (no slashes), e.g. AGENTS.md — not topic assets (…/awn-storage/assets/pasted/*.png). For images/files under awn-container/ use read_content placement.kind=root + format=base64. For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
 
 const writeRootFileDescription =
   "Write a workspace root file by basename (history on save). Prefer patch_file with path=name for small edits. For NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.";

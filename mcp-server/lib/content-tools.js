@@ -63,7 +63,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
       `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
       "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
-      "full=true — whole body (required before write_content replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64.",
+      "full=true — whole body (required before write_content replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64 (images → MCP image content for chat clients).",
     address({
       part: contentPartSchema,
       format: z.enum(["base64"]).optional(),
