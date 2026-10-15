@@ -465,6 +465,18 @@ const CHANNEL_BUILTIN_PRESETS = [
       "Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage"
   },
   {
+    slug: "computer",
+    icon: "💻",
+    name: "Компьютер",
+    hintTitle: "Персональный ПК: локальная среда, Shell, файлы и события с рабочей машины до triage"
+  },
+  {
+    slug: "server",
+    icon: "🖥️",
+    name: "Сервер",
+    hintTitle: "Удалённый сервер, VPS или хост: деплой, логи, cron и сервисы агента до triage"
+  },
+  {
     slug: "market",
     icon: "🛒",
     name: "Барахолка",
@@ -535,8 +547,8 @@ const CHANNEL_BUILTIN_PRESETS = [
 const CHANNEL_BUILTIN_PRESET_GROUPS = [
   {
     id: "agent-capabilities",
-    title: "Агент",
-    slugs: ["capabilities"]
+    title: "Агент и устройства",
+    slugs: ["capabilities", "computer", "server"]
   },
   {
     id: "content-modes",
