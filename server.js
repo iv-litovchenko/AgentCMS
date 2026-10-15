@@ -29,7 +29,8 @@ const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-pa
 const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
-  filterPageMapManifestNodes,
+  walkWorkspaceManifestFiles,
+  collectAllWorkspaceManifestRels,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
 const {
@@ -230,6 +231,7 @@ const {
   getNamedStorageBundleRel,
   getNamedStorageBundleDirRel,
   getManifestContainerDirRel,
+  inferAwnTypeFromRelPath,
   getStorageContainerPrefixRel,
   getManifestNamedSlotKey,
   isStorageAssetsInlineSubfolder,
@@ -12239,31 +12241,6 @@ function buildIndexExcludeEntityDisplayPath(entity) {
   return entity.displayPath || entity.label || entity.manifestPath;
 }
 
-async function walkWorkspaceManifestFiles(dirAbsolute, dirRel, acc) {
-  let entries = [];
-  try {
-    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  entries.sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  for (const entry of entries) {
-    const lower = entry.name.toLowerCase();
-    if (lower === "node_modules" || lower === ".git" || lower === "history" || entry.name.startsWith(".")) {
-      continue;
-    }
-    const abs = path.join(dirAbsolute, entry.name);
-    const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      await walkWorkspaceManifestFiles(abs, rel, acc);
-      continue;
-    }
-    if (entry.isFile() && lower === "manifest.md") {
-      acc.push(rel.replace(/\\/g, "/"));
-    }
-  }
-}
-
 async function collectIndexExcludeEntitiesFromManifest(manifestRel, entityKind, entities) {
   const manifestPath = String(manifestRel || "").replace(/\\/g, "/");
   if (!manifestPath) return;
@@ -13092,12 +13069,54 @@ function getWorkspaceWsmapRelPath() {
   return WORKSPACE_WS_MAP_FILE;
 }
 
-async function buildWorkspaceWsmapMarkdown({ pages }) {
-  const manifestPages = filterPageMapManifestNodes(pages);
-  const entries = await enrichWorkspaceIndexEntries(
-    mapPageMapToWorkspaceIndexEntries(manifestPages),
-    pages
+async function manifestRelToWorkspaceWsmapEntry(manifestRel, catalog) {
+  const linkPath = String(manifestRel || "").replace(/\\/g, "/").trim();
+  let frontmatter = "";
+  try {
+    ({ frontmatter } = await readNodeFrontmatterContent(linkPath));
+  } catch {
+    frontmatter = "";
+  }
+  const properties = frontmatterPropsToObject(frontmatter);
+  const rawType = getYamlScalar(frontmatter, "awn-type") || "";
+  let awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
+  if (!awnType) {
+    awnType = String(inferAwnTypeFromRelPath(linkPath) || "").trim();
+  }
+  const containerDir = getManifestContainerDirRel(linkPath);
+  const displayPath = stripAgentContentPrefixFromRelPath(linkPath) || linkPath;
+  const title = String(
+    getYamlScalar(frontmatter, "awn-name") || path.posix.basename(containerDir) || ""
+  ).trim();
+  const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+  return {
+    path: String(displayPath || "").trim(),
+    linkPath,
+    type: awnType || "—",
+    title,
+    description,
+    awnId: parseAwnId(properties["awn-id"]) || null,
+    properties,
+    importance: parseImportanceFromProperties(properties)
+  };
+}
+
+async function buildWorkspaceManifestWsmapEntries() {
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) return [];
+  const projectRoot = getProjectRoot();
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const manifestRels = await collectAllWorkspaceManifestRels(agentRoot);
+  const entries = await Promise.all(
+    manifestRels.map((rel) => manifestRelToWorkspaceWsmapEntry(rel, catalog))
   );
+  return entries
+    .filter((entry) => entry.path || entry.title || entry.linkPath)
+    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+}
+
+async function buildWorkspaceWsmapMarkdown() {
+  const entries = await buildWorkspaceManifestWsmapEntries();
   return buildWsmapMarkdown({
     entries,
     formatEntriesTable: (rows) =>
@@ -13112,19 +13131,14 @@ async function buildAgentWorkspaceWsmap() {
   const indexPath = getWorkspaceWsmapRelPath();
   const indexExists = await workspaceRelFileExists(indexPath);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
-  const pageMap = await buildAgentPageMap({ includeSlots: false });
-  const manifestPages = filterPageMapManifestNodes(pageMap.pages);
-  const entries = await enrichWorkspaceIndexEntries(
-    mapPageMapToWorkspaceIndexEntries(manifestPages),
-    pageMap.pages
-  );
+  const entries = await buildWorkspaceManifestWsmapEntries();
   const entryCount = entries.length;
 
   return {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Лёгкий реестр всех manifest.md в WS-MAP.md (ID, статус, тип, путь, название, описание). " +
+      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …). " +
       "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_manifest_map / refresh_workspace_manifest_map.",
     whenToUse: {
       read_workspace_manifest_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
@@ -13156,8 +13170,7 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       indexFile: { path: indexPath, exists: true }
     };
   }
-  const pageMap = await buildAgentPageMap({ includeSlots: false });
-  const markdown = await buildWorkspaceWsmapMarkdown({ pages: pageMap.pages });
+  const markdown = await buildWorkspaceWsmapMarkdown();
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
   const legacyPath = WORKSPACE_WSMAP_LEGACY_FILE;

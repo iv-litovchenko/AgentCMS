@@ -669,7 +669,7 @@ export function registerMapTools(reg, client, pagePath) {
     canonical: "read_workspace_manifest_map",
     legacy: "read_workspace_wsmap",
     description:
-      "Light WS-MAP.md metadata: all manifest.md nodes (ID, status, type, path, title, description). No file body. For agent placement routing.",
+      "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
     schema: z.object({}),
     handler: readWorkspaceManifestMapHandler
   });
@@ -678,7 +678,7 @@ export function registerMapTools(reg, client, pagePath) {
     canonical: "refresh_workspace_manifest_map",
     legacy: "refresh_workspace_wsmap",
     description:
-      "Rebuild and save WS-MAP.md at workspace root from all manifest.md nodes (flat table, not index.md merge).",
+      "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
     schema: refreshWorkspaceManifestMapSchema,
     handler: refreshWorkspaceManifestMapHandler
   });
