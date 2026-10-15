@@ -804,10 +804,14 @@ const ROOT_SYSTEM_CONFIG_FILE_NAMES = new Set([
 
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "README.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  WORKSPACE_WS_MAP_FILE,
   ".env",
   ".gitignore"
 ]);
@@ -13069,6 +13073,13 @@ function getWorkspaceWsmapRelPath() {
   return WORKSPACE_WS_MAP_FILE;
 }
 
+function resolveWsmapManifestDisplayPath(manifestRel) {
+  const linkPath = String(manifestRel || "").replace(/\\/g, "/").trim();
+  if (!linkPath) return "—";
+  if (/^manifest\.md$/i.test(linkPath)) return ".";
+  return stripAgentContentPrefixFromRelPath(linkPath) || linkPath;
+}
+
 async function manifestRelToWorkspaceWsmapEntry(manifestRel, catalog) {
   const linkPath = String(manifestRel || "").replace(/\\/g, "/").trim();
   let frontmatter = "";
@@ -13084,9 +13095,11 @@ async function manifestRelToWorkspaceWsmapEntry(manifestRel, catalog) {
     awnType = String(inferAwnTypeFromRelPath(linkPath) || "").trim();
   }
   const containerDir = getManifestContainerDirRel(linkPath);
-  const displayPath = stripAgentContentPrefixFromRelPath(linkPath) || linkPath;
+  const displayPath = resolveWsmapManifestDisplayPath(linkPath);
   const title = String(
-    getYamlScalar(frontmatter, "awn-name") || path.posix.basename(containerDir) || ""
+    getYamlScalar(frontmatter, "awn-name") ||
+      (containerDir ? path.posix.basename(containerDir) : "") ||
+      "Workspace"
   ).trim();
   const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
   return {
@@ -13937,7 +13950,11 @@ function formatContentIndexEntriesMarkdown(
   for (const entry of entries) {
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
     const slotLabelCell = escapeContentIndexTableCell(entry.slotLabel) || "—";
-    const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
+    const pathLabelRaw = String(entry.path || entry.linkPath || "").trim();
+    const pathLabel = includeWsmap
+      ? pathLabelRaw || "—"
+      : pathLabelRaw;
+    const pathCell = `\`${escapeContentIndexTableCell(pathLabel)}\``;
     const titleCell = formatContentIndexTitleCell(entry, { linkTitle });
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);

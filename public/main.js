@@ -2734,10 +2734,14 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
 };
 const CORE_SYSTEM_FILES = new Set([
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "README.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  WORKSPACE_WSMAP_FILE,
   ".env",
   ".gitignore"
 ]);
@@ -102136,7 +102140,7 @@ function collectSystemFileMenuEntries(files) {
     const systemFile = normalizeSystemFileName(file.name);
     const exists = Boolean(file.exists);
     const group = file.group || classifySystemFileGroup(systemFile);
-    const openMode = file.openMode || resolveSystemFileOpenMode(systemFile, exists);
+    const openMode = resolveSystemFileOpenMode(systemFile, exists);
     return {
       path: null,
       systemFile,
@@ -106299,7 +106303,7 @@ async function openRootSystemMenuFile(file) {
   const systemFile = normalizeSystemFileName(file?.systemFile || file?.name);
   if (!systemFile) return;
   const exists = Boolean(file?.exists);
-  const openMode = file?.openMode || resolveSystemFileOpenMode(systemFile, exists);
+  const openMode = resolveSystemFileOpenMode(systemFile, exists);
   if (openMode === "adopt" && exists) {
     await openFolderBrowseFile(file.label || systemFile, systemFile, { folderPath: "." });
     return;
@@ -106352,7 +106356,7 @@ function renderSystemFiles(files) {
       btn.textContent = file.label;
       btn.dataset.systemFile = file.systemFile;
       btn.dataset.systemFileGroup = group.id;
-      btn.dataset.openMode = file.openMode || "system";
+      btn.dataset.openMode = file.openMode || resolveSystemFileOpenMode(file.systemFile, file.exists);
       const hasContent = file.exists && !file.empty;
       btn.title = hasContent
         ? "Открыть служебный файл"
@@ -106423,7 +106427,7 @@ async function loadSystemFiles(options = {}) {
         exists,
         empty: Boolean(file.empty ?? !exists),
         group: file.group || classifySystemFileGroup(name),
-        openMode: file.openMode || resolveSystemFileOpenMode(name, exists)
+        openMode: resolveSystemFileOpenMode(name, exists)
       };
     });
     systemFilesCache = mergeSystemFileLists(apiFiles, SYSTEM_FILE_SCAFFOLD_FALLBACK);
