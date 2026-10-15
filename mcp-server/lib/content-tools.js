@@ -29,6 +29,7 @@ import {
 } from "./content-placement-zod.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 import { READ_WINDOW_DEFAULT_LINES, READ_WINDOW_MAX_LINES } from "./content-read-window.js";
+import { WRITE_MODES } from "./content-write-edit.js";
 
 const contentPartSchema = z
   .enum(["body", "properties", "schema", "meta", "all"])
@@ -116,14 +117,28 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content",
-    "Write content by placement. part=body|properties|schema. Slot main-single-csv: part=body replaces entire main.csv. Binary: data (base64); root uses placement.path as file path.",
+    "Write content by placement (same as read_content). part=body|properties|schema. " +
+      "part=body mode: replace (default, whole body; frontmatter kept) | append | prepend | patch (oldString→newString, unique unless replaceAll) | " +
+      "replace_lines (startLine..endLine → content; content=\"\" deletes) | insert (afterLine or beforeLine + content). " +
+      "Line numbers = read_content / search_workspace_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
+      "expectedHash = hash from read_content: mismatch → conflict error; required for replace_lines/insert. " +
+      "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
+      "Binary: data (base64); root uses placement.path as file path.",
     address({
       part: contentPartSchema,
-      content: z.string().optional(),
+      mode: z.enum(WRITE_MODES).optional().describe("part=body edit mode (default replace)"),
+      content: z.string().optional().describe("Text for replace / append / prepend / replace_lines / insert"),
+      oldString: z.string().optional().describe("mode=patch: exact text to find in body"),
+      newString: z.string().optional().describe("mode=patch: replacement (\"\" deletes)"),
+      replaceAll: z.boolean().optional().describe("mode=patch: replace every match"),
+      startLine: z.number().int().min(1).optional().describe("mode=replace_lines: first line (inclusive)"),
+      endLine: z.number().int().min(1).optional().describe("mode=replace_lines: last line (inclusive, default startLine)"),
+      afterLine: z.number().int().min(0).optional().describe("mode=insert: insert after this line"),
+      beforeLine: z.number().int().min(1).optional().describe("mode=insert: insert before this line"),
+      expectedHash: z.string().optional().describe("hash from read_content / previous write; mismatch → conflict"),
       data: z.string().optional().describe("Base64 file bytes (upload); use instead of content"),
       mimeType: z.string().optional(),
-      createSubdir: z.boolean().optional(),
-      mode: z.enum(["append", "replace"]).optional().describe("root workspace write mode (default replace)")
+      createSubdir: z.boolean().optional()
     }),
     async (args) => {
       if (args.part === "properties") return writeContentProperties(client, args);

@@ -1,7 +1,8 @@
 import { createRequire } from "node:module";
 import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } from "./yaml-frontmatter.js";
 import { readFileHandler } from "./workspace-fs-tools.js";
-import { readTextWindow } from "./content-read-window.js";
+import { hashText, readTextWindow } from "./content-read-window.js";
+import { applyBodyEdit, assertExpectedHash, ContentConflictError } from "./content-write-edit.js";
 
 const FULL_TEXT_READ_MAX_BYTES = 10_000_000;
 
@@ -333,42 +334,76 @@ export async function writeContentBinary(client, args) {
   });
 }
 
+function isNotFoundError(error) {
+  return /\((404)\)/.test(String(error?.message || error));
+}
+
+/** Raw text + saver for one content file; raw=null when a workspace file does not exist yet. */
+async function openContentText(client, address) {
+  const { manifestPath, slot, ref, workspaceFilePath, kind } = address;
+  if (kind === "root" || workspaceFilePath) {
+    let raw = null;
+    try {
+      const payload = await readFileHandler(client, { path: workspaceFilePath, maxBytes: FULL_TEXT_READ_MAX_BYTES });
+      if (payload?.exists === false) raw = null;
+      else if (typeof payload?.content !== "string") throw new Error(`Not a text file: ${workspaceFilePath}`);
+      else if (payload.truncated) throw new Error(`File too large to edit as text: ${workspaceFilePath}`);
+      else raw = payload.content;
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error;
+    }
+    return {
+      raw,
+      markdownBody: workspaceFilePath.toLowerCase().endsWith(".md"),
+      save: (text) => client.post("/api/workspace/fs/write", { path: workspaceFilePath, content: text })
+    };
+  }
+  if (isInternalBundleSlot(slot)) {
+    const payload = await readInternalContent(client, manifestPath, slot);
+    return {
+      raw: payload?.content ?? "",
+      markdownBody: false,
+      save: (text) => writeInternalContent(client, manifestPath, slot, text)
+    };
+  }
+  if (!ref) throw new Error("ref is required for external slots");
+  const payload = await readMarkdownFull(client, manifestPath, slot, ref);
+  return {
+    raw: payload.content ?? "",
+    markdownBody: ref.toLowerCase().endsWith(".md"),
+    save: (text) => writeMarkdownFull(client, manifestPath, slot, ref, text)
+  };
+}
+
 export async function writeContentBody(client, args) {
   if (args.data) return writeContentBinary(client, args);
   const address = resolveArgs(args);
-  const { manifestPath, slot, ref, workspaceFilePath, placement, kind } = address;
-  const content = args.content;
-  if (content == null) throw new Error("content or data (base64) is required");
-  if (kind === "root") {
-    const mode = args.mode;
-    let body = content;
-    if (workspaceFilePath.toLowerCase().endsWith(".md")) {
-      const { text } = await readRootMarkdownText(client, {}, workspaceFilePath).catch(() => ({ text: "" }));
-      const { properties } = splitMarkdownFrontmatter(text);
-      body = mergeMarkdownFrontmatter(properties, content);
-    }
-    await client.post("/api/workspace/fs/write", {
-      path: workspaceFilePath,
-      content: body,
-      ...(mode ? { mode } : {})
-    });
-    return { placement, path: workspaceFilePath, ok: true };
+  const mode = args.mode || "replace";
+  if (args.content == null && mode !== "patch") throw new Error("content or data (base64) is required");
+
+  const file = await openContentText(client, address);
+  if (file.raw == null && !["replace", "append", "prepend"].includes(mode)) {
+    throw new Error(`File does not exist: ${address.workspaceFilePath} (mode=${mode} needs an existing file)`);
   }
-  if (workspaceFilePath) {
-    await client.post("/api/workspace/fs/write", { path: workspaceFilePath, content });
-    return { placement, file: ref, ok: true };
-  }
-  if (isInternalBundleSlot(slot)) {
-    return writeInternalContent(client, manifestPath, slot, content);
-  }
-  if (!ref) throw new Error("ref is required for external slots");
-  const existing = await readMarkdownFull(client, manifestPath, slot, ref);
-  if (!ref.toLowerCase().endsWith(".md")) {
-    return writeMarkdownFull(client, manifestPath, slot, ref, content);
-  }
-  const { properties } = splitMarkdownFrontmatter(existing.content);
-  const merged = mergeMarkdownFrontmatter(properties, content);
-  return writeMarkdownFull(client, manifestPath, slot, ref, merged);
+  const previousHash = file.raw == null ? null : assertExpectedHash(file.raw, args);
+  if (file.raw == null && args.expectedHash) throw new ContentConflictError(args.expectedHash, "none (file missing)");
+
+  const edit = applyBodyEdit(file.raw ?? "", { ...args, mode }, { markdownBody: file.markdownBody });
+  await file.save(edit.text);
+  const saved = await openContentText(client, address).catch(() => null);
+  return {
+    placement: address.placement,
+    ...(address.ref ? { file: address.ref } : {}),
+    ...(address.kind === "root" ? { path: address.workspaceFilePath } : {}),
+    ok: true,
+    mode,
+    created: file.raw == null,
+    startLine: edit.startLine,
+    endLine: edit.endLine,
+    totalLines: edit.totalLines,
+    previousHash,
+    hash: hashText(saved?.raw ?? edit.text)
+  };
 }
 
 export async function readContentProperties(client, args) {

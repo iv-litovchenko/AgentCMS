@@ -56,8 +56,14 @@
 - `placement.kind`: `topic` (синоним `page`) | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
 - `ref` — файл в слоте **с расширением** (`папка/zametka.md`). Если расширения нет, `read_content` / `content_exists` / `get_content_meta` / `read_content_property` повторяют запрос с `.md` и возвращают `refResolved`.
 - Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: topic`.
-- `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`. Body читается окном: по умолчанию первые 300 строк тела, `startLine` + `limitLines` (до 500) — номера строк **файла с frontmatter**, те же, что `startLine` в результатах поиска. В ответе `startLine`, `endLine`, `totalLines`, `bodyStartLine`, `hasMore`, `nextStartLine`, `hash`; окно расширяется, чтобы не резать блок ``` (`codeFence`). `full: true` — всё тело (обязательно перед `write_content` replace). Internal-слоты и `main-single-csv` — целиком. Для root ещё `format: "base64"`, `offsetBytes`.
-- `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; текст — `content`, бинарь — `data` (base64) + `mimeType`; для root — `mode: append | replace`.
+- `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`. Body читается окном: по умолчанию первые 300 строк тела, `startLine` + `limitLines` (до 500) — номера строк **файла с frontmatter**, те же, что `startLine` в результатах поиска. В ответе `startLine`, `endLine`, `totalLines`, `bodyStartLine`, `hasMore`, `nextStartLine`, `hash`; окно расширяется, чтобы не резать блок ``` (`codeFence`). `full: true` — всё тело (нужно перед `write_content` mode=replace; для точечной правки не нужно). Internal-слоты и `main-single-csv` — целиком. Для root ещё `format: "base64"`, `offsetBytes`.
+- `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; бинарь — `data` (base64) + `mimeType`. Для `part=body` — `mode`:
+  - `replace` (default) — всё тело, frontmatter сохраняется; `append` / `prepend` — в конец / в начало тела; все три — `content`.
+  - `patch` — `oldString` → `newString` (`""` удаляет); совпадение должно быть одно, иначе ошибка со списком строк или `replaceAll: true`. **Предпочтительный способ точечной правки.**
+  - `replace_lines` — `startLine`..`endLine` → `content` (`""` удаляет строки); `insert` — `afterLine` или `beforeLine` + `content`.
+  - Номера строк — как в `read_content` и поиске (строки файла с frontmatter); строки frontmatter через body не меняются → `part=properties`.
+  - `expectedHash` — `hash` из `read_content` или прошлой записи; файл изменился → ошибка `conflict`. **Обязателен** для `replace_lines` / `insert`.
+  - Ответ: `startLine` / `endLine` изменённого участка, `totalLines`, `previousHash`, `hash` (следующий `expectedHash`).
 - `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.
 
 Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_topic_map`, `read_content_index_toc`, `list_content`, `resolve_workspace_path`.
@@ -233,7 +239,7 @@
 | Тело / свойства manifest | `write_page_body` / `write_page_properties` |
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `list_root_files` → `read_root_file` / `write_root_file` (с history) |
 | `NOTE.md` / `TODO.md` | `read_workspace_*` / `write_workspace_*` |
-| Любой файл по пути (код, HTML, свободная память) | `read_content` / `write_content` с `kind: root`; точечная правка — `patch_file`; обход папки — `list_folder` |
+| Любой файл по пути (код, HTML, свободная память) | `read_content` / `write_content` с `kind: root`; точечная правка — `write_content` `mode: patch` (legacy `patch_file`); обход папки — `list_folder` |
 | Загрузка по полному пути | `upload_file` / `upload_file_from_url` |
 
 **Служебные папки корня:**

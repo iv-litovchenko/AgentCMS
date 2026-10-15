@@ -115,7 +115,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
   reg(
     "patch_file",
-    "Replace a unique text block in a workspace file (safe edit). old_string must match exactly once unless replaceAll=true. Prefer over write_file for existing files.",
+    "Replace a unique text block in a workspace file. Prefer write_content mode=patch (any placement, expectedHash, works for slot .md). old_string must match exactly once unless replaceAll=true.",
     z.object({
       path: workspacePath,
       old_string: z.string().min(1).describe("Exact text to find in the file"),
