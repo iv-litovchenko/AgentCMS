@@ -6516,7 +6516,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (bundleMatch) {
     return {
       error:
-        "Use write_content_body for internal single-file slots (main-single, todo-single, roadmap-single, main-single-csv)",
+        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|roadmap-single|main-single-csv, no ref) for internal single-file slots",
       status: 400
     };
   }
@@ -6543,13 +6543,16 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (ext === ".md" && WORKSPACE_FS_TYPED_MD_LAYERS.has(layer)) {
     const { STORAGE_SLOT_ROUTING } = require("./lib/config/storage-slot-routing");
     const spec = STORAGE_SLOT_ROUTING.find((entry) => entry.storageFolder === layer);
+    const manifestPath = parsed.manifestCandidates?.[0] || null;
+    const slot = spec?.slotKey || layer;
     return {
-      error: `For .md in awn-storage/${layer}/ use create_content / write_content_body / write_content_properties`,
+      error: `For .md in awn-storage/${layer}/ use write_content (part=body | properties) or create_content with hint.placement`,
       status: 400,
       hint: {
-        manifestPath: parsed.manifestCandidates?.[0] || null,
-        slot: spec?.slotKey || layer,
-        ref: parsed.relativePath
+        manifestPath,
+        slot,
+        ref: parsed.relativePath,
+        placement: { kind: "topic", path: manifestPath, slot, ref: parsed.relativePath }
       }
     };
   }
@@ -14040,7 +14043,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
       "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии, важность) без body. " +
       "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
-      "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
+      "Для полной карты с meta → get_content_map. Для текста записи → read_content (part=body). " +
       "Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
       read_content_index_toc:
@@ -14049,7 +14052,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
         "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала read_content_index_toc для preview.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
-      read_content_body: "Когда нужен полный текст одной записи."
+      read_content: "Когда нужен текст одной записи (part=body; full=true — целиком)."
     },
     path: mapPayload.path,
     awnType: mapPayload.awnType,
@@ -14673,7 +14676,7 @@ const SESSION_PATH_HINTS = {
     "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot:
-    "Internal-слот: read_content_body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
+    "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
