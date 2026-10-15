@@ -21862,6 +21862,20 @@ const FLAT_STORAGE_SECTION_MODES = new Set(
     (spec) => spec.defaultMode
   )
 );
+
+function isNavigationListSortScope(scope) {
+  const key = String(scope || "").trim();
+  if (!key) return false;
+  if (NAVIGATION_LIST_SORT_SCOPES.has(key)) return true;
+  return FLAT_STORAGE_SECTION_MODES.has(key);
+}
+
+function forEachNavigationListSortScope(fn) {
+  if (typeof fn !== "function") return;
+  for (const scope of NAVIGATION_LIST_SORT_SCOPES) fn(scope);
+  for (const scope of FLAT_STORAGE_SECTION_MODES) fn(scope);
+}
+
 const activeFlatStorageSectionFolder = Object.fromEntries(
   [...FLAT_STORAGE_SECTION_MODES].map((mode) => [mode, null])
 );
@@ -74588,9 +74602,17 @@ function navigationListSortUiKey(scope) {
 }
 
 function getNavigationListSortTopicPath() {
-  const path = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
-  if (!path || !isNodeMdPath(path)) return "";
-  return String(path).replace(/\\/g, "/");
+  const resolved = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+  const normalized = String(resolved || "").replace(/\\/g, "/");
+  if (!normalized) return "";
+  if (isNodeMdPath(normalized)) return normalized;
+  const hubManifest = resolveHubStorageManifestApiPath(normalized);
+  if (hubManifest && isNodeMdPath(hubManifest)) return hubManifest;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    const fromOverview = getWorkspaceStorageManifestApiPath(activeEntryOverviewContext.relPath);
+    if (fromOverview && isNodeMdPath(fromOverview)) return fromOverview;
+  }
+  return "";
 }
 
 function getNavigationListSortCacheForTopic(topicPath) {
@@ -74605,10 +74627,10 @@ function getNavigationListSortCacheForTopic(topicPath) {
 function parseNavigationListSortFromAwnUi(awnUi = {}) {
   const result = {};
   if (!awnUi || typeof awnUi !== "object") return result;
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
+  forEachNavigationListSortScope((scope) => {
     const raw = awnUi[navigationListSortUiKey(scope)];
     if (raw === "created" || raw === "name") result[scope] = raw;
-  }
+  });
   return result;
 }
 
@@ -74636,13 +74658,13 @@ function hydrateNavigationListSortFromNodeConfig(topicPath, content, { migrateLe
   }
   if (hasConfig || !migrateLegacy) return;
 
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
-    if (cache[scope]) continue;
+  forEachNavigationListSortScope((scope) => {
+    if (cache[scope]) return;
     const legacy = readLegacyNavigationListSort(scope);
     if (legacy) {
       cache[scope] = legacy;
     }
-  }
+  });
 }
 
 async function persistAllNavigationListSortToNodeConfig(topicPath) {
@@ -74650,9 +74672,9 @@ async function persistAllNavigationListSortToNodeConfig(topicPath) {
   if (!path || !isNodeMdPath(path)) return;
   const cache = getNavigationListSortCacheForTopic(path);
   const patch = {};
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
+  forEachNavigationListSortScope((scope) => {
     if (cache[scope]) patch[navigationListSortUiKey(scope)] = cache[scope];
-  }
+  });
   if (!Object.keys(patch).length) return;
   try {
     const current = await loadNodeConfig(path, { force: true });
@@ -74666,7 +74688,7 @@ async function persistAllNavigationListSortToNodeConfig(topicPath) {
 async function persistNavigationListSortToNodeConfig(topicPath, scope, mode) {
   const path = String(topicPath || "").replace(/\\/g, "/");
   const key = String(scope || "").trim();
-  if (!path || !isNodeMdPath(path) || !key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return;
+  if (!path || !isNodeMdPath(path) || !key || !isNavigationListSortScope(key)) return;
   const normalized = mode === "created" ? "created" : "name";
   try {
     const current = await loadNodeConfig(path, { force: true });
@@ -74681,7 +74703,7 @@ async function persistNavigationListSortToNodeConfig(topicPath, scope, mode) {
 
 function loadNavigationListSort(scope) {
   const key = String(scope || "").trim();
-  if (!key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return "name";
+  if (!key || !isNavigationListSortScope(key)) return "name";
 
   const topicPath = getNavigationListSortTopicPath();
   if (topicPath) {
@@ -74713,7 +74735,7 @@ function loadNavigationListSort(scope) {
 
 function saveNavigationListSort(scope, mode) {
   const key = String(scope || "").trim();
-  if (!key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return;
+  if (!key || !isNavigationListSortScope(key)) return;
   const normalized = mode === "created" ? "created" : "name";
 
   const topicPath = getNavigationListSortTopicPath();
@@ -84588,7 +84610,7 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
   const onFileClick = handlers.onFileClick || openMediaEntryOverviewFromNavigation;
   const sortMode =
     handlers.sortMode ||
-    (handlers.readMemoryKind && NAVIGATION_LIST_SORT_SCOPES.has(String(handlers.readMemoryKind))
+    (handlers.readMemoryKind && isNavigationListSortScope(String(handlers.readMemoryKind))
       ? loadNavigationListSort(handlers.readMemoryKind)
       : "name");
   const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
@@ -86342,7 +86364,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     handlers.onFileClick || ((item) => openExternalRecordOverviewFromNavigation(item));
   const sortMode =
     handlers.sortMode ||
-    (handlers.readMemoryKind && NAVIGATION_LIST_SORT_SCOPES.has(String(handlers.readMemoryKind))
+    (handlers.readMemoryKind && isNavigationListSortScope(String(handlers.readMemoryKind))
       ? loadNavigationListSort(handlers.readMemoryKind)
       : "name");
   const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
