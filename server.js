@@ -454,6 +454,7 @@ const { getCanonicalModelPayload } = require("./lib/awn/awn-canonical-model");
 const { parseYamlScalar, mergeFrontmatterOverrides } = require("./lib/awn/awn-yaml-utils");
 const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-service");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
+const { buildHubWorkspaceOutsideStructureReport } = require("./lib/services/hub-outside-structure");
 const { createExistsApi } = require("./lib/api/exists-api");
 const {
   validateContentSlotAccess,
@@ -22231,6 +22232,25 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan iblock outside structure",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/hub-outside-structure") {
+    const hubRel = url.searchParams.get("path") || url.searchParams.get("hub") || "";
+    if (!hubRel) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = buildHubWorkspaceOutsideStructureReport(
+        getAgentRoot(),
+        getProjectRoot(),
+        hubRel
+      );
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan hub outside structure",
         details: String(error.message || error)
       });
     }

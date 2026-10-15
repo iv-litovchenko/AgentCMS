@@ -6776,6 +6776,7 @@ async function mountHubWorkspaceStoreSchema(layout, manifestPath) {
   } catch (error) {
     if (baseFieldsNode) baseFieldsNode.textContent = `Ошибка: ${error.message}`;
   }
+  mountHubWorkspaceOutsideStructureWarning(manifestPath, layout);
 }
 
 function getRepositoryFolderPathFromManifest(manifestPath) {
@@ -12252,20 +12253,23 @@ function renderHeaderGlobalSettingsModal(cache = headerGlobalSettingsCache) {
 async function loadPlatformSettingsSchemaBundle(options = {}) {
   const force = Boolean(options.force);
   if (!force && agentSettingsSchemaCacheByScope.has("global")) {
-    return agentSettingsSchemaCacheByScope.get("global");
+    const cached = agentSettingsSchemaCacheByScope.get("global");
+    if (Object.keys(cached?.settingsFields || {}).length) return cached;
+    agentSettingsSchemaCacheByScope.delete("global");
   }
 
   const response = await fetch("/api/platform/settings-schema");
   if (response.ok) {
     const data = await response.json();
-    const payload = {
-      scope: "global",
-      typeId: data.type || "awn.settings.platform",
-      settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
-      settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
-    };
-    agentSettingsSchemaCacheByScope.set("global", payload);
-    return payload;
+    const settingsFields = mergeAgentSettingsSchemaFields(data.fields || {});
+    if (Object.keys(settingsFields).length) {
+      return storeAgentSettingsSchemaCacheEntry("global", {
+        scope: "global",
+        typeId: data.type || "awn.settings.platform",
+        settingsFields,
+        settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
+      });
+    }
   }
 
   if (activeAgentId) {
@@ -28326,6 +28330,32 @@ function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
   }
   const fields = cached?.settingsFields || {};
   return buildSettingsFieldGroupsFromFields(fields);
+}
+
+function storeAgentSettingsSchemaCacheEntry(scope, payload) {
+  const fieldCount = Object.keys(payload?.settingsFields || {}).length;
+  if (!fieldCount) {
+    agentSettingsSchemaCacheByScope.delete(scope);
+    return payload;
+  }
+  agentSettingsSchemaCacheByScope.set(scope, payload);
+  return payload;
+}
+
+function hydrateNodeSettingsCacheFromAgentSchemaCache(cache) {
+  if (!cache?.manifestPath || !isProjectSettingsAgentSettingsScope(cache.manifestPath)) return cache;
+  if (Object.keys(cache.settingsFields || {}).length) return cache;
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(cache.manifestPath);
+  const schemaBundle = agentSettingsSchemaCacheByScope.get(scopeKey);
+  const fields = schemaBundle?.settingsFields || {};
+  if (!Object.keys(fields).length) return cache;
+  cache.settingsFields = { ...fields };
+  if (Array.isArray(schemaBundle?.settingsFieldGroups) && schemaBundle.settingsFieldGroups.length) {
+    cache.settingsFieldGroups = schemaBundle.settingsFieldGroups;
+  }
+  cache.entries = buildNodeSettingsEntriesFromSchema(cache.entries || [], cache.settingsFields);
+  nodeSettingsCacheByManifest.set(cache.manifestPath, cache);
+  return cache;
 }
 
 const PROJECT_SETTINGS_UNGROUPED_GROUP_ID = "content";
@@ -49457,51 +49487,56 @@ function resolveAgentSettingsSchemaScope(manifestPath = getNodeSettingsManifestP
 async function loadAgentSettingsSchemaBundle(options = {}) {
   const scope = options.scope || resolveAgentSettingsSchemaScope(options.manifestPath);
   if (!options.force && agentSettingsSchemaCacheByScope.has(scope)) {
-    return agentSettingsSchemaCacheByScope.get(scope);
+    const cached = agentSettingsSchemaCacheByScope.get(scope);
+    if (Object.keys(cached?.settingsFields || {}).length) return cached;
+    agentSettingsSchemaCacheByScope.delete(scope);
   }
   if (!options.force && agentSettingsSchemaLoadPromises.has(scope)) {
     return agentSettingsSchemaLoadPromises.get(scope);
   }
 
   const loadPromise = (async () => {
+    const resolveFallbackAgentSettingsSchemaPayload = async () => {
+      if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+      const typeId =
+        scope === "global"
+          ? "awn.settings.platform"
+          : scope === "user"
+            ? "awn.settings.user"
+            : scope === "integrations"
+              ? "awn.settings.integrations"
+              : "awn.settings.workspace";
+      const typeDef = mergeClientTypeDefinition(typeId);
+      return {
+        scope,
+        typeId: typeDef?.id || typeId,
+        settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
+        settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(typeDef?.fieldGroups || [])
+      };
+    };
+
     const response = await fetch(buildApiUrl("/api/agent/settings-schema", { scope }));
     if (response.ok) {
       const data = await response.json();
-      const payload = {
-        scope,
-        typeId:
-          data.type ||
-          (scope === "global"
-            ? "awn.settings.platform"
-            : scope === "user"
-              ? "awn.settings.user"
-              : scope === "integrations"
-                ? "awn.settings.integrations"
-                : "awn.settings.workspace"),
-        settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
-        settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(data.fieldGroups || [])
-      };
-      agentSettingsSchemaCacheByScope.set(scope, payload);
-      return payload;
+      const settingsFields = mergeAgentSettingsSchemaFields(data.fields || {});
+      if (Object.keys(settingsFields).length) {
+        return storeAgentSettingsSchemaCacheEntry(scope, {
+          scope,
+          typeId:
+            data.type ||
+            (scope === "global"
+              ? "awn.settings.platform"
+              : scope === "user"
+                ? "awn.settings.user"
+                : scope === "integrations"
+                  ? "awn.settings.integrations"
+                  : "awn.settings.workspace"),
+          settingsFields,
+          settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(data.fieldGroups || [])
+        });
+      }
     }
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    const typeId =
-      scope === "global"
-        ? "awn.settings.platform"
-        : scope === "user"
-          ? "awn.settings.user"
-          : scope === "integrations"
-            ? "awn.settings.integrations"
-            : "awn.settings.workspace";
-    const typeDef = mergeClientTypeDefinition(typeId);
-    const payload = {
-      scope,
-      typeId: typeDef?.id || typeId,
-      settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
-      settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(typeDef?.fieldGroups || [])
-    };
-    agentSettingsSchemaCacheByScope.set(scope, payload);
-    return payload;
+    return storeAgentSettingsSchemaCacheEntry(scope, await resolveFallbackAgentSettingsSchemaPayload());
   })();
 
   agentSettingsSchemaLoadPromises.set(scope, loadPromise);
@@ -51423,6 +51458,8 @@ function hideProjectSettingsPageUi() {
 
 function leaveProjectSettingsMode() {
   projectSettingsBootstrapped = false;
+  agentSettingsSchemaCacheByScope.clear();
+  agentSettingsSchemaLoadPromises.clear();
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
@@ -52080,6 +52117,8 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   const fieldsNode = getNodeSettingsFieldsContainer();
   const emptyNode = getNodeSettingsEmptyContainer();
   if (!fieldsNode || !emptyNode) return;
+
+  cache = hydrateNodeSettingsCacheFromAgentSchemaCache(cache);
 
   fieldsNode.replaceChildren();
   fieldsNode.classList.remove("has-settings-subgroups");
@@ -81371,10 +81410,24 @@ const IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS = {
   "storage-root": "awn-storage/ (не data или assets)"
 };
 
+const HUB_OUTSIDE_STRUCTURE_SCOPE_LABELS = {
+  "channel-root": "Корень канала",
+  "media-root": "Корень медиатеки",
+  "storage-root": "awn-storage/ (не слот)"
+};
+
 async function fetchIblockOutsideStructureReport(storeRel) {
   const response = await fetch(buildApiUrl("/api/agent/iblock-outside-structure", { store: storeRel }));
   if (!response.ok) {
     throw new Error(`iblock-outside-structure ${response.status}`);
+  }
+  return response.json();
+}
+
+async function fetchHubOutsideStructureReport(hubRel) {
+  const response = await fetch(buildApiUrl("/api/agent/hub-outside-structure", { path: hubRel }));
+  if (!response.ok) {
+    throw new Error(`hub-outside-structure ${response.status}`);
   }
   return response.json();
 }
@@ -81394,15 +81447,30 @@ function renderIblockOutsideStructureWarningPanel(report) {
 
   const hint = document.createElement("p");
   hint.className = "node-navigation-outside-slots-warning-hint";
+  const hubKind = String(report?.hubKind || "").trim();
   const isGroup = String(report?.kind || "") === "group";
-  hint.textContent = isGroup
-    ? "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/."
-    : "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/, для табличной CSV-коллекции — main.csv (или record.file из schema); при плоском MD-хранении — записи и разделы в корне; в awn-storage/ — только data/ и assets/.";
+  if (hubKind === "channel") {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры канала. В корне — manifest.md, sort.json, schema mod, awn-storage/; в awn-storage/ — только inbox/, task-queue/, outbox/, files/, assets/.";
+  } else if (hubKind === "media") {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры медиатеки. В корне — manifest.md, sort.json, schema mod, awn-storage/; в awn-storage/ — только files/ и assets/.";
+  } else if (isGroup) {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/.";
+  } else {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/, для табличной CSV-коллекции — main.csv (или record.file из schema); при плоском MD-хранении — записи и разделы в корне; в awn-storage/ — только data/ и assets/.";
+  }
 
   header.append(title, hint);
 
   const list = document.createElement("ul");
   list.className = "node-navigation-outside-slots-warning-list";
+
+  const scopeLabels = hubKind
+    ? HUB_OUTSIDE_STRUCTURE_SCOPE_LABELS
+    : IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS;
 
   for (const item of report?.items || []) {
     const row = document.createElement("li");
@@ -81410,7 +81478,7 @@ function renderIblockOutsideStructureWarningPanel(report) {
 
     const scope = document.createElement("span");
     scope.className = "node-navigation-outside-slots-warning-scope";
-    scope.textContent = IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS[item.scope] || item.scope || "—";
+    scope.textContent = scopeLabels[item.scope] || item.scope || "—";
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -81482,6 +81550,39 @@ function mountAwnDataViewIblockOutsideStructureWarning(store) {
     return;
   }
   void refreshAwnDataViewIblockOutsideStructureRow(row, panel, storeRel);
+}
+
+async function refreshHubWorkspaceOutsideStructureRow(row, wrap, hubRel) {
+  if (!row || !wrap || !hubRel) return;
+  try {
+    const report = await fetchHubOutsideStructureReport(hubRel);
+    if (!row.isConnected) return;
+    applyIblockOutsideStructureWarningRow(row, wrap, report);
+  } catch {
+    if (row.isConnected) {
+      row.hidden = true;
+      wrap?.classList.remove("has-outside-structure-warning");
+    }
+  }
+}
+
+function mountHubWorkspaceOutsideStructureWarning(manifestPath, layout) {
+  const hub = resolveHubWorkspaceStoreFromManifest(manifestPath);
+  const panel = layout?.querySelector(".awn-databases-view-schema-panel");
+  if (!hub?.storeRel || !panel) return;
+  let row = panel.querySelector(":scope > .awn-databases-view-iblock-outside-structure-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "awn-databases-view-iblock-outside-structure-row";
+    row.hidden = true;
+    const anchor =
+      panel.querySelector(".awn-databases-view-schema-fields-section") ||
+      panel.querySelector(".awn-databases-view-schema-fields-accordion") ||
+      panel.lastElementChild;
+    if (anchor) anchor.insertAdjacentElement("afterend", row);
+    else panel.appendChild(row);
+  }
+  void refreshHubWorkspaceOutsideStructureRow(row, panel, hub.storeRel);
 }
 
 function createWorkspaceCounterIndexButton(slot, topicPath) {
@@ -126045,13 +126146,6 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   const showRecordLabel = !awnIdText && idMode !== "slug";
 
   wrap.appendChild(createAwnDataViewRecordEditIconButton(record, viewStore, recordLabel));
-  if (showRecordLabel) {
-    const idLabel = document.createElement("span");
-    idLabel.className = "awn-databases-view-record-id-label";
-    idLabel.textContent = recordLabel;
-    idLabel.title = recordLabel;
-    wrap.appendChild(idLabel);
-  }
 
   if (awnIdText) {
     const idBadge = createNavBookTocIdBadge(awnIdText);
@@ -126061,6 +126155,14 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
     }
   } else {
     wrap.appendChild(createAwnDataViewRecordIdAssignButton(record, viewStore));
+  }
+
+  if (showRecordLabel) {
+    const idLabel = document.createElement("span");
+    idLabel.className = "awn-databases-view-record-id-label";
+    idLabel.textContent = recordLabel;
+    idLabel.title = recordLabel;
+    wrap.appendChild(idLabel);
   }
 
   return wrap;
