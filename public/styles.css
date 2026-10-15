@@ -23671,6 +23671,11 @@ a.header-tool-btn {
   opacity: 0.62;
 }
 
+.menu-index-block--entity-experimental {
+  border-style: dashed;
+  opacity: 0.98;
+}
+
 .menu-index-block--link-experimental {
   margin-top: 8px;
   padding: 10px 12px;

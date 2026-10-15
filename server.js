@@ -54,6 +54,7 @@ const { createSemanticSearchService } = require("./lib/indexes/semantic-search/s
 const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
 const { createLinkIndexService } = require("./lib/indexes/link-index/service");
+const { createEntityIndexService } = require("./lib/indexes/entity-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./lib/workspace-id/service");
 const { generateWorkspaceSlug } = require("./lib/workspace/slug-service");
 const recordMaterials = require("./lib/record-materials");
@@ -1950,6 +1951,21 @@ function getLinkIndexService() {
   return linkIndexService;
 }
 
+let entityIndexService = null;
+function getEntityIndexService() {
+  if (!entityIndexService) {
+    entityIndexService = createEntityIndexService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath,
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded,
+      getProjectRoot
+    });
+  }
+  return entityIndexService;
+}
+
 let workspaceIdService = null;
 function getWorkspaceIdService() {
   if (!workspaceIdService) {
@@ -2143,7 +2159,8 @@ async function drainWorkspaceIndexFileSyncQueue() {
         null,
         getFulltextSearchService(),
         relPath,
-        getLinkIndexService()
+        getLinkIndexService(),
+        getEntityIndexService()
       ).catch(() => {});
     } else {
       await syncWorkspaceIndexFile(
@@ -2151,7 +2168,8 @@ async function drainWorkspaceIndexFileSyncQueue() {
         getStorageIndexService(),
         getFulltextSearchService(),
         relPath,
-        getLinkIndexService()
+        getLinkIndexService(),
+        getEntityIndexService()
       ).catch(() => {});
     }
   }
@@ -2235,6 +2253,7 @@ async function getWorkspaceIndexMonitorPayload() {
     loadFulltextIndex: loadFulltextIndexFile,
     loadStorageIndex: loadStorageIndexFile,
     getLinkIndexStatus: () => getLinkIndexService().getStatus(),
+    getEntityIndexStatus: () => getEntityIndexService().getStatus(),
     getOcrIndexStatus: () => getOcrIndexService().getStatus(),
     getWorkspaceIdStatus: () => getWorkspaceIdService().getStatus()
   });
@@ -20964,6 +20983,67 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read link index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entity-index/status") {
+    try {
+      return sendJson(res, 200, await getEntityIndexService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/reindex") {
+    try {
+      const payload = await getEntityIndexService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild entity index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/query") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().query(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status =
+        message.includes("is required") || message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to query entity index",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entity-index/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getEntityIndexService().catalog({
+        limit,
+        offset,
+        pathPrefix: url.searchParams.get("pathPrefix") || "",
+        q: url.searchParams.get("q") || "",
+        type: url.searchParams.get("type") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity index catalog",
         details: String(error.message || error)
       });
     }

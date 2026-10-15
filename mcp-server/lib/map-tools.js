@@ -227,14 +227,15 @@ function registerSearchWorkspaceTools(reg, client) {
     "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     z.object({}),
     async () => {
-      const [ocr, semantic, fulltext, storage, link] = await Promise.all([
+      const [ocr, semantic, fulltext, storage, link, entity] = await Promise.all([
         client.get("/api/ocr-index/status"),
         client.get("/api/search/semantic/status"),
         client.get("/api/search/fulltext/status"),
         client.get("/api/storage-index/status"),
-        client.get("/api/link-index/status")
+        client.get("/api/link-index/status"),
+        client.get("/api/entity-index/status")
       ]);
-      return { ocr, semantic, fulltext, storage, link };
+      return { ocr, semantic, fulltext, storage, link, entity };
     }
   );
 
@@ -276,6 +277,31 @@ function registerSearchWorkspaceTools(reg, client) {
     "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_workspace_links.",
     z.object({}),
     () => client.post("/api/link-index/reindex", {})
+  );
+
+  reg(
+    "rebuild_workspace_entity_index",
+    "Rebuild workspace entity registry (regex/NER prototype) in .agent-cms/cache/indexes/entity/entities.sqlite. Extracts people, dates, urls, tags, wikilinks, money from note bodies + frontmatter.",
+    z.object({}),
+    () => client.post("/api/entity-index/reindex", {})
+  );
+
+  reg(
+    "query_workspace_entities",
+    "Facet search over extracted entities: list entities (default), mentions by entityId, or entities in a file path.",
+    z.object({
+      mode: z
+        .enum(["entities", "mentions", "by_entity", "by_path", "path"])
+        .optional()
+        .describe("entities = list/filter; mentions/by_entity = all mentions of entityId; by_path/path = entities in one file"),
+      q: z.string().optional().describe("Filter entity labels (substring)"),
+      type: z.string().optional().describe("Entity type: person, project, date, url, tag, topic, money, email, org"),
+      entityId: z.string().optional().describe("Required for mentions mode"),
+      path: z.string().optional().describe("Required for by_path mode"),
+      pathPrefix: z.string().optional().describe("Limit to subtree"),
+      limit: z.number().int().min(1).max(200).optional()
+    }),
+    (payload) => client.post("/api/entity-index/query", payload || {})
   );
 
   reg(
