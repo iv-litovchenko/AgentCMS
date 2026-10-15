@@ -21689,6 +21689,8 @@ ol .live-diff-preview-removed {
 
 .app-header {
   grid-column: 1 / -1;
+  position: relative;
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -22894,11 +22896,54 @@ ol .live-diff-preview-removed {
 }
 
 .header-welcome-desktop {
+  display: none;
   margin: 0 0 12px;
   padding: 10px 12px;
   border: 1px solid rgba(14, 165, 233, 0.22);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(224, 242, 254, 0.65) 0%, rgba(241, 245, 249, 0.9) 100%);
+}
+
+html.is-agent-cms-desktop .header-welcome-desktop {
+  display: block;
+}
+
+html.is-agent-cms-desktop .header-welcome-desktop-warn.hidden {
+  display: none;
+}
+
+html.has-desktop-workspace-warn .header-tool-btn--welcome {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.55);
+}
+
+.header-profile-desktop-hint-section,
+.header-profile-desktop-hint-divider {
+  display: none;
+}
+
+html.is-agent-cms-desktop .header-profile-menu-divider--after-main {
+  display: none;
+}
+
+html.is-agent-cms-desktop .header-profile-desktop-hint-section,
+html.is-agent-cms-desktop .header-profile-desktop-hint-divider {
+  display: block;
+}
+
+.header-profile-desktop-hint-text {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.header-profile-desktop-hint-text code {
+  font-size: 10px;
+}
+
+.header-profile-desktop-hint-section.is-warning .header-profile-desktop-hint-text {
+  color: #92400e;
 }
 
 .header-welcome-desktop.is-warning {

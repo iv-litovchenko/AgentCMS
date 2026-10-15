@@ -1366,6 +1366,7 @@ const headerWelcomeCloseBtn = document.getElementById("header-welcome-close-btn"
 const headerWelcomeCreateBtn = document.getElementById("header-welcome-create-btn");
 const headerWelcomeDesktopSection = document.getElementById("header-welcome-desktop-section");
 const headerWelcomeDesktopWarn = document.getElementById("header-welcome-desktop-warn");
+const headerProfileDesktopHintSection = document.getElementById("header-profile-desktop-hint-section");
 const headerConnectWrapNode = document.getElementById("header-connect-wrap");
 const headerConnectBtn = document.getElementById("header-connect-btn");
 const headerConnectPopoverNode = document.getElementById("header-connect-popover");
@@ -12154,10 +12155,21 @@ if (typeof window !== "undefined") {
   window.agentCmsCloseHeaderWelcomePopover = closeHeaderWelcomePopover;
 }
 
-function setHeaderWelcomeDesktopSectionVisible(visible) {
-  if (!headerWelcomeDesktopSection) return;
-  headerWelcomeDesktopSection.classList.toggle("hidden", !visible);
-  headerWelcomeDesktopSection.hidden = !visible;
+function isAgentCmsDesktopShell() {
+  if (Boolean(window.desktopApp?.isDesktop)) return true;
+  if (document.documentElement.classList.contains("is-agent-cms-desktop")) return true;
+  try {
+    if (new URLSearchParams(window.location.search).get("desktop") === "1") return true;
+  } catch {
+    // ignore
+  }
+  const ua = String(typeof navigator !== "undefined" ? navigator.userAgent || "" : "");
+  return /\bElectron\//i.test(ua) || /\bElectron\b/i.test(ua);
+}
+
+function markAgentCmsDesktopShell() {
+  if (!isAgentCmsDesktopShell()) return;
+  document.documentElement.classList.add("is-agent-cms-desktop");
 }
 
 function setHeaderWelcomeDesktopWarnVisible(visible) {
@@ -12172,8 +12184,8 @@ function agentRegistryPathLooksLikeWrongDesktopRoot(agentPath) {
 }
 
 async function syncHeaderWelcomeDesktopHint() {
-  const isDesktop = Boolean(window.desktopApp?.isDesktop);
-  setHeaderWelcomeDesktopSectionVisible(isDesktop);
+  markAgentCmsDesktopShell();
+  const isDesktop = isAgentCmsDesktopShell();
   if (!isDesktop || !headerWelcomeDesktopSection) return;
 
   let showWarn = false;
@@ -12198,6 +12210,8 @@ async function syncHeaderWelcomeDesktopHint() {
   }
 
   headerWelcomeDesktopSection.classList.toggle("is-warning", showWarn);
+  headerProfileDesktopHintSection?.classList.toggle("is-warning", showWarn);
+  document.documentElement.classList.toggle("has-desktop-workspace-warn", showWarn);
   setHeaderWelcomeDesktopWarnVisible(showWarn);
 }
 
@@ -12693,6 +12707,7 @@ function openHeaderProfileMenu() {
   headerProfileMenuOpen = true;
   headerProfileMenuNode.classList.remove("hidden");
   syncHeaderProfileMenuState();
+  void syncHeaderWelcomeDesktopHint();
 }
 
 function openAgentsPickerPopover() {

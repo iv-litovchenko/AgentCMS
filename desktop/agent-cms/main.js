@@ -147,10 +147,23 @@ async function startAppServer(root) {
   return serverInfo;
 }
 
+function appendDesktopShellQuery(urlString) {
+  if (!urlString) return null;
+  try {
+    const url = new URL(urlString);
+    if (url.searchParams.get("desktop") !== "1") {
+      url.searchParams.set("desktop", "1");
+    }
+    return url.toString();
+  } catch {
+    return urlString;
+  }
+}
+
 function getWindowUrl(deepLink = pendingDeepLink) {
   const baseUrl = getPreferredServerUrl();
   if (!baseUrl) return null;
-  return buildAppUrl(baseUrl, deepLink);
+  return appendDesktopShellQuery(buildAppUrl(baseUrl, deepLink));
 }
 
 async function navigateWithDeepLink(deepLink) {

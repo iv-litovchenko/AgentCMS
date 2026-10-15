@@ -10,11 +10,22 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.965" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.966" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
     <script src="/js/core/project-version.js?v=1"></script>
+    <script>
+      (function markAgentCmsDesktopFromQuery() {
+        try {
+          if (new URLSearchParams(window.location.search).get("desktop") === "1") {
+            document.documentElement.classList.add("is-agent-cms-desktop");
+          }
+        } catch (_error) {
+          /* ignore */
+        }
+      })();
+    </script>
   </head>
   <body class="app-booting">
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
@@ -674,8 +685,7 @@
                 </p>
                 <div
                   id="header-welcome-desktop-section"
-                  class="header-welcome-desktop hidden"
-                  hidden
+                  class="header-welcome-desktop"
                   aria-label="Подсказка для настольного приложения Electron"
                 >
                   <p class="header-welcome-desktop-title">Настольное приложение (Electron)</p>
@@ -1584,7 +1594,23 @@
                     Выход
                   </button>
                 </div>
-                <div class="header-profile-menu-divider" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-divider header-profile-menu-divider--after-main" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-divider header-profile-desktop-hint-divider" role="separator" aria-hidden="true"></div>
+                <div
+                  id="header-profile-desktop-hint-section"
+                  class="header-profile-menu-section header-profile-desktop-hint-section"
+                  role="group"
+                  aria-label="Настольное приложение"
+                >
+                  <div class="header-profile-menu-section-title">Electron</div>
+                  <p class="header-profile-desktop-hint-text">
+                    Если пути к workspace вида <code>../../../../Desktop/…</code> или не грузится
+                    <code>platform.yml</code>: <strong>File → Open Workspace…</strong> → папка репозитория с
+                    <code>.agent-cms-global</code> (например <code>~/Desktop/YamlCMS</code>), либо
+                    <code>desktop-config.json</code> → <code>projectRoot</code> и перезапуск.
+                  </p>
+                </div>
+                <div class="header-profile-menu-divider header-profile-desktop-hint-divider" role="separator" aria-hidden="true"></div>
                 <div class="header-profile-menu-section" role="group" aria-label="Документация">
                   <div class="header-profile-menu-section-title">Документация</div>
                   <button id="user-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Руководства Agent CMS">Руководства</button>
@@ -8845,7 +8871,27 @@ awn-type: awn.page.ws
     <script src="/vendor/d3.min.js?v=1"></script>
     <script src="/js/panels/agent-rmm-live-brain.js?v=4"></script>
     <script src="/vendor/channel-preset-icons/map.js?v=15"></script>
-    <script src="/main.js?v=0.5.1012"></script>
+    <script>
+      (function markAgentCmsDesktopRoot() {
+        var ua = typeof navigator !== "undefined" ? String(navigator.userAgent || "") : "";
+        if (window.desktopApp && window.desktopApp.isDesktop) {
+          document.documentElement.classList.add("is-agent-cms-desktop");
+          return;
+        }
+        if (/\bElectron\//i.test(ua) || /\bElectron\b/i.test(ua)) {
+          document.documentElement.classList.add("is-agent-cms-desktop");
+          return;
+        }
+        try {
+          if (new URLSearchParams(window.location.search).get("desktop") === "1") {
+            document.documentElement.classList.add("is-agent-cms-desktop");
+          }
+        } catch (_error) {
+          /* ignore */
+        }
+      })();
+    </script>
+    <script src="/main.js?v=0.5.1013"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
     <script src="/js/app/privacy-mode.js?v=5"></script>
     <script src="/js/app/sensitive-input.js?v=3"></script>
