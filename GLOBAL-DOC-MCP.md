@@ -87,7 +87,7 @@
 
 ### `awn-id`
 
-У каждой новой записи (manifest, content, sidecar, comment) в frontmatter есть `awn-id` — число из глобального счётчика workspace. Один id у нескольких записей допустим. Старым записям — `assign_workspace_id`.
+У каждой новой записи (manifest, content, sidecar, comment) в frontmatter есть `awn-id` — число из глобального счётчика workspace. Один id у нескольких записей допустим. Найти путь по числу — `find_by_id({ id: 81 })` (alias: `resolve_workspace_id`). Старым записям — `assign_workspace_id`.
 
 ---
 

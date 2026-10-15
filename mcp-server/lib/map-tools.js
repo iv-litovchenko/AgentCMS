@@ -503,15 +503,31 @@ function registerSearchWorkspaceTools(reg, client) {
     ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   );
 
+  const findByIdSchema = z.object({
+    id: z
+      .union([z.number().int().positive(), z.string().min(1)])
+      .describe('Global awn-id from frontmatter, e.g. 81, "81", or "#81" (not INDEX.md row id)')
+  });
+
+  const resolveWorkspaceIdHandler = ({ id }) =>
+    client.get("/api/workspace-id/resolve", {
+      id: String(id ?? "")
+        .trim()
+        .replace(/^#+/, "")
+    });
+
+  reg(
+    "find_by_id",
+    "Find workspace file path(s) by global awn-id number (frontmatter field awn-id). Example: 81 → path to manifest or note. Duplicate ids return paths[] and duplicate:true. Assign missing ids: assign_workspace_id.",
+    findByIdSchema,
+    resolveWorkspaceIdHandler
+  );
+
   reg(
     "resolve_workspace_id",
-    "Resolve workspace record path(s) by global awn-id (integer from settings.yml counter). Duplicate ids across records are allowed — returns paths[] when several match. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
-    z.object({
-      id: z
-        .union([z.number().int().positive(), z.string().min(1)])
-        .describe("Global awn-id integer, e.g. 1847")
-    }),
-    ({ id }) => client.get("/api/workspace-id/resolve", { id: String(id) })
+    "Same handler as find_by_id — resolve path(s) by global awn-id (workspace counter). Prefer find_by_id for discovery. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
+    findByIdSchema,
+    resolveWorkspaceIdHandler
   );
 
   reg(

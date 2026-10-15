@@ -156,7 +156,7 @@
 ├── read_workspace_map / refresh_workspace_map … реестр manifest (WS-MAP.md)
 ├── resolve_workspace_path                 … breadcrumbs, slot/ref, mcp hints
 ├── get_page_url                           … URL страницы в UI (CHPU)
-├── resolve_workspace_id                   … awn-id → paths[]
+├── find_by_id / resolve_workspace_id      … awn-id → path(s)[]
 └── assign_workspace_id                    … «Присвоить id» записи
 
 🔍 Поиск workspace (read-only)

@@ -14636,7 +14636,7 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
-  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — путь записи по awn-id",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: find_by_id / resolve_workspace_id)",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
   workspaceSlugGenerate:
     "GET|POST /api/workspace-slug/generate — generate_workspace_slug MCP (text, preset?, slug?, stripExtension?)",
