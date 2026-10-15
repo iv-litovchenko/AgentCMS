@@ -4,8 +4,15 @@
  */
 (function initAgentRmmLiveBrain(global) {
   const AREA_PALETTE = ["#F07A2E", "#56CBA3", "#8B86E8", "#5EAAF5", "#D7B26A", "#D479A9", "#A9BA6C"];
-  const MAX_LEAVES = 140;
+  const MAX_LEAVES = 160;
   const VIEW_STORAGE_KEY = "agentcms.agentRmmLiveBrainView.v1";
+  const CATALOG_SATELLITE_ROOT_IDS = new Set([
+    "repositories-root",
+    "awn-databases-root",
+    "media-libraries-root",
+    "channels-root"
+  ]);
+  const CATALOG_SATELLITE_TYPES = new Set(["repositories", "iblock", "media-libraries", "channels"]);
 
   function rnd(seed) {
     const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
@@ -72,11 +79,96 @@
     }
 
     let leafCount = 0;
-    const rootKids = (children.get(rootId) || []).slice(0, 14);
+
+    function isCatalogSatellite(gn) {
+      if (!gn) return false;
+      if (gn.isSatelliteRoot && CATALOG_SATELLITE_TYPES.has(gn.type)) return true;
+      if (CATALOG_SATELLITE_ROOT_IDS.has(gn.id)) return true;
+      return CATALOG_SATELLITE_TYPES.has(gn.type);
+    }
+
+    function graphNodeBrainId(graphNodeId) {
+      return graphNodeId === rootId ? "root" : `n:${graphNodeId}`;
+    }
+
+    function attachCatalogHub(hubId, areaName) {
+      const gn = byId.get(hubId);
+      if (!gn) return;
+      const areaNodeId = `area:${areaName}`;
+      if (!seen.has(areaNodeId)) {
+        addNode(
+          {
+            id: areaNodeId,
+            kind: "area",
+            label: gn.label || areaName,
+            area: areaName,
+            layer: gn.type || "catalog"
+          },
+          gn
+        );
+        links.push({ s: areaNodeId, t: "root", k: "tree" });
+      }
+
+      const directKids = (children.get(hubId) || []).slice(0, 48);
+      for (const subId of directKids) {
+        if (leafCount >= MAX_LEAVES) break;
+        const sn = byId.get(subId);
+        if (!sn) continue;
+        const subBrainId = graphNodeBrainId(subId);
+        const kind =
+          sn.type === "file" || (sn.type === "iblock" && sn.storeKind === "single") ? "note" : "project";
+        addNode(
+          {
+            id: subBrainId,
+            kind,
+            label: sn.label || subId,
+            area: areaName,
+            layer: gn.type || "catalog"
+          },
+          sn
+        );
+        links.push({ s: subBrainId, t: areaNodeId, k: "tree" });
+        leafCount += 1;
+
+        if (sn.type === "iblock" && sn.storeKind === "group") {
+          const nested = (children.get(subId) || []).slice(0, 16);
+          for (const deepId of nested) {
+            if (leafCount >= MAX_LEAVES) break;
+            const dn = byId.get(deepId);
+            if (!dn) continue;
+            const deepBrainId = graphNodeBrainId(deepId);
+            addNode(
+              {
+                id: deepBrainId,
+                kind: "note",
+                label: dn.label || deepId,
+                area: areaName,
+                layer: gn.type || "catalog"
+              },
+              dn
+            );
+            links.push({ s: deepBrainId, t: subBrainId, k: "tree" });
+            leafCount += 1;
+          }
+        }
+      }
+    }
+
+    const allRootKids = children.get(rootId) || [];
+    const catalogRoots = allRootKids.filter((id) => isCatalogSatellite(byId.get(id)));
+    const otherRoots = allRootKids.filter((id) => !catalogRoots.includes(id));
+    const rootKids = [...catalogRoots, ...otherRoots.slice(0, 14)];
 
     for (const kidId of rootKids) {
       const gn = byId.get(kidId);
       if (!gn) continue;
+
+      if (isCatalogSatellite(gn)) {
+        const areaName = registerArea(gn.label || gn.graphSubLabel || kidId);
+        attachCatalogHub(kidId, areaName);
+        continue;
+      }
+
       const areaName = registerArea(gn.label || kidId.replace(/^folder:/, ""));
 
       if (gn.type === "folder" || String(gn.id).startsWith("folder:")) {

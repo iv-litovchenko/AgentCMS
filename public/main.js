@@ -36602,14 +36602,93 @@ function expandGraphSearchHighlightIds(matchedIds, linkElements) {
 }
 
 function getObsidianGraphLayoutSize(nodeCount, containerWidth, containerHeight, fullViewport) {
-  const spread = Math.max(720, Math.sqrt(nodeCount) * 95);
+  const spread = Math.max(880, Math.sqrt(Math.max(nodeCount, 1)) * (fullViewport ? 118 : 102));
   const width = fullViewport
     ? Math.max(spread, containerWidth || 920)
-    : Math.max(920, Math.min(1600, Math.max(containerWidth || 920, spread)));
+    : Math.max(920, Math.min(1800, Math.max(containerWidth || 920, spread)));
   const height = fullViewport
-    ? Math.max(spread, containerHeight || 560)
-    : Math.max(520, Math.min(920, Math.max(380 + nodeCount * 12, spread * 0.85)));
+    ? Math.max(spread * 0.92, containerHeight || 560)
+    : Math.max(520, Math.min(980, Math.max(400 + nodeCount * 10, spread * 0.88)));
   return { width, height };
+}
+
+function getGraphLayoutSpreadScale(nodeCount, showPreviews = false) {
+  const previewBoost = showPreviews ? 1.42 : 1;
+  const densityBoost = 1 + Math.min(1.35, Math.sqrt(Math.max(nodeCount, 1)) * 0.058);
+  return previewBoost * densityBoost;
+}
+
+function estimateGraphNodeLayoutExtent(node, degrees, showPreviews = false) {
+  const layout = getGraphPreviewCardLayout(node, showPreviews);
+  const radius = getGraphNodeRadius(node, degrees, showPreviews);
+  const subLineCount = (node?.graphSubLabel ? 1 : 0) + resolveGraphNodeCardMetaLines(node).length;
+  const labelDepth = 14 + subLineCount * 11;
+  const titleLen = String(node?.label || "").trim().length;
+
+  if (layout) {
+    return {
+      rx: layout.cardW / 2 + 10,
+      ry: layout.cardH / 2 + labelDepth + 8
+    };
+  }
+
+  return {
+    rx: Math.max(radius + 6, Math.min(96, 16 + titleLen * 3.4)),
+    ry: radius + labelDepth + 4
+  };
+}
+
+function separateGraphLayoutOverlaps(sim, showPreviews = false, maxPasses = 24) {
+  const { nodes, centerIds, degrees, width, height } = sim;
+  if (nodes.length < 2) return;
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const gap = showPreviews ? 14 : 9;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let totalPush = 0;
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        if (centerIds.has(a.id) && centerIds.has(b.id)) continue;
+
+        const ea = estimateGraphNodeLayoutExtent(a, degrees, showPreviews);
+        const eb = estimateGraphNodeLayoutExtent(b, degrees, showPreviews);
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        dx /= dist;
+        dy /= dist;
+
+        const need =
+          Math.max(ea.rx + eb.rx, (ea.ry + eb.ry) * 0.92) + gap +
+          (a.isSatelliteRoot || b.isSatelliteRoot ? 6 : 0);
+        if (dist >= need) continue;
+
+        const push = ((need - dist) / 2) * 0.94;
+        totalPush += push;
+        if (!centerIds.has(a.id) && !a.pinned) {
+          a.x -= dx * push;
+          a.y -= dy * push;
+        }
+        if (!centerIds.has(b.id) && !b.pinned) {
+          b.x += dx * push;
+          b.y += dy * push;
+        }
+      }
+    }
+
+    for (const node of nodes) {
+      if (centerIds.has(node.id) || node.pinned) continue;
+      node.x += (cx - node.x) * 0.0035;
+      node.y += (cy - node.y) * 0.0035;
+    }
+
+    if (totalPush < 0.35 && pass > 5) break;
+  }
 }
 
 function computeGraphLayoutBounds(nodes, degrees, padding = 64, showPreviews = false) {
@@ -36632,28 +36711,150 @@ function computeGraphLayoutBounds(nodes, degrees, padding = 64, showPreviews = f
   };
 }
 
-function createObsidianGraphSimulation(nodes, edges, width, height) {
+const OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS = [
+  "service-root",
+  "container-root",
+  "repositories-root",
+  "awn-databases-root",
+  "media-libraries-root",
+  "channels-root"
+];
+
+function computeGraphWarmupSteps(nodeCount) {
+  return Math.min(300, Math.max(110, 64 + Math.round(Math.sqrt(Math.max(nodeCount, 1)) * 18)));
+}
+
+function assignObsidianGraphInitialLayout(sim, { showPreviews = false } = {}) {
+  const { nodes, nodeById, edges, width, height } = sim;
+  const cx = width / 2;
+  const cy = height / 2;
+  const root = nodeById.get("agent-root");
+  if (!root) return;
+
+  const spreadScale = getGraphLayoutSpreadScale(nodes.length, showPreviews);
+
+  const strongKids = new Map();
+  const weakKids = new Map();
+  for (const node of nodes) {
+    strongKids.set(node.id, []);
+    weakKids.set(node.id, []);
+  }
+  for (const edge of edges) {
+    const bucket = edge.weak ? weakKids : strongKids;
+    if (!bucket.has(edge.from)) bucket.set(edge.from, []);
+    bucket.get(edge.from).push(edge.to);
+  }
+
+  const placed = new Set();
+  const place = (node, x, y) => {
+    node.x = x;
+    node.y = y;
+    placed.add(node.id);
+  };
+
+  place(root, cx, cy);
+
+  const minDim = Math.min(width, height);
+  const satelliteRing = Math.max(280, minDim * 0.38) * spreadScale;
+
+  OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS.forEach((id, index) => {
+    const node = nodeById.get(id);
+    if (!node) return;
+    const angle = (index / OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS.length) * Math.PI * 2 - Math.PI / 2;
+    place(node, cx + Math.cos(angle) * satelliteRing, cy + Math.sin(angle) * satelliteRing);
+  });
+
+  const rootStrong = (strongKids.get(root.id) || []).filter((id) => !placed.has(id));
+  const innerRing = satelliteRing * 0.56;
+  rootStrong.forEach((id, i) => {
+    const node = nodeById.get(id);
+    if (!node) return;
+    const angle = (i / Math.max(rootStrong.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    place(node, cx + Math.cos(angle) * innerRing, cy + Math.sin(angle) * innerRing);
+  });
+
+  const layoutWeakFan = (parentId, baseDist = 108) => {
+    const parent = nodeById.get(parentId);
+    if (!parent) return;
+    const kids = (weakKids.get(parentId) || []).filter((id) => !placed.has(id));
+    if (!kids.length) return;
+    const baseAngle = Math.atan2(parent.y - cy, parent.x - cx);
+    const perRow = showPreviews ? 6 : 8;
+    const span = Math.min(Math.PI * 1.35, kids.length * (showPreviews ? 0.24 : 0.19) + 0.48);
+    const rowStep = (showPreviews ? 78 : 58) * Math.max(1, spreadScale * 0.82);
+    const scaledBase = baseDist * spreadScale;
+
+    kids.forEach((id, i) => {
+      const node = nodeById.get(id);
+      if (!node) return;
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const colsInRow = Math.min(perRow, kids.length - row * perRow);
+      const t = colsInRow === 1 ? 0.5 : col / (colsInRow - 1);
+      const angle = baseAngle - span / 2 + t * span;
+      const dist = scaledBase + row * rowStep + col * (showPreviews ? 6 : 4);
+      place(node, parent.x + Math.cos(angle) * dist, parent.y + Math.sin(angle) * dist);
+    });
+  };
+
+  for (const satId of OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS) layoutWeakFan(satId, 112);
+
+  const queue = [root.id];
+  while (queue.length) {
+    const parentId = queue.shift();
+    const parent = nodeById.get(parentId);
+    if (!parent) continue;
+    const kids = (strongKids.get(parentId) || []).filter((id) => !placed.has(id));
+    if (!kids.length) continue;
+
+    const parentAngle = Math.atan2(parent.y - cy, parent.x - cx);
+    const span = Math.min(Math.PI * 1.28, kids.length * (showPreviews ? 0.44 : 0.38) + 0.36);
+    const siblingBoost = kids.length * (showPreviews ? 16 : 11);
+    const linkLen =
+      (parentId === root.id ? 124 : 88 + Math.min(kids.length * 4, 56) + siblingBoost * 0.35) *
+      spreadScale;
+
+    kids.forEach((id, i) => {
+      const node = nodeById.get(id);
+      if (!node) return;
+      const t = kids.length === 1 ? 0.5 : i / (kids.length - 1);
+      const angle = parentAngle - span / 2 + t * span;
+      const stagger = (i % 2) * (showPreviews ? 18 : 12);
+      place(
+        node,
+        parent.x + Math.cos(angle) * (linkLen + stagger),
+        parent.y + Math.sin(angle) * (linkLen + stagger)
+      );
+      queue.push(id);
+    });
+  }
+
+  for (const node of nodes) {
+    if (placed.has(node.id)) continue;
+    const angle = (node.depth || 0) * 0.85 + placed.size * 0.11;
+    const r = satelliteRing * (1.08 + (placed.size % 6) * 0.035);
+    place(node, cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  }
+}
+
+function createObsidianGraphSimulation(nodes, edges, width, height, options = {}) {
+  const showPreviews = Boolean(options.showPreviews);
   const centerIds = new Set(["root", "agent-root"]);
   const degrees = computeGraphNodeDegrees(edges);
-  const spread = Math.min(width, height) * 0.36;
-  const positioned = nodes.map((node, index) => {
-    const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-    const ring = centerIds.has(node.id) ? 0 : spread * (0.88 + (index % 4) * 0.04);
-    return {
-      ...node,
-      x: width / 2 + Math.cos(angle) * ring,
-      y: height / 2 + Math.sin(angle) * ring,
-      vx: 0,
-      vy: 0,
-      pinned: centerIds.has(node.id),
-      floatPhase: Math.random() * Math.PI * 2,
-      floatRadius: 0.75 + Math.random() * 0.55
-    };
-  });
+  const positioned = nodes.map((node) => ({
+    ...node,
+    x: width / 2,
+    y: height / 2,
+    vx: 0,
+    vy: 0,
+    pinned: centerIds.has(node.id),
+    floatPhase: Math.random() * Math.PI * 2,
+    floatRadius: 0.75 + Math.random() * 0.55
+  }));
 
   const nodeById = new Map(positioned.map((node) => [node.id, node]));
 
-  return {
+  const sim = {
     nodes: positioned,
     nodeById,
     edges,
@@ -36665,6 +36866,9 @@ function createObsidianGraphSimulation(nodes, edges, width, height) {
     alpha: 1,
     floatTime: 0
   };
+  assignObsidianGraphInitialLayout(sim, { showPreviews });
+  separateGraphLayoutOverlaps(sim, showPreviews, showPreviews ? 28 : 22);
+  return sim;
 }
 
 function clampGraphNodeVelocity(node, maxSpeed) {
@@ -36675,18 +36879,25 @@ function clampGraphNodeVelocity(node, maxSpeed) {
   node.vy *= scale;
 }
 
-function warmUpObsidianGraphSimulation(sim, steps = 96) {
+function warmUpObsidianGraphSimulation(sim, steps) {
+  const total = steps ?? computeGraphWarmupSteps(sim.nodes.length);
   sim.phase = "settling";
-  for (let step = 0; step < steps; step += 1) {
-    sim.alpha = Math.max(0.05, 1 - step / (steps - 1));
+  for (let step = 0; step < total; step += 1) {
+    sim.alpha = Math.max(0.07, 1 - step / Math.max(total - 1, 1));
     tickObsidianGraphSimulation(sim);
+  }
+  sim.alpha = 0.38;
+  sim.phase = "settling";
+  for (let polish = 0; polish < 48; polish += 1) {
+    tickObsidianGraphSimulation(sim);
+    if (sim.phase === "idle") break;
   }
   for (const node of sim.nodes) {
     node.vx = 0;
     node.vy = 0;
   }
   sim.phase = "idle";
-  sim.alpha = 0.052;
+  sim.alpha = 0.11;
   sim.floatTime = 0;
 }
 
@@ -36694,24 +36905,31 @@ function tickObsidianGraphSimulation(sim) {
   const { nodes, nodeById, edges, width, height, centerIds, degrees } = sim;
 
   if (sim.phase === "settling") {
-    sim.alpha *= 0.972;
-    if (sim.alpha < 0.035) {
+    sim.alpha *= 0.968;
+    if (sim.alpha < 0.04) {
       sim.phase = "idle";
-      sim.alpha = 0.052;
+      sim.alpha = 0.11;
       sim.floatTime = 0;
     }
-  }
-
-  if (sim.phase === "idle") {
+  } else {
     sim.floatTime += 1;
   }
 
-  const forceAlpha = sim.phase === "idle" ? sim.alpha * 0.62 : sim.alpha;
+  const forceAlpha = sim.phase === "idle" ? 0.17 : sim.alpha;
   if (forceAlpha < 0.0004 && sim.phase !== "idle") return false;
 
-  const repulsionStrength = (3200 + nodes.length * 12) * forceAlpha;
-  const maxVelocity = sim.phase === "idle" ? 0.82 : 2.4;
+  sim._forceTick = (sim._forceTick || 0) + 1;
+  const skipRepulse =
+    sim.phase === "idle" && nodes.length > 90 && sim._forceTick % 2 === 0;
 
+  const repulsionStrength = (3200 + nodes.length * 12) * forceAlpha;
+  const maxVelocity = sim.phase === "idle" ? 1.08 : 2.55;
+  const repulseCutoff =
+    nodes.length > 45
+      ? Math.min(360, Math.max(200, 170 + Math.sqrt(nodes.length) * 9))
+      : Infinity;
+
+  if (!skipRepulse) {
   for (let i = 0; i < nodes.length; i += 1) {
     for (let j = i + 1; j < nodes.length; j += 1) {
       const a = nodes[i];
@@ -36719,6 +36937,7 @@ function tickObsidianGraphSimulation(sim) {
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       let dist = Math.hypot(dx, dy) || 0.01;
+      if (dist > repulseCutoff) continue;
       const weight = (degrees.get(a.id) || 1) + (degrees.get(b.id) || 1);
       const repulse = (repulsionStrength * weight) / (dist * dist);
       dx = (dx / dist) * repulse;
@@ -36732,6 +36951,7 @@ function tickObsidianGraphSimulation(sim) {
         b.vy += dy;
       }
     }
+  }
   }
 
   for (const edge of edges) {
@@ -36770,18 +36990,18 @@ function tickObsidianGraphSimulation(sim) {
       node.vy = 0;
       continue;
     }
-    node.vx += (width / 2 - node.x) * 0.0012 * forceAlpha;
-    node.vy += (height / 2 - node.y) * 0.0012 * forceAlpha;
+    node.vx += (width / 2 - node.x) * 0.0011 * forceAlpha;
+    node.vy += (height / 2 - node.y) * 0.0011 * forceAlpha;
 
     if (sim.phase === "idle") {
       const drift = node.floatRadius || 1;
       const t = sim.floatTime * 0.014;
-      node.vx += Math.cos(t * drift + node.floatPhase) * 0.016;
-      node.vy += Math.sin(t * drift * 1.08 + node.floatPhase * 1.17) * 0.016;
+      node.vx += Math.cos(t * drift + node.floatPhase) * 0.014;
+      node.vy += Math.sin(t * drift * 1.08 + node.floatPhase * 1.17) * 0.014;
     }
 
-    node.vx *= sim.phase === "idle" ? 0.945 : 0.78;
-    node.vy *= sim.phase === "idle" ? 0.945 : 0.78;
+    node.vx *= sim.phase === "idle" ? 0.88 : 0.76;
+    node.vy *= sim.phase === "idle" ? 0.88 : 0.76;
     clampGraphNodeVelocity(node, maxVelocity);
     node.x += node.vx;
     node.y += node.vy;
@@ -36790,9 +37010,10 @@ function tickObsidianGraphSimulation(sim) {
   return true;
 }
 
-function reheatObsidianGraphSimulation(sim, alpha = 0.22) {
+function reheatObsidianGraphSimulation(sim, alpha = 0.42) {
   sim.phase = "settling";
   sim.alpha = Math.max(sim.alpha, alpha);
+  sim.floatTime = 0;
 }
 
 function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
@@ -37048,13 +37269,13 @@ function attachObsidianGraphViewport(
   };
 
   const fitToView = () => {
-    layoutBounds = computeGraphLayoutBounds(positioned, degrees, 64, showPreviews);
+    layoutBounds = computeGraphLayoutBounds(positioned, degrees, 72, showPreviews);
     const rect = svg.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const padding = 48;
+    const padding = 56;
     const scaleX = (rect.width - padding * 2) / layoutBounds.width;
     const scaleY = (rect.height - padding * 2) / layoutBounds.height;
-    state.scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.65);
+    state.scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.22), 1.55);
     state.tx = (rect.width - layoutBounds.width * state.scale) / 2 - layoutBounds.minX * state.scale;
     state.ty = (rect.height - layoutBounds.height * state.scale) / 2 - layoutBounds.minY * state.scale;
     applyTransform();
@@ -37077,21 +37298,25 @@ function attachObsidianGraphViewport(
     tickObsidianGraphSimulation(sim);
     refreshGraphVisuals();
 
-    if (!hasAutoFitted && sim.alpha < 0.05) {
+    if (!hasAutoFitted && sim.phase === "idle") {
       fitToView();
       hasAutoFitted = true;
-      wrap.classList.remove("is-entering");
+      wrap.classList.remove("is-entering", "is-simulating");
       wrap.classList.add("is-settled");
     }
 
     rafId = requestAnimationFrame(runSimulationFrame);
   };
 
-  wrap.classList.add("is-simulating");
+  wrap.classList.add("is-simulating", "is-entering");
   warmUpObsidianGraphSimulation(sim);
+  sim.phase = "settling";
+  sim.alpha = 0.48;
+  sim.floatTime = 0;
   refreshGraphVisuals();
   fitToView();
   hasAutoFitted = true;
+  wrap.classList.remove("is-entering");
   wrap.classList.add("is-settled");
   rafId = requestAnimationFrame(runSimulationFrame);
 
@@ -37452,7 +37677,7 @@ function renderGraphCanvas(container, graph, options = {}) {
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "100%");
 
-  const sim = createObsidianGraphSimulation(graph.nodes, graph.edges, width, height);
+  const sim = createObsidianGraphSimulation(graph.nodes, graph.edges, width, height, { showPreviews });
   const positioned = sim.nodes;
   const degrees = sim.degrees;
   const nodeById = sim.nodeById;
