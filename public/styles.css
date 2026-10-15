@@ -23685,6 +23685,19 @@ a.header-tool-btn {
   border-style: dashed;
 }
 
+.workspace-index-catalog-entity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.workspace-index-catalog-item--entity .entity-catalog-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  min-height: 0;
+}
+
 .menu-index-experimental-notice {
   margin: 0;
   padding: 8px 10px;

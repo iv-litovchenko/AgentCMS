@@ -21050,6 +21050,21 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/entity-index/reject") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().rejectEntity(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to reject entity",
+        details: message
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/entity-index/registry") {
     try {
       const registry = await getEntityIndexService().loadEntityRegistry();

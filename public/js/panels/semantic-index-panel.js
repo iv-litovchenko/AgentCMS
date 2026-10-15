@@ -927,16 +927,118 @@
     return items
       .map((item) => {
         const kind = String(item.type || "entity");
+        const label = String(item.label || "—");
+        const entityId = String(item.entityId || "");
         return `<article class="workspace-index-catalog-item workspace-index-catalog-item--entity">
           <div class="workspace-index-catalog-link-edge">
             <span class="workspace-index-catalog-badge workspace-index-catalog-badge--kind is-${escapeHtml(kind)}">${escapeHtml(kind)}</span>
-            <strong class="workspace-index-catalog-entity-label">${escapeHtml(item.label || "—")}</strong>
+            <strong class="workspace-index-catalog-entity-label">${escapeHtml(label)}</strong>
             <span class="workspace-index-catalog-entity-count">${escapeHtml(String(item.mentionCount || 0))} упом.</span>
           </div>
-          <code class="workspace-index-catalog-entity-id">${escapeHtml(item.entityId || "")}</code>
+          <code class="workspace-index-catalog-entity-id">${escapeHtml(entityId)}</code>
+          <div class="workspace-index-catalog-entity-actions">
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="mentions" data-entity-id="${escapeHtml(entityId)}" data-entity-label="${escapeHtml(label)}">Где упомянуто</button>
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="alias" data-entity-type="${escapeHtml(kind)}" data-entity-label="${escapeHtml(label)}">Склеить с…</button>
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="reject" data-entity-type="${escapeHtml(kind)}" data-entity-label="${escapeHtml(label)}">Скрыть</button>
+          </div>
         </article>`;
       })
       .join("");
+  }
+
+  async function promptEntityRebuildAfterEdit() {
+    const message = "Правило сохранено в entity-registry.yml.\n\nПересобрать реестр сущностей сейчас?";
+    let confirmed = false;
+    if (typeof askConfirm === "function") {
+      confirmed = await askConfirm(message, { okLabel: "Пересобрать", variant: "primary" });
+    } else {
+      confirmed = window.confirm(message);
+    }
+    if (!confirmed) return;
+    await runRebuild(
+      "/api/entity-index/reindex",
+      entityStatusNode,
+      (data) =>
+        `Сущности: ${data.entityCount} объектов, ${data.mentionCount} упоминаний, ${data.fileCount} файлов.`,
+      { progressButton: entityRebuildBtn, progressLayer: "entity" }
+    );
+    if (catalogState.mode === "entities") loadCatalogPage();
+  }
+
+  async function handleEntityCatalogAction(button) {
+    const action = button.dataset.entityAction;
+    const label = button.dataset.entityLabel || "";
+    const type = button.dataset.entityType || "topic";
+    const entityId = button.dataset.entityId || "";
+    if (!action) return;
+
+    if (action === "mentions") {
+      if (!entityId) return;
+      catalogMeta.textContent = "Загрузка упоминаний…";
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/query"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "mentions", entityId, limit: 15 })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        const items = Array.isArray(data.items) ? data.items : [];
+        catalogMeta.textContent = items.length
+          ? `«${label}»: ${items.map((row) => `${row.path}:${row.line || "?"}`).join(" · ")}`
+          : `«${label}»: упоминаний не найдено.`;
+      } catch (error) {
+        catalogMeta.textContent = String(error.message || error);
+      }
+      return;
+    }
+
+    if (action === "alias") {
+      const canonical =
+        typeof window.prompt === "function"
+          ? window.prompt(`Каноническое имя для «${label}»:`, label)
+          : label;
+      const trimmed = String(canonical || "").trim();
+      if (!trimmed || trimmed === label) return;
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/alias"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ match: label, label: trimmed, type })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        if (typeof showToast === "function") showToast("Алиас сохранён", "success");
+        await promptEntityRebuildAfterEdit();
+      } catch (error) {
+        if (typeof showToast === "function") showToast(String(error.message || error), "error");
+      }
+      return;
+    }
+
+    if (action === "reject") {
+      const ok =
+        typeof askConfirm === "function"
+          ? await askConfirm(`Скрыть сущность «${label}» (${type}) из реестра?`, {
+              okLabel: "Скрыть",
+              variant: "danger"
+            })
+          : window.confirm(`Скрыть «${label}»?`);
+      if (!ok) return;
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/reject"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, type })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        if (typeof showToast === "function") showToast("Добавлено в reject", "success");
+        await promptEntityRebuildAfterEdit();
+      } catch (error) {
+        if (typeof showToast === "function") showToast(String(error.message || error), "error");
+      }
+    }
   }
 
   function renderLinkItems(items) {
@@ -1089,7 +1191,7 @@
         catalogMeta.textContent = data.ready
           ? `Показано ${data.items.length} из ${data.total}${typeSample ? ` · типы: ${typeSample}` : ""}${
               data.builtAt ? ` · обновлён ${new Date(data.builtAt).toLocaleString("ru-RU")}` : ""
-            }`
+            } · правки → entity-registry.yml`
           : "";
         catalogList.innerHTML = renderEntityItems(data.items || []);
       } else if (catalogState.mode === "links") {
@@ -1767,6 +1869,12 @@
   catalogField?.addEventListener("change", () => {
     catalogState.offset = 0;
     loadCatalogPage();
+  });
+  catalogList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-entity-action]");
+    if (!button || catalogState.mode !== "entities") return;
+    event.preventDefault();
+    void handleEntityCatalogAction(button);
   });
 
   runLogCloseBtn?.addEventListener("click", closeRunLogModal);
