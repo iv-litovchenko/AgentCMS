@@ -8012,14 +8012,33 @@ function getWorkspaceStorageManifestApiPath(nodePath = activePath) {
   return resolveManifestPathForNodeApi(resolved) || resolved;
 }
 
+/** Путь manifest для /api/storage/* (не путь записи в todo/outbox и не readme раздела). */
+function isStorageSlotApiManifestRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+  if (isAwnChannelManifestPath(normalized)) return true;
+  if (isMediaLibraryManifestPath(normalized)) return true;
+  if (findStorageRootMarkerIndex(normalized) >= 0) return false;
+  if (/\/todo\//i.test(normalized)) return false;
+  if (isTopicManifestPath(normalized)) return true;
+  return normalized.toLowerCase() === MANIFEST_FILE.toLowerCase();
+}
+
+function pickStorageSlotApiManifestRelPath(...candidates) {
+  for (const candidate of candidates) {
+    const normalized = String(candidate || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    if (normalized && isStorageSlotApiManifestRelPath(normalized)) return normalized;
+  }
+  return "";
+}
+
 /** Manifest для POST /api/storage/file/create и слотов hub (files/inbox/…). */
 function getSlotRecordCreateManifestApiPath() {
-  const fromRail = navigationHubRailSlotCreateState?.entryOverviewContext?.relPath;
-  if (fromRail) return fromRail;
-  if (activeEntryOverviewContext?.relPath) {
-    return activeEntryOverviewContext.relPath;
-  }
-  return getWorkspaceStorageManifestApiPath();
+  const picked = pickStorageSlotApiManifestRelPath(
+    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath,
+    activeEntryOverviewContext?.relPath
+  );
+  return picked || getWorkspaceStorageManifestApiPath();
 }
 
 const READ_STATE_FILE_NAME = "read.json";
@@ -26001,14 +26020,19 @@ function resolveResourceStateMemoryKind(state) {
 }
 
 function resolveFlatStorageRecordManifestApiPath(state = null) {
-  const fromState =
-    state?.manifestPath ||
-    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath ||
-    activeEntryOverviewContext?.relPath ||
-    "";
-  const normalized = String(fromState || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  if (normalized) return normalized;
-  return getWorkspaceStorageManifestApiPath(getResolvedNodePath(activePath));
+  const topicPath = getResolvedNodePath(state?.nodePath || activePath);
+  const hubManifest = resolveHubStorageManifestApiPath(topicPath);
+  if (hubManifest) return hubManifest;
+
+  const fromState = String(state?.manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (fromState && isStorageSlotApiManifestRelPath(fromState)) return fromState;
+
+  const picked = pickStorageSlotApiManifestRelPath(
+    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath,
+    activeEntryOverviewContext?.relPath
+  );
+  if (picked) return picked;
+  return getWorkspaceStorageManifestApiPath(topicPath);
 }
 
 function appendResourceClipboardMenuItems(kind) {
@@ -26331,20 +26355,22 @@ async function fetchResourceFileStatus(state) {
   const cached = String(state.status || "").trim();
   if (cached) return cached;
 
-  const manifestPath = getActiveNodeApiPath();
   const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifestPath || !filePath) return "";
+  if (!filePath) return "";
 
   try {
     if (state.kind === "externalFile") {
+      const manifestPath = getActiveNodeApiPath();
+      if (!manifestPath) return "";
       const response = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
       if (!response.ok) return "";
       const data = await response.json();
       return readAwnStatusFromMarkdownContent(data.content || "");
     }
     if (state.kind === "flatStorageFile" && state.mode) {
+      const manifestPath = resolveFlatStorageRecordManifestApiPath(state);
       const folder = getFlatStorageSectionFolderName(state.mode);
-      if (!folder) return "";
+      if (!folder || !manifestPath) return "";
       const response = await fetch(
         buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
       );
@@ -26367,11 +26393,12 @@ async function fetchResourceFileStatus(state) {
 async function updateResourceFileStatusApi(state, nextStatus) {
   if (!state?.filePath) throw new Error("Не удалось определить файл");
 
-  const manifestPath = getActiveNodeApiPath();
   const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifestPath || !filePath) throw new Error("Не удалось определить файл");
+  if (!filePath) throw new Error("Не удалось определить файл");
 
   if (state.kind === "externalFile") {
+    const manifestPath = getActiveNodeApiPath();
+    if (!manifestPath) throw new Error("Не удалось определить файл");
     const getResponse = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
     if (!getResponse.ok) {
       const errorData = await getResponse.json().catch(() => ({}));
@@ -26392,8 +26419,9 @@ async function updateResourceFileStatusApi(state, nextStatus) {
   }
 
   if (state.kind === "flatStorageFile" && state.mode) {
+    const manifestPath = resolveFlatStorageRecordManifestApiPath(state);
     const folder = getFlatStorageSectionFolderName(state.mode);
-    if (!folder) throw new Error("Не удалось определить слот");
+    if (!folder || !manifestPath) throw new Error("Не удалось определить слот");
     const getResponse = await fetch(
       buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
     );
@@ -26416,6 +26444,8 @@ async function updateResourceFileStatusApi(state, nextStatus) {
   }
 
   if (state.kind === "mediaFile") {
+    const manifestPath = getWorkspaceStorageManifestApiPath() || getActiveNodeApiPath();
+    if (!manifestPath) throw new Error("Не удалось определить файл");
     const getResponse = await fetch(buildApiUrl("/api/media/markdown", { path: manifestPath, file: filePath }));
     if (!getResponse.ok) {
       const errorData = await getResponse.json().catch(() => ({}));
@@ -76778,7 +76808,10 @@ async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) 
 }
 
 async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeAgentId) {
-  const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
+  const resolvedNode = nodePath || getResolvedNodePath(activePath);
+  const manifestPath =
+    getWorkspaceStorageManifestApiPath(resolvedNode) ||
+    resolveManifestPathForNodeApi(resolvedNode);
   if (!manifestPath) return {};
 
   const slotKeys = DATA_STORAGE_SLOT_SPECS.filter(
@@ -76990,7 +77023,9 @@ function buildNavigationHubRailFileContextMenuState(memoryKind, item) {
       filePath,
       label,
       status,
-      railSlotMemoryKind: memoryKind
+      railSlotMemoryKind: memoryKind,
+      manifestPath: getWorkspaceStorageManifestApiPath(getResolvedNodePath(activePath)),
+      nodePath: getResolvedNodePath(activePath)
     };
   }
 
@@ -79590,7 +79625,8 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
     }
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
       const slotKey = getDataStorageSlotForMode(context.memoryKind)?.key || context.memoryKind;
-      return fetchFlatStorageNavigationIndex(topicPath, slotKey);
+      const manifestPath = getWorkspaceStorageManifestApiPath(topicPath) || topicPath;
+      return fetchFlatStorageNavigationIndex(manifestPath, slotKey);
     }
   } catch {
     return null;

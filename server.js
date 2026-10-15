@@ -305,6 +305,7 @@ const {
   isAllowedStorageSubfolderName,
   isStorageFileReadSlotName,
   isStorageFileWriteSlotName,
+  isStorageMarkdownMemorySlotName,
   isStorageFolderName,
   getStorageRootDirRel,
   getStorageFolderRegexAlternation,
@@ -7359,7 +7360,10 @@ function validateStorageFileRequest(relFile, storageFolder, { write = false } = 
     if (canonicalFolder === STORAGE_SUBFOLDER_MAIN && baseName.toLowerCase().endsWith(".md")) {
       return { error: "Use external memory tools for .md in main/" };
     }
-  } else if (!isStorageFileReadSlotName(canonicalFolder)) {
+  } else if (
+    !isStorageFileReadSlotName(canonicalFolder) &&
+    !isStorageMarkdownMemorySlotName(canonicalFolder)
+  ) {
     return { error: "Reading is not allowed for this storage folder" };
   }
 
