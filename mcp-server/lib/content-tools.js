@@ -18,7 +18,8 @@ import {
   moveContent,
   deleteContent,
   listContentItems,
-  listSectionCapableSlotKeys
+  listSectionCapableSlotKeys,
+  withMdRefFallback
 } from "./content-core.js";
 import {
   buildContentSlotSchema,
@@ -45,19 +46,20 @@ export function registerContentTools({ reg, client, pagePath }) {
     "content_exists",
     "Check whether content exists in a slot (page, channel, or media placement).",
     address({}),
-    (args) => contentExists(client, args)
+    (args) => withMdRefFallback(args, (a) => contentExists(client, a))
   );
 
   reg(
     "get_content_meta",
     "Lightweight content metadata: exists, driver, file stat — no body. Prefer read_content with part=meta.",
     address({}),
-    (args) => getContentMeta(client, args)
+    (args) => withMdRefFallback(args, (a) => getContentMeta(client, a))
   );
 
   reg(
     "read_content",
-    "Read content by placement.kind: page | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
+    "Read content by placement.kind: topic (= page) | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
+      "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
       `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
       "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
       "full=true — whole body (required before write_content replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64.",
@@ -81,18 +83,19 @@ export function registerContentTools({ reg, client, pagePath }) {
       full: z.boolean().optional().describe("Return the whole body, ignore line window"),
       offsetBytes: z.number().int().min(0).optional().describe("root only: byte-offset read (no line window)")
     }),
-    async (args) => {
-      if (args.part === "meta") return readContentMeta(client, args);
-      if (args.part === "all") return readContentAll(client, args);
-      if (args.part === "properties") return readContentProperties(client, args);
-      if (args.part === "schema") return readContentSchema(client, args);
-      return readContentBody(client, args);
-    }
+    (args) =>
+      withMdRefFallback(args, (a) => {
+        if (a.part === "meta") return readContentMeta(client, a);
+        if (a.part === "all") return readContentAll(client, a);
+        if (a.part === "properties") return readContentProperties(client, a);
+        if (a.part === "schema") return readContentSchema(client, a);
+        return readContentBody(client, a);
+      })
   );
 
   reg(
     "list_content",
-    "List items: placement.kind page|channel|media + slot, or root + path (folder inferred from file path).",
+    "List items: placement.kind topic (= page)|channel|media + slot, or root + path (folder inferred from file path). path or placement.path is required.",
     z
       .object({
         placement: z
@@ -101,15 +104,13 @@ export function registerContentTools({ reg, client, pagePath }) {
             path: z.string().min(1),
             slot: z.string().min(1).optional()
           })
+          .strict()
           .optional(),
         path: z.string().min(1).optional(),
         slot: z.string().min(1).optional(),
         depth: z.union([z.number(), z.string()]).optional()
       })
-      .superRefine((val, ctx) => {
-        if (val.placement?.path || val.path) return;
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement.path is required" });
-      }),
+      .strict(),
     (args) => listContentItems(client, args)
   );
 
@@ -135,7 +136,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "read_content_property",
     "Read one frontmatter property of a .md content item.",
     address({ key: z.string().min(1) }),
-    (args) => readContentProperty(client, args)
+    (args) => withMdRefFallback(args, (a) => readContentProperty(client, a))
   );
 
   reg(

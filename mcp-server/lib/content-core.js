@@ -79,6 +79,42 @@ function resolveArgs(args) {
   return resolveContentAddress(args);
 }
 
+function argsWithMdRef(args) {
+  const ref = args?.placement ? args.placement.ref : args?.ref;
+  if (!ref || args?.placement?.kind === "root") return null;
+  const baseName = String(ref).replace(/\/+$/, "").split("/").pop();
+  if (!baseName || baseName.includes(".")) return null;
+  const mdRef = `${String(ref).replace(/\/+$/, "")}.md`;
+  return args.placement ? { ...args, placement: { ...args.placement, ref: mdRef } } : { ...args, ref: mdRef };
+}
+
+function isMissingResult(result) {
+  return result?.exists === false || result?.meta?.exists === false;
+}
+
+/** Agents often pass ref without extension; slot files are addressed with it (note.md). */
+export async function withMdRefFallback(args, read) {
+  const mdArgs = argsWithMdRef(args);
+  if (!mdArgs) return read(args);
+  let first;
+  let firstError;
+  try {
+    first = await read(args);
+    if (!isMissingResult(first)) return first;
+  } catch (error) {
+    firstError = error;
+  }
+  try {
+    const second = await read(mdArgs);
+    if (isMissingResult(second)) return first ?? second;
+    const resolvedRef = mdArgs.placement ? mdArgs.placement.ref : mdArgs.ref;
+    return { ...second, refResolved: resolvedRef };
+  } catch {
+    if (firstError) throw firstError;
+    return first;
+  }
+}
+
 function rejectRootLifecycle(address, operation) {
   if (address.kind === "root") {
     throw new Error(`${operation} is not supported for placement.kind=root (use write_content / read_file tools)`);

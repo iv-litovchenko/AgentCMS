@@ -46,15 +46,16 @@
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
 | **Root file** | Произвольный путь в workspace | `kind: root`, `path` — `AGENTS.md`, `folder/note.md` (без slot) |
 
-**Работа с контентом — `read_content` / `write_content` / `list_content` / `list_slots` с `placement`.** У этих tools (и у `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `import_content_from_url`, `*_content_property`) схема в MCP приходит пустой — передавай так:
+**Работа с контентом — `read_content` / `write_content` / `list_content` / `list_slots` с `placement`.** У этих tools (и у `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `import_content_from_url`, `*_content_property`) схема параметров публикуется в MCP; неизвестные параметры (в т.ч. внутри `placement`) отклоняются ошибкой `Unrecognized key(s)`. Формат:
 
 ```json
-{ "agentId": "…", "placement": { "kind": "page", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
+{ "agentId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
 { "agentId": "…", "placement": { "kind": "root", "path": "AGENTS.md" } }
 ```
 
-- `placement.kind`: `page` | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
-- Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: page`.
+- `placement.kind`: `topic` (синоним `page`) | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
+- `ref` — файл в слоте **с расширением** (`папка/zametka.md`). Если расширения нет, `read_content` / `content_exists` / `get_content_meta` / `read_content_property` повторяют запрос с `.md` и возвращают `refResolved`.
+- Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: topic`.
 - `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`. Body читается окном: по умолчанию первые 300 строк тела, `startLine` + `limitLines` (до 500) — номера строк **файла с frontmatter**, те же, что `startLine` в результатах поиска. В ответе `startLine`, `endLine`, `totalLines`, `bodyStartLine`, `hasMore`, `nextStartLine`, `hash`; окно расширяется, чтобы не резать блок ``` (`codeFence`). `full: true` — всё тело (обязательно перед `write_content` replace). Internal-слоты и `main-single-csv` — целиком. Для root ещё `format: "base64"`, `offsetBytes`.
 - `write_content`: `part` = `body` | `properties` (patch — только изменённые ключи) | `schema`; текст — `content`, бинарь — `data` (base64) + `mimeType`; для root — `mode: append | replace`.
 - `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.

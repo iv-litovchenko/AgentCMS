@@ -13,77 +13,72 @@ export function buildContentSlotSchema(listSectionCapableSlotKeys) {
     );
 }
 
-export const placementKindSchema = z.enum(PLACEMENT_KINDS);
+export const placementKindSchema = z
+  .enum(["topic", ...PLACEMENT_KINDS])
+  .describe("topic (= page, topic manifest) | channel | media | root (workspace file path)");
 
 const placementPath = z
   .string()
   .min(1)
-  .describe("Container path or slug (page manifest, awn-channels/{slug}, awn-media/{slug})");
+  .describe("Container path or slug (topic manifest, awn-channels/{slug}, awn-media/{slug})");
 
 const rootWorkspacePath = z
   .string()
   .min(1)
   .describe("Workspace-relative file path (AGENTS.md, folder/file.md, …) — no slot/ref");
 
+const placementRef = z
+  .string()
+  .min(1)
+  .optional()
+  .describe("File inside the slot, with extension: folder/note.md (read retries with .md if omitted)");
+
+function slotPlacement(kind) {
+  return z
+    .object({
+      kind: z.literal(kind),
+      path: placementPath,
+      slot: z.string().min(1),
+      ref: placementRef
+    })
+    .strict();
+}
+
 export const placementSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("page"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("channel"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("media"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("root"),
-    path: rootWorkspacePath
-  })
+  slotPlacement("topic"),
+  slotPlacement("page"),
+  slotPlacement("channel"),
+  slotPlacement("media"),
+  z
+    .object({
+      kind: z.literal("root"),
+      path: rootWorkspacePath
+    })
+    .strict()
 ]);
 
+/** Plain strict object: refinements/intersections make MCP tools/list publish an empty input schema. */
 export function withContentAddress(baseShape, contentSlot) {
   return z
     .object({
-      placement: placementSchema.optional(),
-      path: z.string().min(1).optional(),
+      placement: placementSchema.optional().describe("Preferred address. Or legacy top-level path + slot + ref"),
+      path: z.string().min(1).optional().describe("Legacy: topic manifest path (use with slot)"),
       slot: contentSlot.optional(),
       ref: z.string().min(1).optional(),
       ...baseShape
     })
-    .superRefine((val, ctx) => {
-      if (val.placement) {
-        if (val.placement.kind === "root") return;
-        return;
-      }
-      if (!val.path) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement is required" });
-      }
-      if (!val.slot) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "slot is required when placement is omitted" });
-      }
-    });
+    .strict();
 }
 
 export const slotsListInputSchema = z
   .object({
     placement: z
       .object({
-        kind: placementKindSchema.default("page"),
+        kind: placementKindSchema.default("topic"),
         path: placementPath
       })
+      .strict()
       .optional(),
     path: z.string().min(1).optional()
   })
-  .superRefine((val, ctx) => {
-    if (val.placement?.path || val.path) return;
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement.path is required" });
-  });
+  .strict();
