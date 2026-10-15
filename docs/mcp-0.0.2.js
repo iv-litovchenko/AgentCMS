@@ -14,7 +14,7 @@ module.exports = {
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
-    "Индексы и поиск — НЕ placement: get_topic_map, read/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
+    "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
@@ -144,13 +144,13 @@ module.exports = {
       tools: [
         {
           name: "get_topic_map",
-          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body.",
+          description: "Deprecated → read_topic_index_toc + list_folder. Legacy: manifest + kind:folder.",
           parameters: "includeSlots?: boolean",
           http: "GET /api/agent/page-map"
         },
         {
           name: "get_content_map",
-          description: "Карта контента страницы по слотам (meta + properties, без body).",
+          description: "Deprecated → read_content_index_toc + read_content (part=properties). Legacy: meta по слотам.",
           parameters: "path, slot?",
           http: "GET /api/agent/content-map"
         },

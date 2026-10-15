@@ -541,14 +541,14 @@ export function registerMapTools(reg, client, pagePath) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
     description:
-      "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; topics → read_topic_* / get_content_map.",
+      "Deprecated. Prefer read_topic_index_toc (workspace overview) + list_folder (paths without manifest). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
     schema: getTopicMapSchema,
     handler: getTopicMapHandler
   });
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than read_content_index_toc.",
+    "Deprecated. Prefer read_content_index_toc (overview) and read_content with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
     z.object({
       path: pagePath,
       slot: z
@@ -639,7 +639,7 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   const refreshWorkspaceTopicIndexDescription =
-    "Refresh (rebuild and save) INDEX.md at workspace root from get_topic_map (path, type, title, description table). overwrite=false skips if file exists.";
+    "Refresh (rebuild and save) INDEX.md at workspace root from workspace page map (path, type, title, description table). overwrite=false skips if file exists.";
 
   registerTocTool(reg, {
     canonical: "refresh_topic_index_toc",
@@ -665,23 +665,19 @@ export function registerMapTools(reg, client, pagePath) {
       ...(overwrite === false ? { overwrite: false } : {})
     });
 
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "read_workspace_manifest_map",
-    legacy: "read_workspace_wsmap",
-    description:
-      "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
-    schema: z.object({}),
-    handler: readWorkspaceManifestMapHandler
-  });
+  reg(
+    "read_workspace_map",
+    "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
+    z.object({}),
+    readWorkspaceManifestMapHandler
+  );
 
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "refresh_workspace_manifest_map",
-    legacy: "refresh_workspace_wsmap",
-    description:
-      "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
-    schema: refreshWorkspaceManifestMapSchema,
-    handler: refreshWorkspaceManifestMapHandler
-  });
+  reg(
+    "refresh_workspace_map",
+    "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
+    refreshWorkspaceManifestMapSchema,
+    refreshWorkspaceManifestMapHandler
+  );
 
   reg(
     "resolve_workspace_path",

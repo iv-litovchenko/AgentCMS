@@ -26,9 +26,9 @@
 
 **Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
 
-**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.)
+**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.) **Deprecated maps:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties|meta`).
 
-**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `get_topic_map`, `read_content_index_toc` по активной теме.
+**«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc` по активной теме.
 
 ---
 
@@ -66,7 +66,7 @@
   - Ответ: `startLine` / `endLine` изменённого участка, `totalLines`, `previousHash`, `hash` (следующий `expectedHash`).
 - `list_content`: `placement` (`kind`, `path`, `slot?`) или `path`; `depth`.
 
-Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `get_topic_map`, `read_content_index_toc`, `list_content`, `resolve_workspace_path`.
+Ключи слотов только канонические: `notes`, `scripts`, `discussion` (не `note`, `script`, `thread`, `dialogs`). Пути не собирай руками — бери из `read_topic_index_toc`, `read_content_index_toc`, `list_content`, `resolve_workspace_path`, `list_folder`.
 
 ### Разделы дерева (для `parentPath` в `create_topic`)
 
@@ -93,12 +93,11 @@
 
 ## 3. Навигация и поиск
 
-**Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: карты workspace (`get_topic_map`, `get_content_map`), markdown-оглавления (`read_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
+**Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: markdown-оглавления (`read_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`, `read_workspace_map`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Legacy `get_topic_map` / `get_content_map` — deprecated. Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
 
 - Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
-- Обзор — сначала реестры (`get_topic_map`, `read_topic_index_toc`, `read_content_index_toc`), потом точечно `read_*`.
-- `read_content_index_toc` — лёгкий (без properties), `get_content_map` — тяжелее, для планирования правок.
+- Обзор workspace → `read_topic_index_toc`; папки без manifest → `list_folder`. Обзор темы/слота → `read_content_index_toc`; properties одной записи → `read_content` (`part=properties|meta`).
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты, термины и справочник — `search_workspace_facts` / `search_glossary_terms` / `search_reference_entries`.
 
@@ -118,7 +117,7 @@
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
-**MCP (канон):** `create_topic`, `read_topic_*`, `get_topic_map`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
+**MCP (канон):** `create_topic`, `read_topic_*`, `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
 
 **Параметры без схемы в MCP** (передавай так):
 
@@ -159,18 +158,18 @@
 
 ### Гибкий слот
 
-Признак: `slotsFlexible: true` в `get_topic_map` / `read_content_index_toc` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
+Признак: `slotsFlexible: true` в `read_content_index_toc` / `read_topic_index_toc` (свойство manifest `awn-slots-flexible: true`). Тема без типовых слотов — произвольные папки. Писать **только** `create_content({ slot: "main", parent? })`; другие внешние слоты вернут ошибку.
 
 ### Доп. материалы записи — `assets/materials/{awn-id}/`
 
 Личная папка **одной** записи (черновики, схемы, приложения). Связь по `awn-id`, не по slug — переименование записи папку не переносит. Одна запись — не больше одной папки. Legacy `awn-materials-{slug}` / `awn-parts-{slug}` читаются, новые не создавать.
 
-Найти: в `get_content_map` у записи `hasRecordMaterials: true` и `recordMaterialsFolderRef`; у файлов папки — `parentRecordRef`.
+Найти: в legacy `get_content_map` (deprecated) или `list_content` — у записи `hasRecordMaterials`, `recordMaterialsFolderRef`; у файлов папки — `parentRecordRef`.
 
 ### Sidecar и свободная память
 
 - **Sidecar** — мета к одному файлу: `photo.png` → `photo.sidecar.md` рядом. Не создаётся автоматически; только `create_sidecar`.
-- **Свободная память** — папки без `manifest.md` (`kind: "folder"` в `get_topic_map`). Работа через `list_folder` и `read_content` / `write_content` с `kind: root`, не `read_topic_*`. Описание папки — `{folder}/sidecar.md` так же через `kind: root`. Превратить в тему — `create_topic`.
+- **Свободная память** — папки без `manifest.md` (см. `list_folder`, legacy `get_topic_map` kind:folder). Работа через `list_folder` и `read_content` / `write_content` с `kind: root`, не `read_topic_*`. Описание папки — `{folder}/sidecar.md` так же через `kind: root`. Превратить в тему — `create_topic`.
 
 ---
 
@@ -242,7 +241,7 @@
 | Любой файл по пути (код, HTML, свободная память) | `read_content` / `write_content` с `kind: root`; точечная правка — `write_content` `mode: patch` (legacy `patch_file`); обход папки — `list_folder` |
 | Загрузка по полному пути | `upload_file` / `upload_file_from_url` |
 
-**Картинки в чате (показ пользователю):** в теле заметки ссылка часто **относительная** (`awn-storage/assets/pasted/shot.png`) — для чтения нужен **полный** workspace-path: `awn-container/<тема>/awn-storage/assets/pasted/shot.png` (путь темы из `get_topic_map` / `resolve_workspace_path`, не угадывай). Читать: `read_content` с `placement: { kind: "root", path: "<полный path>" }`, `format: "base64"`. Для `image/*` MCP возвращает блок `image` (клиент может показать в чате); без `format: "base64"` — только метаданные и `previewUrl` (UI). Лимит чтения base64 — см. `maxBytes` в tool. **`read_root_file` — только basename в корне workspace** (`AGENTS.md`, `SKILL.md`…), **не** для `assets/pasted` и не для имён без папки темы.
+**Картинки в чате (показ пользователю):** в теле заметки ссылка часто **относительная** (`awn-storage/assets/pasted/shot.png`) — для чтения нужен **полный** workspace-path: `awn-container/<тема>/awn-storage/assets/pasted/shot.png` (путь темы из `resolve_workspace_path` / `read_topic_index_toc`, не угадывай). Читать: `read_content` с `placement: { kind: "root", path: "<полный path>" }`, `format: "base64"`. Для `image/*` MCP возвращает блок `image` (клиент может показать в чате); без `format: "base64"` — только метаданные и `previewUrl` (UI). Лимит чтения base64 — см. `maxBytes` в tool. **`read_root_file` — только basename в корне workspace** (`AGENTS.md`, `SKILL.md`…), **не** для `assets/pasted` и не для имён без папки темы.
 
 **Служебные папки корня:**
 

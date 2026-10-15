@@ -147,13 +147,13 @@
 ├── module_git_init / status / diff / commit / pull / push / remote … git корня workspace
 
 🧭 Навигация · карты · id
-├── get_page_map                           … дерево manifest + folder без manifest
-├── get_workspace_page_index_toc           … read INDEX.md
-├── refresh_workspace_page_index_toc       … rebuild INDEX.md ← page map
-├── get_content_map                        … meta по слотам страницы (тяжелее)
-├── get_content_index_toc                  … read index.md темы/слота
+├── read_topic_index_toc                   … read INDEX.md (канон workspace)
+├── refresh_topic_index_toc                … rebuild INDEX.md
+├── get_topic_map                          … deprecated → read_topic_index_toc + list_folder
+├── get_content_map                        … deprecated → read_content_index_toc + read_content properties
+├── read_content_index_toc                 … read index.md темы/слота
 ├── refresh_content_index_toc              … rebuild index.md темы/слота
-├── get_workspace_wsmap / refresh_workspace_wsmap … реестр всех index/INDEX
+├── read_workspace_map / refresh_workspace_map … реестр manifest (WS-MAP.md)
 ├── resolve_workspace_path                 … breadcrumbs, slot/ref, mcp hints
 ├── get_page_url                           … URL страницы в UI (CHPU)
 ├── resolve_workspace_id                   … awn-id → paths[]

@@ -12754,8 +12754,13 @@ async function buildAgentPageMap(options = {}) {
     version: 1,
     model: "page-map",
     hint:
-      "Карта workspace: manifest-узлы (hasManifest:true) + папки без manifest (kind:folder, hasManifest:false). " +
-      "Темы: read/write_topic_*; папки: list_folder/read_file/upload_file; усыновить → create_topic.",
+      "Legacy page-map (MCP get_topic_map deprecated). Prefer read_topic_index_toc + list_folder. " +
+      "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
+    whenToUse: {
+      read_topic_index_toc: "Канон: обзор страниц workspace (INDEX.md, без обхода папок без manifest).",
+      list_folder: "Папки без manifest.md и произвольные пути.",
+      get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на read_topic_index_toc + list_folder."
+    },
     pages,
     nodeCount: pages.length,
     pageCount: manifestCount,
@@ -13014,7 +13019,7 @@ async function buildAgentWorkspacePageIndex() {
     model: "workspace-page-index",
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
-      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_topic_map.",
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Папки без manifest → list_folder (legacy get_topic_map deprecated).",
     whenToUse: {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
@@ -13152,12 +13157,10 @@ async function buildAgentWorkspaceWsmap() {
     model: "workspace-wsmap",
     hint:
       "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …). " +
-      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_manifest_map / refresh_workspace_manifest_map.",
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
     whenToUse: {
-      read_workspace_manifest_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
-      refresh_workspace_manifest_map: "Пересобрать и сохранить WS-MAP.md в корне workspace.",
-      read_workspace_wsmap: "Deprecated alias для read_workspace_manifest_map.",
-      refresh_workspace_wsmap: "Deprecated alias для refresh_workspace_manifest_map."
+      read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      refresh_workspace_map: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {
@@ -14155,16 +14158,17 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
       "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии, важность) без body. " +
       "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
-      "Для полной карты с meta → get_content_map. Для текста записи → read_content (part=body). " +
-      "Общий index.md темы — рядом с manifest.md.",
+      "Properties/tags — read_content (part=properties|meta) по записи; legacy get_content_map deprecated. " +
+      "Текст записи → read_content (part=body). Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
       read_content_index_toc:
-        "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
+        "Канон: быстрый обзор темы/слота (index.md: id, путь, тип, название, комментарии).",
       refresh_content_index_toc:
         "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала read_content_index_toc для preview.",
+      read_content:
+        "Properties/tags/status одной записи: part=properties или meta; body — part=body (full=true перед replace).",
       get_content_map:
-        "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
-      read_content: "Когда нужен текст одной записи (part=body; full=true — целиком)."
+        "Deprecated. Все meta по слотам одним вызовом; замена — read_content_index_toc + read_content part=properties."
     },
     path: mapPayload.path,
     awnType: mapPayload.awnType,
@@ -14588,8 +14592,13 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     version: 1,
     model: "content-map",
     hint: slotsFlexible
-      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content. Оглавление: read_content_index_toc."
-      : "Карта контента страницы: title, description, properties без body. Тело: read_content. Быстрое оглавление: read_content_index_toc. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
+      ? "Legacy content-map (MCP get_content_map deprecated). Flexible slot: read_content_index_toc + read_content."
+      : "Legacy content-map (MCP get_content_map deprecated). Канон: read_content_index_toc + read_content (part=properties). assets/materials/{awn-id} — record-materials* с parentRecordRef.",
+    whenToUse: {
+      read_content_index_toc: "Канон: обзор слотов без properties.",
+      read_content: "Properties/tags/status записи: part=properties|meta.",
+      get_content_map: "Deprecated. Этот endpoint; мигрируй на read_content_index_toc + read_content."
+    },
     path: canonicalRelPath,
     awnType,
     slotsFlexible,
@@ -14669,10 +14678,11 @@ const SESSION_CONTEXT_API_MAP = {
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
-  siteMap: "GET /api/agent/site-map — legacy; MCP: get_topic_map",
+  siteMap: "GET /api/agent/site-map — legacy; MCP: read_topic_index_toc (get_topic_map deprecated)",
   pageMap:
-    "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
-  contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
+    "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: read_topic_index_toc + list_folder",
+  contentMap:
+    "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
   contentIndex:
     "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (id, path, type, title, комментарии; без body)",
   contentIndexWrite:
