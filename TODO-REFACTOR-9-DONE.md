@@ -22,7 +22,7 @@
 - Папки на диске (git mv).
 - `.agent-cms-global/ws-list-*.json`, код (`platform-sources`, scripts, shell, `public/main.js`).
 - Legacy id/path: `lib/workspace/bundled-workspaces.js` + `resolveAgent`.
-- `.gitignore`: `workspaces/*`, кроме `0-ws-core`, `0-ws-test`, `0-cli-sandbox`.
+- `.gitignore`: `workspaces/*`, кроме `0-ws-core` / `0-ws-test`; `0-cli-sandbox` — только `README.md`.
 
 ## Не в scope
 
