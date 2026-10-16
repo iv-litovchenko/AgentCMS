@@ -15012,9 +15012,9 @@ const SESSION_CONTEXT_API_MAP = {
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/a0-agent-kit/a0-agent/)",
+    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/a0-agent-kit/a0-user/)",
+    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/0-agent-kit/0-user/)",
   activity:
     "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
   sidecarResolve:
@@ -15034,7 +15034,7 @@ const SESSION_PATH_HINTS = {
   internalSlot:
     "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
   agentKit:
-    "Служебные темы: awn-topics/a0-agent-kit/a0-agent/manifest.md, awn-topics/a0-agent-kit/a0-user/manifest.md",
+    "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
   adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
@@ -15096,7 +15096,7 @@ async function readAgentSystemContext(agentRoot) {
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
-  const kitFolder = getAgentKitFolder() || "awn-topics/a0-agent-kit";
+  const kitFolder = getAgentKitFolder() || "awn-topics/0-agent-kit";
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
   const serviceDocs = [];

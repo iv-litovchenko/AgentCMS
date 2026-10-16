@@ -1,107 +1,116 @@
 # Рефакторинг — часть 3
 
-**Задача:** единый префикс **`a0-`** у **всех системных / preset / platform** slug (папки hub, заготовки UI, встроенные store). Пользовательский контент — **без** префикса.
+**Задача:** единый префикс **`0-`** у **всех системных / preset / platform** slug (папки hub, заготовки UI, встроенные store). Пользовательский контент — **без** префикса `0-`.
 
-**✅** сделано · **❌** не сделано.
+**✅** сделано · **❌** не сделано · **⚠️** промежуточно (другой префикс / частично).
 
-**Выбор префикса:** **`a0-`** (долгосрок). Префикс **один раз** на platform-узел; вложенные slug без повторного `a0-` (напр. `a0-contents/facts`, не `a0-contents/a0-facts`).
+**Выбор префикса:** **`0-`** (долгосрок, напр. **`0-agent-kit`**). Цель — **вверху в Finder/диске** (зона цифр/символов). Префикс **один раз** на platform-узел; вложенные slug **без** повторного `0-` (напр. `0-contents/facts`, не `0-contents/0-facts`).
 
-**Связано:** часть 7 — **`awn-topics/`**, секции **`a0-agent-kit`**, **`shared`** (layout ✅). Legacy read-aliases на старые slug и пути.
+**Не путать:** slug папок (`0-agent-kit`) и **SQL-имена таблиц** — если понадобятся таблицы с slug, начинающимся с цифры, в MySQL — **отдельный префикс/кавычки** (`0_agent` → `` `0_agent` `` или `t_0_agent`). Внутри store чаще **записи**, не таблицы с именем папки.
+
+**Сортировка в CMS:** slug на диске ≠ порядок в UI. Системные секции — **`pinned`** / **`sort.json`**; пользовательские **`01-slug`, `02-slug`** — разрешены; **чисто цифровой** slug (`009`, `777`) — **запретить** (MySQL + путаница с «номером без имени»).
+
+**Связано:** часть 7 — **`awn-topics/`**, секции **`0-agent-kit`**, **`shared`** (layout ✅). Legacy read-aliases на старые slug и пути.
+
+**Legacy read:** `agent-kit`, `awn-agent-kit`, **`a0-*`** → канон **`0-*`**.
 
 ---
 
-## Правило **`a0-`**
+## Правило **`0-`**
 
-| Да (`a0-{name}`) | Нет |
+| Да (`0-{name}`) | Нет |
 | ---------------- | --- |
 | Заготовки kit / shared / channel / media | Темы пользователя (`finansy`, `php`, …) |
 | Системные group/store в **`awn-databases/`** | Store пользователя (`personal-finance`, …) |
 | Экземпляр канала/медиатеки, созданный из **builtin preset** | Кастомный channel `slider`, произвольный repo |
-| Локальный **`…/a0-agent-kit/a0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
+| Локальный **`…/0-agent-kit/0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
 
-**Зачем:** сортировка вверху, **MySQL-safe** идентификаторы (`a0_agent`), один сигнал агенту «platform».
+**Зачем:** сортировка **на диске** вверху, один сигнал агенту «platform». В приложении — дополнительно **pinned**.
 
-**Реализация:** slug в **`lib/config/*-presets.js`**, **`SHARED_*_THEMES`** (`server.js`, `public/main.js`), bootstrap kit/shared, **`is*BuiltinSlug`**, MCP hardcoded paths → **aliases** со старых имён на переход.
+**Реализация:** slug в **`lib/config/*-presets.js`**, **`SHARED_*_THEMES`** (`server.js`, `public/main.js`), bootstrap kit/shared, **`is*BuiltinSlug`**, MCP hardcoded paths → **aliases** со старых имён (`agent-kit`, `a0-*`, …) на переход.
+
+**Не использовать:** ведущий `-0-…` (URL/slug); **`_0-…`** — ниже по сортировке, хуже читается.
 
 ---
 
-## Карта hub (где живут `a0-*`)
+## Карта hub (где живут `0-*`)
 
 ```
 awn-topics/
-├── a0-agent-kit/                … секция (legacy `agent-kit/`, `awn-agent-kit/`)
-│   ├── a0-agent, a0-user, a0-users, …
-│   └── a0-taxonomies/          … локальные CSV (legacy taxonomies/, catalog/)
-└── shared/
-    ├── a0-inbox, a0-notes, … a0-context, a0-downloads
+├── 0-agent-kit/                 … секция (legacy agent-kit/, awn-agent-kit/, a0-agent-kit/)
+│   ├── 0-agent, 0-user, 0-users, …
+│   └── 0-taxonomies/            … локальные CSV (legacy taxonomies/, catalog/, a0-taxonomies/)
+└── shared/                      … секция → 0-shared/ или дети 0-inbox под shared (см. ниже)
+    ├── 0-inbox, 0-notes, … 0-context, 0-downloads
     └── …
 
 awn-channels/
-└── a0-telegram, a0-forum, …     … все CHANNEL_BUILTIN_PRESETS
+└── 0-telegram, 0-forum, …       … все CHANNEL_BUILTIN_PRESETS
 
 awn-media/
-└── a0-documents, a0-market, a0-scripts, a0-slider
+└── 0-documents, 0-market, 0-scripts, 0-slider
 
 awn-databases/
-├── a0-taxonomies/               … глобальные CSV (быв. taxonomies/, awn-taxonomies)
-├── a0-contents/                 … group (быв. contents/)
+├── 0-taxonomies/                … глобальные CSV (быв. taxonomies/, awn-taxonomies)
+├── 0-contents/                  … group (быв. contents/)
 │   ├── facts/
 │   ├── glossary/
 │   └── reference/
-└── a0-ui/                       … platform UI store (быв. ui/)
+└── 0-ui/                        … platform UI store (быв. ui/)
 ```
 
 ---
 
-## `awn-topics/a0-agent-kit/` ✅ (REFACTOR-3 §1)
+## `awn-topics/0-agent-kit/` ✅ (REFACTOR-3 §1)
 
-| Статус | Slug (было)       | Slug (канон)             |
-| ------ | ----------------- | ------------------------ |
-| ✅      | `agent-kit` (секция) | **`a0-agent-kit`**    | + legacy `awn-topics/agent-kit`, `awn-agent-kit` |
-| ✅      | `agent`           | **`a0-agent`**           |
-| ✅      | `user`            | **`a0-user`**            |
-| ✅      | `users`           | **`a0-users`**           | scaffold / новые ws |
-| ✅      | `agent-rules`     | **`a0-agent-rules`**     | scaffold |
-| ✅      | `agent-voice-tts` | **`a0-agent-voice-tts`** | scaffold |
-| ✅      | `agent-voice-stt` | **`a0-agent-voice-stt`** | scaffold |
-| ✅      | `devices`         | **`a0-devices`**         |
-| ✅      | `taxonomies`      | **`a0-taxonomies`**      | локальные справочники (не путать с **`awn-databases/a0-taxonomies`**) |
-| ✅      | `catalog`         | *(legacy → a0-taxonomies)* | read-alias |
+| Статус | Slug (было) | Slug (канон **`0-*`**) |
+| ------ | ----------- | ---------------------- |
+| ✅ | `agent-kit` (секция) | **`0-agent-kit`** |
+| ✅ | `agent` | **`0-agent`** |
+| ✅ | `user` | **`0-user`** |
+| ✅ | `users` | **`0-users`** | scaffold / новые ws |
+| ✅ | `agent-rules` | **`0-agent-rules`** | scaffold |
+| ✅ | `agent-voice-tts` | **`0-agent-voice-tts`** | scaffold |
+| ✅ | `agent-voice-stt` | **`0-agent-voice-stt`** | scaffold |
+| ✅ | `devices` | **`0-devices`** |
+| ✅ | `taxonomies` | **`0-taxonomies`** |
+| ✅ | `catalog` | *(legacy → 0-taxonomies)* | read-alias |
+| ✅ | **`a0-*`** (промежуточный шаг) | → **`0-*`** | read-alias |
 
-**Код:** `manifest-paths` (`rewriteLegacyAgentKit*`), `agent-registry`, identity/voice, `WORKSPACE_TAXONOMY_FOLDER`, **`agent-cms-test`** на диске переименован.
+**Код:** `manifest-paths`, `agent-registry`, identity/voice, **`agent-cms-test`** на диске.
 
-**После деплоя:** restart CMS/MCP + rebuild index для каждого workspace с kit на диске.
+**После деплоя:** restart CMS/MCP + rebuild index.
 
 ---
 
 ## `awn-topics/shared/`
 
-| Статус | Slug (сейчас) | Slug (план)        |
-| ------ | ------------- | ------------------ |
-| ❌      | `inbox`       | **`a0-inbox`**     |
-| ❌      | `notes`       | **`a0-notes`**     |
-| ❌      | `references`  | **`a0-references`** |
-| ❌      | `artefacts`   | **`a0-artefacts`** |
-| ❌      | `scripts`     | **`a0-scripts`**   |
-| ❌      | `media`       | **`a0-media`**     |
-| ❌      | `downloads`   | **`a0-downloads`** | только в **`SHARED_DEFAULT_THEMES`** (`server.js`) — синхронить с UI |
-| ❌      | `context`     | **`a0-context`**   | **`always-context-ws-folder`** → `…/a0-context/awn-storage/` |
+| Статус | Slug (сейчас) | Slug (план **`0-*`**) |
+| ------ | ------------- | --------------------- |
+| ❌ | `inbox` | **`0-inbox`** |
+| ❌ | `notes` | **`0-notes`** |
+| ❌ | `references` | **`0-references`** |
+| ❌ | `artefacts` | **`0-artefacts`** |
+| ❌ | `scripts` | **`0-scripts`** |
+| ❌ | `media` | **`0-media`** |
+| ❌ | `downloads` | **`0-downloads`** | только в **`SHARED_DEFAULT_THEMES`** (`server.js`) — синхронить с UI |
+| ❌ | `context` | **`0-context`** | **`always-context-ws-folder`** → `…/0-context/awn-storage/` |
 
 **Код:** `SHARED_THEME_PRESETS` (`public/main.js`), `SHARED_DEFAULT_THEMES` (`server.js`), bootstrap shared.
 
 ---
 
-## `awn-channels/` (все builtin presets → **`a0-{slug}`**)
+## `awn-channels/` (все builtin presets → **`0-{slug}`**)
 
 Источник списка: **`lib/config/channel-presets.js`** ↔ **`CHANNEL_BUILTIN_PRESETS`** (`public/main.js`).
 
 | Статус | Пример (сейчас → план) |
 | ------ | ---------------------- |
-| ❌      | `telegram` → **`a0-telegram`**, `forum` → **`a0-forum`**, … **все ~40 slug** из presets |
+| ❌ | `telegram` → **`0-telegram`**, `forum` → **`0-forum`**, … **все ~40 slug** из presets |
 
-Группы каталога (**`CHANNEL_BUILTIN_PRESET_GROUPS`**) — только UI; на диске всегда **`awn-channels/a0-…/`**.
+Группы каталога (**`CHANNEL_BUILTIN_PRESET_GROUPS`**) — только UI; на диске всегда **`awn-channels/0-…/`**.
 
-**Кастом** без preset (напр. уже созданный `slider`) — **не** переименовывать автоматически; правило: **preset = a0-**, custom = на усмотрение.
+**Кастом** без preset — **не** переименовывать автоматически; правило: **preset = `0-`**, custom = на усмотрение.
 
 ---
 
@@ -109,12 +118,12 @@ awn-databases/
 
 Источник: **`lib/config/media-library-presets.js`**.
 
-| Статус | Slug (сейчас) | Slug (план)        |
-| ------ | ------------- | ------------------ |
-| ❌      | `documents`   | **`a0-documents`** |
-| ❌      | `market`      | **`a0-market`**    |
-| ❌      | `scripts`     | **`a0-scripts`**   |
-| ❌      | `slider`      | **`a0-slider`**    |
+| Статус | Slug (сейчас) | Slug (план) |
+| ------ | ------------- | ----------- |
+| ❌ | `documents` | **`0-documents`** |
+| ❌ | `market` | **`0-market`** |
+| ❌ | `scripts` | **`0-scripts`** |
+| ❌ | `slider` | **`0-slider`** |
 
 **Код:** `isMediaLibraryBuiltinSlug`, delete/rename 403 для builtin.
 
@@ -122,39 +131,48 @@ awn-databases/
 
 ## `awn-databases/` (platform store / group)
 
-| Статус | Путь (сейчас)        | Путь (план)                    |
-| ------ | -------------------- | ------------------------------ |
-| ⚠️→❌   | `taxonomies/`        | **`a0-taxonomies/`**           | было ✅ `awn-taxonomies`→`taxonomies`; **следующий шаг — a0-** |
-| ❌      | `contents/`          | **`a0-contents/`**             | group |
-| ❌      | `contents/facts`     | **`a0-contents/facts`**     | MCP facts tools |
-| ❌      | `contents/glossary`  | **`a0-contents/glossary`**  | MCP glossary |
-| ❌      | `contents/reference` | **`a0-contents/reference`** | справочник |
-| ❌      | `ui/`                | **`a0-ui/`**                   | home-titles, slogans, … |
+| Статус | Путь (сейчас) | Путь (план) |
+| ------ | ------------- | ----------- |
+| ⚠️→❌ | `taxonomies/` | **`0-taxonomies/`** |
+| ❌ | `contents/` | **`0-contents/`** | group |
+| ❌ | `contents/facts` | **`0-contents/facts`** | MCP facts tools |
+| ❌ | `contents/glossary` | **`0-contents/glossary`** | MCP glossary |
+| ❌ | `contents/reference` | **`0-contents/reference`** | справочник |
+| ❌ | `ui/` | **`0-ui/`** | home-titles, slogans, … |
 
-Пользовательские **`finansy`**, **`personal-finance`**, … — **без** `a0-`.
+Пользовательские **`finansy`**, **`personal-finance`**, … — **без** `0-`.
 
-**Код:** `isBuiltinAwnDataGroupRel` (сейчас `top.startsWith("awn-")` — расширить под **`a0-`** group), `awn-data-loader`, **`mcp-server/lib/facts-tools.js`**, **`glossary-tools.js`**, reference tools.
+**Код:** `isBuiltinAwnDataGroupRel`, `awn-data-loader`, facts/glossary MCP, UI create-group helpers.
 
 ---
 
 ## `awn-topics/` (корень тем)
 
-| Статус | Slug (сейчас)   | Slug (план)     |
-| ------ | --------------- | --------------- |
-| ✅      | `awn-container` | **`awn-topics`** | REFACTOR-7 §1 |
+| Статус | Slug (сейчас) | Slug (план) |
+| ------ | ------------- | ----------- |
+| ✅ | `awn-container` | **`awn-topics`** | REFACTOR-7 §1 |
 
 ---
 
-## Вне правила `a0-` (проверено по проекту)
+## Slug пользователя (не platform)
 
-| Область | Почему не `a0-` slug |
-| ------- | -------------------- |
-| **`awn-repositories/`** | Нет **`REPOSITORY_BUILTIN_PRESETS`** — только пользовательские repo/group; platform-шаблоны — **если появятся → a0-** |
-| **`awn-system/`** | Каталог типов платформы, не slug темы |
-| **`awn-dialogs/`**, **`awn-storage/`** (корень ws), **`.agent-cms/`** | Служебные корни workspace |
-| **`awn-dashboards/`**, **`awn-vendor/`**, **`awn-temp/`**, **`awn-scripts/`** | Sidebar/platform roots (имя **hub-папки**, не child preset) |
-| **`awn-channels/…` кастом** | Не из `CHANNEL_BUILTIN_PRESETS` |
-| **Корневые файлы** | `AGENTS.md`, `SKILL.md` — не папки |
+| Правило | Пример |
+| ------- | ------ |
+| ✅ | `finansy`, `01-vvedenie`, `02-praktika` |
+| ❌ | `009`, `777` (только цифры) |
+| ❌ | `0-agent` (зарезервировано под platform) |
+
+---
+
+## Вне правила `0-` (проверено по проекту)
+
+| Область | Почему не `0-` slug |
+| ------- | ------------------- |
+| **`awn-repositories/`** | Нет builtin presets; platform-шаблоны — **если появятся → `0-`** |
+| **`awn-system/`** | Каталог типов платформы |
+| **`awn-dialogs/`**, **`awn-storage/`**, **`.agent-cms/`** | Служебные корни workspace |
+| **`awn-dashboards/`**, **`awn-vendor/`**, … | Sidebar roots (имя hub-папки `awn-*`) |
+| **`awn-channels/…` кастом** | Не из presets |
 
 ---
 
@@ -162,20 +180,22 @@ awn-databases/
 
 | Область | Файлы |
 | ------- | ----- |
-| Channels | `lib/config/channel-presets.js`, `public/main.js`, `channel-preset-icon-map.js` |
+| Channels | `lib/config/channel-presets.js`, `public/main.js` |
 | Media | `lib/config/media-library-presets.js`, `lib/services/awn-media-service.js` |
-| Shared themes | `server.js` (`SHARED_DEFAULT_THEMES`), `public/main.js` (`SHARED_THEME_PRESETS`) |
-| Agent kit | `lib/agents/agent-registry.js`, identity/voice paths, `mcp-server/lib/agent-utils-tools.js` |
-| Databases | workspaces `awn-databases/**`, facts/glossary MCP, UI create-group helpers |
-| Index / search | `lib/config/index-policy.js`, hardcoded paths в docs |
+| Shared themes | `server.js`, `public/main.js` |
+| Agent kit | `lib/agents/agent-registry.js`, `manifest-paths.js`, identity/voice, MCP |
+| Databases | `awn-databases/**`, facts/glossary MCP |
+| Slug policy | `slug-translit.js`, `create_topic` / rename validation |
+| Index / search | `lib/config/index-policy.js`, docs |
 
 ---
 
 ## Риски
 
-- **Коллизии имён между hub:** `a0-market` в channels и media — **OK** (разные prefix path).
-- **Коллизии с legacy:** `a0-notes` (shared theme) vs channel preset `notes` → **`a0-notes`** только в своём hub.
-- **Объём:** channels (~40 slug) + workspace paths + MCP — **один migration script** + rebuild indexes.
+- **Коллизии между hub:** `0-market` в channels и media — **OK** (разный path).
+- **Коллизии с user `01-*`:** platform только **`0-{platform-name}`**; user **`01-slug`** — другой паттерн.
+- **Finder vs CMS:** `0-*` не гарантирует порядок относительно **`009`** / **`01-slug`** — **pinned** в UI.
+- **Объём:** channels (~40) + ws paths + MCP — migration script + rebuild indexes.
 
 ---
 
@@ -184,3 +204,5 @@ awn-databases/
 `c2a29c0b-9f8c-49e2-a31d-0bdc4802b609`
 
 Черновик **свойств** (не slug папок): `a-cms-*`, `a-topic`, `a-area` — отдельно от REFACTOR-3.
+
+**Отменено:** префикс **`a0-`** (только legacy alias → **`0-`**).

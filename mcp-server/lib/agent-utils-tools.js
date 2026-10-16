@@ -72,14 +72,14 @@ export function registerAgentUtilsTools(reg, client) {
 
   reg(
     "get_agent_identity",
-    "Agent persona and permissions from awn-topics/a0-agent-kit/a0-agent/ (manifest.md + main.md).",
+    "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
     z.object({}),
     () => client.get("/api/agent/identity/agent")
   );
 
   reg(
     "get_user_identity",
-    "User profile from awn-topics/a0-agent-kit/a0-user/ (manifest.md + main.md).",
+    "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
     z.object({}),
     () => client.get("/api/agent/identity/user")
   );
