@@ -3,7 +3,7 @@ name: Репозиторий (workspace)
 kind: type
 domain: hubs
 status: active
-extends: awn.hub.base
+extends: awn.hub.repository.base
 description: >
   Карточка исходников в awn-repositories/{slug}/ — в индексе manifest.md и readme.md
   (регистр не важен); код клона по умолчанию не индексируется.

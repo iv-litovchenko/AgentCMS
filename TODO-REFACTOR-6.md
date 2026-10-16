@@ -78,6 +78,49 @@
 
 ---
 
+## D — раскладка hub-типов (семьи) · ✅
+
+Один каталог **`types/hubs/`**: подпапка = семья, у семьи свой **`*.base`**. Лист темы — **`awn.hub.topic`** (не `.card`). Второй сегмент (`.group`, `.frame.*`) — только если в семье несколько типов одного уровня. **`types/databases/`** → **`types/hubs/database/`**. Записи в слотах по-прежнему **`awn.content.*`**.
+
+```
+types/hubs/
+├── _base.yml                              → awn.hub.base
+├── topic/
+│   ├── _base.yml                          → awn.hub.topic.base
+│   ├── ws.yml                             → awn.hub.topic.ws
+│   ├── area.yml                           → awn.hub.topic.area
+│   ├── section.yml                        → awn.hub.topic.section
+│   └── topic.yml                          → awn.hub.topic
+├── channel/
+│   ├── _base.yml                          → awn.hub.channel.base
+│   └── channel.yml                        → awn.hub.channel
+├── media/
+│   ├── _base.yml                          → awn.hub.media.base
+│   └── media.yml                          → awn.hub.media
+├── repository/
+│   ├── _base.yml                          → awn.hub.repository.base
+│   ├── repository.yml                     → awn.hub.repository
+│   └── group.yml                          → awn.hub.repository.group  *(план, типа ещё нет)*
+└── database/
+    ├── _base.yml                          → awn.hub.database.base
+    └── frames/
+        ├── _base.yml                      → awn.hub.database.frame.base
+        ├── single.yml | group.yml | collection.yml
+        └── collection/taxonomy.yml
+```
+
+**Наследование (id):** `awn.hub.base` → `awn.hub.topic.base` → ws | area | section | **topic**; отдельно channel / media / **repository** (сейчас один тип; `repository.group` — позже); database.base → frame.base → single | group | collection.
+
+**Legacy после D:** `awn.hub.ws` → `awn.hub.topic.ws`, `awn.hub.topic` (плоский) → тот же id; `awn.database.frame.*` → `awn.hub.database.frame.*`.
+
+| Статус | Шаг |
+| ------ | --- |
+| ✅ | Подпапки `topic|channel|media|repository|database`; ingest `hubs` + `hubs/database` |
+| ✅ | Aliases; `awn.hub.topic.*`; `awn.hub.database.frame.*`; миграция manifest (ws/area/section) |
+| ✅ | Удалены плоские `types/hubs/*.yml` и `types/databases/` |
+
+---
+
 ## Чат (Cursor)
 
 `<!-- uuid при старте работы -->`

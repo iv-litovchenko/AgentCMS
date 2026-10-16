@@ -1,4 +1,4 @@
-id: awn.database.base
+id: awn.hub.database.base
 name: База накопителя
 kind: base
 domain: database

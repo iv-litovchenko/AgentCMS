@@ -3,7 +3,7 @@ name: Тема
 kind: type
 domain: hubs
 status: active
-extends: awn.hub.base
+extends: awn.hub.topic.base
 description: Тема — manifest.md (бриф, контекст, инструкция) + слоты памяти
 manifest-pattern: "{slug}/manifest.md"
 

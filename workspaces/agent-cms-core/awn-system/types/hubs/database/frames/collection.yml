@@ -1,9 +1,9 @@
-id: awn.database.frame.collection
+id: awn.hub.database.frame.collection
 name: Коллекция
 kind: frame
 domain: database
 status: active
-extends: awn.database.frame.base
+extends: awn.hub.database.frame.base
 description: manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/
 manifest-pattern: manifest.md
 

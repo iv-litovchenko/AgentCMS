@@ -2382,7 +2382,7 @@ let renderDocLinksLibraryRequestId = 0;
 const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.topic", label: "Темы", hint: "awn.topic — темы из меню", icon: "📄" },
   { id: "awn.area", label: "Области", hint: "awn.area — папки с manifest.md", icon: "🗂" },
-  { id: "awn.workspace", label: "Workspace", hint: "awn.hub.ws — корень агента", icon: "🏠" },
+  { id: "awn.workspace", label: "Workspace", hint: "awn.hub.topic.ws — корень агента", icon: "🏠" },
   { id: "awn.record", label: "Записи", hint: "awn.record — markdown в Content", icon: "📝" },
   { id: "awn.record.category", label: "Разделы Content", hint: "awn.record.category", icon: "📁" },
   { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category", icon: "🖼" },
@@ -17979,15 +17979,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `manifest.md (awn.hub.ws) найден:\n${result.absolute}` : "manifest.md (awn.hub.ws) найден";
+    node.title = result.absolute ? `manifest.md (awn.hub.topic.ws) найден:\n${result.absolute}` : "manifest.md (awn.hub.topic.ws) найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет manifest.md (awn.hub.ws):\n${result.absolute}`
-      : "Папка есть, но нет manifest.md (awn.hub.ws)";
+      ? `Папка есть, но нет manifest.md (awn.hub.topic.ws):\n${result.absolute}`
+      : "Папка есть, но нет manifest.md (awn.hub.topic.ws)";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -18528,7 +18528,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус manifest.md (awn.hub.ws)");
+    pathStatusNode.setAttribute("aria-label", "Статус manifest.md (awn.hub.topic.ws)");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -18860,7 +18860,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование workspace с manifest.md (awn.hub.ws)…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование workspace с manifest.md (awn.hub.topic.ws)…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -18887,7 +18887,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Папки agent-* с manifest.md (awn.hub.ws) не найдены</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Папки agent-* с manifest.md (awn.hub.topic.ws) не найдены</div>`;
     return;
   }
 
@@ -19411,7 +19411,7 @@ function normalizeDeclaredManifestTreeType(typeRaw) {
   if (
     raw === "awn.workspace" ||
     raw === "workspace" ||
-    raw === "awn.hub.ws" ||
+    raw === "awn.hub.topic.ws" ||
     raw.endsWith(".ws")
   ) {
     return "workspace";
@@ -19419,7 +19419,7 @@ function normalizeDeclaredManifestTreeType(typeRaw) {
   if (
     raw === "awn.area" ||
     raw === "area" ||
-    raw === "awn.hub.area" ||
+    raw === "awn.hub.topic.area" ||
     raw.endsWith(".area")
   ) {
     return "area";
@@ -20100,8 +20100,8 @@ function resolveStorageSlotSchemaTargetId(slotKey, options = {}) {
 
 function getTopicSchemaTargetSpecs() {
   return [
-    { id: "workspace", label: "Workspace", typeName: "awn.hub.ws", group: "core" },
-    { id: "area", label: "Область", typeName: "awn.hub.area", group: "core" },
+    { id: "workspace", label: "Workspace", typeName: "awn.hub.topic.ws", group: "core" },
+    { id: "area", label: "Область", typeName: "awn.hub.topic.area", group: "core" },
     { id: "topic", label: "Тема", typeName: "awn.topic", group: "core" },
     ...TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.map((item) => ({
       id: item.id,
@@ -20122,8 +20122,8 @@ function getTopicSchemaTargetSpecs() {
 }
 
 function getTopicSchemaTargetTypeName(targetId) {
-  if (targetId === "workspace") return "awn.hub.ws";
-  if (targetId === "area") return "awn.hub.area";
+  if (targetId === "workspace") return "awn.hub.topic.ws";
+  if (targetId === "area") return "awn.hub.topic.area";
   if (targetId === "topic") return "awn.topic";
   if (targetId === "sidecar") return "awn.sidecar";
   if (targetId === "settings") return "awn.settings";
@@ -30171,7 +30171,7 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   if (hasAgent) {
     const agent = document.createElement("span");
     agent.className = "menu-marker menu-marker-agent";
-    agent.title = "AWN workspace (manifest.md, awn.hub.ws)";
+    agent.title = "AWN workspace (manifest.md, awn.hub.topic.ws)";
     agent.setAttribute("aria-label", "Agent");
     agent.appendChild(createAgentMarkerIcon());
     wrap.appendChild(agent);
@@ -49022,7 +49022,7 @@ function getStandardPropsFieldKeys() {
 const PROPS_FIELD_META = {
   "awn-type": {
     label: "Тип",
-    hint: "Идентификатор типа (awn.hub.ws, awn.record, awn.record.category, awn.media.category, …)"
+    hint: "Идентификатор типа (awn.hub.topic.ws, awn.record, awn.record.category, awn.media.category, …)"
   },
   "awn-name": {
     label: "Имя",
@@ -52864,8 +52864,8 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
     typeof TopicSchemaSlotSpecs !== "undefined"
       ? TopicSchemaSlotSpecs.normalizeAwnContentTypeName(typeName)
       : typeName;
-  if (normalized === "awn.hub.area" || typeName === "awn.area") return "area";
-  if (normalized === "awn.hub.ws" || typeName === "awn.workspace") return "workspace";
+  if (normalized === "awn.hub.topic.area" || typeName === "awn.area") return "area";
+  if (normalized === "awn.hub.topic.ws" || typeName === "awn.workspace") return "workspace";
   if (normalized === "awn.content.category" || typeName === "awn.media.category") {
     return resolvedSlotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
@@ -54176,7 +54176,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (isWorkspaceSchemaContext()) {
     topicSchemaTargetTabsNode.append(
       createTopicSchemaTargetTabButton(
-        { id: "workspace", label: "Workspace", typeName: "awn.hub.ws", group: "core" },
+        { id: "workspace", label: "Workspace", typeName: "awn.hub.topic.ws", group: "core" },
         cache
       ),
       createTopicSchemaTargetTabButton(
@@ -54190,7 +54190,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (isAreaSchemaContext()) {
     topicSchemaTargetTabsNode.append(
       createTopicSchemaTargetTabButton(
-        { id: "area", label: "Область", typeName: "awn.hub.area", group: "core" },
+        { id: "area", label: "Область", typeName: "awn.hub.topic.area", group: "core" },
         cache
       ),
       createTopicSchemaTargetTabButton(
@@ -56521,10 +56521,10 @@ function normalizeAwnTypeName(typeName) {
   const raw = String(typeName || "").trim();
   if (!raw) return "";
   const shortAliases = {
-    area: "awn.hub.area",
+    area: "awn.hub.topic.area",
     topic: "awn.hub.topic",
-    workspace: "awn.hub.ws",
-    ws: "awn.hub.ws",
+    workspace: "awn.hub.topic.ws",
+    ws: "awn.hub.topic.ws",
     record: "awn.content.record",
     service: "service"
   };
@@ -56535,8 +56535,8 @@ function normalizeAwnTypeName(typeName) {
     "awn.sidecar": "awn.annotation.sidecar",
     "awn.media.category": "awn.content.category",
     "awn.topic": "awn.hub.topic",
-    "awn.area": "awn.hub.area",
-    "awn.workspace": "awn.hub.ws",
+    "awn.area": "awn.hub.topic.area",
+    "awn.workspace": "awn.hub.topic.ws",
     "awn.database.record": "awn.content.record",
     "awn.database.record-lite": "awn.content.record-lite",
     "awn.database.record-csv": "awn.content.record-csv",
@@ -56552,7 +56552,10 @@ function normalizeAwnTypeName(typeName) {
     "awn.database.element.sidecar": "awn.annotation.sidecar",
     "awn.database.content.sidecar": "awn.annotation.sidecar",
     "awn.page": "awn.hub.base",
-    "awn.page.base": "awn.hub.base"
+    "awn.page.base": "awn.hub.base",
+    "awn.hub.ws": "awn.hub.topic.ws",
+    "awn.hub.area": "awn.hub.topic.area",
+    "awn.hub.section": "awn.hub.topic.section"
   };
   const mapped = legacyToCanonical[normalized] || normalized;
   if (mapped.startsWith("awn.page.")) {
@@ -56856,14 +56859,14 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   }
 
   if (isNodeManifestPath(normalized)) {
-    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.ws");
+    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.topic.ws");
     if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) {
-      return normalizeAwnTypeName("awn.hub.area");
+      return normalizeAwnTypeName("awn.hub.topic.area");
     }
     if (options.isSharedRoot || isAgentSharedRootIndexPath(normalized)) {
-      return normalizeAwnTypeName("awn.hub.area");
+      return normalizeAwnTypeName("awn.hub.topic.area");
     }
-    if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.area");
+    if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.topic.area");
     if (isSystemReferenceManifestPath(normalized)) {
       return /\/(?:awn-)?taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
         /\/catalog\/[^/]+\/manifest\.md$/i.test(normalized)
@@ -56873,20 +56876,20 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
 
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared === "topic") return normalizeAwnTypeName("awn.hub.topic");
-    if (declared === "area") return normalizeAwnTypeName("awn.hub.area");
+    if (declared === "area") return normalizeAwnTypeName("awn.hub.topic.area");
 
     if (isTopicManifestPath(normalized)) return normalizeAwnTypeName("awn.hub.topic");
-    if (isAreaNodePath(normalized)) return normalizeAwnTypeName("awn.hub.area");
+    if (isAreaNodePath(normalized)) return normalizeAwnTypeName("awn.hub.topic.area");
     const containerFolder = options.containerFolder || getActiveAgentContainerFolder();
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
       return folderDepth >= 2
         ? normalizeAwnTypeName("awn.hub.topic")
-        : normalizeAwnTypeName("awn.hub.area");
+        : normalizeAwnTypeName("awn.hub.topic.area");
     }
     return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2
       ? normalizeAwnTypeName("awn.hub.topic")
-      : normalizeAwnTypeName("awn.hub.area");
+      : normalizeAwnTypeName("awn.hub.topic.area");
   }
 
   return normalizeAwnTypeName("awn.content.record");
@@ -57099,7 +57102,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
   "awn.mixin.runtime":
     "Миксин runtime — awn-runtime-load-always, cron и heartbeat для реестра агента",
-  "awn.hub.ws": "Корневой манифест workspace — manifest.md в корне агента",
+  "awn.hub.topic.ws": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.workspace": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.area": "Область (категория) — папка с manifest.md",
   "awn.topic": "Тема — standalone *.md манифест",
@@ -70170,8 +70173,8 @@ function buildNavigationHeroRuntimeTooltip({ id, active, caption, cronSchedule =
 function buildNavigationHeroMarkerTooltip({ id, active, caption, titleActive, titleInactive }) {
   if (id === "agent") {
     return active
-      ? "Agent workspace: manifest.md (awn.hub.ws) в этой папке"
-      : "Agent workspace: manifest.md (awn.hub.ws) нет в этой папке";
+      ? "Agent workspace: manifest.md (awn.hub.topic.ws) в этой папке"
+      : "Agent workspace: manifest.md (awn.hub.topic.ws) нет в этой папке";
   }
   if (id === "git") {
     return active ? "Git: репозиторий (.git) в этой папке" : "Git: репозитория нет в этой папке";
@@ -73867,8 +73870,8 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       caption: "Agent",
       active: markers.hasAgent,
       createSvg: createAgentMarkerIcon,
-      titleActive: "manifest.md (awn.hub.ws): есть в этой папке",
-      titleInactive: "manifest.md (awn.hub.ws): нет в этой папке"
+      titleActive: "manifest.md (awn.hub.topic.ws): есть в этой папке",
+      titleInactive: "manifest.md (awn.hub.topic.ws): нет в этой папке"
     }),
     createNavigationHeroMarkerSlot({
       id: "git",

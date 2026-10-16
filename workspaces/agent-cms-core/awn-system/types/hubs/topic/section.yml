@@ -1,9 +1,9 @@
-id: awn.hub.section
+id: awn.hub.topic.section
 name: Секция
 kind: type
 domain: hubs
 status: draft
-extends: awn.hub.base
+extends: awn.hub.topic.base
 description: >
   Служебная секция workspace — только в корне агента (awn-agent-kit, awn-shared,
   awn-container). Черновик: UI секций — в следующих итерациях.

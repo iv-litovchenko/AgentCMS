@@ -3,7 +3,7 @@ name: Медиатека (workspace)
 kind: type
 domain: hubs
 status: active
-extends: awn.hub.base
+extends: awn.hub.media.base
 description: >
   Карточка медиатеки workspace в awn-media/{slug}/ — manifest.md и awn-storage/
   (files/, assets/). Зависимые и независимые файлы: байты здесь, ссылки из тем — по path.

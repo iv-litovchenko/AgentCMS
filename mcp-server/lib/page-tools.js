@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-/** folder|area|awn.hub.area → folder; file|topic|awn.hub.topic* → file + awnType */
+/** folder|area|awn.hub.topic.area → folder; file|topic|awn.hub.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
   const explicitAwn = input.awnType ? String(input.awnType).trim() : "";
   const raw = String(input.type || explicitAwn || "").trim();
   if (!raw) {
-    throw new Error("type is required (folder|area|awn.hub.area or file|topic|awn.hub.topic)");
+    throw new Error("type is required (folder|area|awn.hub.topic.area or file|topic|awn.hub.topic)");
   }
 
   const lower = raw.toLowerCase();
@@ -13,7 +13,7 @@ export function normalizeCreatePageArgs(input = {}) {
     lower === "folder" ||
     lower === "area" ||
     lower === "awn.page.area" ||
-    lower === "awn.hub.area" ||
+    lower === "awn.hub.topic.area" ||
     lower === "manifest"
   ) {
     return {
@@ -38,7 +38,7 @@ export function normalizeCreatePageArgs(input = {}) {
   }
 
   throw new Error(
-    `Invalid type "${raw}". Use folder|area|awn.hub.area or file|topic|awn.hub.topic`
+    `Invalid type "${raw}". Use folder|area|awn.hub.topic.area or file|topic|awn.hub.topic`
   );
 }
 
@@ -172,7 +172,7 @@ export function registerPageTools({ reg, client, pagePath }) {
       type: z
         .string()
         .min(1)
-        .describe("folder | area | awn.hub.area | file | topic | awn.hub.topic"),
+        .describe("folder | area | awn.hub.topic.area | file | topic | awn.hub.topic"),
       name: z.string().min(1).optional(),
       displayName: z.string().min(1).optional(),
       title: z.string().optional(),
@@ -198,7 +198,7 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "create_topic",
-    "Create area or topic. type: area → folder+manifest (awn.hub.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
+    "Create area or topic. type: area → folder+manifest (awn.hub.topic.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
     createTopicSchema,
     createTopicHandler
   );

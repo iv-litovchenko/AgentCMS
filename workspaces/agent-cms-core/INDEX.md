@@ -4,7 +4,7 @@
 | ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | — | awn.hub.topic | типовые | `arhiv-voprosov/manifest.md` | [Архив вопросов](arhiv-voprosov/manifest.md) | — | 569 B | 29 | 0 | 0 | Настройки |
 | — | awn.hub.topic | типовые | `dokumentatsii/manifest.md` | [Документации](dokumentatsii/manifest.md) | User docs, Best Practices, Markdown showcase и черновики — в слоте main | 568 B | 25 | 0 | 0 | — |
-| — | awn.hub.ws | — | `manifest.md` | [\[Agent CMS\] Ядро платформы](manifest.md) | Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS | 737 B | 37 | 0 | 0 | — |
+| — | awn.hub.topic.ws | — | `manifest.md` | [\[Agent CMS\] Ядро платформы](manifest.md) | Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS | 737 B | 37 | 0 | 0 | — |
 | — | awn.hub.topic | гибкий | `obsuzhdeniya/manifest.md` | [Обсуждения](obsuzhdeniya/manifest.md) | — | 575 B | 29 | 0 | 0 | — |
 | — | папка | — | `Resources` | [Ресурсы](Resources) | Справочные материалы, картинки и документы платформы | — | — | 0 | 0 | — |
 | — | папка | — | `Resources/Images` | [Images](Resources/Images) | — | — | — | 0 | 0 | — |

@@ -5,8 +5,8 @@ domain: hubs
 status: active
 extends: awn.base
 description: >
-  Узел навигации workspace — дерево тем (ws / area / section / topic)
-  и карточки ingress (channel / media / repository).
+  Общая база hub-карточек workspace. Семьи: topic/ (дерево), channel/, media/,
+  repository/; накопители — hubs/database/ (awn.hub.database.*).
 mixins:
   - awn.mixin.indexing-container
 
