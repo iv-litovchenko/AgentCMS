@@ -2893,6 +2893,81 @@ const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
   downloads: "0-downloads",
   context: "0-context"
 };
+
+/** Sync CHPU path → canonical 0-* (same rules as lib/config/chpu-topic-canonical.js). */
+const AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON = {
+  agent: "0-agent",
+  "a0-agent": "0-agent",
+  user: "0-user",
+  "a0-user": "0-user",
+  users: "0-users",
+  "a0-users": "0-users",
+  devices: "0-devices",
+  "a0-devices": "0-devices",
+  taxonomies: "0-taxonomies",
+  "a0-taxonomies": "0-taxonomies",
+  catalog: "0-taxonomies",
+  "agent-rules": "0-agent-rules",
+  "a0-agent-rules": "0-agent-rules",
+  "agent.rules": "0-agent-rules",
+  "agent-voice-tts": "0-agent-voice-tts",
+  "a0-agent-voice-tts": "0-agent-voice-tts",
+  "agent.voice.tts": "0-agent-voice-tts",
+  "agent-voice-stt": "0-agent-voice-stt",
+  "a0-agent-voice-stt": "0-agent-voice-stt",
+  "agent.voice.stt": "0-agent-voice-stt"
+};
+
+function rewriteLegacyTopicPathsInRelPathClient(relPath) {
+  let p = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!p) return p;
+
+  p = p.replace(/^awn-container\b/i, "awn-topics");
+
+  const rootRewrites = [
+    ["awn-topics/shared", "awn-topics/0-shared"],
+    ["awn-shared", "awn-topics/0-shared"],
+    ["awn-topics/agent-kit", "awn-topics/0-agent-kit"],
+    ["awn-topics/a0-agent-kit", "awn-topics/0-agent-kit"],
+    ["awn-agent-kit", "awn-topics/0-agent-kit"],
+    ["agent-kit", "awn-topics/0-agent-kit"]
+  ];
+  for (const [from, to] of rootRewrites) {
+    const fromLower = from.toLowerCase();
+    if (p.toLowerCase() === fromLower) {
+      p = to;
+      break;
+    }
+    const prefix = `${from}/`;
+    if (p.toLowerCase().startsWith(prefix.toLowerCase())) {
+      p = `${to}/${p.slice(prefix.length)}`;
+      break;
+    }
+  }
+
+  const kitPrefix = "awn-topics/0-agent-kit/";
+  if (p.toLowerCase().startsWith(kitPrefix.toLowerCase())) {
+    const rest = p.slice(kitPrefix.length);
+    const slashIdx = rest.indexOf("/");
+    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+    const canon = AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
+    p = `${kitPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
+  }
+
+  const sharedPrefix = "awn-topics/0-shared/";
+  if (p.toLowerCase().startsWith(sharedPrefix.toLowerCase())) {
+    const rest = p.slice(sharedPrefix.length);
+    const slashIdx = rest.indexOf("/");
+    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+    const canon = SHARED_THEME_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
+    p = `${sharedPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
+  }
+
+  p = p.replace(/^awn-data\b/i, "awn-databases");
+  return p;
+}
 const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
@@ -3706,12 +3781,13 @@ function appendChpuViewToWorkspacePath(basePath, view, { force = false } = {}) {
 }
 
 function workspaceRelToChpuPath(relPath) {
-  return String(relPath || "")
+  const stripped = String(relPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/manifest\.md$/i, "")
     .replace(/\.md$/i, "")
     .replace(/\.sidecar\.md$/i, "");
+  return rewriteLegacyTopicPathsInRelPathClient(stripped);
 }
 
 const CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES = new Set([
@@ -3751,22 +3827,11 @@ function normalizeChpuPathBeforeResolve(rawPath) {
     path = `${path.replace(/\/main$/i, "")}/awn-storage/main`;
   }
 
-  return path.replace(/\/+$/, "");
+  return rewriteLegacyTopicPathsInRelPathClient(path.replace(/\/+$/, ""));
 }
 
 async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
-  let normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
-  try {
-    const canonRes = await fetch(
-      buildApiUrl("/api/chpu/canonical-path", { path: normalizedPath, agentId }, agentId)
-    );
-    if (canonRes.ok) {
-      const canon = await canonRes.json();
-      if (canon.path) normalizedPath = canon.path;
-    }
-  } catch {
-    // keep normalizedPath
-  }
+  const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
   const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -4682,40 +4747,6 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   updateWorkspaceShareLinkButton();
   scheduleActivePageContextSync();
   window.AgentDiscussPanel?.sync?.();
-  void refreshCanonicalUrlInLocationBar();
-}
-
-async function refreshCanonicalUrlInLocationBar() {
-  if (appRouteSyncSuspended > 0 || !activeAgentId) return;
-  const wsPath = getChpuWorkspacePathFromState();
-  if (!wsPath) return;
-  try {
-    const response = await fetch(
-      buildApiUrl("/api/chpu/canonical-path", { path: wsPath, agentId: activeAgentId }, activeAgentId)
-    );
-    if (!response.ok) return;
-    const data = await response.json();
-    const canonWs = String(data.path || wsPath).trim();
-    const canonAgent = canonicalChpuWorkspaceAgentId(String(data.agentId || activeAgentId).trim());
-    let pathname = `/${encodeURIComponent(canonAgent)}`;
-    if (canonWs) {
-      pathname += `/${canonWs
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment))
-        .join("/")}`;
-    }
-    const url = new URL(location.href);
-    url.pathname = pathname;
-    url.searchParams.delete("agent");
-    const next = `${url.pathname}${url.search}${url.hash}`;
-    const current = `${location.pathname}${location.search}${location.hash}`;
-    if (next === current) return;
-    history.replaceState({ appRoute: true }, "", next);
-    updateWorkspaceShareLinkButton();
-  } catch {
-    // ignore
-  }
 }
 
 let activePageContextSyncTimer = null;
@@ -101263,18 +101294,22 @@ function getNodeDisplayPath(nodePath) {
     return stripAgentContentPrefixFromRelPath(folderPath || getAgentTreeTitle());
   }
 
-  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
+  return rewriteLegacyTopicPathsInRelPathClient(
+    stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""))
+  );
 }
 
 function getNodeRoutePath(nodePath) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   if (!normalized) return "";
 
+  const toRoutePath = (rel) => rewriteLegacyTopicPathsInRelPathClient(stripAgentContentPrefixFromRelPath(rel));
+
   const filePartMatch = normalized.match(/^(.*)\/_Parts\/([^/]+)\.node\.md$/i);
   if (filePartMatch) {
     const parentPath = filePartMatch[1];
     const partName = filePartMatch[2];
-    return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+    return toRoutePath(parentPath ? `${parentPath}/${partName}` : partName);
   }
 
   if (isPartNodePath(normalized)) {
@@ -101283,16 +101318,16 @@ function getNodeRoutePath(nodePath) {
     if (partsMatch) {
       const parentPath = partsMatch[1];
       const partName = partsMatch[2];
-      return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+      return toRoutePath(parentPath ? `${parentPath}/${partName}` : partName);
     }
   }
 
   if (isNodeManifestPath(normalized) || isTopicManifestPath(normalized)) {
     const folderPath = getFolderPathFromManifest(normalized);
-    return stripAgentContentPrefixFromRelPath(folderPath || "");
+    return toRoutePath(folderPath || "");
   }
 
-  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
+  return toRoutePath(normalized.replace(MANIFEST_MD_RE, ""));
 }
 
 function normalizeBreadcrumbPath(nodePath) {
