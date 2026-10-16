@@ -10,7 +10,9 @@ const require = createRequire(import.meta.url);
 const {
   resolveContentAddress,
   resolveSlotsListAddress,
-  splitContentUploadRef
+  splitContentUploadRef,
+  isStoragePageLikeKind,
+  formatPublicPlacement
 } = require("../../lib/config/content-placement.js");
 const {
   slotKeyToStorageFolder,
@@ -298,8 +300,11 @@ export async function writeContentBinary(client, args) {
   const { fileName, subdir } = splitContentUploadRef(ref);
   const mimeType = args.mimeType;
   const createSubdir = args.createSubdir !== false;
-  const libraryFolder =
-    kind === "page" ? slotKeyToStorageFolder(slot) : ["files", "assets"].includes(slot) ? slot : slotKeyToStorageFolder(slot);
+  const libraryFolder = isStoragePageLikeKind(kind)
+    ? slotKeyToStorageFolder(slot)
+    : ["files", "assets"].includes(slot)
+      ? slot
+      : slotKeyToStorageFolder(slot);
 
   if (kind === "channel") {
     return client.post("/api/agent/channels/file", {
@@ -671,28 +676,28 @@ export async function listContentItems(client, args) {
     ? resolveSlotsListAddress({ placement: { kind: args.placement.kind, path: args.placement.path } })
     : resolveSlotsListAddress({ path: args.path });
   const { manifestPath, kind } = listAddr;
-  const folder =
-    kind === "page"
-      ? slotKeyToStorageFolder(slot)
-      : ["files", "assets"].includes(slot)
-        ? slot
-        : slotKeyToStorageFolder(slot);
+  const folder = isStoragePageLikeKind(kind)
+    ? slotKeyToStorageFolder(slot)
+    : ["files", "assets"].includes(slot)
+      ? slot
+      : slotKeyToStorageFolder(slot);
+  const placementOut = formatPublicPlacement(kind, manifestPath, slot);
 
   if (kind === "channel") {
     if (slot === "files" || slot === "assets") {
       const data = await client.get("/api/agent/channels/items", { path: manifestPath, folder });
-      return { placement: { kind, path: manifestPath, slot }, ...data };
+      return { placement: placementOut, ...data };
     }
     const data = await client.get("/api/storage/files", { path: manifestPath, folder });
-    return { placement: { kind, path: manifestPath, slot }, ...data };
+    return { placement: placementOut, ...data };
   }
   if (kind === "media") {
     const data = await client.get("/api/media", { path: manifestPath, folder });
     const { content, ...lean } = data || {};
-    return { placement: { kind, path: manifestPath, slot }, ...lean };
+    return { placement: placementOut, ...lean };
   }
   const data = await client.get("/api/storage/files", { path: manifestPath, folder });
-  return { placement: { kind, path: manifestPath, slot }, ...data };
+  return { placement: placementOut, ...data };
 }
 
 export async function deleteContent(client, args) {

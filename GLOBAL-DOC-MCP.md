@@ -38,10 +38,12 @@
 
 | Сущность | Что это | Ключ MCP |
 |----------|---------|----------|
-| **Placement** | Где лежит контент | `placement.kind`: `page` \| `channel` \| `media` \| `root` + `path` (+ `slot` + `ref` кроме root) |
-| **Page** | Тема/область в дереве (`manifest.md`) | `kind: page`, `path` → `…/manifest.md` |
-| **Channel** | Карточка `awn-channels/{slug}/` | `kind: channel`, `path` → slug или manifest; слоты: **`inbox`**, **`outbox`**, **`files`**, **`assets`** (см. `awn.hub.channel` storage-slots); каталог: `read_channels_index_toc` / `refresh_channels_index_toc` |
-| **Media hub** | Карточка `awn-media/{slug}/` | `kind: media` |
+| **Placement** | Где лежит контент | `placement.kind`: `topic` \| `channel` \| `media` \| `database` \| `repository` \| `root` + `path` (slug без префикса hub) (+ `slot` + `ref` кроме root) |
+| **Page (topic)** | Тема/область в дереве (`manifest.md`) | `kind: topic`, `path` → папка/slug темы (без `manifest.md`) |
+| **Channel** | Карточка ingress | `kind: channel`, `path` → slug (`telegram`, не `awn-channels/…`); слоты: **`inbox`**, **`outbox`**, **`files`**, **`assets`**; каталог: `read_channels_index_toc` |
+| **Database** | Инфоблок `awn-databases/{slug}/` | `kind: database`, `path` → slug store (`napominaniya`); слот записей: **`data`** (+ **`assets`**); каркас: `database_frame_*` |
+| **Media hub** | Карточка `awn-media/{slug}/` | `kind: media`, `path` → slug |
+| **Repository** | Карточка `awn-repositories/{slug}/` | `kind: repository`, `path` → slug (`group/repo`) |
 | **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
 | **Content** | Файл в слоте | `ref` — путь внутри слота |
 | **Root file** | Произвольный путь в workspace | `kind: root`, `path` — `AGENTS.md`, `folder/note.md` (без slot) |
@@ -53,7 +55,7 @@
 { "agentId": "…", "placement": { "kind": "root", "path": "AGENTS.md" } }
 ```
 
-- `placement.kind`: `topic` (синоним `page`) | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace).
+- `placement.kind`: `topic` | `channel` | `media` | `database` | `repository` — нужны `path` (slug без `awn-channels/` / `awn-databases/` / …) + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace). Legacy: `path` с префиксом hub и `kind: topic` → kind выводится автоматически.
 - `ref` — файл в слоте **с расширением** (`папка/zametka.md`). Если расширения нет, `read_content` / `content_exists` / `get_content_meta` / `read_content_property` повторяют запрос с `.md` и возвращают `refResolved`.
 - Без `placement` можно `path` + `slot` + `ref` — это то же, что `kind: topic`.
 - `read_content`: `part` = `body` (default) | `properties` | `schema` | `meta` | `all`. Body читается окном: по умолчанию первые 300 строк тела, `startLine` + `limitLines` (до 500) — номера строк **файла с frontmatter**, те же, что `startLine` в результатах поиска. В ответе `startLine`, `endLine`, `totalLines`, `bodyStartLine`, `hasMore`, `nextStartLine`, `hash`; окно расширяется, чтобы не резать блок ``` (`codeFence`). `full: true` — всё тело (нужно перед `write_content` mode=replace; для точечной правки не нужно). Internal-слоты и `main-single-csv` — целиком. Для root ещё `format: "base64"`, `offsetBytes`.

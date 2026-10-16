@@ -552,7 +552,7 @@ const CHANNEL_BUILTIN_PRESET_GROUPS = [
   },
   {
     id: "content-modes",
-    title: "Режимы контента",
+    title: "Режимы контента и свободное общение",
     slugs: ["forum", "blog", "digest"]
   },
   {

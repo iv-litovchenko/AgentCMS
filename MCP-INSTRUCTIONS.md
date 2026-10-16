@@ -28,6 +28,6 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 1. `list_workspaces` → выбери id → `get_session_context({ agentId })`.
 2. `agentId` обязателен в каждом workspace-scoped вызове.
-3. Карта workspace: `read_workspace_map` (WS-MAP).
-4. Полная документация: `get_session_documentation` — по необходимости.
+3. Карта workspace: `read_topic_index_toc` или `read_workspace_map` (WS-MAP).
+4. Полная документация — скилл `agent-cms`. Если он не подключён: `read_platform_doc({ path: "SKILL.md" })`.
 

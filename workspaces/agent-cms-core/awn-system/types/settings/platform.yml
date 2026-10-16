@@ -123,14 +123,6 @@ fields:
     group: auto-context
     sort: 1
 
-  always-context-global-mcp-doc:
-    type: awn.field.boolean
-    title: GLOBAL-DOC-MCP.md
-    description: Включить в get_session_documentation (не в get_session_context)
-    default: true
-    group: auto-context
-    sort: 2
-
   always-context-global-response-style:
     type: awn.field.boolean
     title: GLOBAL-RESPONSE-STYLE.md

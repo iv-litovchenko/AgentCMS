@@ -15,13 +15,13 @@
       "id": "agent-focus",
       "path": "/Users/macbook/Desktop/agent-focus",
       "environment": "local",
-      "default": true,
       "orchestrator": true
     },
     {
       "id": "agent-medcenter",
       "path": "/Users/macbook/Desktop/agent-medcenter",
-      "environment": "local"
+      "environment": "local",
+      "default": true
     },
     {
       "id": "downloads",

@@ -45,7 +45,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "content_exists",
-    "Check whether content exists in a slot (page, channel, or media placement).",
+    "Check whether content exists in a slot (topic, channel, media, database, or repository placement).",
     address({}),
     (args) => withMdRefFallback(args, (a) => contentExists(client, a))
   );
@@ -59,7 +59,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content",
-    "Read content by placement.kind: topic (= page) | channel | media | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
+    "Read content by placement.kind: topic | channel | media | database | repository | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
       "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
       `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
       "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
@@ -96,7 +96,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "list_content",
-    "List items: placement.kind topic (= page)|channel|media + slot, or root + path (folder inferred from file path). path or placement.path is required.",
+    "List items: placement.kind topic|channel|media|database|repository + slot, or root + path (folder inferred from file path). path or placement.path is required.",
     z
       .object({
         placement: z

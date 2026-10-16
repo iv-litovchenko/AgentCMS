@@ -273,7 +273,8 @@ html.asc-capturing-fullpage {
 #agent-companion-crosshair {
   position: fixed;
   inset: 0;
-  z-index: 2147483644;
+  /* Ниже тулбара (3646), портала помидора и break-оверлея (3647) */
+  z-index: 2147483000 !important;
   pointer-events: none;
   overflow: hidden;
 }
@@ -330,7 +331,83 @@ html.asc-capturing-fullpage #agent-companion-crosshair,
 html.asc-screenshot-region-active #agent-companion-crosshair,
 html.asc-screenshot-element-active #agent-companion-crosshair,
 html.asc-screenshot-annotate-active #agent-companion-crosshair,
-html.asc-bookmarks-draft-active #agent-companion-crosshair {
+html.asc-bookmarks-draft-active #agent-companion-crosshair,
+html.asc-pomodoro-toolbar-pop-open #agent-companion-crosshair {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html.asc-pomodoro-toolbar-pop-open #agent-shell-companion-toolbar {
+  z-index: 2147483647 !important;
+}
+
+#agent-companion-pomodoro-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647 !important;
+  pointer-events: none;
+  overflow: visible;
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-pop {
+  position: fixed !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto;
+  width: min(240px, calc(100vw - 24px));
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 146, 60, 0.45);
+  background: rgba(17, 12, 32, 0.98);
+  box-shadow: 0 12px 32px rgba(15, 10, 30, 0.4);
+  color: #f5f3ff;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-pop[hidden] {
+  display: none !important;
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-status {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(254, 215, 170, 0.9);
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-start,
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-stop {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-start {
+  color: #431407;
+  background: linear-gradient(180deg, #fdba74, #fb923c);
+}
+
+#agent-companion-pomodoro-portal .asc-brand-pomodoro-stop {
+  color: #f5f3ff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.asc-pomodoro-break-active #agent-companion-crosshair {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;

@@ -142,13 +142,13 @@ function createServer() {
 
   reg(
     "get_session_documentation",
-    "Platform docs on demand: GLOBAL-DOC-MCP.md, README.md, GLOBAL-DOC-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
+    "Platform docs on demand: README.md, GLOBAL-DOC-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
     z.object({
       docs: z
         .union([z.array(z.string()), z.string()])
         .optional()
         .describe(
-          "Optional filter: file names or comma-separated, e.g. GLOBAL-DOC-MCP.md. Omit for all enabled docs."
+          "Optional filter: file names or comma-separated, e.g. README.md. Omit for all enabled docs."
         )
     }),
     ({ docs }) =>

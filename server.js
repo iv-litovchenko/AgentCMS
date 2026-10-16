@@ -753,12 +753,6 @@ const SESSION_ALWAYS_PLATFORM_FILES = [
 /** Platform docs loaded on demand via get_session_documentation (not in session-context). */
 const SESSION_DOCUMENTATION_PLATFORM_FILES = [
   {
-    file: GLOBAL_DOC_MCP_FILE,
-    settingKey: "always-context-global-mcp-doc",
-    description: "Глобальная карта MCP (корень репозитория, все агенты)",
-    root: "project"
-  },
-  {
     file: PLATFORM_README_FILE,
     settingKey: "always-context-platform-readme",
     description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
@@ -12087,7 +12081,7 @@ async function buildAgentAlwaysContextRegistry() {
     model: "always-context",
     hint:
       "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. " +
-      "Platform docs (GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+      "Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
     items,
     itemCount: items.length
   };
@@ -12115,7 +12109,7 @@ async function buildAgentSessionDocumentationRegistry(options = {}) {
     version: 1,
     model: "session-documentation",
     hint:
-      "Platform documentation on demand (not in get_session_context). Settings: always-context-global-mcp-doc, always-context-platform-readme, always-context-global-markdown-showcase.",
+      "Platform documentation on demand (not in get_session_context). Settings: always-context-platform-readme, always-context-global-markdown-showcase.",
     items,
     itemCount: items.length,
     availableDocs: SESSION_DOCUMENTATION_PLATFORM_FILES.map((e) => e.file)
@@ -14668,7 +14662,7 @@ const SESSION_CONTEXT_API_MAP = {
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-DOC-MCP/README); MCP: list_workspace_always_context",
   sessionDocumentation:
-    "GET /api/agent/session-documentation?docs= — GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
+    "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:

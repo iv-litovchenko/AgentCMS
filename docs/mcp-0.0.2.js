@@ -75,7 +75,7 @@ module.exports = {
         },
         {
           name: "get_session_documentation",
-          description: "GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
+          description: "README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
           parameters: "docs? (filter file names)",
           http: "GET /api/agent/session-documentation?docs="
         },

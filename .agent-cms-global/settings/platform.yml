@@ -9,7 +9,6 @@ awn_settings:
   ui-show-breadcrumbs: true
   ui-default-sidebar-width: 280
   always-context-platform-readme: true
-  always-context-global-mcp-doc: true
   always-context-global-response-style: true
   always-context-global-rules: true
   always-context-global-markdown-showcase: false
