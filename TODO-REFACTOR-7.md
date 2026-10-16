@@ -102,7 +102,7 @@ awn-topics/                          ← бывш. awn-container
 | ------ | --- |
 | ✅ | **Шаги 1–3:** единый корень **`awn-topics/`** (+ секции **`agent-kit`**, **`shared`**) |
 | ✅ | Тип **`awn.hub.topic.section`** — manifest секций **`0-agent-kit`**, **`0-shared`** + infer/create |
-| ❌ | **`list_topics` / INDEX**: pinned секции **`shared`**, **`agent-kit`** |
+| ✅ | **`list_topics` / INDEX**: pinned секции **`0-shared`**, **`0-agent-kit`** (`pinnedSections`, sort) |
 | ✅ | Документация: **`TODO-REFACTOR-4`** § «Дерево hub workspace» |
 
 ---

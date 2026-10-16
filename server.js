@@ -352,7 +352,10 @@ const {
   resolveMediaStorageSubfolderForManifest,
   isWorkspaceAwnMediaLibraryManifestRel,
   isWorkspaceAwnChannelManifestRel,
-  rewriteLegacyTopicPathsInRelPath
+  rewriteLegacyTopicPathsInRelPath,
+  AWN_TOPICS_AGENT_KIT_REL,
+  AWN_TOPICS_SHARED_REL,
+  isTopicHubSectionManifestRel
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -12687,6 +12690,26 @@ async function buildPageMapSlotSummaries(manifestRelPath) {
   return slots;
 }
 
+function topicHubPinnedSectionSortKey(row) {
+  if (!row?.pinned) return 1000;
+  const manifestRel = String(row.path || row.linkPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/manifest\.md$/i, "");
+  const dir = rewriteLegacyTopicPathsInRelPath(manifestRel).toLowerCase();
+  if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) return 0;
+  if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) return 1;
+  return 500;
+}
+
+function compareTopicHubCatalogRows(a, b, pathLabelFn) {
+  const rankA = topicHubPinnedSectionSortKey(a);
+  const rankB = topicHubPinnedSectionSortKey(b);
+  if (rankA !== rankB) return rankA - rankB;
+  const da = pathLabelFn(a);
+  const db = pathLabelFn(b);
+  return da.localeCompare(db, "ru");
+}
+
 async function buildAgentPageMap(options = {}) {
   const includeSlots = options.includeSlots !== false;
   const agentRoot = getAgentRoot();
@@ -12708,12 +12731,14 @@ async function buildAgentPageMap(options = {}) {
     const awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
     const title = String(getYamlScalar(frontmatter, "awn-name") || label || "").trim();
     const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+    const isHubSection = isTopicHubSectionManifestRel(normalized);
     const entry = {
       path: normalized,
       title,
       description,
       awnType,
-      kind,
+      kind: isHubSection ? "section" : kind,
+      pinned: isHubSection,
       hasManifest: true,
       parentPath,
       properties: frontmatterPropsToObject(frontmatter)
@@ -12785,17 +12810,13 @@ async function buildAgentPageMap(options = {}) {
   if (menu.sharedTree) await walkTree(menu.sharedTree, null, "area");
   if (menu.serviceTree) await walkTree(menu.serviceTree, null, "area");
 
-  pages.sort((a, b) => {
-    const da =
-      a.kind === "folder"
-        ? stripAgentContentPrefixFromRelPath(a.path) || a.path
-        : getManifestDisplayPathForTable(a.path, a.title, a.kind);
-    const db =
-      b.kind === "folder"
-        ? stripAgentContentPrefixFromRelPath(b.path) || b.path
-        : getManifestDisplayPathForTable(b.path, b.title, b.kind);
-    return da.localeCompare(db, "ru");
-  });
+  pages.sort((a, b) =>
+    compareTopicHubCatalogRows(a, b, (row) =>
+      row.kind === "folder"
+        ? stripAgentContentPrefixFromRelPath(row.path) || row.path
+        : getManifestDisplayPathForTable(row.path, row.title, row.kind)
+    )
+  );
 
   const manifestCount = pages.filter((row) => row.hasManifest !== false).length;
   const folderCount = pages.filter((row) => row.kind === "folder").length;
@@ -12843,6 +12864,8 @@ function slimTopicListEntry(row) {
     hasManifest: row.hasManifest !== false
   };
   if (awnId) entry.awnId = awnId;
+  if (row.pinned) entry.pinned = true;
+  if (row.kind === "section") entry.kind = "section";
   if (row.kind === "folder") {
     entry.adoptable = row.adoptable !== false;
     entry.empty = Boolean(row.empty);
@@ -12857,7 +12880,7 @@ async function buildAgentTopicsList(options = {}) {
   const pageMap = await buildAgentPageMap({ includeSlots: false });
   let rows = (pageMap.pages || []).filter((row) => {
     if (row.kind === "folder") return includeFolders;
-    return row.kind === "ws" || row.kind === "area" || row.kind === "topic";
+    return row.kind === "ws" || row.kind === "area" || row.kind === "section" || row.kind === "topic";
   });
 
   const parentPath = options.parentPath
@@ -12885,17 +12908,31 @@ async function buildAgentTopicsList(options = {}) {
   }
 
   const topics = rows.map(slimTopicListEntry);
-  topics.sort((a, b) => {
-    const da = String(a.path || "");
-    const db = String(b.path || "");
-    return da.localeCompare(db, "ru");
-  });
+  topics.sort((a, b) => compareTopicHubCatalogRows(a, b, (row) => String(row.path || "")));
+
+  const pinnedSections = topics
+    .filter((entry) => entry.pinned)
+    .map((entry) => {
+      const dir = rewriteLegacyTopicPathsInRelPath(
+        String(entry.path || "").replace(/\/manifest\.md$/i, "")
+      ).toLowerCase();
+      let role = "section";
+      if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) role = "agent-kit";
+      else if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) role = "shared";
+      return { role, path: entry.path, title: entry.title, awnType: entry.awnType };
+    })
+    .sort(
+      (a, b) =>
+        (a.role === "agent-kit" ? 0 : a.role === "shared" ? 1 : 2) -
+        (b.role === "agent-kit" ? 0 : b.role === "shared" ? 1 : 2)
+    );
 
   return {
     version: 1,
     model: "topics-list",
     hint:
-      "Список узлов дерева тем (ws / area / topic): path, type, title, parentPath — без body и без INDEX.md. " +
+      "Список узлов дерева тем (ws / area / section / topic): path, type, title, parentPath — без body и без INDEX.md. " +
+      "Секции hub (0-agent-kit, 0-shared) — pinned вверху flat-списка и в INDEX. " +
       "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
     whenToUse: {
       list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
@@ -12906,7 +12943,9 @@ async function buildAgentTopicsList(options = {}) {
     scope: parentPath ? scope : "flat",
     includeFolders,
     topics,
-    topicCount: topics.length
+    topicCount: topics.length,
+    pinnedSections,
+    pinnedSectionOrder: ["agent-kit", "shared"]
   };
 }
 
@@ -13228,6 +13267,7 @@ function pageMapRowToWorkspaceIndexEntry(page) {
     description: String(page?.description || "").trim(),
     slotsMode,
     slotsFlexible: Boolean(page?.slotsFlexible),
+    pinned: Boolean(page?.pinned),
     awnId,
     properties,
     importance: parseImportanceFromProperties(properties)
@@ -13238,7 +13278,9 @@ function mapPageMapToWorkspaceIndexEntries(pages = []) {
   return (pages || [])
     .map(pageMapRowToWorkspaceIndexEntry)
     .filter((entry) => entry.path || entry.title)
-    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+    .sort((a, b) =>
+      compareTopicHubCatalogRows(a, b, (row) => String(row.path || ""))
+    );
 }
 
 async function buildWorkspacePageIndexMarkdown({ pages }) {
@@ -13266,12 +13308,34 @@ async function buildAgentWorkspacePageIndex() {
     pageMap.pages
   );
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
+  const pinnedSections = entries
+    .filter((entry) => entry.pinned)
+    .map((entry) => {
+      const dir = rewriteLegacyTopicPathsInRelPath(
+        String(entry.linkPath || entry.path || "").replace(/\/manifest\.md$/i, "")
+      ).toLowerCase();
+      let role = "section";
+      if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) role = "agent-kit";
+      else if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) role = "shared";
+      return {
+        role,
+        path: entry.linkPath || entry.path,
+        title: entry.title,
+        type: entry.type
+      };
+    })
+    .sort(
+      (a, b) =>
+        (a.role === "agent-kit" ? 0 : a.role === "shared" ? 1 : 2) -
+        (b.role === "agent-kit" ? 0 : b.role === "shared" ? 1 : 2)
+    );
 
   return {
     version: 1,
     model: "workspace-page-index",
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
+      "Секции hub (0-agent-kit, 0-shared) — pinned вверху таблицы. " +
       "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Папки без manifest → list_folder (legacy get_topic_map deprecated).",
     whenToUse: {
       read_topic_index_toc:
@@ -13287,6 +13351,8 @@ async function buildAgentWorkspacePageIndex() {
     },
     entries,
     entryCount: entries.length,
+    pinnedSections,
+    pinnedSectionOrder: ["agent-kit", "shared"],
     pageCount: pageMap.pageCount,
     folderCount: pageMap.folderCount
   };

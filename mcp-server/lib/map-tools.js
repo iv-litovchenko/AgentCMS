@@ -638,11 +638,11 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   const workspaceTopicIndexTocDescription =
-    "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
+    "Quick TOC for workspace topics: path + type + title + description (INDEX.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
 
   reg(
     "list_topics",
-    "Topic tree nodes (ws/area/topic): flat list or filtered by parentPath (manifest path or folder). No body. INDEX table → read_topic_index_toc; folders without manifest → list_folder (includeFolders=true).",
+    "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_folder (includeFolders=true).",
     z.object({
       parentPath: pagePath
         .optional()

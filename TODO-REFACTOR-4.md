@@ -151,7 +151,7 @@ workspace/                              … awn.hub.topic.ws
 └── …
 ```
 
-**MCP / UI:** `list_topics` — дерево под **`awn-topics/`** (секции kit/shared часто в отдельных ветках меню, не в flat container). **`always-context`:** `awn-topics/0-shared/0-context/awn-storage/` (legacy `awn-shared/context/` → alias).
+**MCP / UI:** `list_topics` / **`read_topic_index_toc`** — секции **`0-agent-kit`**, **`0-shared`** **pinned** вверху (`pinnedSections`, порядок agent-kit → shared); в sidebar — отдельные **`serviceTree`** / **`sharedTree`**. **`always-context`:** `awn-topics/0-shared/0-context/awn-storage/` (legacy `awn-shared/context/` → alias).
 
 **Индексы:** `read_topic_index_toc` → **`awn-topics/INDEX.md`**; hub-каталоги — `refresh_*_index_toc` для `awn-channels|awn-media|awn-databases`.
 
