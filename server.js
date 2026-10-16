@@ -14910,6 +14910,7 @@ const SESSION_CONTEXT_API_MAP = {
   siteMap: "GET /api/agent/site-map — legacy; MCP: read_topic_index_toc (get_topic_map deprecated)",
   pageMap:
     "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: list_topics / read_topic_index_toc + list_folder",
+  listTopics:
     "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP list_topics (дерево тем, без INDEX.md)",
   contentMap:
     "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
