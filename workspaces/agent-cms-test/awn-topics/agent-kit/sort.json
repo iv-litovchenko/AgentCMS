@@ -1,6 +1,6 @@
 {
   "order": [
-    "awn-agent-kit",
+    "awn-topics/agent-kit",
     "test",
     "ierarhi-1-o",
     "ierarhi-12",

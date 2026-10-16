@@ -1835,7 +1835,7 @@ description: Работа с Agent CMS через MCP. Используй при
 ## Зоны workspace
 - \`awn-system/\` — модель CMS
 - \`awn-topics/\` — контент
-- \`awn-agent-kit/\` — runtime агента
+- \`awn-topics/agent-kit/\` — runtime агента
 
 ## MCP (часто)
 | Задача | Tool |
@@ -2768,7 +2768,8 @@ const SYSTEM_FILE_GROUP_LABELS = {
 };
 const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
-const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
+const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/agent-kit";
+const LEGACY_AWN_AGENT_KIT_FOLDER = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-topics";
 const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
@@ -5553,9 +5554,18 @@ function getCreateModalAgentId() {
   return createModalAgentId || activeAgentId;
 }
 
+function getAgentKitFolderBasename() {
+  const parts = String(AGENT_KIT_FOLDER_DEFAULT || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  return parts[parts.length - 1] || AGENT_KIT_FOLDER_DEFAULT;
+}
+
 function isKitFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
-  if (lower === AGENT_KIT_FOLDER_DEFAULT.toLowerCase()) return true;
+  if (lower === getAgentKitFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_AGENT_KIT_FOLDER.toLowerCase()) return true;
   if (lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase()) return true;
   return false;
 }
@@ -5678,7 +5688,10 @@ function isAgentSystemRootIndexPath(nodePath) {
 function isServiceNodePath(nodePath) {
   if (!getActiveAgentKitFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefixes = [getActiveAgentKitFolder()].filter(Boolean);
+  const prefixes = [
+    getActiveAgentKitFolder(),
+    LEGACY_AWN_AGENT_KIT_FOLDER
+  ].filter(Boolean);
   return prefixes.some(
     (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
   );
@@ -102612,7 +102625,7 @@ function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
   if (domain === "taxonomies") {
     body.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
     body.push(`props-field: awn-${slug}`);
-    body.push(`data-path: awn-agent-kit/taxonomies/${slug}/main.csv`);
+    body.push(`data-path: ${AGENT_KIT_FOLDER_DEFAULT}/taxonomies/${slug}/main.csv`);
     body.push(`create-node-group: taxonomy`);
     body.push(`create-node-label: ${displayName}`);
     body.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);

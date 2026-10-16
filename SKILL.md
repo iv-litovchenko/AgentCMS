@@ -37,7 +37,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc` по активной теме.
 
-Кто ты и кто пользователь в этом workspace — `get_agent_identity` / `get_user_identity` (`awn-agent-kit/agent/`, `awn-agent-kit/user/`).
+Кто ты и кто пользователь в этом workspace — `get_agent_identity` / `get_user_identity` (`awn-topics/agent-kit/agent/`, `awn-topics/agent-kit/user/`; legacy `awn-agent-kit/…` на чтение).
 
 ---
 
@@ -70,7 +70,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 | Раздел | Где на диске | Что там |
 |--------|--------------|---------|
 | Каналы | `awn-channels/{slug}/` | Входящие потоки: Telegram, GitHub, закладки — сырые идеи, ссылки, задачи на потом |
-| Темы | `awn-topics/…` (+ `awn-agent-kit/`, `awn-shared/`) | Разобранные знания по областям |
+| Темы | `awn-topics/…` (+ `awn-topics/agent-kit/`, `awn-shared/`) | Разобранные знания по областям |
 | Базы | `awn-databases/…` | Структурированные данные: задачи, финансы, дневник, привычки |
 | Репозитории | `awn-repositories/{slug}/` | Подключённые проекты с кодом |
 | Медиатеки | `awn-media/{slug}/` | Файлы и картинки workspace |
@@ -89,7 +89,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Дерево областей и тем. Типы: `awn.page.ws` (корень workspace), `awn.page.area` (область — папка), `awn.page.topic` (тема со слотами).
 
-Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-agent-kit/` — служебные темы агента (persona, rules, voice…); `awn-shared/` — общие ресурсы.
+Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/agent-kit/` — служебные темы агента (persona, rules, voice…); `awn-shared/` — общие ресурсы.
 
 **Тело `manifest.md` — бриф темы:** назначение, границы, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии.
 

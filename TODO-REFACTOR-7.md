@@ -72,11 +72,22 @@ awn-topics/                          ← бывш. awn-container
 
 ---
 
+## Шаг 2 — `awn-agent-kit` → `awn-topics/agent-kit` ✅
+
+| Сделано | Детали |
+| ------- | ------ |
+| ✅ | Default **`awn-topics/agent-kit`**: `agent-registry`, UI, identity/voice defaults |
+| ✅ | Read-алиас **`awn-agent-kit/`** и корневой **`agent-kit/`** → **`awn-topics/agent-kit/`** (`rewriteLegacyAgentKitInRelPath`) |
+| ✅ | **`agent-cms-test`**: папка перенесена; пути в живых файлах обновлены |
+| ✅ | Container tree: секция **`agent-kit`** скрыта из **`containerTree`** (остаётся **`serviceTree`**) |
+
+---
+
 ## План работ (остальное)
 
 | Статус | Шаг |
 | ------ | --- |
-| ❌ | **Шаг 2:** **`awn-agent-kit` → `awn-topics/agent-kit`** (+ тип section при необходимости) |
+| ✅ | **Шаг 2:** **`awn-agent-kit` → `awn-topics/agent-kit`** |
 | ❌ | **Шаг 3:** **`awn-shared` → `awn-topics/shared`** |
 | ❌ | Тип **`awn.hub.topic.section`** в **`types/hubs/`** (manifest, slots, extends) |
 | ❌ | **`list_topics` / INDEX**: pinned секции **`shared`**, **`agent-kit`** |

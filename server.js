@@ -352,7 +352,7 @@ const {
   resolveMediaStorageSubfolderForManifest,
   isWorkspaceAwnMediaLibraryManifestRel,
   isWorkspaceAwnChannelManifestRel,
-  rewriteLegacyTopicsRootInRelPath
+  rewriteLegacyTopicPathsInRelPath
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -1872,7 +1872,7 @@ async function readJsonBody(req, maxSize = 1_000_000) {
 }
 
 function normalizeWorkspacePath(inputPath) {
-  const raw = rewriteLegacyTopicsRootInRelPath(String(inputPath ?? "").trim());
+  const raw = rewriteLegacyTopicPathsInRelPath(String(inputPath ?? "").trim());
   if (!raw || raw === ".") return null;
   const agentRoot = getAgentRoot();
   const safe = path.normalize(raw).replace(/^(\.\.[\/\\])+/, "");
@@ -9691,6 +9691,15 @@ async function normalizeNestedContainerMenuTree(tree, containerAbsolute, contain
     tree.previewUrl = indexMeta.previewUrl;
   }
   tree.sections = (tree.sections || []).filter((section) => section.title !== CONTAINER_AREA_NAME);
+  const kitFolder = getAgentKitFolder();
+  if (kitFolder) {
+    tree.sections = tree.sections.filter((section) => {
+      const fp = String(section.folderPath || "").replace(/\\/g, "/");
+      if (fp === kitFolder || fp.startsWith(`${kitFolder}/`)) return false;
+      const base = fp.split("/").filter(Boolean).pop() || "";
+      return !isAgentKitFolderEntryName(base);
+    });
+  }
   return tree;
 }
 
@@ -9938,6 +9947,7 @@ function dedupeReservedRootMenuSections(menu) {
   const reserved = new Set(
     [
       getAgentKitFolder(),
+      "awn-agent-kit",
       getAgentSharedFolder(),
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
@@ -9960,7 +9970,7 @@ function dedupeReservedRootMenuSections(menu) {
 
 function dedupeGitRepoReservedSections(sections, gitRootRel) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentSharedFolder(), getAgentContainerFolder()]
+    [getAgentKitFolder(), "awn-agent-kit", getAgentSharedFolder(), getAgentContainerFolder()]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -10906,9 +10916,7 @@ function isSharedFolderName(name) {
 }
 
 function isKitFolderName(name) {
-  const configured = getAgentKitFolder();
-  if (!configured) return false;
-  return String(name || "").toLowerCase() === String(configured).toLowerCase();
+  return isAgentKitFolderEntryName(name);
 }
 
 function isServiceFolderName(name) {
@@ -14987,9 +14995,9 @@ const SESSION_CONTEXT_API_MAP = {
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-agent-kit/agent/)",
+    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/agent-kit/agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — get_user_identity MCP (awn-agent-kit/user/)",
+    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/agent-kit/user/)",
   activity:
     "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
   sidecarResolve:
@@ -15008,7 +15016,7 @@ const SESSION_PATH_HINTS = {
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot:
     "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
-  agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
+  agentKit: "Служебные темы: awn-topics/agent-kit/agent/manifest.md, awn-topics/agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
   adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
@@ -15070,7 +15078,7 @@ async function readAgentSystemContext(agentRoot) {
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
-  const kitFolder = getAgentKitFolder() || "awn-agent-kit";
+  const kitFolder = getAgentKitFolder() || "awn-topics/agent-kit";
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
   const serviceDocs = [];

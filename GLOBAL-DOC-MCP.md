@@ -73,7 +73,7 @@
 ### Разделы дерева (для `parentPath` в `create_topic`)
 
 - `awn-topics/` — пользовательские области и темы (по умолчанию);
-- `awn-agent-kit/` — служебные темы агента (persona, rules, voice…);
+- `awn-topics/agent-kit/` — служебные темы агента (persona, rules, voice…; legacy `awn-agent-kit/` на чтение);
 - `awn-shared/` — общие ресурсы между темами.
 
 ### Страницы vs инфоблоки — когда что
