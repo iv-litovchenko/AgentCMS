@@ -106,17 +106,21 @@ awn-databases/
 
 ---
 
-## `awn-channels/` (все builtin presets → **`0-{slug}`**)
+## `awn-channels/` ✅ (REFACTOR-3 §4)
 
 Источник списка: **`lib/config/channel-presets.js`** ↔ **`CHANNEL_BUILTIN_PRESETS`** (`public/main.js`).
 
-| Статус | Пример (сейчас → план) |
-| ------ | ---------------------- |
-| ❌ | `telegram` → **`0-telegram`**, `forum` → **`0-forum`**, … **все ~40 slug** из presets |
+| Статус | Пример (было → канон **`0-*`**) |
+| ------ | ------------------------------- |
+| ✅ | `telegram` → **`0-telegram`**, `forum` → **`0-forum`**, … **все slug** из presets |
 
 Группы каталога (**`CHANNEL_BUILTIN_PRESET_GROUPS`**) — только UI; на диске всегда **`awn-channels/0-…/`**.
 
-**Кастом** без preset — **не** переименовывать автоматически; правило: **preset = `0-`**, custom = на усмотрение.
+**Кастом** без preset — **не** переименовывать автоматически; правило: **preset = `0-`**, custom = на усмотрение (напр. **`slider`** в **`agent-cms-test`**).
+
+**Код:** `channel-presets.js` (`canonChannelPresetSlug`, `CHANNEL_LEGACY_SLUG_TO_CANON`), `rewriteLegacyChannelsInRelPath`, `awn-channels-service` (legacy lookup + `register` → канон), UI (`resolveChannelCanonicalSlug`, `isChannelBuiltinSlug`).
+
+**После деплоя:** `refresh_channels_index_toc` + rebuild index.
 
 ---
 

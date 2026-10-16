@@ -14,7 +14,7 @@ const {
 const workspaceRelPath = z
   .string()
   .min(1)
-  .describe("Workspace-relative path, e.g. awn-channels/telegram/manifest.md");
+  .describe("Workspace-relative path, e.g. awn-channels/0-telegram/manifest.md");
 
 const channelStorageFolder = z
   .enum(["files", "assets"])
