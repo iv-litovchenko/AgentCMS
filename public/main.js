@@ -52891,7 +52891,14 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
   if (normalized === normalizeAwnTypeName("awn.annotation.sidecar")) {
     return "sidecar";
   }
-  if (String(typeName || "").startsWith("awn.database.frame.")) return "frame";
+  const dbType = String(typeName || "");
+  if (
+    dbType.startsWith("awn.database.frame.") ||
+    dbType.startsWith("awn.hub.database.frame.") ||
+    /^awn\.hub\.database\.(single|group|collection|taxonomy-collection)$/.test(dbType)
+  ) {
+    return "frame";
+  }
   return "topic";
 }
 

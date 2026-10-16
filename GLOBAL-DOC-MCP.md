@@ -302,7 +302,7 @@ MCP policy задаётся только в `platform`. Секреты в settin
 |--------|-----------|
 | `create-page` | `awn.hub.topic` |
 | `slot-content` | `awn.content.record`, `awn.content.record-csv` |
-| `data-containers` | `awn.database.frame.collection` |
+| `data-containers` | `awn.hub.database.collection` |
 | `data-elements` | `awn.content.record`, `awn.content.record-lite`, `awn.content.record-csv`, `awn.content.category` |
 
 ---

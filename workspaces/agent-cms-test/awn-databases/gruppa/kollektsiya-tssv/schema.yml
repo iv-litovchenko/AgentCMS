@@ -3,7 +3,7 @@ layer: awn-databases-store
 
 awn_schema:
   frame:
-    extends: awn.database.frame.collection
+    extends: awn.hub.database.collection
   category:
     extends: awn.content.category
   record:

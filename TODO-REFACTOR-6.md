@@ -7,7 +7,7 @@
 
 **✅** сделано · **❌** не сделано.
 
-**Связано:** часть 4 (placement), `GLOBAL-DOC-MCP.md`, `database_frame_*`. **Не путать:** hub = карточка узла (`manifest.md`); записи в слотах = **`awn.content.*`**; карточка базы = **`awn.database.frame.*`**.
+**Связано:** часть 4 (placement), `GLOBAL-DOC-MCP.md`, `database_frame_*`. **Не путать:** hub = карточка `manifest.md`; слот **`data/`** = **`awn.content.*`**; карточка базы = **`awn.hub.database.*`** (см. E — без сегмента `frame`).
 
 ---
 
@@ -103,21 +103,60 @@ types/hubs/
 │   └── group.yml                          → awn.hub.repository.group  *(план, типа ещё нет)*
 └── database/
     ├── _base.yml                          → awn.hub.database.base
-    └── frames/
-        ├── _base.yml                      → awn.hub.database.frame.base
-        ├── single.yml | group.yml | collection.yml
-        └── collection/taxonomy.yml
+    ├── single.yml | group.yml | collection.yml | taxonomy-collection.yml
 ```
 
-**Наследование (id):** `awn.hub.base` → `awn.hub.topic.base` → ws | area | section | **topic**; отдельно channel / media / **repository** (сейчас один тип; `repository.group` — позже); database.base → frame.base → single | group | collection.
+**Наследование (id):** `awn.hub.base` → `awn.hub.topic.base` → ws | area | section | **topic**; channel / media / repository; database — см. **E**.
 
-**Legacy после D:** `awn.hub.ws` → `awn.hub.topic.ws`, `awn.hub.topic` (плоский) → тот же id; `awn.database.frame.*` → `awn.hub.database.frame.*`.
+**Legacy после D:** `awn.hub.ws` → `awn.hub.topic.ws`; `awn.database.frame.*` → `awn.hub.database.frame.*` (до E).
 
 | Статус | Шаг |
 | ------ | --- |
 | ✅ | Подпапки `topic|channel|media|repository|database`; ingest `hubs` + `hubs/database` |
 | ✅ | Aliases; `awn.hub.topic.*`; `awn.hub.database.frame.*`; миграция manifest (ws/area/section) |
 | ✅ | Удалены плоские `types/hubs/*.yml` и `types/databases/` |
+
+---
+
+## E — hub database: убрать `frame` · ✅
+
+**Зачем:** сегмент **`frame`** и папка **`frames/`** — наследие `kind: frame`, не как у **`awn.hub.topic.*`**. Канон: **`awn.hub.database.single`**, не `…database.frame.single`.
+
+**MCP (как сейчас):** каркас — **`database_frame_*`** (`iblock-tools.js`: list/get/create/schema/properties…). Записи — **`_*_content_*`**, `placement: { kind: "database", slot: "data" }`. Переименование tools (`database_*` / `hub_database_*`) — **опционально**, не блокер; важнее **единые id типов** и aliases.
+
+### Целевое дерево каталога
+
+```
+types/hubs/database/
+├── _base.yml                    → awn.hub.database.base
+├── single.yml                   → awn.hub.database.single
+├── group.yml                    → awn.hub.database.group
+├── collection.yml               → awn.hub.database.collection
+└── taxonomy-collection.yml      → awn.hub.database.taxonomy-collection
+```
+
+*(Файл `taxonomy-collection.yml`, id с точками только в YAML `id:` — не `collection/taxonomy` как сегмент id, если не нужна вложенность.)*
+
+### Карта id
+
+| Сейчас (после D) | Канон (E) |
+| ---------------- | --------- |
+| `awn.hub.database.frame.base` | *(убрать)* — типы **`extends: awn.hub.database.base`** |
+| `awn.hub.database.frame.single` | **`awn.hub.database.single`** |
+| `awn.hub.database.frame.group` | **`awn.hub.database.group`** |
+| `awn.hub.database.frame.collection` | **`awn.hub.database.collection`** |
+| `awn.hub.database.frame.taxonomy-collection` | **`awn.hub.database.taxonomy-collection`** |
+| `awn.database.frame.*` | aliases → **`awn.hub.database.*`** |
+
+### План E
+
+| Статус | Шаг |
+| ------ | --- |
+| ✅ | Плоский `database/`; id **`awn.hub.database.single|group|collection|taxonomy-collection`** |
+| ✅ | **`TYPE_ID_ALIASES`**, `awn-data-loader`, `isDatabaseFrameTypeId`, `public/main.js` |
+| ✅ | `awn-type` / `extends` в manifest и `schema.yml`; legacy **`awn.database.frame.*`** → alias |
+| ✅ | `GLOBAL-DOC-MCP.md` (MCP tools **`database_frame_*`** — без переименования) |
+| ✅ | Удалён `database/frames/` |
 
 ---
 

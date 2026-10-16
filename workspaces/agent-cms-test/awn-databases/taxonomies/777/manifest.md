@@ -18,7 +18,7 @@ awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
-awn-type: awn.database.frame.taxonomy-collection
+awn-type: awn.hub.database.taxonomy-collection
 awn-create: 2026-09-28T09:59:53.186Z
 awn-update: 2026-09-28T09:59:53.186Z
 awn-version: 1

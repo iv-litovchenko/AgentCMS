@@ -18,7 +18,7 @@ awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-taxonomy: ""
 awn-owner: ""
-awn-type: awn.database.frame.group
+awn-type: awn.hub.database.group
 awn-create: 2026-09-28T10:00:10.466Z
 awn-update: 2026-09-28T10:00:10.466Z
 awn-version: 1

@@ -16,7 +16,7 @@ awn-category: ""
 awn-priority: ""
 awn-color: "#000000"
 awn-tags: []
-awn-type: awn.database.frame.collection
+awn-type: awn.hub.database.collection
 awn-create: "2026-09-24T19:43"
 awn-collection-type: md
 awn-record-storage: md

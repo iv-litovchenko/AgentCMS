@@ -1,9 +1,9 @@
-id: awn.hub.database.frame.taxonomy-collection
+id: awn.hub.database.taxonomy-collection
 name: Справочник таксономии
 kind: frame
 domain: database
 status: active
-extends: awn.hub.database.frame.collection
+extends: awn.hub.database.collection
 description: CSV-коллекция в taxonomies; ключ в awn-taxonomy берётся из slug папки
 manifest-pattern: manifest.md
 

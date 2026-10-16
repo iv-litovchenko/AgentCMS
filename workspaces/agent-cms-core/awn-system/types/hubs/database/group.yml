@@ -1,9 +1,9 @@
-id: awn.hub.database.frame.group
+id: awn.hub.database.group
 name: Группа
 kind: frame
 domain: database
 status: active
-extends: awn.hub.database.frame.base
+extends: awn.hub.database.base
 description: manifest + подпапки-накопители, без собственных записей
 manifest-pattern: manifest.md
 

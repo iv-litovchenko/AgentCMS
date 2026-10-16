@@ -1,9 +1,9 @@
-id: awn.hub.database.frame.single
+id: awn.hub.database.single
 name: Одиночка
 kind: frame
 domain: database
 status: active
-extends: awn.hub.database.frame.base
+extends: awn.hub.database.base
 description: manifest + schema в корне; main.md в awn-storage/data/
 manifest-pattern: manifest.md
 
