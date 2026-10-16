@@ -14960,7 +14960,7 @@ const SESSION_CONTEXT_API_MAP = {
   dataStoreSchemaRead: "GET /api/awn-databases/store-schema?store= — schema.yml полей записей",
   dataStoreSchemaWrite: "POST /api/awn-databases/store-schema — сохранить schema.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
-  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-databases/ui/*)",
+  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-databases/0-ui/*)",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
@@ -26557,7 +26557,11 @@ async function handleApiForAgent(req, res, url) {
         description: resolvePayloadDescription(payload)
       });
       const storeRel = String(payload?.store || "").replace(/\\/g, "/");
-      if (storeRel.includes("awn-taxonomies/") || storeRel.includes("taxonomies/")) {
+      if (
+        storeRel.includes("0-taxonomies/") ||
+        storeRel.includes("awn-taxonomies/") ||
+        storeRel.includes("taxonomies/")
+      ) {
         const { invalidatePlatformTaxonomyCache } = require("./lib/awn/awn-data-taxonomies-bridge");
         const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./lib/awn/awn-taxonomy-service");
         invalidatePlatformTaxonomyCache(getProjectRoot());

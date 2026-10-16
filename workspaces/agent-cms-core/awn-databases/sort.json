@@ -1,8 +1,8 @@
 [
   "agent-registry",
-  "taxonomies",
+  "0-taxonomies",
   "tasks",
-  "ui",
+  "0-ui",
   "tmp-md-lite-test",
   "tmp-csv-test",
   "tmp-csv-test2",

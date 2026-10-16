@@ -19788,7 +19788,7 @@ const WORKSPACE_TOOL_MODULE_META = {
   },
   [`awn-databases/${AWN_CONTENTS_FACTS_STORE}`]: {
     title: "Банк фактов",
-    lead: "Коллекция contents/facts — create / search_workspace_facts."
+    lead: "Коллекция 0-contents/0-facts — create / search_workspace_facts."
   },
   [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач",
@@ -49381,9 +49381,9 @@ function getAgentTaxonomyDefinitions(agentId = activeAgentId) {
 function getAgentTaxonomiesEmptyMessage(agentId = activeAgentId) {
   const cache = getAgentTaxonomiesCache(agentId);
   if (cache?.groupExists) {
-    return "В awn-databases/taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
+    return "В awn-databases/0-taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
   }
-  return "Создайте группу awn-databases/taxonomies/ через + Группа → Таксономии";
+  return "Создайте группу awn-databases/0-taxonomies/ через + Группа → Таксономии";
 }
 
 function getAgentTaxonomyDefinition(key) {
@@ -122015,8 +122015,8 @@ function syncAwnDataCreateGroupPresetsUi() {
     taxonomiesBtn.classList.toggle("is-disabled", exists);
     taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     taxonomiesBtn.title = exists
-      ? "Группа awn-databases/taxonomies/ уже создана"
-      : "Группа awn-databases/taxonomies/ для CSV-справочников";
+      ? "Группа awn-databases/0-taxonomies/ уже создана"
+      : "Группа awn-databases/0-taxonomies/ для CSV-справочников";
   }
 
   const factsBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
@@ -122028,8 +122028,8 @@ function syncAwnDataCreateGroupPresetsUi() {
     factsBtn.classList.toggle("is-disabled", exists);
     factsBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     factsBtn.title = exists
-      ? "Коллекция awn-databases/contents/facts уже создана"
-      : "Группа contents/ и коллекция facts (md-lite, MCP банк фактов)";
+      ? "Коллекция awn-databases/0-contents/0-facts уже создана"
+      : "Группа 0-contents/ и коллекция 0-facts (md-lite, MCP банк фактов)";
   }
 
   const glossaryBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
@@ -122041,8 +122041,8 @@ function syncAwnDataCreateGroupPresetsUi() {
     glossaryBtn.classList.toggle("is-disabled", exists);
     glossaryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     glossaryBtn.title = exists
-      ? "Коллекция awn-databases/contents/glossary уже создана"
-      : "Группа contents/ и коллекция glossary (md-lite, MCP глоссарий)";
+      ? "Коллекция awn-databases/0-contents/0-glossary уже создана"
+      : "Группа 0-contents/ и коллекция 0-glossary (md-lite, MCP глоссарий)";
   }
 
   const referenceBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
@@ -122054,8 +122054,8 @@ function syncAwnDataCreateGroupPresetsUi() {
     referenceBtn.classList.toggle("is-disabled", exists);
     referenceBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     referenceBtn.title = exists
-      ? "Коллекция awn-databases/contents/reference уже создана"
-      : "Группа contents/ и коллекция reference (md-lite, иерархия, MCP справочник)";
+      ? "Коллекция awn-databases/0-contents/0-reference уже создана"
+      : "Группа 0-contents/ и коллекция 0-reference (md-lite, иерархия, MCP справочник)";
   }
 
   const taskQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
@@ -122097,7 +122097,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
         "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-databases/taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
+        "Поднакопитель в <code>awn-databases/0-taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
@@ -128130,6 +128130,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     showToast(`Накопитель «${name}» создан`, "success");
     const taxonomySlugPrefix = String(slug || "").replace(/\\/g, "/");
     if (
+      taxonomySlugPrefix.startsWith("0-taxonomies/") ||
       taxonomySlugPrefix.startsWith("taxonomies/") ||
       taxonomySlugPrefix.startsWith("awn-taxonomies/")
     ) {

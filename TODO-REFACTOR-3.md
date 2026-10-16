@@ -4,7 +4,7 @@
 
 **✅** сделано · **❌** не сделано · **⚠️** промежуточно (другой префикс / частично).
 
-**Выбор префикса:** **`0-`** (долгосрок, напр. **`0-agent-kit`**, **`0-inbox`**). Цель — **вверху в Finder/диске** (зона цифр/символов). **Все platform / preset slug — `0-{name}`** (секции и заготовки: `0-shared/0-inbox`, `0-agent-kit/0-agent`). **Исключение:** дети **group** в `awn-databases/` — один `0-` на group, внутри короткие slug (`0-contents/facts`, не `0-contents/0-facts`).
+**Выбор префикса:** **`0-`** (долгосрок, напр. **`0-agent-kit`**, **`0-inbox`**). Цель — **вверху в Finder/диске** (зона цифр/символов). **Все platform / preset slug — `0-{name}`** на **каждом** уровне пути: секции (`0-shared/0-inbox`), group/store в **`awn-databases/`** (`0-contents/0-facts`, `0-ui/0-home-titles`), без «коротких» детей без префикса.
 
 **Не путать:** slug папок (`0-agent-kit`) и **SQL-имена таблиц** — если понадобятся таблицы с slug, начинающимся с цифры, в MySQL — **отдельный префикс/кавычки** (`0_agent` → `` `0_agent` `` или `t_0_agent`). Внутри store чаще **записи**, не таблицы с именем папки.
 
@@ -24,7 +24,7 @@
 | Системные group/store в **`awn-databases/`** | Store пользователя (`personal-finance`, …) |
 | Экземпляр канала/медиатеки, созданный из **builtin preset** | Кастомный channel `slider`, произвольный repo |
 | Локальный **`…/0-agent-kit/0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
-| **`0-shared/0-inbox`**, **`0-agent-kit/0-agent`**, … | Папки **`shared/`**, **`inbox/`** без `0-` (legacy → **`0-*`**) |
+| **`0-shared/0-inbox`**, **`0-agent-kit/0-agent`**, **`0-contents/0-facts`**, … | Папки **`shared/`**, **`inbox/`**, **`contents/facts`** без `0-` (legacy → **`0-*`**) |
 
 **Зачем:** сортировка **на диске** вверху, один сигнал агенту «platform». В приложении — дополнительно **pinned**.
 
@@ -54,10 +54,12 @@ awn-media/
 awn-databases/
 ├── 0-taxonomies/                … глобальные CSV (быв. taxonomies/, awn-taxonomies)
 ├── 0-contents/                  … group (быв. contents/)
-│   ├── facts/
-│   ├── glossary/
-│   └── reference/
+│   ├── 0-facts/
+│   ├── 0-glossary/
+│   └── 0-reference/
 └── 0-ui/                        … platform UI store (быв. ui/)
+    ├── 0-home-titles/
+    └── 0-slogans/
 ```
 
 ---
@@ -141,20 +143,26 @@ awn-databases/
 
 ---
 
-## `awn-databases/` (platform store / group)
+## `awn-databases/` ✅ (REFACTOR-3 §5)
 
-| Статус | Путь (сейчас) | Путь (план) |
-| ------ | ------------- | ----------- |
-| ⚠️→❌ | `taxonomies/` | **`0-taxonomies/`** |
-| ❌ | `contents/` | **`0-contents/`** | group |
-| ❌ | `contents/facts` | **`0-contents/facts`** | MCP facts tools |
-| ❌ | `contents/glossary` | **`0-contents/glossary`** | MCP glossary |
-| ❌ | `contents/reference` | **`0-contents/reference`** | справочник |
-| ❌ | `ui/` | **`0-ui/`** | home-titles, slogans, … |
+**Правило:** как kit/shared/channels — **каждый** сегмент platform-пути **`0-{name}`**, в том числе дети **group** (`0-contents/0-facts`). Legacy read: `contents/facts` → **`0-contents/0-facts`**, `taxonomies/tags` → **`0-taxonomies/0-tags`**.
 
-Пользовательские **`finansy`**, **`personal-finance`**, … — **без** `0-`.
+| Статус | Путь (было) | Путь (канон **`0-*`**) |
+| ------ | ----------- | ---------------------- |
+| ✅ | `taxonomies/` | **`0-taxonomies/`** |
+| ✅ | `contents/` | **`0-contents/`** | group |
+| ✅ | `contents/facts` | **`0-contents/0-facts`** | MCP facts |
+| ✅ | `contents/glossary` | **`0-contents/0-glossary`** | MCP glossary |
+| ✅ | `contents/reference` | **`0-contents/0-reference`** | справочник |
+| ✅ | `taxonomies/tags` … | **`0-taxonomies/0-tags`**, **`0-categories`**, **`0-colors`** | scaffold CSV |
+| ✅ | `ui/` | **`0-ui/`** | group (**`agent-cms-core`**) |
+| ✅ | `ui/home-titles`, `ui/slogans` | **`0-ui/0-home-titles`**, **`0-ui/0-slogans`** | rotators |
 
-**Код:** `isBuiltinAwnDataGroupRel`, `awn-data-loader`, facts/glossary MCP, UI create-group helpers.
+Пользовательские **`finansy`**, **`kollektsiya-1`**, **`priorities`** под group — **без** лишнего `0-` (только platform group/child presets).
+
+**Код:** `database-platform-paths.js`, `rewriteLegacyDatabasesInRelPath`, `awn-data-loader` (scaffold + `storeSchemaExists`), `platform-ui-rotators`, taxonomies bridge, MCP facts/glossary/reference, UI hints.
+
+**После деплоя:** refresh databases index + rebuild index; restart CMS/MCP.
 
 ---
 
@@ -196,7 +204,7 @@ awn-databases/
 | Media | `lib/config/media-library-presets.js`, `lib/services/awn-media-service.js` |
 | Shared | `manifest-paths.js` (`rewriteLegacyShared*`), `server.js`, `public/main.js`, `workspace-agent-settings` |
 | Agent kit | `lib/agents/agent-registry.js`, `manifest-paths.js`, identity/voice, MCP |
-| Databases | `awn-databases/**`, facts/glossary MCP |
+| Databases | `database-platform-paths.js`, `awn-data-loader`, facts/glossary MCP |
 | Slug policy | `slug-translit.js`, `create_topic` / rename validation |
 | Index / search | `lib/config/index-policy.js`, docs |
 

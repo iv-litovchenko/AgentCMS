@@ -36,7 +36,7 @@ const searchEntriesSchema = z.object({
 export function registerReferenceTools(reg, client) {
   reg(
     "create_reference_entry",
-    "Create a reference entry in awn-databases/contents/reference (md-lite, hierarchical sections).",
+    "Create a reference entry in awn-databases/0-contents/0-reference (md-lite, hierarchical sections).",
     createEntrySchema,
     (payload) => client.post("/api/agent/workspace-reference/create", payload)
   );

@@ -186,9 +186,9 @@
 ├── list_workspace_feed                    … activity + intake + audit summary
 ├── ask_workspace                          … semantic + fulltext + always → цитаты
 ├── search_and_get_context                 … то же для «найди в архиве»
-├── create_workspace_fact / update_workspace_fact … awn-databases/contents/facts
+├── create_workspace_fact / update_workspace_fact … contents/facts → **`0-contents/0-facts`** (REFACTOR-3)
 ├── list_workspace_facts / search_workspace_facts
-├── create_glossary_term / update_glossary_term   … contents/glossary
+├── create_glossary_term / update_glossary_term   … contents/glossary → **`0-contents/0-glossary`**
 ├── list_glossary_terms / search_glossary_terms
 ├── list_journal_entries / append_journal_entry   … .agent-cms/journal/
 └── list_workspace_notifications           … колокольчик CMS
