@@ -177,7 +177,7 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **каркас store** (`list_databases`, `get_database`, `create_database`, `update_database`, …; aliases `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
+Два слоя: **каркас store** (`list_databases`, `get_database`, `register_database`, `update_database`, …; legacy `create_database`, `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|

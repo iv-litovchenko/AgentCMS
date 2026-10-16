@@ -166,7 +166,7 @@ types/hubs/database/
 | ----- | ------------- |
 | `list_databases` | `database_frame_list` |
 | `get_database` | `database_frame_get` |
-| `create_database` / `delete_database` / `rename_database` | `database_frame_*` |
+| `register_database` / `delete_database` / `rename_database` | `create_database`, `database_frame_*` |
 | `read_database_schema` / `write_database_schema` | … |
 | `read_database_properties` / `write_*` | … |
 | `read_databases_index_toc` | `read_database_frame_index_toc` |
@@ -185,7 +185,7 @@ types/hubs/database/
 | # | Область | Сейчас | Целевое / идея | Приоритет |
 | - | ------- | ------ | -------------- | --------- |
 | G1 | **Topics vs ingress** | ~~только `read_topic_*`~~ | ✅ **`get_topic` / `update_topic`** (как channel); **`read|write_topic_*`** для schema/config/env — без снятия | ✅ |
-| G2 | **Database hub** | `create_database`, `write_database_*`, `delete_database` | Выровнять с каналами: **`register_database` / `update_database`** (aliases на `create_*` / patch properties) | низкий |
+| G2 | **Database hub** | ~~`create_database`~~ | ✅ **`register_database`** (legacy `create_database`, `database_frame_create`); **`update_database`** (G3) | ✅ |
 | G3 | **Database** | ~~нет `update_database`~~ | ✅ **`update_database`** = patch manifest (как `update_channel`); schema — **`write_database_schema`** | ✅ |
 | G4 | **Channel / media / repo** | только `register_*` + `update_*` | Опционально **`delete_*`**, **`rename_*` / move** hub-папки (как `delete_topic` / `rename_database`) | низкий |
 | G5 | **Topics — каталог** | ~~нет `list_topics`~~ | ✅ **`list_topics`** — flat или `parentPath` + `scope=children\|subtree`; INDEX → `read_topic_index_toc` | ✅ |

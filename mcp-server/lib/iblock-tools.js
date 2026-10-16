@@ -42,39 +42,49 @@ export function registerDatabaseTools(reg, client) {
     handler: ({ store }) => client.get("/api/awn-databases", { store })
   });
 
-  registerDatabaseTool(reg, {
-    canonical: "create_database",
-    legacyFrameName: "create",
-    description:
-      "Create database store: group, collection (MD/md-lite/CSV/files), or single. Custom schema fields without awn- prefix.",
-    schema: z.object({
-      kind: z
-        .enum(["group", "collection", "single", "singleton"])
-        .optional()
-        .transform((value) => (value === "singleton" ? "single" : value)),
-      slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
-      name: z.string().optional(),
-      description: z.string().optional(),
-      collectionType: z
-        .enum(["md", "md-lite", "csv", "csv-files", "files"])
-        .optional()
-        .describe("Collection preset: md, md-lite (record-lite), csv/csv-files (record-csv), files"),
-      collectionKind: z.enum(["records", "files"]).optional(),
-      recordStorage: z.enum(["md", "csv", "csv-files"]).optional(),
-      recordHierarchy: z.boolean().optional(),
-      recordFileTypes: z.string().optional(),
-      hierarchy: z.boolean().optional().describe("Alias for recordHierarchy"),
-      withSampleRecord: z.boolean().optional(),
-      indexExclude: z.boolean().optional(),
-      indexExcludeRecord: z.boolean().optional(),
-      indexExcludeSubtree: z.boolean().optional()
-    }),
-    handler: (payload) =>
-      client.post("/api/awn-databases/stores", {
-        ...payload,
-        recordHierarchy: payload.recordHierarchy ?? payload.hierarchy
-      })
+  const registerDatabaseSchema = z.object({
+    kind: z
+      .enum(["group", "collection", "single", "singleton"])
+      .optional()
+      .transform((value) => (value === "singleton" ? "single" : value)),
+    slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    collectionType: z
+      .enum(["md", "md-lite", "csv", "csv-files", "files"])
+      .optional()
+      .describe("Collection preset: md, md-lite (record-lite), csv/csv-files (record-csv), files"),
+    collectionKind: z.enum(["records", "files"]).optional(),
+    recordStorage: z.enum(["md", "csv", "csv-files"]).optional(),
+    recordHierarchy: z.boolean().optional(),
+    recordFileTypes: z.string().optional(),
+    hierarchy: z.boolean().optional().describe("Alias for recordHierarchy"),
+    withSampleRecord: z.boolean().optional(),
+    indexExclude: z.boolean().optional(),
+    indexExcludeRecord: z.boolean().optional(),
+    indexExcludeSubtree: z.boolean().optional()
   });
+  const registerDatabaseHandler = (payload) =>
+    client.post("/api/awn-databases/stores", {
+      ...payload,
+      recordHierarchy: payload.recordHierarchy ?? payload.hierarchy
+    });
+  const registerDatabaseDescription =
+    "Register database store hub (like register_channel): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present.";
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "register_database",
+    legacy: "create_database",
+    description: registerDatabaseDescription,
+    schema: registerDatabaseSchema,
+    handler: registerDatabaseHandler
+  });
+  reg(
+    "database_frame_create",
+    "Deprecated alias for register_database.",
+    registerDatabaseSchema,
+    registerDatabaseHandler
+  );
 
   const updateDatabaseSchema = z
     .object({

@@ -221,7 +221,7 @@
 └── get_type                               … одна схема типа
 
 🗄️ awn-databases (list_databases … + *_content_* kind:database; legacy database_frame_*)
-├── list_databases / get_database / create_database / update_database / delete_database / rename_database
+├── list_databases / get_database / register_database / update_database / delete_database / rename_database
 ├── read_databases_index_toc / refresh_databases_index_toc   … awn-databases/index.md
 ├── read_database_schema / write_database_schema
 ├── read_database_properties / write_database_properties

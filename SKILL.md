@@ -135,7 +135,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Два слоя, адресация по `store` (путь под `awn-databases/`, напр. `tasks`, `taxonomies/tags`):
 
-- **store** — каркас (`group` / `collection` / `single`): `list_databases`, `get_database`, `create_database`, `update_database`, …; каталог — `read_databases_index_toc` (legacy `database_frame_*`).
+- **store** — каркас (`group` / `collection` / `single`): `list_databases`, `get_database`, `register_database`, `update_database`, … (legacy `create_database`, `database_frame_*`); каталог — `read_databases_index_toc`.
 - **Записи в data/** — `list_content`, `create_content` (`isSection` или `awn.content.category` — раздел), `delete_content`, `move_content` (`targetParent`, `slug`); тело/поля — `read_content` / `write_content` / `*_content_property` (`kind: database`, `slot: data`, `ref`).
 
 | `collectionType` | Когда |

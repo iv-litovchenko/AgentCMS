@@ -391,8 +391,8 @@ module.exports = {
           http: "POST /api/agent/awn-databases-index"
         },
         {
-          name: "create_database",
-          description: "Создать store: group/collection/single.",
+          name: "register_database",
+          description: "Зарегистрировать store hub (как register_channel).",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
         },
