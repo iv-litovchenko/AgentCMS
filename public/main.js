@@ -87,12 +87,29 @@ let menuMediaLibrariesCachedAgentId = "";
 let menuMediaLibrariesSearchQuery = "";
 /** Заготовки медиатек — порядок и slug синхронны с lib/config/media-library-presets.js */
 const MEDIA_LIBRARY_BUILTIN_PRESETS = [
-  { slug: "documents", name: "Документы" },
-  { slug: "market", name: "Барахолка" },
-  { slug: "scripts", name: "Скрипты" },
-  { slug: "slider", name: "Слайдер" }
+  { slug: "0-documents", name: "Документы" },
+  { slug: "0-market", name: "Барахолка" },
+  { slug: "0-scripts", name: "Скрипты" },
+  { slug: "0-slider", name: "Слайдер" }
 ];
+const MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON = {
+  documents: "0-documents",
+  market: "0-market",
+  scripts: "0-scripts",
+  slider: "0-slider"
+};
 const MEDIA_LIBRARY_BUILTIN_SLUGS = new Set(MEDIA_LIBRARY_BUILTIN_PRESETS.map((entry) => entry.slug));
+
+function resolveMediaLibraryCanonicalSlug(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (MEDIA_LIBRARY_BUILTIN_SLUGS.has(normalized)) return normalized;
+  return MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+}
+
+function isMediaLibraryBuiltinSlug(slug) {
+  return MEDIA_LIBRARY_BUILTIN_SLUGS.has(resolveMediaLibraryCanonicalSlug(slug));
+}
 const menuAwnScriptsBandNode = document.getElementById("menu-awn-scripts-band");
 const menuAwnScriptsBandToggleBtn = document.getElementById("menu-awn-scripts-band-toggle");
 const menuAwnScriptsBandBodyNode = document.getElementById("menu-awn-scripts-band-body");
@@ -7152,7 +7169,8 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
   }
 
   const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
-  const openSliderAssetsSlot = Boolean(options.openAssetsSlot) && mediaLibrarySlug !== "slider";
+  const openSliderAssetsSlot =
+    Boolean(options.openAssetsSlot) && resolveMediaLibraryCanonicalSlug(mediaLibrarySlug) !== "0-slider";
 
   suspendAppRouteSync();
   try {
@@ -9863,12 +9881,13 @@ async function removeAgentPreviewFile(agentPath) {
   return response.json();
 }
 
-const AGENT_SLIDER_FOLDER_REF = "awn-media/slider/awn-storage/files";
-const AGENT_SLIDER_MANIFEST_REF = "awn-media/slider/manifest.md";
+const AGENT_SLIDER_FOLDER_REF = "awn-media/0-slider/awn-storage/files";
+const AGENT_SLIDER_MANIFEST_REF = "awn-media/0-slider/manifest.md";
 const LEGACY_AGENT_SLIDER_FOLDER_REFS = new Set([
   "awn-storage/assets/slider",
   "storage/assets/slider",
-  "awn-media/slider/awn-storage/assets"
+  "awn-media/slider/awn-storage/assets",
+  "awn-media/slider/awn-storage/files"
 ]);
 const AGENT_SLIDER_ROTATE_MS = 12000;
 
@@ -9880,7 +9899,7 @@ function normalizeAgentSliderFolderPath(folderPath) {
   if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
     return AGENT_SLIDER_FOLDER_REF;
   }
-  if (/^awn-media\/slider\/awn-storage\/(?:assets|files)$/i.test(normalized)) {
+  if (/^awn-media\/(?:0-slider|slider)\/awn-storage\/(?:assets|files)$/i.test(normalized)) {
     return AGENT_SLIDER_FOLDER_REF;
   }
   return normalized;
@@ -9894,7 +9913,7 @@ function normalizeAgentSliderManifestPath(manifestPath) {
   if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
     return AGENT_SLIDER_MANIFEST_REF;
   }
-  if (/^awn-media\/slider\/manifest\.md$/i.test(normalized)) {
+  if (/^awn-media\/(?:0-slider|slider)\/manifest\.md$/i.test(normalized)) {
     return AGENT_SLIDER_MANIFEST_REF;
   }
   return normalized || AGENT_SLIDER_MANIFEST_REF;
@@ -10202,8 +10221,8 @@ async function openAgentSliderMediaLibrary() {
   const manifestPath = normalizeAgentSliderManifestPath(AGENT_SLIDER_MANIFEST_REF);
   const entry =
     resolveMediaLibraryEntryFromWorkspaceRel(manifestPath) || {
-      slug: "slider",
-      folderPath: "awn-media/slider",
+      slug: "0-slider",
+      folderPath: "awn-media/0-slider",
       manifestPath,
       name: "Слайдер",
       registered: true
@@ -131312,10 +131331,7 @@ async function submitMediaLibraryCreateModal() {
     showToast("Укажите корректный ключ (slug)", "error");
     return;
   }
-  if (
-    mediaLibraryCreateModalState.mode === "custom" &&
-    MEDIA_LIBRARY_BUILTIN_SLUGS.has(slug)
-  ) {
+  if (mediaLibraryCreateModalState.mode === "custom" && isMediaLibraryBuiltinSlug(slug)) {
     showToast("Этот ключ зарезервирован заготовкой — создайте её из списка сверху", "info");
     return;
   }

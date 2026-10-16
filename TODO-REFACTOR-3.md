@@ -120,18 +120,20 @@ awn-databases/
 
 ---
 
-## `awn-media/` (builtin mediatheques)
+## `awn-media/` (builtin mediatheques) ✅ (REFACTOR-3 §3)
 
 Источник: **`lib/config/media-library-presets.js`**.
 
-| Статус | Slug (сейчас) | Slug (план) |
-| ------ | ------------- | ----------- |
-| ❌ | `documents` | **`0-documents`** |
-| ❌ | `market` | **`0-market`** |
-| ❌ | `scripts` | **`0-scripts`** |
-| ❌ | `slider` | **`0-slider`** |
+| Статус | Slug (было) | Slug (канон **`0-*`**) |
+| ------ | ----------- | ---------------------- |
+| ✅ | `documents` | **`0-documents`** |
+| ✅ | `market` | **`0-market`** |
+| ✅ | `scripts` | **`0-scripts`** | scaffold / новые ws |
+| ✅ | `slider` | **`0-slider`** | **`agent-cms-test`** на диске |
 
-**Код:** `isMediaLibraryBuiltinSlug`, delete/rename 403 для builtin.
+**Код:** `media-library-presets.js`, `rewriteLegacyMediaLibraryInRelPath`, `awn-media-service`, UI слайдера, delete/rename 403 для builtin (+ legacy slug).
+
+**После деплоя:** `refresh_media_library_index_toc` + rebuild index.
 
 ---
 
