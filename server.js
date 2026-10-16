@@ -12058,7 +12058,7 @@ async function loadSessionPlatformDocItems(platformSettings, entries, { entityKi
         ref: entry.file,
         label: entry.file,
         displayPath:
-          entry.root === "project" ? entry.file : `workspaces/agent-cms-core/${entry.file}`,
+          entry.root === "project" ? entry.file : `workspaces/0-ws-core/${entry.file}`,
         description: entry.description,
         runtimeLoadAlways: entityKind === "platform-always",
         exists: true,

@@ -2,13 +2,13 @@
   "version": 1,
   "agents": [
     {
-      "id": "agent-cms-core",
-      "path": "workspaces/agent-cms-core",
+      "id": "0-ws-core",
+      "path": "workspaces/0-ws-core",
       "environment": "local"
     },
     {
-      "id": "agent-cms-test",
-      "path": "workspaces/agent-cms-test",
+      "id": "0-ws-test",
+      "path": "workspaces/0-ws-test",
       "environment": "local"
     },
     {

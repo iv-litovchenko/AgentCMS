@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Copy platform CMS model from agent-cms-core/awn-data into {agent}/awn-data/
+ * Copy platform CMS model from 0-ws-core/awn-data into {agent}/awn-data/
  * (type stores + cms-base). Agent-specific extras are already in platform core.
  *
- *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
+ *   node scripts/bootstrap-agent-awn-system.js 0-ws-test
  */
 const fs = require("fs");
 const path = require("path");
@@ -38,7 +38,7 @@ function copyDir(src, dest) {
 }
 
 function main() {
-  const agentId = process.argv[2] || "agent-cms-test";
+  const agentId = process.argv[2] || "0-ws-test";
   const repoRoot = path.join(__dirname, "..");
   const agentRoot = path.join(repoRoot, "workspaces", agentId);
   const coreRoot = getAgentCmsCoreAbsolute(repoRoot);

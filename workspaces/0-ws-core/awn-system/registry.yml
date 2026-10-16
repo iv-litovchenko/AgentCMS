@@ -1,6 +1,6 @@
 version: 1
 mode: agent-owned
-agent: agent-cms-test
+agent: 0-ws-test
 description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-system/types/
 
 # domains — источник правды по доменам («какие бывают компоненты»).

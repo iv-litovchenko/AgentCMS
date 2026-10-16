@@ -177,8 +177,8 @@ async function migrateLegacyFolder(materialsDirAbsolute, agentRoot) {
 async function main() {
   const roots = process.argv.slice(2);
   const defaultRoots = [
-    path.join(__dirname, "../workspaces/agent-cms-core"),
-    path.join(__dirname, "../workspaces/agent-cms-test")
+    path.join(__dirname, "../workspaces/0-ws-core"),
+    path.join(__dirname, "../workspaces/0-ws-test")
   ];
   const targets = roots.length ? roots.map((r) => path.resolve(r)) : defaultRoots;
 

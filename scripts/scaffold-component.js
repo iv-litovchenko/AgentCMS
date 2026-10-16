@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Новый топик-компонент в agent-cms-core/components
+ * Новый топик-компонент в 0-ws-core/components
  *
  *   node scripts/scaffold-component.js agent my-agent
  *
@@ -45,7 +45,7 @@ if (kind === "field") {
 const repoRoot = path.join(__dirname, "..");
 const folder = KIND_FOLDER[kind];
 const relPath = `${folder}/${slug}`;
-const targetDir = path.join(repoRoot, "workspaces/agent-cms-core/components", folder, slug);
+const targetDir = path.join(repoRoot, "workspaces/0-ws-core/components", folder, slug);
 const schemaDir = path.join(targetDir, "storage", "configuration");
 
 if (fs.existsSync(targetDir)) {

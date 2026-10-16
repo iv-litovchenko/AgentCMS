@@ -5,7 +5,7 @@ export const SHELL_RUNTIME_GROUPS = [
   {
     id: "cli",
     label: "CLI в терминале",
-    hint: "Claude / Codex — cwd: workspaces/cli-sandbox/<runtime>/<agent-id>/ (песочница, не хранилище).",
+    hint: "Claude / Codex — cwd: workspaces/0-cli-sandbox/<runtime>/<agent-id>/ (песочница, не хранилище).",
     runtimes: ["claude", "codex"]
   },
   {
@@ -102,14 +102,14 @@ export const SHELL_RUNTIME_CLI_SETUP = {
 /** Runtime с блоком подсказок на вкладке «Маршрут». */
 export const SHELL_ROUTE_NOTE_RUNTIMES = ["claude", "codex", "qwenpaw"];
 
-export const CLI_SANDBOX_REL = "workspaces/cli-sandbox";
+export const CLI_SANDBOX_REL = "workspaces/0-cli-sandbox";
 
 /** Краткое пояснение над инструкцией для каждого runtime. */
 export const SHELL_RUNTIME_ROUTE_INTROS = {
   claude:
-    "Локальный CLI Claude. Shell запускает claude в workspaces/cli-sandbox/claude/<agent-id>/ — не в корне workspace и не в awn-topics/. К CMS — через MCP.",
+    "Локальный CLI Claude. Shell запускает claude в workspaces/0-cli-sandbox/claude/<agent-id>/ — не в корне workspace и не в awn-topics/. К CMS — через MCP.",
   codex:
-    "Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/codex/<agent-id>/ — не в хранилище workspace. К CMS — через MCP.",
+    "Локальный CLI Codex. Shell запускает codex exec в workspaces/0-cli-sandbox/codex/<agent-id>/ — не в хранилище workspace. К CMS — через MCP.",
   qwenpaw: "HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE."
 };
 
@@ -284,11 +284,11 @@ export const SHELL_RUNTIME_HINTS = {
 export const SHELL_RUNTIME_DESCRIPTIONS = {
   claude: `Claude Code (@anthropic-ai/claude-code) — локальный CLI-агент Anthropic.
 Подключение: бинарь claude в PATH (npm i -g @anthropic-ai/claude-code), авторизация claude login.
-Shell запускает claude -p … с cwd workspaces/cli-sandbox/claude/<agent-id>/ → ответ стримится в диалог.`,
+Shell запускает claude -p … с cwd workspaces/0-cli-sandbox/claude/<agent-id>/ → ответ стримится в диалог.`,
 
   codex: `Codex CLI (@openai/codex) — локальный CLI-агент OpenAI.
 Подключение: бинарь codex в PATH (npm i -g @openai/codex), авторизация codex login.
-Shell запускает codex exec … с cwd workspaces/cli-sandbox/codex/<agent-id>/ — сессии через Session ID.`,
+Shell запускает codex exec … с cwd workspaces/0-cli-sandbox/codex/<agent-id>/ — сессии через Session ID.`,
 
   cursor: `Cursor — агент из экосистемы Cursor IDE (локально или cloud).
 Подключение: OpenAI-compatible endpoint (если у вас поднят Cursor agent / proxy).

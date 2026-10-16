@@ -98,7 +98,7 @@ const title = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const runtimeId = meta.id(slug);
 const dest = path.join(
   repoRoot,
-  "workspaces/agent-cms-core",
+  "workspaces/0-ws-core",
   meta.destRel || path.join(meta.folder, "awn-storage/configuration/types"),
   `${slug}.yml`
 );

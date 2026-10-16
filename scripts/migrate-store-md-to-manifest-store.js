@@ -14,7 +14,7 @@ const {
   COLLECTION_MANIFEST
 } = require("../lib/awn/awn-data-loader");
 
-const ROOT = path.join(__dirname, "..", "workspaces", "agent-cms-core", "awn-data");
+const ROOT = path.join(__dirname, "..", "workspaces", "0-ws-core", "awn-data");
 
 function readParts(filePath) {
   const raw = fs.readFileSync(filePath, "utf-8");

@@ -63,13 +63,13 @@ fieldGroups:
       - id: voice-route-claude
         name: Маршрут · Claude CLI
         description: |
-          Локальный CLI Claude. Shell запускает claude в workspaces/cli-sandbox/claude/<agent-id>/ — не в корне workspace. К CMS — через MCP.
+          Локальный CLI Claude. Shell запускает claude в workspaces/0-cli-sandbox/claude/<agent-id>/ — не в корне workspace. К CMS — через MCP.
           Установка npm i -g @anthropic-ai/claude-code · claude login · claude auth status.
         sort: 4
       - id: voice-route-codex
         name: Маршрут · Codex CLI
         description: |
-          Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/codex/<agent-id>/ — хранилище CMS не монтируется.
+          Локальный CLI Codex. Shell запускает codex exec в workspaces/0-cli-sandbox/codex/<agent-id>/ — хранилище CMS не монтируется.
           Установка npm i -g @openai/codex · codex login · codex --version.
         sort: 5
       - id: voice-route-cursor

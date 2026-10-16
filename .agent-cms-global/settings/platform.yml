@@ -1,4 +1,4 @@
-# Agent CMS — глобальные настройки платформы (agent-cms-core)
+# Agent CMS — глобальные настройки платформы (0-ws-core)
 
 awn_settings:
   maintenance-mode: false

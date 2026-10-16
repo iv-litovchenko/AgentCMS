@@ -12,7 +12,7 @@ const {
   STORE_FILE
 } = require("../lib/awn/awn-data-loader");
 
-const ROOT = path.join(__dirname, "..", "workspaces", "agent-cms-core", "awn-data");
+const ROOT = path.join(__dirname, "..", "workspaces", "0-ws-core", "awn-data");
 const MANIFEST = "manifest.md";
 
 function splitFrontmatter(content) {

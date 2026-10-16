@@ -167,7 +167,7 @@ function updateSortJson(dataRoot) {
 }
 
 function main() {
-  const agentRoot = process.argv[2] || path.join(process.cwd(), "workspaces/agent-cms-core");
+  const agentRoot = process.argv[2] || path.join(process.cwd(), "workspaces/0-ws-core");
   const dataRoot = path.join(agentRoot, "awn-data");
   if (!fs.existsSync(dataRoot)) {
     console.error("awn-data not found:", dataRoot);

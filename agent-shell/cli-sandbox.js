@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const CLI_SANDBOX_REL = path.join("workspaces", "cli-sandbox");
+const CLI_SANDBOX_REL = path.join("workspaces", "0-cli-sandbox");
 const CLI_SANDBOX_SCRATCH = "scratch";
 const CLI_SANDBOX_RUNTIMES = ["claude", "codex"];
 
@@ -10,16 +10,16 @@ const ROOT_README = `# CLI sandbox (Agent CMS Shell)
 Песочницы для **Claude Code** и **Codex CLI** — отдельная папка на каждый runtime и агента CMS:
 
 \`\`\`
-workspaces/cli-sandbox/
+workspaces/0-cli-sandbox/
 ├── claude/
-│   ├── agent-cms-test/
+│   ├── 0-ws-test/
 │   └── …
 └── codex/
-    ├── agent-cms-test/
+    ├── 0-ws-test/
     └── …
 \`\`\`
 
-Shell запускает CLI с \`cwd\` в \`cli-sandbox/<runtime>/<agent-id>/\`, не в корне workspace и не в \`awn-topics/\`.
+Shell запускает CLI с \`cwd\` в \`0-cli-sandbox/<runtime>/<agent-id>/\`, не в корне workspace и не в \`awn-topics/\`.
 Доступ к хранилищу CMS — через **MCP Agent CMS**.
 `;
 

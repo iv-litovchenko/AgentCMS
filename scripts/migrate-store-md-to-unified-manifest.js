@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
 
-const ROOT = path.join(__dirname, "../workspaces/agent-cms-core/awn-data");
+const ROOT = path.join(__dirname, "../workspaces/0-ws-core/awn-data");
 
 const PROP_MAP = {
   "awn-prop-type": "awn-type",

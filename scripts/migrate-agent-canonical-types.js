@@ -2,8 +2,8 @@
 /**
  * Migrate legacy awn-type values to canonical ids in an agent workspace.
  *
- *   node scripts/migrate-agent-canonical-types.js agent-cms-test
- *   node scripts/migrate-agent-canonical-types.js agent-cms-test --dry-run
+ *   node scripts/migrate-agent-canonical-types.js 0-ws-test
+ *   node scripts/migrate-agent-canonical-types.js 0-ws-test --dry-run
  */
 const fs = require("fs");
 const path = require("path");
@@ -120,7 +120,7 @@ function migrateDocContent(content) {
 }
 
 function main() {
-  const agentId = process.argv[2] || "agent-cms-test";
+  const agentId = process.argv[2] || "0-ws-test";
   const dryRun = process.argv.includes("--dry-run");
   const repoRoot = path.join(__dirname, "..");
   const agentRoot = path.join(repoRoot, "workspaces", agentId);

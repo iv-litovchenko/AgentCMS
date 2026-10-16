@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "agentId": "agent-cms-test",
-  "route": "/agent-cms-test/~module-settings",
+  "agentId": "0-ws-test",
+  "route": "/0-ws-test/~module-settings",
   "contentMode": "internal",
   "label": null,
   "focus": {

@@ -5,7 +5,7 @@ domain: settings
 status: active
 extends: awn.settings.base
 description: >
-  Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, индексы, память.
+  Политика всей платформы Agent CMS (0-ws-core): MCP, лимиты, индексы, память.
   Значения — .agent-cms-global/settings/platform.yml. Не перекрываются workspace/user.
 scope: platform
 enabled: true

@@ -17,11 +17,11 @@ const MOCK = {
   ],
   recent: [
     { path: "TODO.md", action: "правка", ago: "12 мин" },
-    { path: "agent-cms-test/zadachi/…", action: "новая заметка", ago: "1ч" },
+    { path: "0-ws-test/zadachi/…", action: "новая заметка", ago: "1ч" },
     { path: "manifest.yaml", action: "правка", ago: "вчера" }
   ],
   topics: [
-    { emoji: "🧪", name: "agent-cms-test", path: "workspace" },
+    { emoji: "🧪", name: "0-ws-test", path: "workspace" },
     { emoji: "📚", name: "Документация", path: "core/docs" },
     { emoji: "🗂️", name: "Задачи и планы", path: "core/zadachi" }
   ],

@@ -2671,7 +2671,7 @@ function normalizeDocVersionClient(version, fallback = DEFAULT_DOC_VERSION) {
   const value = String(version ?? fallback).trim();
   return DOC_VERSION_IDS.has(value) ? value : fallback;
 }
-const DOCUMENTATION_AGENT_ID = "agent-cms-core";
+const DOCUMENTATION_AGENT_ID = "0-ws-core";
 const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
 const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
 const USER_GUIDE_STORAGE_KEY = "yamlcms.userGuidePath";
@@ -10574,7 +10574,7 @@ function resolveCoreCatalogAgentId() {
 function openCoreCatalogAgentFromLanding() {
   const agentId = resolveCoreCatalogAgentId();
   if (!agentsCache.some((agent) => agent.id === agentId)) {
-    showToast("Агент agent-cms-core не найден в реестре", "error");
+    showToast("Агент 0-ws-core не найден в реестре", "error");
     return;
   }
   selectAgentOption(agentId);
@@ -13882,7 +13882,7 @@ function createAppLandingPlatformHero(platform) {
   const copy = document.createElement("div");
   copy.className = "app-landing-platform-hero-copy";
 
-  const platformLabel = String(platform?.id || "agent-cms-core").trim();
+  const platformLabel = String(platform?.id || "0-ws-core").trim();
 
   const eyebrow = document.createElement("span");
   eyebrow.className = "app-landing-platform-hero-eyebrow";
@@ -19658,7 +19658,7 @@ const IBLOCK_INSTRUCTION_ACCORDION_TITLE = AGENT_INSTRUCTION_ACCORDION_TITLE;
 const PAGE_BRIEF_HINT_TITLE = "Бриф, контекст, инструкция и договорённости";
 const PAGE_BRIEF_HINT_TEXT =
   "Назначение, описание, инструкции, правила, документация, промпт, роль — как работать с этой темой. Основной текст для агента в теле <code>manifest.md</code>.";
-const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
+const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["0-ws-core"]);
 const TYPE_CATALOG_DOMAIN_LABELS = {
   fields: "Поля",
   "md-blocks": "Блоки Markdown",
@@ -51093,7 +51093,7 @@ function projectSettingsScopeSearchHaystack(scope) {
     : [];
   const levelLabel =
     scope?.level === "global"
-      ? "платформа глобальные agent-cms-core"
+      ? "платформа глобальные 0-ws-core"
       : scope?.level === "settings-local"
         ? "локальные workspace settings.yml"
         : scope?.level === "settings-integrations"
@@ -51608,7 +51608,7 @@ function renderProjectSettingsScopeList() {
       btn.classList.toggle("has-env-values", hasEnvFile);
       btn.classList.toggle("is-empty-scope", isEmptyScope);
       btn.title = [
-        scope.level === "global" ? "agent-cms-core" : scope.label,
+        scope.level === "global" ? "0-ws-core" : scope.label,
         scope.level === "global"
           ? hasConfigValues
             ? `${valuesFileLabel}: ${configCount} знач.`
