@@ -253,6 +253,7 @@
   function createCompanionPageContextStrip() {
     const wrap = document.createElement("div");
     wrap.className = "asc-page-context-strip";
+    wrap.hidden = true;
     wrap.setAttribute("aria-label", "Справка о странице");
 
     const chips = document.createElement("div");
@@ -320,6 +321,121 @@
     };
   }
 
+  const PAGE_CONTEXT_PANEL_STORAGE_KEY = "ascPageContextPanelEnabled";
+
+  function createCompanionPageContextInspectorToggle() {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-media-dock-toggle-wrap asc-page-context-inspector-toggle-wrap";
+    wrap.title = "Справка о странице — показать или скрыть панель";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "asc-media-dock-toggle asc-page-context-inspector-toggle";
+    btn.setAttribute("role", "switch");
+    btn.setAttribute("aria-checked", "false");
+    btn.setAttribute("aria-label", "Справка о странице — показать или скрыть панель");
+
+    const track = document.createElement("span");
+    track.className = "asc-media-dock-toggle-track";
+    track.setAttribute("aria-hidden", "true");
+
+    const icon = document.createElement("span");
+    icon.className = "asc-media-dock-toggle-icon asc-page-context-inspector-toggle-icon";
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="4" width="18" height="16" rx="2"/>' +
+      '<path d="M3 9h18M8 13h.01M12 13h.01M16 13h.01"/>' +
+      '<circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>' +
+      "</svg>";
+
+    const thumb = document.createElement("span");
+    thumb.className = "asc-media-dock-toggle-thumb";
+    thumb.append(icon);
+
+    track.append(thumb);
+    btn.append(track);
+    wrap.append(btn);
+
+    let hostEl = null;
+    let stripEl = null;
+    let panelOn = false;
+
+    function writePanelSetting(on) {
+      try {
+        chrome.storage.local.set({ [PAGE_CONTEXT_PANEL_STORAGE_KEY]: Boolean(on) });
+      } catch {
+        // ignore
+      }
+    }
+
+    function readPanelSetting() {
+      return new Promise((resolve) => {
+        try {
+          chrome.storage.local.get([PAGE_CONTEXT_PANEL_STORAGE_KEY], (stored) => {
+            resolve(stored[PAGE_CONTEXT_PANEL_STORAGE_KEY] === true);
+          });
+        } catch {
+          resolve(false);
+        }
+      });
+    }
+
+    function applyPanelOpen(on) {
+      panelOn = Boolean(on);
+      hostEl?.classList?.toggle("asc-page-context-open", panelOn);
+      if (stripEl) {
+        stripEl.hidden = !panelOn;
+      }
+      writePanelSetting(panelOn);
+    }
+
+    function setUiOn(on) {
+      const isOn = Boolean(on);
+      btn.classList.toggle("is-on", isOn);
+      btn.setAttribute("aria-checked", isOn ? "true" : "false");
+      btn.title = isOn
+        ? "Справка о странице: вкл. — панель под тулбаром"
+        : "Справка о странице: выкл. — нажмите, чтобы показать";
+      wrap.title = btn.title;
+    }
+
+    function setPanelVisible(next) {
+      const on = Boolean(next);
+      setUiOn(on);
+      applyPanelOpen(on);
+    }
+
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setPanelVisible(!btn.classList.contains("is-on"));
+    });
+
+    for (const eventName of ["pointerdown", "mousedown", "dblclick"]) {
+      wrap.addEventListener(eventName, (event) => event.stopPropagation());
+    }
+
+    function bind({ host, stripEl: strip } = {}) {
+      hostEl = host || null;
+      stripEl = strip || null;
+
+      try {
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area !== "local" || !changes[PAGE_CONTEXT_PANEL_STORAGE_KEY]) return;
+          const on = changes[PAGE_CONTEXT_PANEL_STORAGE_KEY].newValue === true;
+          if (on === panelOn) return;
+          setPanelVisible(on);
+        });
+      } catch {
+        // ignore
+      }
+
+      void readPanelSetting().then((on) => setPanelVisible(on));
+    }
+
+    return { wrap, bind, setUiOn, setPanelVisible };
+  }
+
   global.createCompanionPageContextStrip = createCompanionPageContextStrip;
   global.createCompanionBookmarksPagePanel = createCompanionBookmarksPagePanel;
+  global.createCompanionPageContextInspectorToggle = createCompanionPageContextInspectorToggle;
 })(globalThis);

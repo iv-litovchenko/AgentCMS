@@ -909,6 +909,15 @@
   stroke: none;
 }
 
+.asc-page-context-inspector-toggle-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.asc-page-context-inspector-toggle.is-on .asc-media-dock-toggle-icon {
+  color: #a5f3fc;
+}
+
 .asc-brand-search {
   display: flex;
   align-items: center;
@@ -2127,7 +2136,11 @@
   color: #fff;
 }
 
-/* Справка о странице — под капсулой панели */
+/* Справка о странице — видимость через [hidden] на .asc-page-context-strip (2-й переключатель) */
+.asc-page-context-strip[hidden] {
+  display: none !important;
+}
+
 .asc-page-context-strip {
   width: fit-content;
   max-width: min(640px, calc(100vw - 40px));
@@ -2217,7 +2230,7 @@
   letter-spacing: 0.02em;
 }
 
-/* В полоске тулбара скрыты визуально; данные по-прежнему рендерятся в DOM */
+/* В полоске скрыты визуально; данные по-прежнему в DOM (как до переключателя) */
 .asc-page-context-chip[data-chip="dpr"],
 .asc-page-context-chip[data-chip="lang"],
 .asc-page-context-chip[data-chip="https"],

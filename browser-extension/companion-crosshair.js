@@ -171,6 +171,9 @@
     if (enabled) flushPointer();
   }
 
+  global.setCompanionCrosshairEnabled = setEnabled;
+  global.getCompanionCrosshairEnabled = () => enabled;
+
   document.addEventListener("pointermove", onPointerMove, { passive: true, capture: true });
   window.addEventListener(
     "scroll",
@@ -283,7 +286,7 @@
 
     void readEnabledSetting().then(setToggleOn);
 
-    return { wrap };
+    return { wrap, setUiOn: setToggleOn };
   }
 
   global.createCompanionCrosshairDock = createCompanionCrosshairDock;

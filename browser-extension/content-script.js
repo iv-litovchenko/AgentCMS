@@ -930,6 +930,11 @@
       ? globalThis.createCompanionCrosshairDock()
       : null;
 
+  const companionPageContextInspectorDock =
+    typeof globalThis.createCompanionPageContextInspectorToggle === "function"
+      ? globalThis.createCompanionPageContextInspectorToggle()
+      : null;
+
   const openCmsBtn = createBtn(
     "openCms",
     "CMS",
@@ -1298,6 +1303,7 @@
     brandDockDivider,
     viewportShotBtn,
     ...(companionCrosshairDock ? [companionCrosshairDock.wrap] : []),
+    ...(companionPageContextInspectorDock ? [companionPageContextInspectorDock.wrap] : []),
     mediaHoverDockToggle,
     cmsDockDivider,
     openCmsBtn,
@@ -1348,6 +1354,11 @@
   style.textContent = String(globalThis.__agentShellToolbarCss || "");
   shadow.append(style, shell);
   document.documentElement.appendChild(root);
+
+  companionPageContextInspectorDock?.bind?.({
+    host: root,
+    stripEl: companionPageContextStrip?.wrap ?? null
+  });
 
   function closeBrandSearchPickerIfOutside(event) {
     if (!brandSearchPicker?.isOpen?.()) return;
