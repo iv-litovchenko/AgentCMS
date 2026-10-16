@@ -193,20 +193,20 @@
 ├── list_journal_entries / append_journal_entry   … .agent-cms/journal/
 └── list_workspace_notifications           … колокольчик CMS
 
-📄 Страница (manifest.md)
-├── page_exists / get_page_meta
-├── read_page_body / write_page_body
-├── read_page_properties / write_page_properties
-├── read_page_property / write_page_property
-├── read_page_schema / write_page_schema
-├── read_page_config / write_page_config
-├── read_page_env / write_page_env
-├── create_page / delete_page / rename_page / move_page
+📄 Темы (manifest.md · awn.hub.topic.*)
+├── get_topic / update_topic               … карточка hub (как channel)
+├── list_topics                            … дерево flat / parentPath
+├── topic_exists / get_topic_meta
+├── read_topic_body / write_topic_body
+├── read_topic_properties / write_topic_properties (+ property)
+├── read_topic_schema / write_topic_schema · read/write_topic_config · read/write_topic_env
+├── create_topic / delete_topic / rename_topic / move_topic
+├── read_topic_index_toc / refresh_topic_index_toc
 
 📦 Слоты
-└── list_slots                             … page / channel / media
+└── list_slots                             … placement.kind topic | channel | media | database | repository
 
-📝 Контент (placement.kind: page | channel | media | root)
+📝 Контент (placement.kind: topic | channel | media | database | repository | root)
 ├── content_exists / get_content_meta
 ├── read_content                           … part: body | properties | schema | meta | all
 ├── write_content                          … то же; root: base64 upload
@@ -220,7 +220,7 @@
 ├── list_types                             … реестр awn-types
 └── get_type                               … одна схема типа
 
-🗄️ awn-databases (list_databases … + *_content_* kind:database; legacy database_frame_*)
+🗄️ awn-databases (list_databases … + *_content_* kind:database)
 ├── list_databases / get_database / register_database / update_database / delete_database / rename_database
 ├── read_databases_index_toc / refresh_databases_index_toc   … awn-databases/index.md
 ├── read_database_schema / write_database_schema
@@ -230,18 +230,21 @@
 
 📡 Каналы (awn-channels/)
 ├── list_channels / get_channel / register_channel / update_channel
-├── list_channel_items
-├── upload_channel_file
+├── delete_channel / rename_channel
 ├── read_channels_index_toc / refresh_channels_index_toc   … awn-channels/index.md
+└── *_content_*  kind: channel
 
 🖼️ Медиатеки (awn-media/)
 ├── list_media_libraries / get_media_library / register_media_library / update_media_library
-├── list_media_library_items / upload_media_library_file
+├── delete_media_library / rename_media_library
 ├── read_media_library_index_toc / refresh_media_library_index_toc … awn-media/index.md
+└── *_content_*  kind: media
 
 📚 Репозитории (awn-repositories/)
 ├── list_repositories / get_repository / register_repository / update_repository
-└── read_repository_index_toc / refresh_repository_index_toc … awn-repositories/index.md
+├── delete_repository / rename_repository
+├── read_repository_index_toc / refresh_repository_index_toc … awn-repositories/index.md
+└── *_content_*  kind: repository
 
 📥 Inbox · обсуждение · комментарии
 ├── list_inbox / triage_inbox_item
@@ -305,7 +308,7 @@
 
 
 
-**placement (план рефакторинга):** `page` · `channel` · `media` · `root` (`tree`) — единые `read_content` / `write_content` / `list_content`; hub-индексы и поиск — ветки ⚠️ выше (отдельно от CRUD).
+**placement (канон):** `topic` · `channel` · `media` · `database` · `repository` · `root` (`tree` → root) — единые `read_content` / `write_content` / `list_content`; legacy `page` на входе → `topic` в ответах; hub-индексы и поиск — ветки ⚠️ выше (отдельно от CRUD).
 
 ---
 
@@ -314,7 +317,7 @@
 ```
 MCP_LEGACY_TOOLS
 │
-├─ content (страница / канал / медиа — по placement)
+├─ content (topic / channel / media / database / repository — по placement)
 │   ├─ read_content_body      → read_content  (part=body)
 │   ├─ write_content_body     → write_content (part=body)
 │   ├─ read_content_properties  → part=properties

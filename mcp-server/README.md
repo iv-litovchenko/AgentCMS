@@ -64,7 +64,7 @@ get_session_context({ agentId: "<выбранный-id>" })
 | Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
 | Тема (manifest) | `read/write_topic_*`, `read/write_topic_property`, `read/write_topic_config`, `topic_exists`, `get_topic_meta`, `read/write_topic_env`, `create_topic`, `delete_topic`, `rename_topic`, `move_topic` |
 | Слот | `list_slots` |
-| Контент | `read_content` / `write_content` / `list_content` (`placement.kind`: page \| channel \| media \| root), `content_exists`, `get_content_meta`, properties/schema/lifecycle; legacy имена — только при `MCP_LEGACY_TOOLS=1` |
+| Контент | `read_content` / `write_content` / `list_content` (`placement.kind`: topic \| channel \| media \| database \| repository \| root; legacy `page` на входе), `content_exists`, `get_content_meta`, properties/schema/lifecycle; hub file legacy — только при `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `list_databases` / `get_database` … (legacy `database_frame_*`); записи — `*_content_*` |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |

@@ -119,7 +119,7 @@
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
-**MCP (канон):** `get_topic` / `update_topic` (карточка, как channel), `create_topic`, `list_topics`, `read_topic_*` (schema/config/env), `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
+**MCP (канон):** `get_topic` / `update_topic` (карточка, как channel), `create_topic`, `list_topics`, `read_topic_*` (schema/config/env), `read_topic_index_toc`, … Контент: **`placement.kind: topic`** (legacy `page` на входе → topic в ответах).
 
 **Параметры без схемы в MCP** (передавай так):
 
@@ -135,7 +135,7 @@
 
 ### Слоты
 
-`list_slots({ placement: { kind, path } })` для page/channel/media → `driver`: `external` (папка, нужен `ref`) или `internal` (один файл, **без `ref`**). Содержимое слота: `list_content`.
+`list_slots({ placement: { kind: "topic", path } })` (или channel/media/database/repository) → `driver`: `external` (папка, нужен `ref`) или `internal` (один файл, **без `ref`**). Содержимое слота: `list_content`.
 
 | Слот | Зачем |
 |------|-------|
@@ -152,7 +152,7 @@
 
 **`media` ≠ `assets`.** Картинка в текст, превью темы (поле `awn-preview`), вложение записи (поле `awn-attachments`) — всё в `assets`. В `media` — только самостоятельные файлы темы.
 
-Загрузка в `assets`: `write_content({ placement: { kind: "page", path, slot: "assets", ref: "pasted/shot.png" }, data })` (подпапки `pasted/`, `preview/`, `attachments/`). В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
+Загрузка в `assets`: `write_content({ placement: { kind: "topic", path, slot: "assets", ref: "pasted/shot.png" }, data })` (подпапки `pasted/`, `preview/`, `attachments/`). В markdown картинка ссылается как `awn-storage/assets/pasted/{файл}`.
 
 ### Медиатеки workspace (`awn-media/{slug}/`)
 
@@ -177,7 +177,17 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **каркас store** (`list_databases`, `get_database`, `register_database`, `update_database`, …; legacy `create_database`, `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
+Два слоя: **каркас store** (`list_databases`, `get_database`, `register_database`, `update_database`, …) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`. Устаревшие имена tools (`create_database`, `database_frame_*`) — только aliases на сервере, не в policy/docs.
+
+### Hub-семьи MCP (параллель)
+
+```
+Topics          Channels / Media / Repo       Databases
+get/update_topic  get + register/update/delete/rename   list/get/register/update
+read_topic_*      read_*_index_toc                    read/write_*_schema
+list_topics       list_*                              delete/rename_database
+list_slots + *_content_* (kind: topic | channel | media | repository | database)
+```
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|

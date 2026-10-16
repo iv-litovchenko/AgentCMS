@@ -17,7 +17,7 @@ const publicKinds = publicPlacementKindList();
 
 export const placementKindSchema = z
   .enum(publicKinds)
-  .describe("topic | channel | media | database | repository | root (workspace file path)");
+  .describe("topic | channel | media | database | repository | root (legacy input: page → topic)");
 
 const placementPath = z
   .string()
@@ -63,10 +63,20 @@ export const placementSchema = z.discriminatedUnion("kind", [
 ]);
 
 /** Plain strict object: refinements/intersections make MCP tools/list publish an empty input schema. */
+function normalizeLegacyPagePlacement(placement) {
+  if (!placement || typeof placement !== "object") return placement;
+  if (String(placement.kind || "").toLowerCase() === "page") {
+    return { ...placement, kind: "topic" };
+  }
+  return placement;
+}
+
 export function withContentAddress(baseShape, contentSlot) {
   return z
     .object({
-      placement: placementSchema.optional().describe("Preferred address. Or legacy top-level path + slot + ref"),
+      placement: z
+        .preprocess(normalizeLegacyPagePlacement, placementSchema.optional())
+        .describe("Preferred address. kind: topic (legacy page accepted). Or legacy top-level path + slot + ref"),
       path: z.string().min(1).optional().describe("Legacy: manifest path (hub prefix auto-inferred for awn-databases/…)"),
       slot: contentSlot.optional(),
       ref: z.string().min(1).optional(),

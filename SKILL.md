@@ -191,7 +191,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 { "agentId": "…", "placement": { "kind": "root", "path": "awn-repositories/site/src/index.html" } }
 ```
 
-- `kind`: `topic` (синоним `page`) | `channel` | `media` — нужны `path` + `slot` (+ `ref`); `root` — только `path` от корня workspace.
+- `kind`: `topic` (legacy `page`) | `channel` | `media` | `database` | `repository` — нужны `path` + `slot` (+ `ref`); `root` — только `path` от корня workspace.
 - `ref` — файл в слоте **с расширением**; без расширения повторяется с `.md` (`refResolved` в ответе).
 
 **`read_content`** — `part`: `body` (default) | `properties` | `schema` | `meta` | `all`.

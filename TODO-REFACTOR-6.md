@@ -189,10 +189,10 @@ types/hubs/database/
 | G3 | **Database** | ~~нет `update_database`~~ | ✅ **`update_database`** = patch manifest (как `update_channel`); schema — **`write_database_schema`** | ✅ |
 | G4 | **Channel / media / repo** | ~~только register/update~~ | ✅ **`delete_*` / `rename_*`** hub-папки (soft-delete в корзину; builtin presets channel/media — 403) | ✅ |
 | G5 | **Topics — каталог** | ~~нет `list_topics`~~ | ✅ **`list_topics`** — flat или `parentPath` + `scope=children\|subtree`; INDEX → `read_topic_index_toc` | ✅ |
-| G6 | **Placement** | `kind: topic` и legacy **`page`** | Микро-шаг: канон **`topic`**, `page` → alias в API/docs (см. C) | низкий |
+| G6 | **Placement** | ~~`page` в docs~~ | ✅ канон **`topic`**; **`page`** — legacy input (Zod preprocess + `content-placement.js`) | ✅ |
 | G7 | **Repository** | тонкий MCP (manifest + index) | Тип **`awn.hub.repository.group`** в `types/hubs/repository/` + при необходимости tools | отложено |
-| G8 | **Legacy MCP** | `database_frame_*` в policy read list; channel/media file tools при legacy flag | Со временем **убрать legacy из whitelist** policy, оставить только aliases в сервере; docs — один канон | низкий |
-| G9 | **Документация** | `TODO-REFACTOR-4`, `GLOBAL-DOC-MARKDOWN`, UI MCP modal | Деревья hub-семейств и параллель **Topics / Channels / Databases** — держать в sync с F | низкий |
+| G8 | **Legacy MCP** | ~~`database_frame_*` / `iblock_*` в policy read list~~ | ✅ whitelist **только канон**; aliases остаются на MCP-сервере | ✅ |
+| G9 | **Документация** | ~~расхождения деревьев~~ | ✅ `TODO-REFACTOR-4`, `GLOBAL-DOC-MCP`, `docs/mcp-0.0.2.js`, `mcp-server/README` | ✅ |
 
 **Не трогаем без отдельного решения:** записи в слотах — только **`*_content_*`** (не `list_database_records` и т.п.); **schema store** у database остаётся отдельным слоем (у topic — `read_topic_schema`).
 

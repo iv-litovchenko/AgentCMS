@@ -6,14 +6,14 @@ module.exports = {
   packagePath: "mcp-server/",
   generatedAt: "2026-10-11",
   notes: [
-    "MCP slim v0.3.8 — per-chat agentId · placement (page|channel|media|root) · CONTENT + FS + exec.",
+    "MCP slim v0.3.8 — per-chat agentId · placement (topic|channel|media|database|repository|root; legacy page→topic) · CONTENT + FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool). Живой список tools — mcp-server/ после перезапуска.",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
-    "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
+    "Контент (placement): read_content / write_content / list_content; kind topic|channel|media|database|repository|root (legacy page на входе); legacy path+slot без placement → topic.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: list_databases / get_database … (legacy database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
@@ -310,7 +310,7 @@ module.exports = {
       tools: [
         {
           name: "list_slots",
-          description: "Слоты контейнера (page / channel / media): driver, path, allowedContent.",
+          description: "Слоты контейнера (topic / channel / media / database / repository): driver, path, allowedContent.",
           parameters: "placement.kind + path или path=manifest",
           http: "GET /api/page/slots"
         }
@@ -322,7 +322,7 @@ module.exports = {
       tools: [
         {
           name: "read_content",
-          description: "Канон: placement.kind page|channel|media|root; part body|properties|schema|meta|all.",
+          description: "Канон: placement.kind topic|channel|media|database|repository|root (legacy page→topic); part body|properties|schema|meta|all.",
           parameters: "placement или path+slot, part?, ref?, format? (root binary)",
           http: "—"
         },
