@@ -187,7 +187,7 @@ types/hubs/database/
 | G1 | **Topics vs ingress** | ~~только `read_topic_*`~~ | ✅ **`get_topic` / `update_topic`** (как channel); **`read|write_topic_*`** для schema/config/env — без снятия | ✅ |
 | G2 | **Database hub** | ~~`create_database`~~ | ✅ **`register_database`** (legacy `create_database`, `database_frame_create`); **`update_database`** (G3) | ✅ |
 | G3 | **Database** | ~~нет `update_database`~~ | ✅ **`update_database`** = patch manifest (как `update_channel`); schema — **`write_database_schema`** | ✅ |
-| G4 | **Channel / media / repo** | только `register_*` + `update_*` | Опционально **`delete_*`**, **`rename_*` / move** hub-папки (как `delete_topic` / `rename_database`) | низкий |
+| G4 | **Channel / media / repo** | ~~только register/update~~ | ✅ **`delete_*` / `rename_*`** hub-папки (soft-delete в корзину; builtin presets channel/media — 403) | ✅ |
 | G5 | **Topics — каталог** | ~~нет `list_topics`~~ | ✅ **`list_topics`** — flat или `parentPath` + `scope=children\|subtree`; INDEX → `read_topic_index_toc` | ✅ |
 | G6 | **Placement** | `kind: topic` и legacy **`page`** | Микро-шаг: канон **`topic`**, `page` → alias в API/docs (см. C) | низкий |
 | G7 | **Repository** | тонкий MCP (manifest + index) | Тип **`awn.hub.repository.group`** в `types/hubs/repository/` + при необходимости tools | отложено |

@@ -79,7 +79,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 ### 4.1 Каналы (`awn-channels/`)
 
-Входящие потоки. Карточка канала: `list_channels` (вкл. папки без карточки и пресеты), `get_channel`, `register_channel`, `update_channel`; каталог — `read_channels_index_toc` / `refresh_channels_index_toc`.
+Входящие потоки. Карточка канала: `list_channels`, `get_channel`, `register_channel`, `update_channel`, `delete_channel`, `rename_channel`; каталог — `read_channels_index_toc` / `refresh_channels_index_toc`. Аналогично медиатеки и репозитории: `delete_media_library` / `rename_media_library`, `delete_repository` / `rename_repository`.
 
 Содержимое — через content-tools с `placement: { kind: "channel", path: "<slug>", slot, ref }`. Слоты: `inbox` (входящее), `outbox` (исходящее), `files`, `assets`.
 

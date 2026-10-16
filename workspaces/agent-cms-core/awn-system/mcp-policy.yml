@@ -6,7 +6,7 @@ description: >
 
 mcp:
   # single-call write tools (blocked in mcp-mode=readonly)
-  write_tool_pattern: "^(write_|create_|register_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|write_database_|register_database|create_database|delete_database|rename_database|refresh_databases_index_toc|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
+  write_tool_pattern: "^(write_|create_|register_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|write_database_|register_database|create_database|delete_database|rename_database|delete_channel|rename_channel|delete_media_library|rename_media_library|delete_repository|rename_repository|refresh_databases_index_toc|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
   exec_tools:
     - exec_command
     - exec_shell

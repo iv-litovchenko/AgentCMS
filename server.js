@@ -105,6 +105,8 @@ const {
   writeRepositoryIndex,
   registerRepository,
   updateRepository,
+  deleteRepository,
+  renameRepository,
   readRepositoryGroups,
   writeRepositoryGroups,
   shouldSkipAwnRepositoriesSearch
@@ -114,6 +116,8 @@ const {
   getMediaLibrary,
   registerMediaLibrary,
   updateMediaLibrary,
+  deleteMediaLibrary,
+  renameMediaLibrary,
   writeMediaLibraryIndex,
   shouldSkipAwnMediaSearch,
   getMediaLibrarySliderFilesRel,
@@ -130,6 +134,8 @@ const {
   getAwnChannel,
   registerAwnChannel,
   updateAwnChannel,
+  deleteAwnChannel,
+  renameAwnChannel,
   assertChannelManifestRel,
   readChannelsIndex,
   writeChannelsIndex,
@@ -22985,6 +22991,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/agent/repository") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteRepository(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/repositories/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || payload?.to || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameRepository(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/dependencies") {
     try {
       const agentRoot = getAgentRoot();
@@ -23110,6 +23153,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/agent/media-library") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteMediaLibrary(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameMediaLibrary(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/media-libraries/store-schema") {
     try {
       const agentRoot = getAgentRoot();
@@ -23207,6 +23287,43 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/agent/channel") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteAwnChannel(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameAwnChannel(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename channel",
         details: String(error.message || error)
       });
     }

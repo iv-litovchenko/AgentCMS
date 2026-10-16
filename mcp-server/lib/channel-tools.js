@@ -82,6 +82,23 @@ export function registerChannelTools(reg, client, options = {}) {
     (payload) => client.put("/api/agent/channels", payload)
   );
 
+  reg(
+    "delete_channel",
+    "Soft-delete channel hub folder (awn-channels/{slug}/) to workspace recycle bin. Built-in presets are protected.",
+    z.object({ path: workspaceRelPath }),
+    ({ path }) => client.delete("/api/agent/channel", { path })
+  );
+
+  reg(
+    "rename_channel",
+    "Rename/move channel folder under awn-channels/ (new slug). Built-in presets are protected.",
+    z.object({
+      path: workspaceRelPath,
+      slug: z.string().min(1).describe("New folder name under awn-channels/, e.g. telegram")
+    }),
+    ({ path, slug }) => client.post("/api/agent/channels/rename", { path, slug })
+  );
+
   const readChannelsIndexSchema = z.object({});
   const readChannelsIndexHandler = () => client.get("/api/agent/channels-index");
   const readChannelsIndexDescription = "Read awn-channels/index.md (catalog table of ingress channels).";
