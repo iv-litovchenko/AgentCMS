@@ -181,7 +181,7 @@
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|
-| `md` | `awn.database.element.record` | Сущности с полями |
+| `md` | `awn.content.record` | Сущности с полями |
 | `md-lite` | `…record-lite` | Простые списки (тексты, слоганы) |
 | `csv` | `…record-csv` | Табличный реестр в одной таблице |
 | `csv-files` | `…record-csv` | Отдельная таблица на запись |
@@ -303,7 +303,7 @@ MCP policy задаётся только в `platform`. Секреты в settin
 | `create-page` | `awn.page.topic` |
 | `slot-content` | `awn.content.record`, `awn.content.record-csv` |
 | `data-containers` | `awn.database.frame.collection` |
-| `data-elements` | `awn.database.element.record`, `…record-lite`, `…record-csv` |
+| `data-elements` | `awn.content.record`, `awn.content.record-lite`, `awn.content.record-csv`, `awn.content.category` |
 
 ---
 

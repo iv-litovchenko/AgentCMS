@@ -1,58 +1,44 @@
 # Рефакторинг — часть 6
 
-**Задача:** один слой **контента** (`placement` + `*_content_*`) вместо параллельного **`database_element_*`** и дублирующих типов **`awn-system/types/databases/elements/`**. На диске запись базы уже лежит в `awn-storage/data/` как файл — различие сейчас в API и типах, не в формате.
+**Задача:** один слой **контента** (`placement` + `*_content_*`) вместо параллельного **`database_element_*`** и дублирующих типов **`awn-system/types/databases/elements/`**.
 
-**✅** сделано · **❌** не сделано · **⚠️** не выкинуть без переноса логики.
+**✅** сделано · **❌** не сделано.
 
-**Связано:** часть 4 (placement `database`), `GLOBAL-DOC-MCP.md` §6, `database_frame_*` (каркас остаётся).
-
----
-
-## Часть 1 — `database_element_*` vs `*_content_*`
-
-| MCP | Аналог content | Статус |
-| --- | -------------- | ------ |
-| `database_element_list` | `list_content` (`kind: database`, `slot: data`) | ✅ снято → `list_content` → `/api/awn-databases/records` |
-| `database_element_read_body` | `read_content` `part=body` | ✅ снято |
-| `database_element_write_body` | `write_content` `part=body` | ✅ снято |
-| `database_element_read_properties` | `read_content` `part=properties` | ✅ снято |
-| `database_element_write_properties` | `write_content` `part=properties` | ✅ снято |
-| `database_element_read_property` | `read_content_property` | ✅ снято |
-| `database_element_write_property` | `write_content_property` | ✅ снято |
-| `database_element_delete` | `delete_content` | ✅ снято → DELETE `/api/awn-databases/records` |
-| `database_element_rename` | `move_content` (`targetParent`, `slug`) | ✅ снято → POST `records/rename` |
-| `database_element_create` | `create_content` (`isSection`, `fileExtension`, …) | ✅ снято → POST `/api/awn-databases/records` |
-
-**Остаётся:** `database_frame_*`, **`database_frame_get`**.
-
-**Адрес записей:** `placement: { kind: "database", path: "<store>", slot: "data", ref: "…" }`.
+**Связано:** часть 4 (placement `database`), `GLOBAL-DOC-MCP.md` §6, `database_frame_*`.
 
 ---
 
-## Часть 2 — `types/databases/elements/` vs `types/content/`
+## Часть 1 — MCP `database_element_*` → `*_content_*`
 
-```
-awn-system/types/databases/elements/
-├── _base.yml          → domain: database, kind: element-base     [❌]
-├── record.yml         → extends awn.content.record               [❌ удалить после aliases]
-├── record-lite.yml    → md-lite profile                         [⚠️]
-├── record-csv.yml     → extends awn.content.record-csv           [❌]
-└── category.yml       → extends awn.content.category             [⚠️ record-role → frame]
-```
-
-**Итог части 2:** ❌ не начато.
+✅ Все tools сняты; записи через `placement: { kind: "database", path, slot: "data" }`.
 
 ---
 
-## План (кратко)
+## Часть 2 — типы `types/databases/elements/`
+
+| Было | Стало |
+| ---- | ----- |
+| `awn.database.element.record` | **`awn.content.record`** (alias в TYPE_ID_ALIASES) |
+| `awn.database.element.record-lite` | **`awn.content.record-lite`** (новый YAML в `types/content/`) |
+| `awn.database.element.record-csv` | **`awn.content.record-csv`** |
+| `awn.database.element.category` | **`awn.content.category`** |
+| `elements/*.yml` | **удалены** |
+
+Новые записи в `data/` получают `awn-type: awn.content.*`. Старые manifest/schema с `awn.database.element.*` читаются через aliases + `LEGACY_EXTENDS_TO_TYPE_ID`.
+
+`list_types` preset **`data-elements`** — только четыре `awn.content.*` id.
+
+---
+
+## План
 
 | Статус | Шаг |
 | ------ | --- |
-| ✅ | `*_content_*` для database: list/create/delete/move → awn-databases API |
-| ✅ | Remove all `database_element_*` из MCP (`iblock-tools.js`) |
-| ❌ | Свести типы: aliases `awn.database.element.*` → `awn.content.*` |
-| ❌ | Удалить `types/databases/elements/` |
-| ✅ | SKILL / GLOBAL-DOC-MCP / mcp-policy / docs |
+| ✅ | Часть 1 MCP |
+| ✅ | `awn.content.record-lite.yml`, aliases, `awn-data-loader` constants |
+| ✅ | Удалить `types/databases/elements/` |
+| ❌ | По желанию: массово обновить `awn-type` / `extends` в workspace data (не блокер) |
+| ❌ | UI `public/main.js`: константы `awn.database.element.*` → content (косметика) |
 
 ## Чат (Cursor)
 
