@@ -5,7 +5,7 @@ import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 const workspaceRelPath = z
   .string()
   .min(1)
-  .describe("Workspace-relative file or folder path, e.g. awn-container/tema/awn-storage/main/readme.md");
+  .describe("Workspace-relative file or folder path, e.g. awn-topics/tema/awn-storage/main/readme.md");
 
 const searchExtensions = z
   .union([z.array(z.string()), z.string()])
@@ -39,7 +39,7 @@ const searchWorkspaceSchema = z.object({
   match: z.enum(["relaxed", "strict"]).optional(),
   pathPrefix: workspaceRelPath
     .optional()
-    .describe("Limit search to workspace subtree, e.g. awn-container/tema-x. Empty = entire workspace."),
+    .describe("Limit search to workspace subtree, e.g. awn-topics/tema-x. Empty = entire workspace."),
   extensions: searchExtensions,
   limit: z.number().int().min(1).max(100).optional()
 });
@@ -70,7 +70,7 @@ function registerSearchWorkspaceTools(reg, client) {
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
         .optional()
-        .describe("Limit search to workspace subtree, e.g. awn-container/tema-x"),
+        .describe("Limit search to workspace subtree, e.g. awn-topics/tema-x"),
       extensions: searchExtensions,
       limit: z.number().int().min(1).max(50).optional()
     }),
@@ -90,7 +90,7 @@ function registerSearchWorkspaceTools(reg, client) {
       query: z.string().min(2).describe("Search phrase or question"),
       pathPrefix: workspaceRelPath
         .optional()
-        .describe("Limit to workspace subtree, e.g. awn-container/tema-archiv"),
+        .describe("Limit to workspace subtree, e.g. awn-topics/tema-archiv"),
       extensions: searchExtensions,
       where: z
         .array(
@@ -192,7 +192,7 @@ function registerSearchWorkspaceTools(reg, client) {
         .optional()
         .describe("Hybrid text search within DQL result paths (overrides WITH TEXT in dql string)"),
       hybridLimit: z.number().int().min(1).max(50).optional(),
-      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
+      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-topics/finansy"),
       where: z
         .array(
           z.object({
@@ -537,7 +537,7 @@ function registerSearchWorkspaceTools(reg, client) {
       path: z
         .string()
         .min(1)
-        .describe("Workspace-relative path to file with frontmatter, e.g. awn-container/topic/manifest.md"),
+        .describe("Workspace-relative path to file with frontmatter, e.g. awn-topics/topic/manifest.md"),
       force: z.boolean().optional().describe("Replace existing awn-id (default false)")
     }),
     (payload) => client.post("/api/workspace-id/assign", payload)

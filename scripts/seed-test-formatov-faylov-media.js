@@ -9,7 +9,7 @@ const MEDIA_ROOT = path.join(
   "..",
   "workspaces",
   "agent-cms-test",
-  "awn-container",
+  "awn-topics",
   "test-formatov-faylov",
   "awn-storage",
   "media"

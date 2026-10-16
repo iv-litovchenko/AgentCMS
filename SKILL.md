@@ -70,7 +70,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 | Раздел | Где на диске | Что там |
 |--------|--------------|---------|
 | Каналы | `awn-channels/{slug}/` | Входящие потоки: Telegram, GitHub, закладки — сырые идеи, ссылки, задачи на потом |
-| Темы | `awn-container/…` (+ `awn-agent-kit/`, `awn-shared/`) | Разобранные знания по областям |
+| Темы | `awn-topics/…` (+ `awn-agent-kit/`, `awn-shared/`) | Разобранные знания по областям |
 | Базы | `awn-databases/…` | Структурированные данные: задачи, финансы, дневник, привычки |
 | Репозитории | `awn-repositories/{slug}/` | Подключённые проекты с кодом |
 | Медиатеки | `awn-media/{slug}/` | Файлы и картинки workspace |
@@ -85,11 +85,11 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Разбор входящего: `list_inbox` → `triage_inbox_item` (`to-content` — перенести в тему, `mark-done`, `set-status`).
 
-### 4.2 Темы (`awn-container/`)
+### 4.2 Темы (`awn-topics/`)
 
 Дерево областей и тем. Типы: `awn.page.ws` (корень workspace), `awn.page.area` (область — папка), `awn.page.topic` (тема со слотами).
 
-Разделы дерева (`parentPath` в `create_topic`): `awn-container/` — темы пользователя (по умолчанию); `awn-agent-kit/` — служебные темы агента (persona, rules, voice…); `awn-shared/` — общие ресурсы.
+Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-agent-kit/` — служебные темы агента (persona, rules, voice…); `awn-shared/` — общие ресурсы.
 
 **Тело `manifest.md` — бриф темы:** назначение, границы, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии.
 
@@ -334,7 +334,7 @@ WITH TEXT "…"   — hybrid-поиск только по отобранным �
 | Команда | `exec_command` (args-массив) или `exec_shell` (строка с пайпами) |
 | Файлообменник Shell | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub`, `clear_file_hub_queue` |
 
-**Показать картинку из заметки:** относительную ссылку `awn-storage/assets/pasted/x.png` дострой до полного пути `awn-container/<тема>/awn-storage/…` (путь темы — из `resolve_workspace_path`), затем `read_content({ placement: { kind: "root", path }, format: "base64" })`.
+**Показать картинку из заметки:** относительную ссылку `awn-storage/assets/pasted/x.png` дострой до полного пути `awn-topics/<тема>/awn-storage/…` (путь темы — из `resolve_workspace_path`), затем `read_content({ placement: { kind: "root", path }, format: "base64" })`.
 
 **`batch_invoke`** — N вызовов одного tool (`tool` + `items[]` без `agentId`): read/list/search до 20, write до 10. Частичный успех возможен — проверяй каждый item.
 

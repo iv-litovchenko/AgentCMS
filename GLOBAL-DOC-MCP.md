@@ -72,7 +72,7 @@
 
 ### Разделы дерева (для `parentPath` в `create_topic`)
 
-- `awn-container/` — пользовательские области и темы (по умолчанию);
+- `awn-topics/` — пользовательские области и темы (по умолчанию);
 - `awn-agent-kit/` — служебные темы агента (persona, rules, voice…);
 - `awn-shared/` — общие ресурсы между темами.
 
@@ -123,7 +123,7 @@
 
 **Параметры без схемы в MCP** (передавай так):
 
-- `create_topic`: `type`* (`area` / `topic` или полный `awn.hub.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
+- `create_topic`: `type`* (`area` / `topic` или полный `awn.hub.*`), `parentPath` (обычно внутри `awn-topics/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
 - `rename_topic`: `path`*, `displayName` или `title`* → `awn-name`, `slug` → папка.
 - `generate_workspace_slug`: `text` (или `title` / `displayName` / `name`), `preset` (`topic` · `page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
 
@@ -253,7 +253,7 @@ list_slots + *_content_* (kind: topic | channel | media | repository | database)
 | Любой файл по пути (код, HTML, свободная память) | `read_content` / `write_content` с `kind: root`; точечная правка — `write_content` `mode: patch` (legacy `patch_file`); обход папки — `list_folder` |
 | Загрузка по полному пути | `upload_file` / `upload_file_from_url` |
 
-**Картинки в чате (показ пользователю):** в теле заметки ссылка часто **относительная** (`awn-storage/assets/pasted/shot.png`) — для чтения нужен **полный** workspace-path: `awn-container/<тема>/awn-storage/assets/pasted/shot.png` (путь темы из `resolve_workspace_path` / `read_topic_index_toc`, не угадывай). Читать: `read_content` с `placement: { kind: "root", path: "<полный path>" }`, `format: "base64"`. Для `image/*` MCP возвращает блок `image` (клиент может показать в чате); без `format: "base64"` — только метаданные и `previewUrl` (UI). Лимит чтения base64 — см. `maxBytes` в tool. **`read_root_file` — только basename в корне workspace** (`AGENTS.md`, `SKILL.md`…), **не** для `assets/pasted` и не для имён без папки темы.
+**Картинки в чате (показ пользователю):** в теле заметки ссылка часто **относительная** (`awn-storage/assets/pasted/shot.png`) — для чтения нужен **полный** workspace-path: `awn-topics/<тема>/awn-storage/assets/pasted/shot.png` (путь темы из `resolve_workspace_path` / `read_topic_index_toc`, не угадывай). Читать: `read_content` с `placement: { kind: "root", path: "<полный path>" }`, `format: "base64"`. Для `image/*` MCP возвращает блок `image` (клиент может показать в чате); без `format: "base64"` — только метаданные и `previewUrl` (UI). Лимит чтения base64 — см. `maxBytes` в tool. **`read_root_file` — только basename в корне workspace** (`AGENTS.md`, `SKILL.md`…), **не** для `assets/pasted` и не для имён без папки темы.
 
 **Служебные папки корня:**
 

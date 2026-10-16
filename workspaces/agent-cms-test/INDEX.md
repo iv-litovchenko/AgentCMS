@@ -25,40 +25,40 @@
 | — | — | awn.hub.topic | типовые | `awn-agent-kit/real-world-and-space/manifest.md` | [Объекты реального мира, места и пространства](awn-agent-kit/real-world-and-space/manifest.md) | — | 342 B | 10 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic | типовые | `awn-agent-kit/test/manifest.md` | [Тест](awn-agent-kit/test/manifest.md) | — | 593 B | 31 | 0 | 0 | — |
 | — | — | awn.hub.topic | типовые | `awn-agent-kit/user/manifest.md` | [Пользователь](awn-agent-kit/user/manifest.md) | — | 237 B | 10 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/009/manifest.md` | [9](awn-container/009/manifest.md) | шошщощш | 613 B | 30 | 0 | 0 | — |
-| — | — | папка | — | `awn-container/777` | [777](awn-container/777) | — | — | — | 0 | 0 | — |
-| — | — | папка | — | `awn-container/777/222` | [222](awn-container/777/222) | — | — | — | 0 | 0 | — |
-| — | — | папка | — | `awn-container/777/333` | [333](awn-container/777/333) | — | — | — | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-container/777/777/manifest.md` | [777](awn-container/777/777/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
-| — | — | папка | — | `awn-container/8777` | [8777](awn-container/8777) | — | — | — | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/finansy/manifest.md` | [Финансы](awn-container/finansy/manifest.md) | ауцауцауц | 704 B | 34 | 0 | 0 | — |
-| 4 | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/html-i-css-2/manifest.md` | [HTML и CSS 2](awn-container/html-i-css-2/manifest.md) | — | 726 B | 38 | 0 | 0 | Схемы |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/dom-i-byt/manifest.md` | [Дом и быт](awn-container/lichnaya-zhizn/dom-i-byt/manifest.md) | — | 541 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/druzya-i-obshchenie/manifest.md` | [Друзья и общение](awn-container/lichnaya-zhizn/druzya-i-obshchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md` | [Хобби и увлечения](awn-container/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/knigi-i-obuchenie/manifest.md` | [Книги и обучение](awn-container/lichnaya-zhizn/knigi-i-obuchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/lichnye-tseli/manifest.md` | [Личные цели](awn-container/lichnaya-zhizn/lichnye-tseli/manifest.md) | — | 546 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-container/lichnaya-zhizn/manifest.md` | [Личная жизнь](awn-container/lichnaya-zhizn/manifest.md) | — | 547 B | 28 | 10 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/pitanie-i-retsepty/manifest.md` | [Питание и рецепты](awn-container/lichnaya-zhizn/pitanie-i-retsepty/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/podkast-golos-nedeli/manifest.md` | [Подкаст «Голос недели»](awn-container/lichnaya-zhizn/podkast-golos-nedeli/manifest.md) | Личный подкаст: короткие эпизоды раз в неделю на разные темы | 1.6 KB | 43 | 1 | 0 | Схемы |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md` | [Привычки и саморазвитие](awn-container/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md) | — | 569 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/puteshestviya/manifest.md` | [Путешествия](awn-container/lichnaya-zhizn/puteshestviya/manifest.md) | — | 547 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/semya-i-blizkie/manifest.md` | [Семья и близкие](awn-container/lichnaya-zhizn/semya-i-blizkie/manifest.md) | — | 553 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-container/lichnaya-zhizn/tema-bez-slotov/manifest.md) | — | 570 B | 29 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/lichnaya-zhizn/zdorove-i-sport/manifest.md` | [Здоровье и спорт](awn-container/lichnaya-zhizn/zdorove-i-sport/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-container/manifest.md` | [Контейнер](awn-container/manifest.md) | — | 496 B | 26 | 0 | 0 | — |
-| — | — | папка | — | `awn-container/media-test-gugl-disk` | [media-test-gugl-disk](awn-container/media-test-gugl-disk) | — | — | — | 0 | 0 | — |
-| 7 | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/moi-vklady/manifest.md` | [Мои вклады](awn-container/moi-vklady/manifest.md) | — | 571 B | 30 | 0 | 0 | Схемы |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/novay-tema-test-id/manifest.md` | [Новай тема тест ID](awn-container/novay-tema-test-id/manifest.md) | — | 719 B | 35 | 0 | 0 | — |
-| 34 | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/php/manifest.md` | [PHP](awn-container/php/manifest.md) | Описание | 2.3 KB | 66 | 0 | 0 | — |
-| 40 | 🟢 Открыта | awn.hub.topic | гибкий | `awn-container/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-container/tema-bez-slotov/manifest.md) | 888 | 821 B | 42 | 0 | 0 | Схемы |
-| 9 | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/temma-so-slotami/manifest.md` | [Темма со слотами](awn-container/temma-so-slotami/manifest.md) | — | 582 B | 30 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/test-1000-soobscheniy/manifest.md` | [Тест 1000 сообщений](awn-container/test-1000-soobscheniy/manifest.md) | — | 557 B | 28 | 4 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/test-formatov-faylov/manifest.md` | [Тест форматов файлов](awn-container/test-formatov-faylov/manifest.md) | — | 632 B | 30 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/test-md-blokov/manifest.md` | [Тест md-блоков](awn-container/test-md-blokov/manifest.md) | — | 1.6 KB | 94 | 0 | 0 | — |
-| 39 | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-container/test-vseh-svoystvo/manifest.md) | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-container/test/manifest.md` | [Тест](awn-container/test/manifest.md) | — | 1015 B | 57 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-container/tevt-diagramm/manifest.md` | [Тевт диаграмм](awn-container/tevt-diagramm/manifest.md) | — | 712 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/009/manifest.md` | [9](awn-topics/009/manifest.md) | шошщощш | 613 B | 30 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777` | [777](awn-topics/777) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777/222` | [222](awn-topics/777/222) | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777/333` | [333](awn-topics/777/333) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/777/777/manifest.md` | [777](awn-topics/777/777/manifest.md) | — | 688 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/8777` | [8777](awn-topics/8777) | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/finansy/manifest.md` | [Финансы](awn-topics/finansy/manifest.md) | ауцауцауц | 704 B | 34 | 0 | 0 | — |
+| 4 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/html-i-css-2/manifest.md` | [HTML и CSS 2](awn-topics/html-i-css-2/manifest.md) | — | 726 B | 38 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md` | [Дом и быт](awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md) | — | 541 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md` | [Друзья и общение](awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md` | [Хобби и увлечения](awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md` | [Книги и обучение](awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md` | [Личные цели](awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md) | — | 546 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/lichnaya-zhizn/manifest.md` | [Личная жизнь](awn-topics/lichnaya-zhizn/manifest.md) | — | 547 B | 28 | 10 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md` | [Питание и рецепты](awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md) | — | 557 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md` | [Подкаст «Голос недели»](awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md) | Личный подкаст: короткие эпизоды раз в неделю на разные темы | 1.6 KB | 43 | 1 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md` | [Привычки и саморазвитие](awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md) | — | 569 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/puteshestviya/manifest.md` | [Путешествия](awn-topics/lichnaya-zhizn/puteshestviya/manifest.md) | — | 547 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md` | [Семья и близкие](awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md) | — | 553 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md) | — | 570 B | 29 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md` | [Здоровье и спорт](awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md) | — | 555 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/manifest.md` | [Контейнер](awn-topics/manifest.md) | — | 496 B | 26 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/media-test-gugl-disk` | [media-test-gugl-disk](awn-topics/media-test-gugl-disk) | — | — | — | 0 | 0 | — |
+| 7 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/moi-vklady/manifest.md` | [Мои вклады](awn-topics/moi-vklady/manifest.md) | — | 571 B | 30 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/novay-tema-test-id/manifest.md` | [Новай тема тест ID](awn-topics/novay-tema-test-id/manifest.md) | — | 719 B | 35 | 0 | 0 | — |
+| 34 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/php/manifest.md` | [PHP](awn-topics/php/manifest.md) | Описание | 2.3 KB | 66 | 0 | 0 | — |
+| 40 | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-topics/tema-bez-slotov/manifest.md) | 888 | 821 B | 42 | 0 | 0 | Схемы |
+| 9 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/temma-so-slotami/manifest.md` | [Темма со слотами](awn-topics/temma-so-slotami/manifest.md) | — | 582 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-1000-soobscheniy/manifest.md` | [Тест 1000 сообщений](awn-topics/test-1000-soobscheniy/manifest.md) | — | 557 B | 28 | 4 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-formatov-faylov/manifest.md` | [Тест форматов файлов](awn-topics/test-formatov-faylov/manifest.md) | — | 632 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-md-blokov/manifest.md` | [Тест md-блоков](awn-topics/test-md-blokov/manifest.md) | — | 1.6 KB | 94 | 0 | 0 | — |
+| 39 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-topics/test-vseh-svoystvo/manifest.md) | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test/manifest.md` | [Тест](awn-topics/test/manifest.md) | — | 1015 B | 57 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/tevt-diagramm/manifest.md` | [Тевт диаграмм](awn-topics/tevt-diagramm/manifest.md) | — | 712 B | 35 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-shared/downloads/manifest.md` | [Загрузки из браузера](awn-shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic | типовые | `awn-shared/inbox/manifest.md` | [Входящие](awn-shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |

@@ -4,7 +4,7 @@ const pageUrl = z.string().url().describe("Public http(s) URL");
 const workspacePath = z
   .string()
   .min(1)
-  .describe("Workspace-relative file path, e.g. awn-container/tema/awn-storage/media/doc.pdf");
+  .describe("Workspace-relative file path, e.g. awn-topics/tema/awn-storage/media/doc.pdf");
 
 export function registerAgentUtilsTools(reg, client) {
   reg(

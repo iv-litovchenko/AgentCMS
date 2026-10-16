@@ -19,7 +19,7 @@ workspaces/cli-sandbox/
     └── …
 \`\`\`
 
-Shell запускает CLI с \`cwd\` в \`cli-sandbox/<runtime>/<agent-id>/\`, не в корне workspace и не в \`awn-container/\`.
+Shell запускает CLI с \`cwd\` в \`cli-sandbox/<runtime>/<agent-id>/\`, не в корне workspace и не в \`awn-topics/\`.
 Доступ к хранилищу CMS — через **MCP Agent CMS**.
 `;
 
@@ -31,7 +31,7 @@ function agentReadme(runtime, agentId) {
 Рабочая папка **${rt}** для агента \`${id}\` в Agent CMS Shell.
 
 - \`cwd\` CLI — только эта папка и \`scratch/\`.
-- Хранилище workspace (\`awn-container/\`, темы) — через MCP, не с диска напрямую.
+- Хранилище workspace (\`awn-topics/\`, темы) — через MCP, не с диска напрямую.
 
 Временные файлы — в \`scratch/\`.
 `;

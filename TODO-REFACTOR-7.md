@@ -59,17 +59,28 @@ awn-topics/                          ← бывш. awn-container
 
 ---
 
-## План работ (черновик)
+## Шаг 1 — `awn-container` → `awn-topics` ✅
+
+| Сделано | Детали |
+| ------- | ------ |
+| ✅ | Default **`awn-topics`**: `agent-registry`, `manifest-paths`, `index-policy`, UI `CONTAINER_FOLDER_DEFAULT` |
+| ✅ | Read-алиас **`awn-container/`** → **`awn-topics/`**: `rewriteLegacyTopicsRootInRelPath` (+ `normalizeWorkspacePath`, `normalizePageManifestPath`) |
+| ✅ | Workspace **`agent-cms-test`**: папка переименована, живые пути в md/json обновлены |
+| ✅ | Примеры MCP/UI/docs: **`GLOBAL-DOC-MCP`**, **`SKILL.md`**, mcp-server, `public/index.html` |
+
+После деплоя: **rebuild indexes** для workspace с миграцией.
+
+---
+
+## План работ (остальное)
 
 | Статус | Шаг |
 | ------ | --- |
+| ❌ | **Шаг 2:** **`awn-agent-kit` → `awn-topics/agent-kit`** (+ тип section при необходимости) |
+| ❌ | **Шаг 3:** **`awn-shared` → `awn-topics/shared`** |
 | ❌ | Тип **`awn.hub.topic.section`** в **`types/hubs/`** (manifest, slots, extends) |
-| ❌ | Константа корня: **`awn-topics`**, **`containerFolder`** / index-policy / manifest-paths |
-| ❌ | Скрипт миграции: move **`awn-container` → `awn-topics`**, **`awn-shared` → `awn-topics/shared`**, **`awn-agent-kit` → `awn-topics/agent-kit`** |
-| ❌ | Обновить hardcoded пути (agent settings, docs, sandbox hints, examples) |
-| ❌ | Алиас **`awn-container/**` → **`awn-topics/**`** (read path, опционально write warn) |
-| ❌ | **`list_topics` / INDEX**: правила для секций **`shared`**, **`agent-kit`** |
-| ❌ | Документация: **`GLOBAL-DOC-MCP`**, **`SKILL.md`**, **`TODO-REFACTOR-4`** |
+| ❌ | **`list_topics` / INDEX**: pinned секции **`shared`**, **`agent-kit`** |
+| ❌ | Документация: **`TODO-REFACTOR-4`** (дерево hub) |
 
 ---
 

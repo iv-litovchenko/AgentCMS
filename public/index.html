@@ -6870,7 +6870,7 @@
                 <span class="create-node-scaffold-hint">Папка общих тем — накопители добавляются по одному.</span>
               </button>
               <button id="create-node-container-scaffold-btn" class="create-node-action-btn create-node-action-btn--container hidden" type="button" title="Области и темы рабочего контента агента.">
-                <span class="create-node-scaffold-title">Создать awn-container</span>
+                <span class="create-node-scaffold-title">Создать awn-topics</span>
                 <span class="create-node-scaffold-hint" id="create-node-container-scaffold-hint">Области и темы рабочего контента агента.</span>
               </button>
             </div>
@@ -6959,10 +6959,10 @@
             id="create-node-container-target-wrap"
             class="create-node-vault-option hidden is-disabled"
             for="create-node-container-target"
-            title="Создание только в awn-container"
+            title="Создание только в awn-topics"
           >
             <input id="create-node-container-target" type="checkbox" checked disabled aria-disabled="true" />
-            <span id="create-node-container-target-label">Создать в awn-container</span>
+            <span id="create-node-container-target-label">Создать в awn-topics</span>
           </label>
           <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
             <input type="checkbox" disabled aria-disabled="true" />
@@ -8169,7 +8169,7 @@ awn-type: awn.page.ws
             class="content-search-dql-input"
             rows="10"
             spellcheck="false"
-            placeholder='FROM awn-container/finansy&#10;WHERE awn-type = "awn.content.record"&#10;WITH TEXT "аренда"'
+            placeholder='FROM awn-topics/finansy&#10;WHERE awn-type = "awn.content.record"&#10;WITH TEXT "аренда"'
           ></textarea>
         </div>
         <div id="content-search-dql-panel-builder" class="content-search-dql-panel hidden">

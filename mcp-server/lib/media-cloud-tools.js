@@ -4,14 +4,14 @@ const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to hub manifest.md (awn.hub.topic|area|ws), e.g. awn-container/finansy/manifest.md"
+    "Path to hub manifest.md (awn.hub.topic|area|ws), e.g. awn-topics/finansy/manifest.md"
   );
 
 const workspaceFilePath = z
   .string()
   .min(1)
   .describe(
-    "Workspace-relative file path, e.g. awn-container/tema/awn-storage/media/photo.png (same as UI cloud sync)"
+    "Workspace-relative file path, e.g. awn-topics/tema/awn-storage/media/photo.png (same as UI cloud sync)"
   );
 
 const mediaCloudScope = z

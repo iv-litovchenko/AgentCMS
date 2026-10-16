@@ -17,4 +17,4 @@ awn-tags: [mcp, api, факты]
 ---
 
 
-Тема PHP (awn-id: 34) — учебный workspace по PHP 8.x, путь: awn-container/php/manifest.md.
+Тема PHP (awn-id: 34) — учебный workspace по PHP 8.x, путь: awn-topics/php/manifest.md.

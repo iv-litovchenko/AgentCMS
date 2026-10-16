@@ -107,7 +107,7 @@ export const CLI_SANDBOX_REL = "workspaces/cli-sandbox";
 /** Краткое пояснение над инструкцией для каждого runtime. */
 export const SHELL_RUNTIME_ROUTE_INTROS = {
   claude:
-    "Локальный CLI Claude. Shell запускает claude в workspaces/cli-sandbox/claude/<agent-id>/ — не в корне workspace и не в awn-container/. К CMS — через MCP.",
+    "Локальный CLI Claude. Shell запускает claude в workspaces/cli-sandbox/claude/<agent-id>/ — не в корне workspace и не в awn-topics/. К CMS — через MCP.",
   codex:
     "Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/codex/<agent-id>/ — не в хранилище workspace. К CMS — через MCP.",
   qwenpaw: "HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE."

@@ -267,7 +267,7 @@ export function registerPageTools({ reg, client, pagePath }) {
     "Move area/topic to another parent folder.",
     z.object({
       path: pagePath,
-      parentPath: z.string().describe("Target parent folder path, e.g. awn-container/kollektsii or .")
+      parentPath: z.string().describe("Target parent folder path, e.g. awn-topics/kollektsii or .")
     }),
     ({ path, parentPath }) => client.post("/api/page/move", { path, parentPath })
   );

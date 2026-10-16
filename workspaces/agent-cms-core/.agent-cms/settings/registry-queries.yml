@@ -156,7 +156,7 @@ queries:
     comment: Пример source dql для дашбордов и MCP.
     source: dql
     dql: |
-      FROM awn-container/finansy
+      FROM awn-topics/finansy
       WHERE awn-type = "awn.page.topic"
       SORT path ASC
       LIMIT 50

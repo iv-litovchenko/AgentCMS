@@ -5,7 +5,7 @@ const workspacePath = z
   .string()
   .min(1)
   .describe(
-    "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or AGENTS.md"
+    "Workspace-relative path, e.g. awn-topics/tema/awn-storage/media/photo.png or AGENTS.md"
   );
 
 const writeMode = z
@@ -163,7 +163,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
       path: z
         .string()
         .min(1)
-        .describe("Workspace-relative folder path, e.g. awn-container/tema/awn-storage/media"),
+        .describe("Workspace-relative folder path, e.g. awn-topics/tema/awn-storage/media"),
       depth: z.union([z.string(), z.number()]).optional(),
       includeBody: z.boolean().optional(),
       maxBodyChars: z.number().int().min(200).max(20000).optional()

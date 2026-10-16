@@ -351,7 +351,8 @@ const {
   normalizeDeclaredManifestTreeType,
   resolveMediaStorageSubfolderForManifest,
   isWorkspaceAwnMediaLibraryManifestRel,
-  isWorkspaceAwnChannelManifestRel
+  isWorkspaceAwnChannelManifestRel,
+  rewriteLegacyTopicsRootInRelPath
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -1871,7 +1872,7 @@ async function readJsonBody(req, maxSize = 1_000_000) {
 }
 
 function normalizeWorkspacePath(inputPath) {
-  const raw = String(inputPath ?? "").trim();
+  const raw = rewriteLegacyTopicsRootInRelPath(String(inputPath ?? "").trim());
   if (!raw || raw === ".") return null;
   const agentRoot = getAgentRoot();
   const safe = path.normalize(raw).replace(/^(\.\.[\/\\])+/, "");
@@ -15003,7 +15004,7 @@ const SESSION_CONTEXT_API_MAP = {
 
 const SESSION_PATH_HINTS = {
   topicManifest:
-    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
+    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot:
     "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
@@ -15011,7 +15012,7 @@ const SESSION_PATH_HINTS = {
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
   adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
-  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
+  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
   adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
 };
 
@@ -19320,7 +19321,7 @@ async function resolveMarkdownLinkAwnType(relPath, meta) {
       containerRootRel &&
         normalized.toLowerCase() === containerRootRel.toLowerCase()
     ),
-    containerFolder: containerFolder || "container"
+    containerFolder: containerFolder || "awn-topics"
   });
 
   let awnType = explicitType || inferred;

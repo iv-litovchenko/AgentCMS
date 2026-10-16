@@ -1834,7 +1834,7 @@ description: Работа с Agent CMS через MCP. Используй при
 
 ## Зоны workspace
 - \`awn-system/\` — модель CMS
-- \`awn-container/\` — контент
+- \`awn-topics/\` — контент
 - \`awn-agent-kit/\` — runtime агента
 
 ## MCP (часто)
@@ -2770,7 +2770,8 @@ const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
-const CONTAINER_FOLDER_DEFAULT = "awn-container";
+const CONTAINER_FOLDER_DEFAULT = "awn-topics";
+const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
 const PLATFORM_AGENT_ID = "platform";
 
@@ -5563,6 +5564,7 @@ function isContainerFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
   return (
     lower === CONTAINER_FOLDER_DEFAULT.toLowerCase() ||
+    lower === LEGACY_AWN_CONTAINER_FOLDER.toLowerCase() ||
     lower === LEGACY_CONTAINER_FOLDER.toLowerCase()
   );
 }
@@ -5897,7 +5899,7 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (parseStorageLayerRef(normalizedPart)) {
     return normalizedPart;
   }
-  if (/^(?:awn-container|awn-repositories|awn-media|awn-databases|awn-data|awn-media-cloud|awn-google-drive)\//i.test(normalizedPart)) {
+  if (/^(?:awn-topics|awn-container|awn-repositories|awn-media|awn-databases|awn-data|awn-media-cloud|awn-google-drive)\//i.test(normalizedPart)) {
     return normalizedPart;
   }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
@@ -8750,7 +8752,7 @@ function syncNodeDescriptionHintUi() {
   if (isAgentContainerRootIndexPath(resolvedPath)) {
     titleNode.textContent = "Контейнер — назначение области";
     textNode.innerHTML =
-      "Корневая область контентных папок агента: области и темы внутри <code>awn-container/</code>. " +
+      "Корневая область контентных папок агента: области и темы внутри <code>awn-topics/</code>. " +
       "Пути в markdown — GitHub-ссылки `[название](путь/к/файлу.md)`; относительный путь считается от текущего файла. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;

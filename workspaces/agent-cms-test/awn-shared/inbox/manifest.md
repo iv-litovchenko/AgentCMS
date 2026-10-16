@@ -43,7 +43,7 @@ awn-version: 5
 ---
 
 ```awn-query
-FROM awn-container/finansy
+FROM awn-topics/finansy
 WHERE awn-type = "awn.hub.topic"
 SORT path ASC
 LIMIT 20
@@ -51,7 +51,7 @@ SELECT path, awn-name
 ```
 
 ```dataview
-FROM awn-container/finansy
+FROM awn-topics/finansy
 WHERE awn-type = "awn.content.record"
 LIMIT 30
 ```

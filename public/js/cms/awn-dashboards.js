@@ -15,7 +15,7 @@
       title: "Расширения файлов",
       chartType: "pie",
       dql:
-        'FROM awn-container\nWHERE source_kind = "md"\nGROUP BY file.ext COUNT\nLIMIT 8'
+        'FROM awn-topics\nWHERE source_kind = "md"\nGROUP BY file.ext COUNT\nLIMIT 8'
     },
     "csv-folders": {
       title: "CSV по папкам",
