@@ -13404,7 +13404,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → read_database_frame_index_toc / database_frame_list."
+      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / list_databases."
     };
   }
 
@@ -13421,7 +13421,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → read_database_frame_index_toc; детали store → database_frame_get / database_frame_list.",
+      "Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -13468,10 +13468,12 @@ async function buildAgentAwnDataIndex() {
       "Оглавление накопителей awn-databases (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-databases.",
     whenToUse: {
-      read_database_frame_index_toc:
+      read_databases_index_toc:
         "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
-      refresh_database_frame_index_toc:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов)."
+      refresh_databases_index_toc:
+        "Обновить (пересобрать и сохранить) index.md в корне awn-databases.",
+      read_database_frame_index_toc: "Deprecated alias → read_databases_index_toc.",
+      refresh_database_frame_index_toc: "Deprecated alias → refresh_databases_index_toc."
     },
     path: manifestPath,
     indexFile: {
@@ -13536,7 +13538,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   return {
     version: 1,
     model: "awn-databases-index-write",
-    hint: "index.md обновлён в awn-databases/. Просмотр без записи → read_database_frame_index_toc / GET /api/agent/awn-databases-index.",
+    hint: "index.md обновлён в awn-databases/. Просмотр → read_databases_index_toc / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
     path: indexPath,
     overwrite,

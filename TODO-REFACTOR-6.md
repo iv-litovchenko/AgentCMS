@@ -122,7 +122,7 @@ types/hubs/
 
 **Зачем:** сегмент **`frame`** и папка **`frames/`** — наследие `kind: frame`, не как у **`awn.hub.topic.*`**. Канон: **`awn.hub.database.single`**, не `…database.frame.single`.
 
-**MCP (как сейчас):** каркас — **`database_frame_*`** (`iblock-tools.js`: list/get/create/schema/properties…). Записи — **`_*_content_*`**, `placement: { kind: "database", slot: "data" }`. Переименование tools (`database_*` / `hub_database_*`) — **опционально**, не блокер; важнее **единые id типов** и aliases.
+**MCP:** каркас — **`list_databases`**, **`get_database`**, … (legacy **`database_frame_*`**); записи — **`*_content_*`**, `placement: { kind: "database", slot: "data" }`. См. **F**.
 
 ### Целевое дерево каталога
 
@@ -155,8 +155,26 @@ types/hubs/database/
 | ✅ | Плоский `database/`; id **`awn.hub.database.single|group|collection|taxonomy-collection`** |
 | ✅ | **`TYPE_ID_ALIASES`**, `awn-data-loader`, `isDatabaseFrameTypeId`, `public/main.js` |
 | ✅ | `awn-type` / `extends` в manifest и `schema.yml`; legacy **`awn.database.frame.*`** → alias |
-| ✅ | `GLOBAL-DOC-MCP.md` (MCP tools **`database_frame_*`** — без переименования) |
+| ✅ | `GLOBAL-DOC-MCP.md` |
 | ✅ | Удалён `database/frames/` |
+
+---
+
+## F — MCP: `list_databases` … (legacy `database_frame_*`) · ✅
+
+| Канон | Legacy alias |
+| ----- | ------------- |
+| `list_databases` | `database_frame_list` |
+| `get_database` | `database_frame_get` |
+| `create_database` / `delete_database` / `rename_database` | `database_frame_*` |
+| `read_database_schema` / `write_database_schema` | … |
+| `read_database_properties` / `write_*` | … |
+| `read_databases_index_toc` | `read_database_frame_index_toc` |
+| `refresh_databases_index_toc` | `refresh_database_frame_index_toc` |
+
+Записи в `data/` — без изменений: **`*_content_*`**, `placement: database`.
+
+| ✅ | `iblock-tools.js`, `mcp-policy.yml`, docs, `server.js` hints |
 
 ---
 

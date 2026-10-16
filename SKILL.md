@@ -134,7 +134,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Два слоя, адресация по `store` (путь под `awn-databases/`, напр. `tasks`, `taxonomies/tags`):
 
-- **frame** — каркас (`group` / `collection` / `single`): `database_frame_list`, `_get`, `_create`, `_rename`, `_delete`, `_read_properties` / `_write_properties`, `_read_schema` / `_write_schema`; каталог — `read_database_frame_index_toc`.
+- **store** — каркас (`group` / `collection` / `single`): `list_databases`, `get_database`, `create_database`, …; каталог — `read_databases_index_toc` (legacy `database_frame_*`).
 - **Записи в data/** — `list_content`, `create_content` (`isSection` или `awn.content.category` — раздел), `delete_content`, `move_content` (`targetParent`, `slug`); тело/поля — `read_content` / `write_content` / `*_content_property` (`kind: database`, `slot: data`, `ref`).
 
 | `collectionType` | Когда |
@@ -145,8 +145,8 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 | `csv-files` | Отдельная таблица на запись |
 | `files` | Загрузка файлов |
 
-- **CSV** (`recordEditMode: whole-file-csv` в `database_frame_get`): таблица = один файл. `read_content` / `write_content`, `ref: main.csv`, целиком. Не правь построчно и не через `part=properties`.
-- **Схема:** `database_frame_write_schema` перезаписывает поля — сначала `_read_schema`, потом передай **полный** набор.
+- **CSV** (`recordEditMode: whole-file-csv` в `get_database`): таблица = один файл. `read_content` / `write_content`, `ref: main.csv`, целиком.
+- **Схема:** `write_database_schema` — сначала `read_database_schema`, потом **полный** набор полей.
 - **Имена полей:** `awn-*` — только системные; свои — без префикса (`amount`, `status`).
 - Факты, глоссарий и справочник — тоже базы (`awn-databases/contents/…`), но работай с ними **только** через свои tools (раздел 6).
 
@@ -283,7 +283,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 | Обзор workspace | `read_topic_index_toc`; плоский реестр — `read_workspace_map`; папки без manifest — `list_folder` |
 | Обзор темы / слота | `read_content_index_toc` |
 | Есть только путь к файлу | `resolve_workspace_path` (тема, слот, готовые аргументы) |
-| Каталоги разделов | `read_channels_index_toc`, `read_database_frame_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` |
+| Каталоги разделов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` |
 | Поиск (по умолчанию) | `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch` |
 | Вопрос по архиву с готовым контекстом | `ask_workspace` / `search_and_get_context` |
 | Поиск в теме | `resolve_workspace_path` → `topic.folderPath` → `pathPrefix` |
@@ -298,7 +298,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 **Индексы:** после правки одного файла — `sync_workspace_index_file`; полный `rebuild_workspace_indexes` — только после массовых изменений. Отдельный слой: `rebuild_workspace_fulltext_index` / `_semantic_index` / `_storage_index` / `_link_index` (нужен до `search_workspace_links`) / `_entity_index`. Состояние — `get_workspace_index_status` / `get_workspace_index_monitor`.
 
-**Оглавления** (`index.md` разделов) пересобираются парными `refresh_*`: `refresh_topic_index_toc`, `refresh_content_index_toc`, `refresh_workspace_map`, `refresh_channels_index_toc`, `refresh_database_frame_index_toc`, `refresh_repository_index_toc`, `refresh_media_library_index_toc`.
+**Оглавления** (`index.md` разделов) пересобираются парными `refresh_*`: … `refresh_databases_index_toc`, …
 
 **Реестр сущностей** (`.agent-cms/settings/entity-registry.yml`, применяется после `rebuild_workspace_entity_index`): `merge_workspace_entity_alias` (синоним → каноническое имя), `reject_workspace_entity` (скрыть), `seed_workspace_entity` (добавить вручную), `upsert_workspace_entity_type` (тип и маппинг хэштегов), `get_workspace_entity_registry` / `put_workspace_entity_registry` (весь файл — только для крупных правок), `explain_workspace_entity_search` (отладка фильтра).
 

@@ -219,7 +219,7 @@ function createServer() {
   registerReferenceTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── awn-databases: database_frame_* (records → *_content_* kind: database) ─
+  // ── awn-databases: list_databases / get_database … (legacy database_frame_*; records → *_content_*) ─
 
   registerDatabaseTools(reg, client);
 

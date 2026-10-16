@@ -41,7 +41,7 @@
 | **Placement** | Где лежит контент | `placement.kind`: `topic` \| `channel` \| `media` \| `database` \| `repository` \| `root` + `path` (slug без префикса hub) (+ `slot` + `ref` кроме root) |
 | **Page (topic)** | Тема/область в дереве (`manifest.md`) | `kind: topic`, `path` → папка/slug темы (без `manifest.md`) |
 | **Channel** | Карточка ingress | `kind: channel`, `path` → slug (`telegram`, не `awn-channels/…`); слоты: **`inbox`**, **`outbox`**, **`files`**, **`assets`**; каталог: `read_channels_index_toc` |
-| **Database** | Инфоблок `awn-databases/{slug}/` | `kind: database`, `path` → slug store (`napominaniya`); слот записей: **`data`** (+ **`assets`**); каркас: `database_frame_*` |
+| **Database** | Инфоблок `awn-databases/{slug}/` | `kind: database`, `path` → slug; слот **`data`**; каркас: **`list_databases`** / **`get_database`** … (legacy `database_frame_*`) |
 | **Media hub** | Карточка `awn-media/{slug}/` | `kind: media`, `path` → slug |
 | **Repository** | Карточка `awn-repositories/{slug}/` | `kind: repository`, `path` → slug (`group/repo`) |
 | **Slot** | Папка под `awn-storage/` | `slot` → `inbox`, `media`, `files`… |
@@ -177,7 +177,7 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **frame** (`database_frame_*`) — каркас group / collection / single; **записи в `data/`** — `read_content` / `write_content` / `list_content` / `create_content` / `delete_content` / `move_content` с `placement.kind: database`, `slot: data`. В `database_frame_list` и меню — только frames.
+Два слоя: **каркас store** (`list_databases`, `get_database`, `create_database`, …; aliases `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|
@@ -187,13 +187,13 @@
 | `csv-files` | `…record-csv` | Отдельная таблица на запись |
 | `files` | `…record` | Загрузка файлов |
 
-**CSV (`recordStorage: csv`) — как править агенту:** одна таблица = один файл (`main.csv`). Читай и пиши **целиком**: `read_content` / `write_content` с `placement: { kind: "database", path: "<store>", slot: "data", ref: "main.csv" }`. Не правь frontmatter/properties построчно и не через `create` — отредактируй CSV и перезапиши. В `database_frame_get` смотри `recordEditMode: whole-file-csv` и `agentRecordHint`.
+**CSV (`recordStorage: csv`) — как править агенту:** одна таблица = один файл (`main.csv`). Читай и пиши **целиком**: `read_content` / `write_content` с `placement: { kind: "database", path: "<store>", slot: "data", ref: "main.csv" }`. В **`get_database`** смотри `recordEditMode: whole-file-csv` и `agentRecordHint`.
 
 **Табличная память темы (`slot: main-single-csv`):** то же правило — `read_content` / `write_content` с `part=body` (или legacy body-tools): **весь** `main.csv` узла, не frontmatter и не построчные properties.
 
 **Имена полей:** `awn-*` — только системные поля платформы. Пользовательские поля — **без** префикса (`amount`, `label`, `status`). Не дублируй системные ключи в `schema.yml`.
 
-`database_frame_write_schema` — передавай **полный** набор полей: сначала `database_frame_read_schema`, иначе потеряешь поля.
+`write_database_schema` — передавай **полный** набор полей: сначала `read_database_schema`, иначе потеряешь поля.
 
 ---
 
@@ -292,7 +292,7 @@
 | `integrations` | skills / MCP / плагины (stub) |
 | `user` | дерево меню, сайдбар |
 
-MCP policy задаётся только в `platform`. Секреты в settings не хранятся. Схема и конфиг тем и инфоблоков — не settings: для них `*_page_*` / `database_frame_*`.
+MCP policy задаётся только в `platform`. Секреты в settings не хранятся. Схема и конфиг тем и инфоблоков — не settings: для них `read_topic_*` / `list_databases` …
 
 ### Типы
 

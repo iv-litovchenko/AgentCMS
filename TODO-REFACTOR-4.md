@@ -219,12 +219,12 @@
 ├── list_types                             … реестр awn-types
 └── get_type                               … одна схема типа
 
-🗄️ awn-databases (database_frame_* + *_content_* kind:database)
-├── database_frame_list / get / create / delete / rename
-├── database_frame_read_index_toc / refresh_index_toc   … awn-databases/index.md
-├── database_frame_read_schema / write_schema
-├── database_frame_read_properties / write_properties
-├── database_frame_read_property / write_property
+🗄️ awn-databases (list_databases … + *_content_* kind:database; legacy database_frame_*)
+├── list_databases / get_database / create_database / delete_database / rename_database
+├── read_databases_index_toc / refresh_databases_index_toc   … awn-databases/index.md
+├── read_database_schema / write_database_schema
+├── read_database_properties / write_database_properties
+├── read_database_property / write_database_property
 └── записи в data/ → list/create/read/write/delete/move_content (TODO-REFACTOR-6 ✅)
 
 📡 Каналы (awn-channels/)

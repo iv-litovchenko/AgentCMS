@@ -16,7 +16,7 @@ module.exports = {
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: database_frame_*; записи → read/write/list/create/delete/move_content (kind: database, slot: data); TOC → read/refresh_database_frame_index_toc.",
+    "awn-databases: list_databases / get_database … (legacy database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
@@ -361,46 +361,46 @@ module.exports = {
     },
     {
       id: "database-frame",
-      title: "Каркас awn-databases (database_frame_*)",
+      title: "Каркас awn-databases (list_databases …)",
       tools: [
-        { name: "database_frame_list", description: "Список frames (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
-        { name: "database_frame_get", description: "Один frame: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
+        { name: "list_databases", description: "Список stores (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
+        { name: "get_database", description: "Один store: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
-          name: "read_database_frame_index_toc",
-          description: "Оглавление frames (awn-databases/index.md).",
+          name: "read_databases_index_toc",
+          description: "Оглавление (awn-databases/index.md).",
           parameters: "—",
           http: "GET /api/agent/awn-databases-index"
         },
         {
-          name: "refresh_database_frame_index_toc",
-          description: "Обновить awn-databases/index.md из database_frame_list.",
+          name: "refresh_databases_index_toc",
+          description: "Обновить index.md из list_databases.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"
         },
         {
-          name: "database_frame_create",
-          description: "Создать frame: group/collection/single.",
+          name: "create_database",
+          description: "Создать store: group/collection/single.",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
         },
-        { name: "database_frame_delete", description: "Удалить frame (store).", parameters: "store", http: "DELETE /api/awn-databases/stores" },
-        { name: "database_frame_rename", description: "Переименовать/переместить frame.", parameters: "store, newStore", http: "POST /api/awn-databases/stores/rename" },
+        { name: "delete_database", description: "Удалить store.", parameters: "store", http: "DELETE /api/awn-databases/stores" },
+        { name: "rename_database", description: "Переименовать/переместить store.", parameters: "store, slug", http: "POST /api/awn-databases/stores/rename" },
         {
-          name: "database_frame_read_schema",
-          description: "Кастомные поля instance в schema.yml (не каталог типов).",
+          name: "read_database_schema",
+          description: "Кастомные поля instance в schema.yml.",
           parameters: "store",
           http: "GET /api/awn-databases/store-schema"
         },
         {
-          name: "database_frame_write_schema",
+          name: "write_database_schema",
           description: "Записать кастомные поля в schema.yml.",
           parameters: "store, content? | awnSchema? | fields? | tabs?",
           http: "POST /api/awn-databases/store-schema"
         },
-        { name: "database_frame_read_properties", description: "Frontmatter manifest frame.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
-        { name: "database_frame_write_properties", description: "Patch manifest frame.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
-        { name: "database_frame_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
-        { name: "database_frame_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
+        { name: "read_database_properties", description: "Frontmatter manifest.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
+        { name: "write_database_properties", description: "Patch manifest.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
+        { name: "read_database_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
+        { name: "write_database_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
       ]
     },
     {
