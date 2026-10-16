@@ -2665,7 +2665,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
     (isTopic
       ? "topic"
       : isSection
-        ? "awn.page.section"
+        ? "awn.hub.topic.section"
         : isArea
           ? "awn.page.area"
           : String(nodeKind || "topic"));
@@ -2685,6 +2685,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
       isSection ||
       String(typeName).trim() === "awn.page.area" ||
       String(typeName).trim() === "awn.page.section" ||
+      String(typeName).trim() === "awn.hub.topic.section" ||
       String(typeName).trim() === "awn.page.topic"
   });
   frontmatter = upsertYamlScalarLine(frontmatter, "awn-name", title);
