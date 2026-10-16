@@ -16,7 +16,7 @@ module.exports = {
     "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc.",
+    "awn-databases: database_frame_*; записи → read/write/list/create/delete/move_content (kind: database, slot: data); TOC → read/refresh_database_frame_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
@@ -401,27 +401,6 @@ module.exports = {
         { name: "database_frame_write_properties", description: "Patch manifest frame.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
         { name: "database_frame_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
         { name: "database_frame_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
-      ]
-    },
-    {
-      id: "database-element",
-      title: "Элементы awn-databases (database_element_*)",
-      tools: [
-        { name: "database_element_list", description: "Лёгкий список записей/разделов.", parameters: "store, parent?", http: "GET /api/awn-databases/records" },
-        {
-          name: "database_element_create",
-          description: "Добавить запись или раздел.",
-          parameters: "store, name?, slug?, isSection?, id?, title?, parent?",
-          http: "POST /api/awn-databases/records"
-        },
-        { name: "database_element_delete", description: "Удалить запись или раздел.", parameters: "store, record", http: "DELETE /api/awn-databases/records" },
-        { name: "database_element_rename", description: "Переименовать запись/раздел.", parameters: "store, record, newRecord", http: "POST /api/awn-databases/records/rename" },
-        { name: "database_element_read_body", description: "Тело markdown записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-body" },
-        { name: "database_element_write_body", description: "Записать тело markdown.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-body" },
-        { name: "database_element_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-properties" },
-        { name: "database_element_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-properties" },
-        { name: "database_element_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-databases/record-properties?key=" },
-        { name: "database_element_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-databases/record-properties" }
       ]
     },
     {

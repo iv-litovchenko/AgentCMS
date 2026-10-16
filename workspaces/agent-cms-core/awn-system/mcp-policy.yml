@@ -6,7 +6,7 @@ description: >
 
 mcp:
   # single-call write tools (blocked in mcp-mode=readonly)
-  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|database_element_write_|database_element_create_|database_element_delete_|database_element_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
+  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
   exec_tools:
     - exec_command
     - exec_shell
@@ -68,10 +68,6 @@ batch_invoke:
     - database_frame_read_schema
     - database_frame_read_properties
     - database_frame_read_property
-    - database_element_list
-    - database_element_read_body
-    - database_element_read_properties
-    - database_element_read_property
     - iblock_list
     - iblock_frame_list
     - iblock_get

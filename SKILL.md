@@ -135,7 +135,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 Два слоя, адресация по `store` (путь под `awn-databases/`, напр. `tasks`, `taxonomies/tags`):
 
 - **frame** — каркас (`group` / `collection` / `single`): `database_frame_list`, `_get`, `_create`, `_rename`, `_delete`, `_read_properties` / `_write_properties`, `_read_schema` / `_write_schema`; каталог — `read_database_frame_index_toc`.
-- **element** — записи и разделы: `database_element_list`, `_create` (`isSection: true` — раздел), `_read_body` / `_write_body`, `_read_properties` / `_write_properties`, `_read_property` / `_write_property`, `_rename`, `_delete`.
+- **Записи в data/** — `list_content`, `create_content` (`isSection` или `awn.content.category` — раздел), `delete_content`, `move_content` (`targetParent`, `slug`); тело/поля — `read_content` / `write_content` / `*_content_property` (`kind: database`, `slot: data`, `ref`).
 
 | `collectionType` | Когда |
 |------------------|-------|
@@ -145,7 +145,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 | `csv-files` | Отдельная таблица на запись |
 | `files` | Загрузка файлов |
 
-- **CSV** (`recordEditMode: whole-file-csv` в `database_frame_get`): таблица = один файл. `database_element_read_body` / `_write_body` **без `record`**, целиком. Не правь построчно и не через `*_property*`.
+- **CSV** (`recordEditMode: whole-file-csv` в `database_frame_get`): таблица = один файл. `read_content` / `write_content`, `ref: main.csv`, целиком. Не правь построчно и не через `part=properties`.
 - **Схема:** `database_frame_write_schema` перезаписывает поля — сначала `_read_schema`, потом передай **полный** набор.
 - **Имена полей:** `awn-*` — только системные; свои — без префикса (`amount`, `status`).
 - Факты, глоссарий и справочник — тоже базы (`awn-databases/contents/…`), но работай с ними **только** через свои tools (раздел 6).

@@ -177,7 +177,7 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **frame** (`database_frame_*`) — каркас group / collection / single; **element** (`database_element_*`) — записи и разделы внутри. В `database_frame_list` и меню — только frames.
+Два слоя: **frame** (`database_frame_*`) — каркас group / collection / single; **записи в `data/`** — `read_content` / `write_content` / `list_content` / `create_content` / `delete_content` / `move_content` с `placement.kind: database`, `slot: data`. В `database_frame_list` и меню — только frames.
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|
@@ -187,7 +187,7 @@
 | `csv-files` | `…record-csv` | Отдельная таблица на запись |
 | `files` | `…record` | Загрузка файлов |
 
-**CSV (`recordStorage: csv`) — как править агенту:** одна таблица = один файл (`main.csv` или `record.file`). Читай и пиши **целиком**: `database_element_read_body` / `database_element_write_body` по `store`, **`record` не передавай**. Не используй `database_element_*_property*` и не правь строки по одной через `create` — отредактируй CSV и перезапиши. В `database_frame_get` смотри `recordEditMode: whole-file-csv` и `agentRecordHint`.
+**CSV (`recordStorage: csv`) — как править агенту:** одна таблица = один файл (`main.csv`). Читай и пиши **целиком**: `read_content` / `write_content` с `placement: { kind: "database", path: "<store>", slot: "data", ref: "main.csv" }`. Не правь frontmatter/properties построчно и не через `create` — отредактируй CSV и перезапиши. В `database_frame_get` смотри `recordEditMode: whole-file-csv` и `agentRecordHint`.
 
 **Табличная память темы (`slot: main-single-csv`):** то же правило — `read_content` / `write_content` с `part=body` (или legacy body-tools): **весь** `main.csv` узла, не frontmatter и не построчные properties.
 

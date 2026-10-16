@@ -12,7 +12,8 @@ const {
   resolveSlotsListAddress,
   splitContentUploadRef,
   isStoragePageLikeKind,
-  formatPublicPlacement
+  formatPublicPlacement,
+  logicalPathFromManifest
 } = require("../../lib/config/content-placement.js");
 const {
   slotKeyToStorageFolder,
@@ -80,6 +81,16 @@ async function writeInternalContent(client, manifestPath, slot, content, file) {
 
 function resolveArgs(args) {
   return resolveContentAddress(args);
+}
+
+function isDatabaseDataSlot(address) {
+  return address.kind === "database" && String(address.slot || "").trim() === "data";
+}
+
+function databaseRecordRefFromRef(ref) {
+  const raw = String(ref || "").trim().replace(/\\/g, "/");
+  if (!raw) throw new Error("placement.ref is required");
+  return raw.toLowerCase().endsWith(".md") ? raw.slice(0, -3) : raw;
 }
 
 function argsWithMdRef(args) {
@@ -545,8 +556,23 @@ export async function createContent(client, args) {
   if (isInternalBundleSlot(slot)) {
     throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content.`);
   }
-  const folder = slotToFolder(slot);
   const isCategory = awnType === "awn.content.category" || awnType === "awn.content.record.category";
+  if (isDatabaseDataSlot(address)) {
+    const isSection = Boolean(args.isSection) || isCategory;
+    return client.post("/api/awn-databases/records", {
+      store: address.logicalPath,
+      name: displayName || title,
+      title: title || displayName,
+      slug,
+      id: slug,
+      parent,
+      body,
+      fileExtension,
+      extension: fileExtension,
+      isSection
+    });
+  }
+  const folder = slotToFolder(slot);
   if (isCategory) {
     const { endpoint, body: requestBody } = buildSectionCreateRequest(slot, {
       path: manifestPath,
@@ -631,6 +657,14 @@ export async function moveContent(client, args) {
   const { targetPath, targetRef, targetParent } = args;
   if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
   requireRef(address, "move_content");
+  if (isDatabaseDataSlot(address)) {
+    const record = databaseRecordRefFromRef(ref);
+    const payload = { store: address.logicalPath, record };
+    if (args.slug) payload.slug = args.slug;
+    if (targetParent !== undefined) payload.parent = targetParent;
+    else if (targetRef) payload.slug = databaseRecordRefFromRef(targetRef);
+    return client.post("/api/awn-databases/records/rename", payload);
+  }
   if (isExternalMemorySlot(slot)) {
     return client.post("/api/external/file/move", {
       path: manifestPath,
@@ -696,6 +730,11 @@ export async function listContentItems(client, args) {
     const { content, ...lean } = data || {};
     return { placement: placementOut, ...lean };
   }
+  if (kind === "database" && slot === "data") {
+    const store = logicalPathFromManifest("database", manifestPath);
+    const data = await client.get("/api/awn-databases/records", { store });
+    return { placement: placementOut, ...data };
+  }
   const data = await client.get("/api/storage/files", { path: manifestPath, folder });
   return { placement: placementOut, ...data };
 }
@@ -706,6 +745,10 @@ export async function deleteContent(client, args) {
   const { manifestPath, slot, ref } = address;
   if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
   requireRef(address, "delete_content");
+  if (isDatabaseDataSlot(address)) {
+    const record = databaseRecordRefFromRef(ref);
+    return client.delete("/api/awn-databases/records", { store: address.logicalPath, record });
+  }
   if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path: manifestPath, file: ref });
   if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path: manifestPath, file: ref });
   return client.delete("/api/storage/file", { path: manifestPath, folder: slotToFolder(slot), file: ref });

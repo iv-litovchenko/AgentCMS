@@ -211,12 +211,16 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "create_content",
-    "Create typed content in a slot (placement or path+slot).",
+    "Create typed content in a slot (placement or path+slot). Database (kind: database, slot: data): same as legacy database_element_create — isSection or awn.content.category for sections.",
     address({
       awnType: z
         .enum(["awn.content.record", "awn.content.category"])
         .optional()
         .describe("Default awn.content.record. Use awn.content.category for section folders."),
+      isSection: z
+        .boolean()
+        .optional()
+        .describe("Database data slot: create hierarchy section folder (manifest.md)."),
       title: z.string().optional(),
       displayName: z.string().optional(),
       slug: z.string().optional(),
@@ -257,12 +261,13 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "move_content",
-    "Move content within or across topics. Source: placement { kind, path, slot, ref } like read_content. external/memory/main and media: targetPath + targetRef. Storage slots: targetFolder (defaults to source slot folder) + targetRef or targetParent.",
+    "Move content within or across topics. Source: placement { kind, path, slot, ref } like read_content. Database data slot: targetParent (section id) and/or slug (or targetRef as new slug). external/memory/main and media: targetPath + targetRef. Storage slots: targetFolder + targetRef or targetParent.",
     address({
       targetPath: pagePath.optional(),
       targetRef: z.string().optional(),
       targetParent: z.string().optional(),
-      targetFolder: z.string().optional()
+      targetFolder: z.string().optional(),
+      slug: z.string().optional().describe("Database data slot: new record/section slug (records/rename).")
     }),
     (args) => moveContent(client, args)
   );

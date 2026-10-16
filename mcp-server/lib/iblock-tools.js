@@ -6,19 +6,8 @@ const storePath = z
   .min(1)
   .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
-const recordRef = z
-  .string()
-  .optional()
-  .describe(
-    "Record id or rel path (e.g. 1, section/2). Omit for single stores (main.md) and for CSV table stores (main.csv is one file)."
-  );
-
 function registerFrameTool(reg, { name, description, schema, handler }) {
   reg(`database_frame_${name}`, description, schema, handler);
-}
-
-function registerElementTool(reg, name, description, schema, handler) {
-  reg(`database_element_${name}`, description, schema, handler);
 }
 
 export function registerDatabaseTools(reg, client) {
@@ -34,7 +23,7 @@ export function registerDatabaseTools(reg, client) {
   registerFrameTool(reg, {
     name: "get",
     description:
-      "One database frame with schema, records and tree (MD or CSV). If recordEditMode is whole-file-csv, edit table via database_element_read_body/write_body (full main.csv).",
+      "One database frame with schema, records and tree (MD or CSV). If recordEditMode is whole-file-csv, edit table via read_content/write_content (kind: database, slot: data, ref: main.csv).",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),
@@ -197,181 +186,6 @@ export function registerDatabaseTools(reg, client) {
     }),
     handler: ({ store, slug }) => client.post("/api/awn-databases/stores/rename", { store, slug })
   });
-
-  // ── Database elements (database_element_*) ──────────────────────────────────
-
-  registerElementTool(
-    reg,
-    "list",
-    "Lightweight list of records/sections in a store (includes fileName and fileExtension; no full schema payload).",
-    z.object({
-      store: storePath
-    }),
-    ({ store }) => client.get("/api/awn-databases/records", { store })
-  );
-
-  registerElementTool(
-    reg,
-    "create",
-    "Add element to database: record (*.md; md-lite stores get minimal frontmatter), plain-text file via fileExtension (.py, .html, …), CSV row, or section folder (isSection=true).",
-    z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
-      name: z.string().optional().describe("Display name (awn-name)"),
-      slug: z.string().optional().describe("File/folder slug (id-mode slug stores)"),
-      id: z.string().optional().describe("Alias for slug"),
-      title: z.string().optional().describe("Deprecated alias for name"),
-      parent: z.string().optional(),
-      body: z.string().optional().describe("Initial file body for .md or plain-text records"),
-      fileExtension: z
-        .string()
-        .optional()
-        .describe("Plain-text extension for non-markdown records: .py, .html, .json, …"),
-      isSection: z.boolean().optional().describe("Create hierarchy section folder with manifest.md")
-    }),
-    (payload) =>
-      client.post("/api/awn-databases/records", {
-        store: payload.store,
-        name: payload.name || payload.title,
-        slug: payload.slug || payload.id,
-        id: payload.id || payload.slug,
-        title: payload.title || payload.name,
-        parent: payload.parent,
-        body: payload.body,
-        fileExtension: payload.fileExtension,
-        extension: payload.fileExtension,
-        isSection: Boolean(payload.isSection)
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "read_body",
-    "Read database element body. For .md: markdown below frontmatter. For CSV collection stores: entire main.csv (omit record). For .py/.html/…: full file text.",
-    z.object({
-      store: storePath,
-      record: recordRef
-    }),
-    ({ store, record }) =>
-      client.get("/api/awn-databases/record-body", {
-        store,
-        ...(record ? { record } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "write_body",
-    "Write database element body. For .md frontmatter is preserved. For CSV collection stores: replace entire main.csv (omit record). For .py/.html/… overwrites file text.",
-    z.object({
-      store: storePath,
-      record: recordRef,
-      body: z.string()
-    }),
-    ({ store, record, body }) =>
-      client.post("/api/awn-databases/record-body", {
-        store,
-        body,
-        ...(record ? { record } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "delete",
-    "Delete database element record or section folder.",
-    z.object({
-      store: storePath,
-      record: z.string().min(1)
-    }),
-    ({ store, record }) => client.delete("/api/awn-databases/records", { store, record })
-  );
-
-  registerElementTool(
-    reg,
-    "rename",
-    "Rename or move database element (slug and/or parent section).",
-    z.object({
-      store: storePath,
-      record: z.string().min(1),
-      slug: z.string().optional(),
-      parent: z.string().optional().describe("Target parent section id, empty string for root")
-    }),
-    ({ store, record, slug, parent }) =>
-      client.post("/api/awn-databases/records/rename", {
-        store,
-        record,
-        ...(slug ? { slug } : {}),
-        ...(parent !== undefined ? { parent } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "read_properties",
-    "Read YAML frontmatter of a .md record ({id}.md or single main.md). Not for CSV table stores — use read_body (full main.csv).",
-    z.object({
-      store: storePath,
-      record: recordRef
-    }),
-    ({ store, record }) =>
-      client.get("/api/awn-databases/record-properties", {
-        store,
-        ...(record ? { record } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "write_properties",
-    "Patch YAML frontmatter of a .md record. Not for CSV table stores — use write_body (full main.csv).",
-    z.object({
-      store: storePath,
-      record: recordRef,
-      content: z.string()
-    }),
-    ({ store, record, content }) =>
-      client.post("/api/awn-databases/record-properties", {
-        store,
-        content,
-        ...(record ? { record } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "read_property",
-    "Read one property from database record.",
-    z.object({
-      store: storePath,
-      record: recordRef,
-      key: z.string().min(1)
-    }),
-    ({ store, record, key }) =>
-      client.get("/api/awn-databases/record-properties", {
-        store,
-        key,
-        ...(record ? { record } : {})
-      })
-  );
-
-  registerElementTool(
-    reg,
-    "write_property",
-    "Set one property on database record. Body and other keys preserved; awn-updated bumped when present.",
-    z.object({
-      store: storePath,
-      record: recordRef,
-      key: z.string().min(1),
-      value: z.string()
-    }),
-    ({ store, record, key, value }) =>
-      client.post("/api/awn-databases/record-properties", {
-        store,
-        key,
-        value,
-        ...(record ? { record } : {})
-      })
-  );
 }
 
 /** @deprecated Use registerDatabaseTools */
