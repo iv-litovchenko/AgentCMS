@@ -9,7 +9,7 @@ awn-description: "Тестовая тема в области «Ая тест о
 awn-tags:
   - test
   - topic
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-08-07T18:35:53.714Z"
 awn-update: 2026-08-07T18:58:44.542Z
 awn-version: 5

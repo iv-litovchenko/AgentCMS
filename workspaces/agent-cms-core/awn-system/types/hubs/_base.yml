@@ -1,17 +1,17 @@
-id: awn.page.base
-name: База страницы
+id: awn.hub.base
+name: База hub-узла
 kind: base
-domain: pages
+domain: hubs
 status: active
 extends: awn.base
 description: >
-  Узел дерева (ws / section / area / topic) — навигация и runtime.
-  Карточки hub (channel / media / repository) — types/pages/hubs/, домен hubs.
+  Узел навигации workspace — дерево тем (ws / area / section / topic)
+  и карточки ingress (channel / media / repository).
 mixins:
   - awn.mixin.indexing-container
 
 form:
-  panel-title: "{A2!} Свойства страницы"
+  panel-title: "{A2!} Свойства hub"
 
 fields:
   awn-main:

@@ -1,9 +1,9 @@
-id: awn.page.topic
+id: awn.hub.topic
 name: Тема
 kind: type
-domain: pages
+domain: hubs
 status: active
-extends: awn.page.base
+extends: awn.hub.base
 description: Тема — manifest.md (бриф, контекст, инструкция) + слоты памяти
 manifest-pattern: "{slug}/manifest.md"
 

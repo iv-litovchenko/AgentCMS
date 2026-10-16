@@ -16,7 +16,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: []
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-09-13T09:09:08.548Z"
 awn-description: ""
 awn-name: Тест 1000 сообщений

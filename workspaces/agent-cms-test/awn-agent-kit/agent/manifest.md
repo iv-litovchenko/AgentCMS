@@ -1,7 +1,7 @@
 ---
 awn-name: Агент
 awn-tags: [system, service]
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 ---
 
 # Агент

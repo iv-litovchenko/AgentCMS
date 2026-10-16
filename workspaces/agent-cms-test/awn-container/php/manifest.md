@@ -11,7 +11,7 @@ awn-runtime-cron-schedule: ""
 awn-runtime-commands: false
 awn-tags: []
 awn-id: 34
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-06-09T02:18"
 awn-owner: ""
 awn-attachments: []

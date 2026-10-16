@@ -3,7 +3,7 @@ name: Канал ingress (workspace)
 kind: type
 domain: hubs
 status: active
-extends: awn.page.base
+extends: awn.hub.base
 description: >
   Карточка канала в awn-channels/{slug}/ — manifest.md и awn-storage/: inbox/ (ingress), task-queue/ (очередь задач),
   outbox/ (исходящие), files/ и assets/ (как у медиатеки). Triage сырого потока до тем и инфоблоков.

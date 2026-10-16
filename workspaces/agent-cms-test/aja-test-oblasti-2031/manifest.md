@@ -6,7 +6,7 @@ awn-description: "Тестовая область Agent CMS для провер�
 awn-tags:
   - test
   - area
-awn-type: awn.page.area
+awn-type: awn.hub.area
 awn-create: 2026-08-07T18:23:13.813Z
 awn-update: 2026-08-07T18:24:32.091Z
 awn-version: 3

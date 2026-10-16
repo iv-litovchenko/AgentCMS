@@ -15,7 +15,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: []
-awn-type: awn.page.ws
+awn-type: awn.hub.ws
 awn-create: "2026-06-11T00:27"
 awn-update: 2026-08-09T22:47:43.406Z
 awn-version: 31

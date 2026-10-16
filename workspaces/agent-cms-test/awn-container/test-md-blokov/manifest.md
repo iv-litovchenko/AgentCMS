@@ -17,7 +17,7 @@ awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-tags: []
 awn-taxonomy: {}
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-09-27T10:06:46.264Z"
 awn-owner: ""
 awn-description: ""

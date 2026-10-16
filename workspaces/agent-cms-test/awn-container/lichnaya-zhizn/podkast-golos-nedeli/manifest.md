@@ -13,7 +13,7 @@ awn-category: ""
 awn-owner: ""
 awn-priority: ""
 awn-color: ""
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: 2026-08-26T22:34:56.822Z
 awn-main: false
 awn-slots-disabled: false

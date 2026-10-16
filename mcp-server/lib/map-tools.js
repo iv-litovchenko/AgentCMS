@@ -185,7 +185,7 @@ function registerSearchWorkspaceTools(reg, client) {
         .string()
         .optional()
         .describe(
-          'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.page.topic" WITH TEXT "аренда" LIMIT 50'
+          'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.hub.topic" WITH TEXT "аренда" LIMIT 50'
         ),
       withText: z
         .string()

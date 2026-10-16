@@ -31,7 +31,7 @@ awn-viz-mindmap:
   direction: auto
 awn-viz-roadmap:
   order: 0
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-09-27T13:22"
 awn-owner: ""
 awn-description: ""

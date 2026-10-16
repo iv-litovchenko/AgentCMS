@@ -17,7 +17,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: []
-awn-type: awn.page.area
+awn-type: awn.hub.area
 awn-create: 2026-08-15T23:56:19.320Z
 awn-update: 2026-08-15T23:56:19.320Z
 awn-version: 1

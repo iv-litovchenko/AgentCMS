@@ -36,7 +36,7 @@ awn-taxonomy:
   kollektsiya-2-many-tree:
     - 55555
     - 444
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-06-21T12:00"
 awn-owner: me
 awn-category: reference

@@ -22,7 +22,7 @@ awn-taxonomy:
     - korevoy-razdel
     - podrzdel
     - esche-podrazdel
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-08-02T21:33"
 awn-owner: ""
 awn-category: ""

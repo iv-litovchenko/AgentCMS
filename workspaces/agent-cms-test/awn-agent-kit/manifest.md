@@ -4,7 +4,7 @@ awn-emoji: ""
 awn-status: open
 awn-description: ""
 awn-tags: []
-awn-type: awn.page.area
+awn-type: awn.hub.area
 awn-create: 2026-08-08T15:08:34.786Z
 awn-update: 2026-08-08T15:08:34.786Z
 awn-version: 1

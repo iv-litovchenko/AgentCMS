@@ -24,7 +24,7 @@ awn-taxonomy: {}
 awn-viz-graph: {}
 awn-viz-mindmap: {}
 awn-viz-roadmap: {}
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-09-20T20:36:31.967Z"
 awn-viewed: ""
 awn-event-at: ""
@@ -44,7 +44,7 @@ awn-version: 5
 
 ```awn-query
 FROM awn-container/finansy
-WHERE awn-type = "awn.page.topic"
+WHERE awn-type = "awn.hub.topic"
 SORT path ASC
 LIMIT 20
 SELECT path, awn-name

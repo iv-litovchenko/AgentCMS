@@ -9,7 +9,7 @@ const listTypesSchema = z.object({
   domain: z
     .string()
     .optional()
-    .describe("Filter by domain: pages | content | database (alias: infoblock) | fields | md-blocks | slots | …"),
+    .describe("Filter by domain: hubs (alias: pages) | content | database (alias: infoblock) | fields | md-blocks | slots | …"),
   kind: z
     .string()
     .optional()
@@ -18,11 +18,11 @@ const listTypesSchema = z.object({
 });
 
 const getTypeSchema = z.object({
-  id: z.string().optional().describe("Type id, e.g. awn.page.topic or awn.database.collection"),
+  id: z.string().optional().describe("Type id, e.g. awn.hub.topic or awn.database.collection"),
   path: z
     .string()
     .optional()
-    .describe("Catalog path, e.g. awn-system/types/pages/topic.yml")
+    .describe("Catalog path, e.g. awn-system/types/hubs/topic.yml")
 });
 
 function requireTypeRef({ id, path }) {

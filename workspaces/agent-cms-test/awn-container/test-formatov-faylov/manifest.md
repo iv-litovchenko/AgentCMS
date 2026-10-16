@@ -15,7 +15,7 @@ awn-runtime-cron-schedule: ""
 awn-runtime-commands: false
 awn-tags: []
 awn-taxonomy: ""
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: 2026-09-27T09:11:22.895Z
 awn-update: 2026-09-27T09:11:22.895Z
 awn-version: 1

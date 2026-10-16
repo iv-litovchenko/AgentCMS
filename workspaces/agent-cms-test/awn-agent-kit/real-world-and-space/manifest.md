@@ -1,7 +1,7 @@
 ---
 awn-name: Объекты реального мира, места и пространства
 awn-tags: [system, service]
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 ---
 
 # Объекты реального мира, места и пространства

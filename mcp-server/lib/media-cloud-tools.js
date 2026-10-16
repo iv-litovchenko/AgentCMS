@@ -4,7 +4,7 @@ const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansy/manifest.md"
+    "Path to hub manifest.md (awn.hub.topic|area|ws), e.g. awn-container/finansy/manifest.md"
   );
 
 const workspaceFilePath = z

@@ -9,7 +9,6 @@ domains:
   - content
   - annotations
   - fields
-  - pages
   - hubs
   - slots
   - mixins

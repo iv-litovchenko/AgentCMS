@@ -1,15 +1,21 @@
 import { z } from "zod";
 
-/** folder|area|awn.page.area → folder; file|topic|awn.page.topic* → file + awnType */
+/** folder|area|awn.hub.area → folder; file|topic|awn.hub.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
   const explicitAwn = input.awnType ? String(input.awnType).trim() : "";
   const raw = String(input.type || explicitAwn || "").trim();
   if (!raw) {
-    throw new Error("type is required (folder|area|awn.page.area or file|topic|awn.page.topic)");
+    throw new Error("type is required (folder|area|awn.hub.area or file|topic|awn.hub.topic)");
   }
 
   const lower = raw.toLowerCase();
-  if (lower === "folder" || lower === "area" || lower === "awn.page.area" || lower === "manifest") {
+  if (
+    lower === "folder" ||
+    lower === "area" ||
+    lower === "awn.page.area" ||
+    lower === "awn.hub.area" ||
+    lower === "manifest"
+  ) {
     return {
       ...input,
       type: "folder",
@@ -21,14 +27,18 @@ export function normalizeCreatePageArgs(input = {}) {
     lower === "file" ||
     lower === "topic" ||
     lower === "topic-manifest" ||
-    lower.startsWith("awn.page.topic")
+    lower.startsWith("awn.page.topic") ||
+    lower.startsWith("awn.hub.topic")
   ) {
-    const awnType = raw.startsWith("awn.page.") ? raw : explicitAwn || "awn.page.topic";
+    const awnType =
+      raw.startsWith("awn.page.") || raw.startsWith("awn.hub.")
+        ? raw
+        : explicitAwn || "awn.hub.topic";
     return { ...input, type: "file", awnType };
   }
 
   throw new Error(
-    `Invalid type "${raw}". Use folder|area|awn.page.area or file|topic|awn.page.topic`
+    `Invalid type "${raw}". Use folder|area|awn.hub.area or file|topic|awn.hub.topic`
   );
 }
 
@@ -162,7 +172,7 @@ export function registerPageTools({ reg, client, pagePath }) {
       type: z
         .string()
         .min(1)
-        .describe("folder | area | awn.page.area | file | topic | awn.page.topic"),
+        .describe("folder | area | awn.hub.area | file | topic | awn.hub.topic"),
       name: z.string().min(1).optional(),
       displayName: z.string().min(1).optional(),
       title: z.string().optional(),
@@ -188,7 +198,7 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "create_topic",
-    "Create area or topic. type: area → folder+manifest (awn.page.area); topic → file+manifest (awn.page.topic). Aliases: folder|area|file|topic or full awn-type id.",
+    "Create area or topic. type: area → folder+manifest (awn.hub.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
     createTopicSchema,
     createTopicHandler
   );

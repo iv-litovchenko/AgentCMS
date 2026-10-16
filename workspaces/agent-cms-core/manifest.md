@@ -4,7 +4,7 @@ awn-emoji: ""
 awn-status: 🟢 Открыта
 awn-description: "Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS"
 awn-tags: []
-awn-type: awn.page.ws
+awn-type: awn.hub.ws
 awn-create: "2026-06-17T11:52"
 awn-update: 2026-08-01T21:47:07.220Z
 awn-version: 9

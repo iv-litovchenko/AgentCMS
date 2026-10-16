@@ -16,7 +16,7 @@ awn-color: ""
 awn-tags:
   - test
   - topic
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-08-08T13:50"
 awn-update: 2026-08-09T22:50:11.715Z
 awn-version: 4

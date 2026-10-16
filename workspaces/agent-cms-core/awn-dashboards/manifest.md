@@ -1,5 +1,5 @@
 ---
-awn-type: awn.page.ws-system
+awn-type: awn.hub.ws-system
 awn-name: Дашборды
 awn-description: Кастомные виджеты и раскладки workspace. Виджеты в widgets/, раскладки — в подпапках.
 awn-emoji: 📊

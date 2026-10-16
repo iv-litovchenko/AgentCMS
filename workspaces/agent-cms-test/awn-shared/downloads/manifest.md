@@ -22,7 +22,7 @@ awn-taxonomy: ""
 awn-viz-graph: ""
 awn-viz-mindmap: ""
 awn-viz-roadmap: ""
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 awn-create: "2026-09-30T00:49:43.040Z"
 awn-owner: ""
 awn-description: ""

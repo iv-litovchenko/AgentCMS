@@ -1,7 +1,7 @@
 ---
 awn-name: "Ая тест области 2049"
 awn-emoji: ""
-awn-type: awn.page.area
+awn-type: awn.hub.area
 awn-create: 2026-08-08T10:43:50.526Z
 awn-update: 2026-08-08T10:46:11.016Z
 awn-version: 3

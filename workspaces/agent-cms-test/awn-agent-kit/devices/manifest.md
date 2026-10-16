@@ -1,7 +1,7 @@
 ---
 awn-name: Управление ПК, устройствами, различный софт
 awn-tags: [system, service]
-awn-type: awn.page.topic
+awn-type: awn.hub.topic
 ---
 
 # Управление ПК, устройствами, различный софт

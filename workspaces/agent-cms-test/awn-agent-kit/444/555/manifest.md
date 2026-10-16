@@ -20,7 +20,7 @@ awn-auto-toc: false
 awn-summary: ""
 awn-tags: []
 awn-taxonomy: ""
-awn-type: awn.page.area
+awn-type: awn.hub.area
 awn-create: 2026-10-01T07:50:24.955Z
 awn-update: 2026-10-01T07:50:24.955Z
 awn-version: 1

@@ -37,7 +37,7 @@ export function registerWorkspaceTools(reg, client) {
 
   reg(
     "register_workspace",
-    "Adopt an existing workspace folder into the platform registry (подхват). The folder must already exist and contain manifest.md with awn-type awn.page.ws. Does not create the folder or manifest — use create_workspace for that. Idempotent if the path is already in the registry (alreadyRegistered: true).",
+    "Adopt an existing workspace folder into the platform registry (подхват). The folder must already exist and contain manifest.md with awn-type awn.hub.ws. Does not create the folder or manifest — use create_workspace for that. Idempotent if the path is already in the registry (alreadyRegistered: true).",
     z.object({
       path: z
         .string()
@@ -56,7 +56,7 @@ export function registerWorkspaceTools(reg, client) {
 
   reg(
     "discover_workspaces",
-    "Scan disk for workspace folders that already have manifest.md (awn.page.ws): project workspaces/, home, Desktop, optional roots. Use register_workspace with path to add one to the registry.",
+    "Scan disk for workspace folders that already have manifest.md (awn.hub.ws): project workspaces/, home, Desktop, optional roots. Use register_workspace with path to add one to the registry.",
     z.object({
       roots: z.array(z.string()).optional().describe("Extra absolute or project-relative roots to scan"),
       maxDepth: z

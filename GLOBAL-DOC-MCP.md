@@ -115,7 +115,7 @@
 
 ## 4. Темы
 
-Типы: `awn.page.ws` (корень), `awn.page.area` (область), `awn.page.topic` (тема со слотами), `awn.page.section.*` (служебные разделы).
+Типы: `awn.hub.ws` (корень), `awn.hub.area` (область), `awn.hub.topic` (тема со слотами), `awn.hub.section` (служебные разделы); legacy `awn.page.*` → alias.
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
@@ -123,7 +123,7 @@
 
 **Параметры без схемы в MCP** (передавай так):
 
-- `create_topic`: `type`* (`area` / `topic` или полный `awn.page.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
+- `create_topic`: `type`* (`area` / `topic` или полный `awn.hub.*`), `parentPath` (обычно внутри `awn-container/`, default — корень), `displayName` или `title` → `awn-name`, `slug` или `name` → папка (нужно хотя бы одно из четырёх), `awnType` — нестандартный подтип.
 - `rename_topic`: `path`*, `displayName` или `title`* → `awn-name`, `slug` → папка.
 - `generate_workspace_slug`: `text` (или `title` / `displayName` / `name`), `preset` (`topic` · `page` · `content` · `store` · `database` · `repository` · `catalog` · `filename`), или `slug` — только очистить.
 
@@ -300,7 +300,7 @@ MCP policy задаётся только в `platform`. Секреты в settin
 
 | filter | Пример id |
 |--------|-----------|
-| `create-page` | `awn.page.topic` |
+| `create-page` | `awn.hub.topic` |
 | `slot-content` | `awn.content.record`, `awn.content.record-csv` |
 | `data-containers` | `awn.database.frame.collection` |
 | `data-elements` | `awn.content.record`, `awn.content.record-lite`, `awn.content.record-csv`, `awn.content.category` |
