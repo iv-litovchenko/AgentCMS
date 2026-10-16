@@ -640,6 +640,30 @@ export function registerMapTools(reg, client, pagePath) {
   const workspaceTopicIndexTocDescription =
     "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
 
+  reg(
+    "list_topics",
+    "Topic tree nodes (ws/area/topic): flat list or filtered by parentPath (manifest path or folder). No body. INDEX table → read_topic_index_toc; folders without manifest → list_folder (includeFolders=true).",
+    z.object({
+      parentPath: pagePath
+        .optional()
+        .describe("Area/topic manifest or folder — omit for all manifest nodes in workspace"),
+      scope: z
+        .enum(["children", "subtree"])
+        .optional()
+        .describe("With parentPath: direct children (default) or entire subtree"),
+      includeFolders: z
+        .boolean()
+        .optional()
+        .describe("Include adoptable folders without manifest.md (default false)")
+    }),
+    ({ parentPath, scope, includeFolders }) =>
+      client.get("/api/agent/topics", {
+        ...(parentPath ? { parentPath } : {}),
+        ...(scope ? { scope } : {}),
+        ...(includeFolders === true ? { includeFolders: "true" } : {})
+      })
+  );
+
   registerTocTool(reg, {
     canonical: "read_topic_index_toc",
     description: workspaceTopicIndexTocDescription,

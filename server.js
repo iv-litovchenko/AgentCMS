@@ -419,6 +419,7 @@ const {
   writeAwnDataStoreProperty,
   readAwnDataStoreProperties,
   writeAwnDataStoreProperties,
+  updateAwnDataStore,
   readAwnDataRecordProperty,
   writeAwnDataRecordProperty,
   readAwnDataRecordProperties,
@@ -12751,14 +12752,106 @@ async function buildAgentPageMap(options = {}) {
       "Legacy page-map (MCP get_topic_map deprecated). Prefer read_topic_index_toc + list_folder. " +
       "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
     whenToUse: {
+      list_topics: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
       read_topic_index_toc: "Канон: обзор страниц workspace (INDEX.md, без обхода папок без manifest).",
       list_folder: "Папки без manifest.md и произвольные пути.",
-      get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на read_topic_index_toc + list_folder."
+      get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на list_topics + read_topic_index_toc + list_folder."
     },
     pages,
     nodeCount: pages.length,
     pageCount: manifestCount,
     folderCount
+  };
+}
+
+async function normalizeTopicsListParentManifest(relPath) {
+  const trimmed = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!trimmed) return null;
+  const resolved = await resolveExistingWorkspaceRelPath(trimmed);
+  if (!resolved) return null;
+  if (/\/manifest\.md$/i.test(resolved)) return resolved;
+  const withManifest = `${resolved.replace(/\/+$/, "")}/manifest.md`;
+  if (await workspaceRelFileExists(withManifest)) return withManifest;
+  return /\/manifest\.md$/i.test(trimmed) ? resolved : null;
+}
+
+function slimTopicListEntry(row) {
+  const props = row?.properties && typeof row.properties === "object" ? row.properties : {};
+  const awnId = String(props["awn-id"] || props.awnId || "").trim();
+  const entry = {
+    path: row.path,
+    title: row.title || "",
+    description: row.description || "",
+    awnType: row.awnType || "",
+    kind: row.kind,
+    parentPath: row.parentPath || null,
+    hasManifest: row.hasManifest !== false
+  };
+  if (awnId) entry.awnId = awnId;
+  if (row.kind === "folder") {
+    entry.adoptable = row.adoptable !== false;
+    entry.empty = Boolean(row.empty);
+  }
+  return entry;
+}
+
+async function buildAgentTopicsList(options = {}) {
+  const includeFolders = options.includeFolders === true;
+  const scopeRaw = String(options.scope || "children").trim().toLowerCase();
+  const scope = scopeRaw === "subtree" ? "subtree" : "children";
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  let rows = (pageMap.pages || []).filter((row) => {
+    if (row.kind === "folder") return includeFolders;
+    return row.kind === "ws" || row.kind === "area" || row.kind === "topic";
+  });
+
+  const parentPath = options.parentPath
+    ? await normalizeTopicsListParentManifest(options.parentPath)
+    : null;
+  if (options.parentPath && !parentPath) {
+    return {
+      error: "Parent topic/area not found",
+      status: 404,
+      parentPath: String(options.parentPath || "").trim()
+    };
+  }
+
+  if (parentPath) {
+    const parentDir = parentPath.replace(/\/manifest\.md$/i, "");
+    if (scope === "children") {
+      rows = rows.filter((row) => row.parentPath === parentPath);
+    } else {
+      rows = rows.filter((row) => {
+        if (row.path === parentPath) return true;
+        const rowDir = String(row.path || "").replace(/\/manifest\.md$/i, "");
+        return rowDir === parentDir || rowDir.startsWith(`${parentDir}/`);
+      });
+    }
+  }
+
+  const topics = rows.map(slimTopicListEntry);
+  topics.sort((a, b) => {
+    const da = String(a.path || "");
+    const db = String(b.path || "");
+    return da.localeCompare(db, "ru");
+  });
+
+  return {
+    version: 1,
+    model: "topics-list",
+    hint:
+      "Список узлов дерева тем (ws / area / topic): path, type, title, parentPath — без body и без INDEX.md. " +
+      "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
+    whenToUse: {
+      list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
+      read_topic_index_toc: "Таблица INDEX.md в корне workspace (комментарии, конфигурации, stats).",
+      list_folder: "Папки без manifest.md (не входят в list_topics по умолчанию)."
+    },
+    parentPath,
+    scope: parentPath ? scope : "flat",
+    includeFolders,
+    topics,
+    topicCount: topics.length
   };
 }
 
@@ -14676,7 +14769,8 @@ const SESSION_CONTEXT_API_MAP = {
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
   siteMap: "GET /api/agent/site-map — legacy; MCP: read_topic_index_toc (get_topic_map deprecated)",
   pageMap:
-    "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: read_topic_index_toc + list_folder",
+    "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: list_topics / read_topic_index_toc + list_folder",
+    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP list_topics (дерево тем, без INDEX.md)",
   contentMap:
     "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
   contentIndex:
@@ -22446,6 +22540,26 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/topics") {
+    try {
+      const parentPath = String(url.searchParams.get("parentPath") || url.searchParams.get("parent") || "").trim();
+      const scope = String(url.searchParams.get("scope") || "children").trim();
+      const includeFolders = url.searchParams.get("includeFolders") === "true";
+      const payload = await buildAgentTopicsList({
+        ...(parentPath ? { parentPath } : {}),
+        scope,
+        includeFolders
+      });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list topics",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/content-map") {
     const relPath = url.searchParams.get("path") || "";
     const slot = url.searchParams.get("slot") || "";
@@ -26055,6 +26169,27 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold agent task queue store",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/awn-databases/stores") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      const result = updateAwnDataStore(agentRoot, getProjectRoot(), storeRel, {
+        name: payload?.name,
+        description: payload?.description,
+        body: payload?.body
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to update awn-databases store",
         details: String(error.message || error)
       });
     }

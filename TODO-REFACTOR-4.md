@@ -147,9 +147,10 @@
 ├── module_git_init / status / diff / commit / pull / push / remote … git корня workspace
 
 🧭 Навигация · карты · id
+├── list_topics                            … дерево тем (flat / parentPath)
 ├── read_topic_index_toc                   … read INDEX.md (канон workspace)
 ├── refresh_topic_index_toc                … rebuild INDEX.md
-├── get_topic_map                          … deprecated → read_topic_index_toc + list_folder
+├── get_topic_map                          … deprecated → list_topics + read_topic_index_toc + list_folder
 ├── get_content_map                        … deprecated → read_content_index_toc + read_content properties
 ├── read_content_index_toc                 … read index.md темы/слота
 ├── refresh_content_index_toc              … rebuild index.md темы/слота
@@ -220,7 +221,7 @@
 └── get_type                               … одна схема типа
 
 🗄️ awn-databases (list_databases … + *_content_* kind:database; legacy database_frame_*)
-├── list_databases / get_database / create_database / delete_database / rename_database
+├── list_databases / get_database / create_database / update_database / delete_database / rename_database
 ├── read_databases_index_toc / refresh_databases_index_toc   … awn-databases/index.md
 ├── read_database_schema / write_database_schema
 ├── read_database_properties / write_database_properties

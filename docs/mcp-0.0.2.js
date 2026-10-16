@@ -167,6 +167,12 @@ module.exports = {
           http: "POST /api/agent/content-index"
         },
         {
+          name: "list_topics",
+          description: "Узлы дерева тем (ws/area/topic): плоско или parentPath + scope.",
+          parameters: "parentPath?, scope?, includeFolders?",
+          http: "GET /api/agent/topics"
+        },
+        {
           name: "read_topic_index_toc",
           description: "Оглавление INDEX.md в корне workspace: path, type, title, description (темы и области).",
           parameters: "—",
@@ -382,6 +388,12 @@ module.exports = {
           description: "Создать store: group/collection/single.",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
+        },
+        {
+          name: "update_database",
+          description: "Patch manifest: name, description, body.",
+          parameters: "store, name?, description?, body?",
+          http: "PUT /api/awn-databases/stores"
         },
         { name: "delete_database", description: "Удалить store.", parameters: "store", http: "DELETE /api/awn-databases/stores" },
         { name: "rename_database", description: "Переименовать/переместить store.", parameters: "store, slug", http: "POST /api/awn-databases/stores/rename" },

@@ -76,6 +76,24 @@ export function registerDatabaseTools(reg, client) {
       })
   });
 
+  const updateDatabaseSchema = z
+    .object({
+      store: storePath,
+      name: z.string().optional().describe("Maps to awn-name in manifest frontmatter"),
+      description: z.string().optional().describe("Maps to awn-description"),
+      body: z.string().optional().describe("Markdown body below frontmatter")
+    })
+    .refine((value) => value.name !== undefined || value.description !== undefined || value.body !== undefined, {
+      message: "Provide name, description, and/or body"
+    });
+
+  reg(
+    "update_database",
+    "Update database manifest.md: awn-name, awn-description, and/or body (like update_channel). Schema → write_database_schema; arbitrary YAML → write_database_properties.",
+    updateDatabaseSchema,
+    (payload) => client.put("/api/awn-databases/stores", payload)
+  );
+
   const readDatabasesIndexTocSchema = z.object({});
   const readDatabasesIndexTocHandler = () => client.get("/api/agent/awn-databases-index");
   const readDatabasesIndexTocDescription =

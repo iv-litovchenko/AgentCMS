@@ -32,7 +32,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 1. `list_workspaces` → выбери id → `get_session_context({ agentId })`.
 2. `agentId` обязателен в **каждом** workspace-вызове (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в UI на MCP не влияет.
-3. Обзор: `read_topic_index_toc` (дерево тем) или `read_workspace_map` (все `manifest.md` плоским списком).
+3. Обзор: `list_topics` (узлы дерева тем), `read_topic_index_toc` (INDEX.md) или `read_workspace_map` (все `manifest.md` плоским списком).
 4. Пользователь не назвал путь → `get_user_active_context_now`: что он сейчас открыл в UI, с готовыми `path` / `slot` / `ref`.
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc` по активной теме.
@@ -134,7 +134,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Два слоя, адресация по `store` (путь под `awn-databases/`, напр. `tasks`, `taxonomies/tags`):
 
-- **store** — каркас (`group` / `collection` / `single`): `list_databases`, `get_database`, `create_database`, …; каталог — `read_databases_index_toc` (legacy `database_frame_*`).
+- **store** — каркас (`group` / `collection` / `single`): `list_databases`, `get_database`, `create_database`, `update_database`, …; каталог — `read_databases_index_toc` (legacy `database_frame_*`).
 - **Записи в data/** — `list_content`, `create_content` (`isSection` или `awn.content.category` — раздел), `delete_content`, `move_content` (`targetParent`, `slug`); тело/поля — `read_content` / `write_content` / `*_content_property` (`kind: database`, `slot: data`, `ref`).
 
 | `collectionType` | Когда |
@@ -280,7 +280,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 | Задача | Tool |
 |--------|------|
-| Обзор workspace | `read_topic_index_toc`; плоский реестр — `read_workspace_map`; папки без manifest — `list_folder` |
+| Обзор workspace | `list_topics`; INDEX — `read_topic_index_toc`; все manifest — `read_workspace_map`; папки без manifest — `list_folder` |
 | Обзор темы / слота | `read_content_index_toc` |
 | Есть только путь к файлу | `resolve_workspace_path` (тема, слот, готовые аргументы) |
 | Каталоги разделов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` |

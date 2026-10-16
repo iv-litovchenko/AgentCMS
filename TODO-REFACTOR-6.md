@@ -178,6 +178,26 @@ types/hubs/database/
 
 ---
 
+## G — выравнивание hub-семейств (MCP) · ❌ опционально
+
+Модель уже единая: **hub-карточка + index TOC + `list_slots` + `*_content_*`**. Ниже — косметика и онбординг, **не блокер** после A–F.
+
+| # | Область | Сейчас | Целевое / идея | Приоритет |
+| - | ------- | ------ | -------------- | --------- |
+| G1 | **Topics vs ingress** | `read_topic_*` / `write_topic_*`, `create_topic` | Либо **topic →** `get_topic` + `update_topic` (+ тонкие `read|write_topic_*`), либо **channel/media/repo →** `read_channel_*` … как у topic | низкий |
+| G2 | **Database hub** | `create_database`, `write_database_*`, `delete_database` | Выровнять с каналами: **`register_database` / `update_database`** (aliases на `create_*` / patch properties) | низкий |
+| G3 | **Database** | ~~нет `update_database`~~ | ✅ **`update_database`** = patch manifest (как `update_channel`); schema — **`write_database_schema`** | ✅ |
+| G4 | **Channel / media / repo** | только `register_*` + `update_*` | Опционально **`delete_*`**, **`rename_*` / move** hub-папки (как `delete_topic` / `rename_database`) | низкий |
+| G5 | **Topics — каталог** | ~~нет `list_topics`~~ | ✅ **`list_topics`** — flat или `parentPath` + `scope=children\|subtree`; INDEX → `read_topic_index_toc` | ✅ |
+| G6 | **Placement** | `kind: topic` и legacy **`page`** | Микро-шаг: канон **`topic`**, `page` → alias в API/docs (см. C) | низкий |
+| G7 | **Repository** | тонкий MCP (manifest + index) | Тип **`awn.hub.repository.group`** в `types/hubs/repository/` + при необходимости tools | отложено |
+| G8 | **Legacy MCP** | `database_frame_*` в policy read list; channel/media file tools при legacy flag | Со временем **убрать legacy из whitelist** policy, оставить только aliases в сервере; docs — один канон | низкий |
+| G9 | **Документация** | `TODO-REFACTOR-4`, `GLOBAL-DOC-MARKDOWN`, UI MCP modal | Деревья hub-семейств и параллель **Topics / Channels / Databases** — держать в sync с F | низкий |
+
+**Не трогаем без отдельного решения:** записи в слотах — только **`*_content_*`** (не `list_database_records` и т.п.); **schema store** у database остаётся отдельным слоем (у topic — `read_topic_schema`).
+
+---
+
 ## Чат (Cursor)
 
 `<!-- uuid при старте работы -->`

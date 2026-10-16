@@ -26,7 +26,7 @@
 
 **Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
 
-**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.) **Deprecated maps:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties|meta`).
+**Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.) **Deprecated maps:** `get_topic_map` → `list_topics` + `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties|meta`).
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc` по активной теме.
 
@@ -99,7 +99,7 @@
 
 - Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
-- Обзор workspace → `read_topic_index_toc`; папки без manifest → `list_folder`. Обзор темы/слота → `read_content_index_toc`; properties одной записи → `read_content` (`part=properties|meta`).
+- Обзор workspace → `list_topics` или `read_topic_index_toc`; папки без manifest → `list_folder`. Обзор темы/слота → `read_content_index_toc`; properties одной записи → `read_content` (`part=properties|meta`).
 
 **Поиск:** по умолчанию `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch`. Связи между файлами (backlinks / outbound) ищет **только** `search_workspace_links` — hybrid их не видит. Факты, термины и справочник — `search_workspace_facts` / `search_glossary_terms` / `search_reference_entries`.
 
@@ -119,7 +119,7 @@
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
-**MCP (канон):** `create_topic`, `read_topic_*`, `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
+**MCP (канон):** `create_topic`, `list_topics`, `read_topic_*`, `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
 
 **Параметры без схемы в MCP** (передавай так):
 
@@ -177,7 +177,7 @@
 
 ## 6. Инфоблоки (awn-databases)
 
-Два слоя: **каркас store** (`list_databases`, `get_database`, `create_database`, …; aliases `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
+Два слоя: **каркас store** (`list_databases`, `get_database`, `create_database`, `update_database`, …; aliases `database_frame_*`) — group / collection / single; **записи в `data/`** — `*_content_*` с `placement.kind: database`, `slot: data`.
 
 | `collectionType` | Тип записи | Когда |
 |------------------|------------|-------|
