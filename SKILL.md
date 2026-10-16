@@ -87,7 +87,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 ### 4.2 Темы (`awn-topics/`)
 
-Дерево областей и тем. Типы: `awn.page.ws` (корень workspace), `awn.page.area` (область — папка), `awn.page.topic` (тема со слотами).
+Дерево областей и тем под **`awn-topics/`**. Типы: `awn.hub.topic.ws` (корень workspace), `awn.hub.topic.area` (область), `awn.hub.topic.section` (секции **0-agent-kit** / **0-shared**), `awn.hub.topic` (тема со слотами). Legacy `awn.page.*` → alias в коде.
 
 Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/0-agent-kit/` — служебные темы агента; `awn-topics/0-shared/` — общие ресурсы (legacy `shared/`, `awn-shared/`, `a0-*` на чтение).
 

@@ -176,7 +176,7 @@ workspace/                              … awn.hub.topic.ws
 🏢 Registry workspace (без agentId в args; path/agentId в теле где нужно)
 ├── create_workspace                       … папка + manifest + запись в реестре
 ├── register_workspace                     … подхват существующей папки
-├── discover_workspaces                    … скан диска на awn.page.ws
+├── discover_workspaces                    … скан диска на awn.hub.topic.ws (legacy awn.page.ws)
 ├── update_workspace                       … имя, статус, emoji, preview…
 ├── set_default_workspace                  … дефолт при старте платформы
 ├── set_orchestrator_workspace             … один orchestrator
