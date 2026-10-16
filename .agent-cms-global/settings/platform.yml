@@ -13,7 +13,7 @@ awn_settings:
   always-context-global-rules: true
   always-context-global-markdown-showcase: false
   always-context-md-files: AGENTS.md
-  always-context-ws-folder: awn-topics/shared/context/awn-storage/
+  always-context-ws-folder: awn-topics/0-shared/0-context/awn-storage/
   mcp-mode: standard
   batch-enabled: true
   batch-read-limit: 20

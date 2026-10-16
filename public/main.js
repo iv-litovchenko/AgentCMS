@@ -2788,8 +2788,19 @@ function isPlatformAgent(agent) {
 const SERVICE_AREA_NAME = "Агентские темы и ресурсы";
 const SERVICE_SECTION_LABEL = "Агентские темы и ресурсы";
 const CONTAINER_SECTION_LABEL = "Контейнер";
-const SHARED_FOLDER_DEFAULT = "awn-topics/shared";
+const SHARED_FOLDER_DEFAULT = "awn-topics/0-shared";
 const LEGACY_AWN_SHARED_FOLDER = "awn-shared";
+const LEGACY_AWN_TOPICS_SHARED_FOLDER = "awn-topics/shared";
+const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
+  inbox: "0-inbox",
+  notes: "0-notes",
+  references: "0-references",
+  artefacts: "0-artefacts",
+  scripts: "0-scripts",
+  media: "0-media",
+  downloads: "0-downloads",
+  context: "0-context"
+};
 const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
@@ -5594,6 +5605,7 @@ function getSharedFolderBasename() {
 function isSharedFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
   if (lower === getSharedFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_TOPICS_SHARED_FOLDER.split("/").pop().toLowerCase()) return true;
   if (lower === LEGACY_AWN_SHARED_FOLDER.toLowerCase()) return true;
   return false;
 }
@@ -5737,7 +5749,11 @@ function isAgentContainerNodePath(nodePath) {
 function isAgentSharedNodePath(nodePath) {
   if (!getActiveAgentSharedFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefixes = [getActiveAgentSharedFolder(), LEGACY_AWN_SHARED_FOLDER].filter(Boolean);
+  const prefixes = [
+    getActiveAgentSharedFolder(),
+    LEGACY_AWN_TOPICS_SHARED_FOLDER,
+    LEGACY_AWN_SHARED_FOLDER
+  ].filter(Boolean);
   return prefixes.some(
     (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
   );
@@ -8789,7 +8805,7 @@ function syncNodeDescriptionHintUi() {
   if (isAgentSharedRootIndexPath(resolvedPath)) {
     titleNode.textContent = "Общие темы и ресурсы — назначение области";
     textNode.innerHTML =
-      "Общие темы и ресурсы для всех тем агента внутри <code>awn-topics/shared/</code>: скрипты, источники, медиа и другие накопители. " +
+      "Общие темы и ресурсы для всех тем агента внутри <code>awn-topics/0-shared/</code>: скрипты, источники, медиа и другие накопители. " +
       "Создайте файл один раз — используйте из любой темы через ссылки или mount. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
@@ -34075,7 +34091,12 @@ function isSharedManifestCandidatePresent(agentId, candidatePaths) {
 
 function getSharedThemeManifestCandidates(sharedFolder, slug) {
   if (!sharedFolder || !slug) return [];
-  return [`${sharedFolder}/${slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")];
+  const normalized = String(slug || "").trim().toLowerCase();
+  const canonical = SHARED_THEME_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+  const folderSlugs = new Set([normalized, canonical]);
+  return [...folderSlugs].map(
+    (folderSlug) => `${sharedFolder}/${folderSlug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
+  );
 }
 
 function isSharedThemePresetPresent(agentId, slug) {

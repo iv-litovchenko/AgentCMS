@@ -74,7 +74,7 @@
 
 - `awn-topics/` — пользовательские области и темы (по умолчанию);
 - `awn-topics/agent-kit/` — служебные темы агента (persona, rules, voice…; legacy `awn-agent-kit/` на чтение);
-- `awn-topics/shared/` — общие ресурсы между темами (legacy `awn-shared/` на чтение).
+- `awn-topics/0-shared/` — общие ресурсы между темами (legacy `awn-topics/shared/`, `awn-shared/` на чтение).
 
 ### Страницы vs инфоблоки — когда что
 

@@ -4,15 +4,15 @@
 
 **✅** сделано · **❌** не сделано · **⚠️** промежуточно (другой префикс / частично).
 
-**Выбор префикса:** **`0-`** (долгосрок, напр. **`0-agent-kit`**). Цель — **вверху в Finder/диске** (зона цифр/символов). Префикс **один раз** на platform-узел; вложенные slug **без** повторного `0-` (напр. `0-contents/facts`, не `0-contents/0-facts`).
+**Выбор префикса:** **`0-`** (долгосрок, напр. **`0-agent-kit`**, **`0-inbox`**). Цель — **вверху в Finder/диске** (зона цифр/символов). **Все platform / preset slug — `0-{name}`** (секции и заготовки: `0-shared/0-inbox`, `0-agent-kit/0-agent`). **Исключение:** дети **group** в `awn-databases/` — один `0-` на group, внутри короткие slug (`0-contents/facts`, не `0-contents/0-facts`).
 
 **Не путать:** slug папок (`0-agent-kit`) и **SQL-имена таблиц** — если понадобятся таблицы с slug, начинающимся с цифры, в MySQL — **отдельный префикс/кавычки** (`0_agent` → `` `0_agent` `` или `t_0_agent`). Внутри store чаще **записи**, не таблицы с именем папки.
 
 **Сортировка в CMS:** slug на диске ≠ порядок в UI. Системные секции — **`pinned`** / **`sort.json`**; пользовательские **`01-slug`, `02-slug`** — разрешены; **чисто цифровой** slug (`009`, `777`) — **запретить** (MySQL + путаница с «номером без имени»).
 
-**Связано:** часть 7 — **`awn-topics/`**, секции **`0-agent-kit`**, **`shared`** (layout ✅). Legacy read-aliases на старые slug и пути.
+**Связано:** часть 7 — **`awn-topics/`**, секции **`0-agent-kit`**, **`0-shared`** (§1–§2 ✅). Legacy read-aliases на старые slug и пути.
 
-**Legacy read:** `agent-kit`, `awn-agent-kit`, **`a0-*`** → канон **`0-*`**.
+**Legacy read:** kit — `agent-kit`, `awn-agent-kit`, **`a0-*`**; shared — **`shared/`**, **`awn-shared/`** → канон **`0-*`**.
 
 ---
 
@@ -24,6 +24,7 @@
 | Системные group/store в **`awn-databases/`** | Store пользователя (`personal-finance`, …) |
 | Экземпляр канала/медиатеки, созданный из **builtin preset** | Кастомный channel `slider`, произвольный repo |
 | Локальный **`…/0-agent-kit/0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
+| **`0-shared/0-inbox`**, **`0-agent-kit/0-agent`**, … | Папки **`shared/`**, **`inbox/`** без `0-` (legacy → **`0-*`**) |
 
 **Зачем:** сортировка **на диске** вверху, один сигнал агенту «platform». В приложении — дополнительно **pinned**.
 
@@ -40,8 +41,8 @@ awn-topics/
 ├── 0-agent-kit/                 … секция (legacy agent-kit/, awn-agent-kit/, a0-agent-kit/)
 │   ├── 0-agent, 0-user, 0-users, …
 │   └── 0-taxonomies/            … локальные CSV (legacy taxonomies/, catalog/, a0-taxonomies/)
-└── shared/                      … секция → 0-shared/ или дети 0-inbox под shared (см. ниже)
-    ├── 0-inbox, 0-notes, … 0-context, 0-downloads
+└── 0-shared/                    … секция (legacy shared/, awn-shared/)
+    ├── 0-inbox, 0-notes, 0-references, 0-artefacts, 0-scripts, 0-media, 0-downloads, 0-context
     └── …
 
 awn-channels/
@@ -83,20 +84,25 @@ awn-databases/
 
 ---
 
-## `awn-topics/shared/`
+## `awn-topics/0-shared/` ✅ (REFACTOR-3 §2)
 
-| Статус | Slug (сейчас) | Slug (план **`0-*`**) |
-| ------ | ------------- | --------------------- |
-| ❌ | `inbox` | **`0-inbox`** |
-| ❌ | `notes` | **`0-notes`** |
-| ❌ | `references` | **`0-references`** |
-| ❌ | `artefacts` | **`0-artefacts`** |
-| ❌ | `scripts` | **`0-scripts`** |
-| ❌ | `media` | **`0-media`** |
-| ❌ | `downloads` | **`0-downloads`** | только в **`SHARED_DEFAULT_THEMES`** (`server.js`) — синхронить с UI |
-| ❌ | `context` | **`0-context`** | **`always-context-ws-folder`** → `…/0-context/awn-storage/` |
+| Статус | Slug (было) | Slug (канон **`0-*`**) |
+| ------ | ----------- | ---------------------- |
+| ✅ | `shared` (секция) | **`0-shared`** | legacy `awn-topics/shared`, `awn-shared/` |
+| ✅ | `inbox` | **`0-inbox`** | **`0-shared/0-inbox/`** |
+| ✅ | `notes` | **`0-notes`** | scaffold / новые ws |
+| ✅ | `references` | **`0-references`** | |
+| ✅ | `artefacts` | **`0-artefacts`** | |
+| ✅ | `scripts` | **`0-scripts`** | |
+| ✅ | `media` | **`0-media`** | |
+| ✅ | `downloads` | **`0-downloads`** | **`agent-cms-test`** на диске |
+| ✅ | `context` | **`0-context`** | **`always-context-ws-folder`** → `awn-topics/0-shared/0-context/awn-storage/` |
 
-**Код:** `SHARED_THEME_PRESETS` (`public/main.js`), `SHARED_DEFAULT_THEMES` (`server.js`), bootstrap shared.
+**Как kit:** каждая заготовка shared — **`0-{theme}`**; legacy `inbox/` → read-alias на **`0-inbox`**. Preset в UI (`inbox`) → канон через `resolveSharedThemeCanonicalSlug`.
+
+**Код:** `manifest-paths` (`rewriteLegacyShared*`), `agent-registry`, `SHARED_*_THEMES`, index-policy, settings.
+
+**После деплоя:** restart CMS/MCP + rebuild index.
 
 ---
 
@@ -160,7 +166,7 @@ awn-databases/
 | ------- | ------ |
 | ✅ | `finansy`, `01-vvedenie`, `02-praktika` |
 | ❌ | `009`, `777` (только цифры) |
-| ❌ | `0-agent` (зарезервировано под platform) |
+| ❌ | `0-agent`, `0-shared`, … (зарезервировано под platform-секции) |
 
 ---
 
@@ -182,7 +188,7 @@ awn-databases/
 | ------- | ----- |
 | Channels | `lib/config/channel-presets.js`, `public/main.js` |
 | Media | `lib/config/media-library-presets.js`, `lib/services/awn-media-service.js` |
-| Shared themes | `server.js`, `public/main.js` |
+| Shared | `manifest-paths.js` (`rewriteLegacyShared*`), `server.js`, `public/main.js`, `workspace-agent-settings` |
 | Agent kit | `lib/agents/agent-registry.js`, `manifest-paths.js`, identity/voice, MCP |
 | Databases | `awn-databases/**`, facts/glossary MCP |
 | Slug policy | `slug-translit.js`, `create_topic` / rename validation |

@@ -89,7 +89,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Дерево областей и тем. Типы: `awn.page.ws` (корень workspace), `awn.page.area` (область — папка), `awn.page.topic` (тема со слотами).
 
-Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/0-agent-kit/` — служебные темы агента; `awn-topics/shared/` — общие ресурсы (legacy `awn-shared/`, `agent-kit/`, `a0-*` на чтение).
+Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/0-agent-kit/` — служебные темы агента; `awn-topics/0-shared/` — общие ресурсы (legacy `shared/`, `awn-shared/`, `a0-*` на чтение).
 
 **Тело `manifest.md` — бриф темы:** назначение, границы, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии.
 

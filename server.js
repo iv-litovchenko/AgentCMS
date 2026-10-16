@@ -9654,15 +9654,33 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
 const CONTAINER_AREA_NAME = "Контейнер";
 const SHARED_AREA_NAME = "Общие темы и ресурсы";
 const SHARED_DEFAULT_THEMES = [
-  { slug: "inbox", title: "Входящие" },
-  { slug: "notes", title: "Заметки" },
-  { slug: "references", title: "Источники" },
-  { slug: "artefacts", title: "Артефакты" },
-  { slug: "scripts", title: "Скрипты" },
-  { slug: "media", title: "Медиа" },
-  { slug: "downloads", title: "Загрузки из браузера" },
-  { slug: "context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
+  { slug: "0-inbox", title: "Входящие" },
+  { slug: "0-notes", title: "Заметки" },
+  { slug: "0-references", title: "Источники" },
+  { slug: "0-artefacts", title: "Артефакты" },
+  { slug: "0-scripts", title: "Скрипты" },
+  { slug: "0-media", title: "Медиа" },
+  { slug: "0-downloads", title: "Загрузки из браузера" },
+  { slug: "0-context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
 ];
+
+const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
+  inbox: "0-inbox",
+  notes: "0-notes",
+  references: "0-references",
+  artefacts: "0-artefacts",
+  scripts: "0-scripts",
+  media: "0-media",
+  downloads: "0-downloads",
+  context: "0-context"
+};
+
+function resolveSharedThemeCanonicalSlug(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (SHARED_DEFAULT_THEMES.some((theme) => theme.slug === normalized)) return normalized;
+  return SHARED_THEME_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+}
 
 async function normalizeContainerMenuTree(tree, containerAbsolute) {
   if (!tree || !containerAbsolute) return tree;
@@ -9785,18 +9803,18 @@ async function bootstrapSharedDefaultThemes(sharedAbsolute, sharedFolder) {
 }
 
 function findSharedThemePreset(slug) {
-  const normalized = String(slug || "").trim().toLowerCase();
-  if (!normalized) return null;
-  return SHARED_DEFAULT_THEMES.find((theme) => theme.slug === normalized) || null;
+  const canonical = resolveSharedThemeCanonicalSlug(slug);
+  if (!canonical) return null;
+  return SHARED_DEFAULT_THEMES.find((theme) => theme.slug === canonical) || null;
 }
 
 const SHARED_MOUNT_SPECS = [
-  { slotKey: "inbox", themeSlug: "inbox", label: "Входящие", mode: "inbox" },
-  { slotKey: "notes", themeSlug: "notes", label: "Заметки", mode: "notes" },
-  { slotKey: "references", themeSlug: "references", label: "Источники", mode: "references" },
-  { slotKey: "artefacts", themeSlug: "artefacts", label: "Артефакты", mode: "artefacts" },
-  { slotKey: "scripts", themeSlug: "scripts", label: "Скрипты", mode: "scripts" },
-  { slotKey: "media", themeSlug: "media", label: "Медиа", mode: "media" }
+  { slotKey: "inbox", themeSlug: "0-inbox", label: "Входящие", mode: "inbox" },
+  { slotKey: "notes", themeSlug: "0-notes", label: "Заметки", mode: "notes" },
+  { slotKey: "references", themeSlug: "0-references", label: "Источники", mode: "references" },
+  { slotKey: "artefacts", themeSlug: "0-artefacts", label: "Артефакты", mode: "artefacts" },
+  { slotKey: "scripts", themeSlug: "0-scripts", label: "Скрипты", mode: "scripts" },
+  { slotKey: "media", themeSlug: "0-media", label: "Медиа", mode: "media" }
 ];
 
 const SHARED_MOUNT_SPECS_BY_SLOT = new Map(SHARED_MOUNT_SPECS.map((spec) => [spec.slotKey, spec]));
@@ -9817,7 +9835,8 @@ function isPathUnderSharedFolder(relPath) {
 function getSharedThemeManifestRel(themeSlug) {
   const sharedFolder = getAgentSharedFolder();
   if (!sharedFolder || !themeSlug) return null;
-  return `${sharedFolder}/${themeSlug}/${MANIFEST_FILE}`.replace(/\\/g, "/");
+  const canonical = resolveSharedThemeCanonicalSlug(themeSlug);
+  return `${sharedFolder}/${canonical}/${MANIFEST_FILE}`.replace(/\\/g, "/");
 }
 
 function getSharedThemeSlugFromManifestRel(manifestRel) {
@@ -9828,7 +9847,9 @@ function getSharedThemeSlugFromManifestRel(manifestRel) {
   if (!normalized.startsWith(prefix)) return null;
   const tail = normalized.slice(prefix.length);
   const slug = tail.split("/").filter(Boolean)[0] || null;
-  return slug && SHARED_MOUNT_SPECS_BY_THEME.has(slug) ? slug : slug;
+  if (!slug) return null;
+  const canonical = resolveSharedThemeCanonicalSlug(slug);
+  return SHARED_MOUNT_SPECS_BY_THEME.has(canonical) ? canonical : canonical;
 }
 
 function isTopicManifestEligibleForSharedMounts(manifestRel) {
@@ -9961,6 +9982,7 @@ function dedupeReservedRootMenuSections(menu) {
       "awn-agent-kit",
       getAgentSharedFolder(),
       "awn-shared",
+      "awn-topics/shared",
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
       AWN_DATA_ROOT_FOLDER,
@@ -9987,6 +10009,7 @@ function dedupeGitRepoReservedSections(sections, gitRootRel) {
       "awn-agent-kit",
       getAgentSharedFolder(),
       "awn-shared",
+      "awn-topics/shared",
       getAgentContainerFolder()
     ]
       .filter(Boolean)
