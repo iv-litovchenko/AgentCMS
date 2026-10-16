@@ -21,7 +21,7 @@ awn-runtime-commands: false
 awn-index-exclude-record: false
 awn-taxonomy: ""
 awn-owner: ""
-awn-type: awn.database.element.category
+awn-type: awn.content.category
 awn-create: 2026-10-13T11:53:45.119Z
 awn-update: 2026-10-13T11:53:45.119Z
 awn-version: 1

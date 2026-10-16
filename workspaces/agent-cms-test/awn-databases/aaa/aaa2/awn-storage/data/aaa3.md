@@ -20,7 +20,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: ""
-awn-type: awn.database.element.record
+awn-type: awn.content.record
 awn-create: 2026-09-24T16:45:08.631Z
 awn-update: 2026-09-24T16:45:08.631Z
 awn-version: 1

@@ -3,7 +3,7 @@ awn-name: awn-id
 awn-description: ""
 awn-preview: ""
 awn-index-exclude-record: false
-awn-type: awn.database.element.record-lite
+awn-type: awn.content.record-lite
 awn-create: 2026-10-06T19:02:22.339Z
 awn-update: 2026-10-06T19:02:22.339Z
 awn-version: 1

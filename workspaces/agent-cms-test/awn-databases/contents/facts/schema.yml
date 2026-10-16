@@ -3,4 +3,4 @@ layer: awn-databases-store
 
 awn_schema:
   record:
-    extends: awn.database.element.record-lite
+    extends: awn.content.record-lite

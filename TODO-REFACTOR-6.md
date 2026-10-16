@@ -37,8 +37,8 @@
 | ✅ | Часть 1 MCP |
 | ✅ | `awn.content.record-lite.yml`, aliases, `awn-data-loader` constants |
 | ✅ | Удалить `types/databases/elements/` |
-| ❌ | По желанию: массово обновить `awn-type` / `extends` в workspace data (не блокер) |
-| ❌ | UI `public/main.js`: константы `awn.database.element.*` → content (косметика) |
+| ✅ | Массово обновлены `awn-type` / `extends` в workspace data (`md`/`yml`, без `history/*.mdback`) |
+| ✅ | UI `public/main.js`: проверки типов через `normalizeAwnTypeName` + `awn.content.*`; legacy map в `legacyToCanonical` |
 
 ## Чат (Cursor)
 

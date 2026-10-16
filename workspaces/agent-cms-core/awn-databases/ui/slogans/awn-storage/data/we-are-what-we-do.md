@@ -20,7 +20,7 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-tags: ""
-awn-type: awn.database.element.record
+awn-type: awn.content.record
 awn-store: ui/slogans
 awn-create: "2026-09-20T12:00:00.000Z"
 awn-update: "2026-09-20T12:00:00.000Z"

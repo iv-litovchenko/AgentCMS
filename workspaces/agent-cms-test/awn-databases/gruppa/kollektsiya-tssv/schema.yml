@@ -5,11 +5,11 @@ awn_schema:
   frame:
     extends: awn.database.frame.collection
   category:
-    extends: awn.database.element.category
+    extends: awn.content.category
   record:
-    extends: awn.database.element.record
+    extends: awn.content.record
   record-csv:
-    extends: awn.database.element.record-csv
+    extends: awn.content.record-csv
     fields:
       field-1:
         type: awn.field.string
