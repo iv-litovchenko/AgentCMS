@@ -44,7 +44,8 @@ workspaces/*
 !workspaces/0-ws-test/
 !workspaces/0-ws-test/**
 !workspaces/0-cli-sandbox/
-!workspaces/0-cli-sandbox/**
+workspaces/0-cli-sandbox/*
+!workspaces/0-cli-sandbox/README.md
 
 # Cache & temp
 .cache/
