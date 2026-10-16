@@ -8,7 +8,12 @@ const { AsyncLocalStorage } = require("async_hooks");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./lib/agents/agent-registry");
-const { resolveChpuPath, isChpuReservedRootSegment } = require("./lib/config/chpu-resolver");
+const {
+  resolveChpuPath,
+  isChpuReservedRootSegment,
+  canonicalizeChpuWorkspacePath,
+  canonicalizeChpuWorkspaceAgentId
+} = require("./lib/config/chpu-resolver");
 const docsRegistry = require("./lib/docs/docs-registry");
 const apiDocs = require("./lib/docs/api-docs");
 const mcpDocs = require("./lib/docs/mcp-docs");
@@ -25309,6 +25314,26 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to resolve CHPU path",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/chpu/canonical-path") {
+    const rawPath = String(url.searchParams.get("path") || "").trim();
+    const agentId = String(url.searchParams.get("agentId") || "").trim();
+    try {
+      const path = canonicalizeChpuWorkspacePath(rawPath);
+      const payload = { path, changed: path !== rawPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "") };
+      if (agentId) {
+        const canonicalAgentId = canonicalizeChpuWorkspaceAgentId(agentId);
+        payload.agentId = canonicalAgentId;
+        payload.agentChanged = canonicalAgentId !== agentId;
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to canonicalize CHPU path",
         details: String(error.message || error)
       });
     }

@@ -2858,6 +2858,16 @@ const CONTAINER_FOLDER_DEFAULT = "awn-topics";
 const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
 const PLATFORM_AGENT_ID = "platform";
+/** REFACTOR-9 — legacy ws id в закладках CHPU */
+const LEGACY_CHPU_WORKSPACE_AGENT_IDS = {
+  "agent-cms-core": "0-ws-core",
+  "agent-cms-test": "0-ws-test"
+};
+
+function canonicalChpuWorkspaceAgentId(agentId) {
+  const id = String(agentId || "").trim();
+  return LEGACY_CHPU_WORKSPACE_AGENT_IDS[id] || id;
+}
 
 function isPlatformAgentId(agentId) {
   return String(agentId || "").trim() === PLATFORM_AGENT_ID;
@@ -3745,7 +3755,18 @@ function normalizeChpuPathBeforeResolve(rawPath) {
 }
 
 async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
-  const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
+  let normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
+  try {
+    const canonRes = await fetch(
+      buildApiUrl("/api/chpu/canonical-path", { path: normalizedPath, agentId }, agentId)
+    );
+    if (canonRes.ok) {
+      const canon = await canonRes.json();
+      if (canon.path) normalizedPath = canon.path;
+    }
+  } catch {
+    // keep normalizedPath
+  }
   const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -3796,7 +3817,7 @@ async function fetchChpuResolve(chpuPath, agentId = activeAgentId) {
 }
 
 function parseLegacyAppRouteParts(parts) {
-  const agentId = decodeURIComponent(parts[1]);
+  const agentId = canonicalChpuWorkspaceAgentId(decodeURIComponent(parts[1]));
   let rest = parts.slice(2).map((segment) => decodeURIComponent(segment));
 
   if (rest[0] === "sys") {
@@ -3852,7 +3873,7 @@ function parseLegacyAppRouteParts(parts) {
 }
 
 function parseChpuAppRouteParts(parts) {
-  const agentId = decodeURIComponent(parts[0]);
+  const agentId = canonicalChpuWorkspaceAgentId(decodeURIComponent(parts[0]));
   const chpuPath = parts
     .slice(1)
     .map((segment) => decodeURIComponent(segment))
@@ -4579,7 +4600,7 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  const agentId = activeAgentId;
+  const agentId = canonicalChpuWorkspaceAgentId(activeAgentId);
   if (!agentId) {
     return "/";
   }
@@ -4661,6 +4682,40 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   updateWorkspaceShareLinkButton();
   scheduleActivePageContextSync();
   window.AgentDiscussPanel?.sync?.();
+  void refreshCanonicalUrlInLocationBar();
+}
+
+async function refreshCanonicalUrlInLocationBar() {
+  if (appRouteSyncSuspended > 0 || !activeAgentId) return;
+  const wsPath = getChpuWorkspacePathFromState();
+  if (!wsPath) return;
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/chpu/canonical-path", { path: wsPath, agentId: activeAgentId }, activeAgentId)
+    );
+    if (!response.ok) return;
+    const data = await response.json();
+    const canonWs = String(data.path || wsPath).trim();
+    const canonAgent = canonicalChpuWorkspaceAgentId(String(data.agentId || activeAgentId).trim());
+    let pathname = `/${encodeURIComponent(canonAgent)}`;
+    if (canonWs) {
+      pathname += `/${canonWs
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join("/")}`;
+    }
+    const url = new URL(location.href);
+    url.pathname = pathname;
+    url.searchParams.delete("agent");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const current = `${location.pathname}${location.search}${location.hash}`;
+    if (next === current) return;
+    history.replaceState({ appRoute: true }, "", next);
+    updateWorkspaceShareLinkButton();
+  } catch {
+    // ignore
+  }
 }
 
 let activePageContextSyncTimer = null;
@@ -5248,14 +5303,17 @@ async function applyAppRouteFromUrl() {
     return true;
   }
 
+  const routeAgentId = canonicalChpuWorkspaceAgentId(route.agentId);
+  route.agentId = routeAgentId;
+
   const selectable = getSelectableAgents();
-  if (!selectable.some((agent) => agent.id === route.agentId)) {
-    showToast(`Агент «${route.agentId}» не найден`, "error");
+  if (!selectable.some((agent) => agent.id === routeAgentId)) {
+    showToast(`Агент «${routeAgentId}» не найден`, "error");
     return false;
   }
 
-  if (route.agentId !== activeAgentId) {
-    await switchActiveAgent(route.agentId);
+  if (routeAgentId !== activeAgentId) {
+    await switchActiveAgent(routeAgentId);
   }
 
   if (route.type === "systemFile") {
