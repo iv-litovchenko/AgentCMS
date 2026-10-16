@@ -184,7 +184,7 @@ types/hubs/database/
 
 | # | Область | Сейчас | Целевое / идея | Приоритет |
 | - | ------- | ------ | -------------- | --------- |
-| G1 | **Topics vs ingress** | `read_topic_*` / `write_topic_*`, `create_topic` | Либо **topic →** `get_topic` + `update_topic` (+ тонкие `read|write_topic_*`), либо **channel/media/repo →** `read_channel_*` … как у topic | низкий |
+| G1 | **Topics vs ingress** | ~~только `read_topic_*`~~ | ✅ **`get_topic` / `update_topic`** (как channel); **`read|write_topic_*`** для schema/config/env — без снятия | ✅ |
 | G2 | **Database hub** | `create_database`, `write_database_*`, `delete_database` | Выровнять с каналами: **`register_database` / `update_database`** (aliases на `create_*` / patch properties) | низкий |
 | G3 | **Database** | ~~нет `update_database`~~ | ✅ **`update_database`** = patch manifest (как `update_channel`); schema — **`write_database_schema`** | ✅ |
 | G4 | **Channel / media / repo** | только `register_*` + `update_*` | Опционально **`delete_*`**, **`rename_*` / move** hub-папки (как `delete_topic` / `rename_database`) | низкий |

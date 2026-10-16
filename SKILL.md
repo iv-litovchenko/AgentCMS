@@ -95,6 +95,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 | Задача | Tool |
 |--------|------|
+| Карточка hub (как channel) | `get_topic` / `update_topic` — name, description, body |
 | Создать | `create_topic({ type: "area"\|"topic", parentPath, displayName, slug })` |
 | Переименовать / перенести / удалить | `rename_topic` / `move_topic` / `delete_topic` (`confirm`) |
 | Тело и свойства manifest | `read_topic_body` / `write_topic_body`, `read_topic_properties` / `write_topic_properties` (patch), `*_topic_property` |

@@ -12855,6 +12855,117 @@ async function buildAgentTopicsList(options = {}) {
   };
 }
 
+const NON_TOPIC_HUB_MANIFEST_PREFIXES = [
+  "awn-channels/",
+  "awn-databases/",
+  "awn-media/",
+  "awn-repositories/"
+];
+
+function isTopicTreeManifestRel(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  if (!/\/manifest\.md$|_registration\.md$/i.test(normalized)) return false;
+  const lower = normalized.toLowerCase();
+  return !NON_TOPIC_HUB_MANIFEST_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
+async function getAgentTopicCard(inputPath) {
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (use get_channel / get_database / … for other hubs)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const absolute = normalizeWorkspacePath(manifestRel);
+  if (!absolute || !isManifestMdAbsolute(absolute)) {
+    return { error: "Path must be manifest.md", status: 400, path: manifestRel };
+  }
+  try {
+    await fs.access(absolute);
+  } catch {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const { frontmatter, body } = await readNodeFrontmatterContent(manifestRel);
+  const folderPath = path.posix.dirname(manifestRel.replace(/\\/g, "/"));
+  return {
+    version: 1,
+    model: "awn-topic",
+    topic: {
+      path: manifestRel,
+      folderPath: folderPath === "." ? "" : folderPath,
+      name: String(getYamlScalar(frontmatter, "awn-name") || "").trim(),
+      description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+      awnType: String(getYamlScalar(frontmatter, "awn-type") || "").trim(),
+      awnId: String(getYamlScalar(frontmatter, "awn-id") || "").trim(),
+      body: String(body || "").trim(),
+      properties: String(frontmatter || "").trim()
+    },
+    hint:
+      "Topic hub card (like get_channel). Slots → list_slots + *_content_*; schema/config/env → read_topic_*."
+  };
+}
+
+async function updateAgentTopicCard(inputPath, options = {}) {
+  const hasName = options.name !== undefined;
+  const hasDescription = options.description !== undefined;
+  const hasBody = options.body !== undefined;
+  if (!hasName && !hasDescription && !hasBody) {
+    return { error: "Provide name, description, and/or body", status: 400 };
+  }
+
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(manifestRel);
+  if (!nodeAbsolute) {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
+  const parts = splitNodeFrontmatter(raw);
+  let nextFrontmatter = parts.frontmatter;
+  if (hasName) {
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-name", options.name);
+  }
+  if (hasDescription) {
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-description", options.description);
+  }
+  if (hasName || hasDescription) {
+    nextFrontmatter = applyAwnTimestampsToFrontmatter(nextFrontmatter, { diskFrontmatter: parts.frontmatter });
+  }
+  const nextBody = hasBody ? String(options.body ?? "") : parts.body;
+  const nextContent = joinNodeFrontmatter(nextFrontmatter, nextBody);
+  await writeWorkspaceTextFileWithHistory(manifestRel, manifestRel, nextContent);
+  await invalidateNodeReadStateForManifest(manifestRel);
+
+  const card = await getAgentTopicCard(manifestRel);
+  if (card.error) return card;
+
+  return {
+    version: 1,
+    model: "awn-topic-update",
+    updated: true,
+    path: manifestRel,
+    topic: card.topic,
+    hint: card.hint
+  };
+}
+
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["discussion", "dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
@@ -14798,6 +14909,7 @@ const SESSION_CONTEXT_API_MAP = {
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
+  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP get_topic; PUT /api/agent/topic — update_topic",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -22417,6 +22529,41 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to check page existence",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/topic") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const result = await getAgentTopicCard(relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/topic") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await updateAgentTopicCard(relPath, {
+        name: payload?.name,
+        description: payload?.description,
+        body: payload?.body
+      });
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update topic",
         details: String(error.message || error)
       });
     }

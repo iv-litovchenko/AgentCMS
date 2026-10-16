@@ -119,7 +119,7 @@
 
 **Тело `manifest.md` темы — бриф:** назначение и границы темы, инструкции, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии темы.
 
-**MCP (канон):** `create_topic`, `list_topics`, `read_topic_*`, `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
+**MCP (канон):** `get_topic` / `update_topic` (карточка, как channel), `create_topic`, `list_topics`, `read_topic_*` (schema/config/env), `read_topic_index_toc`, … `placement.kind: page` в content-tools — семантика placement, не имя tool.
 
 **Параметры без схемы в MCP** (передавай так):
 

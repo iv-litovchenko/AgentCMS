@@ -58,6 +58,7 @@ batch_invoke:
 
   read_tools:
     - list_topics
+    - get_topic
     - topic_exists
     - topic_exists
     - content_exists

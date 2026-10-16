@@ -44,6 +44,31 @@ export function normalizeCreatePageArgs(input = {}) {
 
 export function registerPageTools({ reg, client, pagePath }) {
   reg(
+    "get_topic",
+    "One topic/area/ws hub card: manifest properties + body (like get_channel). Fine-grained: read_topic_schema, read_topic_config, list_slots + *_content_*.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/agent/topic", { path })
+  );
+
+  const updateTopicSchema = z
+    .object({
+      path: pagePath,
+      name: z.string().optional().describe("Maps to awn-name"),
+      description: z.string().optional(),
+      body: z.string().optional().describe("Markdown body below frontmatter")
+    })
+    .refine((value) => value.name !== undefined || value.description !== undefined || value.body !== undefined, {
+      message: "Provide name, description, and/or body"
+    });
+
+  reg(
+    "update_topic",
+    "Update topic manifest: awn-name, awn-description, and/or body (like update_channel). YAML patch → write_topic_properties; schema → write_topic_schema.",
+    updateTopicSchema,
+    (payload) => client.put("/api/agent/topic", payload)
+  );
+
+  reg(
     "read_topic_body",
     "Read topic manifest.md body (markdown below frontmatter).",
     z.object({ path: pagePath }),

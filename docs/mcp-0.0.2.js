@@ -262,6 +262,13 @@ module.exports = {
       id: "topic",
       title: "Тема (manifest.md)",
       tools: [
+        { name: "get_topic", description: "Карточка hub: properties + body.", parameters: "path", http: "GET /api/agent/topic" },
+        {
+          name: "update_topic",
+          description: "Patch name/description/body manifest.",
+          parameters: "path, name?, description?, body?",
+          http: "PUT /api/agent/topic"
+        },
         { name: "read_topic_body", description: "Тело manifest.md.", parameters: "path", http: "GET /api/file" },
         { name: "write_topic_body", description: "Сохранить тело.", parameters: "path, content", http: "POST /api/file/content" },
         { name: "read_topic_properties", description: "Frontmatter manifest.md (full YAML).", parameters: "path", http: "GET /api/file/properties" },
