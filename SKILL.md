@@ -37,7 +37,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 **«Перезагрузи контекст»** = снова `get_session_context` + при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc` по активной теме.
 
-Кто ты и кто пользователь в этом workspace — `get_agent_identity` / `get_user_identity` (`awn-topics/agent-kit/agent/`, `awn-topics/agent-kit/user/`; legacy `awn-agent-kit/…` на чтение).
+Кто ты и кто пользователь в этом workspace — `get_agent_identity` / `get_user_identity` (`awn-topics/a0-agent-kit/a0-agent/`, `awn-topics/a0-agent-kit/a0-user/`; legacy `agent-kit/`, `awn-agent-kit/…` на чтение).
 
 ---
 
@@ -89,7 +89,7 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 Дерево областей и тем. Типы: `awn.page.ws` (корень workspace), `awn.page.area` (область — папка), `awn.page.topic` (тема со слотами).
 
-Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/agent-kit/` — служебные темы агента; `awn-topics/shared/` — общие ресурсы (legacy `awn-shared/` на чтение).
+Разделы дерева (`parentPath` в `create_topic`): `awn-topics/` — темы пользователя (по умолчанию); `awn-topics/a0-agent-kit/` — служебные темы агента; `awn-topics/shared/` — общие ресурсы (legacy `awn-shared/`, `agent-kit/` на чтение).
 
 **Тело `manifest.md` — бриф темы:** назначение, границы, договорённости, что класть в слоты. Это **не** память: записи — в слотах, события — в журнале, разговор — в дискуссии.
 

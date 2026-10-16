@@ -5,7 +5,7 @@ awn_settings:
   awn-id-issued: 31
   awn-id-updated-at: "2026-10-11T18:54:21.222Z"
   awn-id-model: workspace-id-autoincrement-v1
-  voice-cms-topic-path: awn-topics/agent-kit/agent/manifest.md
+  voice-cms-topic-path: awn-topics/a0-agent-kit/a0-agent/manifest.md
   voice-cms-channel: thread
   voice-route-system-prompt: |
     Ты — личный ассистент пользователя в Agent CMS Voice.

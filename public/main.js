@@ -2767,9 +2767,10 @@ const SYSTEM_FILE_GROUP_LABELS = {
 };
 const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
-const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/agent-kit";
+const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/a0-agent-kit";
 const LEGACY_AWN_AGENT_KIT_FOLDER = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
+const LEGACY_AWN_TOPICS_AGENT_KIT_BASENAME = "agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-topics";
 const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
@@ -5565,6 +5566,7 @@ function getAgentKitFolderBasename() {
 function isKitFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
   if (lower === getAgentKitFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_TOPICS_AGENT_KIT_BASENAME.toLowerCase()) return true;
   if (lower === LEGACY_AWN_AGENT_KIT_FOLDER.toLowerCase()) return true;
   if (lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase()) return true;
   return false;
@@ -102637,7 +102639,7 @@ function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
   if (domain === "taxonomies") {
     body.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
     body.push(`props-field: awn-${slug}`);
-    body.push(`data-path: ${AGENT_KIT_FOLDER_DEFAULT}/taxonomies/${slug}/main.csv`);
+    body.push(`data-path: ${AGENT_KIT_FOLDER_DEFAULT}/a0-taxonomies/${slug}/main.csv`);
     body.push(`create-node-group: taxonomy`);
     body.push(`create-node-label: ${displayName}`);
     body.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);

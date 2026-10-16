@@ -95,7 +95,7 @@ const PHASE_SPEAKING = "speaking";
 const PHASE_DISABLED = "disabled";
 
 const DEFAULT_SETTINGS = {
-  topicPath: "awn-topics/agent-kit/agent/manifest.md",
+  topicPath: "awn-topics/a0-agent-kit/a0-agent/manifest.md",
   messageChannel: "thread",
   messageTarget: "qwenpaw",
   qwenpawBaseUrl: "http://127.0.0.1:8088",

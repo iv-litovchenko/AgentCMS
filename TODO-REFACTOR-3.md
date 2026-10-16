@@ -4,7 +4,9 @@
 
 **✅** сделано · **❌** не сделано.
 
-**Связано:** часть 7 — **`awn-topics/`**, **`awn-topics/agent-kit/`**, **`awn-topics/shared/`** (корни ✅). Legacy read-aliases на старые slug и пути.
+**Выбор префикса:** **`a0-`** (долгосрок). Префикс **один раз** на platform-узел; вложенные slug без повторного `a0-` (напр. `a0-contents/facts`, не `a0-contents/a0-facts`).
+
+**Связано:** часть 7 — **`awn-topics/`**, секции **`a0-agent-kit`**, **`shared`** (layout ✅). Legacy read-aliases на старые slug и пути.
 
 ---
 
@@ -15,7 +17,7 @@
 | Заготовки kit / shared / channel / media | Темы пользователя (`finansy`, `php`, …) |
 | Системные group/store в **`awn-databases/`** | Store пользователя (`personal-finance`, …) |
 | Экземпляр канала/медиатеки, созданный из **builtin preset** | Кастомный channel `slider`, произвольный repo |
-| Локальный **`…/agent-kit/a0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
+| Локальный **`…/a0-agent-kit/a0-taxonomies/`** (справочники workspace) | Корни hub: `awn-topics`, `awn-channels`, … |
 
 **Зачем:** сортировка вверху, **MySQL-safe** идентификаторы (`a0_agent`), один сигнал агенту «platform».
 
@@ -27,9 +29,9 @@
 
 ```
 awn-topics/
-├── agent-kit/
+├── a0-agent-kit/                … секция (legacy `agent-kit/`, `awn-agent-kit/`)
 │   ├── a0-agent, a0-user, a0-users, …
-│   └── a0-taxonomies/          … локальные CSV (быв. taxonomies/, catalog/)
+│   └── a0-taxonomies/          … локальные CSV (legacy taxonomies/, catalog/)
 └── shared/
     ├── a0-inbox, a0-notes, … a0-context, a0-downloads
     └── …
@@ -43,29 +45,32 @@ awn-media/
 awn-databases/
 ├── a0-taxonomies/               … глобальные CSV (быв. taxonomies/, awn-taxonomies)
 ├── a0-contents/                 … group (быв. contents/)
-│   ├── a0-facts/
-│   ├── a0-glossary/
-│   └── a0-reference/
+│   ├── facts/
+│   ├── glossary/
+│   └── reference/
 └── a0-ui/                       … platform UI store (быв. ui/)
 ```
 
 ---
 
-## `awn-topics/agent-kit/`
+## `awn-topics/a0-agent-kit/` ✅ (REFACTOR-3 §1)
 
-| Статус | Slug (сейчас)     | Slug (план)              |
+| Статус | Slug (было)       | Slug (канон)             |
 | ------ | ----------------- | ------------------------ |
-| ❌      | `agent`           | **`a0-agent`**           |
-| ❌      | `user`            | **`a0-user`**            |
-| ❌      | `users`           | **`a0-users`**           |
-| ❌      | `agent-rules`     | **`a0-agent-rules`**     |
-| ❌      | `agent-voice-tts` | **`a0-agent-voice-tts`** |
-| ❌      | `agent-voice-stt` | **`a0-agent-voice-stt`** |
-| ❌      | `devices`         | **`a0-devices`**         |
-| ❌      | `taxonomies`      | **`a0-taxonomies`**      | локальные справочники (не путать с **`awn-databases/a0-taxonomies`**) |
-| ❌      | `catalog`         | *(legacy → a0-taxonomies)* | |
+| ✅      | `agent-kit` (секция) | **`a0-agent-kit`**    | + legacy `awn-topics/agent-kit`, `awn-agent-kit` |
+| ✅      | `agent`           | **`a0-agent`**           |
+| ✅      | `user`            | **`a0-user`**            |
+| ✅      | `users`           | **`a0-users`**           | scaffold / новые ws |
+| ✅      | `agent-rules`     | **`a0-agent-rules`**     | scaffold |
+| ✅      | `agent-voice-tts` | **`a0-agent-voice-tts`** | scaffold |
+| ✅      | `agent-voice-stt` | **`a0-agent-voice-stt`** | scaffold |
+| ✅      | `devices`         | **`a0-devices`**         |
+| ✅      | `taxonomies`      | **`a0-taxonomies`**      | локальные справочники (не путать с **`awn-databases/a0-taxonomies`**) |
+| ✅      | `catalog`         | *(legacy → a0-taxonomies)* | read-alias |
 
-**Код:** `get_agent_identity` / `get_user_identity`, voice defaults, `WORKSPACE_TAXONOMY_FOLDER`, scaffolds в **`agent-registry.js`**.
+**Код:** `manifest-paths` (`rewriteLegacyAgentKit*`), `agent-registry`, identity/voice, `WORKSPACE_TAXONOMY_FOLDER`, **`agent-cms-test`** на диске переименован.
+
+**После деплоя:** restart CMS/MCP + rebuild index для каждого workspace с kit на диске.
 
 ---
 
@@ -121,9 +126,9 @@ awn-databases/
 | ------ | -------------------- | ------------------------------ |
 | ⚠️→❌   | `taxonomies/`        | **`a0-taxonomies/`**           | было ✅ `awn-taxonomies`→`taxonomies`; **следующий шаг — a0-** |
 | ❌      | `contents/`          | **`a0-contents/`**             | group |
-| ❌      | `contents/facts`     | **`a0-contents/a0-facts`**     | MCP facts tools |
-| ❌      | `contents/glossary`  | **`a0-contents/a0-glossary`**  | MCP glossary |
-| ❌      | `contents/reference` | **`a0-contents/a0-reference`** | справочник |
+| ❌      | `contents/facts`     | **`a0-contents/facts`**     | MCP facts tools |
+| ❌      | `contents/glossary`  | **`a0-contents/glossary`**  | MCP glossary |
+| ❌      | `contents/reference` | **`a0-contents/reference`** | справочник |
 | ❌      | `ui/`                | **`a0-ui/`**                   | home-titles, slogans, … |
 
 Пользовательские **`finansy`**, **`personal-finance`**, … — **без** `a0-`.

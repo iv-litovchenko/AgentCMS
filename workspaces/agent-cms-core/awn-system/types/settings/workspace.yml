@@ -500,7 +500,7 @@ fields:
     type: awn.field.string
     title: Тема агента (manifest)
     description: Путь к manifest темы для Voice Shell (cms.topicPath)
-    default: awn-agent-kit/agent/manifest.md
+    default: awn-topics/a0-agent-kit/a0-agent/manifest.md
     readonly: true
     group: voice-client
     subgroup: voice-cms

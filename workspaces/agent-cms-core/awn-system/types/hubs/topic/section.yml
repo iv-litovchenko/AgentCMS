@@ -5,7 +5,7 @@ domain: hubs
 status: draft
 extends: awn.hub.topic.base
 description: >
-  Служебная секция workspace — под awn-topics (awn-topics/agent-kit, awn-topics/shared,
+  Служебная секция workspace — под awn-topics (awn-topics/a0-agent-kit, awn-topics/shared,
   awn-container). Черновик: UI секций — в следующих итерациях.
 manifest-pattern: "{slug}/manifest.md"
 storage-slots: []
