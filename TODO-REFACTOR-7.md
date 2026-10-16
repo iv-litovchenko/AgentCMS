@@ -83,13 +83,25 @@ awn-topics/                          ← бывш. awn-container
 
 ---
 
+## Шаг 3 — `awn-shared` → `awn-topics/shared` ✅
+
+| Сделано | Детали |
+| ------- | ------ |
+| ✅ | Default **`awn-topics/shared`**: `agent-registry`, UI, `always-context-ws-folder`, index-policy |
+| ✅ | Read-алиас **`awn-shared/`** → **`awn-topics/shared/`** (`rewriteLegacySharedInRelPath`) |
+| ✅ | **`agent-cms-test`**: папка перенесена; пути в живых файлах обновлены |
+| ✅ | Container tree: секция **`shared`** скрыта из **`containerTree`** (остаётся **`sharedTree`**) |
+
+После деплоя: **rebuild indexes**.
+
+---
+
 ## План работ (остальное)
 
 | Статус | Шаг |
 | ------ | --- |
-| ✅ | **Шаг 2:** **`awn-agent-kit` → `awn-topics/agent-kit`** |
-| ❌ | **Шаг 3:** **`awn-shared` → `awn-topics/shared`** |
-| ❌ | Тип **`awn.hub.topic.section`** в **`types/hubs/`** (manifest, slots, extends) |
+| ✅ | **Шаги 1–3:** единый корень **`awn-topics/`** (+ секции **`agent-kit`**, **`shared`**) |
+| ❌ | Тип **`awn.hub.topic.section`** — явно на manifest секций (если ещё не в YAML) |
 | ❌ | **`list_topics` / INDEX**: pinned секции **`shared`**, **`agent-kit`** |
 | ❌ | Документация: **`TODO-REFACTOR-4`** (дерево hub) |
 

@@ -59,9 +59,9 @@
 | 39 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-topics/test-vseh-svoystvo/manifest.md) | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
 | — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test/manifest.md` | [Тест](awn-topics/test/manifest.md) | — | 1015 B | 57 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/tevt-diagramm/manifest.md` | [Тевт диаграмм](awn-topics/tevt-diagramm/manifest.md) | — | 712 B | 35 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-shared/downloads/manifest.md` | [Загрузки из браузера](awn-shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-shared/inbox/manifest.md` | [Входящие](awn-shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
-| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/shared/downloads/manifest.md` | [Загрузки из браузера](awn-topics/shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/shared/inbox/manifest.md` | [Входящие](awn-topics/shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/shared/manifest.md` | [Общие темы и ресурсы](awn-topics/shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
 | 6 | 🟢 Открыта | awn.hub.topic.area | — | `codex-test/manifest.md` | [codex test](codex-test/manifest.md) | — | 544 B | 29 | 0 | 0 | — |
 | 33 | 🟢 Открыта | awn.hub.topic | типовые | `codex-test/test/manifest.md` | [test](codex-test/test/manifest.md) | — | 538 B | 29 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/analitika/manifest.md` | [Аналитика](crm-studio/analitika/manifest.md) | — | 543 B | 28 | 0 | 0 | — |

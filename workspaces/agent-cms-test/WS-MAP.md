@@ -16,7 +16,7 @@
 - [`awn-topics/tema-bez-slotov/index.md`](#awn-topics/tema-bez-slotov/index.md)
 - [`awn-topics/test-1000-soobscheniy/index.md`](#awn-topics/test-1000-soobscheniy/index.md)
 - [`awn-topics/tevt-diagramm/index.md`](#awn-topics/tevt-diagramm/index.md)
-- [`awn-shared/downloads/index.md`](#awn-shared/downloads/index.md)
+- [`awn-topics/shared/downloads/index.md`](#awn-topics/shared/downloads/index.md)
 - [`INDEX.md`](#index.md)
 
 ---
@@ -745,9 +745,9 @@ _В слоте пока нет файлов для оглавления._
 
 ---
 
-<a id="awn-shared/downloads/index.md"></a>
+<a id="awn-topics/shared/downloads/index.md"></a>
 
-## `awn-shared/downloads/index.md`
+## `awn-topics/shared/downloads/index.md`
 
 # Оглавление темы
 
@@ -755,16 +755,16 @@ _В слоте пока нет файлов для оглавления._
 
 | ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |
 | ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
-| 42 | гибкий | awn.content.record | `test-perestaivaniya-vlozheniya-v-attach.md` | [Тест перестаивания вложения в аттач](awn-shared/downloads/awn-storage/test-perestaivaniya-vlozheniya-v-attach.md) | — | 918 B | 41 | 0 | 0 |
+| 42 | гибкий | awn.content.record | `test-perestaivaniya-vlozheniya-v-attach.md` | [Тест перестаивания вложения в аттач](awn-topics/shared/downloads/awn-storage/test-perestaivaniya-vlozheniya-v-attach.md) | — | 918 B | 41 | 0 | 0 |
 
 ### Однофайловая память
 
 | Слот | Файл | Статус | Размер | Строк |
 | --- | --- | --- | ---: | ---: |
-| Память (однофайловая) | [main.md](awn-shared/downloads/main.md) | не заполнено | — | — |
-| Память (табличная) | [main.csv](awn-shared/downloads/main.csv) | не заполнено | — | — |
-| TODO | [todo.md](awn-shared/downloads/todo.md) | не заполнено | — | — |
-| Дорожная карта | [roadmap.md](awn-shared/downloads/roadmap.md) | не заполнено | — | — |
+| Память (однофайловая) | [main.md](awn-topics/shared/downloads/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-topics/shared/downloads/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-topics/shared/downloads/todo.md) | не заполнено | — | — |
+| Дорожная карта | [roadmap.md](awn-topics/shared/downloads/roadmap.md) | не заполнено | — | — |
 
 * **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
 
@@ -835,9 +835,9 @@ _В слоте пока нет файлов для оглавления._
 | 39 | 🟢 Открыта | awn.page.topic | типовые | `awn-topics/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-topics/test-vseh-svoystvo/manifest.md) | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
 | — | 🟢 Открыта | awn.page.topic | типовые | `awn-topics/test/manifest.md` | [Тест](awn-topics/test/manifest.md) | — | 1015 B | 57 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.page.topic | гибкий | `awn-topics/tevt-diagramm/manifest.md` | [Тевт диаграмм](awn-topics/tevt-diagramm/manifest.md) | — | 712 B | 35 | 0 | 0 | — |
-| — | 🟢 Открыта | awn.page.topic | гибкий | `awn-shared/downloads/manifest.md` | [Загрузки из браузера](awn-shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
-| — | 🟢 Открыта | awn.page.topic | типовые | `awn-shared/inbox/manifest.md` | [Входящие](awn-shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
-| — | 🟢 Открыта | awn.page.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | гибкий | `awn-topics/shared/downloads/manifest.md` | [Загрузки из браузера](awn-topics/shared/downloads/manifest.md) | — | 835 B | 39 | 3 | 0 | — |
+| — | 🟢 Открыта | awn.page.topic | типовые | `awn-topics/shared/inbox/manifest.md` | [Входящие](awn-topics/shared/inbox/manifest.md) | — | 814 B | 43 | 2 | 0 | — |
+| — | 🟢 Открыта | awn.page.area | — | `awn-topics/shared/manifest.md` | [Общие темы и ресурсы](awn-topics/shared/manifest.md) | — | 515 B | 26 | 0 | 0 | — |
 | 6 | 🟢 Открыта | awn.page.area | — | `codex-test/manifest.md` | [codex test](codex-test/manifest.md) | — | 544 B | 29 | 0 | 0 | — |
 | 33 | 🟢 Открыта | awn.page.topic | типовые | `codex-test/test/manifest.md` | [test](codex-test/test/manifest.md) | — | 538 B | 29 | 0 | 0 | — |
 | — | 🟢 Открыта | awn.page.topic | типовые | `crm-studio/analitika/manifest.md` | [Аналитика](crm-studio/analitika/manifest.md) | — | 543 B | 28 | 0 | 0 | — |

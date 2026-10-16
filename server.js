@@ -9700,6 +9700,15 @@ async function normalizeNestedContainerMenuTree(tree, containerAbsolute, contain
       return !isAgentKitFolderEntryName(base);
     });
   }
+  const sharedFolder = getAgentSharedFolder();
+  if (sharedFolder) {
+    tree.sections = tree.sections.filter((section) => {
+      const fp = String(section.folderPath || "").replace(/\\/g, "/");
+      if (fp === sharedFolder || fp.startsWith(`${sharedFolder}/`)) return false;
+      const base = fp.split("/").filter(Boolean).pop() || "";
+      return !isSharedFolderEntryName(base);
+    });
+  }
   return tree;
 }
 
@@ -9949,6 +9958,7 @@ function dedupeReservedRootMenuSections(menu) {
       getAgentKitFolder(),
       "awn-agent-kit",
       getAgentSharedFolder(),
+      "awn-shared",
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
       AWN_DATA_ROOT_FOLDER,
@@ -9970,7 +9980,13 @@ function dedupeReservedRootMenuSections(menu) {
 
 function dedupeGitRepoReservedSections(sections, gitRootRel) {
   const reserved = new Set(
-    [getAgentKitFolder(), "awn-agent-kit", getAgentSharedFolder(), getAgentContainerFolder()]
+    [
+      getAgentKitFolder(),
+      "awn-agent-kit",
+      getAgentSharedFolder(),
+      "awn-shared",
+      getAgentContainerFolder()
+    ]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -10910,9 +10926,7 @@ function isContainerFolderName(name) {
 }
 
 function isSharedFolderName(name) {
-  const configured = getAgentSharedFolder();
-  if (!configured) return false;
-  return String(name || "").toLowerCase() === String(configured).toLowerCase();
+  return isSharedFolderEntryName(name);
 }
 
 function isKitFolderName(name) {

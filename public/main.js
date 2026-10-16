@@ -1834,8 +1834,7 @@ description: Работа с Agent CMS через MCP. Используй при
 
 ## Зоны workspace
 - \`awn-system/\` — модель CMS
-- \`awn-topics/\` — контент
-- \`awn-topics/agent-kit/\` — runtime агента
+- \`awn-topics/\` — контент (+ секции \`agent-kit/\`, \`shared/\`)
 
 ## MCP (часто)
 | Задача | Tool |
@@ -2787,7 +2786,8 @@ function isPlatformAgent(agent) {
 const SERVICE_AREA_NAME = "Агентские темы и ресурсы";
 const SERVICE_SECTION_LABEL = "Агентские темы и ресурсы";
 const CONTAINER_SECTION_LABEL = "Контейнер";
-const SHARED_FOLDER_DEFAULT = "awn-shared";
+const SHARED_FOLDER_DEFAULT = "awn-topics/shared";
+const LEGACY_AWN_SHARED_FOLDER = "awn-shared";
 const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
@@ -5579,9 +5579,19 @@ function isContainerFolderEntryName(name) {
   );
 }
 
+function getSharedFolderBasename() {
+  const parts = String(SHARED_FOLDER_DEFAULT || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  return parts[parts.length - 1] || SHARED_FOLDER_DEFAULT;
+}
+
 function isSharedFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
-  return lower === SHARED_FOLDER_DEFAULT.toLowerCase();
+  if (lower === getSharedFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_SHARED_FOLDER.toLowerCase()) return true;
+  return false;
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
@@ -5723,8 +5733,10 @@ function isAgentContainerNodePath(nodePath) {
 function isAgentSharedNodePath(nodePath) {
   if (!getActiveAgentSharedFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefix = getActiveAgentSharedFolder();
-  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  const prefixes = [getActiveAgentSharedFolder(), LEGACY_AWN_SHARED_FOLDER].filter(Boolean);
+  return prefixes.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
 }
 
 function isFilePartNodePath(nodePath) {
@@ -8773,7 +8785,7 @@ function syncNodeDescriptionHintUi() {
   if (isAgentSharedRootIndexPath(resolvedPath)) {
     titleNode.textContent = "Общие темы и ресурсы — назначение области";
     textNode.innerHTML =
-      "Общие темы и ресурсы для всех тем агента внутри <code>awn-shared/</code>: скрипты, источники, медиа и другие накопители. " +
+      "Общие темы и ресурсы для всех тем агента внутри <code>awn-topics/shared/</code>: скрипты, источники, медиа и другие накопители. " +
       "Создайте файл один раз — используйте из любой темы через ссылки или mount. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
@@ -133655,11 +133667,11 @@ async function createSharedThemePreset(preset, options = {}) {
   const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder) {
-    showToast("Папка awn-shared не настроена", "error");
+    showToast(`Папка ${SHARED_FOLDER_DEFAULT} не настроена`, "error");
     return;
   }
   if (!isAgentSharedFolderPresent(agentId)) {
-    showToast("Сначала создайте awn-shared", "error");
+    showToast(`Сначала создайте ${SHARED_FOLDER_DEFAULT}`, "error");
     return;
   }
   if (isSharedThemePresetPresent(agentId, slug)) {
