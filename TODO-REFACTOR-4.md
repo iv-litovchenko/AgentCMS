@@ -31,7 +31,7 @@
 
 **Синхронизация:** **✅** → `lib/config/channel-presets.js` ↔ `CHANNEL_BUILTIN_PRESETS` (полный `hintTitle` в коде; в дереве после `·` — кратко). **❌** — только здесь, до переноса в код. Сайдбар: `--preset`; кастом без пресета (напр. `slider`) — вне дерева.
 
-**Ingress:** `awn-channels/{slug}/` + `awn-storage/inbox|outbox|files|assets`. Пресет = метка источника/режима, не отдельная витрина.
+**Ingress:** `awn-channels/0-{slug}/` (legacy `telegram/` → read-alias) + `awn-storage/inbox|outbox|files|assets`. Пресет = метка источника/режима, не отдельная витрина.
 
 ```
 Заготовки каналов (sidebar menu-awn-channels-list)
@@ -105,7 +105,57 @@
 
 ---
 
+## 🌳 Дерево hub workspace (REFACTOR-7 + REFACTOR-3)
 
+**Один корень тем:** **`awn-topics/`** (legacy **`awn-container/`**, **`awn-shared/`**, **`awn-agent-kit/`** → read-alias в `manifest-paths.js`).
+
+**Platform slug:** префикс **`0-`** на каждом уровне preset/store (не путать с id workspace `agent-cms-test`).
+
+**Типы hub-тем (`awn.hub.topic.*`):**
+
+| Путь (пример) | `awn-type` | MCP `placement.kind` |
+| ------------- | ---------- | -------------------- |
+| `manifest.md` (корень ws) | `awn.hub.topic.ws` | — |
+| `awn-topics/manifest.md` | `awn.hub.topic.area` | — (корень topic-hub) |
+| `awn-topics/0-agent-kit/manifest.md` | **`awn.hub.topic.section`** | — (секция kit; UI: `serviceTree`) |
+| `awn-topics/0-shared/manifest.md` | **`awn.hub.topic.section`** | — (секция shared; UI: `sharedTree`) |
+| `awn-topics/finansy/manifest.md` | `awn.hub.topic.area` | `topic` |
+| `awn-topics/…/tema/manifest.md` | `awn.hub.topic` | `topic` + `slot` |
+
+```
+workspace/                              … awn.hub.topic.ws
+├── awn-topics/                         … topic-hub (legacy awn-container/)
+│   ├── manifest.md                     … area-корень hub
+│   ├── 0-agent-kit/                    … section (legacy agent-kit/, awn-agent-kit/)
+│   │   ├── manifest.md                 … awn.hub.topic.section
+│   │   ├── 0-agent/ 0-user/ 0-devices/ … preset topics (awn.hub.topic)
+│   │   └── 0-taxonomies/               … локальные CSV workspace
+│   ├── 0-shared/                       … section (legacy shared/, awn-shared/)
+│   │   ├── manifest.md                 … awn.hub.topic.section
+│   │   └── 0-inbox/ 0-notes/ …         … preset themes
+│   └── finansy/ php/ …                 … пользовательские темы (без 0-)
+├── awn-channels/
+│   ├── 0-telegram/ 0-forum/ …          … CHANNEL_BUILTIN_PRESETS
+│   └── slider/ …                       … кастом без preset
+├── awn-media/
+│   └── 0-documents/ 0-market/ …        … builtin mediatheques
+├── awn-databases/
+│   ├── 0-taxonomies/
+│   │   └── 0-tags/ 0-categories/ …     … scaffold CSV (+ user: kollektsiya-1/)
+│   ├── 0-contents/
+│   │   └── 0-facts/ 0-glossary/ 0-reference/   … MCP facts / glossary / reference
+│   ├── 0-ui/
+│   │   └── 0-slogans/ 0-home-titles/   … rotators (agent-cms-core)
+│   └── personal-finance/ …             … user stores
+├── awn-repositories/  awn-system/  .agent-cms/  …
+└── …
+```
+
+**MCP / UI:** `list_topics` — дерево под **`awn-topics/`** (секции kit/shared часто в отдельных ветках меню, не в flat container). **`always-context`:** `awn-topics/0-shared/0-context/awn-storage/` (legacy `awn-shared/context/` → alias).
+
+**Индексы:** `read_topic_index_toc` → **`awn-topics/INDEX.md`**; hub-каталоги — `refresh_*_index_toc` для `awn-channels|awn-media|awn-databases`.
+
+---
 
 ## 🗺️ Полная карта MCP (`agent-cms` v0.4.0)
 
@@ -286,7 +336,7 @@
 🛠️ Утилиты
 ├── generate_workspace_slug                … slug из title (presets)
 ├── get_workspace_storage_info               … stats + git + индексы
-├── get_agent_identity / get_user_identity   … awn-agent-kit
+├── get_agent_identity / get_user_identity   … awn-topics/0-agent-kit/0-agent|0-user
 └── list_recent_activity
 
 📤 File hub queue (Shell «в файлообменник»)
