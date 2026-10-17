@@ -46,3 +46,7 @@
 4. [`GLOBAL-SKILL-4-MARKDOWN.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — какую markdown-разметку использовать при записи (по необходимости).
 5. [`GLOBAL-SKILL-5-SEARCH.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) — как искать: поиск, индексы, DQL.
 6. [`GLOBAL-SKILL-6-MODULES.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) — модули платформы (git и др.).
+
+## Больше информации
+
+Документация, README и исходники платформы — https://github.com/iv-litovchenko/AgentCMS. Обращайся туда, если скиллы и `read_platform_doc` не ответили на вопрос; в чужом хранилище лезть в репозиторий без просьбы человека не нужно.
