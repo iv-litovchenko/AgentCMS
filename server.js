@@ -759,9 +759,9 @@ const {
 } = agentRegistry;
 
 const GLOBAL_DOC_MCP_FILE = "GLOBAL-MCP-INSTRUCTION.md";
-const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-RESPONSE-STYLE.md";
-const GLOBAL_RULES_FILE = "GLOBAL-RULES.md";
-const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
+const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-SKILL-2-RESPONSE-STYLE.md";
+const GLOBAL_RULES_FILE = "GLOBAL-SKILL-3-RULES.md";
+const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-SKILL-4-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
 
@@ -770,13 +770,13 @@ const SESSION_ALWAYS_PLATFORM_FILES = [
     file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
     description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
-    root: "project"
+    root: "global-md"
   },
   {
     file: GLOBAL_RULES_FILE,
     settingKey: "always-context-global-rules",
-    description: "Глобальные правила для всех хранилищ (корень репозитория)",
-    root: "project"
+    description: "Глобальные правила для всех хранилищ",
+    root: "global-md"
   }
 ];
 
@@ -792,7 +792,7 @@ const SESSION_DOCUMENTATION_PLATFORM_FILES = [
     file: GLOBAL_DOC_MARKDOWN_FILE,
     settingKey: "always-context-global-markdown-showcase",
     description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
-    root: "project"
+    root: "global-md"
   }
 ];
 
@@ -1236,6 +1236,12 @@ function sendJson(res, statusCode, payload, extraHeaders = null) {
 }
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
+const {
+  GLOBAL_PLATFORM_MD_REL,
+  getGlobalPlatformMdDirAbs,
+  resolveGlobalPlatformMdAbs,
+  globalPlatformMdDisplayPath
+} = require("./lib/paths/global-platform-md");
 const {
   migrateProjectAgentCmsLayout,
   migrateAllWorkspaceAwnDatabasesFolders,
@@ -12066,7 +12072,11 @@ async function loadSessionPlatformDocItems(platformSettings, entries, { entityKi
     try {
       const platformRoot = getAppRoot();
       const docRoot =
-        entry.root === "project" ? platformRoot : getPlatformAgentRootAbsolute(platformRoot);
+        entry.root === "project"
+          ? platformRoot
+          : entry.root === "global-md"
+            ? getGlobalPlatformMdDirAbs(platformRoot)
+            : getPlatformAgentRootAbsolute(platformRoot);
       const docAbsolute = path.join(docRoot, entry.file);
       if (!(await fileExists(docAbsolute))) continue;
       const content = await fs.readFile(docAbsolute, "utf-8");
@@ -12077,7 +12087,11 @@ async function loadSessionPlatformDocItems(platformSettings, entries, { entityKi
         ref: entry.file,
         label: entry.file,
         displayPath:
-          entry.root === "project" ? entry.file : `workspaces/0-ws-core/${entry.file}`,
+          entry.root === "project"
+            ? entry.file
+            : entry.root === "global-md"
+              ? globalPlatformMdDisplayPath(entry.file)
+              : `workspaces/0-ws-core/${entry.file}`,
         description: entry.description,
         runtimeLoadAlways: entityKind === "platform-always",
         exists: true,
@@ -15213,7 +15227,7 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: "CMS-модель: GLOBAL-MCP-INSTRUCTION.md + awn-system/types/slots/_base.yml (slot-categories)"
+    hint: `CMS-модель: ${GLOBAL_PLATFORM_MD_REL}/GLOBAL-MCP-INSTRUCTION.md + awn-system/types/slots/_base.yml (slot-categories)`
   };
 }
 
@@ -31599,11 +31613,14 @@ async function readPlatformGlobalDocPayload(fileName = "") {
   if (!PLATFORM_GLOBAL_DOC_FILES.has(normalized)) {
     return { error: "Unsupported platform global document", file: normalized };
   }
-  const docAbsolute = path.join(getAppRoot(), normalized);
+  const docAbsolute = resolveGlobalPlatformMdAbs(getAppRoot(), normalized);
+  if (!docAbsolute) {
+    return { error: "Unsupported platform global document", file: normalized };
+  }
   try {
     const content = await fs.readFile(docAbsolute, "utf-8");
     return {
-      path: normalized,
+      path: globalPlatformMdDisplayPath(normalized),
       file: normalized,
       content,
       exists: true

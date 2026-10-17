@@ -33,7 +33,7 @@ get_session_context
 │   │   ├── topic manifest.md (флаг на теме)
 │   │   └── content .md в слотах main/inbox/notes/… (флаг на записи)
 │   ├── system .md из platform always-context-md-files (по умолчанию AGENTS.md в корне ws)
-│   ├── GLOBAL-RULES.md · GLOBAL-RESPONSE-STYLE.md (если toggles platform включены)
+│   ├── GLOBAL-SKILL-3-RULES.md · GLOBAL-SKILL-2-RESPONSE-STYLE.md (если toggles platform включены)
 │   └── ws-folder — рекурс .md из always-context-ws-folder
 │       └── по умолчанию awn-topics/0-shared/0-context/awn-storage/
 │
@@ -56,7 +56,7 @@ get_session_context
 ```
 вне get_session_context
 │
-├── get_session_documentation — README.md, GLOBAL-DOC-MARKDOWN.md (toggles platform)
+├── get_session_documentation — README.md, GLOBAL-SKILL-4-MARKDOWN.md (toggles platform)
 ├── GLOBAL-MCP-INSTRUCTION.md — по skill / read_platform_doc (не автоматом в старт)
 ├── list_workspace_cron · list_workspace_heartbeat — индексы runtime по workspace
 ├── get_workspace_storage_info — stats, git, index status, counts
@@ -81,7 +81,7 @@ get_session_context
 
 - [ ] Явно разделить **light** (meta + registry + counts) и **heavy** (alwaysContext + serviceDocs).
 - [ ] Лимит размера / предупреждение при переполнении always-context.
-- [ ] Синхронизировать описание с [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md) и UI «Always context» count.
+- [ ] Синхронизировать описание с [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) и UI «Always context» count.
 - [ ] Документировать toggles: `always-context-global-rules`, `always-context-md-files`, `always-context-ws-folder`, …
 
 ## Чат

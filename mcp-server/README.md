@@ -25,7 +25,7 @@ npm install
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 | `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
-| `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
+| `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/workspaces/0-md/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
 | `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |
 
 ## Термины
@@ -56,7 +56,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
 | **Индексы и поиск** | Оглавление, hub-каталог, найти по workspace, пересобрать кэш | `read_*_index_toc`, `refresh_*_index_toc`, `read_workspace_map`, `search_workspace_*`, `rebuild_workspace_*`, … (legacy: `get_topic_map`, `get_content_map`) |
 
-Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-MCP-INSTRUCTION.md` §3).
+Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md` §3).
 
 ### Канон (PAGE · SLOT · CONTENT)
 
@@ -84,7 +84,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 ## Документация
 
-- Агентская шпаргалка: `GLOBAL-MCP-INSTRUCTION.md` → **`get_session_documentation`** (не always-context)
+- Агентская шпаргалка: `workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md` → **`get_session_documentation`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск

@@ -50,10 +50,10 @@ settings:
     user: .agent-cms/settings/user.yml
 
 docs:
-  map: GLOBAL-MCP-INSTRUCTION.md
-  response-style: GLOBAL-RESPONSE-STYLE.md
-  rules: GLOBAL-RULES.md
-  markdown-showcase: GLOBAL-DOC-MARKDOWN.md
+  map: workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md
+  response-style: workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md
+  rules: workspaces/0-md/GLOBAL-SKILL-3-RULES.md
+  markdown-showcase: workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md
   agents: AGENTS.md
 
 canonical-types: migrated

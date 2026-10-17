@@ -2,7 +2,7 @@
 awn-name: Markdown Showcase
 awn-emoji: ""
 awn-status: open
-awn-description: "Справочник элементов markdown-it preview (канон в GLOBAL-DOC-MARKDOWN.md)"
+awn-description: "Справочник элементов markdown-it preview (канон в GLOBAL-SKILL-4-MARKDOWN.md)"
 awn-tags:
   - docs
   - markdown
@@ -17,4 +17,4 @@ awn-attachments: []
 
 # Markdown Showcase
 
-В модалке **Руководства** и по кнопке **MD** в шапке редактора показывается канонический файл [`GLOBAL-DOC-MARKDOWN.md`](../../../../../GLOBAL-DOC-MARKDOWN.md) из корня репозитория (эта запись в теме — указатель, не дубликат).
+В модалке **Руководства** и по кнопке **MD** в шапке редактора показывается канонический файл [`GLOBAL-SKILL-4-MARKDOWN.md`](../../../../../0-md/GLOBAL-SKILL-4-MARKDOWN.md) из `workspaces/0-md/` (эта запись в теме — указатель, не дубликат).

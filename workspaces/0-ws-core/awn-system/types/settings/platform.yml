@@ -125,7 +125,7 @@ fields:
 
   always-context-global-response-style:
     type: awn.field.boolean
-    title: GLOBAL-RESPONSE-STYLE.md
+    title: GLOBAL-SKILL-2-RESPONSE-STYLE.md
     description: Глобальный стиль ответов (префиксы 🗄️ / 🌐 / 💭) — always-context
     default: true
     group: auto-context
@@ -133,15 +133,15 @@ fields:
 
   always-context-global-rules:
     type: awn.field.boolean
-    title: GLOBAL-RULES.md
-    description: Пользовательские правила для всех хранилищ (короткий GLOBAL-RULES.md в корне репо) — always-context
+    title: GLOBAL-SKILL-3-RULES.md
+    description: Пользовательские правила для всех хранилищ (короткий GLOBAL-SKILL-3-RULES.md в корне репо) — always-context
     default: true
     group: auto-context
     sort: 4
 
   always-context-global-markdown-showcase:
     type: awn.field.boolean
-    title: GLOBAL-DOC-MARKDOWN.md
+    title: GLOBAL-SKILL-4-MARKDOWN.md
     description: Справочник поддерживаемой markdown-разметки в preview — always-context (opt-in)
     default: false
     group: auto-context

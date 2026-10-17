@@ -147,7 +147,7 @@ function createServer() {
 
   reg(
     "get_session_documentation",
-    "Platform docs on demand: README.md, GLOBAL-DOC-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
+    "Platform docs on demand: README.md, GLOBAL-SKILL-4-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
     z.object({
       docs: z
         .union([z.array(z.string()), z.string()])

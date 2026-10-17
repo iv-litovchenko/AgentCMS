@@ -10,7 +10,7 @@
 ├── model: "session-documentation"
 ├── hint
 ├── itemCount
-├── availableDocs[] — README.md, GLOBAL-DOC-MARKDOWN.md
+├── availableDocs[] — README.md, GLOBAL-SKILL-4-MARKDOWN.md
 └── items[]
     └── ref · label · displayPath · description
         entityKind: "session-documentation"
@@ -22,7 +22,7 @@
 | Файл | settingKey |
 | ---- | ---------- |
 | README.md | always-context-platform-readme |
-| GLOBAL-DOC-MARKDOWN.md | always-context-global-markdown-showcase |
+| GLOBAL-SKILL-4-MARKDOWN.md | always-context-global-markdown-showcase |
 
 **Args:** `docs` — опционально один файл или список / через запятую.
 

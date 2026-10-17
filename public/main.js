@@ -134996,12 +134996,12 @@ async function openMdShowcaseModal() {
   if (!mdShowcaseModalNode || !mdShowcaseContentNode) return;
   try {
     if (!mdShowcaseCache) {
-      mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL-DOC-MARKDOWN.md");
+      mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL-SKILL-4-MARKDOWN.md");
     }
     setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache, HEADER_DOC_PREVIEW_OPTIONS);
     mdShowcaseModalNode.classList.remove("hidden");
   } catch (error) {
-    showToast(`Не удалось загрузить GLOBAL-DOC-MARKDOWN.md: ${error.message}`, "error");
+    showToast(`Не удалось загрузить GLOBAL-SKILL-4-MARKDOWN.md: ${error.message}`, "error");
   }
 }
 

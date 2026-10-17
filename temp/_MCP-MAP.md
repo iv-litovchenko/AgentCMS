@@ -153,8 +153,8 @@ agent-cms MCP
 
 ## Связанные документы
 
-- [GLOBAL-MCP-INSTRUCTION.md](../GLOBAL-MCP-INSTRUCTION.md) — правила для агентов  
-- [MCP-INSTRUCTIONS.md](../MCP-INSTRUCTIONS.md) — server instructions  
+- [GLOBAL-MCP-INSTRUCTION.md](../workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) — правила для агентов  
+- [MCP-INSTRUCTIONS.md](../workspaces/0-md/MCP-INSTRUCTIONS.md) — server instructions  
 - [mcp-server/README.md](../mcp-server/README.md) — установка и env  
 - [TODO-REFACTOR-4.md](../TODO-REFACTOR-4.md) — модель placement (историческая карта)  
 - [TODO-REFACTOR-11.md](../TODO-REFACTOR-11.md) — что в `get_session_context`

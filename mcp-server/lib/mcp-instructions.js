@@ -6,6 +6,8 @@ const DEFAULT_INSTRUCTIONS_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
   "..",
+  "workspaces",
+  "0-md",
   "MCP-INSTRUCTIONS.md"
 );
 
@@ -16,7 +18,7 @@ function instructionsDisabled() {
 
 /**
  * Text for MCP initialize `instructions` (platform-wide; not per-workspace).
- * Source: repo MCP-INSTRUCTIONS.md, override via AGENT_CMS_MCP_INSTRUCTIONS_PATH.
+ * Source: workspaces/0-md/MCP-INSTRUCTIONS.md, override via AGENT_CMS_MCP_INSTRUCTIONS_PATH.
  */
 export function loadMcpServerInstructions() {
   if (instructionsDisabled()) return undefined;
