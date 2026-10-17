@@ -44,7 +44,8 @@ editor boot
 
 ## ✅ Критерии «готово»
 
-- [ ] F5 на `/0-ws-core`: **parse/compile** заметно ниже baseline (замер в DevTools).
+- [x] Boot: ~5.5 MB vendor + chunks вынесены из F5 (`npm run measure:editor`).
+- [ ] F5 на `/0-ws-core`: **parse/compile** в DevTools vs таблица в `docs/REFACTOR-14-baseline.md`.
 - [x] **d3 + agent-rmm-live-brain** — lazy (`editor-script-loader.js`), не в `index.html` на F5.
 - [x] **mermaid + toastui (JS + CSS)** — lazy при preview/diagram и режиме WYSIWYG.
 - [x] **mammoth + xlsx** — lazy при просмотре docx/xls в `DocumentViewer`.
@@ -54,7 +55,12 @@ editor boot
 - [x] Landing chunk (старт): `landing-system-map.js` + `import()` при главной/platform.
 - [x] Landing chunk: **flow**, **hub/grid**, **orbit** (`landing-orbit.js`, ~53 KB).
 - [x] Graph chunk: `workspace-graph-chunk.js` — map/map2/map3/graph (~33 KB), lazy import.
-- [ ] Поведение UI без регрессий — см. `docs/REFACTOR-14-smoke.md`.
+- [ ] Поведение UI без регрессий — пройти `docs/REFACTOR-14-smoke.md` (ручной smoke).
+
+## 📊 Замеры
+
+- `npm run measure:editor` — размеры main, chunks, deferred vendor
+- `docs/REFACTOR-14-baseline.md` — DevTools + таблица baseline
 
 ---
 

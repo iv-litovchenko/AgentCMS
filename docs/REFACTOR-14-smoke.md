@@ -1,5 +1,8 @@
 # Refactor 14 — smoke checklist
 
+Перед прогоном: `npm start`, hard refresh (Disable cache в Network).  
+Размеры: `npm run measure:editor` → [REFACTOR-14-baseline.md](./REFACTOR-14-baseline.md).
+
 ## Boot / workspace (`/0-ws-core`)
 
 - [ ] Hard refresh: Network **нет** `mermaid`, `toastui`, `mammoth`, `xlsx`, `fancybox`, `d3`, `agent-rmm-live-brain`
