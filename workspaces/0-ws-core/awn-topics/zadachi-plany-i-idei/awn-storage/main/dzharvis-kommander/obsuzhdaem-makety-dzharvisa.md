@@ -1,3 +1,56 @@
+---
+awn-status: open
+awn-quality: 4
+awn-importance: 0
+awn-emoji: ""
+awn-summary: ""
+awn-note: ""
+awn-todo: ""
+awn-main: false
+awn-focus: false
+awn-runtime-reminder: false
+awn-index-exclude-record: false
+awn-auto-toc: false
+awn-tags: []
+awn-taxonomy: {}
+awn-viz-graph:
+  enabled: true
+  pin: false
+  weight: 0
+awn-viz-mindmap:
+  type: optional
+  color: slate
+  size: auto
+  layout-independent: false
+  direction: auto
+awn-viz-roadmap:
+  order: 0
+awn-id: 33
+awn-type: awn.content.record
+awn-viewed: ""
+awn-event-at: ""
+awn-deadline: ""
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-attachments: []
+awn-description: ""
+awn-index-exclude-subtree: false
+awn-name: Обсуждаем макеты Джарвиса
+awn-preview: ""
+awn-runtime-commands: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-load-always: false
+awn-sort: 
+awn-web-url: ""
+awn-create: 2026-10-17T21:14:26.252Z
+awn-update: 2026-10-17T21:14:26.252Z
+awn-version: 2
+---
+
 # Claude Opus 5.5
 
 Я сделал макет Джарвиса в одном файле: `/Users/macbook/Desktop/MyJarvis/claude-opus-5.5.html` (назван по моей модели, Claude Opus 5.5). Сам я его не запускал: песочница не дала открыть его в браузере, поэтому откройте файл двойным кликом. Голосовой ввод лучше проверять в Chrome.
