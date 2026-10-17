@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "../../..");
 const examplesRoot = path.join(__dirname, "..");
 const wsRoot = path.join(repoRoot, "workspaces/agent-cms-core");
-const mainDir = path.join(wsRoot, "zadachi-plany-i-idei/awn-storage/main");
+const mainDir = path.join(wsRoot, "awn-topics/zadachi-plany-i-idei/awn-storage/main");
 const voiceTodo = path.join(mainDir, "agent-cms-voice/voice-shell-todo.md");
 
 function parseFrontmatterName(file) {
@@ -66,7 +66,7 @@ function parseVoiceRoadmap(content) {
     });
   }
   for (const p of phases) columns.push({ type: "single", stage: p });
-  return { title, columns, source: "zadachi-plany-i-idei/awn-storage/main/agent-cms-voice/voice-shell-todo.md" };
+  return { title, columns, source: "awn-topics/zadachi-plany-i-idei/awn-storage/main/agent-cms-voice/voice-shell-todo.md" };
 }
 
 function collectMindmapTree() {
@@ -75,10 +75,10 @@ function collectMindmapTree() {
   const links = [];
 
   const topics = [
-    { id: "t-arhiv", label: "Архив вопросов", path: "arhiv-voprosov" },
-    { id: "t-docs", label: "Документации", path: "dokumentatsii" },
-    { id: "t-obs", label: "Обсуждения", path: "obsuzhdeniya" },
-    { id: "t-zadachi", label: "Задачи, планы и идеи", path: "zadachi-plany-i-idei" },
+    { id: "t-arhiv", label: "Архив вопросов", path: "awn-topics/arhiv-voprosov" },
+    { id: "t-docs", label: "Документации", path: "awn-topics/dokumentatsii" },
+    { id: "t-obs", label: "Обсуждения", path: "awn-topics/obsuzhdeniya" },
+    { id: "t-zadachi", label: "Задачи, планы и идеи", path: "awn-topics/zadachi-plany-i-idei" },
   ];
   for (const t of topics) {
     nodes.push({ id: t.id, label: t.label, level: "file", parent: "ws" });
@@ -129,7 +129,7 @@ function collectMindmapTree() {
     }
   }
 
-  return { nodes, links, source: "INDEX.md + awn-* + zadachi-plany-i-idei/awn-storage/main/" };
+  return { nodes, links, source: "INDEX.md + awn-* + awn-topics/zadachi-plany-i-idei/awn-storage/main/" };
 }
 
 function collectGraph() {
