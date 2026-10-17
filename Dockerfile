@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY mcp-server/package.json mcp-server/package-lock.json ./mcp-server/
 COPY scripts ./scripts
-RUN mkdir -p public public/vendor public/vendor/fancybox public/shell/vendor/loaders public/shell/vendor/utils
+RUN mkdir -p public public/_resources/vendor public/_resources/vendor/fancybox public/shell/vendor/loaders public/shell/vendor/utils
 
 # postinstall тянет three/material-icon-theme (devDeps) — ставим всё, потом prune
 RUN npm ci --ignore-scripts \

@@ -8,7 +8,7 @@ const ROOT = path.join(__dirname, "..");
 const THEME_ROOT = path.join(ROOT, "node_modules", "material-icon-theme");
 const ICONS_SRC = path.join(THEME_ROOT, "icons");
 const THEME_JSON = path.join(THEME_ROOT, "dist", "material-icons.json");
-const OUT_DIR = path.join(ROOT, "public", "vendor", "material-file-icons");
+const OUT_DIR = path.join(ROOT, "public", "_resources", "vendor", "material-file-icons");
 const MAP_JS = path.join(OUT_DIR, "map.js");
 
 /** Extensions we care about in the CMS (entry overview + document viewer). */

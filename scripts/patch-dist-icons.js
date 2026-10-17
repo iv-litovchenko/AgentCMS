@@ -14,7 +14,7 @@ const asarBin = path.join(repoRoot, "node_modules/@electron/asar/bin/asar.js");
 const brands = [
   {
     name: "Agent CMS",
-    svgPath: path.join(repoRoot, "public/favicon.svg"),
+    svgPath: path.join(repoRoot, "public/_resources/favicon.svg"),
     pngPath: path.join(repoRoot, "desktop/agent-cms/assets/icon.png"),
     appPath: path.join(repoRoot, "dist/agent-cms", "Agent CMS.app"),
     asarIconPaths: ["electron/assets/icon.png", "desktop/agent-cms/assets/icon.png"]

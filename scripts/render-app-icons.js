@@ -8,10 +8,10 @@ const repoRoot = path.join(__dirname, "..");
 const brands = [
   {
     name: "Agent CMS",
-    svgPath: path.join(repoRoot, "public/favicon.svg"),
+    svgPath: path.join(repoRoot, "public/_resources/favicon.svg"),
     targets: [
-      [32, path.join(repoRoot, "public/favicon.png")],
-      [180, path.join(repoRoot, "public/apple-touch-icon.png")],
+      [32, path.join(repoRoot, "public/_resources/favicon.png")],
+      [180, path.join(repoRoot, "public/_resources/apple-touch-icon.png")],
       [1024, path.join(repoRoot, "desktop/agent-cms/assets/icon.png")]
     ]
   },

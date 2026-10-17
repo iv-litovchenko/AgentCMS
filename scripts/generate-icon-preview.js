@@ -7,7 +7,7 @@ const path = require("path");
 
 const repoRoot = path.join(__dirname, "..");
 const shellIconsDir = path.join(repoRoot, "public/shell/icons");
-const cmsIconsDir = path.join(repoRoot, "public/cms/icons");
+const cmsIconsDir = path.join(repoRoot, "public/_resources/cms/icons");
 const previewPath = path.join(repoRoot, "public/shell/icon-preview.html");
 
 const SHELL_PICKS = new Set([13, 19, 20, 22]);

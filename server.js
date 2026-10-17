@@ -573,9 +573,16 @@ const {
   buildPlatformHealthFromMonitor,
   readRepoRootDiskSummary
 } = require("./lib/platform/platform-mcp-service");
+const {
+  mapPublicUrlPathToDisk,
+  rewritePublicRequestPath,
+  getEditorIndexDiskPath,
+  resolvePublicDiskPath
+} = require("./lib/config/public-static-layout");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(
   __dirname,
   "public",
+  "editor",
   "js",
   "core",
   "slug-translit.js"
@@ -588,7 +595,7 @@ const {
   displayNameFromMaskPath,
   maskUsesId,
   extractAwnMaskFileValue
-} = require(path.join(__dirname, "public", "js", "editor", "external-file-mask.js"));
+} = require(path.join(__dirname, "public", "editor", "js", "editor", "external-file-mask.js"));
 
 const execFileAsync = promisify(execFile);
 
@@ -7881,7 +7888,7 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.content.category
 
 function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
   if (slotKey) {
-    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/js/core/topic-schema-slot-specs.js");
+    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/editor/js/core/topic-schema-slot-specs.js");
     const resolved = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
     if (resolved) return resolved;
   }
@@ -7953,7 +7960,7 @@ async function buildSlotContentFileContentForManifest(
   const {
     resolveSlotContentKindTypeName,
     resolveTopicSchemaTargetIdForAwnType
-  } = require("./public/js/core/topic-schema-slot-specs.js");
+  } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const safeTitle = String(title || "Запись").trim() || "Запись";
   const awnType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const schemaTarget = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
@@ -8071,7 +8078,7 @@ function countFrontmatterKeys(frontmatter) {
 }
 
 function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record", slotKey = "") {
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const rawType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
   if (!rawType) return true;
@@ -8091,7 +8098,7 @@ async function enrichTypedSlotMarkdownContent(
     return String(content ?? "");
   }
 
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
   const diskFrontmatter = String(options.diskFrontmatter || "").trim();
@@ -18499,7 +18506,7 @@ async function isPlatformMaintenanceActive() {
 }
 
 async function serveMaintenanceHtml(res) {
-  const maintenanceHtmlPath = path.join(getPublicDir(), "maintenance.html");
+  const maintenanceHtmlPath = path.join(getPublicDir(), resolvePublicDiskPath("maintenance.html"));
   const content = await fs.readFile(maintenanceHtmlPath);
   res.writeHead(503, {
     "Content-Type": "text/html; charset=utf-8",
@@ -18542,7 +18549,7 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
 }
 
 async function serveIndexHtml(res, reqHost = "") {
-  const indexPath = path.join(getPublicDir(), "index.html");
+  const indexPath = path.join(getPublicDir(), getEditorIndexDiskPath());
   let content = await fs.readFile(indexPath, "utf8");
   let voiceBase = voicePublicBaseUrl();
   const clientHost = String(reqHost || "").split(":")[0].trim();
@@ -18623,13 +18630,14 @@ function resolveShellStaticPath(reqPath) {
 }
 
 async function serveStatic(reqPath, res, req) {
-  let normalizedPath = resolveShellStaticPath(reqPath);
+  let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
   }
   const targetPath = normalizedPath === "/" ? "/index.html" : normalizedPath;
   const safePath = path.normalize(targetPath).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
-  const filePath = path.join(getPublicDir(), safePath);
+  const diskPath = mapPublicUrlPathToDisk(safePath);
+  const filePath = path.join(getPublicDir(), diskPath);
 
   if (!filePath.startsWith(getPublicDir())) {
     res.writeHead(403);
@@ -18649,7 +18657,7 @@ async function serveStatic(reqPath, res, req) {
       return;
     }
     try {
-      const content = await fs.readFile(path.join(getPublicDir(), "maintenance.html"));
+      const content = await fs.readFile(path.join(getPublicDir(), resolvePublicDiskPath("maintenance.html")));
       res.writeHead(503, {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
@@ -18664,7 +18672,7 @@ async function serveStatic(reqPath, res, req) {
     }
   }
 
-  if (safePath === "index.html") {
+  if (safePath === "index.html" || diskPath === getEditorIndexDiskPath()) {
     await serveIndexHtml(res, String(req?.headers?.host || "").trim());
     return;
   }
@@ -18705,7 +18713,7 @@ async function serveStatic(reqPath, res, req) {
       }
     }
     try {
-      const notFoundHtmlPath = path.join(getPublicDir(), "404.html");
+      const notFoundHtmlPath = path.join(getPublicDir(), resolvePublicDiskPath("404.html"));
       const content = await fs.readFile(notFoundHtmlPath);
       res.writeHead(404, {
         "Content-Type": "text/html; charset=utf-8",
