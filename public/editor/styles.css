@@ -8112,6 +8112,37 @@ body.workspace-idle-screensaver-active {
   z-index: 1;
 }
 
+.app-landing-orbit-fallback-list {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  align-content: center;
+  align-items: flex-start;
+  padding: 72px 20px 24px;
+  min-height: 100%;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.app-landing-orbit-fallback-item {
+  flex: 0 1 140px;
+  max-width: 160px;
+}
+
+.app-landing-hub-fallback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.app-landing-hub-row-fallback {
+  padding: 4px 0;
+}
+
 .app-landing-orbit-stage {
   --orbit-center-x: 50%;
   --orbit-center-y: 50%;

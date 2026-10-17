@@ -150,12 +150,15 @@
     }
   }
 
-  let landingChunkPromise = null;
   async function loadLandingChunk() {
-    if (!landingChunkPromise) {
-      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=8");
+    const g = globalThis;
+    if (!g.__agentCmsLandingChunkModulePromise) {
+      if (g.__agentCmsLandingChunkModule) {
+        return Promise.resolve(g.__agentCmsLandingChunkModule);
+      }
+      g.__agentCmsLandingChunkModulePromise = import("/editor/js/landing/landing-runtime.js?v=13");
     }
-    return landingChunkPromise;
+    return g.__agentCmsLandingChunkModulePromise;
   }
 
   let workspaceGraphChunkPromise = null;

@@ -440,13 +440,7 @@ function getOrbitAgentBubblesNode() {
 
 export function renderAppLandingOrbit() {
   if (!host?.getAgentsForLandingOrbit) {
-    const node = getOrbitAgentBubblesNode();
-    if (node && !node.childElementCount) {
-      const wait = document.createElement("p");
-      wait.className = "app-landing-orbit-empty is-loading";
-      wait.textContent = "Загрузка карты…";
-      node.replaceChildren(wait);
-    }
+    console.warn("[landing-orbit] render skipped — host not registered");
     return;
   }
   const orbitAgentsNode = getOrbitAgentBubblesNode();
@@ -817,12 +811,12 @@ function buildOrbitDiveSections(agent) {
     }
 
     for (const root of roots) {
-      const rootTopics = host.collectTopicsFromNode(root.node);
+      const rootTopics = collectTopicsFromNode(root.node);
       if (rootTopics.length) pushSection(root.label, rootTopics, root.node?.indexPath || "_registration.md");
 
       for (const section of root.node?.sections || []) {
         if (!section || !host.shouldShowMenuTreeFolder(section, agent.id)) continue;
-        const sectionTopics = host.collectTopicsFromNode(section);
+        const sectionTopics = collectTopicsFromNode(section);
         if (sectionTopics.length) {
           pushSection(
             section.title || host.getLabelFromPath(section.folderPath) || "Раздел",

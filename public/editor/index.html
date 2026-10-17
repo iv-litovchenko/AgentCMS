@@ -11,6 +11,8 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/_resources/favicon.png" />
     <link rel="apple-touch-icon" href="/_resources/apple-touch-icon.png" />
     <link rel="stylesheet" href="/editor/styles.css?v=0.5.967" />
+    <link rel="modulepreload" href="/editor/js/landing/landing-chunk-boot.js?v=1" />
+    <link rel="modulepreload" href="/editor/js/landing/landing-runtime.js?v=13" />
     <link rel="stylesheet" href="/_resources/vendor/highlight-github.min.css" />
     <script src="/editor/js/core/project-version.js?v=1"></script>
     <script>
@@ -8827,7 +8829,7 @@ awn-type: awn.page.ws
       </div>
     </div>
 
-    <script src="/editor/js/boot/editor-script-loader.js?v=22"></script>
+    <script src="/editor/js/boot/editor-script-loader.js?v=26"></script>
     <script src="/editor/js/app/app-lock.js?v=15"></script>
     <script src="/editor/js/app/app-lock-scanner.js?v=1"></script>
     <script>
@@ -8852,7 +8854,7 @@ awn-type: awn.page.ws
     </script>
     <script>
       (function agentCmsLoadEditorMain() {
-        var version = "0.5.1022";
+        var version = "0.5.1028";
         var loaderScript = document.currentScript;
         var useBuilt = false;
         try {
@@ -8892,6 +8894,26 @@ awn-type: awn.page.ws
           if (parent) parent.insertBefore(s, loaderScript.nextSibling);
           else (document.head || document.documentElement).appendChild(s);
         }
+        function loadLandingChunkBoot(done) {
+          var boot = document.createElement("script");
+          boot.type = "module";
+            boot.src = "/editor/js/landing/landing-chunk-boot.js?v=2";
+          boot.onload = function () {
+            done();
+          };
+          boot.onerror = function () {
+            console.error("[landing] landing-chunk-boot.js failed to load");
+            done();
+          };
+          var parent = loaderScript && loaderScript.parentNode;
+          if (parent) parent.insertBefore(boot, loaderScript.nextSibling);
+          else (document.head || document.documentElement).appendChild(boot);
+        }
+        function startEditorMain(src) {
+          loadLandingChunkBoot(function () {
+            insertMainScript(src);
+          });
+        }
         if (!useBuilt) {
           var preMain = [
             "/editor/js/core/channel-presets-runtime.js?v=1",
@@ -8901,7 +8923,7 @@ awn-type: awn.page.ws
             "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1"
           ];
           loadScriptChain(preMain, 0, function () {
-            insertMainScript("/editor/main.js?v=" + version);
+            startEditorMain("/editor/main.js?v=" + version);
           });
           return;
         }
@@ -8918,13 +8940,13 @@ awn-type: awn.page.ws
                   ? "/editor/" + manifest.main
                   : "";
             if (url) {
-              insertMainScript(url);
+              startEditorMain(url);
               return;
             }
             throw new Error("manifest-main");
           })
           .catch(function () {
-            insertMainScript("/editor/main.built.js?v=" + version);
+            startEditorMain("/editor/main.built.js?v=" + version);
           });
       })();
     </script>

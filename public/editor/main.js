@@ -5080,7 +5080,8 @@ async function loadAgents() {
   updateWorkspaceShareLinkButton();
   ensureSidebarWorkspacePageIndexRow();
   if (isAppLandingViewActive() || isAppLandingRoute) {
-    void ensureLandingChunkReady().then(() => renderAppLandingAgents());
+    paintAppLandingHomeImmediate();
+    void renderAppLandingAgents();
   }
 }
 
@@ -12792,12 +12793,32 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=8";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=13";
+
+function resetLandingChunkHostRegistration() {
+  landingChunkHostRegistered = false;
+}
+
+function resetLandingChunkModuleCache() {
+  resetLandingChunkHostRegistration();
+  const g = globalThis;
+  if (g.__agentCmsLandingChunkModule) return;
+  g.__agentCmsLandingChunkModulePromise = null;
+}
+
+function landingOrbitAgentsNodeHasContent(node) {
+  return Boolean(
+    node?.querySelector(".app-landing-orbit-bubble, .app-landing-orbit-item, .app-landing-orbit-empty")
+  );
+}
 
 let landingChunkHostRegistered = false;
 const WORKSPACE_GRAPH_CHUNK_URL = "/editor/js/workspace/workspace-graph-chunk.js?v=2";
 
-let landingChunkModulePromise = null;
+let landingOrbitRenderSeq = 0;
+let landingHubRenderSeq = 0;
+let landingListRenderSeq = 0;
+let landingFlowRenderSeq = 0;
 let workspaceGraphChunkModulePromise = null;
 let workspaceGraphHostRegistered = false;
 let editorMenuPanelsUiReady = false;
@@ -12900,14 +12921,24 @@ function ensureEditorUiIconsLoaded() {
 }
 
 function ensureLandingChunkLoaded() {
-  if (!landingChunkModulePromise) {
-    // Single import URL — do not use AgentCmsScriptLoader.loadLandingChunk here (duplicate module instance → host lost).
-    landingChunkModulePromise = import(LANDING_CHUNK_URL).catch((error) => {
-      landingChunkModulePromise = null;
-      throw error;
-    });
+  const g = globalThis;
+  if (g.__agentCmsLandingChunkModule) {
+    return Promise.resolve(g.__agentCmsLandingChunkModule);
   }
-  return landingChunkModulePromise;
+  if (!g.__agentCmsLandingChunkModulePromise) {
+    // Prefer landing-chunk-boot.js (type=module in index.html); fallback to dynamic import.
+    g.__agentCmsLandingChunkModulePromise = import(LANDING_CHUNK_URL)
+      .then((mod) => {
+        g.__agentCmsLandingChunkModule = mod;
+        return mod;
+      })
+      .catch((error) => {
+        g.__agentCmsLandingChunkModulePromise = null;
+        console.error("[landing] chunk import failed", LANDING_CHUNK_URL, error);
+        throw error;
+      });
+  }
+  return g.__agentCmsLandingChunkModulePromise;
 }
 
 function landingHostDomNode(cached, id) {
@@ -12917,6 +12948,7 @@ function landingHostDomNode(cached, id) {
 async function ensureLandingChunkReady() {
   const mod = await ensureLandingChunkLoaded();
   if (!landingChunkHostRegistered && typeof mod.registerLandingChunkHost === "function") {
+    try {
     mod.registerLandingChunkHost({
       get agentsCache() {
         return agentsCache;
@@ -12962,7 +12994,6 @@ async function ensureLandingChunkReady() {
       getLandingHubOrbitTopicItems,
       getWorkspaceRootMenuTreeNode,
       mapMenuEntryToLandingTopicItem,
-      collectTopicsFromNode,
       shouldShowMenuTreeFolder,
       shouldShowContainerSectionInMenu,
       shouldShowSharedSectionInMenu,
@@ -13029,6 +13060,12 @@ async function ensureLandingChunkReady() {
       }
     });
     landingChunkHostRegistered = true;
+    } catch (error) {
+      landingChunkHostRegistered = false;
+      throw error;
+    }
+  } else if (!landingChunkHostRegistered) {
+    throw new Error("landing chunk missing registerLandingChunkHost");
   }
   return mod;
 }
@@ -13059,15 +13096,24 @@ function renderAppLandingOrbitFallbackInMain() {
   orbitAgentsNode.appendChild(list);
 }
 
-function renderAppLandingGridFallbackInMain() {
+function renderAppLandingGridInMainSync() {
   const gridNode = appLandingAgentsNode || document.getElementById("app-landing-agents");
-  if (!gridNode || gridNode.childElementCount > 0) return;
+  if (!gridNode) return;
+  gridNode.replaceChildren();
   const agents = getAgentsForLandingGrid();
-  if (!agents.length) return;
+  if (!agents.length) {
+    gridNode.classList.remove("is-grouped-layout");
+    const empty = document.createElement("p");
+    empty.className = "app-landing-empty";
+    empty.textContent = "Нет агентов. Нажмите «+ Добавить агента» или «Реестр контекста».";
+    gridNode.appendChild(empty);
+    return;
+  }
   const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
   if (orchestrator) {
     gridNode.appendChild(renderAppLandingOrchestratorSection(orchestrator));
   }
+  gridNode.classList.remove("is-grouped-layout");
   for (const agent of rest) {
     const item = document.createElement("div");
     item.className = "app-landing-agent-item";
@@ -13077,22 +13123,166 @@ function renderAppLandingGridFallbackInMain() {
   }
 }
 
+function renderAppLandingGridFallbackInMain() {
+  renderAppLandingGridInMainSync();
+}
+
+function showAppLandingOrbitLoadingPlaceholder() {
+  if (getLandingAgentsView() !== "orbit") return;
+  const orbitAgentsNode =
+    appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
+  if (!orbitAgentsNode) return;
+  if (orbitAgentsNode.querySelector(".app-landing-orbit-bubble, .app-landing-orbit-item")) {
+    return;
+  }
+  orbitAgentsNode.replaceChildren();
+  const wait = document.createElement("p");
+  wait.className = "app-landing-orbit-empty is-loading";
+  wait.textContent = "Загрузка карты…";
+  orbitAgentsNode.appendChild(wait);
+}
+
+function showAppLandingOrbitErrorPlaceholder(message) {
+  if (getLandingAgentsView() !== "orbit") return;
+  const orbitAgentsNode =
+    appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
+  if (!orbitAgentsNode) return;
+  orbitAgentsNode.replaceChildren();
+  const err = document.createElement("p");
+  err.className = "app-landing-orbit-empty is-alert";
+  err.textContent = message;
+  orbitAgentsNode.appendChild(err);
+}
+
+function renderAppLandingHubFallbackInMain() {
+  const hubNode = appLandingHubNode || document.getElementById("app-landing-hub");
+  if (!hubNode || getLandingAgentsView() !== "hub") return;
+  hubNode.replaceChildren();
+  const agents = getAgentsForLandingGrid();
+  if (!agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-hub-page-empty";
+    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
+    hubNode.appendChild(empty);
+    return;
+  }
+  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
+  if (orchestrator) {
+    const section = document.createElement("section");
+    section.className = "app-landing-hub-section app-landing-hub-section--orchestrator";
+    const item = document.createElement("div");
+    item.className = "app-landing-hub-row-fallback";
+    item.appendChild(createAppLandingAgentTile(orchestrator));
+    section.appendChild(item);
+    hubNode.appendChild(section);
+  }
+  const list = document.createElement("div");
+  list.className = "app-landing-hub-fallback-list";
+  for (const agent of rest) {
+    const item = document.createElement("div");
+    item.className = "app-landing-hub-row-fallback";
+    item.appendChild(createAppLandingAgentTile(agent));
+    list.appendChild(item);
+  }
+  hubNode.appendChild(list);
+}
+
+function syncAppLandingActiveViewRender() {
+  const view = getLandingAgentsView();
+  if (view === "orbit") renderAppLandingOrbit();
+  else if (view === "hub") renderAppLandingHub(getLandingHubOrbitTopicItems());
+  else if (view === "grid") renderAppLandingList(getProcessedLandingFocusItems());
+  else if (view === "flow") renderAppLandingFlow(globalFlowItemsCache);
+}
+
+function paintAppLandingHomeImmediate() {
+  syncLandingAgentsViewUi();
+  if (getLandingAgentsView() === "grid") {
+    renderAppLandingGridInMainSync();
+  } else if (getLandingAgentsView() === "orbit") {
+    showAppLandingOrbitLoadingPlaceholder();
+  }
+}
+
+async function ensureLandingChunkReadyWithTimeout(timeoutMs = 15000) {
+  let timeoutId = 0;
+  try {
+    return await Promise.race([
+      ensureLandingChunkReady(),
+      new Promise((_, reject) => {
+        timeoutId = window.setTimeout(
+          () => reject(new Error("landing chunk load timeout")),
+          timeoutMs
+        );
+      })
+    ]);
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
-  void ensureLandingChunkReady().then((mod) => {
-    mod.renderAppLandingHub?.(focusItems);
-  });
+  const seq = ++landingHubRenderSeq;
+  void ensureLandingChunkReady()
+    .then((mod) => {
+      if (seq !== landingHubRenderSeq || getLandingAgentsView() !== "hub") return;
+      mod.renderAppLandingHub?.(focusItems);
+    })
+    .catch(async (error) => {
+      if (seq !== landingHubRenderSeq || getLandingAgentsView() !== "hub") return;
+      console.warn("[landing] hub render failed, retry", error);
+      resetLandingChunkModuleCache();
+      try {
+        const mod = await ensureLandingChunkReady();
+        if (seq !== landingHubRenderSeq || getLandingAgentsView() !== "hub") return;
+        mod.renderAppLandingHub?.(focusItems);
+      } catch (retryError) {
+        console.error("[landing] hub render failed", retryError);
+      }
+    });
 }
 
 function renderAppLandingList(focusItems = getProcessedLandingFocusItems()) {
-  void ensureLandingChunkReady().then((mod) => {
-    mod.renderAppLandingList?.(focusItems);
-  });
+  const seq = ++landingListRenderSeq;
+  void ensureLandingChunkReady()
+    .then((mod) => {
+      if (seq !== landingListRenderSeq || getLandingAgentsView() !== "grid") return;
+      mod.renderAppLandingList?.(focusItems);
+    })
+    .catch(async (error) => {
+      if (seq !== landingListRenderSeq || getLandingAgentsView() !== "grid") return;
+      console.warn("[landing] list render failed, retry", error);
+      resetLandingChunkModuleCache();
+      try {
+        const mod = await ensureLandingChunkReady();
+        if (seq !== landingListRenderSeq || getLandingAgentsView() !== "grid") return;
+        mod.renderAppLandingList?.(focusItems);
+      } catch (retryError) {
+        console.error("[landing] list render failed", retryError);
+        renderAppLandingGridInMainSync();
+      }
+    });
 }
 
 function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
-  void ensureLandingChunkReady().then((mod) => {
-    mod.renderAppLandingFlow?.(focusItems);
-  });
+  const seq = ++landingFlowRenderSeq;
+  void ensureLandingChunkReady()
+    .then((mod) => {
+      if (seq !== landingFlowRenderSeq || getLandingAgentsView() !== "flow") return;
+      mod.renderAppLandingFlow?.(focusItems);
+    })
+    .catch(async (error) => {
+      if (seq !== landingFlowRenderSeq || getLandingAgentsView() !== "flow") return;
+      console.warn("[landing] flow render failed, retry", error);
+      resetLandingChunkModuleCache();
+      try {
+        const mod = await ensureLandingChunkReady();
+        if (seq !== landingFlowRenderSeq || getLandingAgentsView() !== "flow") return;
+        mod.renderAppLandingFlow?.(focusItems);
+      } catch (retryError) {
+        console.error("[landing] flow render failed", retryError);
+      }
+    });
 }
 
 function renderAppLandingFlowLoading() {
@@ -13107,35 +13297,50 @@ function setAppLandingFlowLoadingUi(loading) {
   });
 }
 
+async function renderAppLandingOrbitFromChunk(seq, { allowRetry = true } = {}) {
+  if (seq !== landingOrbitRenderSeq || getLandingAgentsView() !== "orbit") return;
+
+  const mod = await ensureLandingChunkReady();
+  if (seq !== landingOrbitRenderSeq || getLandingAgentsView() !== "orbit") return;
+
+  mod.renderAppLandingOrbit?.();
+
+  const orbitAgentsNode =
+    appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
+  const hasContent = landingOrbitAgentsNodeHasContent(orbitAgentsNode);
+  const agentCount = getAgentsForLandingOrbit().length;
+
+  if (hasContent || !agentCount) return;
+
+  if (!allowRetry) {
+    showAppLandingOrbitErrorPlaceholder(
+      "Не удалось отрисовать карту. Обновите страницу (Cmd+Shift+R) или проверьте консоль [landing-orbit]."
+    );
+    return;
+  }
+
+  resetLandingChunkHostRegistration();
+  await renderAppLandingOrbitFromChunk(seq, { allowRetry: false });
+}
+
 function renderAppLandingOrbit() {
-  void ensureLandingChunkReady()
-    .then((mod) => {
-      mod.renderAppLandingOrbit?.();
-      const orbitAgentsNode =
-        appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
-      const hasOrbitContent = Boolean(
-        orbitAgentsNode?.querySelector(
-          ".app-landing-orbit-bubble, .app-landing-orbit-item, .app-landing-orbit-empty, .app-landing-orbit-fallback-list"
-        )
+  const seq = ++landingOrbitRenderSeq;
+  showAppLandingOrbitLoadingPlaceholder();
+  void renderAppLandingOrbitFromChunk(seq, { allowRetry: true }).catch((error) => {
+    if (seq !== landingOrbitRenderSeq || getLandingAgentsView() !== "orbit") return;
+    console.error("[landing] orbit render failed", error);
+    resetLandingChunkModuleCache();
+    void renderAppLandingOrbitFromChunk(seq, { allowRetry: false }).catch((retryError) => {
+      if (seq !== landingOrbitRenderSeq || getLandingAgentsView() !== "orbit") return;
+      console.error("[landing] orbit render retry failed", retryError);
+      const detail = String(retryError?.message || retryError || "").trim();
+      showAppLandingOrbitErrorPlaceholder(
+        detail
+          ? `Модуль карты: ${detail}`
+          : "Модуль карты не загрузился. Проверьте Network → landing-chunk-boot.js и landing-runtime.js."
       );
-      if (!hasOrbitContent && getAgentsForLandingOrbit().length) {
-        landingChunkHostRegistered = false;
-        return ensureLandingChunkReady().then((modRetry) => {
-          modRetry.renderAppLandingOrbit?.();
-          const stillEmpty = !(
-            orbitAgentsNode?.querySelector(
-              ".app-landing-orbit-bubble, .app-landing-orbit-item, .app-landing-orbit-empty, .app-landing-orbit-fallback-list"
-            )
-          );
-          if (stillEmpty) renderAppLandingOrbitFallbackInMain();
-        });
-      }
-      if (!hasOrbitContent) renderAppLandingOrbitFallbackInMain();
-    })
-    .catch((error) => {
-      console.error("[landing] orbit render failed", error);
-      renderAppLandingOrbitFallbackInMain();
     });
+  });
 }
 
 function setLandingOrbitFocusCache(items = []) {
@@ -14969,6 +15174,7 @@ function setLandingAgentsView(view) {
             ? "flow"
             : "orbit";
   localStorage.setItem(LANDING_AGENTS_VIEW_KEY, next);
+  paintAppLandingHomeImmediate();
   syncLandingAgentsViewUi();
 }
 
@@ -15221,11 +15427,15 @@ function groupFocusItemsByAgent(items = []) {
 
 
 async function renderAppLandingAgents() {
-  try {
-    await ensureLandingChunkReady();
+  paintAppLandingHomeImmediate();
+  void ensureLandingChunkReady().then(() => {
     void renderAppLandingPlatformSection().catch((error) => {
       console.warn("[landing] platform section render failed", error);
     });
+  }).catch((error) => {
+    console.warn("[landing] chunk preload for platform failed", error);
+  });
+  try {
   const gridNode = appLandingAgentsNode || document.getElementById("app-landing-agents");
   if (!gridNode) {
     return;
@@ -15291,13 +15501,11 @@ async function renderAppLandingAgents() {
   } catch (error) {
     console.error("[landing] agents list render failed", error);
   } finally {
-    renderAppLandingGridFallbackInMain();
     void loadGlobalMainItems({ showLoading: true });
-    renderAppLandingOrbit();
-    renderAppLandingHub(getLandingHubOrbitTopicItems());
     void loadGlobalFlowItems();
     void loadGlobalLandingHubTopicItems();
     syncLandingAgentsViewUi();
+    syncAppLandingActiveViewRender();
     renderAgentSelect();
   }
 }
@@ -114908,7 +115116,9 @@ function hideAppLandingView() {
 }
 
 function showAppLandingView(hint = "") {
-  void ensureLandingChunkLoaded();
+  void ensureLandingChunkReady().catch((error) => {
+    console.warn("[landing] chunk preload on home failed", error);
+  });
   hideContentLoading({ force: true });
   leaveProjectSettingsMode();
   nodeSettingsViewActive = false;
@@ -114935,18 +115145,8 @@ function showAppLandingView(hint = "") {
   closeAgentsPickerPopover();
   renderAgentSelect();
   renderLandingSearchAgents();
-  void ensureLandingChunkReady()
-    .then(() => {
-      syncLandingAgentsViewUi();
-      return renderAppLandingAgents();
-    })
-    .catch((error) => {
-      console.error("[landing] render failed", error);
-      syncLandingAgentsViewUi();
-      renderAppLandingGridFallbackInMain();
-      renderAppLandingOrbit();
-      renderAppLandingHub(getLandingHubOrbitTopicItems());
-    });
+  paintAppLandingHomeImmediate();
+  void renderAppLandingAgents();
   updateLandingSearchPlaceholder();
   showMenuNoAgentPlaceholder();
   hideMenuAgentStats();
