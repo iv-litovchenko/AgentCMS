@@ -69006,7 +69006,7 @@ function getOverviewTitleFromProps(entries) {
 }
 
 function formatNodeHeroSlugLabel(nodePath = activePath) {
-  const slug = getNodeSlugFromPath(nodePath);
+  const slug = getNodeHeroSlugFromPath(nodePath);
   return slug ? `slug: ${slug}` : "slug: —";
 }
 
@@ -80527,7 +80527,9 @@ function formatEntryOverviewHeroPathLabel(entries, relativePath) {
   if (isSectionReadmePath(normalized)) {
     const folderPath = normalized.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
     const segment = folderPath.split("/").filter(Boolean).pop() || "";
-    return segment ? `slug: ${segment}` : "slug: —";
+    const topicPath = getResolvedNodePath(activePath);
+    const canon = segment ? canonicalizeHeroTopicSlug(segment, topicPath) : "";
+    return canon ? `slug: ${canon}` : "slug: —";
   }
   const base = normalized.split("/").pop() || "";
   const stem = base.replace(/\.md$/i, "");
@@ -101296,6 +101298,46 @@ function getNodeSlugFromPath(filePath) {
     return stripTopicPrefix(folderName);
   }
   return stripStorageRecordSlugFromFileName(fileName);
+}
+
+/** Slug for hero/CHPU display — same canonical segments as workspaceRelToChpuPath / getNodeRoutePath. */
+function canonicalizeHeroTopicSlug(slug, filePath = "") {
+  const key = String(slug || "").trim().toLowerCase();
+  if (!key) return "";
+  const pathLower = String(filePath || "").replace(/\\/g, "/").toLowerCase();
+  if (pathLower.includes("/0-agent-kit/") || pathLower.includes("/awn-topics/0-agent-kit/")) {
+    return AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON[key] || String(slug || "").trim();
+  }
+  if (pathLower.includes("/0-shared/") || pathLower.includes("/awn-topics/0-shared/")) {
+    return SHARED_THEME_LEGACY_SLUG_TO_CANON[key] || String(slug || "").trim();
+  }
+  return String(slug || "").trim();
+}
+
+function getNodeHeroSlugFromPath(filePath) {
+  const diskSlug = getNodeSlugFromPath(filePath);
+  const normalizedPath = String(filePath || "").replace(/\\/g, "/").trim();
+  if (!normalizedPath) return diskSlug;
+
+  const routePath = getNodeRoutePath(normalizedPath);
+  if (!routePath) return canonicalizeHeroTopicSlug(diskSlug, normalizedPath);
+  if (!diskSlug) {
+    const tail = routePath.split("/").filter(Boolean).pop() || "";
+    return tail || canonicalizeHeroTopicSlug(diskSlug, normalizedPath);
+  }
+
+  const diskParts = normalizedPath.split("/").filter(Boolean);
+  const routeParts = routePath.split("/").filter(Boolean);
+  for (let i = diskParts.length - 1; i >= 0; i -= 1) {
+    const part = diskParts[i];
+    if (isAreaManifestFileName(part)) continue;
+    const stripped = stripTopicPrefix(part);
+    if (stripped !== diskSlug && part !== diskSlug) continue;
+    if (routeParts[i]) return routeParts[i];
+    break;
+  }
+
+  return canonicalizeHeroTopicSlug(diskSlug, normalizedPath);
 }
 
 function resolveNodeDisplayName(awnNameRaw, slug) {
