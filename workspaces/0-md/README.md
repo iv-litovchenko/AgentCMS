@@ -24,7 +24,7 @@
 
 1. Подключите MCP **agent-cms** (см. [установку](../../README.md#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only) в корневом README).
 2. **Cursor** — `.cursor/skills/<name>/SKILL.md` с полным текстом файла (`<name>` = поле `name` во frontmatter).
-3. **Claude Desktop** — Skills из этой папки; минимум **0** + **1**.
+3. **Claude Desktop** — Skills из этой папки; минимум **1** (`agent-cms`); **0** (`agent-cms-welcome`) — по желанию.
 4. После `git pull` обновите копии в клиенте и перезапустите MCP.
 
 ## Скилл 0 — welcome

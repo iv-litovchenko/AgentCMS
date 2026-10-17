@@ -84,7 +84,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 ## Документация
 
-- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; полный welcome — скилл `workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md` (установить в клиенте). Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
+- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; welcome — скилл `agent-cms-welcome` (`workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный; без него — `read_platform_doc`. Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск

@@ -5,7 +5,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 
 # Agent CMS — базовый скилл
 
-Как устроено хранилище и какими tools с ним работать. Ввод и старт MCP — скилл `agent-cms-welcome` (GLOBAL-SKILL-0). Правила — `agent-cms-rules`, стиль — `agent-cms-response-style`, markdown — `agent-cms-markdown`, поиск — `agent-cms-search`, модули (git) — `agent-cms-modules`.
+Как устроено хранилище и какими tools с ним работать. Правила — `agent-cms-rules`, стиль — `agent-cms-response-style`, markdown — `agent-cms-markdown`, поиск — `agent-cms-search`, модули (git) — `agent-cms-modules`. Ввод и карта скиллов — `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный: если не установлен — `read_platform_doc({ path: "GLOBAL-SKILL-0-MCP-WELCOME.md" })`.
 
 Разделы: 1 Старт · 2 Карта · 3 Темы · 4 Слоты · 5 Контент · 6 Базы · 7 Каналы · 8 Репозитории · 9 Медиатеки · 10 Память · 11 Крон · 12 Зависимости · 13 Sidecar · 14 Поиск (→ скилл 5) · 15 Файлы и выполнение · 16 Корзина · 17 Модули (→ скилл 6) · 18 Хранилища и настройки.
 
