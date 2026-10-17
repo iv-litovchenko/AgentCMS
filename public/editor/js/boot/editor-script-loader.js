@@ -129,7 +129,7 @@
   let landingChunkPromise = null;
   async function loadLandingChunk() {
     if (!landingChunkPromise) {
-      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=3");
+      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=4");
     }
     return landingChunkPromise;
   }
