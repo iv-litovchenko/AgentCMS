@@ -25023,6 +25023,11 @@ const CONTEXT_MENU_PIN_TOOL_OPTIONS = [
   { key: "toggle-focus", pin: "focus" }
 ];
 
+const CONTEXT_MENU_IDEA_TOOL_OPTIONS = [
+  { key: "tool-1", name: "Инструмент 1 (idea)" },
+  { key: "tool-2", name: "Инструмент 2 (idea)" }
+];
+
 function resolveContextMenuNavPinLabel(pin, nodePath) {
   if (pin === "main") {
     return isNodeOnMain(nodePath) ? "Убрать с главной" : "Добавить на главную";
@@ -25060,11 +25065,13 @@ function resolveContextMenuPinNodePath(state) {
   return normalizeMenuNodePath(filePath);
 }
 
-function createContextMenuToolsSubmenuListItem(pinNodePath = "") {
+function createContextMenuToolsSubmenuListItem(pinNodePath = "", currentTool = "") {
   const pinPath = normalizeMenuNodePath(pinNodePath || "");
   const pinOptions =
     pinPath && canShowNodeOverviewPinActions(pinPath) ? CONTEXT_MENU_PIN_TOOL_OPTIONS : [];
-  if (!pinOptions.length) return null;
+  const activeTool = String(currentTool || "").trim();
+  const ideaOptions = CONTEXT_MENU_IDEA_TOOL_OPTIONS;
+  if (!pinOptions.length && !ideaOptions.length) return null;
 
   const item = document.createElement("li");
   item.className = "menu-context-menu-item menu-context-menu-item--submenu";
@@ -25117,6 +25124,26 @@ function createContextMenuToolsSubmenuListItem(pinNodePath = "") {
     submenu.appendChild(toolItem);
   }
 
+  for (const option of ideaOptions) {
+    const toolItem = document.createElement("li");
+    toolItem.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-status-btn menu-context-menu-tool-btn";
+    btn.dataset.tool = option.key;
+    const label = document.createElement("span");
+    label.className = "menu-context-menu-status-text";
+    label.textContent = option.name;
+    btn.appendChild(label);
+    btn.setAttribute("role", "menuitemradio");
+    const isActive = option.key === activeTool;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-checked", isActive ? "true" : "false");
+    toolItem.appendChild(btn);
+    submenu.appendChild(toolItem);
+  }
+
   item.append(trigger, submenu);
   item.addEventListener("mouseenter", () => {
     trigger.setAttribute("aria-expanded", "true");
@@ -25131,9 +25158,9 @@ function createContextMenuToolsSubmenuListItem(pinNodePath = "") {
   return item;
 }
 
-function appendContextMenuToolsSection(listNode, pinNodePath = "") {
+function appendContextMenuToolsSection(listNode, pinNodePath = "", currentTool = "") {
   if (!listNode) return false;
-  const item = createContextMenuToolsSubmenuListItem(pinNodePath);
+  const item = createContextMenuToolsSubmenuListItem(pinNodePath, currentTool);
   if (!item) return false;
   listNode.appendChild(item);
   return true;
@@ -26109,14 +26136,19 @@ function positionMenuContextMenu(clientX, clientY) {
   menuContextMenuNode.style.visibility = "";
 }
 
-function appendMenuContextMenuPickerSections(nodePath, currentStatus, agentId = activeWorkspaceId) {
+function appendMenuContextMenuPickerSections(
+  nodePath,
+  currentStatus,
+  currentTool = "",
+  agentId = activeWorkspaceId
+) {
   if (!menuContextMenuListNode) return false;
   let hadAny = false;
   if (canShowMenuContextStatusPicker(nodePath)) {
     menuContextMenuListNode.appendChild(createContextMenuStatusSubmenuListItem(currentStatus));
     hadAny = true;
   }
-  if (appendContextMenuToolsSection(menuContextMenuListNode, nodePath)) {
+  if (appendContextMenuToolsSection(menuContextMenuListNode, nodePath, currentTool)) {
     hadAny = true;
   }
   return hadAny;
@@ -26126,11 +26158,12 @@ function renderMenuContextMenuItems(
   kind,
   nodePath,
   agentId = activeWorkspaceId,
-  currentStatus = ""
+  currentStatus = "",
+  currentTool = ""
 ) {
   if (!menuContextMenuListNode) return;
   menuContextMenuListNode.replaceChildren();
-  const hadPickers = appendMenuContextMenuPickerSections(nodePath, currentStatus, agentId);
+  const hadPickers = appendMenuContextMenuPickerSections(nodePath, currentStatus, currentTool, agentId);
   const actions = getMenuContextMenuActions(kind, nodePath, agentId);
   if (hadPickers && actions.length) {
     appendContextMenuListSeparator(menuContextMenuListNode);
@@ -27216,7 +27249,7 @@ function canShowResourceContextStatusPicker(state = resourceContextMenuState) {
   );
 }
 
-function appendResourceContextMenuPickerSections(currentStatus = "") {
+function appendResourceContextMenuPickerSections(currentStatus = "", currentTool = "") {
   if (!resourceContextMenuListNode) return false;
   let hadAny = false;
   if (canShowResourceContextStatusPicker() && resourceContextMenuState) {
@@ -27224,16 +27257,16 @@ function appendResourceContextMenuPickerSections(currentStatus = "") {
     hadAny = true;
   }
   const pinNodePath = resolveContextMenuPinNodePath(resourceContextMenuState);
-  if (appendContextMenuToolsSection(resourceContextMenuListNode, pinNodePath)) {
+  if (appendContextMenuToolsSection(resourceContextMenuListNode, pinNodePath, currentTool)) {
     hadAny = true;
   }
   return hadAny;
 }
 
-function renderResourceContextMenuItems(kind, currentStatus = "") {
+function renderResourceContextMenuItems(kind, currentStatus = "", currentTool = "") {
   if (!resourceContextMenuListNode) return;
   resourceContextMenuListNode.replaceChildren();
-  const hadPickers = appendResourceContextMenuPickerSections(currentStatus);
+  const hadPickers = appendResourceContextMenuPickerSections(currentStatus, currentTool);
   const actions = RESOURCE_CONTEXT_MENU_ACTIONS[kind] || [];
   if (hadPickers && actions.length) {
     appendContextMenuListSeparator(resourceContextMenuListNode);
@@ -27274,8 +27307,9 @@ function openResourceContextMenu(event, state) {
       currentStatus = await fetchAwnDataRecordMenuStatus(state);
     }
 
-    resourceContextMenuState = { ...state, status: currentStatus };
-    renderResourceContextMenuItems(state.kind, currentStatus);
+    const currentTool = String(state.tool || "").trim();
+    resourceContextMenuState = { ...state, status: currentStatus, tool: currentTool };
+    renderResourceContextMenuItems(state.kind, currentStatus, currentTool);
     positionResourceContextMenu(event.clientX, event.clientY);
   })();
 }
@@ -27298,6 +27332,12 @@ async function handleResourceContextMenuToolAction(nextTool) {
     }
     return;
   }
+  const option = CONTEXT_MENU_IDEA_TOOL_OPTIONS.find((item) => item.key === toolKey);
+  if (!option) return;
+  const currentTool = String(state.tool || "").trim();
+  closeResourceContextMenu();
+  if (toolKey === currentTool) return;
+  showToast(`Инструмент: ${option.name}`, "info");
 }
 
 async function handleResourceContextMenuStatusAction(nextStatus) {
@@ -28041,7 +28081,14 @@ async function handleMenuContextMenuToolAction(nextTool) {
     } else {
       await toggleNodeFocus(nodePath);
     }
+    return;
   }
+  const option = CONTEXT_MENU_IDEA_TOOL_OPTIONS.find((item) => item.key === toolKey);
+  if (!option) return;
+  const currentTool = String(state.tool || "").trim();
+  closeMenuContextMenu();
+  if (toolKey === currentTool) return;
+  showToast(`Инструмент: ${option.name}`, "info");
 }
 
 async function handleMenuContextMenuStatusAction(nextStatus) {
@@ -28098,14 +28145,16 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
   closeMenuSettingsPopover();
 
   const status = resolveMenuNodeStatus(path, activeWorkspaceId);
+  const currentTool = String(menuContextMenuState?.tool || "").trim();
   menuContextMenuState = {
     path,
     kind,
     label: getLabelFromPath(path),
     status,
+    tool: currentTool,
     target
   };
-  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status);
+  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status, currentTool);
   positionMenuContextMenu(event.clientX, event.clientY);
   return true;
 }
@@ -133475,6 +133524,46 @@ function syncSidebarScrollChrome() {
 
 let workspaceScrollBinding = null;
 let workspaceScrollHostTarget = null;
+let workspaceScrollChromeMetricsRaf = 0;
+let workspaceScrollChromeFullSyncRaf = 0;
+let sidebarScrollChromeRaf = 0;
+
+function flushWorkspaceScrollChromeMetrics() {
+  workspaceScrollChromeMetricsRaf = 0;
+  const scrollElement = workspaceScrollBinding || getWorkspaceScrollContext().scrollElement;
+  const hostTarget = workspaceScrollHostTarget;
+  syncScrollChrome({
+    scrollElement,
+    topButton: shouldShowWorkspaceScrollTopButton(scrollElement, hostTarget) ? workspaceScrollTopBtn : null,
+    progressNode: workspaceScrollProgressNode,
+    depthNode: workspaceScrollDepthNode,
+    chromeNode: workspaceScrollChromeNode
+  });
+  if (scrollElement) {
+    syncDocBodyStatusBar(getScrollMetrics(scrollElement));
+  }
+}
+
+function scheduleWorkspaceScrollChromeMetricsSync() {
+  if (workspaceScrollChromeMetricsRaf) return;
+  workspaceScrollChromeMetricsRaf = requestAnimationFrame(flushWorkspaceScrollChromeMetrics);
+}
+
+function scheduleWorkspaceScrollChromeFullSync() {
+  if (workspaceScrollChromeFullSyncRaf) return;
+  workspaceScrollChromeFullSyncRaf = requestAnimationFrame(() => {
+    workspaceScrollChromeFullSyncRaf = 0;
+    syncWorkspaceScrollChrome();
+  });
+}
+
+function scheduleSidebarScrollChromeSync() {
+  if (sidebarScrollChromeRaf) return;
+  sidebarScrollChromeRaf = requestAnimationFrame(() => {
+    sidebarScrollChromeRaf = 0;
+    syncSidebarScrollChrome();
+  });
+}
 
 function getOverviewNodeInDocSlabContent(docSlabContent) {
   return docSlabContent?.querySelector(
@@ -133815,19 +133904,14 @@ function syncWorkspaceScrollChrome() {
   }
 
   if (scrollElement !== workspaceScrollBinding) {
-    workspaceScrollBinding?.removeEventListener("scroll", syncWorkspaceScrollChrome);
+    workspaceScrollBinding?.removeEventListener("scroll", scheduleWorkspaceScrollChromeMetricsSync);
     workspaceScrollBinding = scrollElement;
-    workspaceScrollBinding?.addEventListener("scroll", syncWorkspaceScrollChrome, { passive: true });
+    workspaceScrollBinding?.addEventListener("scroll", scheduleWorkspaceScrollChromeMetricsSync, {
+      passive: true
+    });
   }
 
-  syncScrollChrome({
-    scrollElement,
-    topButton: shouldShowWorkspaceScrollTopButton(scrollElement, hostTarget) ? workspaceScrollTopBtn : null,
-    progressNode: workspaceScrollProgressNode,
-    depthNode: workspaceScrollDepthNode,
-    chromeNode: workspaceScrollChromeNode
-  });
-  syncDocBodyStatusBar(getScrollMetrics(scrollElement));
+  flushWorkspaceScrollChromeMetrics();
 }
 
 function scheduleWorkspaceScrollChromeSync() {
@@ -133847,8 +133931,8 @@ function syncMenuScrollTopButton() {
 function setupMenuScrollTopButton() {
   if (!sidebarNode) return;
   const menuScrollShell = document.querySelector(".sidebar-slab-menu .menu-scroll-shell");
-  sidebarNode.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
-  menuScrollShell?.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
+  sidebarNode.addEventListener("scroll", scheduleSidebarScrollChromeSync, { passive: true });
+  menuScrollShell?.addEventListener("scroll", scheduleSidebarScrollChromeSync, { passive: true });
   setupDraggableScrollTopButton(sidebarScrollTopBtn, {
     onActivate: () => {
       sidebarNode.scrollTo({ top: 0, behavior: "smooth" });
@@ -133857,8 +133941,8 @@ function setupMenuScrollTopButton() {
   });
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => {
-      syncSidebarScrollChrome();
-      syncWorkspaceScrollChrome();
+      scheduleSidebarScrollChromeSync();
+      scheduleWorkspaceScrollChromeFullSync();
     });
     observer.observe(sidebarNode);
     menuScrollShell && observer.observe(menuScrollShell);
@@ -133876,7 +133960,7 @@ function setupWorkspaceScrollChrome() {
     }
   });
   if (typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(() => syncWorkspaceScrollChrome());
+    const observer = new ResizeObserver(() => scheduleWorkspaceScrollChromeFullSync());
     observer.observe(workspacePaneNode);
     if (nodeOverviewBlockNode) observer.observe(nodeOverviewBlockNode);
     if (nodeOverviewContentNode) observer.observe(nodeOverviewContentNode);

@@ -1451,6 +1451,14 @@ body.workspace-idle-screensaver-active {
   position: relative;
 }
 
+/* Workspace mode: не крутить бесконечные landing-анимации в фоне */
+.app-landing-pane.hidden,
+.app-landing-pane.hidden *,
+.app:not(.app-landing-view) .app-landing-pane,
+.app:not(.app-landing-view) .app-landing-pane * {
+  animation-play-state: paused !important;
+}
+
 .app-landing-pane--grid {
   background: transparent;
   color: #0f172a;
