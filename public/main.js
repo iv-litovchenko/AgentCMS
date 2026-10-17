@@ -3045,10 +3045,15 @@ function normalizeAgentEnvironmentDraft(raw) {
   const value = String(raw || "local").trim().toLowerCase();
   return AGENT_ENVIRONMENT_OPTIONS.some((item) => item.value === value) ? value : "local";
 }
-let activeAgentId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+/** Selected workspace registry id (REFACTOR-10; not persona 0-agent / agent-kit). */
+let activeWorkspaceId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+
+function getActiveWorkspaceId() {
+  return activeWorkspaceId || "main";
+}
 
 function nodeStorageKey(agentId, nodePath) {
-  const id = agentId || activeAgentId || "main";
+  const id = agentId || activeWorkspaceId || "main";
   const relPath = nodePath || ".";
   return `${id}:${relPath}`;
 }
@@ -3402,7 +3407,7 @@ function buildAwnDataViewStoreChpuPath(storeRel, { recordId = "", sectionId = ""
   return path;
 }
 
-function buildAwnDataViewSectionTreeHref(sectionId, agentId = awnDataViewCatalogAgentId || activeAgentId) {
+function buildAwnDataViewSectionTreeHref(sectionId, agentId = awnDataViewCatalogAgentId || activeWorkspaceId) {
   const storeRel = awnDataViewStoreRel;
   if (!storeRel || !agentId) return "#";
   return buildAgentWorkspaceChpuUrl(
@@ -3494,7 +3499,7 @@ function extractMediaFilterFromChpuViews(uiViews) {
 }
 
 function getMediaViewModeStorageKey(nodePath = getActiveNodeApiPath()) {
-  const agentId = activeAgentId || "main";
+  const agentId = activeWorkspaceId || "main";
   const manifestPath = String(nodePath || "").replace(/\\/g, "/");
   return `${MEDIA_VIEW_MODE_STORAGE_KEY}:${agentId}:${manifestPath}`;
 }
@@ -3830,7 +3835,7 @@ function normalizeChpuPathBeforeResolve(rawPath) {
   return rewriteLegacyTopicPathsInRelPathClient(path.replace(/\/+$/, ""));
 }
 
-async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
+async function fetchChpuResolveRaw(chpuPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
   const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
@@ -3840,7 +3845,7 @@ async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function tryResolveMalformedChpuPath(rawPath, agentId = activeAgentId) {
+async function tryResolveMalformedChpuPath(rawPath, agentId = activeWorkspaceId) {
   const path = String(rawPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
@@ -3874,7 +3879,7 @@ async function tryResolveMalformedChpuPath(rawPath, agentId = activeAgentId) {
   return null;
 }
 
-async function fetchChpuResolve(chpuPath, agentId = activeAgentId) {
+async function fetchChpuResolve(chpuPath, agentId = activeWorkspaceId) {
   const resolved = await fetchChpuResolveRaw(chpuPath, agentId);
   if (resolved?.kind !== "unknown") return resolved;
   const fallback = await tryResolveMalformedChpuPath(chpuPath, agentId);
@@ -4080,7 +4085,7 @@ async function applyChpuResolvedRoute(resolved) {
       showAgentHomeView();
       return;
     }
-    const configView = await readAgentWorkspaceViewFromWorkspaceConfig(resolved?.agentId || activeAgentId);
+    const configView = await readAgentWorkspaceViewFromWorkspaceConfig(resolved?.agentId || activeWorkspaceId);
     agentWorkspaceView = normalizeVisibleAgentWorkspaceView(configView || loadAgentWorkspaceView());
     saveAgentWorkspaceView(agentWorkspaceView);
     showAgentHomeView();
@@ -4133,7 +4138,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -4164,7 +4169,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)\//i.test(filePath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         filePath.replace(/\.md$/i, ""),
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -4182,13 +4187,13 @@ async function applyChpuResolvedRoute(resolved) {
     if (resolved?.kind === "awnDataStore" && uiViews.includes("edit")) {
       const openedEdit = await openAwnDatabaseEditorFromRoute(
         resolved,
-        resolved.agentId || activeAgentId
+        resolved.agentId || activeWorkspaceId
       );
       if (openedEdit) return;
     }
     const opened = await openAwnDataRouteFromWorkspacePath(
       resolved.workspacePath || "awn-databases",
-      resolved.agentId || activeAgentId,
+      resolved.agentId || activeWorkspaceId,
       { skipRouteSync: true }
     );
     if (opened) return;
@@ -4207,7 +4212,7 @@ async function applyChpuResolvedRoute(resolved) {
       hideHomeView();
       const opened = await openAwnDataRouteFromWorkspacePath(
         topicPath,
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -4311,7 +4316,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -4665,7 +4670,7 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  const agentId = canonicalChpuWorkspaceAgentId(activeAgentId);
+  const agentId = canonicalChpuWorkspaceAgentId(activeWorkspaceId);
   if (!agentId) {
     return "/";
   }
@@ -4894,7 +4899,7 @@ function resolveActivePageRefFromState() {
 
 function buildActiveFocusFromState() {
   const inWorkspace =
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("home-view") &&
     Boolean(activePath || activeSystemFile || activeFolderBrowsePath);
 
@@ -4982,7 +4987,7 @@ function buildActivePageContextPayload() {
   const focus = buildActiveFocusFromState();
   return {
     version: 1,
-    agentId: activeAgentId || null,
+    agentId: activeWorkspaceId || null,
     route,
     contentMode: activeContentMode || null,
     label: activeLabel || null,
@@ -4994,7 +4999,7 @@ function scheduleActivePageContextSync() {
   if (activePageContextSyncTimer) clearTimeout(activePageContextSyncTimer);
   activePageContextSyncTimer = setTimeout(async () => {
     activePageContextSyncTimer = null;
-    if (!activeAgentId) return;
+    if (!activeWorkspaceId) return;
     try {
       await fetch(buildApiUrl("/api/agent/active-page"), {
         method: "POST",
@@ -5010,7 +5015,7 @@ function scheduleActivePageContextSync() {
 const WORKSPACE_SHARE_ACTIONS_ENABLED = true;
 
 function updateWorkspaceShareLinkButton() {
-  const hasAgent = Boolean(activeAgentId && agentsCache.some((agent) => agent.id === activeAgentId));
+  const hasAgent = Boolean(activeWorkspaceId && agentsCache.some((agent) => agent.id === activeWorkspaceId));
   const inWorkspace =
     hasAgent &&
     !appRootNode?.classList.contains("home-view") &&
@@ -5319,14 +5324,14 @@ async function copyWorkspaceRootRelativePath() {
 }
 
 async function ensureMenuLoadedForRoute(route) {
-  if (!route?.agentId || route.agentId !== activeAgentId || currentMenuData) return;
+  if (!route?.agentId || route.agentId !== activeWorkspaceId || currentMenuData) return;
   await refreshMenu({ agentId: route.agentId });
 }
 
 async function applyAppRouteFromUrl() {
   const route = parseAppRoute(location.pathname);
   if (route.type === "root" || route.type === "legacy") {
-    activeAgentId = null;
+    activeWorkspaceId = null;
     renderAgentSelect();
     showAppLandingView();
     showMenuNoAgentPlaceholder();
@@ -5343,7 +5348,7 @@ async function applyAppRouteFromUrl() {
     return false;
   }
 
-  if (routeAgentId !== activeAgentId) {
+  if (routeAgentId !== activeWorkspaceId) {
     await switchActiveAgent(routeAgentId);
   }
 
@@ -5539,12 +5544,12 @@ async function applyAppRouteResourceFromUrl(route) {
 
 /** @deprecated use syncAppRouteToUrl */
 function syncAgentToUrl(agentId) {
-  if (agentId && agentId !== activeAgentId) return;
+  if (agentId && agentId !== activeWorkspaceId) return;
   syncAppRouteToUrl({ replace: true });
 }
 
-function buildApiUrl(apiPath, params = {}, agentId = activeAgentId) {
-  const search = new URLSearchParams({ agent: agentId || activeAgentId || "main" });
+function buildApiUrl(apiPath, params = {}, agentId = activeWorkspaceId) {
+  const search = new URLSearchParams({ agent: agentId || activeWorkspaceId || "main" });
   for (const [key, value] of Object.entries(params)) {
     if (value != null && value !== "") search.set(key, String(value));
   }
@@ -5578,18 +5583,18 @@ async function fetchPlatformGlobalMarkdown(fileName) {
   return String(data.content || "");
 }
 
-function appendAgentToApiUrl(url, agentId = activeAgentId) {
+function appendAgentToApiUrl(url, agentId = activeWorkspaceId) {
   if (!url || typeof url !== "string" || !url.startsWith("/api/")) return url;
   const parsed = new URL(url, window.location.origin);
-  parsed.searchParams.set("agent", agentId || activeAgentId || "main");
+  parsed.searchParams.set("agent", agentId || activeWorkspaceId || "main");
   return `${parsed.pathname}?${parsed.searchParams.toString()}`;
 }
 
 function getActiveAgentMeta() {
-  return agentsCache.find((agent) => agent.id === activeAgentId) || null;
+  return agentsCache.find((agent) => agent.id === activeWorkspaceId) || null;
 }
 
-function getAgentTreeTitle(agentId = activeAgentId) {
+function getAgentTreeTitle(agentId = activeWorkspaceId) {
   return agentsCache.find((agent) => agent.id === agentId)?.name || "Workspaces";
 }
 
@@ -5607,13 +5612,13 @@ async function loadAgents() {
   const isAppLandingRoute = route.type === "root" || route.type === "legacy";
   const urlAgentId = getAgentIdFromAppLocation();
   if (urlAgentId && selectableAgents.some((agent) => agent.id === urlAgentId)) {
-    activeAgentId = urlAgentId;
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    activeWorkspaceId = urlAgentId;
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   } else if (isAppLandingRoute) {
-    activeAgentId = null;
-  } else if (!selectableAgents.some((agent) => agent.id === activeAgentId)) {
-    activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    activeWorkspaceId = null;
+  } else if (!selectableAgents.some((agent) => agent.id === activeWorkspaceId)) {
+    activeWorkspaceId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   }
   const deferRouteSync = route.type === "node" || route.type === "systemFile" || route.type === "chpu";
   if (!deferRouteSync && !isAppLandingRoute) {
@@ -5715,27 +5720,27 @@ function getFolderPathFromManifest(nodePath) {
   return parts.join("/");
 }
 
-function getAgentMeta(agentId = activeAgentId) {
+function getAgentMeta(agentId = activeWorkspaceId) {
   return agentsCache.find((agent) => agent.id === agentId) || null;
 }
 
-function getActiveAgentKitFolder(agentId = activeAgentId) {
+function getActiveAgentKitFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return AGENT_KIT_FOLDER_DEFAULT;
 }
 
-function getActiveAgentContainerFolder(agentId = activeAgentId) {
+function getActiveAgentContainerFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return CONTAINER_FOLDER_DEFAULT;
 }
 
-function getActiveAgentSharedFolder(agentId = activeAgentId) {
+function getActiveAgentSharedFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return SHARED_FOLDER_DEFAULT;
 }
 
 function getCreateModalAgentId() {
-  return createModalAgentId || activeAgentId;
+  return createModalAgentId || activeWorkspaceId;
 }
 
 function getAgentKitFolderBasename() {
@@ -5793,22 +5798,22 @@ function stripAgentContentPrefixFromRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/");
 }
 
-function getServiceRootManifestPath(agentId = activeAgentId) {
+function getServiceRootManifestPath(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getContainerRootManifestPath(agentId = activeAgentId) {
+function getContainerRootManifestPath(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   return containerFolder ? `${containerFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getSharedRootManifestPath(agentId = activeAgentId) {
+function getSharedRootManifestPath(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   return sharedFolder ? `${sharedFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getContainerRootMenuTitle(agentId = activeAgentId) {
+function getContainerRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getContainerRootManifestPath(agentId);
   if (!manifestPath) return CONTAINER_SECTION_LABEL;
 
@@ -5819,7 +5824,7 @@ function getContainerRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.containerTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -5830,7 +5835,7 @@ function getContainerRootMenuTitle(agentId = activeAgentId) {
   return CONTAINER_SECTION_LABEL;
 }
 
-function getSharedRootMenuTitle(agentId = activeAgentId) {
+function getSharedRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getSharedRootManifestPath(agentId);
   if (!manifestPath) return SHARED_SECTION_LABEL;
 
@@ -5841,7 +5846,7 @@ function getSharedRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.sharedTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -5852,7 +5857,7 @@ function getSharedRootMenuTitle(agentId = activeAgentId) {
   return SHARED_SECTION_LABEL;
 }
 
-function getServiceRootMenuTitle(agentId = activeAgentId) {
+function getServiceRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getServiceRootManifestPath(agentId);
   if (!manifestPath) return SERVICE_SECTION_LABEL;
 
@@ -5863,7 +5868,7 @@ function getServiceRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.serviceTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -7138,7 +7143,7 @@ function resolveHubWorkspaceStoreFromManifest(manifestPath) {
   return null;
 }
 
-async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeAgentId) {
+async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeWorkspaceId) {
   const hub = resolveHubWorkspaceStoreFromManifest(manifestPath);
   if (!hub?.slug) return null;
   const response = await fetch(buildApiUrl(hub.schemaUrl, { slug: hub.slug }, agentId));
@@ -7167,7 +7172,7 @@ async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeA
   return cache;
 }
 
-async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeAgentId) {
+async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeWorkspaceId) {
   const manifestPath = getMediaLibraryManifestPathFromFolder(`awn-media/${String(slug || "").trim()}`);
   return loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId);
 }
@@ -7630,7 +7635,7 @@ async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
     if (resolved?.kind === "awnDataStore" || resolved?.kind === "awnDataRoot") {
       const opened = await openAwnDataRouteFromWorkspacePath(
         resolved.workspacePath || normalized,
-        activeAgentId,
+        activeWorkspaceId,
         options
       );
       if (opened) {
@@ -7665,7 +7670,7 @@ function resolveMarkdownLinkToNodePath(href, options = {}) {
   const targetRel = resolveMarkdownHrefToWorkspaceRel(href, sourceRel);
   if (!targetRel) return null;
 
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (menu) {
     const baseTree = { title: getAgentTreeTitle(), ...menu };
     const paths = collectMenuNodePaths(baseTree);
@@ -7761,7 +7766,7 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
     } else if (/\.md$/i.test(routePath)) {
       routePath = routePath.replace(/\.md$/i, "");
     }
-    return openAwnDataRouteFromWorkspacePath(routePath, activeAgentId, options);
+    return openAwnDataRouteFromWorkspacePath(routePath, activeWorkspaceId, options);
   }
 
   const parsed = parseStorageLayerRef(normalized);
@@ -7831,7 +7836,7 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
   }
 
   if (/manifest\.md$/i.test(normalized)) {
-    const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+    const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
     if (menu) {
       const paths = collectMenuNodePaths({ title: getAgentTreeTitle(), ...menu });
       const exact = paths.find(
@@ -7863,7 +7868,7 @@ async function tryOpenSameOriginAppUrl(href) {
   if (route.agentId) {
     const selectable = getSelectableAgents();
     if (!selectable.some((agent) => agent.id === route.agentId)) return false;
-    if (route.agentId !== activeAgentId) {
+    if (route.agentId !== activeWorkspaceId) {
       await switchActiveAgent(route.agentId);
     }
   }
@@ -7978,7 +7983,7 @@ function resolveWikilinkToNodePath(target, alias) {
   const slug = String(target || "").replace(/\\/g, "/").trim();
   if (!slug) return null;
 
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu) return null;
   const baseTree = { title: getAgentTreeTitle(), ...menu };
   const paths = collectMenuNodePaths(baseTree);
@@ -8630,7 +8635,7 @@ function collectMenuManifestPaths(node, acc = []) {
   return acc;
 }
 
-async function prefetchMenuReadStates(menu, agentId = activeAgentId) {
+async function prefetchMenuReadStates(menu, agentId = activeWorkspaceId) {
   if (!menu) return;
   const paths = [...new Set(collectMenuManifestPaths({ title: getAgentTreeTitle(agentId), ...menu }))];
   await Promise.all(paths.map((manifestPath) => fetchNodeReadState(manifestPath)));
@@ -8666,7 +8671,7 @@ function upsertHostUnreadBadge(host, unread) {
   host.classList.add("has-menu-unread-badge");
 }
 
-function syncMenuReadBadges(agentId = activeAgentId) {
+function syncMenuReadBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
   for (const host of root.querySelectorAll(
@@ -8683,7 +8688,7 @@ function syncMenuReadBadges(agentId = activeAgentId) {
   }
 }
 
-function refreshMenuReadBadges(agentId = activeAgentId) {
+function refreshMenuReadBadges(agentId = activeWorkspaceId) {
   if (menuSearchQuery.trim()) return;
   syncMenuReadBadges(agentId);
 }
@@ -8720,7 +8725,7 @@ function refreshEntryOverviewReadBadges() {
 }
 
 function refreshNodeReadStateUi(manifestPath) {
-  refreshMenuReadBadges(activeAgentId);
+  refreshMenuReadBadges(activeWorkspaceId);
   if (normalizeMenuNodePath(getActiveNodeApiPath()) !== normalizeMenuNodePath(manifestPath)) return;
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
     refreshEntryOverviewReadBadges();
@@ -8808,7 +8813,7 @@ function isAgentRootIndexPath(nodePath) {
 }
 
 function updateAgentPreviewCache(previewMeta) {
-  const index = agentsCache.findIndex((agent) => agent.id === activeAgentId);
+  const index = agentsCache.findIndex((agent) => agent.id === activeWorkspaceId);
   if (index === -1) return;
   agentsCache[index] = {
     ...agentsCache[index],
@@ -8988,7 +8993,7 @@ function syncNodeDescriptionHintUi() {
 }
 
 function openSelectedAgentWorkspaceView() {
-  if (!activeAgentId || !agentViewSelect) return;
+  if (!activeWorkspaceId || !agentViewSelect) return;
   const view = normalizeVisibleAgentWorkspaceView(
     String(agentViewSelect.value || agentWorkspaceView || "").trim()
   );
@@ -9000,7 +9005,7 @@ function openSelectedAgentWorkspaceView() {
 
 function syncAgentPreviewOpenUi() {
   const agent = getActiveAgentMeta();
-  const canOpen = Boolean(activeAgentId && agent?.path);
+  const canOpen = Boolean(activeWorkspaceId && agent?.path);
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
   const sliderHint = "Слайдер вдохновения";
   const hasSlider = Boolean(
@@ -9133,7 +9138,7 @@ function syncAgentPreviewSlideCounter() {
 }
 
 function buildAgentSliderLightboxGallery() {
-  const agentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
+  const agentId = agentSliderCatalog.loadedForAgentId || activeWorkspaceId;
   const files = getAgentSliderPlaybackSourceSlides();
   if (!files.length) return null;
   const images = files.map((file) => {
@@ -9320,7 +9325,7 @@ function syncAgentNotePreviewStatusIndicator(rawContent = "") {
 }
 
 function showAgentNotePreviewShell() {
-  if (!agentTodoPreviewWrapNode || !activeAgentId) {
+  if (!agentTodoPreviewWrapNode || !activeWorkspaceId) {
     hideAgentTodoPreview();
     return false;
   }
@@ -9558,13 +9563,13 @@ async function fetchAgentSidebarNoteMarkdown() {
 }
 
 function syncAgentTodoPreviewFromEditor() {
-  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) return;
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeWorkspaceId) return;
   if (activeSystemFile !== ROOT_SYSTEM_NOTE_FILE) return;
   applyAgentNotePreviewMarkdown(fileContentInputNode?.value || "", { fileName: ROOT_SYSTEM_NOTE_FILE });
 }
 
 async function syncAgentTodoPreview() {
-  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeWorkspaceId) {
     hideAgentTodoPreview();
     return;
   }
@@ -10155,7 +10160,7 @@ function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
   }
 }
 
-function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeAgentId) {
+function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeWorkspaceId) {
   let relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relFile) return "";
   relFile = relFile.replace(/^slider\//i, "");
@@ -10236,7 +10241,7 @@ async function refreshAgentSliderCatalog(force = false) {
   return agentSliderCatalog;
 }
 
-async function uploadAgentSliderFile(agentPath, file, agentId = activeAgentId) {
+async function uploadAgentSliderFile(agentPath, file, agentId = activeWorkspaceId) {
   if (!agentPath) throw new Error("Workspace не задан");
   if (!agentId) throw new Error("Workspace не выбран");
   const data = await readFileAsBase64(file);
@@ -10257,7 +10262,7 @@ async function uploadAgentSliderFile(agentPath, file, agentId = activeAgentId) {
   return response.json();
 }
 
-async function deleteAgentSliderFile(agentPath, fileName, agentId = activeAgentId) {
+async function deleteAgentSliderFile(agentPath, fileName, agentId = activeWorkspaceId) {
   if (!agentPath) throw new Error("Workspace не задан");
   const response = await fetch(
     buildApiUrl("/api/agents/slider", { file: fileName }, agentId),
@@ -10277,7 +10282,7 @@ function renderAgentSliderModalGrid() {
 
   const files = agentSliderCatalog.files || [];
   agentSliderEmptyNoteNode?.classList.toggle("hidden", files.length > 0);
-  const sliderAgentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
+  const sliderAgentId = agentSliderCatalog.loadedForAgentId || activeWorkspaceId;
 
   for (const file of files) {
     const item = document.createElement("article");
@@ -11345,8 +11350,8 @@ function renderHomeFocusGraph(listNode, items) {
   listNode.replaceChildren();
   listNode.className = "home-focus-graph";
 
-  const agent = agentsCache.find((entry) => entry.id === activeAgentId);
-  const hubLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Agent";
+  const agent = agentsCache.find((entry) => entry.id === activeWorkspaceId);
+  const hubLabel = agent?.name || getActiveAgentLabel() || activeWorkspaceId || "Agent";
 
   const hub = document.createElement("div");
   hub.className = "home-focus-graph-hub";
@@ -11638,7 +11643,7 @@ async function openFocusItem(focusItem) {
   const label = focusItem?.name || getLabelFromPath(nodePath) || agent.name || agent.id;
 
   try {
-    if (activeAgentId !== agent.id) {
+    if (activeWorkspaceId !== agent.id) {
       await switchActiveAgent(agent.id);
     } else if (!appLandingPaneNode?.classList.contains("hidden")) {
       hideAppLandingView();
@@ -12064,7 +12069,7 @@ function renderGlobalFocusPanel() {
 function renderSidebarFocusPanel(panelNode, listNode, items) {
   if (!panelNode || !listNode) return;
   listNode.replaceChildren();
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     panelNode.classList.add("hidden");
     syncHeaderFocusCount();
     closeHeaderFocusPopover();
@@ -12162,7 +12167,7 @@ async function loadGlobalFlowItems({ showLoading = false } = {}) {
   }
 }
 
-async function loadAgentFocusItems(agentId = activeAgentId) {
+async function loadAgentFocusItems(agentId = activeWorkspaceId) {
   if (!agentId) {
     agentFocusItemsCache = [];
     renderAgentFocusPanels();
@@ -12187,8 +12192,8 @@ async function refreshAllFocusPanels() {
   const tasks = [];
   if (isAppLandingViewActive()) {
     tasks.push(loadGlobalMainItems(), loadGlobalFlowItems());
-  } else if (activeAgentId) {
-    tasks.push(loadAgentFocusItems(activeAgentId), loadGlobalMainItems());
+  } else if (activeWorkspaceId) {
+    tasks.push(loadAgentFocusItems(activeWorkspaceId), loadGlobalMainItems());
   }
   if (tasks.length) await Promise.all(tasks);
 }
@@ -12225,7 +12230,7 @@ function createAgentPickerAgentButton(agent, avatarSize = 42) {
   const btn = document.createElement("button");
   btn.type = "button";
   const registryActive = isAgentRegistryActive(agent);
-  const isCurrent = agent.id === activeAgentId;
+  const isCurrent = agent.id === activeWorkspaceId;
   btn.className = "agents-picker-agent-btn";
   if (isCurrent) btn.classList.add("is-active");
   if (!registryActive) btn.classList.add("is-registry-off");
@@ -12300,7 +12305,7 @@ function createAgentPickerFallback(agent, avatarSize) {
 function syncAgentViewPickerMenuState() {
   if (!agentViewSelect) return;
   if (sidebarAgentAvatarBtn) {
-    const agent = getAgentMeta(activeAgentId);
+    const agent = getAgentMeta(activeWorkspaceId);
     const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
     const viewLabel = agentViewSelect.selectedOptions[0]?.textContent?.trim() || "Главная";
     const workspaceViewHint = "Открыть выбранный вид workspace";
@@ -12762,8 +12767,8 @@ async function loadPlatformSettingsSchemaBundle(options = {}) {
     }
   }
 
-  if (activeAgentId) {
-    await loadAwnTypes(activeAgentId).catch(() => {});
+  if (activeWorkspaceId) {
+    await loadAwnTypes(activeWorkspaceId).catch(() => {});
   }
   return loadAgentSettingsSchemaBundle({ scope: "global", force });
 }
@@ -13096,14 +13101,14 @@ function renderAgentSelect() {
 
   agentSelectNode.disabled = false;
   const nextValue =
-    activeAgentId && selectableAgents.some((agent) => agent.id === activeAgentId)
-      ? activeAgentId
+    activeWorkspaceId && selectableAgents.some((agent) => agent.id === activeWorkspaceId)
+      ? activeWorkspaceId
       : previousValue && selectableAgents.some((agent) => agent.id === previousValue)
         ? previousValue
         : "";
   agentSelectNode.value = nextValue;
   void refreshAgentSliderCatalog(true).then(() => syncAgentPreview());
-  syncIdentityToolbarAvatars(nextValue || activeAgentId);
+  syncIdentityToolbarAvatars(nextValue || activeWorkspaceId);
   refreshAgentsPickerIfOpen();
 }
 
@@ -13293,7 +13298,7 @@ async function runPlatformCatalogMigration(preset = "") {
         .map(([key, result]) => `${key} +${result.addedCount}`);
       showToast(parts.length ? parts.join(" · ") : "Новых значений не найдено", "success");
     }
-    if (activeAgentId) await loadAgentTaxonomies(activeAgentId, { force: true });
+    if (activeWorkspaceId) await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(message ? `Миграция: ${message}` : "Ошибка миграции", "error");
@@ -17595,7 +17600,7 @@ function setAppLandingHint(message = "", { alert = false } = {}) {
 }
 
 function selectAgentOption(agentId) {
-  if (!agentId || agentId === activeAgentId) return;
+  if (!agentId || agentId === activeWorkspaceId) return;
   if (agentSelectNode) agentSelectNode.value = agentId;
   switchActiveAgent(agentId).catch((error) => {
     if (isMaintenanceErrorMessage(error?.message)) {
@@ -17608,16 +17613,16 @@ function selectAgentOption(agentId) {
 }
 
 async function switchActiveAgent(nextAgentId) {
-  if (!nextAgentId || nextAgentId === activeAgentId) return;
+  if (!nextAgentId || nextAgentId === activeWorkspaceId) return;
   if (!agentsCache.some((agent) => agent.id === nextAgentId)) return;
 
   try {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
-    activeAgentId = nextAgentId;
+    activeWorkspaceId = nextAgentId;
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
     workspaceNotificationsEvents = [];
     workspaceNotificationsLatestId = 0;
     workspaceNotificationsTruncated = false;
@@ -17636,7 +17641,7 @@ async function switchActiveAgent(nextAgentId) {
     syncWorkspaceNotificationsAvailability();
     syncAppFooterJournalAvailability();
     hideMenuNoAgentPlaceholder();
-    activateMenuAgentPane(activeAgentId);
+    activateMenuAgentPane(activeWorkspaceId);
     activePath = null;
     activeLabel = null;
     clearActiveSystemFile();
@@ -17644,8 +17649,8 @@ async function switchActiveAgent(nextAgentId) {
     resetGitWorkspaceViewToDefault();
     syncAppRouteToUrl({ replace: true });
 
-    const cachedMenu = menuCacheByAgent.get(activeAgentId);
-    const cachedPane = menuAgentPanes.get(activeAgentId);
+    const cachedMenu = menuCacheByAgent.get(activeWorkspaceId);
+    const cachedPane = menuAgentPanes.get(activeWorkspaceId);
     const hasCachedView = Boolean(cachedMenu && cachedPane && cachedPane.childElementCount > 0);
     if (hasCachedView) {
       currentMenuData = cachedMenu;
@@ -17657,7 +17662,7 @@ async function switchActiveAgent(nextAgentId) {
 
     showHomeView();
     renderAgentSelect();
-    syncIdentityToolbarAvatars(activeAgentId);
+    syncIdentityToolbarAvatars(activeWorkspaceId);
     await loadUserSettingsForAgent(nextAgentId).catch(() => {});
     reloadWorkspaceIdleScreensaverSettings(nextAgentId);
     syncWorkspaceIdleScreensaverEligibility();
@@ -17668,7 +17673,7 @@ async function switchActiveAgent(nextAgentId) {
     closeMenuSettingsPopover();
     setMenuLoading(true, `Загрузка: ${getActiveAgentLabel() || nextAgentId}`);
 
-    const switchedAgentId = activeAgentId;
+    const switchedAgentId = activeWorkspaceId;
     try {
       if (hasCachedView) {
         activateMenuAgentPane(switchedAgentId);
@@ -17676,7 +17681,7 @@ async function switchActiveAgent(nextAgentId) {
       }
       await refreshMenu({ agentId: switchedAgentId });
     } finally {
-      if (switchedAgentId === activeAgentId) {
+      if (switchedAgentId === activeWorkspaceId) {
         setMenuLoading(false);
       }
     }
@@ -17684,13 +17689,13 @@ async function switchActiveAgent(nextAgentId) {
     void (async () => {
       try {
         await Promise.all([loadSystemFiles(), loadAwnTypes(switchedAgentId)]);
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
         }
         void syncAgentTodoPreview();
         await refreshAgentSliderCatalog(true);
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         syncAgentPreview();
         ensureSidebarWorkspacePageIndexRow();
         if (isAgentWorkspaceCanvasVisible()) {
@@ -17699,7 +17704,7 @@ async function switchActiveAgent(nextAgentId) {
         if (!isAppLandingViewActive()) {
           void loadAgentFocusItems(switchedAgentId);
         }
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
         void loadAppFooterIdeasPreview();
@@ -17748,8 +17753,8 @@ function syncMenuRefreshButtonState() {
   menuRefreshBtn.disabled = menuBusy || menuRefreshInFlight;
 }
 
-function ensureMenuAgentPane(agentId = activeAgentId) {
-  const id = agentId || activeAgentId || "main";
+function ensureMenuAgentPane(agentId = activeWorkspaceId) {
+  const id = agentId || activeWorkspaceId || "main";
   let pane = menuAgentPanes.get(id);
   if (!pane) {
     pane = document.createElement("div");
@@ -17761,7 +17766,7 @@ function ensureMenuAgentPane(agentId = activeAgentId) {
   return pane;
 }
 
-function activateMenuAgentPane(agentId = activeAgentId) {
+function activateMenuAgentPane(agentId = activeWorkspaceId) {
   for (const [id, pane] of menuAgentPanes.entries()) {
     pane.classList.toggle("hidden", id !== agentId);
   }
@@ -17770,10 +17775,10 @@ function activateMenuAgentPane(agentId = activeAgentId) {
 }
 
 function getMenuQueryRoot() {
-  return menuAgentPanes.get(activeAgentId) || menuNode;
+  return menuAgentPanes.get(activeWorkspaceId) || menuNode;
 }
 
-function invalidateMenuAgentCache(agentId = activeAgentId) {
+function invalidateMenuAgentCache(agentId = activeWorkspaceId) {
   menuCacheByAgent.delete(agentId);
   menuRuntimeFlagsByAgent.delete(agentId);
 }
@@ -18276,14 +18281,14 @@ function applyManifestToRegistryDraft(index, result) {
   }
 }
 
-function getAgentKitTopicManifestRel(kind = "agent", agentId = activeAgentId) {
+function getAgentKitTopicManifestRel(kind = "agent", agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder) return null;
   const slot = kind === "user" ? "user" : "agent";
   return `${kitFolder}/${slot}/manifest.md`;
 }
 
-function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeAgentId) {
+function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeWorkspaceId) {
   const manifestPath = getAgentKitTopicManifestRel(kind, agentId);
   if (!manifestPath) return null;
   const url = `/api/preview/image?path=${encodeURIComponent(manifestPath)}`;
@@ -18344,7 +18349,7 @@ function mountIdentityAvatarWithFallbacks(
   mountFallback();
 }
 
-function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
+function resolveSidebarAgentToolbarPreviewUrl(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   return {
     primaryUrl: getAgentKitTopicPreviewUrl("agent", agentId),
@@ -18352,7 +18357,7 @@ function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
   };
 }
 
-function syncIdentityToolbarAvatars(agentId = activeAgentId) {
+function syncIdentityToolbarAvatars(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   const showKitAvatars = Boolean(agentId && !isPlatformAgentId(agentId));
   const showSidebarAvatar = Boolean(agentId);
@@ -19204,16 +19209,16 @@ async function saveAgentsRegistryDraft() {
     const data = await response.json();
     await loadAgents();
     const wasOnLanding = appRootNode?.classList.contains("app-landing-view");
-    const previousAgentId = activeAgentId;
+    const previousAgentId = activeWorkspaceId;
     if (
       !wasOnLanding &&
-      activeAgentId &&
-      (!agentsCache.some((agent) => agent.id === activeAgentId) ||
-        !getSelectableAgents().some((agent) => agent.id === activeAgentId))
+      activeWorkspaceId &&
+      (!agentsCache.some((agent) => agent.id === activeWorkspaceId) ||
+        !getSelectableAgents().some((agent) => agent.id === activeWorkspaceId))
     ) {
-      activeAgentId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
-      localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
-      syncAgentToUrl(activeAgentId);
+      activeWorkspaceId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
+      localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
+      syncAgentToUrl(activeWorkspaceId);
     }
     renderAgentSelect();
     syncAgentPreview();
@@ -19222,7 +19227,7 @@ async function saveAgentsRegistryDraft() {
     if (wasOnLanding) {
       renderAppLandingAgents();
       renderLandingSearchAgents();
-    } else if (previousAgentId !== activeAgentId) {
+    } else if (previousAgentId !== activeWorkspaceId) {
       activePath = null;
       activeLabel = null;
       clearActiveSystemFile();
@@ -19230,7 +19235,7 @@ async function saveAgentsRegistryDraft() {
       showAgentHomeView();
       await loadSystemFiles();
     }
-    if (!wasOnLanding && activeAgentId) {
+    if (!wasOnLanding && activeWorkspaceId) {
       await refreshMenu();
     }
     showToast("Список агентов сохранён", "success");
@@ -20897,7 +20902,7 @@ function resolveHeroRecordAssignPath(nodePath, options = {}) {
 
 async function refreshUiAfterWorkspaceRecordIdAssign() {
   if (activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewStoreRel) {
-    const agentId = awnDataViewCatalogAgentId || activeAgentId;
+    const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
     const recordId = String(awnDataViewRecordId || "").trim();
     await refreshMenuAwnDataStores(agentId);
     if (recordId) {
@@ -21251,7 +21256,7 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       }
 
       try {
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // ignore
       }
@@ -21275,7 +21280,7 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       const sectionId = String(issue.sectionId || "").trim();
       if (!storeRel || !sectionId) throw new Error("Раздел не найден");
       const response = await fetch(
-        buildApiUrl("/api/awn-databases/records/rename", {}, awnDataViewCatalogAgentId || activeAgentId),
+        buildApiUrl("/api/awn-databases/records/rename", {}, awnDataViewCatalogAgentId || activeWorkspaceId),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -21293,8 +21298,8 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       }
       const nextId = String(data.record || issue.suggested || sectionId).trim();
       if (nextId) awnDataViewSectionId = nextId;
-      await refreshMenuAwnDataStores(awnDataViewCatalogAgentId || activeAgentId);
-      await loadAwnDataViewStore(awnDataViewCatalogAgentId || activeAgentId);
+      await refreshMenuAwnDataStores(awnDataViewCatalogAgentId || activeWorkspaceId);
+      await loadAwnDataViewStore(awnDataViewCatalogAgentId || activeWorkspaceId);
       showToast(`Раздел переименован в «${issue.suggested}»`, "success");
       return;
     }
@@ -23518,7 +23523,7 @@ function saveSidebarWidth() {
   } catch {
     // Ignore storage write issues (private mode, quota, etc.)
   }
-  scheduleUserSettingsPersist(activeAgentId);
+  scheduleUserSettingsPersist(activeWorkspaceId);
 }
 
 function syncSidebarWidthControls() {
@@ -23554,15 +23559,15 @@ function resolveSectionFolderPath(node, parentSectionPath = "", depth = 0) {
   return normalizeFolderPath(getSectionFolderPath(node, parentSectionPath));
 }
 
-function getAgentCollapsedFolders(agentId = activeAgentId) {
-  const id = agentId || activeAgentId || "main";
+function getAgentCollapsedFolders(agentId = activeWorkspaceId) {
+  const id = agentId || activeWorkspaceId || "main";
   if (!collapsedFoldersByAgent[id]) {
     collapsedFoldersByAgent[id] = new Set();
   }
   return collapsedFoldersByAgent[id];
 }
 
-function isFolderCollapsed(folderPath, agentId = activeAgentId) {
+function isFolderCollapsed(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath);
   if (!normalized || normalized === ".") return false;
   return getAgentCollapsedFolders(agentId).has(normalized);
@@ -23650,7 +23655,7 @@ function saveAgentSystemDomainCollapsedByAgent() {
   }
 }
 
-function getAgentSystemDomainCollapsedSet(agentId = activeAgentId) {
+function getAgentSystemDomainCollapsedSet(agentId = activeWorkspaceId) {
   const id = String(agentId || "main").trim() || "main";
   if (!agentSystemDomainCollapsedByAgent[id]) {
     agentSystemDomainCollapsedByAgent[id] = new Set();
@@ -23662,23 +23667,23 @@ function getAgentSystemDomainCollapseKey(section) {
   return normalizeFolderPath(section?.folderPath || section?.title || "");
 }
 
-function isAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+function isAgentSystemDomainCollapsed(section, agentId = activeWorkspaceId) {
   const key = getAgentSystemDomainCollapseKey(section);
   if (!key) return false;
   return getAgentSystemDomainCollapsedSet(agentId).has(key);
 }
 
-function toggleAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+function toggleAgentSystemDomainCollapsed(section, agentId = activeWorkspaceId) {
   const key = getAgentSystemDomainCollapseKey(section);
   if (!key) return;
   const collapsed = getAgentSystemDomainCollapsedSet(agentId);
   if (collapsed.has(key)) collapsed.delete(key);
   else collapsed.add(key);
   saveAgentSystemDomainCollapsedByAgent();
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
-    if (agentId === activeAgentId) updateActiveButton();
+    if (agentId === activeWorkspaceId) updateActiveButton();
   }
 }
 
@@ -23714,11 +23719,11 @@ function savePinnedMenuFoldersByAgent() {
   }
 }
 
-function getPinnedMenuFolder(agentId = activeAgentId) {
+function getPinnedMenuFolder(agentId = activeWorkspaceId) {
   return pinnedMenuFolderByAgent[agentId] || null;
 }
 
-function setPinnedMenuFolder(folderPath, agentId = activeAgentId, options = {}) {
+function setPinnedMenuFolder(folderPath, agentId = activeWorkspaceId, options = {}) {
   const normalized = folderPath ? normalizeFolderPath(folderPath) : null;
   if (normalized) pinnedMenuFolderByAgent[agentId] = normalized;
   else delete pinnedMenuFolderByAgent[agentId];
@@ -23738,7 +23743,7 @@ function isFolderInPinnedBranch(folderPath, pinnedPath) {
   return false;
 }
 
-function getPinnedMenuFolderForTree(agentId = activeAgentId) {
+function getPinnedMenuFolderForTree(agentId = activeWorkspaceId) {
   if (menuSearchQuery.trim()) return null;
   return getPinnedMenuFolder(agentId);
 }
@@ -23752,7 +23757,7 @@ function isMenuItemInPinnedBranch(itemPath, pinnedPath) {
   return false;
 }
 
-function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
+function expandPinnedFolderPathChain(folderPath, agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   const normalized = normalizeFolderPath(folderPath || ".");
   collapsed.delete(".");
@@ -23765,8 +23770,8 @@ function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
   }
 }
 
-function getActiveMenuFolderPath(agentId = activeAgentId) {
-  if (!activePath || agentId !== activeAgentId) return null;
+function getActiveMenuFolderPath(agentId = activeWorkspaceId) {
+  if (!activePath || agentId !== activeWorkspaceId) return null;
   const normalized = normalizeMenuNodePath(activePath);
   if (isNodeManifestPath(normalized)) {
     return normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
@@ -23776,13 +23781,13 @@ function getActiveMenuFolderPath(agentId = activeAgentId) {
   return normalizeFolderPath(parts.join("/") || ".");
 }
 
-function formatPinnedBranchLabel(folderPath, agentId = activeAgentId) {
+function formatPinnedBranchLabel(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   if (normalized === ".") return getAgentTreeTitle(agentId);
   return formatCreateParentLabel(normalized);
 }
 
-function applyPinnedBranchCollapse(agentId = activeAgentId) {
+function applyPinnedBranchCollapse(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   if (!pinned || menuSearchQuery.trim()) return;
 
@@ -23820,39 +23825,39 @@ function applyPinnedBranchCollapse(agentId = activeAgentId) {
   saveCollapsedFoldersByAgent();
 }
 
-function pinMenuBranch(folderPath, agentId = activeAgentId) {
+function pinMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   setPinnedMenuFolder(normalized, agentId);
   applyPinnedBranchCollapse(agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
-    if (agentId === activeAgentId) updateActiveButton();
+    if (agentId === activeWorkspaceId) updateActiveButton();
   }
   syncMenuPinBranchUi(agentId);
-  if (agentId === activeAgentId) scrollPinnedFolderIntoView(agentId);
+  if (agentId === activeWorkspaceId) scrollPinnedFolderIntoView(agentId);
   showToast(`Ветка «${formatPinnedBranchLabel(normalized, agentId)}» закреплена`, "success");
 }
 
-function unpinMenuBranch(agentId = activeAgentId) {
+function unpinMenuBranch(agentId = activeWorkspaceId) {
   if (!getPinnedMenuFolder(agentId)) return;
   setPinnedMenuFolder(null, agentId);
   syncMenuPinBranchUi(agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  if (menu && agentId === activeAgentId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
+  if (menu && agentId === activeWorkspaceId) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
     updateActiveButton();
   }
   showToast("Ветка откреплена", "success");
 }
 
-function togglePinMenuBranch(folderPath, agentId = activeAgentId) {
+function togglePinMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   if (getPinnedMenuFolder(agentId) === normalized) unpinMenuBranch(agentId);
   else pinMenuBranch(normalized, agentId);
 }
 
-function scrollPinnedFolderIntoView(agentId = activeAgentId) {
+function scrollPinnedFolderIntoView(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   if (!pinned || !menuNode) return;
   requestAnimationFrame(() => {
@@ -23862,10 +23867,10 @@ function scrollPinnedFolderIntoView(agentId = activeAgentId) {
   });
 }
 
-function syncMenuPinBranchUi(agentId = activeAgentId) {
+function syncMenuPinBranchUi(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   const canPin =
-    agentId === activeAgentId &&
+    agentId === activeWorkspaceId &&
     menuViewMode === "tree" &&
     !menuSearchQuery.trim() &&
     Boolean(currentMenuData);
@@ -23885,7 +23890,7 @@ function syncMenuPinBranchUi(agentId = activeAgentId) {
   }
 
   if (menuPinnedBannerNode) {
-    menuPinnedBannerNode.classList.toggle("hidden", !pinned || agentId !== activeAgentId);
+    menuPinnedBannerNode.classList.toggle("hidden", !pinned || agentId !== activeWorkspaceId);
   }
   if (menuPinnedBannerPathNode) {
     menuPinnedBannerPathNode.textContent = pinnedLabel;
@@ -23904,11 +23909,11 @@ function syncMenuPinBranchUi(agentId = activeAgentId) {
   }
 
   if (menuNode) {
-    menuNode.classList.toggle("menu-has-pinned-branch", Boolean(pinned && agentId === activeAgentId));
+    menuNode.classList.toggle("menu-has-pinned-branch", Boolean(pinned && agentId === activeWorkspaceId));
   }
 }
 
-function createMenuPinBranchButton(folderPath, agentId = activeAgentId) {
+function createMenuPinBranchButton(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   const pinned = getPinnedMenuFolder(agentId);
   const isPinned = pinned === normalized;
@@ -24007,16 +24012,16 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   return false;
 }
 
-function getNodeConfigCacheKey(nodePath, agentId = activeAgentId) {
+function getNodeConfigCacheKey(nodePath, agentId = activeWorkspaceId) {
   return nodeStorageKey(agentId, nodePath);
 }
 
-function getCachedNodeConfig(nodePath, agentId = activeAgentId) {
+function getCachedNodeConfig(nodePath, agentId = activeWorkspaceId) {
   if (!nodePath) return null;
   return nodeConfigCacheByPath.get(getNodeConfigCacheKey(nodePath, agentId)) || null;
 }
 
-function setCachedNodeConfig(nodePath, payload, agentId = activeAgentId) {
+function setCachedNodeConfig(nodePath, payload, agentId = activeWorkspaceId) {
   if (!nodePath) return;
   nodeConfigCacheByPath.set(getNodeConfigCacheKey(nodePath, agentId), {
     path: payload?.path || "",
@@ -24028,7 +24033,7 @@ function setCachedNodeConfig(nodePath, payload, agentId = activeAgentId) {
   hydrateNavigationMediaImagesLayoutFromNodeConfig(nodePath, payload?.content || "");
 }
 
-function invalidateNodeConfigCache(nodePath, agentId = activeAgentId) {
+function invalidateNodeConfigCache(nodePath, agentId = activeWorkspaceId) {
   if (!nodePath) return;
   nodeConfigCacheByPath.delete(getNodeConfigCacheKey(nodePath, agentId));
 }
@@ -24057,7 +24062,7 @@ async function loadNodeConfig(nodePath, options = {}) {
     return { path: "", content: "", exists: false, defaultLandingMode: null };
   }
 
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   if (!options.force) {
     const cached = getCachedNodeConfig(nodePath, agentId);
     if (cached) return cached;
@@ -24081,7 +24086,7 @@ async function loadNodeConfig(nodePath, options = {}) {
   return payload;
 }
 
-async function saveNodeConfigContent(nodePath, content, agentId = activeAgentId) {
+async function saveNodeConfigContent(nodePath, content, agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/file/node-config", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -24107,7 +24112,7 @@ async function saveNodeConfigContent(nodePath, content, agentId = activeAgentId)
 }
 
 async function saveNodeConfigDefaultLanding(nodePath, mode, options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const current = options.skipMigration
     ? { content: "" }
     : await loadNodeConfig(nodePath, { agentId, force: true });
@@ -24131,13 +24136,13 @@ function getNodeDefaultView(nodePath) {
 async function setNodeDefaultView(nodePath, mode) {
   if (!nodePath || !isValidNodeDefaultLandingMode(mode)) return;
   await saveNodeConfigDefaultLanding(nodePath, mode);
-  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeAgentId, nodePath));
+  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 async function clearNodeDefaultView(nodePath) {
   if (!nodePath) return;
   await saveNodeConfigDefaultLanding(nodePath, null);
-  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeAgentId, nodePath));
+  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 function getContentModeLabel(mode) {
@@ -24290,10 +24295,10 @@ function userAwnSettingsFromMenuTreeSettings(settings = {}) {
   };
 }
 
-function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
+function getUserAwnSettingsSnapshot(agentId = activeWorkspaceId) {
   const hideSensitive =
     hideSensitiveDataByAgent[agentId] ??
-    (agentId === activeAgentId && window.AgentCmsPrivacyMode?.isEnabled?.()) ??
+    (agentId === activeWorkspaceId && window.AgentCmsPrivacyMode?.isEnabled?.()) ??
     false;
   return {
     ...userAwnSettingsFromMenuTreeSettings(getMenuTreeSettings(agentId)),
@@ -24303,7 +24308,7 @@ function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
   };
 }
 
-function getMenuTreeSettings(agentId = activeAgentId) {
+function getMenuTreeSettings(agentId = activeWorkspaceId) {
   const stored = menuTreeSettingsByAgent[agentId] || {};
   return {
     showEmptyFolders: stored.showEmptyFolders !== false,
@@ -24324,7 +24329,7 @@ function normalizeUserHideSensitiveSetting(value) {
   return Boolean(value);
 }
 
-async function loadUserSettingsForAgent(agentId = activeAgentId) {
+async function loadUserSettingsForAgent(agentId = activeWorkspaceId) {
   if (!agentId) return null;
   try {
     const response = await fetch(buildApiUrl("/api/user/settings"));
@@ -24337,7 +24342,7 @@ async function loadUserSettingsForAgent(agentId = activeAgentId) {
   }
 }
 
-async function persistUserSettingsToFile(agentId = activeAgentId) {
+async function persistUserSettingsToFile(agentId = activeWorkspaceId) {
   if (!agentId) return;
   const snapshot = getUserAwnSettingsSnapshot(agentId);
   const content = buildSettingsYamlFromState({
@@ -24355,7 +24360,7 @@ async function persistUserSettingsToFile(agentId = activeAgentId) {
   });
 }
 
-function scheduleUserSettingsPersist(agentId = activeAgentId) {
+function scheduleUserSettingsPersist(agentId = activeWorkspaceId) {
   clearTimeout(userSettingsPersistTimer);
   userSettingsPersistTimer = setTimeout(() => {
     void persistUserSettingsToFile(agentId).catch(() => {});
@@ -24364,12 +24369,12 @@ function scheduleUserSettingsPersist(agentId = activeAgentId) {
 
 window.addEventListener("agent-cms:privacy-mode-change", (event) => {
   const enabled = Boolean(event?.detail?.enabled);
-  if (!activeAgentId) return;
-  hideSensitiveDataByAgent[activeAgentId] = enabled;
-  scheduleUserSettingsPersist(activeAgentId);
+  if (!activeWorkspaceId) return;
+  hideSensitiveDataByAgent[activeWorkspaceId] = enabled;
+  scheduleUserSettingsPersist(activeWorkspaceId);
 });
 
-function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId) {
+function applyUserSettingsFromNormalized(settings = {}, agentId = activeWorkspaceId) {
   menuTreeSettingsByAgent[agentId] = menuTreeSettingsFromUserAwnSettings(settings);
   const width = Number(settings["sidebar-width"]);
   if (Number.isFinite(width) && width > 0) {
@@ -24384,7 +24389,7 @@ function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId)
   setPinnedMenuFolder(pinned || null, agentId, { skipPersist: true });
   if (Object.prototype.hasOwnProperty.call(settings, "hide-sensitive-data")) {
     hideSensitiveDataByAgent[agentId] = normalizeUserHideSensitiveSetting(settings["hide-sensitive-data"]);
-    if (agentId === activeAgentId && window.AgentCmsPrivacyMode) {
+    if (agentId === activeWorkspaceId && window.AgentCmsPrivacyMode) {
       const want = hideSensitiveDataByAgent[agentId];
       if (window.AgentCmsPrivacyMode.isEnabled() !== want) {
         window.AgentCmsPrivacyMode.setEnabled(want);
@@ -24398,7 +24403,7 @@ function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId)
     // ignore storage errors
   }
   applyMenuTreeSettingsUi(agentId);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     const menu = menuCacheByAgent.get(agentId) || currentMenuData;
     if (menu) {
       withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
@@ -24527,7 +24532,7 @@ let workspaceIdleScreensaverReady = false;
 
 function isWorkspaceIdleScreensaverEligible() {
   return (
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("app-landing-view") &&
     !platformMaintenanceViewActive
   );
@@ -24537,7 +24542,7 @@ let workspacePomodoroReady = false;
 
 function isWorkspacePomodoroEligible() {
   return (
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("app-landing-view") &&
     !platformMaintenanceViewActive
   );
@@ -24548,11 +24553,11 @@ function setupWorkspacePomodoro() {
   workspacePomodoroReady = true;
   window.WorkspacePomodoro.init({
     isEligible: isWorkspacePomodoroEligible,
-    getAgentId: () => activeAgentId || "main"
+    getAgentId: () => activeWorkspaceId || "main"
   });
 }
 
-function reloadWorkspacePomodoroForAgent(agentId = activeAgentId) {
+function reloadWorkspacePomodoroForAgent(agentId = activeWorkspaceId) {
   setupWorkspacePomodoro();
   if (!agentId || !window.WorkspacePomodoro?.reloadForAgent) return;
   window.WorkspacePomodoro.reloadForAgent(agentId);
@@ -24567,11 +24572,11 @@ function setupWorkspaceIdleScreensaver() {
   workspaceIdleScreensaverReady = true;
   window.WorkspaceIdleScreensaver.init({
     isEligible: isWorkspaceIdleScreensaverEligible,
-    getAgentId: () => activeAgentId || "main"
+    getAgentId: () => activeWorkspaceId || "main"
   });
 }
 
-function reloadWorkspaceIdleScreensaverSettings(agentId = activeAgentId) {
+function reloadWorkspaceIdleScreensaverSettings(agentId = activeWorkspaceId) {
   setupWorkspaceIdleScreensaver();
   if (!agentId || !window.WorkspaceIdleScreensaver?.reloadForAgent) return;
   void window.WorkspaceIdleScreensaver.reloadForAgent(agentId);
@@ -24610,7 +24615,7 @@ function setupMaintenancePaneUi() {
           if (settings?.maintenanceMode) return;
           hideMaintenanceView();
           showHomeView();
-          if (activeAgentId) {
+          if (activeWorkspaceId) {
             void refreshMenu().catch((error) => {
               if (isMaintenanceErrorMessage(error?.message)) showMaintenanceView();
             });
@@ -24629,7 +24634,7 @@ function applyUserSettingsFromCache(cache = getNodeSettingsCache()) {
     if (!entry?.key) continue;
     awnSettings[entry.key] = entry.value;
   }
-  applyUserSettingsFromNormalized(awnSettings, activeAgentId);
+  applyUserSettingsFromNormalized(awnSettings, activeWorkspaceId);
 }
 
 function loadAgentGraphSettingsByAgent() {
@@ -24642,7 +24647,7 @@ function loadAgentGraphSettingsByAgent() {
   }
 }
 
-function getAgentGraphSettings(agentId = activeAgentId) {
+function getAgentGraphSettings(agentId = activeWorkspaceId) {
   const stored = agentGraphSettingsByAgent[agentId] || {};
   return {
     showPreviews: stored.showPreviews !== false,
@@ -24660,7 +24665,7 @@ function saveAgentGraphSettings(agentId, patch) {
   }
 }
 
-function applyAgentGraphSettingsUi(agentId = activeAgentId) {
+function applyAgentGraphSettingsUi(agentId = activeWorkspaceId) {
   const settings = getAgentGraphSettings(agentId);
   if (agentGraphShowPreviewsNode) {
     agentGraphShowPreviewsNode.checked = settings.showPreviews;
@@ -24682,7 +24687,7 @@ function applyAgentGraphCanvasThemeUi(theme = getAgentGraphSettings().canvasThem
 
 function setAgentGraphCanvasTheme(theme) {
   const resolved = theme === "light" ? "light" : "dark";
-  saveAgentGraphSettings(activeAgentId, { canvasTheme: resolved });
+  saveAgentGraphSettings(activeWorkspaceId, { canvasTheme: resolved });
   applyAgentGraphCanvasThemeUi(resolved);
   document.querySelectorAll(".external-graph-wrap").forEach((wrap) => {
     wrap.classList.toggle("is-light", resolved === "light");
@@ -24696,13 +24701,13 @@ function setAgentGraphCanvasTheme(theme) {
 }
 
 function saveAgentGraphShowPreviewsFromUi(checked) {
-  saveAgentGraphSettings(activeAgentId, { showPreviews: Boolean(checked) });
-  applyAgentGraphSettingsUi(activeAgentId);
+  saveAgentGraphSettings(activeWorkspaceId, { showPreviews: Boolean(checked) });
+  applyAgentGraphSettingsUi(activeWorkspaceId);
   if (agentWorkspaceView === "graph") renderAgentGraphView();
   if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
 }
 
-function applyMenuTreeSettingsUi(agentId = activeAgentId) {
+function applyMenuTreeSettingsUi(agentId = activeWorkspaceId) {
   const settings = getMenuTreeSettings(agentId);
   if (menuTreeShowEmptyFoldersNode) {
     menuTreeShowEmptyFoldersNode.checked = settings.showEmptyFolders;
@@ -24763,7 +24768,7 @@ function toggleMenuSettingsPopover() {
   }
 }
 
-function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, agentId = activeAgentId) {
+function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, agentId = activeWorkspaceId) {
   const label = displayLabel ?? sortKey ?? "";
   const key = String(sortKey || "").trim();
   const settings = getMenuTreeSettings(agentId);
@@ -24776,7 +24781,7 @@ function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, ag
   return `${String(sortIndex + 1).padStart(width, "0")} ${label}`;
 }
 
-function formatMenuTreeItemLabel(item, parentNode, agentId = activeAgentId) {
+function formatMenuTreeItemLabel(item, parentNode, agentId = activeWorkspaceId) {
   return formatMenuTreeSortLabel(item?.label, parentNode, item?.label, agentId);
 }
 
@@ -25132,7 +25137,7 @@ function resolveAwnStatusFromPropEntries(entries = []) {
   return String(getPropsEntryValueByKey(entries, "awn-status") || "").trim();
 }
 
-function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
+function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeWorkspaceId) {
   setMenuLabelWithMarkers(
     btn,
     formatMenuTreeItemLabel(item, parentNode, agentId),
@@ -25200,7 +25205,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
       path,
       label: state.label || path.split("/").pop() || path,
       isDirectory: true,
-      agentId: activeAgentId
+      agentId: activeWorkspaceId
     };
   }
   if (state.kind === "workspaceItem") {
@@ -25212,7 +25217,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
       path,
       label: state.label || path.split("/").pop() || path,
       isDirectory: Boolean(state.isDirectory),
-      agentId: activeAgentId
+      agentId: activeWorkspaceId
     };
   }
   const path = normalizeMenuNodePath(state.path);
@@ -25223,7 +25228,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
     kind,
     path,
     label: state.label || getLabelFromPath(path),
-    agentId: activeAgentId
+    agentId: activeWorkspaceId
   };
 }
 
@@ -25284,7 +25289,7 @@ function canPasteWorkspaceTreeItem(item, targetState) {
 function canPasteWorkspaceTreeClipboard(targetState) {
   const items = getWorkspaceTreeClipboardItems();
   if (!items.length || !targetState) return false;
-  if (workspaceTreeClipboard?.agentId !== activeAgentId) return false;
+  if (workspaceTreeClipboard?.agentId !== activeWorkspaceId) return false;
   return items.some((item) => canPasteWorkspaceTreeItem(item, targetState));
 }
 
@@ -25363,7 +25368,7 @@ function setWorkspaceTreeClipboard(state, op) {
   if (selectedEntries.length) {
     workspaceTreeClipboard = {
       op,
-      agentId: activeAgentId,
+      agentId: activeWorkspaceId,
       items: selectedEntries.map((entry) => ({ ...entry, op }))
     };
     workspaceTreeSelection.clear();
@@ -25385,7 +25390,7 @@ function setWorkspaceTreeClipboard(state, op) {
   }
   workspaceTreeClipboard = {
     op,
-    agentId: activeAgentId,
+    agentId: activeWorkspaceId,
     items: [entry]
   };
   syncWorkspaceTreeCutMarkers();
@@ -25418,7 +25423,7 @@ function setWorkspaceTreeClipboardFromFolderBrowseSelection(op = "cut") {
     showToast("Не удалось положить элементы в буфер", "error");
     return false;
   }
-  workspaceTreeClipboard = { op, agentId: activeAgentId, items };
+  workspaceTreeClipboard = { op, agentId: activeWorkspaceId, items };
   workspaceTreeSelection.clear();
   syncWorkspaceTreeSelectionMarkers();
   syncWorkspaceTreeCutMarkers();
@@ -25445,7 +25450,7 @@ async function executeWorkspaceTreeItemPaste(item, targetState, op = "cut") {
 }
 
 async function refreshAfterWorkspaceTreePaste() {
-  invalidateMenuAgentCache(activeAgentId);
+  invalidateMenuAgentCache(activeWorkspaceId);
   await refreshMenu();
   if (
     activeFolderBrowsePath &&
@@ -25618,10 +25623,10 @@ function canShowMenuContextStatusPicker(nodePath) {
   return Boolean(path && isNodeMdPath(path) && !isPartNodePath(path));
 }
 
-function resolveMenuNodeStatus(nodePath, agentId = activeAgentId) {
+function resolveMenuNodeStatus(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   if (!normalized) return "";
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return "";
   const entry = collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }).find(
     (item) => normalizeMenuNodePath(item.path) === normalized
@@ -25685,7 +25690,7 @@ function upsertAwnMainInPropsYaml(content, enabled) {
 
 async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
   const {
-    agentId = activeAgentId,
+    agentId = activeWorkspaceId,
     confirmRemove = true,
     removeTitle,
     removeMessage,
@@ -25696,7 +25701,7 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
   } = options;
   const nodePathRaw = String(nodePath || "").trim();
   const label = getLabelFromPath(nodePathRaw) || nodePathRaw;
-  const agentIdResolved = agentId || activeAgentId;
+  const agentIdResolved = agentId || activeWorkspaceId;
 
   if (!enabled && confirmRemove) {
     const confirmed = await askConfirm(removeMessage || `Убрать «${label}»?`, {
@@ -25891,11 +25896,11 @@ async function toggleTopicSharedSlot(nodePath, propEntries = null) {
 
 async function removeNodeFromFocus(focusItem) {
   const nodePath = String(focusItem?.nodePath || "").trim();
-  const agentId = focusItem?.agentId || activeAgentId;
+  const agentId = focusItem?.agentId || activeWorkspaceId;
   await setNodeFocusState(nodePath, false, { agentId, confirmRemove: true });
 }
 
-async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
+async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeWorkspaceId) {
   const apiPath = getResolvedNodePath(nodePath);
   if (!apiPath) return;
 
@@ -25920,7 +25925,7 @@ async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
   }
 }
 
-async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgentId) {
+async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeWorkspaceId) {
   const apiPath = getResolvedNodePath(nodePath);
   if (!apiPath || !canShowMenuContextStatusPicker(apiPath)) return;
 
@@ -25969,7 +25974,7 @@ async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgen
   void refreshAllFocusPanels();
 }
 
-function getMenuContextMenuActions(kind, nodePath, agentId = activeAgentId) {
+function getMenuContextMenuActions(kind, nodePath, agentId = activeWorkspaceId) {
   const actions = MENU_CONTEXT_MENU_ACTIONS[kind] || [];
   if (kind !== "area") return actions;
   const folderPath = getFolderPathFromManifest(normalizeMenuNodePath(nodePath));
@@ -26026,7 +26031,7 @@ function appendMenuContextMenuPickerSections(
   nodePath,
   currentStatus,
   currentTool = "",
-  agentId = activeAgentId
+  agentId = activeWorkspaceId
 ) {
   if (!menuContextMenuListNode) return false;
   let hadAny = false;
@@ -26043,7 +26048,7 @@ function appendMenuContextMenuPickerSections(
 function renderMenuContextMenuItems(
   kind,
   nodePath,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   currentStatus = "",
   currentTool = ""
 ) {
@@ -26102,7 +26107,7 @@ function handleMenuContextMenuAction(actionId) {
   if (actionId === "container") {
     const folderPath = getFolderPathFromManifest(state.path);
     const containerManifest = folderPath
-      ? getNestedContainerManifestPathForFolder(folderPath, activeAgentId)
+      ? getNestedContainerManifestPathForFolder(folderPath, activeWorkspaceId)
       : null;
     if (containerManifest) {
       void openNodeFromMenu(getLabelFromPath(containerManifest), containerManifest);
@@ -26804,7 +26809,7 @@ async function fetchAwnDataRecordMenuStatus(state) {
   const storeRel = String(state?.storeRel || "").trim();
   const recordId = String(state?.recordId || "").trim();
   if (!storeRel || !recordId) return "";
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(
       buildApiUrl(
@@ -26825,7 +26830,7 @@ async function updateAwnDataRecordMenuStatusApi(state, nextStatus) {
   const storeRel = String(state?.storeRel || "").trim();
   const recordId = String(state?.recordId || "").trim();
   if (!storeRel || !recordId) throw new Error("Не удалось определить запись");
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   const response = await fetch(buildApiUrl("/api/awn-databases/record-property", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -26844,7 +26849,7 @@ async function updateAwnDataRecordMenuStatusApi(state, nextStatus) {
 }
 
 async function refreshAwnDataRecordMenuViews(state = resourceContextMenuState) {
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   await refreshMenuAwnDataStores(agentId);
   await loadAwnDataViewStore(agentId);
   if (state?.recordId && String(awnDataViewRecordId || "") === String(state.recordId)) {
@@ -27381,7 +27386,7 @@ async function submitRenameMenuNode() {
 
     closeCreateSectionModal();
     try {
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
     } catch {
       // menu will resync on next open
     }
@@ -27568,7 +27573,7 @@ async function submitRenameAwnDataRecord() {
     return;
   }
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   createSectionOkBtn.disabled = true;
   createSectionOkBtn.textContent = "Сохраняю...";
   try {
@@ -27618,7 +27623,7 @@ async function promptMoveAwnDataRecord(state) {
   });
   if (moveData == null) return;
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(buildApiUrl("/api/awn-databases/records/rename", {}, agentId), {
       method: "POST",
@@ -27655,7 +27660,7 @@ async function deleteAwnDataRecordFromMenu(state) {
   const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
   if (!confirmed) return;
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(
       buildApiUrl(
@@ -27960,7 +27965,7 @@ async function handleMenuContextMenuStatusAction(nextStatus) {
   if (normalizedStatus === currentStatus) return;
 
   try {
-    await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeAgentId);
+    await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeWorkspaceId);
     const api = awnEnumOptionsApi();
     const label =
       typeof api.resolveEnumDisplayName === "function"
@@ -28001,7 +28006,7 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
   event.stopPropagation();
   closeMenuSettingsPopover();
 
-  const status = resolveMenuNodeStatus(path, activeAgentId);
+  const status = resolveMenuNodeStatus(path, activeWorkspaceId);
   const currentTool = String(menuContextMenuState?.tool || "").trim();
   menuContextMenuState = {
     path,
@@ -28011,7 +28016,7 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
     tool: currentTool,
     target
   };
-  renderMenuContextMenuItems(kind, path, activeAgentId, status, currentTool);
+  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status, currentTool);
   positionMenuContextMenu(event.clientX, event.clientY);
   return true;
 }
@@ -28125,7 +28130,7 @@ function isMenuTopicActiveStatus(status) {
   return getAwnStatusTone(status) === "open";
 }
 
-function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId) {
+function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeWorkspaceId) {
   if (!node) return false;
   if (node.menuDepthLimited) return true;
   if (node.empty) return false;
@@ -28141,7 +28146,7 @@ function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId
   return false;
 }
 
-function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
+function pruneMenuTreeByActiveTopics(node, agentId = activeWorkspaceId) {
   if (!node || !getMenuTreeSettings(agentId).showActiveTopicsOnly) return node;
 
   const keepItem = (item) => isMenuTopicActiveStatus(item?.status);
@@ -28251,12 +28256,12 @@ function stripPlatformDataFoldersFromMenu(menu) {
   return menu ? stripPlatformDataFoldersFromMenuNode(menu) : menu;
 }
 
-function pruneMenuTreeForDisplay(node, agentId = activeAgentId) {
+function pruneMenuTreeForDisplay(node, agentId = activeWorkspaceId) {
   if (!node) return node;
   return pruneMenuTreeByFolderVisibility(pruneMenuTreeByActiveTopics(node, agentId), agentId);
 }
 
-function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
+function pruneMenuTreeByFolderVisibility(node, agentId = activeWorkspaceId) {
   if (!node || getMenuTreeSettings(agentId).showEmptyFolders) return node;
 
   const sections = (node.sections || [])
@@ -28278,11 +28283,11 @@ function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
   };
 }
 
-function isMenuTreeDepthAtLimit(depth, agentId = activeAgentId) {
+function isMenuTreeDepthAtLimit(depth, agentId = activeWorkspaceId) {
   return depth >= getMenuTreeSettings(agentId).maxDepth;
 }
 
-function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
+function shouldShowMenuTreeFolder(node, agentId = activeWorkspaceId) {
   if (!node) return false;
   if (isPlatformDataMenuFolderPath(node.folderPath || node.indexPath)) return false;
   const settings = getMenuTreeSettings(agentId);
@@ -28293,7 +28298,7 @@ function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   return !isMenuFolderWithoutTopics(node);
 }
 
-function getVisibleMenuChildren(node, agentId = activeAgentId, parentSectionPath = ".", depth = 0) {
+function getVisibleMenuChildren(node, agentId = activeWorkspaceId, parentSectionPath = ".", depth = 0) {
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   return getOrderedMenuChildren(node).filter((child) => {
     if (!child?.entry) return false;
@@ -28334,11 +28339,11 @@ function saveBookmarks() {
 }
 
 function isBookmarked(nodePath) {
-  return bookmarkedPaths.has(nodeStorageKey(activeAgentId, nodePath));
+  return bookmarkedPaths.has(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 function toggleBookmark(nodePath) {
-  const key = nodeStorageKey(activeAgentId, nodePath);
+  const key = nodeStorageKey(activeWorkspaceId, nodePath);
   if (!nodePath) return;
   if (bookmarkedPaths.has(key)) {
     bookmarkedPaths.delete(key);
@@ -28347,7 +28352,7 @@ function toggleBookmark(nodePath) {
   }
   saveBookmarks();
   if (menuViewMode === "bookmarks" && currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
     updateActiveButton();
   } else {
     updateBookmarkButtonStates();
@@ -30234,7 +30239,7 @@ function resolveMenuRuntimeBadgeTitle(kind, source) {
   return "Heartbeat включён";
 }
 
-function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
+function resolveMenuRuntimeSource(source, agentId = activeWorkspaceId) {
   if (!source) return source;
   const path = normalizeMenuNodePath(source.path || source.indexPath || "");
   const cached = path ? menuRuntimeFlagsByAgent.get(agentId)?.get(path) : null;
@@ -30301,7 +30306,7 @@ function createSchemaMenuMarkerSvg() {
   return svg;
 }
 
-function createMenuRuntimeBadges(source, agentId = activeAgentId) {
+function createMenuRuntimeBadges(source, agentId = activeWorkspaceId) {
   const resolved = resolveMenuRuntimeSource(source, agentId);
   const hasContextAlways = Boolean(resolved?.runtimeLoadAlways);
   const hasCron = Boolean(resolved?.runtimeCron);
@@ -30562,7 +30567,7 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   host.appendChild(labelWrap);
 }
 
-function pruneBookmarks(validPaths, agentId = activeAgentId) {
+function pruneBookmarks(validPaths, agentId = activeWorkspaceId) {
   const agentPrefix = `${agentId}:`;
   let changed = false;
   for (const path of Array.from(bookmarkedPaths)) {
@@ -30575,7 +30580,7 @@ function pruneBookmarks(validPaths, agentId = activeAgentId) {
   if (changed) saveBookmarks();
 }
 
-function pruneNodeConfigCache(validPaths, agentId = activeAgentId) {
+function pruneNodeConfigCache(validPaths, agentId = activeWorkspaceId) {
   const agentPrefix = `${agentId}:`;
   for (const key of Array.from(nodeConfigCacheByPath.keys())) {
     if (!key.startsWith(agentPrefix)) continue;
@@ -30585,7 +30590,7 @@ function pruneNodeConfigCache(validPaths, agentId = activeAgentId) {
   }
 }
 
-function pruneCollapsedFolders(validFolderPaths, agentId = activeAgentId) {
+function pruneCollapsedFolders(validFolderPaths, agentId = activeWorkspaceId) {
   if (!validFolderPaths || validFolderPaths.size === 0) return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   let changed = false;
@@ -30684,7 +30689,7 @@ function applyClassicMenuTreeBranchClasses(root) {
   });
 }
 
-function refreshClassicMenuTreeLines(agentId = activeAgentId) {
+function refreshClassicMenuTreeLines(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   const host = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   applyClassicMenuTreeBranchClasses(host);
@@ -30716,10 +30721,10 @@ function menuTreeChildrenNodeHasRenderedContent(childrenNode) {
   );
 }
 
-function resolveMenuSectionExpandMeta(sectionEl, agentId = activeAgentId) {
+function resolveMenuSectionExpandMeta(sectionEl, agentId = activeWorkspaceId) {
   const folderPath = String(sectionEl?.dataset?.menuFolder || "").trim();
   if (!folderPath) return null;
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const branch = getMenuBranchForFolder(menu, folderPath, agentId);
   if (!branch?.node) return null;
@@ -30732,7 +30737,7 @@ function resolveMenuSectionExpandMeta(sectionEl, agentId = activeAgentId) {
   );
 }
 
-function resolveMenuSectionHasContent(sectionEl, agentId = activeAgentId) {
+function resolveMenuSectionHasContent(sectionEl, agentId = activeWorkspaceId) {
   const expandMeta = resolveMenuSectionExpandMeta(sectionEl, agentId);
   if (expandMeta) return expandMeta.hasContent;
   return menuTreeChildrenNodeHasRenderedContent(sectionEl?.querySelector(":scope > .tree-children"));
@@ -32388,7 +32393,7 @@ function renderContentSearchResults(data) {
   }
 
   if (data?.notFound && isContentSearchIdMode()) {
-    const agentLabel = getActiveAgentMeta()?.name || activeAgentId || "текущем";
+    const agentLabel = getActiveAgentMeta()?.name || activeWorkspaceId || "текущем";
     const idLabel = data?.id != null ? `#${data.id}` : query;
     contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">Запись с awn-id <code>${escapeHtml(String(idLabel))}</code> не найдена в workspace «${escapeHtml(agentLabel)}». Проверьте выбранное хранилище в шапке: id привязан к файлу с полем <code>awn-id</code> в frontmatter (не к номеру в списке каналов, если он другой).</div>`;
     contentSearchResultsNode.classList.remove("hidden");
@@ -33046,7 +33051,7 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
 async function openContentSearchResult(result, { agentId = null } = {}) {
   if (!result) return;
 
-  if (agentId && agentId !== activeAgentId) {
+  if (agentId && agentId !== activeWorkspaceId) {
     await switchActiveAgent(agentId);
   }
 
@@ -33449,7 +33454,7 @@ function isMenuRenderInServiceTree(parentEl) {
   );
 }
 
-function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveServiceTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isServiceNodePath(raw)) return raw;
@@ -33458,7 +33463,7 @@ function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${serviceFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
-function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveContainerTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isAgentContainerNodePath(raw)) return raw;
@@ -33469,7 +33474,7 @@ function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${containerFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
-function resolveSharedTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveSharedTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isAgentSharedNodePath(raw)) return raw;
@@ -33551,7 +33556,7 @@ function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgent
   return null;
 }
 
-async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentId) {
+async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeWorkspaceId) {
   const normalized = resolveAdoptValidationFolderPath(folderPath, agentId);
   if (!normalized || normalized === ".") return false;
   try {
@@ -33566,7 +33571,7 @@ async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentI
   }
 }
 
-function shouldOfferAreaAdopt(node, agentId = activeAgentId) {
+function shouldOfferAreaAdopt(node, agentId = activeWorkspaceId) {
   if (!node || node.indexPath) return false;
   const folderPath = String(node.folderPath || "").trim();
   if (!folderPath) return false;
@@ -33590,7 +33595,7 @@ function resolveCreateModalParentPath(parentPath, options = {}) {
 }
 
 function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const normalized = normalizeCreateParentPath(folderPath || ".");
   if (normalized === ".") {
@@ -33626,7 +33631,7 @@ function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId
   return null;
 }
 
-function hasNestedContainerInFolder(folderPath, agentId = activeAgentId) {
+function hasNestedContainerInFolder(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeCreateParentPath(folderPath || ".");
   if (!normalized || normalized === ".") {
     return isAgentContainerFolderPresent(agentId);
@@ -33635,7 +33640,7 @@ function hasNestedContainerInFolder(folderPath, agentId = activeAgentId) {
   return Boolean(node?.containerTree);
 }
 
-function getNestedContainerManifestPathForFolder(folderPath, agentId = activeAgentId) {
+function getNestedContainerManifestPathForFolder(folderPath, agentId = activeWorkspaceId) {
   if (!hasNestedContainerInFolder(folderPath, agentId)) return null;
   const normalized = normalizeCreateParentPath(folderPath || ".");
   const node = getMenuTreeNodeByFolderPath(normalized, agentId);
@@ -33660,7 +33665,7 @@ function getGitRepoRootForMenuPath(folderPath, agentId = getCreateModalAgentId()
   return null;
 }
 
-function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
+function isGitRepoLooseFilePath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized) return false;
   const base = normalized.split("/").filter(Boolean).pop() || "";
@@ -33674,7 +33679,7 @@ function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
   return isGitRepoMenuFolder(parentFolder, agentId);
 }
 
-function isGitRepoLooseMdPath(nodePath, agentId = activeAgentId) {
+function isGitRepoLooseMdPath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !/\.md$/i.test(normalized)) return false;
   return isGitRepoLooseFilePath(normalized, agentId);
@@ -33740,26 +33745,26 @@ function isMenuPathInsideGitRepoContainer(relPath, gitRepoRootRel = ".", agentId
 }
 
 function isAgentKitFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.serviceTree);
 }
 
 function isAgentContainerFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.containerTree);
 }
 
 function isAgentSharedFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.sharedTree);
 }
 
-function getContainerRootHint(agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function getContainerRootHint(agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return menu?.hasGitSelf ? CONTAINER_ROOT_HINT_GIT : CONTAINER_ROOT_HINT;
 }
 
-function getWorkspaceRootAddButtonTitle(agentId = activeAgentId) {
+function getWorkspaceRootAddButtonTitle(agentId = activeWorkspaceId) {
   const lines = ["Создать область, тему или свободную память."];
   if (!isAgentKitFolderPresent(agentId)) {
     lines.push(`${AGENT_KIT_FOLDER_DEFAULT}: ${KIT_ROOT_HINT}`);
@@ -34101,7 +34106,7 @@ const SERVICE_DOC_PRESET_LABELS = {
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   if (!agentId) return null;
-  return menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  return menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
 }
 
 function collectServicePathLookupVariants(agentId, relPath) {
@@ -34196,8 +34201,8 @@ function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
   );
 }
 
-function isAwnTaxonomiesGroupPresent(agentId = activeAgentId) {
-  const resolvedAgentId = String(agentId || activeAgentId || "").trim();
+function isAwnTaxonomiesGroupPresent(agentId = activeWorkspaceId) {
+  const resolvedAgentId = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgentId) return false;
   const cache = getAgentTaxonomiesCache(resolvedAgentId);
   if (cache?.groupExists) return true;
@@ -34809,7 +34814,7 @@ function closeCreateNodeModal() {
 }
 
 function openCreateNodeModal(parentPath, options = {}) {
-  createModalAgentId = options.agentId || activeAgentId;
+  createModalAgentId = options.agentId || activeWorkspaceId;
   createModalBaseParentPath = resolveCreateModalParentPath(parentPath, options);
   createModalEmptyFolder = Boolean(options.emptyFolder);
   createModalAdoptFolder = Boolean(options.adoptFolder ?? options.emptyFolder);
@@ -34831,7 +34836,7 @@ function openCreateNodeModal(parentPath, options = {}) {
   syncDisplayNameLengthHint(createNameInputNode);
 }
 
-function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
+function toggleFolderCollapsed(folderPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeFolderPath(folderPath);
   if (!normalizedPath || normalizedPath === ".") return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
@@ -34844,8 +34849,8 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   applyMenuFolderCollapsedUi(normalizedPath, agentId);
 }
 
-function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId, options = {}) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeWorkspaceId, options = {}) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuTreePreviews(agentId, () =>
         withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId, options))
@@ -34854,13 +34859,13 @@ function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId, opt
   if (!patched && menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
   }
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
   }
 }
 
-async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId) {
+async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeFolderPath(folderPath);
   if (!normalizedPath || normalizedPath === ".") return;
   try {
@@ -34874,7 +34879,7 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
   collapsedFolders.delete(normalizedPath);
   saveCollapsedFoldersByAgent();
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuTreePreviews(agentId, () =>
         withPreservedMenuScroll(() => {
@@ -34892,13 +34897,13 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
   }
 }
 
-function getMenuBranchLoadInFlight(agentId = activeAgentId) {
+function getMenuBranchLoadInFlight(agentId = activeWorkspaceId) {
   let map = menuBranchLoadInFlightByAgent.get(agentId);
   if (!map) {
     map = new Map();
@@ -34913,7 +34918,7 @@ function isMenuFolderLazyExpandable(node) {
 
 function getMenuFolderExpandMeta(
   node,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   parentSectionPath = ".",
   depth = 0,
   sectionFolderPath = null
@@ -34960,7 +34965,7 @@ function getMenuFolderExpandMeta(
   };
 }
 
-function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = false) {
+function setMenuBranchLoading(folderPath, agentId = activeWorkspaceId, isLoading = false) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
   const section = findMenuSectionByFolderPath(normalized, agentId);
   if (!section) return;
@@ -34969,7 +34974,7 @@ function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = f
   if (toggleBtn) toggleBtn.disabled = isLoading;
 }
 
-function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentId) {
+function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeWorkspaceId) {
   const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   if (!menu || !target || target === ".") return null;
   const hit = findMenuTreeNodeByFolderPath(
@@ -34981,7 +34986,7 @@ function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentI
   return hit?.node ?? null;
 }
 
-function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeAgentId) {
+function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
   const node = findMenuBranchNodeByFolderPath(menu, normalized, agentId);
   if (!node || !branchPayload) return false;
@@ -34999,7 +35004,7 @@ function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activ
   return true;
 }
 
-async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
+async function fetchMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const { maxDepth } = getMenuTreeSettings(agentId);
   const response = await fetch(
     buildApiUrl(
@@ -35019,9 +35024,9 @@ async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
   return stripPlatformDataFoldersFromMenu(await response.json());
 }
 
-async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
+async function ensureMenuBranchLoaded(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return;
   const branch = getMenuBranchForFolder(menu, normalized, agentId);
   const node = branch?.node ?? getMenuTreeNodeByFolderPath(normalized, agentId);
@@ -35048,7 +35053,7 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
       throw new Error("Не найден узел в кэше меню — обновите дерево");
     }
     menuCacheByAgent.set(agentId, menu);
-    if (agentId === activeAgentId) {
+    if (agentId === activeWorkspaceId) {
       currentMenuData = menu;
       invalidateMenuDisplayLabelMap();
     }
@@ -35062,14 +35067,14 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
   }
 }
 
-function sanitizeCollapsedFolderPaths(agentId = activeAgentId) {
+function sanitizeCollapsedFolderPaths(agentId = activeWorkspaceId) {
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (collapsedFolders.delete(".")) {
     saveCollapsedFoldersByAgent();
   }
 }
 
-function getMenuTreeFolderPaths(agentId = activeAgentId) {
+function getMenuTreeFolderPaths(agentId = activeWorkspaceId) {
   if (!currentMenuData) return [];
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...currentMenuData };
@@ -35083,7 +35088,7 @@ function getMenuTreeFolderPaths(agentId = activeAgentId) {
   return Array.from(folderPaths).filter((path) => path !== ".");
 }
 
-function isMenuTreeFullyCollapsed(agentId = activeAgentId) {
+function isMenuTreeFullyCollapsed(agentId = activeWorkspaceId) {
   const paths = getMenuTreeFolderPaths(agentId);
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (paths.length === 0) {
@@ -35114,7 +35119,7 @@ function syncMenuCollapseAllButton() {
   );
 }
 
-function expandAllMenuTreeBranches(agentId = activeAgentId) {
+function expandAllMenuTreeBranches(agentId = activeWorkspaceId) {
   if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   getAgentCollapsedFolders(agentId).clear();
@@ -35151,7 +35156,7 @@ function expandAllMenuTreeBranches(agentId = activeAgentId) {
   syncMenuCollapseAllButton();
 }
 
-function collapseAllMenuTreeBranches(agentId = activeAgentId) {
+function collapseAllMenuTreeBranches(agentId = activeWorkspaceId) {
   if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   const folderPaths = getMenuTreeFolderPaths(agentId);
@@ -36325,11 +36330,11 @@ function getDocumentTitlePageLabel() {
     return "Главная";
   }
 
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     return "";
   }
 
-  const agentLabel = getActiveAgentLabel() || getAgentTreeTitle() || activeAgentId;
+  const agentLabel = getActiveAgentLabel() || getAgentTreeTitle() || activeWorkspaceId;
 
   if (activeSystemFile) {
     return `${agentLabel} — ${activeSystemFile}`;
@@ -42074,7 +42079,7 @@ function buildMenuDisplayLabelMap(menu = currentMenuData) {
 }
 
 function getMenuDisplayLabelMap() {
-  const agentId = activeAgentId || "";
+  const agentId = activeWorkspaceId || "";
   if (!menuDisplayLabelMapCache || menuDisplayLabelMapAgentId !== agentId) {
     const menu = menuCacheByAgent.get(agentId) || currentMenuData;
     menuDisplayLabelMapCache = buildMenuDisplayLabelMap(menu);
@@ -42220,7 +42225,7 @@ async function buildSectionReadmeContentWithSchema(
     return buildSectionReadmeContent(safeTitle, awnType, folderSlug);
   }
   try {
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
     const normalizedContentPath = String(contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     const cache = await loadTopicSchemaForManifest(
       manifestPath,
@@ -43863,7 +43868,7 @@ function getExternalListSchemaManifestPath(nodePath = getResolvedNodePath(active
 
 function getExternalListColumnsStorageKey() {
   const manifest = getExternalListSchemaManifestPath() || activePath || "";
-  return `${EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX}${activeAgentId || "main"}:${manifest}`;
+  return `${EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${manifest}`;
 }
 
 function mergeExternalListVisibleColumnKeys(storedKeys, allKeys) {
@@ -44209,14 +44214,14 @@ function ensureExternalListColumnsPicker(toolbar) {
 
 async function ensureExternalListSchemaReady() {
   const manifestPath = getExternalListSchemaManifestPath();
-  const key = `${activeAgentId || ""}:${manifestPath || ""}`;
+  const key = `${activeWorkspaceId || ""}:${manifestPath || ""}`;
   if (externalListSchemaReadyKey !== key) {
     externalListSchemaReadyKey = key;
     externalListSchemaReadyPromise = null;
   }
   if (!externalListSchemaReadyPromise) {
     externalListSchemaReadyPromise = (async () => {
-      if (!awnTypesCache) await loadAwnTypes(activeAgentId);
+      if (!awnTypesCache) await loadAwnTypes(activeWorkspaceId);
       if (manifestPath && !getTopicSchemaCache(manifestPath)) {
         await loadTopicSchemaForManifest(manifestPath).catch(() => null);
       }
@@ -46657,7 +46662,7 @@ async function revealMediaFileInExplorer(mediaFilePath) {
   if (!activePath || !mediaFilePath) return;
   try {
     if (window.desktopApp?.revealFile) {
-      await window.desktopApp.revealFile(getResolvedNodePath(activePath), mediaFilePath, activeAgentId);
+      await window.desktopApp.revealFile(getResolvedNodePath(activePath), mediaFilePath, activeWorkspaceId);
       return;
     }
 
@@ -47902,7 +47907,7 @@ async function refreshWorkspaceContent() {
       (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) &&
       activeFolderBrowsePath
     ) {
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
       if (activeContentMode === FOLDER_BROWSE_FILE_MODE && activeFolderBrowseFilePath) {
         await renderFolderBrowseFileView();
       } else {
@@ -47914,8 +47919,8 @@ async function refreshWorkspaceContent() {
     if (activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewStoreRel) {
       awnDataViewStoreCache = null;
       awnDataViewRecordCache = null;
-      await refreshMenuAwnDataStores(activeAgentId);
-      await loadAwnDataViewStore(activeAgentId);
+      await refreshMenuAwnDataStores(activeWorkspaceId);
+      await loadAwnDataViewStore(activeWorkspaceId);
       return;
     }
 
@@ -47961,7 +47966,7 @@ async function refreshWorkspaceContent() {
         invalidateTopicSchemaCacheForManifest(schemaManifestPath);
         const contentPath = resolveOverviewSchemaContentPath(activeEntryOverviewContext);
         try {
-          if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+          if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
           await loadTopicSchemaForManifest(schemaManifestPath, {
             contentPath: contentPath || undefined,
             force: true
@@ -48599,7 +48604,7 @@ function isReservedRootManifestPath(nodePath) {
   );
 }
 
-function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
+function getSystemReferenceManifestRelPaths(agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder) return [];
   const paths = [];
@@ -48618,13 +48623,13 @@ function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
   return paths.map((item) => normalizeMenuNodePath(item));
 }
 
-function isSystemReferenceManifestPath(nodePath, agentId = activeAgentId) {
+function isSystemReferenceManifestPath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !isServiceNodePath(normalized)) return false;
   return getSystemReferenceManifestRelPaths(agentId).includes(normalized);
 }
 
-function isSlugLockedManifestPath(nodePath, agentId = activeAgentId) {
+function isSlugLockedManifestPath(nodePath, agentId = activeWorkspaceId) {
   return isReservedRootManifestPath(nodePath) || isSystemReferenceManifestPath(nodePath, agentId);
 }
 
@@ -49035,7 +49040,7 @@ let awnTypesLoadPromise = null;
 let awnTypeKindManifestById = null;
 let typeCatalogCacheByAgent = new Map();
 let typeCatalogLoadPromiseByAgent = new Map();
-function invalidateTypeCatalogCache(agentId = activeAgentId) {
+function invalidateTypeCatalogCache(agentId = activeWorkspaceId) {
   const cacheKey = String(agentId || "default");
   typeCatalogCacheByAgent.delete(cacheKey);
   typeCatalogLoadPromiseByAgent.delete(cacheKey);
@@ -49059,7 +49064,7 @@ function isAgentSystemFileEditing() {
 }
 
 function agentHasTypeCatalogOverview(nodePath = activePath) {
-  if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return true;
+  if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeWorkspaceId || ""))) return true;
   return isAgentSystemRelPath(nodePath);
 }
 
@@ -49371,7 +49376,7 @@ const PROPS_FIELD_META = {
   }
 };
 
-async function loadAwnTypes(agentId = activeAgentId) {
+async function loadAwnTypes(agentId = activeWorkspaceId) {
   if (!agentId) {
     awnTypesCache = null;
     awnTypesLoadPromise = null;
@@ -49405,14 +49410,14 @@ async function loadAwnTypes(agentId = activeAgentId) {
   return awnTypesLoadPromise;
 }
 
-async function loadAgentCatalogs(agentId = activeAgentId) {
+async function loadAgentCatalogs(agentId = activeWorkspaceId) {
   return loadAgentTaxonomies(agentId);
 }
 
 const agentTaxonomiesCacheByAgent = new Map();
 const agentTaxonomiesLoadPromiseByAgent = new Map();
 
-function invalidateAgentTaxonomiesCache(agentId = activeAgentId) {
+function invalidateAgentTaxonomiesCache(agentId = activeWorkspaceId) {
   const key = String(agentId || "").trim();
   if (!key) {
     agentTaxonomiesCacheByAgent.clear();
@@ -49423,12 +49428,12 @@ function invalidateAgentTaxonomiesCache(agentId = activeAgentId) {
   agentTaxonomiesLoadPromiseByAgent.delete(key);
 }
 
-function getAgentTaxonomiesCache(agentId = activeAgentId) {
+function getAgentTaxonomiesCache(agentId = activeWorkspaceId) {
   const key = String(agentId || "").trim();
   return key ? agentTaxonomiesCacheByAgent.get(key) || null : null;
 }
 
-async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = {}) {
+async function loadAgentTaxonomies(agentId = activeWorkspaceId, { force = false } = {}) {
   const key = String(agentId || "").trim();
   if (!key) {
     invalidateAgentTaxonomiesCache();
@@ -49447,7 +49452,7 @@ async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = 
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const payload = await response.json();
       agentTaxonomiesCacheByAgent.set(key, payload);
-      if (key === activeAgentId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
+      if (key === activeWorkspaceId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
         renderPropsForm();
       }
       return payload;
@@ -49463,11 +49468,11 @@ async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = 
   return promise;
 }
 
-function getAgentTaxonomyDefinitions(agentId = activeAgentId) {
+function getAgentTaxonomyDefinitions(agentId = activeWorkspaceId) {
   return getAgentTaxonomiesCache(agentId)?.taxonomies || [];
 }
 
-function getAgentTaxonomiesEmptyMessage(agentId = activeAgentId) {
+function getAgentTaxonomiesEmptyMessage(agentId = activeWorkspaceId) {
   const cache = getAgentTaxonomiesCache(agentId);
   if (cache?.groupExists) {
     return "В awn-databases/0-taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
@@ -49664,7 +49669,7 @@ const PROPS_FIELD_CATALOG_PRESET = {
 };
 
 function getPropsCatalogAddScopeLabel() {
-  return activeAgentId === PLATFORM_AGENT_ID ? "глобальный справочник" : "локальный справочник агента";
+  return activeWorkspaceId === PLATFORM_AGENT_ID ? "глобальный справочник" : "локальный справочник агента";
 }
 
 function applyCatalogItemToPropsEntry(fieldKey, preset, itemId) {
@@ -49690,7 +49695,7 @@ function applyCatalogItemToPropsEntry(fieldKey, preset, itemId) {
 }
 
 async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
-  const response = await fetch(buildApiUrl("/api/agent/catalogs/items", {}, activeAgentId), {
+  const response = await fetch(buildApiUrl("/api/agent/catalogs/items", {}, activeWorkspaceId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -49708,8 +49713,8 @@ async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
 
   applyCatalogItemToPropsEntry(fieldKey, preset, data.item?.id);
   syncYamlFromPropsForm();
-  invalidateAgentTaxonomiesCache(activeAgentId);
-  await loadAgentTaxonomies(activeAgentId, { force: true });
+  invalidateAgentTaxonomiesCache(activeWorkspaceId);
+  await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   showToast(`Добавлено в ${getPropsCatalogAddScopeLabel()}: ${data.item?.label || data.item?.id}`, "success");
   return data;
 }
@@ -50075,8 +50080,8 @@ function nodeManifestHasOwnCustomSchema(nodePath = getResolvedNodePath(activePat
   return topicSchemaStateHasCustomFields(cache.topicAwnSchema);
 }
 
-function nodeHasCustomSchemaFromMenu(nodePath = getResolvedNodePath(activePath), agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function nodeHasCustomSchemaFromMenu(nodePath = getResolvedNodePath(activePath), agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return false;
 
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
@@ -50248,7 +50253,7 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
 
   const loadPromise = (async () => {
     const resolveFallbackAgentSettingsSchemaPayload = async () => {
-      if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+      if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
       const typeId =
         scope === "global"
           ? "awn.settings.platform"
@@ -52380,14 +52385,14 @@ async function saveProjectSettingsEnvFormContent() {
 
 async function bootstrapProjectSettingsData(options = {}) {
   const force = Boolean(options.force);
-  await loadAwnTypes(activeAgentId);
-  await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
+  await loadAwnTypes(activeWorkspaceId);
+  await refreshMenuAwnDataStores(activeWorkspaceId, { showLoading: false }).catch(() => {});
   await Promise.all([
     loadAgentSettingsSchemaBundle({ scope: "global", force }),
     loadAgentSettingsSchemaBundle({ scope: "local", force }),
     loadAgentSettingsSchemaBundle({ scope: "integrations", force }),
     loadAgentSettingsSchemaBundle({ scope: "user", force }),
-    loadUserSettingsForAgent(activeAgentId)
+    loadUserSettingsForAgent(activeWorkspaceId)
   ]).catch(() => {});
   await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
   projectSettingsBootstrapped = true;
@@ -52455,7 +52460,7 @@ async function loadProjectSettingsContent(options = {}) {
 }
 
 async function openProjectSettingsHub(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -52499,7 +52504,7 @@ async function openProjectSettingsHub(options = {}) {
 }
 
 async function openWorkspaceJournalModule(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -52528,7 +52533,7 @@ async function openWorkspaceJournalModule(options = {}) {
 }
 
 async function openWorkspaceRecyclerModule(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -52578,7 +52583,7 @@ function getNodeSettingsSavePayload() {
 
 const REGISTRY_QUERY_PRESETS_SETTINGS_KEY = "registry-query-presets";
 
-async function fetchRegistryQueryCommentByIdMap(agentId = activeAgentId) {
+async function fetchRegistryQueryCommentByIdMap(agentId = activeWorkspaceId) {
   try {
     const response = await fetch(buildApiUrl("/api/agent/registry-queries", {}, agentId));
     if (!response.ok) return null;
@@ -52611,7 +52616,7 @@ function enrichRegistryQueryPresetItems(items, commentById = null) {
   });
 }
 
-async function enrichWorkspaceSettingsRegistryQueryPresets(settings, agentId = activeAgentId) {
+async function enrichWorkspaceSettingsRegistryQueryPresets(settings, agentId = activeWorkspaceId) {
   if (!settings || typeof settings !== "object") return settings;
   const presets = settings[REGISTRY_QUERY_PRESETS_SETTINGS_KEY];
   if (!Array.isArray(presets) || !presets.length) return settings;
@@ -53306,7 +53311,7 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     if (!awnTypesCache?.types) {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
@@ -53408,7 +53413,7 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     if (!awnTypesCache?.types) {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
@@ -55445,7 +55450,7 @@ async function loadSectionSchemaForEntry(context, options = {}) {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   if (!awnTypesCache?.types) {
-    await loadAwnTypes(activeAgentId);
+    await loadAwnTypes(activeWorkspaceId);
   }
   const payload = {
     ...params,
@@ -59449,14 +59454,14 @@ function getLinkLibraryScopeLabel(nodePath) {
 
 async function loadMarkdownLinkIndex(options = {}) {
   const force = options.force === true;
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     invalidateMarkdownLinkIndexCache();
     return markdownLinkIndexCache;
   }
 
   if (
     !force &&
-    markdownLinkIndexCache.agentId === activeAgentId &&
+    markdownLinkIndexCache.agentId === activeWorkspaceId &&
     markdownLinkIndexCache.items.length
   ) {
     return markdownLinkIndexCache;
@@ -59466,12 +59471,12 @@ async function loadMarkdownLinkIndex(options = {}) {
     !force &&
     markdownLinkIndexCache.loading &&
     markdownLinkIndexCache.promise &&
-    markdownLinkIndexCache.agentId === activeAgentId
+    markdownLinkIndexCache.agentId === activeWorkspaceId
   ) {
     return markdownLinkIndexCache.promise;
   }
 
-  const agentId = activeAgentId;
+  const agentId = activeWorkspaceId;
   markdownLinkIndexCache.loading = true;
   markdownLinkIndexCache.agentId = agentId;
 
@@ -59586,7 +59591,7 @@ function getMarkdownLinkForLibraryItem(item) {
 }
 
 function sortDocLinkItemsByMenuOrder(items) {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu) {
     return [...items].sort((a, b) =>
       String(a.label || "").localeCompare(String(b.label || ""), "ru")
@@ -59595,7 +59600,7 @@ function sortDocLinkItemsByMenuOrder(items) {
 
   const order = new Map();
   let index = 0;
-  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+  for (const entry of collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })) {
     const path = normalizeMenuNodePath(entry.path);
     if (path && !order.has(path)) order.set(path, index++);
   }
@@ -59670,7 +59675,7 @@ function collectMarkdownLinkLibraryGroups() {
 
 function getFlatMarkdownLinkLibraryItems(options = {}) {
   const force = options.force === true;
-  const cacheKey = `${activeAgentId || ""}:${getCurrentEditorLinkBasePath()}:${(markdownLinkIndexCache.items || []).length}`;
+  const cacheKey = `${activeWorkspaceId || ""}:${getCurrentEditorLinkBasePath()}:${(markdownLinkIndexCache.items || []).length}`;
   if (!force && markdownLinkFlatLibraryCache && markdownLinkFlatLibraryCacheKey === cacheKey) {
     return markdownLinkFlatLibraryCache;
   }
@@ -59720,12 +59725,12 @@ function isDocLinkLibraryEntry(entry) {
 }
 
 function collectDocLinkLibraryGroups() {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu || !activePath) {
     return { currentTopic: [], otherTopics: [], scopeLabel: "" };
   }
 
-  const allEntries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const allEntries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
   const activeScope = getLinkLibraryScopeFolder(activePath);
   const currentTopic = [];
@@ -60075,7 +60080,7 @@ function renderDocLinksLibraryContent(options = {}) {
       if (hasQuery && !filtered.length) continue;
       const sectionTitle =
         id === "awn.topic"
-          ? `Темы · ${getActiveAgentLabel() || activeAgentId || "агент"}`
+          ? `Темы · ${getActiveAgentLabel() || activeWorkspaceId || "агент"}`
           : label;
       const sectionHint =
         id === "awn.topic" ? "Как в меню слева — только темы агента" : hint || "";
@@ -63109,7 +63114,7 @@ const CATALOG_PRESET_TO_TAXONOMY_KEYS = {
   users: ["users"]
 };
 
-function findTaxonomyDefinitionForCatalogPreset(preset, agentId = activeAgentId) {
+function findTaxonomyDefinitionForCatalogPreset(preset, agentId = activeWorkspaceId) {
   const keys = CATALOG_PRESET_TO_TAXONOMY_KEYS[preset] || [String(preset || "").trim().toLowerCase()];
   const definitions = getAgentTaxonomyDefinitions(agentId);
   for (const definition of definitions) {
@@ -63224,7 +63229,7 @@ async function submitPropsTaxonomyAdd(definition, payload) {
   const displayName = name || id;
   const parent = String(raw.parent ?? "").trim();
 
-  const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeAgentId), {
+  const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeWorkspaceId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -63242,8 +63247,8 @@ async function submitPropsTaxonomyAdd(definition, payload) {
 
   applyTaxonomyItemToPropsEntry(definition.key, definition.cardinality, id);
   syncYamlFromPropsForm();
-  invalidateAgentTaxonomiesCache(activeAgentId);
-  await loadAgentTaxonomies(activeAgentId, { force: true });
+  invalidateAgentTaxonomiesCache(activeWorkspaceId);
+  await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
   showToast(`Добавлено в справочник: ${displayName}`, "success");
   return data;
@@ -67028,11 +67033,11 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   }
 
   const needsTaxonomies =
-    activeAgentId &&
-    !getAgentTaxonomiesCache(activeAgentId) &&
+    activeWorkspaceId &&
+    !getAgentTaxonomiesCache(activeWorkspaceId) &&
     (isLookupFieldWidget(fieldWidget) || fieldWidget === "taxonomy");
   if (needsTaxonomies) {
-    void loadAgentTaxonomies(activeAgentId);
+    void loadAgentTaxonomies(activeWorkspaceId);
   }
 
   return row;
@@ -67324,7 +67329,7 @@ function applyMediaSidecarContentUi(rawContent) {
 
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
   await Promise.all([
-    loadAwnTypes(activeAgentId).catch(() => null),
+    loadAwnTypes(activeWorkspaceId).catch(() => null),
     ensureTopicSchemaForActiveContext()
   ]);
   const { frontmatter, body } = splitFrontmatter(rawContent);
@@ -69642,7 +69647,7 @@ async function revealNodeFolderInExplorer() {
   if (!resolvedPath) return;
   try {
     if (window.desktopApp?.revealFolder) {
-      await window.desktopApp.revealFolder(resolvedPath, activeAgentId);
+      await window.desktopApp.revealFolder(resolvedPath, activeWorkspaceId);
       return;
     }
 
@@ -71726,7 +71731,7 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
   return accordion;
 }
 
-async function loadTypeCatalog(agentId = activeAgentId) {
+async function loadTypeCatalog(agentId = activeWorkspaceId) {
   const cacheKey = String(agentId || "default");
   if (typeCatalogCacheByAgent.has(cacheKey)) return typeCatalogCacheByAgent.get(cacheKey);
   if (typeCatalogLoadPromiseByAgent.has(cacheKey)) return typeCatalogLoadPromiseByAgent.get(cacheKey);
@@ -72478,8 +72483,8 @@ function writeNodeLastViewedStore(store) {
 
 function getNodeLastViewedStorageKey(nodePath) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
-  if (!normalized || !activeAgentId) return null;
-  return `${activeAgentId}:${normalized}`;
+  if (!normalized || !activeWorkspaceId) return null;
+  return `${activeWorkspaceId}:${normalized}`;
 }
 
 function recordNodeLastViewed(nodePath) {
@@ -72875,7 +72880,7 @@ function buildNodeNavigationMemoryCounterSlots({
   });
 }
 
-async function fetchFolderViewSummary(manifestPath, folder, agentId = activeAgentId) {
+async function fetchFolderViewSummary(manifestPath, folder, agentId = activeWorkspaceId) {
   if (!manifestPath || !folder) return { exists: false, files: 0, subfolders: 0 };
   try {
     const response = await fetch(
@@ -74023,8 +74028,8 @@ function findMenuItemEntryInAgentMenu(menuRoot, targetPath) {
   );
 }
 
-function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false };
 
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
@@ -75351,7 +75356,7 @@ async function fetchExternalFilesForNavigation(nodePath) {
   }
 }
 
-async function fetchFlatStorageFilesForNavigation(manifestPath, folderName, agentId = activeAgentId) {
+async function fetchFlatStorageFilesForNavigation(manifestPath, folderName, agentId = activeWorkspaceId) {
   if (!manifestPath || !folderName) {
     return { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   }
@@ -77618,7 +77623,7 @@ function buildNavigationSlotCounterTitle(spec, count, { intake = null } = {}) {
   return normalizedCount > 0 ? `${label}: ${normalizedCount}` : `${label}: пусто`;
 }
 
-async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeAgentId) {
+async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeWorkspaceId) {
   if (!manifestPath || !folder) return { exists: false, content: "" };
   try {
     const response = await fetch(
@@ -77635,7 +77640,7 @@ async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = act
   }
 }
 
-async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = activeAgentId) {
+async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = activeWorkspaceId) {
   const folders = getStorageFolderNamesForSlotKey(slotKey);
   if (!folders.length) return null;
 
@@ -77649,7 +77654,7 @@ async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = 
   return hasNavigationExternalPreparedContent(index) ? index : null;
 }
 
-async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) {
+async function fetchInboxNavigationIndex(manifestPath, agentId = activeWorkspaceId) {
   try {
     const data = await fetchFlatStorageFilesForNavigation(
       manifestPath,
@@ -77665,7 +77670,7 @@ async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) 
   }
 }
 
-async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeAgentId) {
+async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeWorkspaceId) {
   const resolvedNode = nodePath || getResolvedNodePath(activePath);
   const manifestPath =
     getWorkspaceStorageManifestApiPath(resolvedNode) ||
@@ -78636,7 +78641,7 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
   try {
     const manifestPath = getTopicSchemaManifestPath();
     if (!manifestPath) return entries;
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
     if (contentPath) {
       await loadTopicSchemaForManifest(manifestPath, { contentPath, force: false });
     }
@@ -78680,7 +78685,7 @@ async function fetchEntryOverviewBodyResult(context) {
       return { content: String(data.content || ""), ok: true };
     }
     if (context.memoryKind === "workspace-page-index-generated") {
-      const cacheKey = activeAgentId || "main";
+      const cacheKey = activeWorkspaceId || "main";
       const cached = workspaceGeneratedPageIndexCache.get(cacheKey);
       if (cached) return { content: cached, ok: true };
       const markdown = await buildWorkspacePageIndexMarkdownFromApi();
@@ -82484,7 +82489,7 @@ async function refreshWorkspacePageIndexOverview() {
       body: JSON.stringify({ overwrite: true })
     });
     if (!response.ok) return false;
-    workspaceGeneratedPageIndexCache.delete(activeAgentId || "main");
+    workspaceGeneratedPageIndexCache.delete(activeWorkspaceId || "main");
     return true;
   } catch {
     return false;
@@ -82534,7 +82539,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     pinnedBanner.insertAdjacentElement("afterend", row);
   }
 
-  row.classList.toggle("hidden", !activeAgentId);
+  row.classList.toggle("hidden", !activeWorkspaceId);
 
   let footer = row.querySelector(".sidebar-workspace-page-index-open");
   if (!footer) {
@@ -87576,7 +87581,7 @@ function slugifyCommentMentionHandle(text) {
 }
 
 function collectCommentMentionCandidates(options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const extraAuthors = Array.isArray(options.authors) ? options.authors : [];
   const candidates = new Map();
 
@@ -87586,7 +87591,7 @@ function collectCommentMentionCandidates(options = {}) {
     candidates.set(key, { handle: key, label: label || key, ...meta });
   };
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     for (const entry of collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })) {
       if (!entry.path) continue;
@@ -87630,7 +87635,7 @@ function commentMentionsUser(comment, userHandle) {
 
 function getCommentMentionSeenStorageKey(context) {
   const filePart = context.file ? `:${context.file}` : "";
-  return `${COMMENT_MENTION_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${context.path}:${context.mode}${filePart}`;
+  return `${COMMENT_MENTION_SEEN_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${context.path}:${context.mode}${filePart}`;
 }
 
 function getLastSeenMentionCommentId(context) {
@@ -87877,7 +87882,7 @@ function attachCommentMentionAutocomplete(textarea, getCandidates) {
   });
 }
 
-async function fetchFileComments(context, agentId = activeAgentId) {
+async function fetchFileComments(context, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/file/comments", buildFileCommentsApiParams(context), agentId)
   );
@@ -87885,7 +87890,7 @@ async function fetchFileComments(context, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postFileComment(context, body, author, agentId = activeAgentId, replyTo = null) {
+async function postFileComment(context, body, author, agentId = activeWorkspaceId, replyTo = null) {
   const response = await fetch(buildApiUrl("/api/file/comments", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -87909,7 +87914,7 @@ async function postFileComment(context, body, author, agentId = activeAgentId, r
   return response.json();
 }
 
-async function patchFileComment(context, commentId, body, agentId = activeAgentId) {
+async function patchFileComment(context, commentId, body, agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/file/comment", {}, agentId), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -87932,7 +87937,7 @@ async function patchFileComment(context, commentId, body, agentId = activeAgentI
   return response.json();
 }
 
-async function deleteFileCommentApi(context, commentId, agentId = activeAgentId) {
+async function deleteFileCommentApi(context, commentId, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/file/comment", { ...buildFileCommentsApiParams(context), commentId }, agentId),
     { method: "DELETE" }
@@ -87956,7 +87961,7 @@ function commentAuthorsMatch(commentAuthor) {
   return Boolean(mine && theirs && mine === theirs);
 }
 
-async function postCommentReaction(context, commentId, author, agentId = activeAgentId, reaction = "up") {
+async function postCommentReaction(context, commentId, author, agentId = activeWorkspaceId, reaction = "up") {
   const response = await fetch(buildApiUrl("/api/file/comments/reaction", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88007,7 +88012,7 @@ function buildCommentThreadTree(comments) {
   return roots;
 }
 
-async function fetchTopicThread(context, agentId = activeAgentId) {
+async function fetchTopicThread(context, agentId = activeWorkspaceId) {
   const params =
     typeof context === "string"
       ? { path: context }
@@ -88017,7 +88022,7 @@ async function fetchTopicThread(context, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postTopicThreadMessage(context, body, options = {}, agentId = activeAgentId) {
+async function postTopicThreadMessage(context, body, options = {}, agentId = activeWorkspaceId) {
   const threadContext =
     typeof context === "string"
       ? { path: context }
@@ -88046,7 +88051,7 @@ async function postTopicThreadMessage(context, body, options = {}, agentId = act
   return response.json();
 }
 
-async function fetchInboxItems(manifestPath, agentId = activeAgentId) {
+async function fetchInboxItems(manifestPath, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/inbox", { path: manifestPath }, agentId)
   );
@@ -88054,7 +88059,7 @@ async function fetchInboxItems(manifestPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postInboxTriage(manifestPath, file, action, status = "", agentId = activeAgentId) {
+async function postInboxTriage(manifestPath, file, action, status = "", agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/inbox/triage", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88073,7 +88078,7 @@ async function postInboxTriage(manifestPath, file, action, status = "", agentId 
   return response.json();
 }
 
-async function fetchTopicIntake(manifestPath, agentId = activeAgentId) {
+async function fetchTopicIntake(manifestPath, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/topic/intake", { path: manifestPath }, agentId)
   );
@@ -88081,7 +88086,7 @@ async function fetchTopicIntake(manifestPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function fetchIntakeBatch(manifestPaths, agentId = activeAgentId) {
+async function fetchIntakeBatch(manifestPaths, agentId = activeWorkspaceId) {
   const mentionHandle = slugifyCommentMentionHandle(getStoredCommentAuthor());
   const mentionAfterIds = {};
   if (mentionHandle) {
@@ -88107,7 +88112,7 @@ async function fetchIntakeBatch(manifestPaths, agentId = activeAgentId) {
   return response.json();
 }
 
-function collectMenuTopicManifestApiPaths(menu, agentId = activeAgentId) {
+function collectMenuTopicManifestApiPaths(menu, agentId = activeWorkspaceId) {
   return [
     ...new Set(
       collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })
@@ -88176,7 +88181,7 @@ function enrichMenuTreeRuntimeRollupClient(node) {
   return { runtimeCron, runtimeHeartbeat, runtimeCronSchedule: selfSchedule };
 }
 
-function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
+function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeWorkspaceId) {
   if (!node || typeof node !== "object") return;
   const map = menuRuntimeFlagsByAgent.get(agentId);
   const path = normalizeMenuNodePath(node.path || node.indexPath || "");
@@ -88198,7 +88203,7 @@ function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
   }
 }
 
-function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
+function enrichMenuRuntimeFromCache(menu, agentId = activeWorkspaceId) {
   if (!menu) return menu;
   applyRuntimeFlagsCacheToMenuTree(menu, agentId);
   enrichMenuTreeRuntimeRollupClient(menu);
@@ -88209,8 +88214,8 @@ function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
 }
 
 function patchMenuNodeRuntimeCommandsFromProps(manifestPath, propEntries) {
-  const menu = menuCacheByAgent.get(activeAgentId);
-  const node = findMenuTreeNodeByManifestPath(menu, manifestPath, activeAgentId);
+  const menu = menuCacheByAgent.get(activeWorkspaceId);
+  const node = findMenuTreeNodeByManifestPath(menu, manifestPath, activeWorkspaceId);
   if (!node) return;
   node.runtimeCommands = readPropsEntryBoolean(
     findPropsEntryByKey(normalizePropsEntries(propEntries || []), "awn-runtime-commands")
@@ -88252,7 +88257,7 @@ function mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems) {
   });
 }
 
-async function fetchRuntimeRegistrySources(agentId = activeAgentId) {
+async function fetchRuntimeRegistrySources(agentId = activeWorkspaceId) {
   const [alwaysRes, cronRes, heartbeatRes] = await Promise.all([
     fetch(buildApiUrl("/api/agent/always-context", {}, agentId)),
     fetch(buildApiUrl("/api/agent/cron-registry", {}, agentId)),
@@ -88291,7 +88296,7 @@ function buildMergedRuntimeRegistryPayload(rows) {
   };
 }
 
-async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
+async function refreshMenuRuntimeFlagsCache(agentId = activeWorkspaceId) {
   try {
     const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources(agentId);
     const rows = mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems);
@@ -88322,7 +88327,7 @@ async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
   }
 }
 
-function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
+function upsertMenuRuntimeBadges(host, source, agentId = activeWorkspaceId) {
   const nextBadges = createMenuRuntimeBadges(source, agentId);
   const badgesEl = host.querySelector(".menu-runtime-badges");
 
@@ -88342,12 +88347,12 @@ function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
   host.classList.add("has-menu-runtime-badges");
 }
 
-function refreshMenuTreeRuntimeBadges(agentId = activeAgentId) {
+function refreshMenuTreeRuntimeBadges(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuRuntimeBadges(agentId);
 }
 
-function syncMenuRuntimeBadges(agentId = activeAgentId) {
+function syncMenuRuntimeBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
 
@@ -88375,7 +88380,7 @@ function syncMenuRuntimeBadges(agentId = activeAgentId) {
   }
 }
 
-function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeAgentId) {
+function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(manifestPath || "");
   if (!menu || !normalized) return null;
 
@@ -88474,12 +88479,12 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
   host.classList.add("has-menu-intake-badges");
 }
 
-function refreshMenuTreeIntakeBadges(agentId = activeAgentId) {
+function refreshMenuTreeIntakeBadges(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuIntakeBadges(agentId);
 }
 
-function syncMenuIntakeBadges(agentId = activeAgentId) {
+function syncMenuIntakeBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
 
@@ -88498,11 +88503,11 @@ function syncMenuIntakeBadges(agentId = activeAgentId) {
   }
 }
 
-async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeAgentId) {
+async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeWorkspaceId) {
   const seq = ++menuIntakeSeq;
   const paths = collectMenuTopicManifestApiPaths(menu, agentId);
   if (!paths.length) {
-    if (agentId === activeAgentId) syncMenuIntakeBadges(agentId);
+    if (agentId === activeWorkspaceId) syncMenuIntakeBadges(agentId);
     return null;
   }
 
@@ -88514,7 +88519,7 @@ async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = active
       topicIntakeCacheByPath.set(manifestPath, intake);
     }
 
-    if (agentId === activeAgentId) {
+    if (agentId === activeWorkspaceId) {
       syncTopicIntakeDomainLabels();
       if (activeContentMode === "inbox") {
         syncListViewHead();
@@ -88606,7 +88611,7 @@ function normalizeLiveSyncPath(value) {
     .toLowerCase();
 }
 
-function getLiveSyncAckStorageKey(agentId = activeAgentId) {
+function getLiveSyncAckStorageKey(agentId = activeWorkspaceId) {
   return `${LIVE_SYNC_ACK_STORAGE_PREFIX}${agentId || "main"}`;
 }
 
@@ -88764,7 +88769,7 @@ function appendLiveSyncMediaEditorPaths(paths) {
   }
 }
 
-function getLiveSyncAckEntry(path, agentId = activeAgentId) {
+function getLiveSyncAckEntry(path, agentId = activeWorkspaceId) {
   const ackMap = loadLiveSyncAckMap(agentId);
   const raw = ackMap[normalizeLiveSyncPath(path)];
   if (typeof raw === "number") return { activity: raw, mtime: null };
@@ -88777,7 +88782,7 @@ function getLiveSyncAckEntry(path, agentId = activeAgentId) {
   return { activity: 0, mtime: null };
 }
 
-function loadLiveSyncAckMap(agentId = activeAgentId) {
+function loadLiveSyncAckMap(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getLiveSyncAckStorageKey(agentId));
     if (!raw) return {};
@@ -88788,7 +88793,7 @@ function loadLiveSyncAckMap(agentId = activeAgentId) {
   }
 }
 
-function saveLiveSyncAckMap(map, agentId = activeAgentId) {
+function saveLiveSyncAckMap(map, agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(getLiveSyncAckStorageKey(agentId), JSON.stringify(map));
   } catch {
@@ -88796,18 +88801,18 @@ function saveLiveSyncAckMap(map, agentId = activeAgentId) {
   }
 }
 
-function isLiveSyncEventAcknowledged(path, eventId, agentId = activeAgentId) {
+function isLiveSyncEventAcknowledged(path, eventId, agentId = activeWorkspaceId) {
   const ack = getLiveSyncAckEntry(path, agentId);
   return eventId > 0 && ack.activity >= eventId;
 }
 
-function isLiveSyncExternalAcknowledged(path, mtime, agentId = activeAgentId) {
+function isLiveSyncExternalAcknowledged(path, mtime, agentId = activeWorkspaceId) {
   const ackMtime = getLiveSyncAckEntry(path, agentId).mtime;
   if (!mtime || !ackMtime) return false;
   return String(ackMtime) >= String(mtime);
 }
 
-function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, agentId = activeAgentId) {
+function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, agentId = activeWorkspaceId) {
   if (!path) return;
   const ackMap = loadLiveSyncAckMap(agentId);
   const key = normalizeLiveSyncPath(path);
@@ -88823,7 +88828,7 @@ function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, age
   saveLiveSyncAckMap(ackMap, agentId);
 }
 
-function resetLiveSyncSession(agentId = activeAgentId) {
+function resetLiveSyncSession(agentId = activeWorkspaceId) {
   liveSyncLastActivityId = Number(workspaceNotificationsLatestId) || 0;
   liveSyncBaselineReady = false;
   liveSyncMtimeBaselineReady = false;
@@ -89987,7 +89992,7 @@ async function syncLiveFileExternalRevisions(watchPaths) {
 }
 
 async function syncLiveFileUpdates() {
-  if (liveSyncInFlight || document.hidden || !activeAgentId) return;
+  if (liveSyncInFlight || document.hidden || !activeWorkspaceId) return;
   if (shouldPauseLiveSyncWhileEditing()) return;
   liveSyncInFlight = true;
   try {
@@ -90135,11 +90140,11 @@ const WORKSPACE_NOTIFICATION_SOURCE_LABELS = {
   journal: "журнал"
 };
 
-function getWorkspaceNotificationsSeenStorageKey(agentId = activeAgentId) {
+function getWorkspaceNotificationsSeenStorageKey(agentId = activeWorkspaceId) {
   return agentId ? `${WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX}.${agentId}` : WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX;
 }
 
-function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getWorkspaceNotificationsHiddenStorageKey(agentId));
     const parsed = Number(raw);
@@ -90149,7 +90154,7 @@ function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
   }
 }
 
-function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(
       getWorkspaceNotificationsHiddenStorageKey(agentId),
@@ -90160,7 +90165,7 @@ function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
   }
 }
 
-function getWorkspaceNotificationsHiddenStorageKey(agentId = activeAgentId) {
+function getWorkspaceNotificationsHiddenStorageKey(agentId = activeWorkspaceId) {
   return agentId
     ? `${WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX}.${agentId}`
     : WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX;
@@ -90174,7 +90179,7 @@ function getWorkspaceNotificationBellEvents() {
   return workspaceNotificationsEvents.filter((event) => isWorkspaceNotificationVisibleInBell(event));
 }
 
-function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+function loadWorkspaceNotificationsSeenId(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getWorkspaceNotificationsSeenStorageKey(agentId));
     const parsed = Number(raw);
@@ -90184,7 +90189,7 @@ function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
   }
 }
 
-function saveWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+function saveWorkspaceNotificationsSeenId(agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(getWorkspaceNotificationsSeenStorageKey(agentId), String(workspaceNotificationsSeenId));
   } catch {
@@ -90227,7 +90232,7 @@ function saveWorkspaceNotificationsMuted() {
 }
 
 function isWorkspaceNotificationsContextActive() {
-  return Boolean(activeAgentId) && !appRootNode?.classList.contains("app-landing-view");
+  return Boolean(activeWorkspaceId) && !appRootNode?.classList.contains("app-landing-view");
 }
 
 function syncWorkspaceNotificationsAvailability() {
@@ -90672,7 +90677,7 @@ function renderWorkspaceNotificationsList() {
 }
 
 async function clearWorkspaceNotifications() {
-  if (!activeAgentId) return;
+  if (!activeWorkspaceId) return;
   const visible = getWorkspaceNotificationBellEvents();
   if (visible.length) {
     const confirmed = await askConfirm(
@@ -91099,13 +91104,13 @@ function initWorkspaceNotifications() {
 function syncChannelLiveUpdates() {
   stopChannelEventStream();
   stopChannelAutoPoll();
-  if (document.hidden || !activeAgentId) return;
+  if (document.hidden || !activeWorkspaceId) return;
 
   if (typeof EventSource === "undefined") {
     syncChannelAutoPoll();
     channelPollTimer = setInterval(() => {
-      if (document.hidden || !activeAgentId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (document.hidden || !activeWorkspaceId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
@@ -91120,8 +91125,8 @@ function syncChannelLiveUpdates() {
       window.agentCmsConnectionStatus?.reportSuccess?.();
     });
     channelEventSource.addEventListener("update", () => {
-      if (document.hidden || !activeAgentId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (document.hidden || !activeWorkspaceId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
@@ -91129,15 +91134,15 @@ function syncChannelLiveUpdates() {
     });
     channelEventSource.addEventListener("reconnect", () => {
       stopChannelEventStream();
-      if (!document.hidden && activeAgentId) syncChannelLiveUpdates();
+      if (!document.hidden && activeWorkspaceId) syncChannelLiveUpdates();
     });
     channelEventSource.onerror = () => {
       window.agentCmsConnectionStatus?.reportFailure?.();
       stopChannelEventStream();
       syncChannelAutoPoll();
       channelPollTimer = setInterval(() => {
-        if (document.hidden || !activeAgentId) return;
-        void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+        if (document.hidden || !activeWorkspaceId) return;
+        void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
         if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
         void refreshWorkspaceNotifications(true);
@@ -91172,7 +91177,7 @@ async function syncMediaFileCommentsBlock() {
   host.replaceChildren();
 }
 
-async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
+async function refreshTopicIntakeForActivePath(agentId = activeWorkspaceId) {
   if (!activePath) return null;
   const manifestPath = getActiveNodeApiPath();
   if (!manifestPath) return null;
@@ -91192,7 +91197,7 @@ async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
 }
 
 function getThreadLastSeenStorageKey(manifestPath) {
-  return `${THREAD_LAST_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${manifestPath}`;
+  return `${THREAD_LAST_SEEN_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${manifestPath}`;
 }
 
 function getThreadLastSeenId(manifestPath) {
@@ -91222,7 +91227,7 @@ function getThreadUnreadCount(manifestPath, intake) {
   return discussion.lastMessageId !== lastSeen ? 1 : 0;
 }
 
-async function postInboxCreate(manifestPath, payload = {}, agentId = activeAgentId) {
+async function postInboxCreate(manifestPath, payload = {}, agentId = activeWorkspaceId) {
   const title = String(payload.title || "Входящее").trim() || "Входящее";
   const body = String(payload.body || "").trim() || `# ${title}\n`;
   const response = await fetch(buildApiUrl("/api/storage/file/create", {}, agentId), {
@@ -91944,7 +91949,7 @@ async function mountWorkspaceJournalPanel(container, options = {}) {
     try {
       const params = { limit };
       if (topic) params.topic = topic;
-      const response = await fetch(buildApiUrl("/api/agent/workspace-journal/list", params, activeAgentId));
+      const response = await fetch(buildApiUrl("/api/agent/workspace-journal/list", params, activeWorkspaceId));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (isStale()) return;
@@ -91988,7 +91993,7 @@ async function mountWorkspaceJournalPanel(container, options = {}) {
       composerSubmit.disabled = true;
       void (async () => {
         try {
-          const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+          const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeWorkspaceId), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -92486,7 +92491,7 @@ function getNodeCommentsScrollRoot(section) {
 
 async function createNodeCommentsBlock(options = {}) {
   const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const commentsDisabled = options.disabled === true;
   const context = {
     mode: options.mode || "description",
@@ -93598,7 +93603,7 @@ function initFolderBrowseFancybox(container, items = []) {
   });
 }
 
-async function fetchWorkspaceFolderBrowse(folderPath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderBrowse(folderPath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/workspace/folder/browse", { folderPath: normalizeCreateParentPath(folderPath) }, agentId)
   );
@@ -93645,13 +93650,13 @@ async function tryOpenUnknownPathAsAdoptFile(workspacePath) {
   return true;
 }
 
-async function fetchWorkspaceFolderPage(filePath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderPage(filePath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/page", { file: filePath }, agentId));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
 
-async function fetchWorkspaceFolderText(filePath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderText(filePath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/text", { file: filePath }, agentId));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
@@ -94241,7 +94246,7 @@ async function promptRenameWorkspaceFolderItem({ path, label, isDirectory = fals
   if (!trimmed || trimmed === currentName) return;
   try {
     const data = await renameWorkspaceFolderItem(path, trimmed);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (activeFolderBrowseFilePath === path && data.path) {
       await openFolderBrowseFile(trimmed, data.path, { folderPath: activeFolderBrowsePath, skipRouteSync: true });
@@ -94269,7 +94274,7 @@ async function promptMoveWorkspaceFolderItem(path) {
   if (parentPath == null || parentPath === "") return;
   try {
     const data = await moveWorkspaceFolderItem(path, parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (activeFolderBrowseFilePath === path && data.path) {
       await openFolderBrowseFile(getLabelFromPath(data.path), data.path, {
@@ -94301,7 +94306,7 @@ async function deleteWorkspaceFolderSelection(paths = null) {
   if (!confirmed) return;
   try {
     await deleteWorkspaceFolderItems(targets);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     clearFolderBrowseSelection();
     if (activeFolderBrowseFilePath && targets.includes(activeFolderBrowseFilePath)) {
       activeFolderBrowseFilePath = null;
@@ -94321,7 +94326,7 @@ async function deleteWorkspaceFolderItemByPath(path, label) {
   if (!confirmed) return;
   try {
     await deleteWorkspaceFolderItems([path]);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     if (activeFolderBrowseFilePath === path) {
       activeFolderBrowseFilePath = null;
       applyContentModeState(FOLDER_BROWSE_MODE);
@@ -97430,7 +97435,7 @@ function applyModeUi(options = {}) {
         awnDataViewStoreRelMatches(awnDataViewStoreCache.relPath, awnDataViewStoreRel) &&
         (!awnDataViewRecordId || awnDataViewRecordCache?.id === awnDataViewRecordId);
       if (cacheOk) {
-        refreshAwnDataViewFromCache(awnDataViewCatalogAgentId || activeAgentId);
+        refreshAwnDataViewFromCache(awnDataViewCatalogAgentId || activeWorkspaceId);
         void mountAwnDataViewComments(
           awnDataViewStoreCache,
           awnDataViewRecordId ? awnDataViewRecordCache : null
@@ -98584,7 +98589,7 @@ function getAwnFenceRenderer(fenceTag) {
 async function loadAwnRendererModule(rendererPath) {
   if (!rendererPath) return null;
   if (awnRendererModuleCache.has(rendererPath)) return awnRendererModuleCache.get(rendererPath);
-  const url = buildApiUrl("/api/agent-system/renderer", { path: rendererPath }, activeAgentId);
+  const url = buildApiUrl("/api/agent-system/renderer", { path: rendererPath }, activeWorkspaceId);
   const promise = import(/* webpackIgnore: true */ url).catch((err) => {
     console.warn("Не удалось загрузить рендер блока:", rendererPath, err);
     awnRendererModuleCache.delete(rendererPath);
@@ -98619,7 +98624,7 @@ async function hydrateAwnFenceBlocks(rootNode) {
       const fn = mod.default || mod.render;
       if (typeof fn !== "function") throw new Error("Рендер не экспортирует функцию (default/render)");
       await fn(target, source, {
-        agentId: activeAgentId,
+        agentId: activeWorkspaceId,
         blockId: el.getAttribute("data-awn-block") || "",
         fenceTag: el.getAttribute("data-awn-fence") || ""
       });
@@ -101340,7 +101345,7 @@ function normalizeBreadcrumbPath(nodePath) {
 }
 
 function collectAllMenuFlatEntries(menu = currentMenuData) {
-  return collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  return collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
 }
 
 function resolveMenuEntryByDisplayPath(displayPath) {
@@ -101750,7 +101755,7 @@ function nodeMatchesQuery(value, queryLower) {
   return String(value || "").toLowerCase().includes(queryLower);
 }
 
-function filterMenuTree(node, queryLower, agentId = activeAgentId) {
+function filterMenuTree(node, queryLower, agentId = activeWorkspaceId) {
   if (!node) return null;
 
   if (!queryLower) {
@@ -102029,7 +102034,7 @@ function appendRepoServiceMenuItems(
   container,
   repoServiceItems,
   parentMenuNode,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   sectionFolderPath = "."
 ) {
   const items = filterRepoServiceItemsForMenuSection(repoServiceItems, sectionFolderPath);
@@ -102181,7 +102186,7 @@ function collectDirectChildNodeEntries(menuNode) {
   return entries;
 }
 
-function collectRepoRootFlatEntries(node, acc, agentId = activeAgentId) {
+function collectRepoRootFlatEntries(node, acc, agentId = activeWorkspaceId) {
   const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
   for (const item of getMenuRepoServiceItems(node)) {
     if (activeOnly && !isMenuTopicActiveStatus(item?.status)) continue;
@@ -102203,7 +102208,7 @@ function collectRepoRootFlatEntries(node, acc, agentId = activeAgentId) {
 
 function collectFlatMenuEntries(node, acc = [], options = {}) {
   const includeRepoRoot = options.includeRepoRoot !== false;
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
 
   if (node.indexPath) {
@@ -102277,7 +102282,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
   return acc;
 }
 
-function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}) {
+function collectAgentMenuFlatEntries(menu, agentId = activeWorkspaceId, options = {}) {
   if (!menu) return [];
   const includeHiddenSections = options.includeHiddenSections === true;
   const childOptions = { includeRepoRoot: false, agentId };
@@ -102466,7 +102471,7 @@ function entryMatchesMenuQuery(entry, queryLower) {
   return false;
 }
 
-function collectMenuSearchEntries(menu, agentId = activeAgentId) {
+function collectMenuSearchEntries(menu, agentId = activeWorkspaceId) {
   if (!menu) return [];
   const entries = [
     ...collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }),
@@ -102492,7 +102497,7 @@ function collectMenuSearchEntries(menu, agentId = activeAgentId) {
   });
 }
 
-function getMenuSearchResultEntries(menu, agentId = activeAgentId) {
+function getMenuSearchResultEntries(menu, agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   if (!queryLower) return [];
   return collectMenuSearchEntries(menu, agentId).filter((entry) => entryMatchesMenuQuery(entry, queryLower));
@@ -102503,7 +102508,7 @@ function filterMenuEntriesByQuery(entries, queryLower) {
   return entries.filter((entry) => entryMatchesMenuQuery(entry, queryLower));
 }
 
-function menuSearchHasResults(menu, agentId = activeAgentId) {
+function menuSearchHasResults(menu, agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   if (!queryLower) return true;
   return getMenuSearchResultEntries(menu, agentId).length > 0;
@@ -102516,15 +102521,15 @@ function isServiceTreeCollapsed() {
 function toggleServiceTreeCollapsed() {
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", isServiceTreeCollapsed() ? "0" : "1");
   if (currentMenuData && canIncrementalMenuPatch()) {
-    withPreservedMenuTreePreviews(activeAgentId, () => {
+    withPreservedMenuTreePreviews(activeWorkspaceId, () => {
       withPreservedMenuScroll(() => {
-        syncServiceSectionCollapsedUi(activeAgentId, currentMenuData);
+        syncServiceSectionCollapsedUi(activeWorkspaceId, currentMenuData);
       });
     });
     syncMenuCollapseAllButton();
     return;
   }
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
 function isContainerTreeCollapsed() {
@@ -102533,10 +102538,10 @@ function isContainerTreeCollapsed() {
 
 function toggleContainerTreeCollapsed() {
   localStorage.setItem("agentcms.containerTree.collapsed.v1", isContainerTreeCollapsed() ? "0" : "1");
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
-function isPinnedInsideServiceFolder(agentId = activeAgentId) {
+function isPinnedInsideServiceFolder(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!serviceFolder || !pinnedPath) return false;
@@ -102546,7 +102551,7 @@ function isPinnedInsideServiceFolder(agentId = activeAgentId) {
   return pinned === service || pinned.startsWith(`${service}/`);
 }
 
-function isPinnedInsideContainerFolder(agentId = activeAgentId) {
+function isPinnedInsideContainerFolder(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!containerFolder || !pinnedPath) return false;
@@ -102556,7 +102561,7 @@ function isPinnedInsideContainerFolder(agentId = activeAgentId) {
   return pinned === container || pinned.startsWith(`${container}/`);
 }
 
-function isPinnedInsideSharedFolder(agentId = activeAgentId) {
+function isPinnedInsideSharedFolder(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!sharedFolder || !pinnedPath) return false;
@@ -102566,7 +102571,7 @@ function isPinnedInsideSharedFolder(agentId = activeAgentId) {
   return pinned === shared || pinned.startsWith(`${shared}/`);
 }
 
-function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
+function shouldShowServiceSectionInMenu(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -102575,7 +102580,7 @@ function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideServiceFolder(agentId);
 }
 
-function shouldShowContainerSectionInMenu(agentId = activeAgentId) {
+function shouldShowContainerSectionInMenu(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -102584,7 +102589,7 @@ function shouldShowContainerSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideContainerFolder(agentId);
 }
 
-function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
+function shouldShowSharedSectionInMenu(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -102593,7 +102598,7 @@ function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideSharedFolder(agentId);
 }
 
-function shouldShowAgentSystemSectionInMenu(agentId = activeAgentId) {
+function shouldShowAgentSystemSectionInMenu(agentId = activeWorkspaceId) {
   return TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(agentId || "").trim());
 }
 
@@ -102616,15 +102621,15 @@ function isSharedTreeCollapsed() {
 function toggleSharedTreeCollapsed() {
   localStorage.setItem("agentcms.sharedTree.collapsed.v1", isSharedTreeCollapsed() ? "0" : "1");
   if (currentMenuData && canIncrementalMenuPatch()) {
-    withPreservedMenuTreePreviews(activeAgentId, () => {
+    withPreservedMenuTreePreviews(activeWorkspaceId, () => {
       withPreservedMenuScroll(() => {
-        syncSharedSectionCollapsedUi(activeAgentId, currentMenuData);
+        syncSharedSectionCollapsedUi(activeWorkspaceId, currentMenuData);
       });
     });
     syncMenuCollapseAllButton();
     return;
   }
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
 function clearMenuAgentSystemSection(parentEl) {
@@ -102639,11 +102644,11 @@ function toggleAgentSystemTreeCollapsed() {
   const next = !isAgentSystemTreeCollapsed();
   localStorage.setItem("agentcms.agentSystemTree.collapsed.v1", next ? "1" : "0");
   if (currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
   }
 }
 
-function sanitizeAgentSystemFolderCollapseState(agentId = activeAgentId) {
+function sanitizeAgentSystemFolderCollapseState(agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   let changed = false;
   for (const path of [...collapsed]) {
@@ -103003,7 +103008,7 @@ function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
         return;
       }
       form.remove();
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
       await selectAgentSystemFile(displayName, filePath);
       showToast(`Тип «${displayName}» создан`, "success");
     } catch (err) {
@@ -103031,7 +103036,7 @@ async function createNewAgentSystemType(domain, folderPath, triggerBtn, domainKi
   showNewTypeInlineForm(domain, triggerBtn, domainKind);
 }
 
-function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
+function renderAgentSystemMenuItem(item, parentEl, agentId = activeWorkspaceId) {
   if (!item?.path || !parentEl) return null;
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row menu-agent-system-item-row";
@@ -103060,7 +103065,7 @@ function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
   return itemRow;
 }
 
-function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeAgentId) {
+function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeWorkspaceId) {
   if (!subGroup?.items?.length || !parentEl) return null;
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const visibleItems = (subGroup.items || []).filter((item) => {
@@ -103103,7 +103108,7 @@ function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeAgentId) 
   return wrap;
 }
 
-function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgentId) {
+function renderAgentSystemDomainSection(section, parentEl, agentId = activeWorkspaceId) {
   const hasDirectItems = Array.isArray(section?.items) && section.items.length > 0;
   const hasSubGroups = Array.isArray(section?.subGroups) && section.subGroups.length > 0;
   if ((!hasDirectItems && !hasSubGroups) || !parentEl) return null;
@@ -103179,7 +103184,7 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
   return wrap;
 }
 
-function renderAgentSystemTreeBody(systemTree, body, agentId = activeAgentId) {
+function renderAgentSystemTreeBody(systemTree, body, agentId = activeWorkspaceId) {
   if (!systemTree || !body) return;
   const queryLower = menuSearchQuery.trim().toLowerCase();
 
@@ -103195,7 +103200,7 @@ function renderAgentSystemTreeBody(systemTree, body, agentId = activeAgentId) {
   }
 }
 
-function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId) {
+function renderAgentSystemSection(systemTree, parentEl, agentId = activeWorkspaceId) {
   if (!systemTree || !parentEl) return;
   sanitizeAgentSystemFolderCollapseState(agentId);
   clearMenuAgentSystemSection(parentEl);
@@ -103306,10 +103311,10 @@ function isConfigurationTreeCollapsed() {
 function toggleConfigurationTreeCollapsed() {
   const next = !isConfigurationTreeCollapsed();
   localStorage.setItem("agentcms.configurationTree.collapsed.v1", next ? "1" : "0");
-  renderMenuTree(activeAgentId);
+  renderMenuTree(activeWorkspaceId);
 }
 
-function renderConfigurationTreeBody(configurationTree, body, agentId = activeAgentId) {
+function renderConfigurationTreeBody(configurationTree, body, agentId = activeWorkspaceId) {
   if (!configurationTree || !body) return;
   const parentNode = { title: CONFIGURATION_SECTION_LABEL, ...configurationTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, CONFIGURATION_ROOT_FOLDER, 0);
@@ -103318,7 +103323,7 @@ function renderConfigurationTreeBody(configurationTree, body, agentId = activeAg
   }
 }
 
-function renderConfigurationSection(configurationTree, parentEl, agentId = activeAgentId) {
+function renderConfigurationSection(configurationTree, parentEl, agentId = activeWorkspaceId) {
   if (!configurationTree || !parentEl) return;
   clearMenuConfigurationSection(parentEl);
 
@@ -103361,7 +103366,7 @@ function renderConfigurationSection(configurationTree, parentEl, agentId = activ
   normalizeMenuReservedSectionsOrder(parentEl);
 }
 
-function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, parentSectionPath = ".") {
+function renderServiceTreeBody(serviceTree, body, agentId = activeWorkspaceId, parentSectionPath = ".") {
   const parentNode = { title: "", ...serviceTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, parentSectionPath, 0);
   for (const child of visibleChildren) {
@@ -103369,7 +103374,7 @@ function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, paren
   }
 }
 
-function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, parentSectionPath = null) {
+function renderContainerTreeBody(containerTree, body, agentId = activeWorkspaceId, parentSectionPath = null) {
   const containerFolder = parentSectionPath || getActiveAgentContainerFolder(agentId);
   if (!containerTree || !body) return;
 
@@ -103380,7 +103385,7 @@ function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, p
   }
 }
 
-function renderSharedTreeBody(sharedTree, body, agentId = activeAgentId, parentSectionPath = null) {
+function renderSharedTreeBody(sharedTree, body, agentId = activeWorkspaceId, parentSectionPath = null) {
   const sharedFolder = parentSectionPath || getActiveAgentSharedFolder(agentId);
   if (!sharedTree || !body) return;
 
@@ -103391,7 +103396,7 @@ function renderSharedTreeBody(sharedTree, body, agentId = activeAgentId, parentS
   }
 }
 
-function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
+function renderServiceSection(serviceTree, parentEl, agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
   if (!shouldShowServiceSectionInMenu(agentId)) {
@@ -103494,7 +103499,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   refreshClassicMenuTreeLines(agentId);
 }
 
-function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
+function renderSharedSection(sharedTree, parentEl, agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder || !sharedTree || !parentEl) return;
   if (!shouldShowSharedSectionInMenu(agentId)) {
@@ -103600,7 +103605,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   refreshClassicMenuTreeLines(agentId);
 }
 
-function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
+function getGitRepoWorkspaceMenuNode(node, agentId = activeWorkspaceId) {
   const workspaceNode = {
     title: node?.title || "",
     sections: node?.sections || [],
@@ -103615,7 +103620,7 @@ function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
   return pruneMenuTreeForDisplay(workspaceNode, agentId);
 }
 
-function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
+function getGitRepoMenuLayout(node, agentId = activeWorkspaceId, sectionFolderPath = "", depth = 0) {
   const repoServiceItems = filterRepoServiceItemsForMenuSection(
     getMenuRepoServiceItems(node),
     sectionFolderPath || "."
@@ -103656,14 +103661,14 @@ function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath =
   };
 }
 
-function getGitRepoMenuHasContent(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
+function getGitRepoMenuHasContent(node, agentId = activeWorkspaceId, sectionFolderPath = "", depth = 0) {
   const layout = getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth);
   return Boolean(
     layout.hasService || layout.hasContainer || layout.hasWorkspace || layout.hasRepoService
   );
 }
 
-function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId = activeAgentId) {
+function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder || !serviceTree || !parentEl) return;
 
@@ -103721,7 +103726,7 @@ function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId
   parentEl.appendChild(section);
 }
 
-function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, agentId = activeAgentId) {
+function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder || !containerTree || !parentEl) return;
 
@@ -103743,7 +103748,7 @@ function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, age
   parentEl.appendChild(wrap);
 }
 
-function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth, parentMenuNode, agentId = activeAgentId) {
+function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth, parentMenuNode, agentId = activeWorkspaceId) {
   const layout = getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth);
   const hasAnyContent =
     layout.hasService ||
@@ -103796,7 +103801,7 @@ function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth
   sectionNode.appendChild(childrenNode);
 }
 
-function renderContainerSection(containerTree, parentEl, agentId = activeAgentId) {
+function renderContainerSection(containerTree, parentEl, agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder || !containerTree || !parentEl) return;
   if (!shouldShowContainerSectionInMenu(agentId)) {
@@ -103868,11 +103873,11 @@ function createMenuTreeDivider(kind) {
   return divider;
 }
 
-function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
+function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeWorkspaceId) {
   clearMenuWorkspaceTreeDivider(parentEl);
   if (!parentEl) return;
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const shared = parentEl.querySelector(":scope > .menu-shared-section");
@@ -103994,7 +103999,7 @@ function clearMenuReservedDivider(parentEl) {
   parentEl?.querySelectorAll(":scope > .menu-reserved-divider").forEach((node) => node.remove());
 }
 
-function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
+function getWorkspaceRootMenuTreeNode(menu, agentId = activeWorkspaceId) {
   if (!menu) {
     return { title: getAgentTreeTitle(agentId), sections: [], items: [], indexPath: null };
   }
@@ -104008,7 +104013,7 @@ function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
   return tree;
 }
 
-function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeAgentId) {
+function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeWorkspaceId) {
   if (!menu) return false;
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const filtered = filterMenuTree(getWorkspaceRootMenuTreeNode(menu, agentId), queryLower, agentId);
@@ -104018,19 +104023,19 @@ function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeAgentId) {
   return visibleChildren.length > 0 || repoItems.length > 0;
 }
 
-function hasVisibleSharedSection(menu, agentId = activeAgentId) {
+function hasVisibleSharedSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.sharedTree && shouldShowSharedSectionInMenu(agentId));
 }
 
-function hasVisibleContainerSection(menu, agentId = activeAgentId) {
+function hasVisibleContainerSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.containerTree && shouldShowContainerSectionInMenu(agentId));
 }
 
-function hasVisibleKitSection(menu, agentId = activeAgentId) {
+function hasVisibleKitSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.serviceTree && shouldShowServiceSectionInMenu(agentId));
 }
 
-function hasVisibleAgentSystemSection(menu, agentId = activeAgentId) {
+function hasVisibleAgentSystemSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId));
 }
 
@@ -104038,7 +104043,7 @@ function hasVisibleConfigurationSection(menu) {
   return Boolean(menu?.configurationTree);
 }
 
-function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId) {
+function renderRootMenuReservedSections(menu, parentEl, agentId = activeWorkspaceId) {
   if (!parentEl) return;
 
   if (menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId)) {
@@ -104253,26 +104258,26 @@ function setMenuViewMode(mode) {
   if (currentMenuData) {
     // Tree ↔ flat: keep the same DOM, only change visual layout.
     if (wasTreeLayout && isTreeLayout) {
-      syncMenuViewLayoutClass(activeAgentId);
+      syncMenuViewLayoutClass(activeWorkspaceId);
       if (mode === "flat" && previousMode !== "flat" && !menuSearchQuery.trim()) {
-        expandAllMenuTreeBranches(activeAgentId);
+        expandAllMenuTreeBranches(activeWorkspaceId);
       } else {
         syncMenuCollapseAllButton();
       }
       updateActiveButton();
       return;
     }
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     if (mode === "flat" && !menuSearchQuery.trim()) {
-      expandAllMenuTreeBranches(activeAgentId);
+      expandAllMenuTreeBranches(activeWorkspaceId);
     }
     updateActiveButton();
   } else {
-    syncMenuViewLayoutClass(activeAgentId);
+    syncMenuViewLayoutClass(activeWorkspaceId);
   }
 }
 
-function syncMenuViewLayoutClass(agentId = activeAgentId) {
+function syncMenuViewLayoutClass(agentId = activeWorkspaceId) {
   const isFlat = menuViewMode === "flat";
   const pane = menuAgentPanes.get(agentId);
   pane?.classList.toggle("is-menu-view-flat", isFlat);
@@ -104280,7 +104285,7 @@ function syncMenuViewLayoutClass(agentId = activeAgentId) {
   menuNode?.classList.toggle("is-menu-view-flat", isFlat);
 }
 
-function syncMenuSearchLayoutClass(agentId = activeAgentId) {
+function syncMenuSearchLayoutClass(agentId = activeWorkspaceId) {
   const searchActive = Boolean(menuSearchQuery.trim());
   const pane = menuAgentPanes.get(agentId);
   pane?.classList.toggle("is-menu-search-active", searchActive);
@@ -104288,7 +104293,7 @@ function syncMenuSearchLayoutClass(agentId = activeAgentId) {
   menuNode?.classList.toggle("is-menu-search-active", searchActive);
 }
 
-function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
+function appendMenuSearchResultRow(listNode, entry, agentId = activeWorkspaceId) {
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row menu-flat-item menu-search-result-item";
 
@@ -104325,7 +104330,7 @@ function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
   listNode.appendChild(itemRow);
 }
 
-function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const entries = getMenuSearchResultEntries(menu, agentId);
   entries.sort((a, b) => compareMenuPathsNatural(a.displayPath, b.displayPath));
@@ -104344,7 +104349,7 @@ function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = ac
   target.appendChild(sectionNode);
 }
 
-function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const allEntries = collectAgentMenuFlatEntries(menu, agentId);
   let entries = allEntries.filter((entry) => isBookmarked(entry.path));
@@ -104404,7 +104409,7 @@ function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = active
   target.appendChild(sectionNode);
 }
 
-function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let entries = [
     ...collectAgentMenuFlatEntries(menu, agentId),
@@ -104469,7 +104474,7 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
   target.appendChild(sectionNode);
 }
 
-function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let entries = queryLower
     ? getMenuSearchResultEntries(menu, agentId)
@@ -104518,7 +104523,7 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
   target.appendChild(sectionNode);
 }
 
-function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeAgentId) {
+function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeWorkspaceId) {
   if (!node || !parentEl) return;
   if (depth > 0 && !shouldShowMenuTreeFolder(node, agentId)) return;
   const searchActive = menuSearchQuery.trim().length > 0;
@@ -104907,7 +104912,7 @@ function decorateMenuSortRows(root = getMenuQueryRoot()) {
   });
 }
 
-function refreshMenuSortDecorations(agentId = activeAgentId) {
+function refreshMenuSortDecorations(agentId = activeWorkspaceId) {
   const pane = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   decorateMenuSortRows(pane);
   enableMenuLinkDragSources(pane);
@@ -105286,7 +105291,7 @@ async function executeMenuNodeMove(move) {
   if (!confirmed) return false;
   try {
     const data = await moveNodeByPath(move.source, move.parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (data.path) {
       await openNodeFromMenu(getLabelFromPath(data.path), data.path);
@@ -105300,8 +105305,8 @@ async function executeMenuNodeMove(move) {
   }
 }
 
-function findMenuNodeInAgentMenuForPath(targetPath, agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function findMenuNodeInAgentMenuForPath(targetPath, agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const menuRoot = { title: getAgentTreeTitle(agentId), ...menu };
   return (
@@ -105320,7 +105325,7 @@ function menuTreeNodeHasChildSlots(node) {
   return false;
 }
 
-function canMenuNodeAcceptChildNodes(nodePath, agentId = activeAgentId) {
+function canMenuNodeAcceptChildNodes(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !getMenuContextMenuKind(normalized)) return false;
   if (isPartNodePath(normalized) || isSystemReferenceManifestPath(normalized)) return false;
@@ -105474,16 +105479,16 @@ function setupEditorMenuLinkDrop() {
   }
 }
 
-function renderMenu(menu, agentId = activeAgentId, options = {}) {
+function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
   const menuOnly = Boolean(options.menuOnly);
   menu = stripPlatformDataFoldersFromMenu(menu);
-  if (agentId === activeAgentId && activeAgentId) {
+  if (agentId === activeWorkspaceId && activeWorkspaceId) {
     hideMenuNoAgentPlaceholder();
   }
   const target = ensureMenuAgentPane(agentId);
   menuCacheByAgent.set(agentId, menu);
   indexManifestTreeTypesFromMenu(menu);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     currentMenuData = menu;
     invalidateMenuDisplayLabelMap();
     if (!menuOnly) {
@@ -105497,7 +105502,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
   const filteredTree = filterMenuTree(baseTree, menuSearchQuery.trim().toLowerCase(), agentId);
   const treeToRender = filteredTree || { title: agentTitle, sections: [], items: [], indexPath: null };
 
-  if (agentId === activeAgentId && !menuOnly) {
+  if (agentId === activeWorkspaceId && !menuOnly) {
     sanitizeCollapsedFolderPaths(agentId);
     const allPaths = new Set(
       collectAllMenuFlatEntries(menu).map((entry) => nodeStorageKey(agentId, entry.path))
@@ -105536,7 +105541,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     void prefetchMenuReadStates(menu, agentId).then(() => refreshMenuReadBadges(agentId));
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     if (!menuOnly) {
       syncAgentPreview();
     }
@@ -105551,11 +105556,11 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 
   enableMenuLinkDragSources(target);
 
-  if (agentId === activeAgentId && getDocAsideTab() === "links") {
+  if (agentId === activeWorkspaceId && getDocAsideTab() === "links") {
     renderDocLinksLibrary();
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     scheduleMenuAgentStatsSync(menu);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
@@ -106412,7 +106417,7 @@ function scheduleMenuAgentStatsSync(menu = currentMenuData) {
 async function syncMenuAgentStats(menu = currentMenuData) {
   if (!menuAgentStatsNode) return;
 
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     hideMenuAgentStats();
     return;
   }
@@ -106427,7 +106432,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   try {
     const [workspace, intakeTotals] = await Promise.all([
       fetchAgentWorkspaceStats().catch(() => null),
-      refreshMenuIntakeSummary(menu, activeAgentId).catch(() => null)
+      refreshMenuIntakeSummary(menu, activeWorkspaceId).catch(() => null)
     ]);
     if (seq !== menuAgentStatsSeq) return;
     renderMenuAgentStatsContent({
@@ -106442,7 +106447,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   }
 }
 
-function getWorkspacesTreeChildren(agentId = activeAgentId) {
+function getWorkspacesTreeChildren(agentId = activeWorkspaceId) {
   const rootHost = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   const rootSection = rootHost?.querySelector(".menu-section");
   if (!rootSection) return null;
@@ -108039,7 +108044,7 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "configs") {
     try {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
       const cache = await loadNodeSettingsForManifest(activePath, { force: true });
       modeContentCache.configs = buildNodeConfigYamlFromState(cache || {});
       fileContentInputNode.value = "";
@@ -108062,7 +108067,7 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "topic-schema") {
     try {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
       if (isWorkspaceSchemaContext(activePath)) {
         topicSchemaActiveTarget = "workspace";
       } else if (isAreaSchemaContext(activePath)) {
@@ -108212,20 +108217,20 @@ async function loadContentByMode(options = {}) {
 
 function replaceActiveMenuLabel(newLabel, pathHint = activePath) {
   const normalizedHint = normalizeMenuNodePath(pathHint);
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (menu && newLabel) {
     if (isAgentContainerRootIndexPath(normalizedHint) && menu.containerTree) {
       menu.containerTree.title = newLabel;
-      menuCacheByAgent.set(activeAgentId, menu);
+      menuCacheByAgent.set(activeWorkspaceId, menu);
       if (currentMenuData) currentMenuData.containerTree = menu.containerTree;
-      patchContainerMenuAfterCreate(activeAgentId);
+      patchContainerMenuAfterCreate(activeWorkspaceId);
       return;
     }
     if (isAgentSystemRootIndexPath(normalizedHint) && menu.serviceTree) {
       menu.serviceTree.title = newLabel;
-      menuCacheByAgent.set(activeAgentId, menu);
+      menuCacheByAgent.set(activeWorkspaceId, menu);
       if (currentMenuData) currentMenuData.serviceTree = menu.serviceTree;
-      patchServiceMenuAfterCreate(activeAgentId);
+      patchServiceMenuAfterCreate(activeWorkspaceId);
       return;
     }
   }
@@ -108328,10 +108333,10 @@ async function saveContent() {
         const details = errorData.details ? `: ${errorData.details}` : "";
         throw new Error(`${reason}${details}`);
       }
-      invalidateTypeCatalogCache(activeAgentId);
+      invalidateTypeCatalogCache(activeWorkspaceId);
       const [detail] = await Promise.all([
         loadAgentSystemTypeDetail(getActiveNodeApiPath()).catch(() => null),
-        loadAwnTypes(activeAgentId).catch(() => null)
+        loadAwnTypes(activeWorkspaceId).catch(() => null)
       ]);
       renderAgentSystemTypeInspector(detail);
       saveSucceeded = true;
@@ -108532,7 +108537,7 @@ async function saveContent() {
       }
 
       try {
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // menu will resync on next open
       }
@@ -108845,7 +108850,7 @@ async function saveContent() {
         activeLabel = resolveNodeDisplayName(nextStoredAwnName, getNodeSlugFromPath(activePath));
         replaceActiveMenuLabel(activeLabel, activePath);
         try {
-          await refreshMenu({ agentId: activeAgentId });
+          await refreshMenu({ agentId: activeWorkspaceId });
         } catch {
           // menu will resync on next open
         }
@@ -109001,7 +109006,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
           await loadAgents();
           renderAgentSelect();
         }
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // menu will resync on next open
       }
@@ -109011,11 +109016,11 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
       showToast("YAML сохранен", "success");
     }
     invalidateTopicSlotsDisabledCache(getPropertiesApiPath());
-    await refreshMenuRuntimeFlagsCache(activeAgentId);
+    await refreshMenuRuntimeFlagsCache(activeWorkspaceId);
     patchMenuNodeRuntimeCommandsFromProps(activePath, mergePropsFormEntries());
-    const menu = menuCacheByAgent.get(activeAgentId);
-    if (menu) enrichMenuRuntimeFromCache(menu, activeAgentId);
-    refreshMenuTreeRuntimeBadges(activeAgentId);
+    const menu = menuCacheByAgent.get(activeWorkspaceId);
+    if (menu) enrichMenuRuntimeFromCache(menu, activeWorkspaceId);
+    refreshMenuTreeRuntimeBadges(activeWorkspaceId);
     void refreshAllFocusPanels();
   } catch (error) {
     showToast("Ошибка YAML", "error");
@@ -109090,7 +109095,7 @@ function shouldApplyAgentWorkspaceViewFromConfig() {
   return false;
 }
 
-async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
+async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeWorkspaceId) {
   const manifestPath = getAgentWorkspaceRootManifestPath();
   if (!manifestPath || !agentId) return null;
   try {
@@ -109104,7 +109109,7 @@ async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId
 
 let persistAgentWorkspaceViewToConfigPromise = null;
 
-async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = activeAgentId) {
+async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = activeWorkspaceId) {
   if (!shouldPersistAgentWorkspaceViewToConfig(view)) return;
   const manifestPath = getAgentWorkspaceRootManifestPath();
   if (!manifestPath || !agentId || !isNodeMdPath(manifestPath)) return;
@@ -109128,8 +109133,8 @@ async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = active
   persistAgentWorkspaceViewToConfigPromise = null;
 }
 
-async function syncAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
-  if (agentId !== activeAgentId || !shouldApplyAgentWorkspaceViewFromConfig()) return;
+async function syncAgentWorkspaceViewFromWorkspaceConfig(agentId = activeWorkspaceId) {
+  if (agentId !== activeWorkspaceId || !shouldApplyAgentWorkspaceViewFromConfig()) return;
   const configView = await readAgentWorkspaceViewFromWorkspaceConfig(agentId);
   if (!configView) return;
   const normalized = normalizeVisibleAgentWorkspaceView(configView);
@@ -109415,7 +109420,7 @@ function setAgentWorkspaceView(
 
 function countAgentMenuNodes(menu) {
   if (!menu) return { total: 0, folders: 0, leaves: 0 };
-  const entries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const entries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   const folders = entries.filter((entry) => entry.isFolder).length;
   return {
     total: entries.length,
@@ -109506,11 +109511,11 @@ function buildAgentMapZoneData(menu) {
       sub: agent.path || agent.id,
       agentId: agent.id,
       action: "agent",
-      active: agent.id === activeAgentId
+      active: agent.id === activeWorkspaceId
     }));
 
   const nodes = menu
-    ? collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })
+    ? collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })
         .filter((entry) => entry.path && entry.path !== rootPath)
         .slice(0, 6)
         .map((entry) => ({
@@ -109595,7 +109600,7 @@ function renderAgentMapHub() {
   if (!agentMapHubTitleNode || !agentMapHubSubNode || !agentMapHubAvatarNode) return;
   const agent = getActiveAgentMeta();
   agentMapHubTitleNode.textContent = agent?.name || getActiveAgentLabel() || "Agent";
-  agentMapHubSubNode.textContent = activeAgentId || "workspace";
+  agentMapHubSubNode.textContent = activeWorkspaceId || "workspace";
 
   agentMapHubAvatarNode.innerHTML = "";
   if (agent?.previewUrl) {
@@ -109701,7 +109706,7 @@ function buildAgentMap2Data(menu) {
 
   function walkMenuNode(menuNode, parentId, depth, parentSectionPath) {
     if (nodes.length >= AGENT_MAP2_MAX_NODES || depth > 8) return;
-    for (const child of getVisibleMenuChildren(menuNode, activeAgentId, parentSectionPath, depth)) {
+    for (const child of getVisibleMenuChildren(menuNode, activeWorkspaceId, parentSectionPath, depth)) {
       if (nodes.length >= AGENT_MAP2_MAX_NODES) break;
       if (child.kind === "folder") {
         attachFolderNode(child.entry, parentId, depth, parentSectionPath);
@@ -109757,7 +109762,7 @@ function buildAgentMap2Data(menu) {
 
   walkMenuNode(baseTree, rootId, 0, "");
 
-  if (menu?.serviceTree && shouldShowServiceSectionInMenu(activeAgentId)) {
+  if (menu?.serviceTree && shouldShowServiceSectionInMenu(activeWorkspaceId)) {
     attachFolderNode(
       { ...menu.serviceTree, title: menu.serviceTree.title || SERVICE_SECTION_TITLE },
       rootId,
@@ -109765,7 +109770,7 @@ function buildAgentMap2Data(menu) {
       ""
     );
   }
-  if (menu?.containerTree && shouldShowContainerSectionInMenu(activeAgentId)) {
+  if (menu?.containerTree && shouldShowContainerSectionInMenu(activeWorkspaceId)) {
     attachFolderNode(
       { ...menu.containerTree, title: menu.containerTree.title || CONTAINER_SECTION_LABEL },
       rootId,
@@ -110347,11 +110352,11 @@ function initAgentGitToolbar() {
 }
 
 function resolveActiveAgentWorkspaceGitRepo() {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (Boolean(menu?.hasGitSelf)) return true;
-  if (Boolean(getFolderWorkspaceMarkersForNode(".", activeAgentId)?.hasGit)) return true;
+  if (Boolean(getFolderWorkspaceMarkersForNode(".", activeWorkspaceId)?.hasGit)) return true;
   if (
-    agentGitLastStatusAgentId === activeAgentId &&
+    agentGitLastStatusAgentId === activeWorkspaceId &&
     agentGitLastStatus?.moduleId === "module-git" &&
     agentGitLastStatus.isRepo
   ) {
@@ -110361,14 +110366,14 @@ function resolveActiveAgentWorkspaceGitRepo() {
 }
 
 async function prefetchAgentGitToolbarRepoState() {
-  if (!activeAgentId || resolveActiveAgentWorkspaceGitRepo()) return;
+  if (!activeWorkspaceId || resolveActiveAgentWorkspaceGitRepo()) return;
   try {
     const response = await fetch(buildApiUrl("/api/git/status", { includeCommits: "false" }));
     if (!response.ok) return;
     const data = await response.json();
     if (data?.moduleId !== "module-git") return;
     agentGitLastStatus = data;
-    agentGitLastStatusAgentId = activeAgentId;
+    agentGitLastStatusAgentId = activeWorkspaceId;
     syncAgentGitToolbarUi();
   } catch {
     // ignore — menu markers remain primary
@@ -110404,7 +110409,7 @@ function syncSidebarRoadmapGlobeToolbarUi() {
 
 function openSidebarRoadmapGlobePage() {
   closeAgentsPickerPopover();
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView();
     return;
   }
@@ -111207,7 +111212,7 @@ function formatAgentGitCommitBatchReason(reason) {
 
 function buildAgentGitCommitResultDetailsText(result, context = {}) {
   const lines = [];
-  const agentLabel = String(context.agentId || activeAgentId || "").trim();
+  const agentLabel = String(context.agentId || activeWorkspaceId || "").trim();
   if (agentLabel) lines.push(`Агент: ${agentLabel}`);
   if (context.batchLabel) lines.push(`Партия (UI): ${context.batchLabel}`);
   if (Array.isArray(context.batchIds) && context.batchIds.length) {
@@ -112171,7 +112176,7 @@ function agentGitHasConfiguredRemote(data) {
 
 function syncAgentGitSettingsUi(data) {
   agentGitLastStatus = data || null;
-  agentGitLastStatusAgentId = activeAgentId;
+  agentGitLastStatusAgentId = activeWorkspaceId;
   const isRepo = Boolean(data?.isRepo);
   const hasRemote = agentGitHasConfiguredRemote(data);
   if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
@@ -112629,7 +112634,7 @@ async function renderAgentJournalView() {
   agentJournalContentNode.appendChild(host);
 
   try {
-    const statsResponse = await fetch(buildApiUrl("/api/agent/workspace-journal/stats", {}, activeAgentId));
+    const statsResponse = await fetch(buildApiUrl("/api/agent/workspace-journal/stats", {}, activeWorkspaceId));
     const stats = statsResponse.ok ? await statsResponse.json() : null;
     if (isStale()) return;
 
@@ -112701,7 +112706,7 @@ async function renderAgentRecyclerView() {
   syncAgentRecyclerInfoBar({ loading: true });
 
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeAgentId));
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeWorkspaceId));
     const rawBody = await response.text();
     let data = {};
     try {
@@ -112795,7 +112800,7 @@ async function restoreRecyclerItemFromUi(item) {
   });
   if (!confirmed) return;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/restore", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/restore", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ markerId: item.markerId, markerLabel: item.markerLabel })
@@ -112805,7 +112810,7 @@ async function restoreRecyclerItemFromUi(item) {
     showToast("Восстановлено", "success");
     invalidateStorageRootScanCache();
     refreshEntryOverviewSlotCounterStripsForTopic(getResolvedNodePath(activePath));
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     await renderAgentRecyclerView();
   } catch (error) {
@@ -112820,7 +112825,7 @@ async function clearWorkspaceRecyclerFromUi() {
   );
   if (!confirmed) return;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/clear", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/clear", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true })
@@ -113429,7 +113434,7 @@ function collectWorkspaceTodoSources() {
   if (!menu) return sources;
 
   const seen = new Set([ROOT_SYSTEM_TODO_FILE.toLowerCase()]);
-  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+  for (const entry of collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })) {
     if (entry.isFolder) continue;
     const manifestPath = normalizeMenuNodePath(resolveManifestPathForNodeApi(entry.path) || entry.path || "");
     if (!manifestPath || !isNodeManifestPath(manifestPath)) continue;
@@ -113493,7 +113498,7 @@ async function renderAgentTodoListView() {
   let rootTaskCount = 0;
 
   try {
-    const response = await fetch(buildApiUrl("/api/workspace/todo", {}, activeAgentId));
+    const response = await fetch(buildApiUrl("/api/workspace/todo", {}, activeWorkspaceId));
     if (response.ok) {
       const payload = await response.json();
       rootPreview = String(payload?.content || payload?.body || "").trim();
@@ -114000,8 +114005,8 @@ function renderAgentDashboardIdeaSection(_counts) {
 function renderAgentDashboardWorkspaceSection(counts) {
   if (!home2ContentNode || !home2HeadNode) return;
 
-  const agent = agentsCache.find((item) => item.id === activeAgentId);
-  const agentLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Агент";
+  const agent = agentsCache.find((item) => item.id === activeWorkspaceId);
+  const agentLabel = agent?.name || getActiveAgentLabel() || activeWorkspaceId || "Агент";
   home2HeadNode.replaceChildren();
   home2ContentNode.replaceChildren();
 
@@ -114068,7 +114073,7 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
   const meta = document.createElement("p");
   meta.className = "home2-meta";
-  meta.textContent = [activeAgentId, agent?.path].filter(Boolean).join(" · ");
+  meta.textContent = [activeWorkspaceId, agent?.path].filter(Boolean).join(" · ");
 
   copy.append(title, meta);
 
@@ -114086,7 +114091,7 @@ function renderAgentDashboardWorkspaceSection(counts) {
   const menuRoot = currentMenuData;
   let topicEntries = [];
   if (menuRoot) {
-    const flat = collectAgentMenuFlatEntries(menuRoot, activeAgentId, { includeHiddenSections: true });
+    const flat = collectAgentMenuFlatEntries(menuRoot, activeWorkspaceId, { includeHiddenSections: true });
     const leaves = flat.filter((entry) => !entry.isFolder);
     topicEntries = (leaves.length ? leaves : flat).slice(0, 12);
   }
@@ -114122,13 +114127,13 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
 let homeWorkspaceManifestLoadSeq = 0;
 
-function getActiveAgentWorkspaceManifestPath(agentId = activeAgentId) {
+function getActiveAgentWorkspaceManifestPath(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   if (!agent?.path || agent.manifestFound === false) return null;
   return AREA_MANIFEST_FILE;
 }
 
-async function fetchActiveAgentWorkspaceManifestContent(agentId = activeAgentId) {
+async function fetchActiveAgentWorkspaceManifestContent(agentId = activeWorkspaceId) {
   const manifestPath = getActiveAgentWorkspaceManifestPath(agentId);
   if (!manifestPath) return null;
   const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }, agentId));
@@ -114198,7 +114203,7 @@ function renderHomeWorkspaceManifestSection(payload) {
   homeWorkspaceManifestNode.classList.remove("hidden");
 }
 
-async function refreshHomeWorkspaceManifestSection(agentId = activeAgentId) {
+async function refreshHomeWorkspaceManifestSection(agentId = activeWorkspaceId) {
   if (!homeWorkspaceManifestNode) return;
 
   if (!agentId || agentWorkspaceView !== "dashboard" || !isAgentWorkspaceCanvasVisible()) {
@@ -114809,11 +114814,11 @@ async function renderAgentAwnTypesView({ forceReload = false } = {}) {
     awnTypesCache = null;
     awnTypesLoadPromise = null;
   }
-  await loadAwnTypes(activeAgentId);
+  await loadAwnTypes(activeWorkspaceId);
   await renderAwnTypesContent(agentAwnTypesContentNode);
 }
 
-async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } = {}) {
+async function renderAwnTypesContent(containerNode, { agentId = activeWorkspaceId } = {}) {
   if (!containerNode) return;
   containerNode.innerHTML = "";
 
@@ -115566,7 +115571,7 @@ function renderAgentSchemaView() {
   }
 
   const menu = currentMenuData;
-  const entries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const entries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   if (!entries.length) {
     renderListEmptyMessage(agentSchemaContentNode, "В workspace пока нет тем");
     return;
@@ -115720,7 +115725,7 @@ function renderAgentVaultView() {
   }
 
   const allEntries = sortVaultEntries(
-    collectAgentMenuFlatEntries(currentMenuData, activeAgentId, { includeHiddenSections: true })
+    collectAgentMenuFlatEntries(currentMenuData, activeWorkspaceId, { includeHiddenSections: true })
   );
   const filtered = filterVaultEntries(allEntries);
 
@@ -116214,7 +116219,7 @@ function appendAgentGraphChannelsBranch({ nodes, edges, nodeIds, rootId, channel
 
 async function loadAgentGraphRepositoriesPayload() {
   if (menuRepositoriesLastPayload) return menuRepositoriesLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent));
@@ -116227,7 +116232,7 @@ async function loadAgentGraphRepositoriesPayload() {
 
 async function loadAgentGraphAwnDataPayload() {
   if (menuAwnDataStoresLastPayload) return menuAwnDataStoresLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/awn-databases", {}, resolvedAgent));
@@ -116240,7 +116245,7 @@ async function loadAgentGraphAwnDataPayload() {
 
 async function loadAgentGraphMediaLibrariesPayload() {
   if (menuMediaLibrariesLastPayload) return menuMediaLibrariesLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/agent/media-libraries", {}, resolvedAgent));
@@ -116253,7 +116258,7 @@ async function loadAgentGraphMediaLibrariesPayload() {
 
 async function loadAgentGraphChannelsPayload() {
   if (menuAwnChannelsLastPayload) return menuAwnChannelsLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/agent/channels", {}, resolvedAgent));
@@ -117719,7 +117724,7 @@ function showAppLandingView(hint = "") {
   clearActiveSystemFile();
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
-  activeAgentId = null;
+  activeWorkspaceId = null;
   resetGitWorkspaceViewToDefault();
   appRootNode.classList.add("app-landing-view");
   appRootNode.classList.remove("home-view", "system-file-view", "not-found-view");
@@ -117760,7 +117765,7 @@ function showAppLandingView(hint = "") {
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
     return;
   }
@@ -117844,7 +117849,7 @@ function showNotFoundView(requestedPath = "") {
 }
 
 function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
     return;
   }
@@ -117955,11 +117960,11 @@ function canIncrementalMenuPatch() {
   return isMenuTreeLayoutMode() && !menuSearchQuery.trim();
 }
 
-function getMenuTreeHost(agentId = activeAgentId) {
+function getMenuTreeHost(agentId = activeWorkspaceId) {
   return menuAgentPanes.get(agentId) || menuNode;
 }
 
-function findMenuSectionByFolderPath(folderPath, agentId = activeAgentId) {
+function findMenuSectionByFolderPath(folderPath, agentId = activeWorkspaceId) {
   const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   const host = getMenuTreeHost(agentId);
   if (!host) return null;
@@ -118002,7 +118007,7 @@ function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".",
   return null;
 }
 
-function getMenuParentNodeForFolder(menu, folderPath, agentId = activeAgentId) {
+function getMenuParentNodeForFolder(menu, folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath || ".", agentId);
   if (normalized === ".") return null;
   const segments = normalized.split("/").filter(Boolean);
@@ -118011,7 +118016,7 @@ function getMenuParentNodeForFolder(menu, folderPath, agentId = activeAgentId) {
   return parentBranch?.node ?? null;
 }
 
-function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
+function getMenuBranchForFolder(menu, folderPath, agentId = activeWorkspaceId) {
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...menu };
   const queryLower = menuSearchQuery.trim().toLowerCase();
@@ -118034,7 +118039,7 @@ function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
   return { ...hit, node: filtered };
 }
 
-function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeAgentId) {
+function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   let changed = false;
   const expandPath = (folderPath) => {
@@ -118055,12 +118060,12 @@ function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId
   if (changed) saveCollapsedFoldersByAgent();
 }
 
-function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
+function normalizeMenuPatchFolderPath(folderPath, agentId = activeWorkspaceId) {
   const stripped = stripVaultPrefixFromRelPath(String(folderPath || "").replace(/\\/g, "/").trim());
   return normalizeFolderPath(stripped || ".");
 }
 
-function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
+function getCreateParentFolderForPatch(createdPath, type, agentId = activeWorkspaceId) {
   if (type === "catalog" || type === "taxonomy") {
     const taxFolder = getSharedTaxonomiesFolder(agentId);
     const normalizedCreated = String(createdPath || "").replace(/\\/g, "/");
@@ -118090,10 +118095,10 @@ function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentI
   return normalizeMenuPatchFolderPath(parentFolder, agentId);
 }
 
-function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
+function syncMenuCachesAfterFetch(menu, agentId = activeWorkspaceId) {
   menuCacheByAgent.set(agentId, menu);
   indexManifestTreeTypesFromMenu(menu);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     currentMenuData = menu;
     invalidateMenuDisplayLabelMap();
     sanitizeCollapsedFolderPaths(agentId);
@@ -118146,7 +118151,7 @@ function updateReservedSectionToggleUi(sectionEl, collapsed, hasContent) {
   }
 }
 
-function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncServiceSectionCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const parentEl = getWorkspacesTreeChildren(agentId);
   if (!parentEl || !menu?.serviceTree || !shouldShowServiceSectionInMenu(agentId)) return;
 
@@ -118182,7 +118187,7 @@ function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCache
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
-function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncSharedSectionCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const parentEl = getWorkspacesTreeChildren(agentId);
   if (!parentEl || !menu?.sharedTree || !shouldShowSharedSectionInMenu(agentId)) return;
 
@@ -118214,19 +118219,19 @@ function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheB
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
-function syncReservedMenuSectionsCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncReservedMenuSectionsCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   syncServiceSectionCollapsedUi(agentId, menu);
   syncSharedSectionCollapsedUi(agentId, menu);
 }
 
-function refreshRootMenuTreeExtras(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function refreshRootMenuTreeExtras(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const childrenContainer = getWorkspacesTreeChildren(agentId);
   if (!childrenContainer) return;
   renderRootMenuReservedSections(menu, childrenContainer, agentId);
   renderSystemFiles(systemFilesCache);
 }
 
-function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options = {}) {
+function patchFolderCollapsedState(folderPath, agentId = activeWorkspaceId, options = {}) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -118332,7 +118337,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
   }
 }
 
-function refreshAllFolderCollapsedPatches(agentId = activeAgentId) {
+function refreshAllFolderCollapsedPatches(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -118352,7 +118357,7 @@ function refreshAllFolderCollapsedPatches(agentId = activeAgentId) {
   }
 }
 
-function findCreatedMenuChild(branch, createdPath, agentId = activeAgentId) {
+function findCreatedMenuChild(branch, createdPath, agentId = activeWorkspaceId) {
   if (!branch?.node) return null;
   const createdNorm = normalizeMenuNodePath(createdPath);
   const visibleChildren = getVisibleMenuChildren(
@@ -118376,7 +118381,7 @@ function findCreatedMenuChild(branch, createdPath, agentId = activeAgentId) {
   return null;
 }
 
-function menuTreeChildAlreadyRendered(child, parentFolder, agentId = activeAgentId) {
+function menuTreeChildAlreadyRendered(child, parentFolder, agentId = activeWorkspaceId) {
   if (child.kind === "folder") {
     const folderPath = normalizeFolderPath(
       child.entry.folderPath || getFolderPathFromManifest(child.entry.indexPath) || parentFolder
@@ -118425,7 +118430,7 @@ function getMenuTreeInsertAnchor(container) {
   );
 }
 
-function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
+function findDomNodeForMenuChild(container, child, agentId = activeWorkspaceId) {
   if (!container || !child) return null;
   if (child.kind === "folder") {
     const folderPath = normalizeFolderPath(
@@ -118443,7 +118448,7 @@ function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
   return itemBtn?.closest(".menu-item-row") || null;
 }
 
-function resolveMenuTreeInsertBefore(container, branch, createdChild, agentId = activeAgentId) {
+function resolveMenuTreeInsertBefore(container, branch, createdChild, agentId = activeWorkspaceId) {
   const visibleChildren = getVisibleMenuChildren(
     branch.node,
     agentId,
@@ -118475,7 +118480,7 @@ function renderMenuTreeChildInto(
   depth,
   parentSectionPath,
   parentMenuNode,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   insertBefore = null
 ) {
   if (child.kind === "folder" && !shouldShowMenuTreeFolder(child.entry, agentId)) return null;
@@ -118524,7 +118529,7 @@ function patchMenuTreeInsertCreatedChild({
   parentFolder,
   createdPath,
   type,
-  agentId = activeAgentId
+  agentId = activeWorkspaceId
 }) {
   if (!canIncrementalMenuPatch()) return false;
   if (type === "manifest" || type === "catalog" || type === "taxonomy" || type === "service-doc") return false;
@@ -118589,7 +118594,7 @@ function patchMenuTreeInsertCreatedChild({
   }
 }
 
-function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
+function patchMenuTreeAtFolder(folderPath, agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -118645,7 +118650,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
   }
 }
 
-function patchServiceMenuAfterCreate(agentId = activeAgentId) {
+function patchServiceMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.serviceTree) return false;
@@ -118659,7 +118664,7 @@ function patchServiceMenuAfterCreate(agentId = activeAgentId) {
   return true;
 }
 
-function patchContainerMenuAfterCreate(agentId = activeAgentId) {
+function patchContainerMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.containerTree) return false;
@@ -118673,7 +118678,7 @@ function patchContainerMenuAfterCreate(agentId = activeAgentId) {
   return true;
 }
 
-function patchSharedMenuAfterCreate(agentId = activeAgentId) {
+function patchSharedMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.sharedTree) return false;
@@ -118916,7 +118921,7 @@ let appFooterIdeasLoadSeq = 0;
 let appFooterIdeasBadgeUiCache = null;
 
 function getAppFooterTodoScopeLabel() {
-  const agentLabel = getActiveAgentLabel() || activeAgentId || "проект";
+  const agentLabel = getActiveAgentLabel() || activeWorkspaceId || "проект";
   return `${ROOT_SYSTEM_TODO_FILE} · ${agentLabel}`;
 }
 
@@ -119025,7 +119030,7 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
 }
 
 function syncAppFooterIdeasFromEditor() {
-  if (!appFooterIdeasBodyNode || !activeAgentId) return;
+  if (!appFooterIdeasBodyNode || !activeWorkspaceId) return;
   if (activeSystemFile !== ROOT_SYSTEM_TODO_FILE) return;
   renderAppFooterIdeasContent(String(fileContentInputNode?.value || ""), { exists: true });
 }
@@ -119905,7 +119910,7 @@ function createMenuAwnChannelRow(channel) {
             name: displayName,
             ...(channel.description && !channel.stub ? { description: channel.description } : {})
           },
-          activeAgentId,
+          activeWorkspaceId,
           { skipAutoOpen: true }
         );
         if (!created?.path) return;
@@ -119915,7 +119920,7 @@ function createMenuAwnChannelRow(channel) {
           manifestPath: created.path,
           folderPath: created.folderPath || channel.folderPath
         };
-        await refreshMenuAwnChannels(activeAgentId);
+        await refreshMenuAwnChannels(activeWorkspaceId);
       } catch (error) {
         showToast(String(error.message || error), "error");
         return;
@@ -120053,10 +120058,10 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
   syncMenuAwnChannelsActiveState();
 }
 
-async function refreshMenuAwnChannels(agentId = activeAgentId) {
+async function refreshMenuAwnChannels(agentId = activeWorkspaceId) {
   if (!menuAwnChannelsListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuAwnChannelsCachedAgentId) {
     menuAwnChannelsLastPayload = null;
     menuAwnChannelsCachedAgentId = resolvedAgent;
@@ -120095,8 +120100,8 @@ async function refreshMenuAwnChannels(agentId = activeAgentId) {
   }
 }
 
-async function refreshAwnChannelsIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshAwnChannelsIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -120113,8 +120118,8 @@ async function refreshAwnChannelsIndex(agentId = activeAgentId) {
   return true;
 }
 
-async function openAwnChannelsIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openAwnChannelsIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -120155,10 +120160,10 @@ async function handleMenuAwnChannelsRefreshClick() {
   }
 }
 
-async function registerMenuAwnChannel(payload = {}, agentId = activeAgentId, options = {}) {
+async function registerMenuAwnChannel(payload = {}, agentId = activeWorkspaceId, options = {}) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -120390,7 +120395,7 @@ async function submitAwnChannelsCreateModal() {
   try {
     const created = await registerMenuAwnChannel(
       { slug, name, ...(description ? { description } : {}) },
-      activeAgentId,
+      activeWorkspaceId,
       { skipAutoOpen: true }
     );
     if (!created?.path) return;
@@ -120592,8 +120597,8 @@ function getAwnDataIndexRelPath() {
   return AWN_DATA_INDEX_REL_PATH;
 }
 
-async function probeAwnDataIndexExists(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function probeAwnDataIndexExists(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) return false;
   try {
     const response = await fetch(
@@ -120607,7 +120612,7 @@ async function probeAwnDataIndexExists(agentId = activeAgentId) {
 
 function syncMenuAwnDataIndexRowState() {
   if (!menuAwnDataIndexRowNode) return;
-  const hasAgent = Boolean(activeAgentId);
+  const hasAgent = Boolean(activeWorkspaceId);
   menuAwnDataIndexRowNode.hidden = !hasAgent;
   if (!hasAgent) return;
 
@@ -120682,8 +120687,8 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
   return lines.join("\n").trimEnd();
 }
 
-async function fetchAwnDataIndexMarkdownFromApi(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function fetchAwnDataIndexMarkdownFromApi(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   const response = await fetch(buildApiUrl("/api/agent/awn-databases-index", {}, resolvedAgent));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -120698,8 +120703,8 @@ async function fetchAwnDataIndexMarkdownFromApi(agentId = activeAgentId) {
 
 let awnDataIndexPreviewOverride = null;
 
-async function openAwnDataIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openAwnDataIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -120722,8 +120727,8 @@ async function openAwnDataIndexOverview(agentId = activeAgentId) {
   void renderFolderBrowseFileView();
 }
 
-async function refreshAwnDataIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshAwnDataIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     throw new Error("Выберите агента");
   }
@@ -120808,7 +120813,7 @@ function setupMenuAwnScriptsBandGroup() {
   wireMenuBandHelpButton(menuAwnScriptsHelpBtn);
   menuAwnScriptsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Скрипты workspace", AWN_SCRIPTS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Скрипты workspace", AWN_SCRIPTS_FOLDER, { agentId: activeWorkspaceId });
   });
 }
 
@@ -120979,7 +120984,7 @@ function setupWorkspaceIndexPanelUi() {
   if (!window.WorkspaceIndexPanel?.init) return;
   window.WorkspaceIndexPanel.init({
     buildApiUrl,
-    getActiveAgentId: () => activeAgentId
+    getActiveAgentId: () => activeWorkspaceId
   });
 }
 
@@ -120995,7 +121000,7 @@ function setupAwnDashboardsUi() {
     parsePropsYaml,
     getPropsEntryValueByKey,
     escapeHtml,
-    getActiveAgentId: () => activeAgentId,
+    getActiveAgentId: () => activeWorkspaceId,
     getTodoFileName: () => ROOT_SYSTEM_TODO_FILE,
     setWorkspaceView: (view) => setAgentWorkspaceView(view, { persistWorkspaceConfig: false }),
     openFolderBrowse: (label, folderPath, options = {}) =>
@@ -121008,7 +121013,7 @@ function setupAwnDashboardsUi() {
     menuRefreshBtn: document.getElementById("menu-awn-dashboards-refresh-btn"),
     toolbarBtn
   });
-  void window.AwnDashboards.refreshMenuStats(activeAgentId);
+  void window.AwnDashboards.refreshMenuStats(activeWorkspaceId);
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
@@ -121776,7 +121781,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
   async function syncQueuedState() {
     if (!client?.fetchQueue || !filePath) return;
     try {
-      const data = await client.fetchQueue(activeAgentId);
+      const data = await client.fetchQueue(activeWorkspaceId);
       const queued = client.isPathQueued(data.items, filePath);
       refreshEntryOverviewFileHubSendButton(button, { queued });
     } catch {
@@ -121800,7 +121805,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
     const queued = button.classList.contains("is-queued");
     button.disabled = true;
     const action = queued
-      ? client.removeFromFileHub({ path: filePath }, activeAgentId)
+      ? client.removeFromFileHub({ path: filePath }, activeWorkspaceId)
       : client.addToFileHub(
           {
             path: filePath,
@@ -121808,7 +121813,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
             place: dirnameWorkspaceHint(filePath),
             topic: "Файлообменник"
           },
-          activeAgentId
+          activeWorkspaceId
         );
     void action
       .then(() => {
@@ -122082,8 +122087,8 @@ function syncAwnDataCreateTaxonomyUi() {
   syncAwnDataCreateTaxonomyKeyFromSlug();
 }
 
-function isAwnContentsCollectionPresent(storeRel, agentId = activeAgentId) {
-  const resolvedAgentId = String(agentId || activeAgentId || "").trim();
+function isAwnContentsCollectionPresent(storeRel, agentId = activeWorkspaceId) {
+  const resolvedAgentId = String(agentId || activeWorkspaceId || "").trim();
   const rel = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
   if (!resolvedAgentId || !rel) return false;
   if (awnDataCatalogAgentId === resolvedAgentId && findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, rel)) {
@@ -122103,7 +122108,7 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="taxonomies"]'
   );
   if (taxonomiesBtn) {
-    const exists = isAwnTaxonomiesGroupPresent(activeAgentId);
+    const exists = isAwnTaxonomiesGroupPresent(activeWorkspaceId);
     taxonomiesBtn.disabled = exists;
     taxonomiesBtn.classList.toggle("is-disabled", exists);
     taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -122116,7 +122121,7 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="contents-facts"]'
   );
   if (factsBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_FACTS_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_FACTS_STORE, activeWorkspaceId);
     factsBtn.disabled = exists;
     factsBtn.classList.toggle("is-disabled", exists);
     factsBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -122129,7 +122134,7 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="contents-glossary"]'
   );
   if (glossaryBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_GLOSSARY_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_GLOSSARY_STORE, activeWorkspaceId);
     glossaryBtn.disabled = exists;
     glossaryBtn.classList.toggle("is-disabled", exists);
     glossaryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -122142,7 +122147,7 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="contents-reference"]'
   );
   if (referenceBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_REFERENCE_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_REFERENCE_STORE, activeWorkspaceId);
     referenceBtn.disabled = exists;
     referenceBtn.classList.toggle("is-disabled", exists);
     referenceBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -122156,9 +122161,9 @@ function syncAwnDataCreateGroupPresetsUi() {
   );
   if (taskQueueBtn) {
     const exists =
-      isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, activeAgentId) ||
-      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeAgentId) ||
-      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_QUEUE_STORE, activeAgentId);
+      isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, activeWorkspaceId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeWorkspaceId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_QUEUE_STORE, activeWorkspaceId);
     taskQueueBtn.disabled = exists;
     taskQueueBtn.classList.toggle("is-disabled", exists);
     taskQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -122229,8 +122234,8 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   syncAwnDataCreateTaxonomyUi();
   awnDataCreateModalNode.classList.remove("hidden");
   if (awnDataCreateKind === "group") {
-    void loadAgentTaxonomies(activeAgentId).finally(() => syncAwnDataCreateGroupPresetsUi());
-    void refreshMenuAwnDataStores(activeAgentId).finally(() => syncAwnDataCreateGroupPresetsUi());
+    void loadAgentTaxonomies(activeWorkspaceId).finally(() => syncAwnDataCreateGroupPresetsUi());
+    void refreshMenuAwnDataStores(activeWorkspaceId).finally(() => syncAwnDataCreateGroupPresetsUi());
   }
   awnDataCreateNameInputNode?.focus();
 }
@@ -122257,7 +122262,7 @@ const AWN_DATA_CREATE_COLLECTION_TYPE_LABELS = {
 };
 let awnDataContainerTypesCache = null;
 
-async function loadAwnDataContainerTypes(agentId = activeAgentId) {
+async function loadAwnDataContainerTypes(agentId = activeWorkspaceId) {
   if (awnDataContainerTypesCache) return awnDataContainerTypesCache;
   const response = await fetch(buildApiUrl("/api/awn-databases/container-types", {}, agentId));
   if (!response.ok) {
@@ -123040,7 +123045,7 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
 
     const storeCache = await loadAwnDataStoreSchemaEditor(
       storeRel,
-      awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId
+      awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId
     );
     if (!storeCache) return null;
 
@@ -123088,7 +123093,7 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
   }
 }
 
-async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
+async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeWorkspaceId) {
   const normalizedStoreRel = String(storeRel || "").trim();
   if (!normalizedStoreRel) return null;
   const response = await fetch(
@@ -123351,7 +123356,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   if (!cache) throw new Error("Схема не загружена");
   readSectionSchemaFieldsFromPanel(panel, cache);
   stripInheritedAwnDataSchemaFields(cache);
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   const storeRel = cache.storeRel || awnDataViewStoreRel;
   const mediaLibrarySlug = String(cache.mediaLibrarySlug || "").trim();
   const hubWorkspaceKind =
@@ -123423,7 +123428,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   return data;
 }
 
-async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
+async function mountAwnDataStoreSchemaEditor(store, agentId = activeWorkspaceId) {
   const panel = awnDataViewElementSchemaPanelNode;
   const storeRel = String(store?.relPath || awnDataViewStoreRel || "").trim();
   if (!panel || !storeRel) return;
@@ -123701,7 +123706,7 @@ function setupAwnDataViewToolbarControls(root) {
         saveSort: (mode) => saveAwnDataViewListSort(mode),
         onChange: () => {
           if (awnDataViewStoreCache && !awnDataViewRecordId) {
-            renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+            renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
           }
         }
       })
@@ -123769,7 +123774,7 @@ function getAwnDataViewStoreRelForUiPrefs(storeRel = "") {
 function getAwnDataViewStoreUiStorageKey(storeRel) {
   const rel = getAwnDataViewStoreRelForUiPrefs(storeRel);
   if (!rel) return "";
-  return `${AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX}${activeAgentId || "main"}:${rel}`;
+  return `${AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${rel}`;
 }
 
 function readAwnDataViewStoreUiPrefs(storeRel) {
@@ -123966,7 +123971,7 @@ function saveAwnDataViewRecordsLayout(layout) {
   saveAwnDataViewStoreUiPrefs("", { layout });
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
 }
@@ -123983,7 +123988,7 @@ function saveAwnDataViewCardsLayout(columns) {
   }
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
 }
@@ -124226,7 +124231,7 @@ function rootQueryAwnDataToolbar() {
   return awnDataViewRoot?.querySelector(".awn-databases-view-toolbar");
 }
 
-async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeAgentId, options = {}) {
+async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeWorkspaceId, options = {}) {
   const normalized = String(workspacePath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   if (!/^(?:awn-databases|awn-data)(?:\/|$)/i.test(normalized)) return false;
   if (isAwnDataIndexRelPath(`${normalized}.md`) || isAwnDataIndexRelPath(normalized)) {
@@ -124306,7 +124311,7 @@ function resolveAwnDataViewBackStoreRel() {
 async function navigateAwnDataViewBackToStore() {
   const storeRel = resolveAwnDataViewBackStoreRel();
   if (!storeRel) return;
-  await openAwnDataViewPage(storeRel, awnDataViewCatalogAgentId || activeAgentId);
+  await openAwnDataViewPage(storeRel, awnDataViewCatalogAgentId || activeWorkspaceId);
 }
 
 function bindAwnDataViewRecordBackButton(root) {
@@ -124371,7 +124376,7 @@ function wireAwnDataViewPageEvents(hub) {
   hub.addEventListener("input", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
     if (event.target.matches(".awn-databases-view-search-input") && awnDataViewStoreCache) {
-      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
       return;
     }
     if (event.target.matches(".awn-databases-view-section-search-input") && awnDataViewStoreCache) {
@@ -124391,7 +124396,7 @@ function wireAwnDataViewPageEvents(hub) {
     applyAwnDataActiveSectionToAddParentSelect();
     syncAwnDataViewSectionPanelNotices(awnDataViewStoreCache);
     if (awnDataViewStoreCache) {
-      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
     }
     syncAppRouteToUrl({ push: true });
   });
@@ -124508,7 +124513,7 @@ function renderAwnDataBreadcrumbs() {
   syncWorkspaceRevealFolderButton();
 }
 
-async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = {}) {
+async function openAwnDataViewPage(storeRel, agentId = activeWorkspaceId, options = {}) {
   const normalizedStoreRel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   if (!normalizedStoreRel) return;
 
@@ -124566,7 +124571,7 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   }
 }
 
-async function openAwnDataRecordViewPage(storeRel, recordId, agentId = activeAgentId, options = {}) {
+async function openAwnDataRecordViewPage(storeRel, recordId, agentId = activeWorkspaceId, options = {}) {
   const normalizedStoreRel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   const normalizedRecordId = String(recordId || "").trim();
   if (!normalizedStoreRel || !normalizedRecordId) return;
@@ -124645,7 +124650,7 @@ function revealAwnDataViewWorkspace() {
   workspacePathHeaderNode?.classList.remove("is-folder-browse", "is-workspace-tool-module");
 }
 
-function refreshAwnDataViewFromCache(agentId = activeAgentId) {
+function refreshAwnDataViewFromCache(agentId = activeWorkspaceId) {
   if (isAwnDatabaseManifestEditing()) return;
   ensureAwnDataViewHubMounted();
   const store = awnDataViewStoreCache;
@@ -124681,7 +124686,7 @@ function refreshAwnDataViewFromCache(agentId = activeAgentId) {
   awnDataViewAddWrapNode?.classList.toggle("hidden", shouldHideAwnDataViewActions(store));
 }
 
-async function loadAwnDataViewStore(agentId = activeAgentId) {
+async function loadAwnDataViewStore(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || isAwnDatabaseManifestEditing()) return;
   const renderSeq = nodeOverviewRenderSeq;
   const storeRel = awnDataViewStoreRel;
@@ -124886,7 +124891,7 @@ function beginAwnDataViewStoreLoading(storeRel) {
     if (cached.kind === "group") {
       renderAwnDataViewGroupChildren(cached);
     } else {
-      renderAwnDataViewStoreContent(cached, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(cached, awnDataViewCatalogAgentId || activeWorkspaceId);
     }
     return;
   }
@@ -125041,7 +125046,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     if (schemaModFileNode) {
       schemaModFileNode.textContent = SCHEMA_MOD_FILE;
     }
-    void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+    void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
     mountAwnDataViewIblockOutsideStructureWarning(viewStore);
     return;
   }
@@ -125069,15 +125074,15 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     schemaModFileNode.textContent = SCHEMA_MOD_FILE;
   }
 
-  void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+  void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
   mountAwnDataViewIblockOutsideStructureWarning(viewStore);
 }
 
-function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeAgentId) {
+function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeWorkspaceId) {
   if (payload?.source === "platform" && payload?.sourceAgentId) {
     return String(payload.sourceAgentId).trim();
   }
-  return String(fallbackAgentId || activeAgentId || "").trim();
+  return String(fallbackAgentId || activeWorkspaceId || "").trim();
 }
 
 function resolveAwnDataStoreFileRel(fileName = "") {
@@ -125103,7 +125108,7 @@ function setAwnDataViewSchemaEditMode(enabled) {
 async function beginAwnDataViewSchemaEdit() {
   const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel) return;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   try {
     if (awnDataViewEditStoreBtn) awnDataViewEditStoreBtn.disabled = true;
     const response = await fetch(buildApiUrl("/api/agent-system/file", { path: fileRel }, catalogAgentId));
@@ -125130,7 +125135,7 @@ async function saveAwnDataViewSchemaEdit() {
   const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel || !awnDataViewSchemaTextareaNode) return;
   const content = awnDataViewSchemaTextareaNode.value;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   const storeRel = awnDataViewStoreRel;
   const saveBtn = awnDataViewRoot?.querySelector('[data-awn-databases-action="save-schema"]');
   try {
@@ -125204,7 +125209,7 @@ function isAwnDatabaseCsvRecordContentPath(nodePath) {
   return isAwnDatabaseRecordContentPath(normalized) && /\.csv$/i.test(normalized);
 }
 
-async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeAgentId) {
+async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeWorkspaceId) {
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (/\.md$/i.test(normalized)) {
@@ -125393,7 +125398,7 @@ async function closeAwnDatabaseManifestEditor() {
   returnToNodeNavigation();
 }
 
-async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeAgentId) {
+async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeWorkspaceId) {
   const storeRel = String(resolved?.storeRel || "").replace(/^\/+|\/+$/g, "");
   if (!storeRel) return false;
 
@@ -125544,7 +125549,7 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
   const label =
     labelHint ||
     `${awnDataViewStoreCache?.name || storeRel} · ${fileName}`;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   try {
     await openFolderBrowseFile(label, fileRel, { agentId: catalogAgentId });
   } catch (error) {
@@ -125939,7 +125944,7 @@ async function ensureAwnDataSectionReadme(record, store = awnDataViewStoreCache)
   if (!storeRel || !sectionId) throw new Error("Раздел не найден");
   const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
   const { displayLabel } = resolveSectionReadmeSeedNames(sectionFolder);
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   const response = await fetch(buildApiUrl("/api/awn-databases/sections/manifest", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -126299,7 +126304,7 @@ function resolveAwnDataViewRecordSchemaFields(store) {
 
 function getAwnDataViewColumnsStorageKey(store) {
   const storeRel = resolveAwnDataStoreRelPath(store) || String(awnDataViewStoreRel || "").replace(/^\/+|\/+$/g, "");
-  return `${AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX}${activeAgentId || "main"}:${storeRel}`;
+  return `${AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${storeRel}`;
 }
 
 function getAwnDataViewSchemaColumnOptions(store) {
@@ -126389,7 +126394,7 @@ function setAwnDataViewVisibleColumnKeys(store, keys) {
   writeStorageItem(awnDataViewVisibleColumnKeysScope, JSON.stringify(awnDataViewVisibleColumnKeysCache));
   syncAwnDataViewColumnsPickerUi(store);
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
 }
 
@@ -126695,7 +126700,7 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
     : String(record?.title || record?.fileName || record?.id || filePath.split("/").pop() || filePath).trim();
 
   if (isAwnDataBinaryFileRecord(record, viewStore)) {
-    const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+    const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
     const folderPath = storeRel
       ? `awn-databases/${storeRel}/awn-storage/data`
       : getFolderBrowseParentPath(filePath);
@@ -126971,7 +126976,7 @@ function renderAwnDataViewTocRecords(records, viewStore) {
       void openAwnDataRecordViewPage(
         viewStore.relPath,
         record.id,
-        awnDataViewCatalogAgentId || activeAgentId
+        awnDataViewCatalogAgentId || activeWorkspaceId
       );
     });
 
@@ -127105,7 +127110,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   card.tabIndex = 0;
   card.setAttribute("role", "listitem");
   const openRecord = () => {
-    void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+    void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
   };
   card.addEventListener("click", (event) => {
     if (
@@ -127132,7 +127137,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   return card;
 }
 
-async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
+async function renderAwnDataRecordView(record, store, agentId = activeWorkspaceId) {
   syncAwnDataViewScreenMode();
   if (!awnDataViewRecordFieldsNode || !awnDataViewRecordBodyNode) return;
 
@@ -127388,7 +127393,7 @@ function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
     void openAwnDataRecordViewPage(
       viewStore.relPath,
       record.id,
-      awnDataViewCatalogAgentId || activeAgentId
+      awnDataViewCatalogAgentId || activeWorkspaceId
     );
   };
   rowOrCell.addEventListener("click", (event) => {
@@ -127612,7 +127617,7 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
 
     section.addEventListener("click", (event) => {
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
 
     wrap.appendChild(section);
@@ -127775,7 +127780,7 @@ function buildAwnDataSingleStoreCsvFallbackRel(viewStore, primaryRel, recordFile
   return nestedRel && nestedRel !== primaryRel ? nestedRel : "";
 }
 
-async function fetchAwnDataSingleStoreCsvContent(viewStore, agentId = activeAgentId) {
+async function fetchAwnDataSingleStoreCsvContent(viewStore, agentId = activeWorkspaceId) {
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
   const primaryRel = resolveAwnDataSingleStoreFileRel(viewStore);
   const recordFile = String(viewStore?.recordFile || "main.csv").trim() || "main.csv";
@@ -127938,7 +127943,7 @@ function createAwnDataSingleStoreContentCard(viewStore) {
   return { card, body };
 }
 
-async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentId) {
+async function renderAwnDataSingleStoreMainContent(store, agentId = activeWorkspaceId) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
   const viewStore = normalizeAwnDataStoreView(store || {});
@@ -127997,7 +128002,7 @@ async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentI
   }
 }
 
-function renderAwnDataViewStoreContent(store, agentId = activeAgentId) {
+function renderAwnDataViewStoreContent(store, agentId = activeWorkspaceId) {
   if (!awnDataViewRecordsNode) ensureAwnDataViewHubMounted();
   if (!awnDataViewRecordsNode) return;
   const viewStore = normalizeAwnDataStoreView(store || {});
@@ -128012,7 +128017,7 @@ function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   const viewStore = normalizeAwnDataStoreView(store || {});
   if (isAwnDataSingleTableStore(viewStore)) {
-    void renderAwnDataSingleStoreMainContent(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+    void renderAwnDataSingleStoreMainContent(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
     return;
   }
   syncAwnDataViewElementsTitle(viewStore);
@@ -128104,13 +128109,13 @@ function renderAwnDataViewRecords(store) {
     row.setAttribute("role", "link");
     row.addEventListener("click", (event) => {
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
     row.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
       event.preventDefault();
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
 
     for (const column of columns) {
@@ -128171,7 +128176,7 @@ function renderAwnDataViewGroupChildren(store) {
   awnDataViewRecordsNode.appendChild(list);
 }
 
-async function submitAwnDataCreateStore(agentId = activeAgentId) {
+async function submitAwnDataCreateStore(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -128239,7 +128244,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataUploadFiles(fileList, agentId = activeAgentId) {
+async function submitAwnDataUploadFiles(fileList, agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const store = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   const isCsvFiles = isAwnDataCsvFilesStore(store);
@@ -128290,7 +128295,7 @@ function toggleAwnDataCreateSectionForm(show) {
   }
 }
 
-async function submitAwnDataCreateSection(agentId = activeAgentId) {
+async function submitAwnDataCreateSection(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const name = String(awnDataViewSectionCreateNameInputNode?.value || "").trim();
   const slug = String(awnDataViewSectionCreateSlugController?.getSlug() || "").trim();
@@ -128346,7 +128351,7 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataAddRecord(agentId = activeAgentId) {
+async function submitAwnDataAddRecord(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const viewStore = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   if (isAwnDataSingleCsvStore(viewStore)) return;
@@ -128417,7 +128422,7 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataCreateMainCsv(agentId = activeAgentId) {
+async function submitAwnDataCreateMainCsv(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const viewStore = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   if (!shouldShowAwnDataCreateMainCsvForm(viewStore)) return;
@@ -128475,7 +128480,7 @@ async function handleMenuAwnDataRefreshClick(event) {
   const startedAt = performance.now();
 
   try {
-    await refreshMenuAwnDataStores(activeAgentId);
+    await refreshMenuAwnDataStores(activeWorkspaceId);
   } finally {
     const remaining = MENU_AWN_DATA_REFRESH_SPIN_MIN_MS - (performance.now() - startedAt);
     if (remaining > 0) {
@@ -128548,9 +128553,9 @@ function invalidateRepositoryCreateTypeDetailCache() {
   repositoryCreateTypeDetailCache = null;
 }
 
-async function fetchRepositoryCreateTypeDetail(agentId = activeAgentId, { force = false } = {}) {
+async function fetchRepositoryCreateTypeDetail(agentId = activeWorkspaceId, { force = false } = {}) {
   if (!force && repositoryCreateTypeDetailCache) return repositoryCreateTypeDetailCache;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   const response = await fetch(
     buildApiUrl("/api/agent-system/type", { id: REPOSITORY_CREATE_TYPE_ID }, resolvedAgent)
@@ -128806,7 +128811,7 @@ function mapRepositoryToCreateFormValues(repo = {}) {
   };
 }
 
-async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) {
+async function renderRepositoryCreateForm(values = {}, agentId = activeWorkspaceId) {
   if (!repositoryCreateFieldsNode) return;
   const mergedValues = { ...getRepositoryCreateDefaultValues(), ...values };
   repositoryCreateFieldsNode.replaceChildren();
@@ -129064,9 +129069,9 @@ function renderRepositoryGroupsEditor() {
   }
 }
 
-async function openRepositoryGroupsModal(agentId = activeAgentId) {
+async function openRepositoryGroupsModal(agentId = activeWorkspaceId) {
   if (!repositoryGroupsModalNode) return;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -129093,8 +129098,8 @@ function closeRepositoryGroupsModal() {
   repositoryGroupsDraft = { groups: [], assignments: {} };
 }
 
-async function saveRepositoryGroups(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function saveRepositoryGroups(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -129188,10 +129193,10 @@ function closeRepositoryCreateModal() {
   repositoryModalState = { mode: "create" };
 }
 
-async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
+async function registerMenuRepository(payload = {}, agentId = activeWorkspaceId) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -129223,10 +129228,10 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
   return data;
 }
 
-async function updateMenuRepository(manifestPath, payload = {}, agentId = activeAgentId) {
+async function updateMenuRepository(manifestPath, payload = {}, agentId = activeWorkspaceId) {
   const path = String(manifestPath || "").trim();
   if (!path) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -129256,7 +129261,7 @@ function formatRepositoryStatusLabel(status) {
   return REPOSITORY_STATUS_LABELS[key] || key || "—";
 }
 
-async function fetchRepositoryOverviewData(repositoryPath, agentId = activeAgentId) {
+async function fetchRepositoryOverviewData(repositoryPath, agentId = activeWorkspaceId) {
   const folderPath = getRepositoryFolderPathFromWorkspacePath(repositoryPath);
   const path = folderPath || String(repositoryPath || "").trim();
   if (!path) return null;
@@ -130125,7 +130130,7 @@ function readRepositoryModalForm() {
   };
 }
 
-async function submitRepositoryCreate(agentId = activeAgentId) {
+async function submitRepositoryCreate(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -130760,7 +130765,7 @@ function syncRepositoriesDependenciesButtonState() {
 
 function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
   if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
-  const hasAgent = Boolean(String(activeAgentId || "").trim());
+  const hasAgent = Boolean(String(activeWorkspaceId || "").trim());
   menuRepositoriesShortcutsRow?.classList.toggle("hidden", !hasAgent);
   const indexFile = payload?.indexFile;
   const hasIndex = Boolean(indexFile?.exists);
@@ -130796,8 +130801,8 @@ function setRepositoryIndexRefreshLoading(loading) {
   }
 }
 
-async function refreshRepositoryIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshRepositoryIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -130826,8 +130831,8 @@ async function refreshRepositoryIndex(agentId = activeAgentId) {
   }
 }
 
-async function openRepositoryIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openRepositoryIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -130864,10 +130869,10 @@ async function handleRepositoryIndexRefreshClick() {
   }
 }
 
-async function refreshMenuRepositories(agentId = activeAgentId) {
+async function refreshMenuRepositories(agentId = activeWorkspaceId) {
   if (!menuRepositoriesListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuRepositoriesCachedAgentId) {
     menuRepositoriesLastPayload = null;
     menuRepositoriesCachedAgentId = resolvedAgent;
@@ -131037,7 +131042,7 @@ function createMenuMediaLibraryRow(library) {
             name: displayName,
             ...(library.description && !library.stub ? { description: library.description } : {})
           },
-          activeAgentId,
+          activeWorkspaceId,
           { skipAutoOpen: true }
         );
         if (!created?.path) return;
@@ -131226,10 +131231,10 @@ function renderMenuMediaLibraries(payload = null, { loading = false, error = fal
   syncMenuMediaLibraryActiveState();
 }
 
-async function refreshMenuMediaLibraries(agentId = activeAgentId) {
+async function refreshMenuMediaLibraries(agentId = activeWorkspaceId) {
   if (!menuMediaLibraryListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuMediaLibrariesCachedAgentId) {
     menuMediaLibrariesLastPayload = null;
     menuMediaLibrariesCachedAgentId = resolvedAgent;
@@ -131279,10 +131284,10 @@ async function handleMenuMediaLibrariesRefreshClick() {
   }
 }
 
-async function registerMenuMediaLibrary(payload = {}, agentId = activeAgentId, options = {}) {
+async function registerMenuMediaLibrary(payload = {}, agentId = activeWorkspaceId, options = {}) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -131325,7 +131330,7 @@ async function adoptMenuMediaLibrary(slug) {
 
 function syncMenuMediaLibraryIndexRowState(payload = menuMediaLibrariesLastPayload) {
   if (!menuMediaLibraryIndexOpenBtn || !menuMediaLibraryIndexRefreshBtn) return;
-  const hasAgent = Boolean(String(activeAgentId || "").trim());
+  const hasAgent = Boolean(String(activeWorkspaceId || "").trim());
   menuMediaLibraryIndexRowNode?.classList.toggle("hidden", !hasAgent);
   if (!hasAgent) return;
   const indexFile = payload?.indexFile;
@@ -131361,8 +131366,8 @@ function setMediaLibraryIndexRefreshLoading(loading) {
   }
 }
 
-async function refreshMediaLibraryIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshMediaLibraryIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -131386,8 +131391,8 @@ async function refreshMediaLibraryIndex(agentId = activeAgentId) {
   return true;
 }
 
-async function openMediaLibraryIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openMediaLibraryIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -131498,7 +131503,7 @@ async function submitMediaLibraryCreateModal() {
   try {
     const created = await registerMenuMediaLibrary(
       { slug, name, ...(description ? { description } : {}) },
-      activeAgentId,
+      activeWorkspaceId,
       { skipAutoOpen: true }
     );
     if (!created?.path) return;
@@ -131620,7 +131625,7 @@ function setupRepositoriesUi() {
   });
 }
 
-async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset = "facts" } = {}) {
+async function submitAwnDataScaffoldContents(agentId = activeWorkspaceId, { preset = "facts" } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -131667,7 +131672,7 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
   }
 }
 
-async function submitAwnDataScaffoldTaskQueue(agentId = activeAgentId) {
+async function submitAwnDataScaffoldTaskQueue(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -131707,7 +131712,7 @@ async function submitAwnDataScaffoldTaskQueue(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId, { withDefaults = false } = {}) {
+async function submitAwnDataScaffoldTaxonomies(agentId = activeWorkspaceId, { withDefaults = false } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -131750,9 +131755,9 @@ function setupAwnDataStoresUi() {
     if (!button || button.disabled) return;
     const preset = button.getAttribute("data-awn-data-group-preset");
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
-    if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
-    if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
-    if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeAgentId, { preset: "reference" });
+    if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "facts" });
+    if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "glossary" });
+    if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
@@ -132379,7 +132384,7 @@ function isLegacyOnlyAwnDataPayload(payload) {
   return rel === "_base";
 }
 
-async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading = false } = {}) {
+async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoading = false } = {}) {
   if (!menuAwnDataStoresNode) return;
   if (menuAwnDataIndexRowNode) {
     menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = "0";
@@ -132392,7 +132397,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     renderMenuAwnDataStores(null, { loading: true });
   }
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     if (seq !== menuAwnDataStoresLoadSeq) return;
     renderMenuAwnDataStores({ stores: [], emptyHint: "select-agent" });
@@ -132417,7 +132422,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
   }
 }
 
-async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
+async function refreshMenuGoogleDriveStats(agentId = activeWorkspaceId) {
   if (!agentLargeFilesCloudStatsNode) return;
   if (!agentId) {
     renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [], providers: [] });
@@ -132440,7 +132445,7 @@ async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
   }
 }
 
-async function repairMenuGoogleDriveSymlinks(agentId = activeAgentId) {
+async function repairMenuGoogleDriveSymlinks(agentId = activeWorkspaceId) {
   if (!menuGoogleDriveRepairBtn || !agentId) return;
   if (menuGoogleDriveRepairBtn.disabled) return;
 
@@ -132565,7 +132570,7 @@ function renderMenuAwnDialogsStats(payload = null, { loading = false, error = fa
     btn.title = String(runtime.folderPath || "");
     btn.addEventListener("click", (event) => {
       event.preventDefault();
-      void openFolderBrowseFromMenu(runtime.name, runtime.folderPath, { agentId: activeAgentId });
+      void openFolderBrowseFromMenu(runtime.name, runtime.folderPath, { agentId: activeWorkspaceId });
     });
 
     const meta = document.createElement("span");
@@ -132580,7 +132585,7 @@ function renderMenuAwnDialogsStats(payload = null, { loading = false, error = fa
   }
 }
 
-async function refreshMenuAwnDialogsStats(agentId = activeAgentId) {
+async function refreshMenuAwnDialogsStats(agentId = activeWorkspaceId) {
   if (!menuAwnDialogsStatsNode && !menuAwnDialogsRuntimesNode) return;
   if (!agentId) {
     renderMenuAwnDialogsStats({ exists: false, runtimeCount: 0, dayFileCount: 0, runtimes: [] });
@@ -132642,13 +132647,13 @@ async function refreshMenuAwnDialogsStats(agentId = activeAgentId) {
 function setupMenuAwnDialogsUi() {
   menuAwnDialogsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Диалоги с ИИ", AWN_DIALOGS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Диалоги с ИИ", AWN_DIALOGS_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnDialogsRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnDialogsRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnDialogsStats(activeAgentId).finally(() => {
+    void refreshMenuAwnDialogsStats(activeWorkspaceId).finally(() => {
       menuAwnDialogsRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -132695,7 +132700,7 @@ function renderMenuAwnFactsStats(payload, { loading = false, error = false } = {
   menuAwnFactsStatsNode.classList.remove("is-error");
 }
 
-async function refreshMenuAwnFactsStats(agentId = activeAgentId) {
+async function refreshMenuAwnFactsStats(agentId = activeWorkspaceId) {
   if (!menuAwnFactsStatsNode) return;
   if (!agentId) {
     renderMenuAwnFactsStats({ totalCount: 0, kinds: {} });
@@ -132720,13 +132725,13 @@ async function refreshMenuAwnFactsStats(agentId = activeAgentId) {
 function setupMenuAwnFactsUi() {
   menuAwnFactsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Банк фактов", AWN_FACTS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Банк фактов", AWN_FACTS_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnFactsRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnFactsRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnFactsStats(activeAgentId).finally(() => {
+    void refreshMenuAwnFactsStats(activeWorkspaceId).finally(() => {
       menuAwnFactsRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -132775,7 +132780,7 @@ function renderMenuAwnTempStats(payload, { loading = false, error = false } = {}
   menuAwnTempStatsNode.classList.remove("is-error");
 }
 
-async function refreshMenuAwnTempStats(agentId = activeAgentId) {
+async function refreshMenuAwnTempStats(agentId = activeWorkspaceId) {
   if (!menuAwnTempStatsNode) return;
   if (!agentId) {
     renderMenuAwnTempStats({ exists: false, itemCount: 0, folderCount: 0 });
@@ -132808,13 +132813,13 @@ async function refreshMenuAwnTempStats(agentId = activeAgentId) {
 function setupMenuAwnTempUi() {
   menuAwnTempOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Временные файлы", AWN_TEMP_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Временные файлы", AWN_TEMP_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnTempRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnTempRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnTempStats(activeAgentId).finally(() => {
+    void refreshMenuAwnTempStats(activeWorkspaceId).finally(() => {
       menuAwnTempRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -132823,7 +132828,7 @@ function setupMenuAwnTempUi() {
 function setupMenuAwnBackupUi() {
   menuAwnBackupOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Резервное копирование", AWN_BACKUP_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Резервное копирование", AWN_BACKUP_FOLDER, { agentId: activeWorkspaceId });
   });
 }
 
@@ -132928,7 +132933,7 @@ async function resolveWorkspaceJournalEntryContextResolved() {
   const chpuHint = syncContext.chpu || resolveWorkspaceJournalChpuLabel();
   try {
     if (route.type === "chpu" && route.chpuPath) {
-      const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeAgentId);
+      const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeWorkspaceId);
       const fromChpu = journalContextFromChpuResolved(resolved, route.chpuPath || chpuHint);
       if (fromChpu && (fromChpu.path || fromChpu.topic)) {
         appFooterJournalContextCache = fromChpu;
@@ -132964,7 +132969,7 @@ async function resolveWorkspaceJournalEntryContextResolved() {
 }
 
 function isAppFooterWorkspaceToolsContextActive() {
-  return Boolean(activeAgentId) && !isAppLandingViewActive();
+  return Boolean(activeWorkspaceId) && !isAppLandingViewActive();
 }
 
 function syncAppFooterWorkspaceToolsAvailability() {
@@ -132991,7 +132996,7 @@ function normalizeWorkspaceJournalContext(context = {}) {
 
 function syncAppFooterJournalSubmitState() {
   const body = String(appFooterJournalBodyInputNode?.value || "").trim();
-  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeAgentId;
+  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeWorkspaceId;
 }
 
 function syncAppFooterJournalFormState(contextOverride = null) {
@@ -133083,7 +133088,7 @@ async function refreshWorkspaceJournalSurfaces() {
 }
 
 async function submitAppFooterJournalEntry() {
-  if (!activeAgentId || !appFooterJournalBodyInputNode) return;
+  if (!activeWorkspaceId || !appFooterJournalBodyInputNode) return;
   const body = String(appFooterJournalBodyInputNode.value || "").trim();
   if (!body) return;
 
@@ -133092,7 +133097,7 @@ async function submitAppFooterJournalEntry() {
   const linkContext = Boolean(appFooterJournalLinkContextNode?.checked);
   if (linkContext && !context.path && !context.topic && context.chpu) {
     try {
-      const resolved = await fetchChpuResolve(context.chpu, activeAgentId);
+      const resolved = await fetchChpuResolve(context.chpu, activeWorkspaceId);
       const fromChpu = journalContextFromChpuResolved(resolved, context.chpu);
       if (fromChpu?.path || fromChpu?.topic) context = fromChpu;
     } catch {
@@ -133106,7 +133111,7 @@ async function submitAppFooterJournalEntry() {
 
   if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -133205,7 +133210,7 @@ function setupAppFooterIdeasPopover() {
 
 function syncHeaderFocusCount() {
   if (!headerFocusCountNode) return;
-  const total = activeAgentId ? agentFocusItemsCache.length : 0;
+  const total = activeWorkspaceId ? agentFocusItemsCache.length : 0;
   headerFocusCountNode.textContent = total ? String(total) : "";
   headerFocusCountNode.classList.toggle("hidden", !total);
   headerFocusToggleBtn?.classList.toggle("has-count", total > 0);
@@ -133644,7 +133649,7 @@ function setupWorkspaceScrollChrome() {
   syncWorkspaceScrollChrome();
 }
 
-async function fetchMenuData(agentId = activeAgentId, options = {}) {
+async function fetchMenuData(agentId = activeWorkspaceId, options = {}) {
   const settings = getMenuTreeSettings(agentId);
   const requestedDepth = Number.isFinite(options.maxDepth) ? options.maxDepth : settings.maxDepth;
   const maxDepth = options.fullTree
@@ -133669,7 +133674,7 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
   return menu;
 }
 
-async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeAgentId }) {
+async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeWorkspaceId }) {
   await fetchMenuData(agentId);
 
   let patched = false;
@@ -133735,7 +133740,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
     withPreservedMenuScroll(() =>
       renderMenu(menuCacheByAgent.get(agentId), agentId, { menuOnly: true })
     );
-  } else if (agentId === activeAgentId) {
+  } else if (agentId === activeWorkspaceId) {
     refreshMenuSortDecorations(agentId);
     updateActiveButton();
     syncMenuCollapseAllButton();
@@ -133755,16 +133760,16 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
 }
 
 async function refreshMenu(options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   if (!agentId) return null;
   const menu = await fetchMenuData(agentId, { refresh: options.refresh });
   withPreservedMenuScroll(() => {
     renderMenu(menu, agentId, options);
   });
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     void syncAgentWorkspaceViewFromWorkspaceConfig(agentId).then(() => {
-      if (agentId === activeAgentId && isAgentWorkspaceCanvasVisible()) {
+      if (agentId === activeWorkspaceId && isAgentWorkspaceCanvasVisible()) {
         applyAgentWorkspaceCanvasUi();
       }
     });
@@ -133781,7 +133786,7 @@ async function refreshMenu(options = {}) {
 
 async function refreshMenuTree() {
   if (menuRefreshInFlight) return;
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Агент не выбран", "error");
     return;
   }
@@ -133791,11 +133796,11 @@ async function refreshMenuTree() {
   syncMenuRefreshButtonState();
 
   try {
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await loadSystemFiles({ skipRender: true });
-    await refreshMenu({ agentId: activeAgentId, menuOnly: true, refresh: true });
+    await refreshMenu({ agentId: activeWorkspaceId, menuOnly: true, refresh: true });
     syncMenuCollapseAllButton();
-    syncMenuPinBranchUi(activeAgentId);
+    syncMenuPinBranchUi(activeWorkspaceId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(`Ошибка обновления дерева: ${message}`, "error");
@@ -133817,7 +133822,7 @@ async function refreshMenuAndSelect() {
 }
 
 async function createReservedRootFolder(type, options = {}) {
-  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const agentId = options.agentId || getCreateModalAgentId() || activeWorkspaceId;
   const parentPath = options.parentPath || ".";
   const isKit = type === "kit-root";
   const isShared = type === "shared-root";
@@ -133864,7 +133869,7 @@ async function createSharedThemePreset(preset, options = {}) {
   const slug = String(preset || "").trim().toLowerCase();
   const label = SHARED_THEME_PRESET_LABELS[slug] || slug;
   if (!slug) return;
-  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const agentId = options.agentId || getCreateModalAgentId() || activeWorkspaceId;
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder) {
     showToast(`Папка ${SHARED_FOLDER_DEFAULT} не настроена`, "error");
@@ -133957,7 +133962,7 @@ async function createSystemFileScaffold(name, options = {}) {
 
 async function createNode(type, options = {}) {
   const agentId = getCreateModalAgentId();
-  if (!agentId || agentId !== activeAgentId) {
+  if (!agentId || agentId !== activeWorkspaceId) {
     showToast("Агент изменился — откройте «Создать» снова", "error");
     closeCreateNodeModal();
     return;
@@ -134146,7 +134151,7 @@ async function deleteNodeByPath(targetPath, targetLabel = getLabelFromPath(targe
       throw new Error(`${reason}${details}`);
     }
 
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     const menu = await refreshMenu();
     const normalizedActive = normalizeMenuNodePath(getResolvedNodePath(activePath));
     const normalizedDeleted = normalizeMenuNodePath(targetPath);
@@ -134175,7 +134180,7 @@ async function promptMoveNodeFromMenu(targetPath) {
 
   try {
     const data = await moveNodeByPath(targetPath, parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (data.path) {
       await openNodeFromMenu(getLabelFromPath(data.path), data.path);
@@ -134232,24 +134237,24 @@ async function init() {
 
     await loadAgents();
     window.WorkspaceIndexPanel?.refreshStatus?.();
-    if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
+    if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
     setupWorkspaceIdleScreensaver();
     setupWorkspacePomodoro();
-    if (activeAgentId) reloadWorkspaceIdleScreensaverSettings(activeAgentId);
-    if (activeAgentId) reloadWorkspacePomodoroForAgent(activeAgentId);
+    if (activeWorkspaceId) reloadWorkspaceIdleScreensaverSettings(activeWorkspaceId);
+    if (activeWorkspaceId) reloadWorkspacePomodoroForAgent(activeWorkspaceId);
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 
-    if (activeAgentId) {
+    if (activeWorkspaceId) {
       void loadSystemFiles({ refreshNotePreview: true });
     }
 
     const bootRoute = parseAppRoute(location.pathname);
-    if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
+    if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeWorkspaceId) {
       setMenuLoading(true, "Загрузка дерева…");
       await refreshMenu();
       setMenuLoading(false);
-      void loadAwnTypes(activeAgentId);
+      void loadAwnTypes(activeWorkspaceId);
     }
 
     suspendAppRouteSync();
@@ -134259,8 +134264,8 @@ async function init() {
       resumeAppRouteSync();
     }
 
-    if (activeAgentId && !isAppLandingViewActive()) {
-      void loadAgentFocusItems(activeAgentId);
+    if (activeWorkspaceId && !isAppLandingViewActive()) {
+      void loadAgentFocusItems(activeWorkspaceId);
     }
 
     syncAppRouteToUrl({ replace: true });
@@ -134291,7 +134296,7 @@ agentSelectNode?.addEventListener("change", () => {
     showAppLandingView();
     return;
   }
-  if (nextAgentId === activeAgentId) return;
+  if (nextAgentId === activeWorkspaceId) return;
   switchActiveAgent(nextAgentId).catch((error) => {
     if (isMaintenanceErrorMessage(error?.message)) {
       showMaintenanceView();
@@ -135295,7 +135300,7 @@ window.addEventListener("popstate", () => {
         const route = parseAppRoute(location.pathname);
         if (route.type === "root" || route.type === "legacy") {
           showAppLandingView();
-        } else if (activeAgentId) {
+        } else if (activeWorkspaceId) {
           showAgentHomeView();
         } else {
           showAppLandingView();
@@ -135820,7 +135825,7 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
         batchIds,
         batchLabel: chunkLabel,
         committableCount,
-        agentId: activeAgentId
+        agentId: activeWorkspaceId
       });
     } catch (error) {
       const failBatchId = batchIds[0] || "";
@@ -135830,7 +135835,7 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
         details: buildAgentGitCommitResultDetailsText({}, {
           batchIds,
           batchLabel: getAgentGitCommitBatchById(failBatchId)?.label,
-          agentId: activeAgentId,
+          agentId: activeWorkspaceId,
           errorPayload: error?.payload || {
             code: error?.code,
             details: error?.details,
@@ -136329,7 +136334,7 @@ createNodeModalNode?.addEventListener("click", (event) => {
 menuSearchInputNode.addEventListener("input", (event) => {
   menuSearchQuery = event.target.value || "";
   if (currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
     updateActiveButton();
   }
 });
@@ -136337,7 +136342,7 @@ menuCardsPreviewOnlyNode?.addEventListener("change", () => {
   menuCardsPreviewOnly = Boolean(menuCardsPreviewOnlyNode.checked);
   saveCardsPreviewOnly(menuCardsPreviewOnly);
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -136507,31 +136512,31 @@ resourceContextMenuListNode?.addEventListener("click", (event) => {
 });
 
 menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     showEmptyFolders: Boolean(menuTreeShowEmptyFoldersNode.checked)
   });
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
 
 menuTreeShowActiveTopicsOnlyNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     showActiveTopicsOnly: Boolean(menuTreeShowActiveTopicsOnlyNode.checked)
   });
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
 
 menuTreePadSortIndexesNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     padSortIndexes: Boolean(menuTreePadSortIndexesNode.checked)
   });
   if (currentMenuData && isMenuTreeLayoutMode()) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -136539,8 +136544,8 @@ menuTreePadSortIndexesNode?.addEventListener("change", () => {
 menuTreeMaxDepthNode?.addEventListener("change", () => {
   const maxDepth = normalizeMenuTreeMaxDepth(menuTreeMaxDepthNode.value);
   menuTreeMaxDepthNode.value = String(maxDepth);
-  saveMenuTreeSettings(activeAgentId, { maxDepth });
-  void refreshMenu({ agentId: activeAgentId, menuOnly: true });
+  saveMenuTreeSettings(activeWorkspaceId, { maxDepth });
+  void refreshMenu({ agentId: activeWorkspaceId, menuOnly: true });
 });
 
 agentGraphShowPreviewsNode?.addEventListener("change", () => {

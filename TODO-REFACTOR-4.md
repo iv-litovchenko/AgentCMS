@@ -160,7 +160,7 @@ workspace/                              … awn.hub.topic.ws
 ## 🗺️ Полная карта MCP (`agent-cms` v0.4.0)
 
 Источник: `mcp-server/index.js` + `mcp-server/lib/*`. **~200 tools** (часть алиасов — см. ниже).  
-**agentId** — почти везде обязателен; **без agentId**: registry workspaces, `search_web`*, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
+**workspaceId** — почти везде обязателен (legacy alias: **agentId**); **без workspaceId**: registry workspaces, `search_web`*, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, `get_workspace_storage_info`.
 
 ```
 🚀 Старт чата
@@ -173,7 +173,7 @@ workspace/                              … awn.hub.topic.ws
 ├── list_workspace_heartbeat               … awn-runtime-heartbeat
 └── test_mcp_connection                    … ping CMS + версии
 
-🏢 Registry workspace (без agentId в args; path/agentId в теле где нужно)
+🏢 Registry workspace (без workspaceId в args; path/workspaceId в теле где нужно, legacy agentId)
 ├── create_workspace                       … папка + manifest + запись в реестре
 ├── register_workspace                     … подхват существующей папки
 ├── discover_workspaces                    … скан диска на awn.hub.topic.ws (legacy awn.page.ws)

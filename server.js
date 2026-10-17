@@ -31,7 +31,7 @@ const {
 } = require("./lib/http/https-redirect");
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
-const { resolveWorkspaceIdFromArgs } = require("./lib/workspace/resolve-workspace-id-from-args");
+const { resolveWorkspaceIdFromArgs, resolveWorkspaceIdFromPayload } = require("./lib/workspace/resolve-workspace-id-from-args");
 const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
@@ -2019,6 +2019,7 @@ function getNavFlagsRegistryService() {
 
 function wrapNavFlagEntriesForAgent(agent, entries) {
   return (Array.isArray(entries) ? entries : []).map((entry) => ({
+    workspaceId: agent.id,
     agentId: agent.id,
     agentName: agent.name || agent.id,
     agentPath: agent.path,
@@ -15232,6 +15233,7 @@ async function buildAgentSessionContext() {
   return {
     version: "0.0.4",
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
+    workspaceId: agentId,
     agentId,
     agentRootRel,
     kitFolder,
@@ -24390,8 +24392,11 @@ async function handleApiForAgent(req, res, url) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
     const payload = await readAgentUiContext(agentRoot);
+    const workspaceId = getActiveAgentId();
     return sendJson(res, 200, {
       ...payload,
+      workspaceId,
+      agentId: workspaceId,
       maxAgeMs: UI_CONTEXT_MAX_AGE_MS,
       hint: payload.context
         ? "focus.entity: page|slot|content|system|browse|home|none; mcp — готовые args для read/write_*; aliases.path/slot/ref — shortcuts; stale=true если UI давно не обновлялся"
@@ -32153,7 +32158,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/focus") {
-    const agentId = String(url.searchParams.get("agent") || "").trim();
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
     try {
       const items = await listNavFocusItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
@@ -32166,7 +32175,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/main") {
-    const agentId = String(url.searchParams.get("agent") || "").trim();
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
     try {
       const items = await listNavMainItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
@@ -32290,8 +32303,10 @@ async function handleApi(req, res, url) {
   if (req.method === "PATCH" && url.pathname === "/api/agents/workspace") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = updateAgentWorkspace(agentId, payload);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -32305,8 +32320,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/workspace/default") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = setDefaultAgentWorkspace(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -32320,8 +32337,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/workspace/orchestrator") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = setOrchestratorAgentWorkspace(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -32377,9 +32396,11 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/groups/assign") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || "").trim();
+      const agentId = resolveWorkspaceIdFromPayload(payload);
       const groupId = String(payload?.groupId || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       if (!groupId) return sendJson(res, 400, { error: "groupId is required" });
       const data = assignWorkspaceToGroup(agentId, groupId);
       return sendJson(res, 200, data);
@@ -32394,8 +32415,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/groups/unassign") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = removeWorkspaceFromGroup(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
