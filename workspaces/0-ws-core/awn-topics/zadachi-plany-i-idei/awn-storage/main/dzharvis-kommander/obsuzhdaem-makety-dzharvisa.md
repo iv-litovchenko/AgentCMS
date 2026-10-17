@@ -6,13 +6,13 @@ awn-emoji: ""
 awn-summary: ""
 awn-note: ""
 awn-todo: ""
-awn-main: false
-awn-focus: false
+awn-main: true
+awn-focus: true
 awn-runtime-reminder: false
 awn-index-exclude-record: false
 awn-auto-toc: false
 awn-tags: []
-awn-taxonomy: {}
+awn-taxonomy: "{}"
 awn-viz-graph:
   enabled: true
   pin: false
@@ -27,6 +27,7 @@ awn-viz-roadmap:
   order: 0
 awn-id: 33
 awn-type: awn.content.record
+awn-create: "2026-10-17T21:14:26.252Z"
 awn-viewed: ""
 awn-event-at: ""
 awn-deadline: ""
@@ -44,11 +45,10 @@ awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 awn-runtime-load-always: false
-awn-sort: 
+awn-sort: ""
 awn-web-url: ""
-awn-create: 2026-10-17T21:14:26.252Z
-awn-update: 2026-10-17T21:14:26.252Z
-awn-version: 2
+awn-update: 2026-10-17T21:24:05.729Z
+awn-version: 4
 ---
 
 # Claude Opus 5.5

@@ -24939,14 +24939,12 @@ function positionContextMenuSubmenu(submenuItem) {
 function createContextMenuStatusSubmenuListItem(currentStatus = "") {
   const options = getMenuAwnStatusOptions();
   const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
-  const api = awnEnumOptionsApi();
 
   let activeOptionName = "";
   for (const option of options) {
-    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    const optionKey = resolveAwnEnumOptionKey(option);
     if (optionKey === activeStatus) {
-      activeOptionName =
-        typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+      activeOptionName = resolveAwnEnumOptionName(option);
       break;
     }
   }
@@ -24988,8 +24986,8 @@ function createContextMenuStatusSubmenuListItem(currentStatus = "") {
   submenu.setAttribute("aria-label", "Статус");
 
   for (const option of options) {
-    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
-    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+    const optionKey = resolveAwnEnumOptionKey(option);
+    const optionName = resolveAwnEnumOptionName(option);
     const statusItem = document.createElement("li");
     statusItem.setAttribute("role", "none");
 
@@ -25020,20 +25018,53 @@ function createContextMenuStatusSubmenuListItem(currentStatus = "") {
   return item;
 }
 
-const CONTEXT_MENU_TOOL_OPTIONS = [
-  { key: "tool-1", name: "Инструмент 1 (idea)" },
-  { key: "tool-2", name: "Инструмент 2 (idea)" }
+const CONTEXT_MENU_PIN_TOOL_OPTIONS = [
+  { key: "toggle-main", pin: "main" },
+  { key: "toggle-focus", pin: "focus" }
 ];
 
-function resolveContextMenuToolLabel(toolKey) {
-  const key = String(toolKey || "").trim();
-  if (!key) return "";
-  const match = CONTEXT_MENU_TOOL_OPTIONS.find((option) => option.key === key);
-  return match?.name || key;
+function resolveContextMenuNavPinLabel(pin, nodePath) {
+  if (pin === "main") {
+    return isNodeOnMain(nodePath) ? "Убрать с главной" : "Добавить на главную";
+  }
+  if (pin === "focus") {
+    return isNodeInFocus(nodePath) ? "Убрать из фокуса" : "Добавить в фокус";
+  }
+  return "";
 }
 
-function createContextMenuToolsSubmenuListItem(currentTool = "") {
-  const activeTool = String(currentTool || "").trim();
+function resolveContextMenuPinNodePath(state) {
+  if (!state) return "";
+  const menuPath = normalizeMenuNodePath(state.path || "");
+  if (menuPath && getMenuContextMenuKind(menuPath)) return menuPath;
+
+  if (state.kind === "awnDataRecord" && state.record) {
+    return normalizeMenuNodePath(resolveAwnDataRecordFilePath(state.record, state.viewStore) || "");
+  }
+
+  const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!filePath) return "";
+
+  const nodePath = state.nodePath || activePath;
+  if (state.kind === "flatStorageFile") {
+    const memoryKind = state.mode || state.railSlotMemoryKind || resolveResourceContextMemoryKind(state);
+    return normalizeMenuNodePath(getFlatStorageItemContextPath(filePath, memoryKind, nodePath));
+  }
+  if (state.kind === "mediaFile") {
+    const memoryKind = state.railSlotMemoryKind || "media";
+    return normalizeMenuNodePath(getEntryOverviewItemContextPath(filePath, memoryKind, nodePath));
+  }
+  if (state.kind === "externalFile") {
+    return normalizeMenuNodePath(getExternalItemContextPath({ path: filePath }, nodePath));
+  }
+  return normalizeMenuNodePath(filePath);
+}
+
+function createContextMenuToolsSubmenuListItem(pinNodePath = "") {
+  const pinPath = normalizeMenuNodePath(pinNodePath || "");
+  const pinOptions =
+    pinPath && canShowNodeOverviewPinActions(pinPath) ? CONTEXT_MENU_PIN_TOOL_OPTIONS : [];
+  if (!pinOptions.length) return null;
 
   const item = document.createElement("li");
   item.className = "menu-context-menu-item menu-context-menu-item--submenu";
@@ -25052,15 +25083,6 @@ function createContextMenuToolsSubmenuListItem(currentTool = "") {
 
   const valueSpan = document.createElement("span");
   valueSpan.className = "menu-context-menu-submenu-trigger-value";
-  if (activeTool) {
-    const preview = document.createElement("span");
-    preview.className = "menu-context-menu-submenu-trigger-preview";
-    const label = document.createElement("span");
-    label.className = "menu-context-menu-status-text";
-    label.textContent = resolveContextMenuToolLabel(activeTool);
-    preview.appendChild(label);
-    valueSpan.appendChild(preview);
-  }
 
   const chevron = document.createElement("span");
   chevron.className = "menu-context-menu-submenu-chevron";
@@ -25074,7 +25096,7 @@ function createContextMenuToolsSubmenuListItem(currentTool = "") {
   submenu.setAttribute("role", "menu");
   submenu.setAttribute("aria-label", "Инструменты");
 
-  for (const option of CONTEXT_MENU_TOOL_OPTIONS) {
+  for (const option of pinOptions) {
     const toolItem = document.createElement("li");
     toolItem.setAttribute("role", "none");
 
@@ -25084,10 +25106,11 @@ function createContextMenuToolsSubmenuListItem(currentTool = "") {
     btn.dataset.tool = option.key;
     const label = document.createElement("span");
     label.className = "menu-context-menu-status-text";
-    label.textContent = option.name;
+    label.textContent = resolveContextMenuNavPinLabel(option.pin, pinPath);
     btn.appendChild(label);
-    btn.setAttribute("role", "menuitemradio");
-    const isActive = option.key === activeTool;
+    btn.setAttribute("role", "menuitemcheckbox");
+    const isActive =
+      option.pin === "main" ? isNodeOnMain(pinPath) : option.pin === "focus" ? isNodeInFocus(pinPath) : false;
     btn.classList.toggle("is-active", isActive);
     btn.setAttribute("aria-checked", isActive ? "true" : "false");
     toolItem.appendChild(btn);
@@ -25108,9 +25131,11 @@ function createContextMenuToolsSubmenuListItem(currentTool = "") {
   return item;
 }
 
-function appendContextMenuToolsSection(listNode, currentTool = "") {
+function appendContextMenuToolsSection(listNode, pinNodePath = "") {
   if (!listNode) return false;
-  listNode.appendChild(createContextMenuToolsSubmenuListItem(currentTool));
+  const item = createContextMenuToolsSubmenuListItem(pinNodePath);
+  if (!item) return false;
+  listNode.appendChild(item);
   return true;
 }
 
@@ -25670,13 +25695,9 @@ function getMenuAwnStatusOptions() {
 }
 
 function enumOptionsIncludeKey(options, key) {
-  const api = awnEnumOptionsApi();
   const normalized = String(key || "").trim();
   if (!normalized) return false;
-  return options.some((option) => {
-    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
-    return optionKey === normalized;
-  });
+  return options.some((option) => resolveAwnEnumOptionKey(option) === normalized);
 }
 
 function canShowMenuContextStatusPicker(nodePath) {
@@ -26088,19 +26109,14 @@ function positionMenuContextMenu(clientX, clientY) {
   menuContextMenuNode.style.visibility = "";
 }
 
-function appendMenuContextMenuPickerSections(
-  nodePath,
-  currentStatus,
-  currentTool = "",
-  agentId = activeWorkspaceId
-) {
+function appendMenuContextMenuPickerSections(nodePath, currentStatus, agentId = activeWorkspaceId) {
   if (!menuContextMenuListNode) return false;
   let hadAny = false;
   if (canShowMenuContextStatusPicker(nodePath)) {
     menuContextMenuListNode.appendChild(createContextMenuStatusSubmenuListItem(currentStatus));
     hadAny = true;
   }
-  if (appendContextMenuToolsSection(menuContextMenuListNode, currentTool)) {
+  if (appendContextMenuToolsSection(menuContextMenuListNode, nodePath)) {
     hadAny = true;
   }
   return hadAny;
@@ -26110,12 +26126,11 @@ function renderMenuContextMenuItems(
   kind,
   nodePath,
   agentId = activeWorkspaceId,
-  currentStatus = "",
-  currentTool = ""
+  currentStatus = ""
 ) {
   if (!menuContextMenuListNode) return;
   menuContextMenuListNode.replaceChildren();
-  const hadPickers = appendMenuContextMenuPickerSections(nodePath, currentStatus, currentTool, agentId);
+  const hadPickers = appendMenuContextMenuPickerSections(nodePath, currentStatus, agentId);
   const actions = getMenuContextMenuActions(kind, nodePath, agentId);
   if (hadPickers && actions.length) {
     appendContextMenuListSeparator(menuContextMenuListNode);
@@ -27201,23 +27216,24 @@ function canShowResourceContextStatusPicker(state = resourceContextMenuState) {
   );
 }
 
-function appendResourceContextMenuPickerSections(currentStatus = "", currentTool = "") {
+function appendResourceContextMenuPickerSections(currentStatus = "") {
   if (!resourceContextMenuListNode) return false;
   let hadAny = false;
   if (canShowResourceContextStatusPicker() && resourceContextMenuState) {
     resourceContextMenuListNode.appendChild(createContextMenuStatusSubmenuListItem(currentStatus));
     hadAny = true;
   }
-  if (appendContextMenuToolsSection(resourceContextMenuListNode, currentTool)) {
+  const pinNodePath = resolveContextMenuPinNodePath(resourceContextMenuState);
+  if (appendContextMenuToolsSection(resourceContextMenuListNode, pinNodePath)) {
     hadAny = true;
   }
   return hadAny;
 }
 
-function renderResourceContextMenuItems(kind, currentStatus = "", currentTool = "") {
+function renderResourceContextMenuItems(kind, currentStatus = "") {
   if (!resourceContextMenuListNode) return;
   resourceContextMenuListNode.replaceChildren();
-  const hadPickers = appendResourceContextMenuPickerSections(currentStatus, currentTool);
+  const hadPickers = appendResourceContextMenuPickerSections(currentStatus);
   const actions = RESOURCE_CONTEXT_MENU_ACTIONS[kind] || [];
   if (hadPickers && actions.length) {
     appendContextMenuListSeparator(resourceContextMenuListNode);
@@ -27258,23 +27274,30 @@ function openResourceContextMenu(event, state) {
       currentStatus = await fetchAwnDataRecordMenuStatus(state);
     }
 
-    const currentTool = String(state.tool || "").trim();
-    resourceContextMenuState = { ...state, status: currentStatus, tool: currentTool };
-    renderResourceContextMenuItems(state.kind, currentStatus, currentTool);
+    resourceContextMenuState = { ...state, status: currentStatus };
+    renderResourceContextMenuItems(state.kind, currentStatus);
     positionResourceContextMenu(event.clientX, event.clientY);
   })();
 }
 
-function handleResourceContextMenuToolAction(nextTool) {
+async function handleResourceContextMenuToolAction(nextTool) {
   const state = resourceContextMenuState;
   if (!state) return;
   const toolKey = String(nextTool || "").trim();
-  const option = CONTEXT_MENU_TOOL_OPTIONS.find((item) => item.key === toolKey);
-  if (!option) return;
-  const currentTool = String(state.tool || "").trim();
-  closeResourceContextMenu();
-  if (toolKey === currentTool) return;
-  showToast(`Инструмент: ${option.name}`, "info");
+  if (toolKey === "toggle-main" || toolKey === "toggle-focus") {
+    const nodePath = resolveContextMenuPinNodePath(state);
+    if (!nodePath || !canShowNodeOverviewPinActions(nodePath)) {
+      showToast("Доступно только для markdown-записей", "error");
+      return;
+    }
+    closeResourceContextMenu();
+    if (toolKey === "toggle-main") {
+      await toggleNodeMain(nodePath);
+    } else {
+      await toggleNodeFocus(nodePath);
+    }
+    return;
+  }
 }
 
 async function handleResourceContextMenuStatusAction(nextStatus) {
@@ -28002,16 +28025,23 @@ async function deleteMemorySectionFromMenu(state) {
   }
 }
 
-function handleMenuContextMenuToolAction(nextTool) {
+async function handleMenuContextMenuToolAction(nextTool) {
   const state = menuContextMenuState;
   if (!state) return;
   const toolKey = String(nextTool || "").trim();
-  const option = CONTEXT_MENU_TOOL_OPTIONS.find((item) => item.key === toolKey);
-  if (!option) return;
-  const currentTool = String(state.tool || "").trim();
-  closeMenuContextMenu();
-  if (toolKey === currentTool) return;
-  showToast(`Инструмент: ${option.name}`, "info");
+  if (toolKey === "toggle-main" || toolKey === "toggle-focus") {
+    const nodePath = resolveContextMenuPinNodePath(state);
+    if (!nodePath || !canShowNodeOverviewPinActions(nodePath)) {
+      showToast("Доступно только для markdown-записей", "error");
+      return;
+    }
+    closeMenuContextMenu();
+    if (toolKey === "toggle-main") {
+      await toggleNodeMain(nodePath);
+    } else {
+      await toggleNodeFocus(nodePath);
+    }
+  }
 }
 
 async function handleMenuContextMenuStatusAction(nextStatus) {
@@ -28068,16 +28098,14 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
   closeMenuSettingsPopover();
 
   const status = resolveMenuNodeStatus(path, activeWorkspaceId);
-  const currentTool = String(menuContextMenuState?.tool || "").trim();
   menuContextMenuState = {
     path,
     kind,
     label: getLabelFromPath(path),
     status,
-    tool: currentTool,
     target
   };
-  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status, currentTool);
+  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status);
   positionMenuContextMenu(event.clientX, event.clientY);
   return true;
 }
@@ -57685,6 +57713,25 @@ function awnEnumOptionsApi() {
   return globalThis.AwnEnumOptions || {};
 }
 
+function resolveAwnEnumOptionKey(option) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.enumOptionKey === "function") return api.enumOptionKey(option);
+  if (option && typeof option === "object" && !Array.isArray(option)) {
+    return String(option.key ?? option.name ?? "").trim();
+  }
+  return String(option ?? "").trim();
+}
+
+function resolveAwnEnumOptionName(option) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.enumOptionName === "function") return api.enumOptionName(option);
+  if (option && typeof option === "object" && !Array.isArray(option)) {
+    const name = String(option.name ?? option.label ?? option.title ?? "").trim();
+    return name || resolveAwnEnumOptionKey(option);
+  }
+  return String(option ?? "").trim();
+}
+
 function resolveFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.resolveFieldTypeId === "function") return api.resolveFieldTypeId(typeId);
@@ -68706,12 +68753,6 @@ function scheduleEditorDirtyCheck() {
   });
 }
 
-function buildNodeManifestContentFromSyncedForm(nodePath = activePath) {
-  syncDisplayNameIntoAwnNameProp(nodePath);
-  syncDescriptionIntoAwnDescriptionProp(nodePath);
-  return joinFrontmatter(propsInputNode?.value ?? "", fileContentInputNode?.value ?? "");
-}
-
 function isEditorSaveTrackingActive() {
   if (isProjectSettingsMode()) return true;
   if (isAttachmentSidecarEditing()) return true;
@@ -68763,10 +68804,7 @@ function getEditorSavePayload() {
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
   }
-  const content =
-    activeContentMode === "description" && !propsRawYamlVisible
-      ? buildNodeManifestContentFromSyncedForm()
-      : buildSaveContentPayload();
+  const content = buildSaveContentPayload();
   return JSON.stringify({
     content,
     title: titleInputNode?.value?.trim() ?? ""
@@ -69603,9 +69641,9 @@ function createNodeOverviewHeroActions(nodePath, options = {}) {
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions";
   if (!options.editOnly && canShowNodeOverviewPinActions(nodePath)) {
-    actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
-    actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
     actions.appendChild(createNodeOverviewMainButton(nodePath, options.propEntries || null));
+    actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
+    actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
   }
   if (
     !options.editOnly &&

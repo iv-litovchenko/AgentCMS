@@ -67,8 +67,13 @@
     "main/drugie-idei/zapret-izmenyat-yaml-svoystvo-ili-nastroyku.md",
     "main/dzharvis-kommander/FULL.md",
     "main/dzharvis-kommander/full.md",
+    "main/dzharvis-kommander/izuchit-po-dzharvisu.md",
     "main/dzharvis-kommander/manifest.md",
+    "main/dzharvis-kommander/obsuzhdaem-golos.md",
     "main/dzharvis-kommander/obsuzhdaem-makety-dzharvisa.md",
+    "main/dzharvis-kommander/obsuzhdaem-servis-dlya-golosa-sinteza-rechi.md",
+    "main/dzharvis-kommander/obsuzhdenie-idey-dzharvisa-dorabatyvaem-fork.md",
+    "main/dzharvis-kommander/obsuzhdenie-idey-samogo-dzharvisa.md",
     "main/excalidraw-holst.md",
     "main/git-dlya-md-faylov-i-media-razdelno.md",
     "main/golosovoe-upravlenie-shell-mobilka",
@@ -118,5 +123,5 @@
     "media/Aya.jpg",
     "topic-index-generated/awn-topics/zadachi-plany-i-idei/index.md"
   ],
-  "updatedAt": "2026-10-17T21:14:48.051Z"
+  "updatedAt": "2026-10-17T21:33:53.682Z"
 }
