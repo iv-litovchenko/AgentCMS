@@ -22,6 +22,14 @@
 3. Повторить на `/` (landing) — ожидаем spike при `landing-orbit.js`.
 4. **Coverage** (Cmd+Shift+P → Coverage): reload workspace → % unused в `main.js`.
 
+### Coverage (P1 — заполнить вручную)
+
+| URL | JS total | `main.js` / built unused % | Примечание |
+|-----|----------|----------------------------|------------|
+| `/0-ws-core` (dev source) | | | после slice channel-presets |
+| `/0-ws-core?editorBuilt=1` | | | bundled entry |
+| `/` landing | | | + lazy landing chunks |
+
 ### Таблица Performance (Main thread)
 
 Заполнить из панели Performance (Scripting / Parse+Compile). Ниже — **Navigation Timing** с той же машины (2026-10-17, Chrome automation), не замена Scripting.

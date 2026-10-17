@@ -7,6 +7,7 @@ const path = require("path");
 
 const repoRoot = path.join(__dirname, "..");
 const editorDir = path.join(repoRoot, "public/editor");
+const bundleEntry = path.join(editorDir, "js/boot/editor-entry.js");
 const mainSource = path.join(editorDir, "main.js");
 const outBuilt = path.join(editorDir, "main.built.js");
 const outMap = `${outBuilt}.map`;
@@ -15,6 +16,19 @@ const manifestPath = path.join(editorDir, "editor-build-manifest.json");
 const HASHED_MAIN_RE = /^main\.[a-f0-9]{8}\.built\.js$/i;
 const HASHED_MAP_RE = /^main\.[a-f0-9]{8}\.built\.js\.map$/i;
 const watchMode = process.argv.includes("--watch");
+
+/** Runtime import("/editor/...") and similar must stay external when bundling. */
+function editorRuntimeImportExternalsPlugin() {
+  return {
+    name: "agentcms-editor-runtime-import-externals",
+    setup(build) {
+      build.onResolve({ filter: /^\/(?:editor|_resources)\// }, (args) => ({
+        path: args.path,
+        external: true
+      }));
+    }
+  };
+}
 
 function pruneOldHashedBundles(keepBasenames) {
   const keep = new Set(keepBasenames);
@@ -49,6 +63,7 @@ function finalizeProdArtifacts(beforeBytes) {
     sourcemap: hashedMap,
     fallbackMain: "main.built.js",
     fallbackMainUrl: "/editor/main.built.js",
+    bundleEntry: "js/boot/editor-entry.js",
     bytes: after
   };
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
@@ -57,24 +72,34 @@ function finalizeProdArtifacts(beforeBytes) {
   return { after, pct, hash, hashedMain };
 }
 
+function sharedBuildOptions() {
+  return {
+    entryPoints: [bundleEntry],
+    outfile: outBuilt,
+    bundle: true,
+    format: "iife",
+    banner: {
+      js: "globalThis.__AGENTCMS_EDITOR_BUNDLE__=true;"
+    },
+    minify: true,
+    legalComments: "none",
+    sourcemap: true,
+    target: ["es2020"],
+    plugins: [editorRuntimeImportExternalsPlugin()]
+  };
+}
+
 async function runBuild(esbuild) {
   const before = fs.statSync(mainSource).size;
   const t0 = Date.now();
 
-  await esbuild.build({
-    entryPoints: [mainSource],
-    outfile: outBuilt,
-    bundle: false,
-    minify: true,
-    legalComments: "none",
-    sourcemap: true,
-    target: ["es2020"]
-  });
+  await esbuild.build(sharedBuildOptions());
 
   const { after, pct, hash, hashedMain } = finalizeProdArtifacts(before);
   const ms = Date.now() - t0;
 
   console.log(`build-editor: ${path.relative(repoRoot, outBuilt)} (+ ${hashedMain})`);
+  console.log(`  entry: ${path.relative(repoRoot, bundleEntry)} (bundle: true, iife)`);
   console.log(`  size: ${(before / 1024 / 1024).toFixed(2)} MB → ${(after / 1024 / 1024).toFixed(2)} MB (${pct}% smaller)`);
   console.log(`  hash: ${hash}`);
   console.log(`  manifest: ${path.relative(repoRoot, manifestPath)}`);
@@ -94,6 +119,10 @@ async function main() {
     console.error("Missing", mainSource);
     process.exit(1);
   }
+  if (!fs.existsSync(bundleEntry)) {
+    console.error("Missing", bundleEntry);
+    process.exit(1);
+  }
 
   if (!watchMode) {
     await runBuild(esbuild);
@@ -105,14 +134,9 @@ async function main() {
 
   const before = fs.statSync(mainSource).size;
   const ctx = await esbuild.context({
-    entryPoints: [mainSource],
-    outfile: outBuilt,
-    bundle: false,
-    minify: true,
-    legalComments: "none",
-    sourcemap: true,
-    target: ["es2020"],
+    ...sharedBuildOptions(),
     plugins: [
+      editorRuntimeImportExternalsPlugin(),
       {
         name: "agentcms-editor-manifest",
         setup(build) {
@@ -135,7 +159,7 @@ async function main() {
   await ctx.watch();
   await runBuild(esbuild);
   console.log("");
-  console.log("Watching public/editor/main.js → main.built.js (+ manifest)…");
+  console.log("Watching editor-entry.js + main.js → main.built.js (+ manifest)…");
 }
 
 main().catch((error) => {

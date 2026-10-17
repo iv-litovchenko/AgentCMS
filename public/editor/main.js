@@ -85,31 +85,7 @@ let menuMediaLibrariesLastPayload = null;
 let menuMediaLibrariesLoadSeq = 0;
 let menuMediaLibrariesCachedAgentId = "";
 let menuMediaLibrariesSearchQuery = "";
-/** Заготовки медиатек — порядок и slug синхронны с lib/config/media-library-presets.js */
-const MEDIA_LIBRARY_BUILTIN_PRESETS = [
-  { slug: "0-documents", name: "Документы" },
-  { slug: "0-market", name: "Барахолка" },
-  { slug: "0-scripts", name: "Скрипты" },
-  { slug: "0-slider", name: "Слайдер" }
-];
-const MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON = {
-  documents: "0-documents",
-  market: "0-market",
-  scripts: "0-scripts",
-  slider: "0-slider"
-};
-const MEDIA_LIBRARY_BUILTIN_SLUGS = new Set(MEDIA_LIBRARY_BUILTIN_PRESETS.map((entry) => entry.slug));
-
-function resolveMediaLibraryCanonicalSlug(slug) {
-  const normalized = String(slug || "").trim().toLowerCase();
-  if (!normalized) return "";
-  if (MEDIA_LIBRARY_BUILTIN_SLUGS.has(normalized)) return normalized;
-  return MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON[normalized] || normalized;
-}
-
-function isMediaLibraryBuiltinSlug(slug) {
-  return MEDIA_LIBRARY_BUILTIN_SLUGS.has(resolveMediaLibraryCanonicalSlug(slug));
-}
+/** Media library presets — js/core/media-library-presets-runtime.js (refactor 14) */
 const menuAwnScriptsBandNode = document.getElementById("menu-awn-scripts-band");
 const menuAwnScriptsBandToggleBtn = document.getElementById("menu-awn-scripts-band-toggle");
 const menuAwnScriptsBandBodyNode = document.getElementById("menu-awn-scripts-band-body");
@@ -332,407 +308,7 @@ const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `${MENU_AWN_CHANNELS_BAND_HELP_INTRO}
 
 Одна ось в типе: ingress (откуда) + trust + слот inbox/; вторая ось отдельно: forum / blog / digest — это уже режимы работы над тем же хаосом, не соседи Telegram в одной папке без метки.
 Статичный сайдбар — хороший чертёж; следующий шаг по смыслу — awn-channels/{slug}/ + index + triage, без новых «витрин» в этой папке.`;
-/** Заготовки каналов — порядок и slug синхронны с lib/config/channel-presets.js */
-const CHANNEL_BUILTIN_PRESETS = [
-  {
-    slug: '0-forum',
-    icon: '💬',
-    name: 'Форум',
-    hintTitle: 'Дискуссии и обсуждения, где люди могут обсуждать свои идеи'
-  },
-  {
-    slug: '0-blog',
-    icon: '📝',
-    name: 'Блог',
-    hintTitle: 'Аккумуляция постов на интересующие темы по запросам; агент может собирать по расписанию и публиковать информацию в данном канале'
-  },
-  {
-    slug: '0-digest',
-    icon: '📰',
-    name: 'Дайджесты',
-    hintTitle: 'Сводки и подборки, которые агент собирает сюда. Различные сводки и подборки собираются в данном месте'
-  },
-  {
-    slug: '0-youtube',
-    icon: '▶️',
-    name: 'YouTube',
-    hintTitle: 'Выгрузка видео и тем из YouTube. Входящий поток из YouTube'
-  },
-  {
-    slug: '0-telegram',
-    icon: '✈️',
-    name: 'Telegram',
-    hintTitle: 'Выгрузка тем и сообщений из Telegram. Входящий поток из Телеграмм'
-  },
-  {
-    slug: '0-whatsapp',
-    icon: '💬',
-    name: 'WhatsApp',
-    hintTitle: 'Входящий поток из WhatsApp'
-  },
-  {
-    slug: '0-instagram',
-    icon: '📷',
-    name: 'Instagram',
-    hintTitle: 'Посты, stories и DM из Instagram. Входящий поток из Instagram до triage'
-  },
-  {
-    slug: '0-web',
-    icon: '🌐',
-    name: 'Интернет',
-    hintTitle: 'Страницы, ссылки и материалы из сети'
-  },
-  {
-    slug: '0-bookmarks',
-    icon: '🔖',
-    name: 'Закладки',
-    hintTitle: 'Сохранённые ссылки и закладки до triage'
-  },
-  {
-    slug: '0-downloads',
-    icon: '📥',
-    name: 'Загрузки',
-    hintTitle: 'Файлы из загрузок браузера'
-  },
-  {
-    slug: '0-rss',
-    icon: '📡',
-    name: 'RSS / ленты',
-    hintTitle: 'RSS и Atom-ленты, подписки и новые элементы фидов до triage'
-  },
-  {
-    slug: '0-mailbox',
-    icon: '📧',
-    name: 'Почта',
-    hintTitle: 'Входящая почта: письма, вложения и уведомления до triage'
-  },
-  {
-    slug: '0-webhook',
-    icon: '🔗',
-    name: 'Webhook',
-    hintTitle: 'HTTP webhook и автоматизации (n8n, Zapier, CI, API callbacks) — события в ingress'
-  },
-  {
-    slug: '0-cloud-inbox',
-    icon: '☁️',
-    name: 'Облачный inbox',
-    hintTitle: 'Файлы и события из облака: Google Drive, Dropbox, OneDrive и аналоги'
-  },
-  {
-    slug: '0-notebooks',
-    icon: '📓',
-    name: 'Печатные тетради и рукописи',
-    hintTitle: 'Скан и фото тетрадей, блокнотов и рукописных записей до triage'
-  },
-  {
-    slug: '0-ocr',
-    icon: '🔍',
-    name: 'OCR',
-    hintTitle: 'Сканы и фото документов, распознавание текста до triage'
-  },
-  {
-    slug: '0-voice',
-    icon: '🎙️',
-    name: 'Голос',
-    hintTitle: 'STT, аудиозаписи и расшифровки до разбора'
-  },
-  {
-    slug: '0-clipboard',
-    icon: '📋',
-    name: 'Буфер обмена',
-    hintTitle: 'Содержимое буфера обмена и быстрые вставки до triage'
-  },
-  {
-    slug: '0-photo-archive',
-    icon: '🖼️',
-    name: 'Фотоархив',
-    hintTitle: 'Общий фотоархив — входящие снимки'
-  },
-  {
-    slug: '0-photo-phone',
-    icon: '📱',
-    name: 'Фото (телефон)',
-    hintTitle: 'Фото с телефона до разбора'
-  },
-  {
-    slug: '0-news',
-    icon: '📰',
-    name: 'Новости',
-    hintTitle: 'Новостные ленты, статьи и публикации СМИ до triage'
-  },
-  {
-    slug: '0-analytics',
-    icon: '📊',
-    name: 'Аналитика',
-    hintTitle: 'Метрики, отчёты и дашборды'
-  },
-  {
-    slug: '0-real-world',
-    icon: '🌍',
-    name: 'Реальный мир',
-    hintTitle: 'Объекты и факты из офлайн-мира'
-  },
-  {
-    slug: '0-capabilities',
-    icon: '💡',
-    name: 'Поиск фишек для ИИ',
-    hintTitle: 'Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage'
-  },
-  {
-    slug: '0-computer',
-    icon: '💻',
-    name: 'Компьютер',
-    hintTitle: 'Персональный ПК: локальная среда, Shell, файлы и события с рабочей машины до triage'
-  },
-  {
-    slug: '0-server',
-    icon: '🖥️',
-    name: 'Сервер',
-    hintTitle: 'Удалённый сервер, VPS или хост: деплой, логи, cron и сервисы агента до triage'
-  },
-  {
-    slug: '0-market',
-    icon: '🛒',
-    name: 'Барахолка',
-    hintTitle: 'Объявления о покупке и продаже, личные сделки'
-  },
-  {
-    slug: '0-announcements',
-    icon: '📢',
-    name: 'Объявления',
-    hintTitle: 'Объявления и информационные публикации'
-  },
-  {
-    slug: '0-github',
-    icon: '🐙',
-    name: 'GitHub',
-    hintTitle: 'Issues, pull requests, discussions, Actions и прочие события репозитория'
-  },
-  {
-    slug: '0-gitlab',
-    icon: '🦊',
-    name: 'GitLab',
-    hintTitle: 'Merge requests, issues, pipelines и активность проекта в GitLab'
-  },
-  {
-    slug: '0-bitbucket',
-    icon: '🪣',
-    name: 'Bitbucket',
-    hintTitle: 'Pull requests, issues и события репозиториев Atlassian Bitbucket'
-  },
-  {
-    slug: '0-gitea',
-    icon: '🍵',
-    name: 'Gitea / Forgejo',
-    hintTitle: 'Self-hosted Git: issues и PR из Gitea, Forgejo и совместимых forge'
-  },
-  {
-    slug: '0-jira',
-    icon: '📋',
-    name: 'Jira',
-    hintTitle: 'Задачи, спринты, комментарии и изменения статусов из Jira'
-  },
-  {
-    slug: '0-sentry',
-    icon: '🐛',
-    name: 'Sentry',
-    hintTitle: 'Ошибки, алерты и события мониторинга из Sentry'
-  },
-  {
-    slug: '0-notes',
-    icon: '📒',
-    name: 'Заметки',
-    hintTitle: 'Разрозненные заметки до разбора'
-  },
-  {
-    slug: '0-screenshots',
-    icon: '🖥️',
-    name: 'Скриншоты',
-    hintTitle: 'Снимки экрана, ingress до triage'
-  },
-  {
-    slug: '0-other',
-    icon: '📦',
-    name: 'Другое',
-    hintTitle: 'Временный вход — не знаю куда деть'
-  }
-];
-/** Базовые группы каталога — синхронны с lib/config/channel-presets.js (CHANNEL_BUILTIN_PRESET_GROUPS) */
-const CHANNEL_BUILTIN_PRESET_GROUPS = [
-  {
-    id: 'agent-capabilities',
-    title: 'Агент и устройства',
-    slugs: [ '0-capabilities', '0-computer', '0-server' ]
-  },
-  {
-    id: 'content-modes',
-    title: 'Режимы контента и свободное общение',
-    slugs: [ '0-forum', '0-blog', '0-digest' ]
-  },
-  {
-    id: 'messengers-video',
-    title: 'Мессенджеры и видео',
-    slugs: [ '0-youtube', '0-telegram', '0-whatsapp', '0-instagram' ]
-  },
-  {
-    id: 'web-links-files',
-    title: 'Веб, ссылки, файлы',
-    slugs: [ '0-web', '0-bookmarks', '0-downloads', '0-rss' ]
-  },
-  {
-    id: 'mail-automation',
-    title: 'Почта и автоматизация',
-    slugs: [ '0-mailbox', '0-webhook', '0-cloud-inbox' ]
-  },
-  {
-    id: 'media-digitization',
-    title: 'Медиа и оцифровка',
-    slugs: [
-      '0-screenshots',
-      '0-photo-archive',
-      '0-photo-phone',
-      '0-notebooks',
-      '0-ocr',
-      '0-voice',
-      '0-clipboard'
-    ]
-  },
-  {
-    id: 'news-context',
-    title: 'Новости и контекст',
-    slugs: [ '0-news', '0-analytics', '0-real-world' ]
-  },
-  {
-    id: 'publications',
-    title: 'Публикации и рынок',
-    slugs: [ '0-announcements', '0-market' ]
-  },
-  {
-    id: 'development',
-    title: 'Разработка',
-    slugs: [
-      '0-github',
-      '0-gitlab',
-      '0-bitbucket',
-      '0-gitea',
-      '0-jira',
-      '0-sentry'
-    ]
-  },
-  {
-    id: 'drafts',
-    title: 'Черновики и прочее',
-    slugs: [ '0-notes', '0-other' ]
-  }
-];
-const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
-const CHANNEL_LEGACY_SLUG_TO_CANON = {
-  forum: "0-forum",
-  blog: "0-blog",
-  digest: "0-digest",
-  youtube: "0-youtube",
-  telegram: "0-telegram",
-  whatsapp: "0-whatsapp",
-  instagram: "0-instagram",
-  web: "0-web",
-  bookmarks: "0-bookmarks",
-  downloads: "0-downloads",
-  rss: "0-rss",
-  mailbox: "0-mailbox",
-  webhook: "0-webhook",
-  "cloud-inbox": "0-cloud-inbox",
-  notebooks: "0-notebooks",
-  ocr: "0-ocr",
-  voice: "0-voice",
-  clipboard: "0-clipboard",
-  "photo-archive": "0-photo-archive",
-  "photo-phone": "0-photo-phone",
-  news: "0-news",
-  analytics: "0-analytics",
-  "real-world": "0-real-world",
-  capabilities: "0-capabilities",
-  computer: "0-computer",
-  server: "0-server",
-  market: "0-market",
-  announcements: "0-announcements",
-  github: "0-github",
-  gitlab: "0-gitlab",
-  bitbucket: "0-bitbucket",
-  gitea: "0-gitea",
-  jira: "0-jira",
-  sentry: "0-sentry",
-  notes: "0-notes",
-  screenshots: "0-screenshots",
-  other: "0-other"
-};
-
-function resolveChannelCanonicalSlug(slug) {
-  const normalized = String(slug || "").trim().toLowerCase();
-  if (!normalized) return "";
-  if (CHANNEL_BUILTIN_SLUGS.has(normalized)) return normalized;
-  return CHANNEL_LEGACY_SLUG_TO_CANON[normalized] || normalized;
-}
-
-function isChannelBuiltinSlug(slug) {
-  return CHANNEL_BUILTIN_SLUGS.has(resolveChannelCanonicalSlug(slug));
-}
-
-const CHANNEL_CUSTOM_ICON_KEY = "_custom";
-
-function groupChannelBuiltinPresets(presets) {
-  const list = Array.isArray(presets) ? presets : CHANNEL_BUILTIN_PRESETS;
-  const bySlug = new Map(list.map((entry) => [entry.slug, entry]));
-  const grouped = [];
-  for (const group of CHANNEL_BUILTIN_PRESET_GROUPS) {
-    const items = (group.slugs || [])
-      .map((slug) => bySlug.get(slug))
-      .filter(Boolean);
-    if (items.length) grouped.push({ ...group, items });
-  }
-  const groupedSlugs = new Set(
-    grouped.flatMap((group) => group.items.map((entry) => entry.slug))
-  );
-  const rest = list.filter((entry) => !groupedSlugs.has(entry.slug));
-  if (rest.length) {
-    grouped.push({ id: "other-ungrouped", title: "Прочее", items: rest });
-  }
-  return grouped;
-}
-
-function getChannelPresetIconSvgMarkup(slug) {
-  const map = typeof CHANNEL_PRESET_ICON_SVG !== "undefined" ? CHANNEL_PRESET_ICON_SVG : null;
-  if (!map) return "";
-  const key = resolveChannelCanonicalSlug(slug);
-  if (key && map[key]) return String(map[key]).trim();
-  const legacy = String(slug || "").trim();
-  if (legacy && map[legacy]) return String(map[legacy]).trim();
-  return String(map[CHANNEL_CUSTOM_ICON_KEY] || "").trim();
-}
-
-function resolveChannelBuiltinPreset(slug) {
-  const key = resolveChannelCanonicalSlug(slug);
-  if (!key) return null;
-  return CHANNEL_BUILTIN_PRESETS.find((entry) => entry.slug === key) || null;
-}
-
-function populateChannelPresetIcon(container, slug, emojiFallback = "📡", { size = 14 } = {}) {
-  const key = String(slug || "").trim();
-  const markup = getChannelPresetIconSvgMarkup(key || CHANNEL_CUSTOM_ICON_KEY);
-  if (!markup) return false;
-  container.replaceChildren();
-  container.insertAdjacentHTML("beforeend", markup);
-  const svg = container.querySelector("svg");
-  const px = Math.max(10, Number(size) || 14);
-  if (svg) {
-    svg.setAttribute("width", String(px));
-    svg.setAttribute("height", String(px));
-    svg.setAttribute("aria-hidden", "true");
-    svg.classList.add("awn-channel-preset-icon-svg");
-  }
-  container.classList.add("awn-channel-preset-icon", "awn-channel-preset-icon--svg");
-  container.classList.remove("awn-channel-preset-icon--emoji");
-  return true;
-}
+/** Channel presets — js/core/channel-presets-runtime.js (refactor 14) */
 
 function syncAwnChannelWorkspaceHeroIcon(block, { manifestPath, hubWorkspaceKind = "media" } = {}) {
   if (!block) return;
@@ -2731,7 +2307,7 @@ const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_REL_PATH = "awn-topics/index.md";
 const WORKSPACE_PAGE_INDEX_LEGACY_FILE = "INDEX.md";
-const WORKSPACE_WSMAP_FILE = "WS-MAP.md";
+/** System files — js/core/editor-system-files-runtime.js (refactor 14) */
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -2788,66 +2364,6 @@ const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/editor/image-missing.svg";
 const PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS = 3500;
 const PREVIEW_LOAD_TIMEOUT_DEFAULT_MS = 5000;
-const ROOT_SYSTEM_TODO_FILE = "TODO.md";
-const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
-const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
-  "AGENTS.md",
-  "AUTH.md",
-  "BOOTSTRAP.md",
-  "ONBOARDING.md",
-  "SKILL.md",
-  ROOT_SYSTEM_NOTE_FILE,
-  ROOT_SYSTEM_TODO_FILE,
-  "README.md"
-]);
-const SYSTEM_FILE_TO_CHPU_PATH = {
-  "AGENTS.md": "AGENTS",
-  "AUTH.md": "AUTH",
-  "BOOTSTRAP.md": "BOOTSTRAP",
-  "ONBOARDING.md": "ONBOARDING",
-  "SKILL.md": "SKILL",
-  "NOTE.md": "NOTE",
-  "TODO.md": "TODO",
-  "README.md": "README",
-  "WS-MAP.md": "WS-MAP",
-  "WSMAP.md": "WS-MAP",
-  ".env": ".env",
-  ".gitignore": ".gitignore"
-};
-const CORE_SYSTEM_FILES = new Set([
-  "AGENTS.md",
-  "AUTH.md",
-  "BOOTSTRAP.md",
-  "ONBOARDING.md",
-  "README.md",
-  "SKILL.md",
-  ROOT_SYSTEM_NOTE_FILE,
-  ROOT_SYSTEM_TODO_FILE,
-  WORKSPACE_WSMAP_FILE,
-  ".env",
-  ".gitignore"
-]);
-const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
-  { name: ".env", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
-  { name: ".gitignore", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
-  { name: "AGENTS.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "AUTH.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "BOOTSTRAP.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "ONBOARDING.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: "dependencies.csv", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
-  { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
-  { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: WORKSPACE_WSMAP_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true }
-];
-const SYSTEM_FILE_GROUP_ORDER = ["md", "config", "other"];
-const SYSTEM_FILE_GROUP_LABELS = {
-  md: "Markdown",
-  config: "Конфиги",
-  other: "Прочее"
-};
 const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/0-agent-kit";
@@ -2858,30 +2374,6 @@ const LEGACY_AWN_TOPICS_AGENT_KIT_BASENAME = "agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-topics";
 const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
-const PLATFORM_AGENT_ID = "platform";
-/** REFACTOR-9 — legacy ws id в закладках CHPU */
-const LEGACY_CHPU_WORKSPACE_AGENT_IDS = {
-  "agent-cms-core": "0-ws-core",
-  "agent-cms-test": "0-ws-test"
-};
-
-function canonicalChpuWorkspaceId(workspaceId) {
-  const id = String(workspaceId || "").trim();
-  return LEGACY_CHPU_WORKSPACE_AGENT_IDS[id] || id;
-}
-
-/** @deprecated REFACTOR-10 — use canonicalChpuWorkspaceId */
-function canonicalChpuWorkspaceAgentId(agentId) {
-  return canonicalChpuWorkspaceId(agentId);
-}
-
-function isPlatformAgentId(agentId) {
-  return String(agentId || "").trim() === PLATFORM_AGENT_ID;
-}
-
-function isPlatformAgent(agent) {
-  return agent?.virtual === true || isPlatformAgentId(agent?.id);
-}
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Агентские темы и ресурсы";
 const SERVICE_SECTION_LABEL = "Агентские темы и ресурсы";
@@ -2889,107 +2381,11 @@ const CONTAINER_SECTION_LABEL = "Контейнер";
 const SHARED_FOLDER_DEFAULT = "awn-topics/0-shared";
 const LEGACY_AWN_SHARED_FOLDER = "awn-shared";
 const LEGACY_AWN_TOPICS_SHARED_FOLDER = "awn-topics/shared";
-const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
-  inbox: "0-inbox",
-  notes: "0-notes",
-  references: "0-references",
-  artefacts: "0-artefacts",
-  scripts: "0-scripts",
-  media: "0-media",
-  downloads: "0-downloads",
-  context: "0-context"
-};
-
-/** Sync CHPU path → canonical 0-* (same rules as lib/config/chpu-topic-canonical.js). */
-const AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON = {
-  agent: "0-agent",
-  "a0-agent": "0-agent",
-  user: "0-user",
-  "a0-user": "0-user",
-  users: "0-users",
-  "a0-users": "0-users",
-  devices: "0-devices",
-  "a0-devices": "0-devices",
-  taxonomies: "0-taxonomies",
-  "a0-taxonomies": "0-taxonomies",
-  catalog: "0-taxonomies",
-  "agent-rules": "0-agent-rules",
-  "a0-agent-rules": "0-agent-rules",
-  "agent.rules": "0-agent-rules",
-  "agent-voice-tts": "0-agent-voice-tts",
-  "a0-agent-voice-tts": "0-agent-voice-tts",
-  "agent.voice.tts": "0-agent-voice-tts",
-  "agent-voice-stt": "0-agent-voice-stt",
-  "a0-agent-voice-stt": "0-agent-voice-stt",
-  "agent.voice.stt": "0-agent-voice-stt"
-};
-
-function rewriteLegacyTopicPathsInRelPathClient(relPath) {
-  let p = String(relPath || "")
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-  if (!p) return p;
-
-  p = p.replace(/^awn-container\b/i, "awn-topics");
-
-  const rootRewrites = [
-    ["awn-topics/shared", "awn-topics/0-shared"],
-    ["awn-shared", "awn-topics/0-shared"],
-    ["awn-topics/agent-kit", "awn-topics/0-agent-kit"],
-    ["awn-topics/a0-agent-kit", "awn-topics/0-agent-kit"],
-    ["awn-agent-kit", "awn-topics/0-agent-kit"],
-    ["agent-kit", "awn-topics/0-agent-kit"]
-  ];
-  for (const [from, to] of rootRewrites) {
-    const fromLower = from.toLowerCase();
-    if (p.toLowerCase() === fromLower) {
-      p = to;
-      break;
-    }
-    const prefix = `${from}/`;
-    if (p.toLowerCase().startsWith(prefix.toLowerCase())) {
-      p = `${to}/${p.slice(prefix.length)}`;
-      break;
-    }
-  }
-
-  const kitPrefix = "awn-topics/0-agent-kit/";
-  if (p.toLowerCase().startsWith(kitPrefix.toLowerCase())) {
-    const rest = p.slice(kitPrefix.length);
-    const slashIdx = rest.indexOf("/");
-    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
-    const canon = AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
-    p = `${kitPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
-  }
-
-  const sharedPrefix = "awn-topics/0-shared/";
-  if (p.toLowerCase().startsWith(sharedPrefix.toLowerCase())) {
-    const rest = p.slice(sharedPrefix.length);
-    const slashIdx = rest.indexOf("/");
-    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
-    const canon = SHARED_THEME_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
-    p = `${sharedPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
-  }
-
-  p = p.replace(/^awn-data\b/i, "awn-databases");
-  return p;
-}
 const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
   "Общие темы и ресурсы для всех тем агента: скрипты, источники, медиа и другие накопители.";
-const SHARED_THEME_PRESETS = [
-  { slug: "inbox", label: "Входящие" },
-  { slug: "notes", label: "Заметки" },
-  { slug: "references", label: "Источники" },
-  { slug: "artefacts", label: "Артефакты" },
-  { slug: "scripts", label: "Скрипты" },
-  { slug: "media", label: "Медиа" },
-  { slug: "context", label: "Автозагружаемый контекст" }
-];
-const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
-  SHARED_THEME_PRESETS.map((item) => [item.slug, item.label])
-);
+/** CHPU path helpers — js/core/editor-chpu-path-runtime.js (refactor 14) */
 const SHARED_TAXONOMIES_SLUG = "taxonomies";
 const LEGACY_SHARED_TAXONOMIES_SLUG = "awn-taxonomies";
 const SHARED_TAXONOMIES_LABEL = "Таксономии";
@@ -3035,6 +2431,7 @@ const CONTAINER_ROOT_HINT = "Области и темы рабочего кон�
 const CONTAINER_ROOT_HINT_GIT =
   "Области и темы контента. В git-репозитории новые узлы из корня создаются здесь.";
 const REPO_ROOT_MENU_GROUP_LABEL = "Корень репозитория";
+/** Shared theme presets — js/core/editor-shared-theme-presets-runtime.js (refactor 14) */
 const SERVICE_SECTION_HINT = "";
 const SERVICE_SECTION_TITLE = SERVICE_SECTION_LABEL;
 let agentsCache = [];
@@ -5682,6 +5079,9 @@ async function loadAgents() {
   renderAgentSelect();
   updateWorkspaceShareLinkButton();
   ensureSidebarWorkspacePageIndexRow();
+  if (isAppLandingViewActive() || isAppLandingRoute) {
+    void ensureLandingChunkReady().then(() => renderAppLandingAgents());
+  }
 }
 
 function stripTopicPrefix(name) {
@@ -10683,6 +10083,14 @@ function getRegistryAgentsForUi() {
   return agentsCache.filter((agent) => agent.registryEditable !== false && !isPlatformAgent(agent));
 }
 
+function isPlatformAgent(agent) {
+  const fn = globalThis.isPlatformAgent;
+  if (typeof fn === "function" && fn !== isPlatformAgent) {
+    return fn(agent);
+  }
+  return agent?.virtual === true || String(agent?.id || "").trim() === "platform";
+}
+
 function getAgentsForLandingGrid() {
   return agentsCache.filter((agent) => agent.folderExists !== false && !isPlatformAgent(agent));
 }
@@ -13384,7 +12792,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=4";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=8";
 
 let landingChunkHostRegistered = false;
 const WORKSPACE_GRAPH_CHUNK_URL = "/editor/js/workspace/workspace-graph-chunk.js?v=2";
@@ -13475,27 +12883,45 @@ function ensureEditorCmsCoreLoaded() {
   return loader.loadEditorCmsCore();
 }
 
+function ensureEditorMarkdownPreviewLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorMarkdownPreview) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorMarkdownPreview missing"));
+  }
+  return loader.loadEditorMarkdownPreview();
+}
+
+function ensureEditorUiIconsLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorUiIcons) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorUiIcons missing"));
+  }
+  return loader.loadEditorUiIcons();
+}
+
 function ensureLandingChunkLoaded() {
   if (!landingChunkModulePromise) {
-    const loader = globalThis.AgentCmsScriptLoader;
-    landingChunkModulePromise = loader?.loadLandingChunk
-      ? loader.loadLandingChunk()
-      : import(LANDING_CHUNK_URL);
+    // Single import URL — do not use AgentCmsScriptLoader.loadLandingChunk here (duplicate module instance → host lost).
+    landingChunkModulePromise = import(LANDING_CHUNK_URL).catch((error) => {
+      landingChunkModulePromise = null;
+      throw error;
+    });
   }
   return landingChunkModulePromise;
 }
 
+function landingHostDomNode(cached, id) {
+  return cached || (id ? document.getElementById(id) : null);
+}
+
 async function ensureLandingChunkReady() {
   const mod = await ensureLandingChunkLoaded();
-  if (!landingChunkHostRegistered) {
-    landingChunkHostRegistered = true;
-    mod.registerLandingChunkHost?.({
+  if (!landingChunkHostRegistered && typeof mod.registerLandingChunkHost === "function") {
+    mod.registerLandingChunkHost({
       get agentsCache() {
         return agentsCache;
       },
       LANDING_FLOW_RECENT_LIMIT,
-      appLandingFlowNode,
-      appLandingFlowGridNode,
       appLandingViewFlowBtn,
       getLandingAgentsView,
       getAgentsForLandingGrid,
@@ -13514,8 +12940,12 @@ async function ensureLandingChunkReady() {
       formatNodeMetaDateTime,
       openFocusItem,
       HUB_FOCUS_TWIG_LIMIT,
-      appLandingHubNode,
-      appLandingAgentsNode,
+      get appLandingHubNode() {
+        return landingHostDomNode(appLandingHubNode, "app-landing-hub");
+      },
+      get appLandingAgentsNode() {
+        return landingHostDomNode(appLandingAgentsNode, "app-landing-agents");
+      },
       groupFocusItemsByAgent,
       splitLandingOrchestratorAgent,
       buildLandingGroupsLayout,
@@ -13540,26 +12970,111 @@ async function ensureLandingChunkReady() {
       get menuCacheByAgent() {
         return menuCacheByAgent;
       },
-      appLandingAttentionNode,
-      appLandingInnerNode,
-      appLandingOrbitAgentBubblesNode,
-      appLandingOrbitAgentsNode,
-      appLandingOrbitAttentionNode,
-      appLandingOrbitBubblesNode,
-      appLandingOrbitDiveBackBtn,
-      appLandingOrbitDiveOpenBtn,
-      appLandingOrbitDiveLinksNode,
-      appLandingOrbitDiveNode,
-      appLandingOrbitDiveStatsNode,
-      appLandingOrbitDiveTitleNode,
-      appLandingOrbitDiveTreeNode,
-      appLandingOrbitFocusLinksNode,
-      appLandingOrbitLinksNode,
-      appLandingOrbitNode,
-      appLandingOrbitTwigsNode
+      get appLandingAttentionNode() {
+        return landingHostDomNode(appLandingAttentionNode, "app-landing-attention");
+      },
+      get appLandingInnerNode() {
+        return appLandingInnerNode || document.querySelector(".app-landing-inner");
+      },
+      get appLandingOrbitAgentBubblesNode() {
+        return landingHostDomNode(appLandingOrbitAgentBubblesNode, "app-landing-orbit-agent-bubbles");
+      },
+      get appLandingOrbitAgentsNode() {
+        return landingHostDomNode(appLandingOrbitAgentsNode, "app-landing-orbit-agents");
+      },
+      get appLandingOrbitAttentionNode() {
+        return landingHostDomNode(appLandingOrbitAttentionNode, "app-landing-orbit-attention");
+      },
+      get appLandingOrbitBubblesNode() {
+        return landingHostDomNode(appLandingOrbitBubblesNode, "app-landing-orbit-bubbles");
+      },
+      get appLandingOrbitDiveBackBtn() {
+        return landingHostDomNode(appLandingOrbitDiveBackBtn, "app-landing-orbit-dive-back");
+      },
+      get appLandingOrbitDiveOpenBtn() {
+        return landingHostDomNode(appLandingOrbitDiveOpenBtn, "app-landing-orbit-dive-open");
+      },
+      get appLandingOrbitDiveLinksNode() {
+        return landingHostDomNode(appLandingOrbitDiveLinksNode, "app-landing-orbit-dive-links");
+      },
+      get appLandingOrbitDiveNode() {
+        return landingHostDomNode(appLandingOrbitDiveNode, "app-landing-orbit-dive");
+      },
+      get appLandingOrbitDiveStatsNode() {
+        return landingHostDomNode(appLandingOrbitDiveStatsNode, "app-landing-orbit-dive-stats");
+      },
+      get appLandingOrbitDiveTitleNode() {
+        return landingHostDomNode(appLandingOrbitDiveTitleNode, "app-landing-orbit-dive-title");
+      },
+      get appLandingOrbitDiveTreeNode() {
+        return landingHostDomNode(appLandingOrbitDiveTreeNode, "app-landing-orbit-dive-tree");
+      },
+      get appLandingOrbitFocusLinksNode() {
+        return landingHostDomNode(appLandingOrbitFocusLinksNode, "app-landing-orbit-focus-links");
+      },
+      get appLandingOrbitLinksNode() {
+        return landingHostDomNode(appLandingOrbitLinksNode, "app-landing-orbit-links");
+      },
+      get appLandingOrbitNode() {
+        return landingHostDomNode(appLandingOrbitNode, "app-landing-orbit");
+      },
+      get appLandingOrbitTwigsNode() {
+        return landingHostDomNode(appLandingOrbitTwigsNode, "app-landing-orbit-twigs");
+      },
+      get appLandingFlowNode() {
+        return landingHostDomNode(appLandingFlowNode, "app-landing-flow");
+      },
+      get appLandingFlowGridNode() {
+        return landingHostDomNode(appLandingFlowGridNode, "app-landing-flow-grid");
+      }
     });
+    landingChunkHostRegistered = true;
   }
   return mod;
+}
+
+function renderAppLandingOrbitFallbackInMain() {
+  const orbitAgentsNode =
+    appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
+  if (!orbitAgentsNode) return;
+  const agents = getAgentsForLandingOrbit();
+  orbitAgentsNode.replaceChildren();
+  if (!agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-orbit-empty";
+    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
+    orbitAgentsNode.appendChild(empty);
+    return;
+  }
+  const list = document.createElement("div");
+  list.className = "app-landing-orbit-fallback-list";
+  list.setAttribute("role", "list");
+  for (const agent of agents) {
+    const item = document.createElement("div");
+    item.className = "app-landing-orbit-fallback-item";
+    item.setAttribute("role", "listitem");
+    item.appendChild(createAppLandingAgentTile(agent));
+    list.appendChild(item);
+  }
+  orbitAgentsNode.appendChild(list);
+}
+
+function renderAppLandingGridFallbackInMain() {
+  const gridNode = appLandingAgentsNode || document.getElementById("app-landing-agents");
+  if (!gridNode || gridNode.childElementCount > 0) return;
+  const agents = getAgentsForLandingGrid();
+  if (!agents.length) return;
+  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
+  if (orchestrator) {
+    gridNode.appendChild(renderAppLandingOrchestratorSection(orchestrator));
+  }
+  for (const agent of rest) {
+    const item = document.createElement("div");
+    item.className = "app-landing-agent-item";
+    item.setAttribute("role", "listitem");
+    item.appendChild(createAppLandingAgentTile(agent));
+    gridNode.appendChild(item);
+  }
 }
 
 function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
@@ -13593,9 +13108,34 @@ function setAppLandingFlowLoadingUi(loading) {
 }
 
 function renderAppLandingOrbit() {
-  void ensureLandingChunkReady().then((mod) => {
-    mod.renderAppLandingOrbit?.();
-  });
+  void ensureLandingChunkReady()
+    .then((mod) => {
+      mod.renderAppLandingOrbit?.();
+      const orbitAgentsNode =
+        appLandingOrbitAgentBubblesNode || document.getElementById("app-landing-orbit-agent-bubbles");
+      const hasOrbitContent = Boolean(
+        orbitAgentsNode?.querySelector(
+          ".app-landing-orbit-bubble, .app-landing-orbit-item, .app-landing-orbit-empty, .app-landing-orbit-fallback-list"
+        )
+      );
+      if (!hasOrbitContent && getAgentsForLandingOrbit().length) {
+        landingChunkHostRegistered = false;
+        return ensureLandingChunkReady().then((modRetry) => {
+          modRetry.renderAppLandingOrbit?.();
+          const stillEmpty = !(
+            orbitAgentsNode?.querySelector(
+              ".app-landing-orbit-bubble, .app-landing-orbit-item, .app-landing-orbit-empty, .app-landing-orbit-fallback-list"
+            )
+          );
+          if (stillEmpty) renderAppLandingOrbitFallbackInMain();
+        });
+      }
+      if (!hasOrbitContent) renderAppLandingOrbitFallbackInMain();
+    })
+    .catch((error) => {
+      console.error("[landing] orbit render failed", error);
+      renderAppLandingOrbitFallbackInMain();
+    });
 }
 
 function setLandingOrbitFocusCache(items = []) {
@@ -13637,9 +13177,8 @@ function ensureWorkspaceGraphChunkLoaded() {
 }
 
 async function ensureWorkspaceGraphChunkReady(mod) {
-  if (!workspaceGraphHostRegistered) {
-    workspaceGraphHostRegistered = true;
-    mod.registerWorkspaceGraphHost?.({
+  if (!workspaceGraphHostRegistered && typeof mod.registerWorkspaceGraphHost === "function") {
+    mod.registerWorkspaceGraphHost({
       get currentMenuData() {
         return currentMenuData;
       },
@@ -13713,6 +13252,7 @@ async function ensureWorkspaceGraphChunkReady(mod) {
       agentGraphContentNode,
       agentGraphControlsNode
     });
+    workspaceGraphHostRegistered = true;
   }
 }
 
@@ -15681,17 +15221,24 @@ function groupFocusItemsByAgent(items = []) {
 
 
 async function renderAppLandingAgents() {
-  await renderAppLandingPlatformSection();
-  if (!appLandingAgentsNode) return;
-  appLandingAgentsNode.replaceChildren();
+  try {
+    await ensureLandingChunkReady();
+    void renderAppLandingPlatformSection().catch((error) => {
+      console.warn("[landing] platform section render failed", error);
+    });
+  const gridNode = appLandingAgentsNode || document.getElementById("app-landing-agents");
+  if (!gridNode) {
+    return;
+  }
+  gridNode.replaceChildren();
 
   const agents = getAgentsForLandingGrid();
   if (agents.length === 0) {
-    appLandingAgentsNode.classList.remove("is-grouped-layout");
+    gridNode.classList.remove("is-grouped-layout");
     const empty = document.createElement("p");
     empty.className = "app-landing-empty";
     empty.textContent = "Нет агентов. Нажмите «+ Добавить агента» или «Реестр контекста».";
-    appLandingAgentsNode.appendChild(empty);
+    gridNode.appendChild(empty);
   } else {
     try {
       await loadLandingAgentsGroups();
@@ -15703,22 +15250,22 @@ async function renderAppLandingAgents() {
     const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
 
     if (orchestrator) {
-      appLandingAgentsNode.appendChild(renderAppLandingOrchestratorSection(orchestrator));
+      gridNode.appendChild(renderAppLandingOrchestratorSection(orchestrator));
     }
 
     const hasGroups = landingAgentsGroupsCache.length > 0;
 
     if (hasGroups) {
-      appLandingAgentsNode.classList.add("is-grouped-layout");
+      gridNode.classList.add("is-grouped-layout");
       const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
 
       for (const group of grouped) {
         if (!group.agents?.length) continue;
-        appLandingAgentsNode.appendChild(renderAppLandingGroupSection(group, { editable: false }));
+        gridNode.appendChild(renderAppLandingGroupSection(group, { editable: false }));
       }
 
       if (ungrouped.length || landingAgentsUngroupedCache.backgroundUrl) {
-        appLandingAgentsNode.appendChild(
+        gridNode.appendChild(
           renderAppLandingGroupSection(
             {
               ...landingAgentsUngroupedCache,
@@ -15731,24 +15278,28 @@ async function renderAppLandingAgents() {
         );
       }
     } else {
-      appLandingAgentsNode.classList.remove("is-grouped-layout");
+      gridNode.classList.remove("is-grouped-layout");
       for (const agent of rest) {
         const item = document.createElement("div");
         item.className = "app-landing-agent-item";
         item.setAttribute("role", "listitem");
         item.appendChild(createAppLandingAgentTile(agent));
-        appLandingAgentsNode.appendChild(item);
+        gridNode.appendChild(item);
       }
     }
   }
-
-  void loadGlobalMainItems({ showLoading: true });
-  renderAppLandingOrbit();
-  renderAppLandingHub(getLandingHubOrbitTopicItems());
-  void loadGlobalFlowItems();
-  void loadGlobalLandingHubTopicItems();
-  syncLandingAgentsViewUi();
-  renderAgentSelect();
+  } catch (error) {
+    console.error("[landing] agents list render failed", error);
+  } finally {
+    renderAppLandingGridFallbackInMain();
+    void loadGlobalMainItems({ showLoading: true });
+    renderAppLandingOrbit();
+    renderAppLandingHub(getLandingHubOrbitTopicItems());
+    void loadGlobalFlowItems();
+    void loadGlobalLandingHubTopicItems();
+    syncLandingAgentsViewUi();
+    renderAgentSelect();
+  }
 }
 
 function setAppLandingHint(message = "", { alert = false } = {}) {
@@ -22602,7 +22153,7 @@ function saveMenuTreeSettings(agentId, patch) {
 
 let platformUiSettings = { maintenanceMode: false, defaultLocale: "ru" };
 let platformMaintenanceViewActive = false;
-let maintenancePaneUiReady = false;
+var maintenancePaneUiReady = false;
 
 function applyPlatformDefaultLocale(locale = "ru") {
   const normalized = String(locale || "ru").trim().toLowerCase() === "en" ? "en" : "ru";
@@ -27250,8 +26801,44 @@ async function openNodeNavigation(label, filePath) {
   void markNodePageRead(resolveManifestPathForNodeApi(filePath));
 }
 
+const NAV_PERF_STORAGE_KEY = "agentcms-nav-perf";
+
+function isNavPerfEnabled() {
+  try {
+    return (
+      new URLSearchParams(location.search).get("navPerf") === "1" ||
+      localStorage.getItem(NAV_PERF_STORAGE_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function navPerfReset(label = "") {
+  if (!isNavPerfEnabled()) return;
+  globalThis.__agentCmsNavPerf = { label, t0: performance.now(), marks: [] };
+}
+
+function navPerfMark(name, detail = null) {
+  if (!isNavPerfEnabled() || !globalThis.__agentCmsNavPerf) return;
+  globalThis.__agentCmsNavPerf.marks.push({
+    name,
+    ms: Math.round(performance.now() - globalThis.__agentCmsNavPerf.t0),
+    detail
+  });
+}
+
+function navPerfFlush() {
+  if (!isNavPerfEnabled() || !globalThis.__agentCmsNavPerf) return;
+  const { label, marks } = globalThis.__agentCmsNavPerf;
+  console.groupCollapsed(`[nav-perf] ${label} (${marks[marks.length - 1]?.ms ?? 0} ms)`);
+  console.table(marks);
+  console.groupEnd();
+}
+
 async function openNodeFromMenu(label, filePath, options = {}) {
   return preserveMenuScrollDuring(async () => {
+  navPerfReset(`openNodeFromMenu ${filePath}`);
   const nextPath = normalizeMenuNodePath(filePath);
   if (nextPath !== normalizeMenuNodePath(activePath)) {
     clearActiveThreadScope();
@@ -27280,10 +26867,12 @@ async function openNodeFromMenu(label, filePath, options = {}) {
     await selectAgentSystemFile(label, nextPath, options);
     return;
   }
-  try {
-    await loadNodeConfig(filePath);
-  } catch {
-    // ignore config read errors — fallback to navigation
+  if (!getCachedNodeConfig(filePath)) {
+    try {
+      await loadNodeConfig(filePath);
+    } catch {
+      // ignore config read errors — fallback to navigation
+    }
   }
   const forcedMode = options.contentMode;
   if (forcedMode && isValidNodeDefaultLandingMode(forcedMode, filePath)) {
@@ -27303,6 +26892,7 @@ async function openNodeFromMenu(label, filePath, options = {}) {
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
+  navPerfFlush();
   });
 }
 
@@ -94691,27 +94281,28 @@ async function renderNodeNavigation() {
   if (isStale()) return;
 
   try {
-  if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
-    await loadPropertiesForActivePath();
-    if (isStale()) return;
-  }
-
-  await ensureTopicSchemaForActiveContext().catch(() => null);
-  if (isStale()) return;
-
-  await ensureNavigationManifestCached();
-  if (isStale()) return;
-
+  navPerfMark("renderNodeNavigation:start");
   const nodePath = getResolvedNodePath(activePath);
   const manifestApiPath = resolveManifestPathForNodeApi(nodePath);
-  await fetchNodeReadState(manifestApiPath);
+
+  await Promise.all([
+    activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()
+      ? loadPropertiesForActivePath()
+      : Promise.resolve(),
+    ensureTopicSchemaForActiveContext().catch(() => null),
+    ensureNavigationManifestCached(),
+    manifestApiPath ? fetchNodeReadState(manifestApiPath) : Promise.resolve()
+  ]);
+  navPerfMark("renderNodeNavigation:prep");
   if (isStale()) return;
 
   const childEntries = getNavigationSubsectionEntries();
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
-  const slotsDisabled =
-    isTopicSlotsDisabledFromEntries(entries) || (await readTopicSlotsDisabledForPath(nodePath));
+  let slotsDisabled = isTopicSlotsDisabledFromEntries(entries);
+  if (!slotsDisabled && !entries?.length) {
+    slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  }
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
@@ -94728,7 +94319,8 @@ async function renderNodeNavigation() {
     nodeMeta,
     mediaData,
     assetsData,
-    nodeConfigPayload
+    nodeConfigPayload,
+    outsideSlotsReport
   ] = await Promise.all(
     isInlineNavHub
       ? [
@@ -94740,7 +94332,10 @@ async function renderNodeNavigation() {
           fetchNodeNavigationMeta(nodePath),
           Promise.resolve(null),
           Promise.resolve(null),
-          loadNodeConfig(nodePath).catch(() => null)
+          loadNodeConfig(nodePath).catch(() => null),
+          manifestApiPath && !isWorkspaceRootNodePath(nodePath)
+            ? fetchPageOutsideSlotsReport(manifestApiPath).catch(() => null)
+            : Promise.resolve(null)
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
@@ -94753,9 +94348,13 @@ async function renderNodeNavigation() {
           slotsDisabled
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
-          loadNodeConfig(nodePath).catch(() => null)
+          loadNodeConfig(nodePath).catch(() => null),
+          manifestApiPath && !isWorkspaceRootNodePath(nodePath)
+            ? fetchPageOutsideSlotsReport(manifestApiPath).catch(() => null)
+            : Promise.resolve(null)
         ]
   );
+  navPerfMark("renderNodeNavigation:prefetch");
   const configSettingsEntries = nodeConfigPayload?.content
     ? parseNodeConfigContent(nodeConfigPayload.content).entries
     : [];
@@ -94765,15 +94364,9 @@ async function renderNodeNavigation() {
     tabularData,
     todoData,
     mediaData,
-    assetsData
+    assetsData,
+    outsideSlotsReport: outsideSlotsReport || null
   });
-  if (manifestApiPath && !isWorkspaceRootNodePath(nodePath)) {
-    navigationPrefetch.outsideSlotsReport = await fetchPageOutsideSlotsReport(manifestApiPath).catch(
-      () => null
-    );
-  } else {
-    navigationPrefetch.outsideSlotsReport = null;
-  }
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
@@ -95016,6 +94609,7 @@ async function renderNodeNavigation() {
     nodePath,
     navigationPrefetch.outsideSlotsReport
   );
+  navPerfMark("renderNodeNavigation:dom");
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
   syncDataHubSlugWarning(NODE_NAVIGATION_MODE);
@@ -95220,12 +94814,12 @@ async function renderNodeOverview() {
     activeContentMode !== NODE_OVERVIEW_MODE ||
     !nodeOverviewContentNode;
 
-  if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
-    await loadPropertiesForActivePath();
-    if (isStale()) return;
-  }
-
-  await ensureTopicSchemaForActiveContext().catch(() => null);
+  await Promise.all([
+    activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()
+      ? loadPropertiesForActivePath()
+      : Promise.resolve(),
+    ensureTopicSchemaForActiveContext().catch(() => null)
+  ]);
   if (isStale()) return;
 
   const entries = resolveNodeOverviewPropsEntries();
@@ -106109,7 +105703,9 @@ async function selectFile(label, filePath) {
   refreshEditorViewContent();
 
   try {
+    navPerfMark("selectFile:start", activeContentMode);
     const apiPath = getResolvedNodePath(filePath);
+    const deferOverviewSideLoads = isAsyncOverviewRenderMode(activeContentMode);
     let fileContent = "";
     if (isAwnDatabaseRecordContentPath(apiPath)) {
       fileContent = await fetchAwnDatabaseRecordEditorContent(apiPath);
@@ -106117,10 +105713,17 @@ async function selectFile(label, filePath) {
         editorViewMode = "source";
       }
     } else {
-      const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      fileContent = data.content;
+      const [loadedContent] = await Promise.all([
+        (async () => {
+          const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
+          if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+          const data = await response.json();
+          return data.content;
+        })(),
+        loadPropertiesForActivePath()
+      ]);
+      fileContent = loadedContent;
+      navPerfMark("selectFile:file+properties");
     }
     modeContentCache.description = fileContent;
     navigationManifestCachedPath = getActiveNodeApiPath();
@@ -106138,15 +105741,22 @@ async function selectFile(label, filePath) {
     modeContentCache.env = "";
     modeContentCache.scripts = "";
     modeContentCache.todo = "";
-    await loadPropertiesForActivePath();
-    if (isNodeMdPath(activePath)) {
+    if (isAwnDatabaseRecordContentPath(apiPath)) {
+      await loadPropertiesForActivePath();
+      navPerfMark("selectFile:properties");
+    }
+    if (isNodeMdPath(activePath) && !deferOverviewSideLoads) {
       try {
         await loadNodeConfig(activePath);
       } catch {
         invalidateNodeConfigCache(activePath);
       }
     }
-    if (isTopicSchemaModeAvailable(activePath) && activeContentMode !== "topic-schema") {
+    if (
+      !deferOverviewSideLoads &&
+      isTopicSchemaModeAvailable(activePath) &&
+      activeContentMode !== "topic-schema"
+    ) {
       try {
         await loadTopicSchemaForManifest(activePath);
       } catch {
@@ -106155,7 +105765,10 @@ async function selectFile(label, filePath) {
       }
     }
     applyNodeManifestBody(modeContentCache.description || "");
-    await loadContentByMode();
+    await loadContentByMode({
+      skipPropertiesFetch: deferOverviewSideLoads
+    });
+    navPerfMark("selectFile:loadContentByMode");
     syncTitleFieldsFromNode(activePath);
     applyNodeWorkspaceViewUi();
   } catch (error) {
@@ -106210,6 +105823,7 @@ async function loadFlatStorageSectionContent(mode, preserveSectionFolder = null)
 async function loadContentByMode(options = {}) {
   if (!activePath) return;
   const forceReload = Boolean(options.forceReload);
+  const skipPropertiesFetch = Boolean(options.skipPropertiesFetch);
   const preserveMediaSectionFolder = options.preserveMediaSectionFolder || null;
   const preserveExternalSectionFolder = options.preserveExternalSectionFolder || null;
   const preserveFlatStorageSectionFolder = options.preserveFlatStorageSectionFolder || null;
@@ -106242,7 +105856,9 @@ async function loadContentByMode(options = {}) {
       navigationManifestCachedPath = getActiveNodeApiPath();
       rememberLiveSyncLoadedSnapshot(getActiveNodeApiPath(), modeContentCache.description);
     }
-    await loadPropertiesForActivePath();
+    if (!skipPropertiesFetch) {
+      await loadPropertiesForActivePath();
+    }
     applyNodeManifestBody(modeContentCache.description || "");
     fileContentInputNode.value = "";
     if (isRepositoryWorkspacePath()) {
@@ -115318,9 +114934,19 @@ function showAppLandingView(hint = "") {
   fileContentInputNode.readOnly = false;
   closeAgentsPickerPopover();
   renderAgentSelect();
-  renderAppLandingAgents();
   renderLandingSearchAgents();
-  syncLandingAgentsViewUi();
+  void ensureLandingChunkReady()
+    .then(() => {
+      syncLandingAgentsViewUi();
+      return renderAppLandingAgents();
+    })
+    .catch((error) => {
+      console.error("[landing] render failed", error);
+      syncLandingAgentsViewUi();
+      renderAppLandingGridFallbackInMain();
+      renderAppLandingOrbit();
+      renderAppLandingHub(getLandingHubOrbitTopicItems());
+    });
   updateLandingSearchPlaceholder();
   showMenuNoAgentPlaceholder();
   hideMenuAgentStats();
@@ -131836,6 +131462,8 @@ async function init() {
   await Promise.all([
     ensureEditorCoreHelpersLoaded(),
     ensureEditorCmsCoreLoaded(),
+    ensureEditorMarkdownPreviewLoaded(),
+    ensureEditorUiIconsLoaded(),
     ensureEditorPostMainScriptsLoaded(),
     ensureEditorSecondaryPanelsLoaded(),
     ensureConnectionStatusLoaded()
@@ -131908,6 +131536,9 @@ async function init() {
   } catch (error) {
     showAppLandingView(`Ошибка загрузки: ${formatBootLoadErrorMessage(error)}`);
   } finally {
+    if (isAppLandingViewActive()) {
+      void renderAppLandingAgents();
+    }
     window.clearTimeout(splashFailsafe);
     finishSplash();
     setMenuLoading(false);
@@ -131925,6 +131556,18 @@ function hideAppSplash() {
     appSplashNode.remove();
   }, APP_SPLASH_HIDE_MS);
 }
+
+globalThis.__agentCmsRunBoot = function agentCmsRunBoot() {
+  void init().catch((error) => {
+    console.error("[Agent CMS] init failed", error);
+    try {
+      hideAppSplash();
+      showAppLandingView(`Ошибка загрузки: ${formatBootLoadErrorMessage(error)}`);
+    } catch (_secondary) {
+      document.body.classList.remove("app-booting");
+    }
+  });
+};
 
 agentSelectNode?.addEventListener("change", () => {
   const nextAgentId = agentSelectNode.value;
@@ -132977,7 +132620,6 @@ window.addEventListener("resize", () => {
   positionWorkspaceLinksMenuPopover();
 });
 
-init();
 bindCreateAgentFormValidation("app-landing");
 bindCreateAgentFormValidation("agents-registry");
 bindCreateAgentSlugPathSync("app-landing");
@@ -134802,3 +134444,7 @@ window.AgentCmsLinkDrag = {
 initLiveFileSync();
 initNavPreviewHoverZoom();
 void syncMenuSystemEnvironment();
+
+if (!globalThis.__AGENTCMS_EDITOR_BUNDLE__) {
+  globalThis.__agentCmsRunBoot();
+}

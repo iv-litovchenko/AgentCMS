@@ -8827,16 +8827,9 @@ awn-type: awn.page.ws
       </div>
     </div>
 
-    <script src="/_resources/vendor/markdown-it.min.js"></script>
-    <script src="/editor/js/markdown/markdown-github-alerts.js"></script>
-    <script src="/editor/js/markdown/markdown-it-task-lists.js"></script>
-    <script src="/_resources/vendor/highlight.min.js"></script>
-    <script src="/editor/js/boot/editor-script-loader.js?v=11"></script>
-    <script src="/_resources/vendor/material-file-icons/map.js?v=1"></script>
-    <script src="/editor/js/editor/material-file-icons.js?v=1"></script>
+    <script src="/editor/js/boot/editor-script-loader.js?v=22"></script>
     <script src="/editor/js/app/app-lock.js?v=15"></script>
     <script src="/editor/js/app/app-lock-scanner.js?v=1"></script>
-    <script src="/_resources/vendor/channel-preset-icons/map.js?v=15"></script>
     <script>
       (function markAgentCmsDesktopRoot() {
         var ua = typeof navigator !== "undefined" ? String(navigator.userAgent || "") : "";
@@ -8859,7 +8852,7 @@ awn-type: awn.page.ws
     </script>
     <script>
       (function agentCmsLoadEditorMain() {
-        var version = "0.5.1016";
+        var version = "0.5.1022";
         var loaderScript = document.currentScript;
         var useBuilt = false;
         try {
@@ -8881,8 +8874,35 @@ awn-type: awn.page.ws
           }
           (document.head || document.documentElement).appendChild(script);
         }
+        function loadScriptChain(urls, index, done) {
+          if (index >= urls.length) {
+            done();
+            return;
+          }
+          var s = document.createElement("script");
+          s.src = urls[index];
+          s.async = false;
+          s.onload = function () {
+            loadScriptChain(urls, index + 1, done);
+          };
+          s.onerror = function () {
+            loadScriptChain(urls, index + 1, done);
+          };
+          var parent = loaderScript && loaderScript.parentNode;
+          if (parent) parent.insertBefore(s, loaderScript.nextSibling);
+          else (document.head || document.documentElement).appendChild(s);
+        }
         if (!useBuilt) {
-          insertMainScript("/editor/main.js?v=" + version);
+          var preMain = [
+            "/editor/js/core/channel-presets-runtime.js?v=1",
+            "/editor/js/core/media-library-presets-runtime.js?v=1",
+            "/editor/js/core/editor-chpu-path-runtime.js?v=1",
+            "/editor/js/core/editor-system-files-runtime.js?v=1",
+            "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1"
+          ];
+          loadScriptChain(preMain, 0, function () {
+            insertMainScript("/editor/main.js?v=" + version);
+          });
           return;
         }
         fetch("/editor/editor-build-manifest.json?v=" + version)

@@ -17,12 +17,22 @@ editor boot
 ├── Фаза 1 — сборка без смены поведения
 │   ├── [x] minify prod: `npm run build:editor` (+ hash/manifest)
 │   ├── [x] `npm run build:editor:watch` — rebuild main.built + manifest
-│   ├── [ ] entry `editor-entry.js` → bundle `main.js` (не только minify monolith)
+│   ├── [x] entry `editor-entry.js` → bundle `main.built.js` (iife; runtime `/editor/*` import() external)
 │   └── index.html: один `<script>` — как сейчас (main source в dev)
 │
 ├── Фаза 2 — вынести уже отдельные скрипты «внутрь» бандла
-│   ├── Сейчас: десятки `/editor/js/**` + один main.js — дубли паттернов
-│   └── Импорты из `public/editor/js/…` в модули; main — только init + router
+│   ├── [x] prod: `editor-entry.js` импортирует core/cms/markdown/icons (+ main)
+│   ├── [x] loader: skip lazy fetch если `__AGENTCMS_EDITOR_BUNDLE__` и globals на месте
+│   ├── [x] prod: post-main + secondary + connection-status в entry
+│   ├── [x] prod: menu panels + comfort + document-viewer в entry
+│   └── [ ] file-hub on demand; дальше нарезка main
+│
+├── Фаза 4 — slice 1
+│   ├── [x] `channel-presets-runtime.js` (~12 KB)
+│   ├── [x] `media-library-presets-runtime.js`
+│   ├── [x] `editor-chpu-path-runtime.js` (CHPU workspace + legacy path rewrite)
+│   ├── [x] `editor-system-files-runtime.js`
+│   └── [x] `editor-shared-theme-presets-runtime.js`
 │
 ├── Фаза 3 — lazy chunks (главный выигрыш CPU)
 │   ├── landing-orbit / landing-flow / landing-platform  → import() только на `/`
@@ -64,7 +74,12 @@ editor boot
 - [x] Shell lazy: `connection-status` (init), `file-hub-queue-client` (on demand).
 - [x] Core helpers lazy: slug-translit, external-file-mask, platform-status — `loadEditorCoreHelpers` (start of `init`).
 - [x] CMS core lazy: awn-enum-options, node-config-bundle, topic-schema-slot-specs — `loadEditorCmsCore` (+ lazy topic-schema slot caches in main).
+- [x] Markdown preview lazy: markdown-it + plugins + highlight — `loadEditorMarkdownPreview` (start of `init`).
+- [x] UI icons lazy: material-file-icons + channel-preset-icons map — `loadEditorUiIcons` (start of `init`).
+- [ ] app-lock остаётся sync в index (безопасность до загрузки main).
 - [ ] Поведение UI — дочистить smoke (`docs/REFACTOR-14-smoke.md`); частичный прогон: `docs/REFACTOR-14-smoke-log.md`, `npm run check:editor-boot`.
+
+**Сводная таблица:** `docs/REFACTOR-14-status.md`
 
 ## 📊 Замеры
 

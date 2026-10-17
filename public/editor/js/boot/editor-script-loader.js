@@ -4,6 +4,19 @@
 (function initEditorScriptLoader(global) {
   const cache = new Map();
 
+  function isEditorMainBundled() {
+    return global.__AGENTCMS_EDITOR_BUNDLE__ === true;
+  }
+
+  /** Prod main.built.js preloads modules from editor-entry.js — skip duplicate script tags. */
+  function bundleAlreadyProvides(checks) {
+    return isEditorMainBundled() && checks.every((fn) => fn());
+  }
+
+  function lazyGroupPreloaded(groupKey) {
+    return isEditorMainBundled() && global.__AGENTCMS_EDITOR_PRELOADED__?.[groupKey] === true;
+  }
+
   function loadModuleScript(src) {
     const url = String(src || "").trim();
     if (!url) return Promise.reject(new Error("empty module url"));
@@ -140,7 +153,7 @@
   let landingChunkPromise = null;
   async function loadLandingChunk() {
     if (!landingChunkPromise) {
-      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=4");
+      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=8");
     }
     return landingChunkPromise;
   }
@@ -156,12 +169,16 @@
   let workspaceComfortPromise = null;
   async function loadWorkspaceComfortScripts() {
     if (!workspaceComfortPromise) {
-      workspaceComfortPromise = (async () => {
-        await loadScript("/editor/js/pomodoro/idle-screensaver-breaks-client.js?v=1");
-        await loadScript("/editor/js/pomodoro/workspace-idle-screensaver.js?v=8");
-        await loadModuleScript("/editor/js/pomodoro/pomodoro-state-bootstrap.js?v=1");
-        await loadScript("/editor/js/pomodoro/workspace-pomodoro.js?v=9");
-      })();
+      if (lazyGroupPreloaded("comfort")) {
+        workspaceComfortPromise = Promise.resolve();
+      } else {
+        workspaceComfortPromise = (async () => {
+          await loadScript("/editor/js/pomodoro/idle-screensaver-breaks-client.js?v=1");
+          await loadScript("/editor/js/pomodoro/workspace-idle-screensaver.js?v=8");
+          await loadModuleScript("/editor/js/pomodoro/pomodoro-state-bootstrap.js?v=1");
+          await loadScript("/editor/js/pomodoro/workspace-pomodoro.js?v=9");
+        })();
+      }
     }
     return workspaceComfortPromise;
   }
@@ -169,11 +186,18 @@
   let documentViewerPromise = null;
   async function loadDocumentViewer() {
     if (!documentViewerPromise) {
-      documentViewerPromise = loadScript("/editor/js/editor/document-viewer.js?v=2").then(() => {
-        if (typeof global.DocumentViewer?.open !== "function") {
-          throw new Error("DocumentViewer not available after load");
-        }
-      });
+      if (
+        lazyGroupPreloaded("documentViewer") ||
+        (isEditorMainBundled() && typeof global.DocumentViewer?.open === "function")
+      ) {
+        documentViewerPromise = Promise.resolve();
+      } else {
+        documentViewerPromise = loadScript("/editor/js/editor/document-viewer.js?v=2").then(() => {
+          if (typeof global.DocumentViewer?.open !== "function") {
+            throw new Error("DocumentViewer not available after load");
+          }
+        });
+      }
     }
     return documentViewerPromise;
   }
@@ -181,6 +205,9 @@
   let editorPostMainPromise = null;
   async function loadEditorPostMainScripts() {
     if (!editorPostMainPromise) {
+      if (lazyGroupPreloaded("postMain")) {
+        editorPostMainPromise = Promise.resolve();
+      } else {
       editorPostMainPromise = (async () => {
         await loadScript("/editor/js/panels/discuss-panel.js?v=0.5.259");
         await loadScript("/editor/js/app/privacy-mode.js?v=5");
@@ -195,6 +222,7 @@
           loadScript("/editor/js/app/app-footer-voice-cmd.js?v=3")
         ]);
       })();
+      }
     }
     return editorPostMainPromise;
   }
@@ -202,11 +230,21 @@
   let editorCoreHelpersPromise = null;
   async function loadEditorCoreHelpers() {
     if (!editorCoreHelpersPromise) {
-      editorCoreHelpersPromise = Promise.all([
-        loadScript("/editor/js/core/slug-translit.js?v=1"),
-        loadScript("/editor/js/editor/external-file-mask.js?v=1"),
-        loadScript("/editor/js/core/platform-status.js")
-      ]);
+      if (
+        bundleAlreadyProvides([
+          () => typeof global.SlugTranslit === "object",
+          () => typeof global.ExternalFileMask === "object",
+          () => typeof global.PlatformStatus === "object"
+        ])
+      ) {
+        editorCoreHelpersPromise = Promise.resolve();
+      } else {
+        editorCoreHelpersPromise = Promise.all([
+          loadScript("/editor/js/core/slug-translit.js?v=1"),
+          loadScript("/editor/js/editor/external-file-mask.js?v=1"),
+          loadScript("/editor/js/core/platform-status.js")
+        ]);
+      }
     }
     return editorCoreHelpersPromise;
   }
@@ -214,13 +252,80 @@
   let editorCmsCorePromise = null;
   async function loadEditorCmsCore() {
     if (!editorCmsCorePromise) {
-      editorCmsCorePromise = Promise.all([
-        loadScript("/editor/js/cms/awn-enum-options.js?v=1"),
-        loadScript("/editor/js/core/node-config-bundle.js?v=1"),
-        loadScript("/editor/js/core/topic-schema-slot-specs.js?v=0.5.239")
-      ]);
+      if (
+        bundleAlreadyProvides([
+          () => Array.isArray(global.CHANNEL_BUILTIN_PRESETS),
+          () => Array.isArray(global.MEDIA_LIBRARY_BUILTIN_PRESETS),
+          () => typeof global.rewriteLegacyTopicPathsInRelPathClient === "function",
+          () => global.CORE_SYSTEM_FILES instanceof Set,
+          () => Array.isArray(global.SHARED_THEME_PRESETS),
+          () => typeof global.AwnEnumOptions === "object",
+          () => typeof global.NodeConfigBundle === "object",
+          () => typeof global.TopicSchemaSlotSpecs === "object"
+        ])
+      ) {
+        editorCmsCorePromise = Promise.resolve();
+      } else {
+        editorCmsCorePromise = (async () => {
+          await loadScript("/editor/js/core/channel-presets-runtime.js?v=1");
+          await loadScript("/editor/js/core/media-library-presets-runtime.js?v=1");
+          await loadScript("/editor/js/core/editor-chpu-path-runtime.js?v=1");
+          await loadScript("/editor/js/core/editor-system-files-runtime.js?v=1");
+          await loadScript("/editor/js/core/editor-shared-theme-presets-runtime.js?v=1");
+          await Promise.all([
+            loadScript("/editor/js/cms/awn-enum-options.js?v=1"),
+            loadScript("/editor/js/core/node-config-bundle.js?v=1"),
+            loadScript("/editor/js/core/topic-schema-slot-specs.js?v=0.5.239")
+          ]);
+        })();
+      }
     }
     return editorCmsCorePromise;
+  }
+
+  let editorMarkdownPreviewPromise = null;
+  async function loadEditorMarkdownPreview() {
+    if (!editorMarkdownPreviewPromise) {
+      if (
+        bundleAlreadyProvides([
+          () => typeof global.markdownit === "function",
+          () => typeof global.hljs === "object"
+        ])
+      ) {
+        editorMarkdownPreviewPromise = Promise.resolve();
+      } else {
+        editorMarkdownPreviewPromise = (async () => {
+          await loadScript("/_resources/vendor/markdown-it.min.js");
+          await Promise.all([
+            loadScript("/editor/js/markdown/markdown-github-alerts.js"),
+            loadScript("/editor/js/markdown/markdown-it-task-lists.js")
+          ]);
+          await loadScript("/_resources/vendor/highlight.min.js");
+        })();
+      }
+    }
+    return editorMarkdownPreviewPromise;
+  }
+
+  let editorUiIconsPromise = null;
+  async function loadEditorUiIcons() {
+    if (!editorUiIconsPromise) {
+      if (
+        bundleAlreadyProvides([
+          () => typeof global.MaterialFileIcons === "object",
+          () => typeof global.CHANNEL_PRESET_ICON_SVG === "object"
+        ])
+      ) {
+        editorUiIconsPromise = Promise.resolve();
+      } else {
+        editorUiIconsPromise = (async () => {
+          await loadScript("/_resources/vendor/material-file-icons/map.js?v=1");
+          await loadScript("/editor/js/editor/material-file-icons.js?v=1");
+          await loadScript("/_resources/vendor/channel-preset-icons/map.js?v=15");
+        })();
+      }
+    }
+    return editorUiIconsPromise;
   }
 
   let fileHubQueuePromise = null;
@@ -238,7 +343,14 @@
   let connectionStatusPromise = null;
   async function loadConnectionStatus() {
     if (!connectionStatusPromise) {
-      connectionStatusPromise = loadScript("/editor/js/app/connection-status.js?v=1");
+      if (
+        lazyGroupPreloaded("connectionStatus") ||
+        (isEditorMainBundled() && typeof global.agentCmsConnectionStatus === "object")
+      ) {
+        connectionStatusPromise = Promise.resolve();
+      } else {
+        connectionStatusPromise = loadScript("/editor/js/app/connection-status.js?v=1");
+      }
     }
     return connectionStatusPromise;
   }
@@ -246,13 +358,17 @@
   let editorSecondaryPanelsPromise = null;
   async function loadEditorSecondaryPanels() {
     if (!editorSecondaryPanelsPromise) {
-      editorSecondaryPanelsPromise = Promise.all([
-        loadScript("/editor/js/panels/languagetool-panel.js?v=2"),
-        loadScript("/editor/js/panels/file-find-bar.js?v=2"),
-        loadScript("/editor/js/editor/marker-blocks-preview.js?v=11"),
-        loadScript("/editor/js/panels/mcp-docs-primitives-help.js?v=1"),
-        loadScript("/editor/js/panels/api-docs-ui.js?v=2")
-      ]);
+      if (lazyGroupPreloaded("secondary")) {
+        editorSecondaryPanelsPromise = Promise.resolve();
+      } else {
+        editorSecondaryPanelsPromise = Promise.all([
+          loadScript("/editor/js/panels/languagetool-panel.js?v=2"),
+          loadScript("/editor/js/panels/file-find-bar.js?v=2"),
+          loadScript("/editor/js/editor/marker-blocks-preview.js?v=11"),
+          loadScript("/editor/js/panels/mcp-docs-primitives-help.js?v=1"),
+          loadScript("/editor/js/panels/api-docs-ui.js?v=2")
+        ]);
+      }
     }
     return editorSecondaryPanelsPromise;
   }
@@ -260,19 +376,40 @@
   let editorMenuPanelsPromise = null;
   async function loadEditorMenuPanels() {
     if (!editorMenuPanelsPromise) {
-      editorMenuPanelsPromise = (async () => {
-        await Promise.all([
-          loadScript("/editor/js/panels/entity-registry-editor.js?v=2"),
-          loadScript("/editor/js/cms/awn-dashboards.js?v=8")
-        ]);
-        await loadScript("/editor/js/panels/semantic-index-panel.js?v=24");
-      })();
+      if (lazyGroupPreloaded("menuPanels")) {
+        editorMenuPanelsPromise = Promise.resolve();
+      } else {
+        editorMenuPanelsPromise = (async () => {
+          await Promise.all([
+            loadScript("/editor/js/panels/entity-registry-editor.js?v=2"),
+            loadScript("/editor/js/cms/awn-dashboards.js?v=8")
+          ]);
+          await loadScript("/editor/js/panels/semantic-index-panel.js?v=24");
+        })();
+      }
     }
     return editorMenuPanelsPromise;
   }
 
+  /** Must run before /editor/main.js (dev) — slices moved out of main in refactor 14. */
+  const EDITOR_MAIN_PREMAIN_SCRIPTS = [
+    "/editor/js/core/channel-presets-runtime.js?v=1",
+    "/editor/js/core/media-library-presets-runtime.js?v=1",
+    "/editor/js/core/editor-chpu-path-runtime.js?v=1",
+    "/editor/js/core/editor-system-files-runtime.js?v=1",
+    "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1"
+  ];
+
+  async function loadEditorMainPremainScripts() {
+    if (isEditorMainBundled()) return;
+    for (const url of EDITOR_MAIN_PREMAIN_SCRIPTS) {
+      await loadScript(url);
+    }
+  }
+
   global.AgentCmsScriptLoader = {
     loadScript,
+    loadEditorMainPremainScripts,
     loadStylesheet,
     loadMermaid,
     loadToastUiEditor,
@@ -290,6 +427,8 @@
     loadFileHubQueueClient,
     loadConnectionStatus,
     loadEditorCoreHelpers,
-    loadEditorCmsCore
+    loadEditorCmsCore,
+    loadEditorMarkdownPreview,
+    loadEditorUiIcons
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

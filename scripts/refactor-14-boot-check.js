@@ -71,9 +71,33 @@ const DEFERRED_CORE = [
 ];
 
 const DEFERRED_CMS_CORE = [
+  "channel-presets-runtime.js",
+  "media-library-presets-runtime.js",
+  "editor-chpu-path-runtime.js",
+  "editor-system-files-runtime.js",
+  "editor-shared-theme-presets-runtime.js",
   "awn-enum-options.js",
   "node-config-bundle.js",
   "topic-schema-slot-specs.js"
+];
+
+const DEFERRED_MENU_PANELS = [
+  "semantic-index-panel.js",
+  "entity-registry-editor.js",
+  "awn-dashboards.js"
+];
+
+const DEFERRED_MARKDOWN_PREVIEW = [
+  "markdown-it.min.js",
+  "markdown-github-alerts.js",
+  "markdown-it-task-lists.js",
+  "highlight.min.js"
+];
+
+const DEFERRED_UI_ICONS = [
+  "material-file-icons/map.js",
+  "material-file-icons.js",
+  "channel-preset-icons/map.js"
 ];
 
 async function fetchText(path) {
@@ -131,7 +155,11 @@ async function main() {
     ...DEFERRED_SECONDARY,
     ...DEFERRED_SHELL,
     ...DEFERRED_CORE,
-    ...DEFERRED_CMS_CORE
+    ...DEFERRED_CMS_CORE,
+    ...DEFERRED_MENU_PANELS,
+    ...DEFERRED_COMFORT,
+    ...DEFERRED_MARKDOWN_PREVIEW,
+    ...DEFERRED_UI_ICONS
   ]) {
     const hit = bootScripts.some((s) => s.includes(needle));
     report.push({ check: `index boot без ${needle} (lazy)`, pass: !hit });

@@ -275,7 +275,7 @@ function applyLandingOrbitGitSummaries(summaries = {}) {
   }
 }
 
-async function refreshLandingOrbitGitSummaries() {
+export async function refreshLandingOrbitGitSummaries() {
   const seq = ++landingOrbitGitLoadSeq;
   try {
     const response = await fetch("/api/agents/git-summaries");
@@ -290,7 +290,7 @@ async function refreshLandingOrbitGitSummaries() {
 }
 
 function createAppLandingOrbitBubble(agent, index, total, share, layoutOverride = null) {
-  const registryActive = host.isAgentRegistryActive(agent);
+  const registryActive = host?.isAgentRegistryActive?.(agent) ?? false;
   const isOrchestrator = agent.orchestrator === true;
   const label = agent.name || agent.id;
   const layout = layoutOverride || getOrbitBubbleLayout(index, total, agent.id);
@@ -426,10 +426,29 @@ function renderAppLandingOrbitLinks(agents, layoutByAgentId = null) {
 }
 
 function getOrbitAgentBubblesNode() {
-  return host.appLandingOrbitAgentBubblesNode || host.appLandingOrbitAgentsNode || host.appLandingOrbitBubblesNode;
+  const fromHost =
+    host?.appLandingOrbitAgentBubblesNode ||
+    host?.appLandingOrbitAgentsNode ||
+    host?.appLandingOrbitBubblesNode;
+  if (fromHost) return fromHost;
+  return (
+    document.getElementById("app-landing-orbit-agent-bubbles") ||
+    document.getElementById("app-landing-orbit-agents") ||
+    document.getElementById("app-landing-orbit-bubbles")
+  );
 }
 
 export function renderAppLandingOrbit() {
+  if (!host?.getAgentsForLandingOrbit) {
+    const node = getOrbitAgentBubblesNode();
+    if (node && !node.childElementCount) {
+      const wait = document.createElement("p");
+      wait.className = "app-landing-orbit-empty is-loading";
+      wait.textContent = "Загрузка карты…";
+      node.replaceChildren(wait);
+    }
+    return;
+  }
   const orbitAgentsNode = getOrbitAgentBubblesNode();
   if (!orbitAgentsNode) return;
   orbitAgentsNode.replaceChildren();
@@ -450,17 +469,22 @@ export function renderAppLandingOrbit() {
   const orbitLayouts = buildOrbitBubbleLayouts(agents);
   const layoutByAgentId = new Map(orbitLayouts.map((entry) => [entry.agentId, entry]));
 
-  agents.forEach((agent, index) => {
-    orbitAgentsNode.appendChild(
-      createAppLandingOrbitBubble(
-        agent,
-        index,
-        agents.length,
-        shareByAgentId.get(agent.id),
-        layoutByAgentId.get(agent.id)
-      )
-    );
-  });
+  for (let index = 0; index < agents.length; index += 1) {
+    const agent = agents[index];
+    try {
+      orbitAgentsNode.appendChild(
+        createAppLandingOrbitBubble(
+          agent,
+          index,
+          agents.length,
+          shareByAgentId.get(agent.id),
+          layoutByAgentId.get(agent.id)
+        )
+      );
+    } catch (error) {
+      console.error("[landing-orbit] bubble render failed", agent?.id, error);
+    }
+  }
 
   renderAppLandingOrbitLinks(agents, layoutByAgentId);
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
@@ -699,8 +723,9 @@ function mountOrbitDiveOrbContent(container, {
 }
 
 function getOrbitDiveAgentRecord(agentId) {
+  const cache = host?.agentsCache || [];
   return (
-    agentsCache.find((entry) => entry.id === agentId) ||
+    cache.find((entry) => entry.id === agentId) ||
     host.getAgentsForLandingGrid().find((entry) => entry.id === agentId) ||
     null
   );
