@@ -37,7 +37,8 @@
     "commander:open": "open \"dist/agent-commander/Agent CMS Commander.app\"",
     "shell:icons": "node scripts/render-app-icons.js",
     "dist:clean": "rm -rf dist",
-    "dist:migrate": "node scripts/migrate-dist-layout.js"
+    "dist:migrate": "node scripts/migrate-dist-layout.js",
+    "build:editor": "node scripts/build-editor.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",
@@ -61,10 +62,11 @@
   "devDependencies": {
     "electron": "^35.0.0",
     "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
     "lucide-static": "^1.57.0",
     "material-icon-theme": "^5.38.1",
-    "simple-icons": "^15.16.0",
     "qrcode": "^1.5.4",
+    "simple-icons": "^15.16.0",
     "three": "^0.170.0"
   },
   "build": {

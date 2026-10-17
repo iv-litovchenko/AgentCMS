@@ -115306,6 +115306,32 @@ async function renderAgentRoadmapMapLiveView(renderSeq) {
   if (!agentRoadmapMapHostNode) return;
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка карты…");
 
+  try {
+    if (typeof AgentRmmLiveBrain === "undefined" && globalThis.AgentCmsScriptLoader?.loadAgentRmmLiveBrain) {
+      await globalThis.AgentCmsScriptLoader.loadAgentRmmLiveBrain();
+    }
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    renderListEmptyMessage(
+      agentRoadmapMapHostNode,
+      `Не удалось загрузить модуль живой карты: ${error?.message || error}`
+    );
+    return;
+  }
+
+  try {
+    if (typeof AgentRmmLiveBrain === "undefined" && globalThis.AgentCmsScriptLoader?.loadAgentRmmLiveBrain) {
+      await globalThis.AgentCmsScriptLoader.loadAgentRmmLiveBrain();
+    }
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    renderListEmptyMessage(
+      agentRoadmapMapHostNode,
+      `Не удалось загрузить модуль живой карты: ${error?.message || error}`
+    );
+    return;
+  }
+
   const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
     await Promise.all([
       loadAgentGraphRepositoriesPayload(),
