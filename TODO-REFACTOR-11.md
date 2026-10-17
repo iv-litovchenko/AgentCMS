@@ -38,7 +38,7 @@ get_session_context
 │       └── по умолчанию awn-topics/0-shared/0-context/awn-storage/
 │
 ├── serviceDocs — manifest.md служебных preset-тем (полный текст)
-│   └── 0-agent-kit: agent · user · agent.voice.tts · agent.voice.stt
+│   └── 0-agent-kit: 0-agent · 0-user · 0-agent-voice-tts · 0-agent-voice-stt
 │
 ├── awnSystem — облегчённый awn-system workspace
 │   ├── typeSummary (число типов, domains)

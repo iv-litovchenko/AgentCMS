@@ -15100,7 +15100,7 @@ async function buildAgentSessionContext() {
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
   const serviceDocs = [];
-  for (const slot of ["agent", "user", "agent.voice.tts", "agent.voice.stt"]) {
+  for (const slot of ["0-agent", "0-user", "0-agent-voice-tts", "0-agent-voice-stt"]) {
     const manifestPath = `${kitFolder}/${slot}/manifest.md`;
     const file = await readWorkspaceManifestContent(manifestPath);
     serviceDocs.push({
