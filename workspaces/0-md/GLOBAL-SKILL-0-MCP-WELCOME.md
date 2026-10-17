@@ -42,4 +42,4 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 
 ## Больше информации
 
-Документация и исходники — https://github.com/iv-litovchenko/AgentCMS. В чужое хранилище без просьбы человека не лезь.
+Документация и исходники — https://github.com/iv-litovchenko/AgentCMS.

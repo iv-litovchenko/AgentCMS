@@ -1,22 +1,22 @@
 # AGENT CMS (0.0.1-beta)
 
-## Содержание
+## 🇷🇺 Содержание (🇬🇧 Table of contents)
 
-- [О проекте](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
-- [Приложения и клиенты](#-приложения-и-клиенты-gb-apps-and-clients)
-- [Один workspace — три входа](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
-- [Зачем](#-зачем-gb-why)
-- [Для кого](#-для-кого-gb-who-its-for)
-- [Как устроено — основные термины](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
-- [Принципы](#-принципы-gb-principles)
-- [Стек](#-стек-gb-stack)
-- [Установка (macOS)](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
-- [Лицензия](#-лицензия-gb-license)
-- [Ссылки](#-ссылки-gb-links)
-- [Скиллы для агентов](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
-- [Справочники для агентов и индексации](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
-- [Мечта](#-мечта-gb-vision)
-- [С чего начать?](#-с-чего-начать-gb-where-to-start)
+- [Кросс-платформенная цифровая память для человека и его ИИ-агентов (Cross-platform digital memory for you and your AI agents)](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
+- [Приложения и клиенты (Apps and clients)](#-приложения-и-клиенты-gb-apps-and-clients)
+- [Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище. (One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.)](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
+- [Зачем (Why)](#-зачем-gb-why)
+- [Для кого (Who it’s for)](#-для-кого-gb-who-its-for)
+- [Как устроено — основные термины (How it works — key terms)](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
+- [Принципы (Principles)](#-принципы-gb-principles)
+- [Стек (Stack)](#-стек-gb-stack)
+- [Установка — первый старт и запуск, только macOS (Install — first run and launch, macOS only)](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
+- [Лицензия (License)](#-лицензия-gb-license)
+- [Ссылки (Links)](#-ссылки-gb-links)
+- [Скиллы для агентов (Claude / Cursor) (Agent skills for Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
+- [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (References for agents and indexing — models, go learn 😀)](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
+- [Мечта (Vision)](#-мечта-gb-vision)
+- [С чего начать? (Where to start?)](#-с-чего-начать-gb-where-to-start)
 
 ---
 
