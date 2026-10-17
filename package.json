@@ -39,7 +39,8 @@
     "dist:clean": "rm -rf dist",
     "dist:migrate": "node scripts/migrate-dist-layout.js",
     "build:editor": "node scripts/build-editor.js",
-    "measure:editor": "node scripts/measure-editor-boot.js"
+    "measure:editor": "node scripts/measure-editor-boot.js",
+    "check:editor-boot": "node scripts/refactor-14-boot-check.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",

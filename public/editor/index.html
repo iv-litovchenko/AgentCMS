@@ -8878,6 +8878,7 @@ awn-type: awn.page.ws
     <script>
       (function agentCmsLoadEditorMain() {
         var version = "0.5.1016";
+        var loaderScript = document.currentScript;
         var useBuilt = false;
         try {
           var params = new URLSearchParams(window.location.search);
@@ -8891,7 +8892,12 @@ awn-type: awn.page.ws
           var script = document.createElement("script");
           script.src = src;
           script.async = false;
-          document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+          var parent = loaderScript && loaderScript.parentNode;
+          if (parent) {
+            parent.insertBefore(script, loaderScript.nextSibling);
+            return;
+          }
+          (document.head || document.documentElement).appendChild(script);
         }
         if (!useBuilt) {
           insertMainScript("/editor/main.js?v=" + version);
