@@ -758,7 +758,7 @@ const {
   DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
-const GLOBAL_DOC_MCP_FILE = "GLOBAL-DOC-MCP.md";
+const GLOBAL_DOC_MCP_FILE = "GLOBAL-DOC-MCP-INSTRUCTION.md";
 const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-RESPONSE-STYLE.md";
 const GLOBAL_RULES_FILE = "GLOBAL-RULES.md";
 const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
@@ -15021,7 +15021,7 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-DOC-MCP/README); MCP: list_workspace_always_context",
+  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-DOC-MCP-INSTRUCTION/README); MCP: list_workspace_always_context",
   sessionDocumentation:
     "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -15213,7 +15213,7 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: "CMS-модель: GLOBAL-DOC-MCP.md + awn-system/types/slots/_base.yml (slot-categories)"
+    hint: "CMS-модель: GLOBAL-DOC-MCP-INSTRUCTION.md + awn-system/types/slots/_base.yml (slot-categories)"
   };
 }
 

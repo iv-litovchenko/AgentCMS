@@ -57,7 +57,7 @@ get_session_context
 вне get_session_context
 │
 ├── get_session_documentation — README.md, GLOBAL-DOC-MARKDOWN.md (toggles platform)
-├── GLOBAL-DOC-MCP.md — по skill / read_platform_doc (не автоматом в старт)
+├── GLOBAL-DOC-MCP-INSTRUCTION.md — по skill / read_platform_doc (не автоматом в старт)
 ├── list_workspace_cron · list_workspace_heartbeat — индексы runtime по workspace
 ├── get_workspace_storage_info — stats, git, index status, counts
 ├── read_topic_index_toc · read_content_index_toc · read_workspace_map — оглавления
@@ -81,7 +81,7 @@ get_session_context
 
 - [ ] Явно разделить **light** (meta + registry + counts) и **heavy** (alwaysContext + serviceDocs).
 - [ ] Лимит размера / предупреждение при переполнении always-context.
-- [ ] Синхронизировать описание с [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) и UI «Always context» count.
+- [ ] Синхронизировать описание с [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md) и UI «Always context» count.
 - [ ] Документировать toggles: `always-context-global-rules`, `always-context-md-files`, `always-context-ws-folder`, …
 
 ## Чат

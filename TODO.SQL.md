@@ -1,6 +1,6 @@
 # DQL-lite / storage-index
 
-**Статус:** MVP + фазы 0–5, CSV (6a–6c-lite), **csv-fulltext-index**, **dql-chart presets** — сделаны. Док: `GLOBAL-DOC-MCP.md` § DQL-lite, `lib/indexes/storage-index/dql/GRAMMAR.md`.
+**Статус:** MVP + фазы 0–5, CSV (6a–6c-lite), **csv-fulltext-index**, **dql-chart presets** — сделаны. Док: `GLOBAL-DOC-MCP-INSTRUCTION.md` § DQL-lite, `lib/indexes/storage-index/dql/GRAMMAR.md`.
 
 ## Сейчас (as-is)
 

@@ -180,7 +180,7 @@ function createServer() {
 
   reg(
     "list_workspace_always_context",
-    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-DOC-MCP/README.",
+    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-DOC-MCP-INSTRUCTION/README.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );

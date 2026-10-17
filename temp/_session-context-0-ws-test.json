@@ -32,7 +32,7 @@
         "content": null
       }
     },
-    "hint": "CMS-модель: GLOBAL-DOC-MCP.md + awn-system/types/slots/_base.yml (slot-categories)"
+    "hint": "CMS-модель: GLOBAL-DOC-MCP-INSTRUCTION.md + awn-system/types/slots/_base.yml (slot-categories)"
   },
   "platformSettings": {
     "maintenance-mode": false,

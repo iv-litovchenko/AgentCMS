@@ -153,7 +153,7 @@ agent-cms MCP
 
 ## Связанные документы
 
-- [GLOBAL-DOC-MCP.md](../GLOBAL-DOC-MCP.md) — правила для агентов  
+- [GLOBAL-DOC-MCP-INSTRUCTION.md](../GLOBAL-DOC-MCP-INSTRUCTION.md) — правила для агентов  
 - [MCP-INSTRUCTIONS.md](../MCP-INSTRUCTIONS.md) — server instructions  
 - [mcp-server/README.md](../mcp-server/README.md) — установка и env  
 - [TODO-REFACTOR-4.md](../TODO-REFACTOR-4.md) — модель placement (историческая карта)  
