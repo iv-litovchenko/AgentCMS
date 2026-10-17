@@ -36,8 +36,9 @@ editor boot
 │   └── целевой core после split: сильно < 1 MB gzip (ориентир, уточнить замерами)
 │
 └── Фаза 5 — кэш и деплой
-    ├── hashed filenames (`main-[hash].js`) + long cache для vendor
-    └── `?v=` в index только для dev; prod — manifest из сборки
+    ├── [x] `build:editor` → `main.<hash>.built.js` + `editor-build-manifest.json`
+    ├── [x] `?editorBuilt=1` → manifest → hashed main (immutable URL)
+    └── [x] long-cache `immutable` на `main.<hash>.built.js` (+ map); manifest `no-cache`
 ```
 
 ---
@@ -55,6 +56,7 @@ editor boot
 - [x] Landing chunk (старт): `landing-system-map.js` + `import()` при главной/platform.
 - [x] Landing chunk: **flow**, **hub/grid**, **orbit** (`landing-orbit.js`, ~53 KB).
 - [x] Graph chunk: `workspace-graph-chunk.js` — map/map2/map3/graph (~33 KB), lazy import.
+- [x] Menu panels lazy: `semantic-index-panel`, `entity-registry-editor`, `awn-dashboards` (~155 KB) — `loadEditorMenuPanels`.
 - [ ] Поведение UI без регрессий — пройти `docs/REFACTOR-14-smoke.md` (ручной smoke).
 
 ## 📊 Замеры

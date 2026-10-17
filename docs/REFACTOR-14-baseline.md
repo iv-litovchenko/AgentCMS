@@ -27,8 +27,9 @@
 
 ## Prod minify
 
-- `?editorBuilt=1` или `localStorage.setItem('agentcms-editor-built','1')`
-- Сравнить размер `main.js` vs `main.built.js` в выводе `measure:editor`
+- `npm run build:editor` — `main.built.js`, `main.<8-char-hash>.built.js`, `editor-build-manifest.json`
+- `?editorBuilt=1` или `localStorage.setItem('agentcms-editor-built','1')` — loader читает manifest, грузит hashed URL (без query на main)
+- Сравнить размеры в `npm run measure:editor`
 
 ## Smoke
 

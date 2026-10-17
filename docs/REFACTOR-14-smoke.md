@@ -6,6 +6,7 @@
 ## Boot / workspace (`/0-ws-core`)
 
 - [ ] Hard refresh: Network **нет** `mermaid`, `toastui`, `mammoth`, `xlsx`, `fancybox`, `d3`, `agent-rmm-live-brain`
+- [ ] До конца init: **нет** `semantic-index-panel`, `entity-registry-editor`, `awn-dashboards` в очереди до `main.js`; после init — подгрузка панелей меню
 - [ ] Network **нет** `landing-runtime.js` до перехода на главную
 - [ ] Меню, открытие темы, save lamp (без ложного dirty)
 - [ ] Preview markdown + mermaid fence → подгружается `mermaid.min.js`
@@ -21,12 +22,16 @@
 ## Workspace views
 
 - [ ] Map / map2 / map3 / graph — lazy `workspace-graph-chunk.js?v=2`, UI как раньше
+- [ ] Dashboard3 (виджеты) — `awn-dashboards.js` + рендер виджетов
+- [ ] Меню: индексы workspace (semantic panel), entity registry modal
 - [ ] Folder-browse lightbox → fancybox
 - [ ] Document viewer docx/xlsx → mammoth/xlsx
 
 ## Prod minify (опционально)
 
-- [ ] `?editorBuilt=1` → `main.built.js`, UI без регрессий
+- [ ] `npm run build:editor` (manifest + hashed bundle)
+- [ ] `?editorBuilt=1` → Network: `editor-build-manifest.json`, затем `main.<hash>.built.js` (без `?v=` на main), UI без регрессий
+- [ ] Без manifest (старый деплой): fallback на `main.built.js?v=…`
 
 ## DevTools (фаза 0)
 

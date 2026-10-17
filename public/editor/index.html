@@ -8831,7 +8831,7 @@ awn-type: awn.page.ws
     <script src="/editor/js/markdown/markdown-github-alerts.js"></script>
     <script src="/editor/js/markdown/markdown-it-task-lists.js"></script>
     <script src="/_resources/vendor/highlight.min.js"></script>
-    <script src="/editor/js/boot/editor-script-loader.js?v=5"></script>
+    <script src="/editor/js/boot/editor-script-loader.js?v=6"></script>
     <script src="/editor/js/editor/document-viewer.js?v=2"></script>
     <script src="/_resources/vendor/material-file-icons/map.js?v=1"></script>
     <script src="/editor/js/editor/material-file-icons.js?v=1"></script>
@@ -8843,8 +8843,6 @@ awn-type: awn.page.ws
     <script type="module" src="/editor/js/pomodoro/pomodoro-state-bootstrap.js?v=1"></script>
     <script src="/editor/js/pomodoro/workspace-pomodoro.js?v=9"></script>
     <script src="/editor/js/app/connection-status.js?v=1"></script>
-    <script src="/editor/js/panels/semantic-index-panel.js?v=24"></script>
-    <script src="/editor/js/panels/entity-registry-editor.js?v=2"></script>
     <script src="/editor/js/panels/languagetool-panel.js?v=2"></script>
     <script src="/editor/js/panels/file-find-bar.js?v=2"></script>
     <script src="/editor/js/core/slug-translit.js?v=1"></script>
@@ -8852,7 +8850,6 @@ awn-type: awn.page.ws
     <script src="/editor/js/cms/awn-enum-options.js?v=1"></script>
     <script src="/editor/js/core/node-config-bundle.js?v=1"></script>
     <script src="/editor/js/core/topic-schema-slot-specs.js?v=0.5.239"></script>
-    <script src="/editor/js/cms/awn-dashboards.js?v=8"></script>
     <script src="/editor/js/core/platform-status.js"></script>
     <script src="/editor/js/editor/marker-blocks-preview.js?v=11"></script>
     <script src="/editor/js/panels/mcp-docs-primitives-help.js?v=1"></script>
@@ -8881,22 +8878,46 @@ awn-type: awn.page.ws
     <script>
       (function agentCmsLoadEditorMain() {
         var version = "0.5.1016";
-        var src = "/editor/main.js?v=" + version;
+        var useBuilt = false;
         try {
           var params = new URLSearchParams(window.location.search);
-          if (
+          useBuilt =
             params.get("editorBuilt") === "1" ||
-            window.localStorage.getItem("agentcms-editor-built") === "1"
-          ) {
-            src = "/editor/main.built.js?v=" + version;
-          }
+            window.localStorage.getItem("agentcms-editor-built") === "1";
         } catch (_error) {
           /* ignore */
         }
-        var script = document.createElement("script");
-        script.src = src;
-        script.async = false;
-        document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+        function insertMainScript(src) {
+          var script = document.createElement("script");
+          script.src = src;
+          script.async = false;
+          document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+        }
+        if (!useBuilt) {
+          insertMainScript("/editor/main.js?v=" + version);
+          return;
+        }
+        fetch("/editor/editor-build-manifest.json?v=" + version)
+          .then(function (response) {
+            if (!response.ok) throw new Error("manifest");
+            return response.json();
+          })
+          .then(function (manifest) {
+            var url =
+              manifest && manifest.mainUrl
+                ? manifest.mainUrl
+                : manifest && manifest.main
+                  ? "/editor/" + manifest.main
+                  : "";
+            if (url) {
+              insertMainScript(url);
+              return;
+            }
+            throw new Error("manifest-main");
+          })
+          .catch(function () {
+            insertMainScript("/editor/main.built.js?v=" + version);
+          });
       })();
     </script>
     <script src="/editor/js/panels/discuss-panel.js?v=0.5.259"></script>

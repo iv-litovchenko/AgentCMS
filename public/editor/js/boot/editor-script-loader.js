@@ -142,6 +142,20 @@
     return workspaceGraphChunkPromise;
   }
 
+  let editorMenuPanelsPromise = null;
+  async function loadEditorMenuPanels() {
+    if (!editorMenuPanelsPromise) {
+      editorMenuPanelsPromise = (async () => {
+        await Promise.all([
+          loadScript("/editor/js/panels/entity-registry-editor.js?v=2"),
+          loadScript("/editor/js/cms/awn-dashboards.js?v=8")
+        ]);
+        await loadScript("/editor/js/panels/semantic-index-panel.js?v=24");
+      })();
+    }
+    return editorMenuPanelsPromise;
+  }
+
   global.AgentCmsScriptLoader = {
     loadScript,
     loadStylesheet,
@@ -152,6 +166,7 @@
     loadFancybox,
     loadAgentRmmLiveBrain,
     loadLandingChunk,
-    loadWorkspaceGraphChunk
+    loadWorkspaceGraphChunk,
+    loadEditorMenuPanels
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

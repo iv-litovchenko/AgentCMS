@@ -47,6 +47,10 @@ workspaces/*
 workspaces/0-cli-sandbox/*
 !workspaces/0-cli-sandbox/README.md
 
+# Editor prod bundles (content-hashed; regenerate via npm run build:editor)
+public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].built.js
+public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].built.js.map
+
 # Cache & temp
 .cache/
 # Workspace runtime

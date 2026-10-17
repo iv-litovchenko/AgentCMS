@@ -13392,6 +13392,24 @@ const WORKSPACE_GRAPH_CHUNK_URL = "/editor/js/workspace/workspace-graph-chunk.js
 let landingChunkModulePromise = null;
 let workspaceGraphChunkModulePromise = null;
 let workspaceGraphHostRegistered = false;
+let editorMenuPanelsUiReady = false;
+
+function ensureEditorMenuPanelsLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorMenuPanels) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorMenuPanels missing"));
+  }
+  return loader.loadEditorMenuPanels();
+}
+
+async function ensureEditorMenuPanelsUi() {
+  await ensureEditorMenuPanelsLoaded();
+  if (editorMenuPanelsUiReady) return;
+  editorMenuPanelsUiReady = true;
+  window.AwnDashboards?.refreshMenuStats?.();
+  setupAwnDashboardsUi();
+  setupWorkspaceIndexPanelUi();
+}
 
 function ensureLandingChunkLoaded() {
   if (!landingChunkModulePromise) {
@@ -111723,16 +111741,18 @@ function renderAgentDashboardLiteView() {
 }
 
 function renderAgentDashboardWidgetsView() {
-  if (window.AwnDashboards?.renderActiveDashboard) {
-    void window.AwnDashboards.renderActiveDashboard();
-    return;
-  }
-  if (!home3ContentNode) return;
-  home3ContentNode.replaceChildren();
-  const empty = document.createElement("p");
-  empty.className = "awn-dashboard-loading";
-  empty.textContent = "Мой дашборд — виджеты из awn-dashboards/";
-  home3ContentNode.appendChild(empty);
+  void ensureEditorMenuPanelsUi().then(() => {
+    if (window.AwnDashboards?.renderActiveDashboard) {
+      void window.AwnDashboards.renderActiveDashboard();
+      return;
+    }
+    if (!home3ContentNode) return;
+    home3ContentNode.replaceChildren();
+    const empty = document.createElement("p");
+    empty.className = "awn-dashboard-loading";
+    empty.textContent = "Мой дашборд — виджеты из awn-dashboards/";
+    home3ContentNode.appendChild(empty);
+  });
 }
 
 function createHome2TopicCard(entry) {
@@ -118421,7 +118441,6 @@ function setupMenuStaticFooterGroup() {
   void refreshMenuAwnDialogsStats();
   void refreshMenuAwnFactsStats();
   void refreshMenuAwnTempStats();
-  window.AwnDashboards?.refreshMenuStats?.();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
@@ -118429,8 +118448,7 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
   setupMenuAwnBackupUi();
-  setupAwnDashboardsUi();
-  setupWorkspaceIndexPanelUi();
+  void ensureEditorMenuPanelsUi();
 }
 
 function setupWorkspaceIndexPanelUi() {

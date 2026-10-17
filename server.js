@@ -18636,6 +18636,19 @@ function resolveShellStaticPath(reqPath) {
   return reqPath;
 }
 
+const EDITOR_HASHED_BUNDLE_RE = /^main\.[a-f0-9]{8}\.built\.js(\.map)?$/i;
+
+function resolvePublicStaticCacheControl(diskPath) {
+  const leaf = path.basename(String(diskPath || ""));
+  if (EDITOR_HASHED_BUNDLE_RE.test(leaf)) {
+    return "public, max-age=31536000, immutable";
+  }
+  if (leaf === "editor-build-manifest.json") {
+    return "no-cache";
+  }
+  return "no-cache, no-store, must-revalidate";
+}
+
 async function serveStatic(reqPath, res, req) {
   let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
@@ -18699,12 +18712,16 @@ async function serveStatic(reqPath, res, req) {
     const content = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
-    res.writeHead(200, {
+    const cacheControl = resolvePublicStaticCacheControl(diskPath);
+    const headers = {
       "Content-Type": contentType,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-      Expires: "0"
-    });
+      "Cache-Control": cacheControl
+    };
+    if (cacheControl.includes("no-store")) {
+      headers.Pragma = "no-cache";
+      headers.Expires = "0";
+    }
+    res.writeHead(200, headers);
     res.end(content);
   } catch {
     const ext = path.extname(safePath).toLowerCase();

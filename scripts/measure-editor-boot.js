@@ -23,10 +23,20 @@ function fmtKb(bytes) {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-const mainPaths = [
-  "public/editor/main.js",
-  "public/editor/main.built.js"
-];
+const manifestRel = "public/editor/editor-build-manifest.json";
+let manifest = null;
+try {
+  manifest = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, manifestRel), "utf8")
+  );
+} catch {
+  /* no manifest until build:editor */
+}
+
+const mainPaths = ["public/editor/main.js", "public/editor/main.built.js"];
+if (manifest?.main) {
+  mainPaths.push(`public/editor/${manifest.main}`);
+}
 
 const lazyChunks = [
   "public/editor/js/landing/landing-runtime.js",
@@ -50,7 +60,17 @@ const deferredVendor = [
   "public/editor/js/panels/agent-rmm-live-brain.js"
 ];
 
+/** Editor panels removed from index.html boot (lazy after main init) */
+const deferredEditorPanels = [
+  "public/editor/js/panels/semantic-index-panel.js",
+  "public/editor/js/panels/entity-registry-editor.js",
+  "public/editor/js/cms/awn-dashboards.js"
+];
+
 console.log("Editor boot metrics (refactor 14)\n");
+if (manifest?.hash) {
+  console.log(`Prod manifest (${manifestRel}): hash ${manifest.hash} → ${manifest.mainUrl || manifest.main}\n`);
+}
 
 for (const rel of mainPaths) {
   const s = fileSize(rel);
@@ -84,10 +104,22 @@ for (const rel of deferredVendor) {
   console.log(`  ${fmtKb(s.bytes).padStart(10)}  ${rel}`);
 }
 console.log(`  ${"—".repeat(10)}`);
-console.log(`  ${fmtKb(vendorRaw).padStart(10)}  total deferred (raw ${fmtMb(vendorRaw)})\n`);
+console.log(`  ${fmtKb(vendorRaw).padStart(10)}  total deferred vendor (raw ${fmtMb(vendorRaw)})\n`);
+
+let panelRaw = 0;
+console.log("Deferred editor panels (lazy via loadEditorMenuPanels, not in index.html):");
+for (const rel of deferredEditorPanels) {
+  const s = fileSize(rel);
+  if (!s) continue;
+  panelRaw += s.bytes;
+  console.log(`  ${fmtKb(s.bytes).padStart(10)}  ${rel}`);
+}
+console.log(`  ${"—".repeat(10)}`);
+console.log(`  ${fmtKb(panelRaw).padStart(10)}  total panels (raw ${fmtMb(panelRaw)})\n`);
 
 console.log("Оценка выигрыша на F5 workspace (без preview/WYSIWYG/landing/map):");
 console.log(`  ~${fmtMb(vendorRaw)} vendor JS не parse/compile на cold boot`);
+console.log(`  ~${fmtMb(panelRaw)} menu panels после init main (не блокируют загрузку main)`);
 console.log(`  ~${fmtMb(chunkRaw)} editor chunks подгружаются только при нужном экране`);
 console.log("");
 console.log("DevTools: Performance → reload на /0-ws-core → Scripting + Parse/compile.");
