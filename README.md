@@ -208,9 +208,10 @@ cd AgentCMS
 5. Запустите **`welcome.command`** — откроется **Agent CMS Control**. При необходимости в Control: **Ярлыки** на Desktop (и повтор **Установить зависимости**, если что-то меняли вручную).
 6. Запустите сервер — кнопка **Старт**.
 7. Откройте CMS: кнопка в Control или ссылка вида `https://localhost:3443` (HTTPS-порт из `.env`).
-8. В **Agent CMS Control** прочитайте инструкцию по подключению хранилища к локальной нейросети (**Claude Desktop**, **Codex Desktop** и т.п. через MCP).
-9. **Создайте первое хранилище** — новый workspace или готовый `agent-cms-test` для пробы; при необходимости настройте `AGENTS.md`.
-10. **Освойтесь в нём** — пообщайтесь с агентом через MCP, разложите первые заметки по темам и слотам, наполните хранилище своими записями.
+8. В **Agent CMS Control** прочитайте инструкцию по подключению хранилища к локальной нейросети (**Claude Desktop**, **Codex Desktop** и т.п. через MCP). Конфиг MCP: [docs/connectors/README.md](docs/connectors/README.md).
+9. **Установите скиллы Agent CMS** в клиенте (см. раздел [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) ниже) — минимум **welcome (0)** и **base (1)**. Одного MCP мало: в Claude Desktop поле `instructions` часто не попадает в контекст модели.
+10. **Создайте первое хранилище** — новый workspace или готовый `agent-cms-test` для пробы; при необходимости настройте `AGENTS.md`.
+11. **Освойтесь в нём** — пообщайтесь с агентом через MCP, разложите первые заметки по темам и слотам, наполните хранилище своими записями.
 
 На главной CMS показывается [README.diagram.md](README.diagram.md), полный README — в репозитории.
 
@@ -230,9 +231,10 @@ cd AgentCMS
 > 5. Run **`welcome.command`** — **Agent CMS Control** opens. In Control if needed: **Shortcuts** on Desktop (re-run **Install dependencies** only if you changed the environment manually).
 > 6. Start the server — **Start**.
 > 7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
-> 8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP).
-> 9. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
-> 10. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
+> 8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP). MCP config: [docs/connectors/README.md](docs/connectors/README.md).
+> 9. **Install Agent CMS skills** in your client (see [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) below) — at least **welcome (0)** and **base (1)**. MCP alone is not enough: Claude Desktop often does not inject MCP `instructions` into the model context.
+> 10. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
+> 11. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
 >
 > The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
 
@@ -249,16 +251,57 @@ Copyright © 2026 Agent CMS
 - Telegram: [https://t.me/AgentCMS](https://t.me/AgentCMS) (@AgentCMS — про жизнь с ИИ и технологиями)
 - Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
+## 🇷🇺 Скиллы для агентов (Claude / Cursor) (🇬🇧 Agent skills for Claude / Cursor)
+
+🇷🇺 **[ru]**
+
+Исходники скиллов — папка [`workspaces/0-md/`](workspaces/0-md/). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
+
+| Файл | Скилл | Зачем |
+| --- | --- | --- |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов |
+| [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭) |
+| [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила |
+| [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
+| [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
+| [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
+
+**Как установить**
+
+1. Подключите MCP **agent-cms** (шаг 8 установки выше).
+2. **Cursor** — для каждого скилла создайте папку с `SKILL.md` и скопируйте **целиком** текст соответствующего `GLOBAL-SKILL-*.md`:
+   - в проекте: `.cursor/skills/<name>/SKILL.md` (имя папки = поле `name`, напр. `agent-cms`, `agent-cms-welcome`);
+   - или личные скиллы в Cursor Agent Store / `~/.cursor/skills/<name>/SKILL.md`.
+3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из `workspaces/0-md/` или zip с тем же содержимым. Минимум: **0** + **1**.
+4. Скиллы **2** и **3** могут подмешиваться через **always-context** в Agent CMS (`get_session_context`); в Claude без этого лучше установить их вручную.
+5. **Без установки** (запасной путь): `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` и т.д.
+
+После `git pull` обновите копии в клиенте и перезапустите MCP.
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Skill sources live in [`workspaces/0-md/`](workspaces/0-md/). Each file is markdown with YAML frontmatter (`name`, `description`).
+>
+> | File | Skill | Purpose |
+> | --- | --- | --- |
+> | [GLOBAL-SKILL-0-MCP-WELCOME.md](workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Intro, MCP start, skill map |
+> | [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Workspace and MCP tools |
+> | [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Reply style (🗄️ / 🌐 / 💭) |
+> | [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Global rules |
+> | [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
+> | [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
+> | [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
+>
+> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **0** + **1**. (4) Skills **2**/**3** may come from CMS always-context; install manually in Claude if not. (5) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
+
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
 🇷🇺 **[ru]**
 
-Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
-
-- [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) — карта MCP, workspace, правила работы с хранилищем
-- [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
-- [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) — глобальные правила для всех хранилищ
-- [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — поддерживаемая разметка в preview редактора
+Те же файлы в [`workspaces/0-md/`](workspaces/0-md/) — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
@@ -266,12 +309,7 @@ Copyright © 2026 Agent CMS
 
 > 🇬🇧 **[en]**
 >
-> Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
->
-> - [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) — MCP map, workspace, storage rules
-> - [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
-> - [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) — global rules for all workspaces
-> - [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — markup supported in the editor preview
+> Same files in [`workspaces/0-md/`](workspaces/0-md/) — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
 >
 > See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
