@@ -26,6 +26,7 @@ npm install
 | `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
 | `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
+| `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |
 
 ## Термины
 

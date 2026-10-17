@@ -2864,9 +2864,14 @@ const LEGACY_CHPU_WORKSPACE_AGENT_IDS = {
   "agent-cms-test": "0-ws-test"
 };
 
-function canonicalChpuWorkspaceAgentId(agentId) {
-  const id = String(agentId || "").trim();
+function canonicalChpuWorkspaceId(workspaceId) {
+  const id = String(workspaceId || "").trim();
   return LEGACY_CHPU_WORKSPACE_AGENT_IDS[id] || id;
+}
+
+/** @deprecated REFACTOR-10 — use canonicalChpuWorkspaceId */
+function canonicalChpuWorkspaceAgentId(agentId) {
+  return canonicalChpuWorkspaceId(agentId);
 }
 
 function isPlatformAgentId(agentId) {
@@ -3064,8 +3069,14 @@ function normalizeStorageKey(key) {
   return nodeStorageKey("main", key);
 }
 
+function getWorkspaceIdFromUrl() {
+  const params = new URLSearchParams(location.search);
+  return params.get("workspace") || params.get("workspaceId") || params.get("agent");
+}
+
+/** @deprecated REFACTOR-10 — use getWorkspaceIdFromUrl */
 function getAgentIdFromUrl() {
-  return new URLSearchParams(location.search).get("agent");
+  return getWorkspaceIdFromUrl();
 }
 
 /** Режимы, допустимые в сегменте /v/{mode} ЧПУ. */
@@ -5548,8 +5559,9 @@ function syncAgentToUrl(agentId) {
   syncAppRouteToUrl({ replace: true });
 }
 
-function buildApiUrl(apiPath, params = {}, agentId = activeWorkspaceId) {
-  const search = new URLSearchParams({ agent: agentId || activeWorkspaceId || "main" });
+function buildApiUrl(apiPath, params = {}, workspaceId = activeWorkspaceId) {
+  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  const search = new URLSearchParams({ agent: id, workspace: id });
   for (const [key, value] of Object.entries(params)) {
     if (value != null && value !== "") search.set(key, String(value));
   }
@@ -5583,11 +5595,18 @@ async function fetchPlatformGlobalMarkdown(fileName) {
   return String(data.content || "");
 }
 
-function appendAgentToApiUrl(url, agentId = activeWorkspaceId) {
+function appendWorkspaceToApiUrl(url, workspaceId = activeWorkspaceId) {
   if (!url || typeof url !== "string" || !url.startsWith("/api/")) return url;
   const parsed = new URL(url, window.location.origin);
-  parsed.searchParams.set("agent", agentId || activeWorkspaceId || "main");
+  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  parsed.searchParams.set("agent", id);
+  parsed.searchParams.set("workspace", id);
   return `${parsed.pathname}?${parsed.searchParams.toString()}`;
+}
+
+/** @deprecated REFACTOR-10 — use appendWorkspaceToApiUrl */
+function appendAgentToApiUrl(url, workspaceId = activeWorkspaceId) {
+  return appendWorkspaceToApiUrl(url, workspaceId);
 }
 
 function getActiveAgentMeta() {

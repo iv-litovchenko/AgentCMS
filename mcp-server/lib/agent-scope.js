@@ -30,6 +30,24 @@ export const agentIdField = legacyAgentIdField;
 
 const agentContext = new AsyncLocalStorage();
 
+let legacyAgentIdArgWarned = false;
+
+function warnLegacyAgentIdArgOnce() {
+  if (legacyAgentIdArgWarned) return;
+  if (String(process.env.AGENT_CMS_MCP_DEPRECATE_AGENT_ID || "").trim() === "0") return;
+  legacyAgentIdArgWarned = true;
+  process.stderr.write(
+    "[agent-cms-mcp] DEPRECATED: use workspaceId on workspace-scoped tools (agentId is a legacy alias).\n"
+  );
+}
+
+function noteLegacyWorkspaceIdArg(args = {}) {
+  if (!args || typeof args !== "object") return;
+  if (String(args.workspaceId || "").trim()) return;
+  const legacy = String(args.agentId || args.agent || "").trim();
+  if (legacy) warnLegacyAgentIdArgOnce();
+}
+
 export function runWithAgentId(agentId, fn) {
   return agentContext.run({ agentId: String(agentId || "").trim() }, fn);
 }
@@ -61,6 +79,7 @@ export function resolveAgentId(args = {}, fallbackAgent = "") {
 }
 
 export function normalizeWorkspaceScopedArgs(args = {}, fallbackAgent = "") {
+  noteLegacyWorkspaceIdArg(args);
   const workspaceId = resolveWorkspaceId(args, fallbackAgent);
   return { ...args, workspaceId, agentId: workspaceId };
 }

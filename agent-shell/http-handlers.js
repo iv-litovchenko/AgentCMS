@@ -1,4 +1,14 @@
 const shellService = require("./shell-service");
+const { resolveWorkspaceIdFromPayload, resolveWorkspaceIdFromArgs } = require("../lib/workspace/resolve-workspace-id-from-args");
+
+function resolveShellTargetWorkspaceId(payload, fallbackAgentId = "") {
+  const fromPayload = resolveWorkspaceIdFromPayload(payload || {});
+  if (fromPayload) return fromPayload;
+  return (
+    resolveWorkspaceIdFromArgs({ agentId: fallbackAgentId, agent: fallbackAgentId }) ||
+    String(fallbackAgentId || "").trim()
+  );
+}
 const { rel } = require("../lib/paths/agent-cms");
 const shellPresence = require("./shell-presence");
 const windowSettings = require("./window-settings");
@@ -697,14 +707,14 @@ function createShellHandlers(deps) {
     if (req.method === "POST" && url.pathname === "/api/shell/interactive/cancel-pending") {
       try {
         const payload = await deps.readJsonBody(req);
-        const targetAgentId = String(payload?.agentId || agentId || "").trim();
+        const targetAgentId = resolveShellTargetWorkspaceId(payload, agentId);
         if (!targetAgentId) {
-          deps.sendJson(res, 400, { error: "agentId is required" });
+          deps.sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
           return true;
         }
         const reason = String(payload?.reason || "Agent switched").trim() || "Agent switched";
         const result = shellService.cancelPendingInteractiveRequests(targetAgentId, reason);
-        deps.sendJson(res, 200, result);
+        deps.sendJson(res, 200, { workspaceId: targetAgentId, agentId: targetAgentId, ...result });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to cancel pending interactive requests",
@@ -722,7 +732,7 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "requestId is required" });
           return true;
         }
-        const targetAgentId = String(payload?.agentId || agentId || "").trim();
+        const targetAgentId = resolveShellTargetWorkspaceId(payload, agentId);
         const cancelled = Boolean(payload?.cancelled);
         const answers =
           payload?.answers && typeof payload.answers === "object" && !Array.isArray(payload.answers)
@@ -736,7 +746,13 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 404, { error: "Unknown or expired question request" });
           return true;
         }
-        deps.sendJson(res, 200, { agentId: targetAgentId, ok: true, requestId, cancelled });
+        deps.sendJson(res, 200, {
+          workspaceId: targetAgentId,
+          agentId: targetAgentId,
+          ok: true,
+          requestId,
+          cancelled
+        });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to complete user question",
@@ -754,7 +770,7 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "requestId is required" });
           return true;
         }
-        const targetAgentId = String(payload?.agentId || agentId || "").trim();
+        const targetAgentId = resolveShellTargetWorkspaceId(payload, agentId);
         const allow = Boolean(payload?.allow);
         const scope = String(payload?.scope || "once").trim() === "session" ? "session" : "once";
         const ok = shellService.completeClaudeToolPermissionRequest(targetAgentId, requestId, {
@@ -765,7 +781,14 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 404, { error: "Unknown or expired permission request" });
           return true;
         }
-        deps.sendJson(res, 200, { agentId: targetAgentId, ok: true, requestId, allow, scope });
+        deps.sendJson(res, 200, {
+          workspaceId: targetAgentId,
+          agentId: targetAgentId,
+          ok: true,
+          requestId,
+          allow,
+          scope
+        });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to complete tool permission",

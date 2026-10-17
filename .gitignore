@@ -57,5 +57,4 @@ workspaces/0-cli-sandbox/*
 .agent-cms-global/server-runtime.json
 .run/
 tmp/
-temp/
 *.tmp

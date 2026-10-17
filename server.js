@@ -31,7 +31,11 @@ const {
 } = require("./lib/http/https-redirect");
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
-const { resolveWorkspaceIdFromArgs, resolveWorkspaceIdFromPayload } = require("./lib/workspace/resolve-workspace-id-from-args");
+const {
+  resolveWorkspaceIdFromArgs,
+  resolveWorkspaceIdFromPayload,
+  resolveWorkspaceIdFromSearchParams
+} = require("./lib/workspace/resolve-workspace-id-from-args");
 const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
@@ -16562,14 +16566,14 @@ const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderFilesRel();
 const AGENT_SLIDER_MANIFEST_REF = getMediaLibrarySliderManifestRel();
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {
-  const agentId = String(url.searchParams.get("agent") || "").trim();
-  if (agentId) {
-    const agent = resolveAgent(agentId);
+  const workspaceId = resolveWorkspaceIdFromSearchParams(url.searchParams);
+  if (workspaceId) {
+    const agent = resolveAgent(workspaceId);
     if (!agent) {
-      throw Object.assign(new Error(`Unknown agent: ${agentId}`), { status: 400 });
+      throw Object.assign(new Error(`Unknown workspace: ${workspaceId}`), { status: 400 });
     }
     if (agent.folderExists === false) {
-      throw Object.assign(new Error(`Workspace not found for agent «${agent.name || agentId}»`), {
+      throw Object.assign(new Error(`Workspace not found for «${agent.name || workspaceId}»`), {
         status: 400
       });
     }
@@ -16578,7 +16582,7 @@ function resolveAgentSliderWorkspacePath(url, payload = null) {
 
   const workspacePath = String(url.searchParams.get("path") || payload?.path || "").trim();
   if (!workspacePath) {
-    throw Object.assign(new Error("Missing agent query parameter"), { status: 400 });
+    throw Object.assign(new Error("Missing workspace query parameter (legacy: agent)"), { status: 400 });
   }
   return assertSafeAgentPath(workspacePath);
 }
@@ -25329,14 +25333,18 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/chpu/canonical-path") {
     const rawPath = String(url.searchParams.get("path") || "").trim();
-    const agentId = String(url.searchParams.get("agentId") || "").trim();
+    const workspaceId = resolveWorkspaceIdFromArgs({
+      workspaceId: url.searchParams.get("workspaceId") || url.searchParams.get("workspace"),
+      agentId: url.searchParams.get("agentId")
+    });
     try {
       const path = canonicalizeChpuWorkspacePath(rawPath);
       const payload = { path, changed: path !== rawPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "") };
-      if (agentId) {
-        const canonicalAgentId = canonicalizeChpuWorkspaceAgentId(agentId);
-        payload.agentId = canonicalAgentId;
-        payload.agentChanged = canonicalAgentId !== agentId;
+      if (workspaceId) {
+        const canonicalWorkspaceId = canonicalizeChpuWorkspaceAgentId(workspaceId);
+        payload.workspaceId = canonicalWorkspaceId;
+        payload.agentId = canonicalWorkspaceId;
+        payload.agentChanged = canonicalWorkspaceId !== workspaceId;
       }
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -31997,9 +32005,9 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/platform/default-workspace") {
     try {
       const payload = await readJsonBody(req);
-      const workspaceId = String(payload?.workspaceId ?? payload?.agentId ?? "").trim();
+      const workspaceId = resolveWorkspaceIdFromPayload(payload);
       if (!workspaceId) {
-        return sendJson(res, 400, { error: "workspaceId is required" });
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
       }
       if (!getAgentsPublicList().some((agent) => agent.id === workspaceId && agent.active !== false)) {
         return sendJson(res, 400, { error: "Unknown or inactive workspace", workspaceId });
@@ -32444,9 +32452,10 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/preview") {
-    const agentId = url.searchParams.get("agent") || getDefaultAgentId();
+    const agentId =
+      resolveWorkspaceIdFromSearchParams(url.searchParams) || getDefaultAgentId();
     const agent = resolveAgent(agentId);
-    if (!agent) return sendJson(res, 400, { error: "Unknown agent", agentId });
+    if (!agent) return sendJson(res, 400, { error: "Unknown agent", agentId, workspaceId: agentId });
 
     const previewAbsolute = getAgentManifestPreviewAbsolute(agent);
     if (!previewAbsolute) return sendJson(res, 404, { error: "Agent preview not found" });
@@ -32595,9 +32604,9 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/slider") {
     try {
       const payload = await readJsonBody(req, 12_000_000);
-      const agentId = String(url.searchParams.get("agent") || "").trim();
-      if (!agentId) {
-        return sendJson(res, 400, { error: "Missing agent query parameter" });
+      const workspaceId = resolveWorkspaceIdFromSearchParams(url.searchParams);
+      if (!workspaceId && !String(url.searchParams.get("path") || payload?.path || "").trim()) {
+        return sendJson(res, 400, { error: "Missing workspace query parameter (legacy: agent)" });
       }
       const agentPath = resolveAgentSliderWorkspacePath(url, payload);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);

@@ -8508,8 +8508,9 @@ function updateTtsSaveAgentHint(extra = {}) {
 
 function applyStatusPayload(payload) {
   const prevAgentId = state.agentId;
-  if (payload?.agentId) state.agentId = payload.agentId;
-  if (payload?.agentId && payload.agentId !== prevAgentId) {
+  const workspaceId = payload?.workspaceId ?? payload?.agentId;
+  if (workspaceId) state.agentId = workspaceId;
+  if (workspaceId && workspaceId !== prevAgentId) {
     voiceModeHydratedFromServer = false;
     lastCommittedVoiceMode = "";
   }
@@ -8563,7 +8564,7 @@ function applyStatusPayload(payload) {
   if (payload?.settings) {
     applySettings(payload.settings);
   }
-  if (payload?.agentId && payload.agentId !== prevAgentId) {
+  if (workspaceId && workspaceId !== prevAgentId) {
     commitAllSettingsBaselinesIfSafe();
   }
   syncCompactSensorAvailability();

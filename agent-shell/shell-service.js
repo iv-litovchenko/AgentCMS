@@ -2357,6 +2357,7 @@ async function buildStatusPayload(
   void ensureCliSandbox(projectRoot, agentId, cliRuntime).catch(() => {});
 
   return {
+    workspaceId: agentId,
     agentId,
     agentRoot,
     cliSandboxes: cliSandboxesMeta(projectRoot, agentId),
