@@ -13384,7 +13384,9 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=1";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=2";
+
+let landingChunkHostRegistered = false;
 const WORKSPACE_GRAPH_CHUNK_URL = "/editor/js/workspace/workspace-graph-chunk.js?v=1";
 
 let landingChunkModulePromise = null;
@@ -13399,6 +13401,57 @@ function ensureLandingChunkLoaded() {
       : import(LANDING_CHUNK_URL);
   }
   return landingChunkModulePromise;
+}
+
+async function ensureLandingChunkReady() {
+  const mod = await ensureLandingChunkLoaded();
+  if (!landingChunkHostRegistered) {
+    landingChunkHostRegistered = true;
+    mod.registerLandingChunkHost?.({
+      get agentsCache() {
+        return agentsCache;
+      },
+      LANDING_FLOW_RECENT_LIMIT,
+      appLandingFlowNode,
+      appLandingFlowGridNode,
+      appLandingViewFlowBtn,
+      getLandingAgentsView,
+      getAgentsForLandingGrid,
+      syncFocusPanelActiveState,
+      isAgentRegistryActive,
+      getLabelFromPath,
+      getFocusPropDisplayValue,
+      getFocusItemType,
+      formatTimelineRelativeTime,
+      isFocusItemActive,
+      resolveAwnEmoji,
+      resolveFocusPreviewUrl,
+      mountPreviewOrFallback,
+      getAgentPickerInitials,
+      getRegistryAgentPreviewUrl,
+      formatNodeMetaDateTime,
+      openFocusItem
+    });
+  }
+  return mod;
+}
+
+function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
+  void ensureLandingChunkReady().then((mod) => {
+    mod.renderAppLandingFlow?.(focusItems);
+  });
+}
+
+function renderAppLandingFlowLoading() {
+  void ensureLandingChunkReady().then((mod) => {
+    mod.renderAppLandingFlowLoading?.();
+  });
+}
+
+function setAppLandingFlowLoadingUi(loading) {
+  void ensureLandingChunkReady().then((mod) => {
+    mod.setAppLandingFlowLoadingUi?.(loading);
+  });
 }
 
 function ensureWorkspaceGraphChunkLoaded() {
@@ -15737,201 +15790,6 @@ function renderAppLandingList(focusItems = getProcessedLandingFocusItems()) {
   syncFocusPanelActiveState();
 }
 
-function createAppLandingFlowCard(focusItem) {
-  const agent =
-    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
-      id: focusItem.agentId,
-      name: focusItem.agentName,
-      path: focusItem.agentPath
-    };
-  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
-  const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
-  const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
-  const nodePath = String(focusItem.nodePath || "").trim();
-  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
-  const status = getFocusPropDisplayValue(focusItem, "awn-status");
-  const typeLabel = getFocusPropDisplayValue(focusItem, "awn-type") || getFocusItemType(focusItem);
-  const updatedAt = String(focusItem.updatedAt || focusItem?.awnProps?.["awn-update"] || "").trim();
-  const updatedLabel = updatedAt ? formatTimelineRelativeTime(updatedAt) : "";
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "app-landing-flow-card";
-  btn.setAttribute("role", "listitem");
-  btn.dataset.agentId = focusItem.agentId;
-  if (nodePath) btn.dataset.focusPath = nodePath;
-  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
-  if (!registryActive) btn.classList.add("is-registry-off");
-  btn.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
-  btn.setAttribute(
-    "aria-label",
-    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
-  );
-
-  const media = document.createElement("span");
-  media.className = "app-landing-flow-card-media";
-  const nodeEmoji = resolveAwnEmoji(awnProps);
-  const agentEmoji = resolveAwnEmoji(agent.awnProps);
-  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
-  mountPreviewOrFallback(media, {
-    previewUrl,
-    emoji: nodeEmoji || agentEmoji,
-    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
-    emojiClass: "app-landing-flow-card-emoji",
-    initialsClass: "app-landing-flow-card-fallback",
-    emptyClass: "app-landing-flow-card-media-empty",
-    nodePath,
-    iconClass: "node-cover-icon--in-flow-card"
-  });
-
-  const body = document.createElement("span");
-  body.className = "app-landing-flow-card-body";
-
-  const titleNode = document.createElement("span");
-  titleNode.className = "app-landing-flow-card-title";
-  titleNode.textContent = label;
-
-  const meta = document.createElement("span");
-  meta.className = "app-landing-flow-card-meta";
-
-  const agentChip = document.createElement("span");
-  agentChip.className = "app-landing-flow-card-agent";
-  const agentAvatar = document.createElement("span");
-  agentAvatar.className = "app-landing-flow-card-agent-avatar";
-  mountPreviewOrFallback(agentAvatar, {
-    previewUrl: getRegistryAgentPreviewUrl(agent),
-    emoji: resolveAwnEmoji(agent),
-    fallbackText: getAgentPickerInitials(agent),
-    emojiClass: "app-landing-flow-card-agent-emoji",
-    initialsClass: "app-landing-flow-card-agent-initials"
-  });
-  const agentName = document.createElement("span");
-  agentName.className = "app-landing-flow-card-agent-name";
-  agentName.textContent = agentLabel;
-  agentChip.append(agentAvatar, agentName);
-
-  meta.appendChild(agentChip);
-
-  if (updatedLabel) {
-    const updatedNode = document.createElement("span");
-    updatedNode.className = "app-landing-flow-card-updated";
-    updatedNode.textContent = updatedLabel;
-    updatedNode.title = formatNodeMetaDateTime(updatedAt);
-    meta.appendChild(updatedNode);
-  }
-
-  if (status || typeLabel) {
-    const tags = document.createElement("span");
-    tags.className = "app-landing-flow-card-tags";
-    if (status) {
-      const statusTag = document.createElement("span");
-      statusTag.className = "app-landing-flow-card-tag app-landing-flow-card-tag--status";
-      statusTag.textContent = status;
-      tags.appendChild(statusTag);
-    }
-    if (typeLabel) {
-      const typeTag = document.createElement("span");
-      typeTag.className = "app-landing-flow-card-tag app-landing-flow-card-tag--type";
-      typeTag.textContent = typeLabel;
-      tags.appendChild(typeTag);
-    }
-    meta.appendChild(tags);
-  }
-
-  body.append(titleNode, meta);
-  btn.append(media, body);
-  btn.addEventListener("click", () => {
-    void openFocusItem(focusItem);
-  });
-  return btn;
-}
-
-function setAppLandingFlowLoadingUi(loading) {
-  const isFlowLoading = Boolean(loading) && getLandingAgentsView() === "flow";
-  appLandingFlowNode?.classList.toggle("is-loading", isFlowLoading);
-  appLandingFlowGridNode?.classList.toggle("is-loading", isFlowLoading);
-  appLandingFlowNode?.setAttribute("aria-busy", isFlowLoading ? "true" : "false");
-  appLandingViewFlowBtn?.classList.toggle("is-loading", isFlowLoading);
-  appLandingViewFlowBtn?.setAttribute("aria-busy", isFlowLoading ? "true" : "false");
-}
-
-function createAppLandingFlowSkeletonCard(index) {
-  const card = document.createElement("div");
-  card.className = "app-landing-flow-card app-landing-flow-card--skeleton";
-  card.style.setProperty("--flow-skeleton-delay", `${(index % 4) * 0.14}s`);
-  card.setAttribute("aria-hidden", "true");
-
-  const media = document.createElement("span");
-  media.className = "app-landing-flow-card-media app-landing-flow-skeleton-block";
-
-  const body = document.createElement("span");
-  body.className = "app-landing-flow-card-body";
-
-  const titleLine = document.createElement("span");
-  titleLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--title";
-
-  const metaLine = document.createElement("span");
-  metaLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--meta";
-
-  const agentLine = document.createElement("span");
-  agentLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--agent";
-
-  body.append(titleLine, metaLine, agentLine);
-  card.append(media, body);
-  return card;
-}
-
-function renderAppLandingFlowLoading() {
-  if (!appLandingFlowGridNode) return;
-  if (getLandingAgentsView() !== "flow") return;
-
-  setAppLandingFlowLoadingUi(true);
-  appLandingFlowGridNode.replaceChildren();
-  for (let i = 0; i < 8; i += 1) {
-    appLandingFlowGridNode.appendChild(createAppLandingFlowSkeletonCard(i));
-  }
-}
-
-function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
-  if (!appLandingFlowGridNode) return;
-  if (getLandingAgentsView() !== "flow") return;
-
-  setAppLandingFlowLoadingUi(false);
-  appLandingFlowGridNode.replaceChildren();
-  const agents = getAgentsForLandingGrid();
-
-  if (!agents.length) {
-    const empty = document.createElement("p");
-    empty.className = "app-landing-flow-empty";
-    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр (⚙).";
-    appLandingFlowGridNode.appendChild(empty);
-    syncFocusPanelActiveState();
-    return;
-  }
-
-  if (!focusItems.length) {
-    const empty = document.createElement("div");
-    empty.className = "app-landing-flow-empty-wrap";
-
-    const lead = document.createElement("p");
-    lead.className = "app-landing-flow-empty";
-    lead.textContent = "Пока нет недавних обновлений.";
-
-    const hint = document.createElement("p");
-    hint.className = "app-landing-flow-empty-hint";
-    hint.textContent = `Здесь показываются ${LANDING_FLOW_RECENT_LIMIT} последних изменённых записей по всем агентам.`;
-
-    empty.append(lead, hint);
-    appLandingFlowGridNode.appendChild(empty);
-    syncFocusPanelActiveState();
-    return;
-  }
-
-  for (const focusItem of focusItems) {
-    appLandingFlowGridNode.appendChild(createAppLandingFlowCard(focusItem));
-  }
-  syncFocusPanelActiveState();
-}
 
 /** Orbit: клик по пузырю сразу открывает workspace; twigs на hover и dive-дерево — отложены */
 const ORBIT_BUBBLE_OPENS_WORKSPACE = true;
