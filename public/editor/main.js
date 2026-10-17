@@ -13411,6 +13411,70 @@ async function ensureEditorMenuPanelsUi() {
   setupWorkspaceIndexPanelUi();
 }
 
+function ensureWorkspaceComfortScriptsLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadWorkspaceComfortScripts) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadWorkspaceComfortScripts missing"));
+  }
+  return loader.loadWorkspaceComfortScripts();
+}
+
+function ensureDocumentViewerLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadDocumentViewer) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadDocumentViewer missing"));
+  }
+  return loader.loadDocumentViewer();
+}
+
+function ensureEditorPostMainScriptsLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorPostMainScripts) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorPostMainScripts missing"));
+  }
+  return loader.loadEditorPostMainScripts();
+}
+
+function ensureEditorSecondaryPanelsLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorSecondaryPanels) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorSecondaryPanels missing"));
+  }
+  return loader.loadEditorSecondaryPanels();
+}
+
+function ensureFileHubQueueClientLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadFileHubQueueClient) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadFileHubQueueClient missing"));
+  }
+  return loader.loadFileHubQueueClient();
+}
+
+function ensureConnectionStatusLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadConnectionStatus) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadConnectionStatus missing"));
+  }
+  return loader.loadConnectionStatus();
+}
+
+function ensureEditorCoreHelpersLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorCoreHelpers) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorCoreHelpers missing"));
+  }
+  return loader.loadEditorCoreHelpers();
+}
+
+function ensureEditorCmsCoreLoaded() {
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (!loader?.loadEditorCmsCore) {
+    return Promise.reject(new Error("AgentCmsScriptLoader.loadEditorCmsCore missing"));
+  }
+  return loader.loadEditorCmsCore();
+}
+
 function ensureLandingChunkLoaded() {
   if (!landingChunkModulePromise) {
     const loader = globalThis.AgentCmsScriptLoader;
@@ -18392,18 +18456,31 @@ const DATA_MEMORY_MODE_SPECS = [
   { mode: "tabular", label: "Табличная", icon: "📊" }
 ];
 
-const TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS =
-  typeof TopicSchemaSlotSpecs !== "undefined"
-    ? TopicSchemaSlotSpecs.buildTopicSchemaStorageSlotTargetSpecs()
-    : [];
+let topicSchemaStorageSlotUiSpecsCache = null;
+let topicSchemaLegacyTargetMigrationsCache = null;
 
-const TOPIC_SCHEMA_LEGACY_TARGET_MIGRATIONS =
-  typeof TopicSchemaSlotSpecs !== "undefined"
-    ? TopicSchemaSlotSpecs.buildTopicSchemaLegacyTargetMigrations()
-    : [];
+function getTopicSchemaStorageSlotUiSpecs() {
+  if (topicSchemaStorageSlotUiSpecsCache === null) {
+    topicSchemaStorageSlotUiSpecsCache =
+      typeof TopicSchemaSlotSpecs !== "undefined"
+        ? TopicSchemaSlotSpecs.buildTopicSchemaStorageSlotTargetSpecs()
+        : [];
+  }
+  return topicSchemaStorageSlotUiSpecsCache;
+}
+
+function getTopicSchemaLegacyTargetMigrations() {
+  if (topicSchemaLegacyTargetMigrationsCache === null) {
+    topicSchemaLegacyTargetMigrationsCache =
+      typeof TopicSchemaSlotSpecs !== "undefined"
+        ? TopicSchemaSlotSpecs.buildTopicSchemaLegacyTargetMigrations()
+        : [];
+  }
+  return topicSchemaLegacyTargetMigrationsCache;
+}
 
 function getTopicSchemaStorageSlotUiSpec(slotKey) {
-  return TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.find(
+  return getTopicSchemaStorageSlotUiSpecs().find(
     (item) => item.slotKey === slotKey && !item.schemaOnly
   );
 }
@@ -18428,7 +18505,7 @@ function getTopicSchemaTargetSpecs() {
     { id: "workspace", label: "Workspace", typeName: "awn.hub.topic.ws", group: "core" },
     { id: "area", label: "Область", typeName: "awn.hub.topic.area", group: "core" },
     { id: "topic", label: "Тема", typeName: "awn.topic", group: "core" },
-    ...TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.map((item) => ({
+    ...getTopicSchemaStorageSlotUiSpecs().map((item) => ({
       id: item.id,
       label: item.label,
       typeName: item.typeName,
@@ -18452,7 +18529,7 @@ function getTopicSchemaTargetTypeName(targetId) {
   if (targetId === "topic") return "awn.topic";
   if (targetId === "sidecar") return "awn.sidecar";
   if (targetId === "settings") return "awn.settings";
-  const spec = TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.find((item) => item.id === targetId);
+  const spec = getTopicSchemaStorageSlotUiSpecs().find((item) => item.id === targetId);
   return spec?.typeName || null;
 }
 
@@ -44800,9 +44877,14 @@ const MEDIA_DOCUMENT_PREVIEW_EXTENSIONS = new Set([
   ".md"
 ]);
 
+function getMediaDocumentPreviewExtension(fileName) {
+  const value = String(fileName || "").trim().toLowerCase();
+  const dot = value.lastIndexOf(".");
+  return dot >= 0 ? value.slice(dot) : "";
+}
+
 function isMediaDocumentPreviewCandidate(fileName) {
-  const ext = window.DocumentViewer?.getExtension?.(fileName) || "";
-  return MEDIA_DOCUMENT_PREVIEW_EXTENSIONS.has(ext);
+  return MEDIA_DOCUMENT_PREVIEW_EXTENSIONS.has(getMediaDocumentPreviewExtension(fileName));
 }
 
 function openMediaAsset(filePath, nodePath = activePath) {
@@ -44817,12 +44899,24 @@ function openMediaAsset(filePath, nodePath = activePath) {
   const url = buildMediaAssetUrl(filePath, nodePath);
   if (!url) return;
 
-  if (isMediaDocumentPreviewCandidate(fileName) && window.DocumentViewer?.open) {
-    void window.DocumentViewer.open({
-      url,
-      fileName,
-      onExternal: () => openMediaAssetExternal(filePath)
-    });
+  if (isMediaDocumentPreviewCandidate(fileName)) {
+    void (async () => {
+      try {
+        await ensureDocumentViewerLoaded();
+      } catch {
+        openMediaAssetExternal(filePath);
+        return;
+      }
+      if (window.DocumentViewer?.open) {
+        void window.DocumentViewer.open({
+          url,
+          fileName,
+          onExternal: () => openMediaAssetExternal(filePath)
+        });
+        return;
+      }
+      openMediaAssetExternal(filePath);
+    })();
     return;
   }
 
@@ -48193,7 +48287,7 @@ function emptyTopicSchemaState() {
 }
 
 function migrateLegacyTopicSchemaTargets(source, result) {
-  for (const [legacyId, modernId] of TOPIC_SCHEMA_LEGACY_TARGET_MIGRATIONS) {
+  for (const [legacyId, modernId] of getTopicSchemaLegacyTargetMigrations()) {
     const legacyFields = source?.[legacyId]?.fields;
     if (!legacyFields || typeof legacyFields !== "object") continue;
     if (!result[modernId]) result[modernId] = { fields: {} };
@@ -64288,12 +64382,24 @@ function openEntryOverviewAttachmentPreview(path) {
     return;
   }
   const fileName = String(path || "").split("/").pop() || path;
-  if (isMediaDocumentPreviewCandidate(fileName) && window.DocumentViewer?.open) {
-    void window.DocumentViewer.open({
-      url,
-      fileName,
-      onExternal: () => window.open(url, "_blank", "noopener,noreferrer")
-    });
+  if (isMediaDocumentPreviewCandidate(fileName)) {
+    void (async () => {
+      try {
+        await ensureDocumentViewerLoaded();
+      } catch {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (window.DocumentViewer?.open) {
+        void window.DocumentViewer.open({
+          url,
+          fileName,
+          onExternal: () => window.open(url, "_blank", "noopener,noreferrer")
+        });
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    })();
     return;
   }
   window.open(url, "_blank", "noopener,noreferrer");
@@ -119247,10 +119353,17 @@ function createEntryOverviewFileHubSendButton(context = {}) {
   refreshEntryOverviewFileHubSendButton(button, { queued: false });
 
   const filePath = resolveFileHubQueueWorkspacePath(context);
-  const client = window.FileHubQueueClient;
 
   async function syncQueuedState() {
-    if (!client?.fetchQueue || !filePath) return;
+    if (!filePath) return;
+    try {
+      await ensureFileHubQueueClientLoaded();
+    } catch {
+      refreshEntryOverviewFileHubSendButton(button, { queued: false });
+      return;
+    }
+    const client = window.FileHubQueueClient;
+    if (!client?.fetchQueue) return;
     try {
       const data = await client.fetchQueue(activeWorkspaceId);
       const queued = client.isPathQueued(data.items, filePath);
@@ -119269,25 +119382,34 @@ function createEntryOverviewFileHubSendButton(context = {}) {
       showToast("Путь к файлу недоступен", "error");
       return;
     }
-    if (!client?.addToFileHub || !client?.removeFromFileHub) {
-      showToast("Файлообменник: клиент не загружен", "error");
-      return;
-    }
-    const queued = button.classList.contains("is-queued");
-    button.disabled = true;
-    const action = queued
-      ? client.removeFromFileHub({ path: filePath }, activeWorkspaceId)
-      : client.addToFileHub(
-          {
-            path: filePath,
-            name: basenameWorkspaceHint(filePath),
-            place: dirnameWorkspaceHint(filePath),
-            topic: "Файлообменник"
-          },
-          activeWorkspaceId
-        );
-    void action
-      .then(() => {
+    void (async () => {
+      try {
+        await ensureFileHubQueueClientLoaded();
+      } catch {
+        showToast("Файлообменник: клиент не загружен", "error");
+        return;
+      }
+      const client = window.FileHubQueueClient;
+      if (!client?.addToFileHub || !client?.removeFromFileHub) {
+        showToast("Файлообменник: клиент не загружен", "error");
+        return;
+      }
+      const queued = button.classList.contains("is-queued");
+      button.disabled = true;
+      try {
+        if (queued) {
+          await client.removeFromFileHub({ path: filePath }, activeWorkspaceId);
+        } else {
+          await client.addToFileHub(
+            {
+              path: filePath,
+              name: basenameWorkspaceHint(filePath),
+              place: dirnameWorkspaceHint(filePath),
+              topic: "Файлообменник"
+            },
+            activeWorkspaceId
+          );
+        }
         refreshEntryOverviewFileHubSendButton(button, { queued: !queued });
         showToast(
           queued ? "Файл убран из файлообменника" : "Файл добавлен в файлообменник",
@@ -119297,14 +119419,13 @@ function createEntryOverviewFileHubSendButton(context = {}) {
         if (!queued && typeof shellApp?.openFileHub === "function") {
           shellApp.openFileHub();
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         showToast(String(error?.message || error || "Ошибка файлообменника"), "error");
         void syncQueuedState();
-      })
-      .finally(() => {
+      } finally {
         button.disabled = false;
-      });
+      }
+    })();
   });
   return button;
 }
@@ -131712,6 +131833,14 @@ function formatBootLoadErrorMessage(error) {
 }
 
 async function init() {
+  await Promise.all([
+    ensureEditorCoreHelpersLoaded(),
+    ensureEditorCmsCoreLoaded(),
+    ensureEditorPostMainScriptsLoaded(),
+    ensureEditorSecondaryPanelsLoaded(),
+    ensureConnectionStatusLoaded()
+  ]).catch(() => {});
+
   setupMaintenancePaneUi();
   const splashStartedAt = Date.now();
   const finishSplash = () => {
@@ -131744,6 +131873,7 @@ async function init() {
     await loadAgents();
     window.WorkspaceIndexPanel?.refreshStatus?.();
     if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
+    await ensureWorkspaceComfortScriptsLoaded().catch(() => {});
     setupWorkspaceIdleScreensaver();
     setupWorkspacePomodoro();
     if (activeWorkspaceId) reloadWorkspaceIdleScreensaverSettings(activeWorkspaceId);
@@ -132184,6 +132314,7 @@ function renderApiDocsModal(data) {
 async function openApiDocsModal() {
   if (!apiDocsModalNode) return;
   try {
+    await ensureEditorSecondaryPanelsLoaded().catch(() => {});
     window.resetApiDocsSearch?.();
     await fetchDocsMeta();
     apiDocsVersion = DEFAULT_DOC_VERSION;

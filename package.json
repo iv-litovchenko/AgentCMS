@@ -39,6 +39,7 @@
     "dist:clean": "rm -rf dist",
     "dist:migrate": "node scripts/migrate-dist-layout.js",
     "build:editor": "node scripts/build-editor.js",
+    "build:editor:watch": "node scripts/build-editor.js --watch",
     "measure:editor": "node scripts/measure-editor-boot.js",
     "check:editor-boot": "node scripts/refactor-14-boot-check.js"
   },

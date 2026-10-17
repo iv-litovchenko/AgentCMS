@@ -67,6 +67,14 @@ const deferredEditorPanels = [
   "public/editor/js/cms/awn-dashboards.js"
 ];
 
+const deferredComfort = [
+  "public/editor/js/pomodoro/idle-screensaver-breaks-client.js",
+  "public/editor/js/pomodoro/workspace-idle-screensaver.js",
+  "public/editor/js/pomodoro/pomodoro-state-bootstrap.js",
+  "public/editor/js/pomodoro/workspace-pomodoro.js",
+  "public/editor/js/editor/document-viewer.js"
+];
+
 console.log("Editor boot metrics (refactor 14)\n");
 if (manifest?.hash) {
   console.log(`Prod manifest (${manifestRel}): hash ${manifest.hash} → ${manifest.mainUrl || manifest.main}\n`);
@@ -117,9 +125,21 @@ for (const rel of deferredEditorPanels) {
 console.log(`  ${"—".repeat(10)}`);
 console.log(`  ${fmtKb(panelRaw).padStart(10)}  total panels (raw ${fmtMb(panelRaw)})\n`);
 
+let comfortRaw = 0;
+console.log("Deferred comfort / document viewer (lazy, not in index.html):");
+for (const rel of deferredComfort) {
+  const s = fileSize(rel);
+  if (!s) continue;
+  comfortRaw += s.bytes;
+  console.log(`  ${fmtKb(s.bytes).padStart(10)}  ${rel}`);
+}
+console.log(`  ${"—".repeat(10)}`);
+console.log(`  ${fmtKb(comfortRaw).padStart(10)}  total comfort (raw ${fmtMb(comfortRaw)})\n`);
+
 console.log("Оценка выигрыша на F5 workspace (без preview/WYSIWYG/landing/map):");
 console.log(`  ~${fmtMb(vendorRaw)} vendor JS не parse/compile на cold boot`);
 console.log(`  ~${fmtMb(panelRaw)} menu panels после init main (не блокируют загрузку main)`);
+console.log(`  ~${fmtMb(comfortRaw)} pomodoro/screensaver/document-viewer после init main`);
 console.log(`  ~${fmtMb(chunkRaw)} editor chunks подгружаются только при нужном экране`);
 console.log("");
 console.log("DevTools: Performance → reload на /0-ws-core → Scripting + Parse/compile.");

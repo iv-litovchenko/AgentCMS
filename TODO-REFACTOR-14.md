@@ -15,9 +15,10 @@ editor boot
 │   └── Lighthouse / Coverage: % неиспользуемого JS на типичных экранах
 │
 ├── Фаза 1 — сборка без смены поведения
-│   ├── esbuild (или rollup): entry `editor/boot.js` → `main.js` (+ sourcemap dev)
-│   ├── minify + tree-shake для prod; dev — быстрый rebuild/watch
-│   └── index.html: один `<script type="module">` или classic bundle — как сейчас
+│   ├── [x] minify prod: `npm run build:editor` (+ hash/manifest)
+│   ├── [x] `npm run build:editor:watch` — rebuild main.built + manifest
+│   ├── [ ] entry `editor-entry.js` → bundle `main.js` (не только minify monolith)
+│   └── index.html: один `<script>` — как сейчас (main source в dev)
 │
 ├── Фаза 2 — вынести уже отдельные скрипты «внутрь» бандла
 │   ├── Сейчас: десятки `/editor/js/**` + один main.js — дубли паттернов
@@ -57,6 +58,12 @@ editor boot
 - [x] Landing chunk: **flow**, **hub/grid**, **orbit** (`landing-orbit.js`, ~53 KB).
 - [x] Graph chunk: `workspace-graph-chunk.js` — map/map2/map3/graph (~33 KB), lazy import.
 - [x] Menu panels lazy: `semantic-index-panel`, `entity-registry-editor`, `awn-dashboards` (~155 KB) — `loadEditorMenuPanels`.
+- [x] Comfort lazy: pomodoro + idle screensaver + `document-viewer` — `loadWorkspaceComfortScripts` / `loadDocumentViewer`.
+- [x] Post-main lazy: discuss, privacy, page-picker, companion, rotators — `loadEditorPostMainScripts` (start of `init`).
+- [x] Secondary lazy: languagetool, file-find, marker-blocks, mcp/api docs — `loadEditorSecondaryPanels`.
+- [x] Shell lazy: `connection-status` (init), `file-hub-queue-client` (on demand).
+- [x] Core helpers lazy: slug-translit, external-file-mask, platform-status — `loadEditorCoreHelpers` (start of `init`).
+- [x] CMS core lazy: awn-enum-options, node-config-bundle, topic-schema-slot-specs — `loadEditorCmsCore` (+ lazy topic-schema slot caches in main).
 - [ ] Поведение UI — дочистить smoke (`docs/REFACTOR-14-smoke.md`); частичный прогон: `docs/REFACTOR-14-smoke-log.md`, `npm run check:editor-boot`.
 
 ## 📊 Замеры

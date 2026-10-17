@@ -11,8 +11,11 @@
 | Landing chunks | `landing-runtime.js` (+ flow/hub/orbit/system-map) — только на главной |
 | Graph chunk | `workspace-graph-chunk.js` — только map/map2/map3/graph |
 | Menu panels | semantic-index, entity-registry, awn-dashboards — после init `main.js` |
+| Shell lazy | connection-status — в `init()`; file-hub — по кнопке «в файлообменник» |
 
 ## DevTools — parse/compile (фаза 0)
+
+Краткая инструкция: [REFACTOR-14-devtools-steps.md](./REFACTOR-14-devtools-steps.md).
 
 1. Chrome → **Performance** → Record → Hard reload на `https://127.0.0.1:3002/0-ws-core`.
 2. Смотреть **Scripting** и breakdown **Parse/Compile** (Main thread).

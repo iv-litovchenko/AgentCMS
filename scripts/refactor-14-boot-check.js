@@ -33,6 +33,49 @@ const DEFERRED_PANELS = [
   "awn-dashboards.js"
 ];
 
+const DEFERRED_COMFORT = [
+  "idle-screensaver-breaks-client.js",
+  "workspace-idle-screensaver.js",
+  "pomodoro-state-bootstrap.js",
+  "workspace-pomodoro.js",
+  "document-viewer.js"
+];
+
+const DEFERRED_POST_MAIN = [
+  "discuss-panel.js",
+  "privacy-mode.js",
+  "sensitive-input.js",
+  "page-picker-extract.js",
+  "page-snapshot.js",
+  "cms-page-picker.js",
+  "companion-docs.js",
+  "app-home-title-rotator.js",
+  "header-slogan-rotator.js",
+  "app-footer-voice-cmd.js"
+];
+
+const DEFERRED_SECONDARY = [
+  "languagetool-panel.js",
+  "file-find-bar.js",
+  "marker-blocks-preview.js",
+  "mcp-docs-primitives-help.js",
+  "api-docs-ui.js"
+];
+
+const DEFERRED_SHELL = ["file-hub-queue-client.js", "connection-status.js"];
+
+const DEFERRED_CORE = [
+  "slug-translit.js",
+  "external-file-mask.js",
+  "platform-status.js"
+];
+
+const DEFERRED_CMS_CORE = [
+  "awn-enum-options.js",
+  "node-config-bundle.js",
+  "topic-schema-slot-specs.js"
+];
+
 async function fetchText(path) {
   const res = await fetch(`${baseUrl}${path}`);
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
@@ -72,6 +115,24 @@ async function main() {
   }
 
   for (const needle of DEFERRED_PANELS) {
+    const hit = bootScripts.some((s) => s.includes(needle));
+    report.push({ check: `index boot без ${needle} (lazy)`, pass: !hit });
+    if (hit) ok = false;
+  }
+
+  for (const needle of DEFERRED_COMFORT) {
+    const hit = bootScripts.some((s) => s.includes(needle));
+    report.push({ check: `index boot без ${needle} (lazy)`, pass: !hit });
+    if (hit) ok = false;
+  }
+
+  for (const needle of [
+    ...DEFERRED_POST_MAIN,
+    ...DEFERRED_SECONDARY,
+    ...DEFERRED_SHELL,
+    ...DEFERRED_CORE,
+    ...DEFERRED_CMS_CORE
+  ]) {
     const hit = bootScripts.some((s) => s.includes(needle));
     report.push({ check: `index boot без ${needle} (lazy)`, pass: !hit });
     if (hit) ok = false;
