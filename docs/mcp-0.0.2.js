@@ -63,7 +63,7 @@ module.exports = {
         },
         {
           name: "get_session_context",
-          description: "После list_workspaces: topicRegistry, alwaysContext для выбранного agentId.",
+          description: "После list_workspaces: wsMap (карта manifest.md) + alwaysContext (файлы всегда в контексте) для выбранного agentId.",
           parameters: "agentId",
           http: "GET /api/agent/session-context?agent="
         },

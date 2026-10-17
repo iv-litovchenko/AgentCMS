@@ -769,10 +769,10 @@ module.exports = {
         {
           method: "GET",
           path: "/api/agent/session-context",
-          description: "Стартовый пакет для агента: serviceDocs, session-start темы, runtimeSyncTopics (cron/heartbeat), AGENTS.md, карта API.",
+          description: "Лёгкий стартовый пакет: карта workspace (WS-MAP, генерируется на лету) + файлы always-context (полный текст).",
           query: [],
           body: null,
-          response: "{ version, agentId, pathHints, serviceDocs[], topicRegistry, alwaysContext, … } — без apiMap (REST только для MCP-сервера; агент — tools)"
+          response: "{ version, mcpVersion, workspaceId, agentRootRel, wsMap{markdown,entryCount,rootEntryCount}, alwaysContext{items[],itemCount}, hint }"
         },
         {
           method: "GET",

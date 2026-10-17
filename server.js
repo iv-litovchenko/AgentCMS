@@ -13364,12 +13364,14 @@ async function buildWorkspaceManifestWsmapEntries() {
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
-async function buildWorkspaceWsmapMarkdown() {
+async function buildWorkspaceWsmapMarkdown(precomputed = null) {
   const agentRoot = getAgentRoot();
-  const [entries, rootEntries] = await Promise.all([
-    buildWorkspaceManifestWsmapEntries(),
-    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
-  ]);
+  const [entries, rootEntries] = precomputed
+    ? [precomputed.entries, precomputed.rootEntries]
+    : await Promise.all([
+        buildWorkspaceManifestWsmapEntries(),
+        agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
+      ]);
   return buildWsmapMarkdown({
     entries,
     rootEntries,
@@ -15041,21 +15043,6 @@ const SESSION_CONTEXT_API_MAP = {
     "DELETE /api/storage/sidecar?sourcePath=|path=&slot=&file= — delete_sidecar MCP"
 };
 
-const SESSION_PATH_HINTS = {
-  topicManifest:
-    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
-  externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
-  internalSlot:
-    "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
-  agentKit:
-    "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
-  storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
-  storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
-  adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
-  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
-  adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
-};
-
 async function readWorkspaceManifestContent(relPath) {
   const canonical = String(await resolveCanonicalManifestRelPath(relPath)).replace(/\\/g, "/");
   const absolute = normalizeWorkspacePath(canonical);
@@ -15068,108 +15055,37 @@ async function readWorkspaceManifestContent(relPath) {
   }
 }
 
-async function readAgentSystemContext(agentRoot) {
-  const { getCmsConfigRel } = require("./lib/platform/platform-sources");
-  const cmsConfigRel = getCmsConfigRel(agentRoot);
-  const systemRoot = path.join(agentRoot, cmsConfigRel);
-  const readText = async (rel) => {
-    const abs = path.join(systemRoot, rel);
-    try {
-      const content = await fs.readFile(abs, "utf-8");
-      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: true, content };
-    } catch {
-      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
-    }
-  };
-  let typeSummary = null;
-  if (fsSync.existsSync(systemRoot)) {
-    try {
-      const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot);
-      typeSummary = {
-        sources: payload.sources || [],
-        typeCount: Array.isArray(payload.types) ? payload.types.length : 0,
-        domains: Object.keys(payload.domains || {}),
-        agentSystemRoot: payload.agentSystemRoot || null
-      };
-    } catch {
-      typeSummary = null;
-    }
-  }
-
-  return {
-    exists: fsSync.existsSync(systemRoot),
-    root: cmsConfigRel,
-    typeSummary,
-    docs: {
-      registry: await readText("registry.yml")
-    },
-    hint: `CMS-модель: GLOBAL-SKILL-1-BASE.md + awn-system/types/slots/_base.yml (slot-categories)`
-  };
-}
-
+/**
+ * Стартовый пакет сессии (минимальный): карта workspace (WS-MAP, генерируется на лету, на диск не пишется)
+ * + файлы always-context (полный текст). Всё остальное — отдельными tools по запросу.
+ */
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
-  const kitFolder = getAgentKitFolder() || "awn-topics/0-agent-kit";
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
-  const serviceDocs = [];
-  for (const slot of ["0-agent", "0-user", "0-agent-voice-tts", "0-agent-voice-stt"]) {
-    const manifestPath = `${kitFolder}/${slot}/manifest.md`;
-    const file = await readWorkspaceManifestContent(manifestPath);
-    serviceDocs.push({
-      slotKey: slot,
-      manifestPath: file.path,
-      exists: file.exists,
-      content: file.content
-    });
-  }
-
-  const [topicRegistry, alwaysContext, dataStoresSummary] = await Promise.all([
-    buildAgentTopicRegistry(),
-    buildAgentAlwaysContextRegistry(),
-    buildAgentDataStoresSummary()
+  const [wsMapEntries, rootEntries, alwaysContext] = await Promise.all([
+    buildWorkspaceManifestWsmapEntries(),
+    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([]),
+    buildAgentAlwaysContextRegistry()
   ]);
-
-  let menuSummary = null;
-  try {
-    const menu = await buildAgentMenu(agentRoot);
-    menuSummary = {
-      topicCount: (menu.items || []).length,
-      hasServiceTree: Boolean(menu.serviceTree),
-      hasContainerTree: Boolean(menu.containerTree),
-      hasSharedTree: Boolean(menu.sharedTree)
-    };
-  } catch {
-    menuSummary = null;
-  }
-
-  const awnSystem = await readAgentSystemContext(agentRoot);
-  const workspaceSettings = await readWorkspaceAgentSettings();
+  const wsMapMarkdown = await buildWorkspaceWsmapMarkdown({ entries: wsMapEntries, rootEntries });
 
   return {
-    version: "0.0.4",
+    version: "0.0.5",
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
     workspaceId: agentId,
-    agentId,
     agentRootRel,
-    kitFolder,
-    pathHints: SESSION_PATH_HINTS,
-    menuSummary,
-    awnSystem,
-    platformSettings: workspaceSettings.platform,
-    workspaceSettings: workspaceSettings.workspace,
-    serviceDocs,
-    topicRegistry,
-    topicCount: topicRegistry.topicCount,
-    dataStoresSummary,
-    dataStoreCount: dataStoresSummary.dataStoreCount,
-    dataRecordCount: dataStoresSummary.recordCount,
+    wsMap: {
+      markdown: wsMapMarkdown,
+      entryCount: wsMapEntries.length,
+      rootEntryCount: rootEntries.length
+    },
     alwaysContext,
-    alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace runtime-load-always + system md + ws-folder). " +
-      "Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. Cron: get_workspace_cron_registry. Heartbeat: get_workspace_heartbeat_registry."
+      "wsMap — карта всех manifest.md (вместо list_topics/list_databases); alwaysContext — файлы, которые всегда в контексте. " +
+      "Записи темы: read_content_index_toc. Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. " +
+      "Cron/heartbeat: get_workspace_cron_registry / get_workspace_heartbeat_registry."
   };
 }
 

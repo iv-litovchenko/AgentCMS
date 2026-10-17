@@ -140,7 +140,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: topicRegistry, alwaysContext (workspace runtime-load-always + system md + ws-folder), service manifests. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
+    "START HERE (light): wsMap (fresh generated WS-MAP markdown: all manifest.md nodes + root entries — replaces list topics/databases calls) + alwaysContext (full text of always-loaded files: runtime-load-always, system md, ws-folder). Nothing else. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
