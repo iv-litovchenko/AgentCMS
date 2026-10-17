@@ -350,7 +350,7 @@ WITH TEXT "…"   — hybrid-поиск только по отобранным �
 
 **Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. Свойства (`*_properties`) — значения frontmatter; `schema.yml` — описание полей формы (локальный override типа); `config.yml` — только UI.
 
-**Платформа:** `test_mcp_connection`, `get_platform_info`, `get_platform_health`, `get_workspace_storage_info`, `list_platform_config` (где лежат конфиги). Документы в корне репозитория платформы (этот `SKILL.md`, `README.md`, `GLOBAL-*.md`): `list_platform_docs` → `read_platform_doc({ path })`; `write_platform_doc` — только по просьбе человека. `get_session_documentation` — README и справочник markdown-разметки preview.
+**Платформа:** `test_mcp_connection`, `get_platform_info`, `get_platform_health`, `get_workspace_storage_info`, `list_platform_config` (где лежат конфиги). Документы в корне репозитория платформы (этот `GLOBAL-SKILL.md`, `README.md`, `GLOBAL-*.md`): `list_platform_docs` → `read_platform_doc({ path })`; `write_platform_doc` — только по просьбе человека. `get_session_documentation` — README и справочник markdown-разметки preview.
 
 ---
 
