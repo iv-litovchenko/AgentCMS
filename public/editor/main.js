@@ -98243,6 +98243,22 @@ function loadMermaidChromeModule() {
   return mermaidChromeModulePromise;
 }
 
+let mermaidEngineLoadPromise = null;
+
+async function ensureMermaidEngineLoaded() {
+  if (typeof window.mermaid?.initialize === "function") return true;
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (typeof loader?.loadMermaid !== "function") return false;
+  if (!mermaidEngineLoadPromise) {
+    mermaidEngineLoadPromise = loader.loadMermaid().catch((error) => {
+      mermaidEngineLoadPromise = null;
+      throw error;
+    });
+  }
+  await mermaidEngineLoadPromise;
+  return typeof window.mermaid?.initialize === "function";
+}
+
 function initMermaid(engineTheme = "neutral") {
   if (typeof window.mermaid?.initialize !== "function") return false;
   window.mermaid.initialize({
@@ -98734,6 +98750,7 @@ async function renderMermaidBlock(block, theme = "light", options = {}) {
   block.removeAttribute("data-processed");
   block.dataset.mermaidRendered = "0";
 
+  if (!(await ensureMermaidEngineLoaded())) return false;
   if (!initMermaid(themeMod.mermaidEngineThemeForFrame(frameTheme, "light"))) return false;
 
   try {
@@ -99311,7 +99328,7 @@ function refreshEditorViewContent() {
       syncSourceFromWysiwygEditor();
     }
     destroyWysiwygEditor();
-    initWysiwygEditor();
+    void initWysiwygEditor();
     applyWysiwygLiveDiffHighlights();
     return;
   }
@@ -99841,6 +99858,22 @@ function getToastUiEditorClass() {
     return window.Editor;
   }
   return null;
+}
+
+let toastUiEditorLoadPromise = null;
+
+async function ensureToastUiEditorLoaded() {
+  if (getToastUiEditorClass()) return true;
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (typeof loader?.loadToastUiEditor !== "function") return false;
+  if (!toastUiEditorLoadPromise) {
+    toastUiEditorLoadPromise = loader.loadToastUiEditor().catch((error) => {
+      toastUiEditorLoadPromise = null;
+      throw error;
+    });
+  }
+  await toastUiEditorLoadPromise;
+  return Boolean(getToastUiEditorClass());
 }
 
 let wysiwygLinkPopupEnhancer = null;
@@ -100657,8 +100690,20 @@ function syncSourceFromWysiwygEditor() {
   syncEditorLineNumbers();
 }
 
-function initWysiwygEditor() {
+async function initWysiwygEditor() {
   if (!editorWysiwygWrapNode) return;
+  if (!getToastUiEditorClass()) {
+    try {
+      if (!(await ensureToastUiEditorLoaded())) {
+        showToast("WYSIWYG-редактор не загружен", "error");
+        return;
+      }
+    } catch (error) {
+      showToast(`WYSIWYG-редактор: ${error.message}`, "error");
+      return;
+    }
+  }
+  if (editorViewMode !== "wysiwyg") return;
   const EditorClass = getToastUiEditorClass();
   if (!EditorClass) {
     showToast("WYSIWYG-редактор не загружен", "error");
@@ -100853,7 +100898,7 @@ function applyEditorViewMode() {
 
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
-    initWysiwygEditor();
+    void initWysiwygEditor();
     scheduleWorkspaceScrollChromeSync();
     return;
   }
